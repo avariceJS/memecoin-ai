@@ -33,3 +33,28 @@ def test_checkpoint_prefix_tail_recovery_and_state_binding(tmp_path):
             restore(tmp_path, ledger.events)
         (tmp_path / "projection.json").unlink()
         assert restore(tmp_path, ledger.events)[0] == expected
+
+
+def test_checkpoint_shape_count_and_record_suffix_are_validated(tmp_path):
+    with Ledger(tmp_path / "ledger", dict(fixture=True)) as ledger:
+        state, rec = event(ledger, initial(), 1)
+        save(tmp_path, ledger.events, state, rec, rec)
+
+        corruptions = [
+            (lambda p: p.update(events=True), "shape"),
+            (lambda p: p.update(events=1.0), "shape"),
+            (lambda p: p.update(records={}), "shape"),
+            (lambda p: p.update(extra=True), "shape"),
+            (lambda p: p.update(last_records=["not-the-record-suffix"]), "records_suffix"),
+        ]
+        from memecoin_ml.data import read
+        from memecoin_paper.runtime import atomic
+
+        for corrupt, error in corruptions:
+            save(tmp_path, ledger.events, state, rec, rec)
+            bad = read(tmp_path / "projection.json")
+            corrupt(bad["payload"])
+            bad["checksum"] = digest(bad["payload"])
+            atomic(tmp_path / "projection.json", bad)
+            with pytest.raises(ValueError, match=error):
+                restore(tmp_path, ledger.events)
