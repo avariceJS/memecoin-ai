@@ -13,6 +13,202 @@ from .storage import build, digest, file_hash
 
 NS = 10**9
 
+_CANDLE_STREAM = "qualified_price_bar"
+_LEGACY_FEATURES = [
+    dict(name="close_usd", unit="USD", modality="ohlcv"),
+    dict(name="log_high_low", unit="log_ratio", modality="ohlcv"),
+    dict(name="log_close_open", unit="log_ratio", modality="ohlcv"),
+    dict(name="log_volume_usd", unit="log1p_USD", modality="ohlcv"),
+]
+_MORPHOLOGY_FEATURES = [
+    dict(name="upper_wick_fraction", unit="fraction_of_range", modality="ohlcv"),
+    dict(name="lower_wick_fraction", unit="fraction_of_range", modality="ohlcv"),
+    dict(name="signed_body_fraction", unit="signed_fraction_of_range", modality="ohlcv"),
+    dict(name="close_position", unit="fraction_of_range", modality="ohlcv"),
+    dict(name="zero_range", unit="indicator", modality="ohlcv"),
+]
+_CONTEXT_FEATURES = [
+    dict(name="prior_close_log_return", unit="log_ratio", modality="ohlcv"),
+    dict(name="recent_close_position", unit="fraction_of_observed_range", modality="ohlcv"),
+    dict(name="context_count", unit="observed_bar_count", modality="ohlcv"),
+    dict(name="context_span_s", unit="seconds", modality="ohlcv"),
+    dict(name="context_max_gap_s", unit="seconds", modality="ohlcv"),
+    dict(name="context_contiguous", unit="indicator", modality="ohlcv"),
+    dict(name="context_ready", unit="indicator", modality="ohlcv"),
+    dict(name="context_zero_range", unit="indicator", modality="ohlcv"),
+]
+_MORPHOLOGY_RULES = (
+    "For R=high-low>0: upper_wick_fraction=(high-max(open,close))/R; "
+    "lower_wick_fraction=(min(open,close)-low)/R; "
+    "signed_body_fraction=(close-open)/R; close_position=(close-low)/R; "
+    "zero_range=0. For R=0: upper_wick_fraction=0, lower_wick_fraction=0, "
+    "signed_body_fraction=0, close_position=None, zero_range=1."
+)
+_CONTEXT_PARAMETERS = dict(
+    bar_seconds=300, max_count=12, max_span_s=3600, min_count=2, ready_count=12
+)
+_CONTEXT_RULES = (
+    "At each current open, retain at most 12 observed bars in the same pool and same "
+    "original selected half-open enrollment interval with open time in [current-3600, "
+    "current]; reset at every original interval boundary, including touching intervals; "
+    "evict by time then count; retain gaps without filling. prior_close_log_return is "
+    "stable log(current.close / immediately preceding retained close) only when the "
+    "preceding open is exactly 300 seconds earlier, otherwise missing. For at least two "
+    "bars, range bounds are min(low) and max(high), including current; position is "
+    "(current.close-min(low))/(max(high)-min(low)) when range is positive, otherwise "
+    "missing with zero_range=1. With fewer than two bars position and zero_range are "
+    "missing. count is retained observed count; span is latest minus earliest open, "
+    "zero for a singleton; max gap is missing for a singleton and otherwise the largest "
+    "consecutive open-time gap. contiguous is missing for a singleton and otherwise "
+    "one iff every gap is 300 seconds. ready is one iff count is 12 and contiguous. "
+    "Event availability is the maximum receipt availability of every retained "
+    "contributor; evidence is the deterministic unique capture hashes of all contributors."
+)
+
+
+def _observation_profile(source, profile, plan):
+    """Authenticate an explicit candle profile against its immutable producer record."""
+    if not isinstance(profile, str) or profile not in {
+        "legacy-v1", "candle-morphology-v1", "candle-context-v1"
+    }:
+        raise ValueError("observation_profile")
+    if plan.get("stream") != _CANDLE_STREAM or plan.get("relative_features"):
+        raise ValueError("observation_profile")
+    binding = source.manifest["binding"]
+    schema = source.schema
+    base = dict(
+        version="market-observations-v1",
+        role=schema["role"],
+        availability="historical_replay",
+        streams={_CANDLE_STREAM: dict(
+            process="qualified_provider_bar_closes; missing bars do not certify inactivity",
+            features=_LEGACY_FEATURES,
+        )},
+    )
+    sources = binding["sources"]
+    producers = [item for item in sources if isinstance(item, dict) and item.get("producer")]
+    continuous = [
+        item
+        for item in sources
+        if isinstance(item, dict) and item.get("kind") == "continuous"
+    ]
+    if len(producers) != 1 or len(continuous) != 1:
+        raise ValueError("observation_profile")
+    source_pin = continuous[0].get("pin")
+    if not isinstance(source_pin, str) or len(source_pin) != 64 or any(
+        c not in "0123456789abcdef" for c in source_pin
+    ):
+        raise ValueError("observation_profile")
+    producer = producers[0]
+    if producer.get("producer") == "continuous-observation-adapter-v1":
+        candidate = dict(base, streams={_CANDLE_STREAM: dict(base["streams"][_CANDLE_STREAM])})
+        if set(producer) != {"producer", "implementation", "numerics"}:
+            raise ValueError("observation_profile")
+        expected_name = "legacy-v1"
+    elif producer.get("producer") in {
+        "continuous-observation-adapter-v2", "continuous-observation-adapter-v3"
+    }:
+        profile_record = producer.get("profile")
+        if producer["producer"] == "continuous-observation-adapter-v2":
+            if set(producer) != {"producer", "implementation", "numerics", "profile"}:
+                raise ValueError("observation_profile")
+            expected_name = "candle-morphology-v1"
+            expected_profile = dict(
+                name=expected_name,
+                version=1,
+                features=_MORPHOLOGY_FEATURES,
+                rules=_MORPHOLOGY_RULES,
+            )
+            full_features = _LEGACY_FEATURES + _MORPHOLOGY_FEATURES
+            process = (
+                base["streams"][_CANDLE_STREAM]["process"]
+                + "; candle-morphology-v1: "
+                + _MORPHOLOGY_RULES
+            )
+            candidate = dict(
+                base,
+                streams={_CANDLE_STREAM: dict(process=process, features=full_features)},
+            )
+        else:
+            if set(producer) != {"producer", "implementation", "numerics", "profile"}:
+                raise ValueError("observation_profile")
+            expected_name = "candle-context-v1"
+            expected_profile = dict(
+                name=expected_name,
+                version=1,
+                features=_LEGACY_FEATURES + _MORPHOLOGY_FEATURES + _CONTEXT_FEATURES,
+                parameters=_CONTEXT_PARAMETERS,
+                revision_selection="geckoterminal/usd/base/5min/first-qualified-receipt",
+                formulas=dict(
+                    prior_close_log_return=(
+                        "log(current.close / immediately_preceding_retained.close) only "
+                        "when immediately_preceding_retained.open == current.open-300s"
+                    ),
+                    recent_close_position=(
+                        "(current.close-min(contributor.low))/(max(contributor.high)-"
+                        "min(contributor.low)) when range positive"
+                    ),
+                    context_count="retained observed contributor count including current",
+                    context_span_s="latest contributor open minus earliest contributor open",
+                    context_max_gap_s=(
+                        "maximum consecutive contributor open-time difference; missing "
+                        "for singleton"
+                    ),
+                    context_contiguous=(
+                        "one iff count>=2 and all consecutive gaps equal 300s; missing "
+                        "for singleton"
+                    ),
+                    context_ready="one iff count=12 and context_contiguous=1, otherwise zero",
+                    context_zero_range=(
+                        "one iff count>=2 and max(high)==min(low); missing below count two"
+                    ),
+                ),
+                morphology_rules=_MORPHOLOGY_RULES,
+                rules=_CONTEXT_RULES,
+                identity=dict(
+                    source_pin=source_pin,
+                    cutoff_ns=binding["cutoff_ns"],
+                    implementation_sha256=producer.get("implementation"),
+                    numerics_sha256=producer.get("numerics"),
+                ),
+            )
+            full_features = _LEGACY_FEATURES + _MORPHOLOGY_FEATURES + _CONTEXT_FEATURES
+            process = (
+                base["streams"][_CANDLE_STREAM]["process"]
+                + "; candle-morphology-v1: "
+                + _MORPHOLOGY_RULES
+                + "; candle-context-v1: "
+                + _CONTEXT_RULES
+            )
+            candidate = dict(
+                base,
+                streams={_CANDLE_STREAM: dict(process=process, features=full_features)},
+            )
+        if profile_record != expected_profile:
+            raise ValueError("observation_profile")
+    else:
+        raise ValueError("observation_profile")
+    if profile != expected_name or schema != candidate:
+        raise ValueError("observation_profile")
+    for key in ("implementation", "numerics"):
+        value = producer.get(key)
+        if (
+            not isinstance(value, str)
+            or len(value) != 64
+            or any(c not in "0123456789abcdef" for c in value)
+        ):
+            raise ValueError("observation_profile")
+    return dict(
+        name=profile,
+        source_pin=source.pin,
+        continuous_source_pin=source_pin,
+        stream=_CANDLE_STREAM,
+        features=[dict(item) for item in schema["streams"][_CANDLE_STREAM]["features"]],
+        availability=schema["availability"],
+        cutoff_ns=binding["cutoff_ns"],
+        producer=producer,
+    )
+
 
 def validate_plan(plan, source):
     if source.schema["version"] == "market-observations-v2" and any(
@@ -556,8 +752,10 @@ def samples(db, source, plan, counts=None):
             )
 
 
-def materialize(store, pin, output, *, plan, role="train", chunk=4096):
+def materialize(store, pin, output, *, plan, role="train", chunk=4096, profile=None):
     source = observations.Source(store, pin, role=role)
+    validate_plan(plan, source)
+    profile_selection = None if profile is None else _observation_profile(source, profile, plan)
     representation = schema(source, plan)
     with tempfile.TemporaryDirectory(prefix="sparse-index-") as scratch:
         db = source.index(Path(scratch) / "index.sqlite")
@@ -571,7 +769,11 @@ def materialize(store, pin, output, *, plan, role="train", chunk=4096):
                 schema=representation,
                 role=role,
                 chunk=chunk,
-                selection=dict(sparse_plan=plan),
+                selection=(
+                    dict(sparse_plan=plan)
+                    if profile_selection is None
+                    else dict(sparse_plan=plan, observation_profile=profile_selection)
+                ),
                 source_counts=counts,
             )
         finally:

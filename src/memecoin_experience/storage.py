@@ -298,7 +298,7 @@ def build(
 class Snapshot:
     """Metadata at snapshot granularity, payload IO bounded by one immutable partition."""
 
-    def __init__(self, store, pin):
+    def __init__(self, store, pin, *, expected_schema=None):
         if not isinstance(pin, str) or not PIN.fullmatch(pin):
             raise ValueError("experience_snapshot_pin")
         self.store, self.pin = safe_path(store), pin
@@ -310,6 +310,13 @@ class Snapshot:
             raise ValueError("experience_snapshot_checksum")
         self.schema = self.manifest["binding"]["contract"]
         validate(self.schema)
+        if expected_schema is not None:
+            try:
+                validate(expected_schema)
+            except (AttributeError, KeyError, TypeError):
+                raise ValueError("experience_schema") from None
+            if expected_schema != self.schema:
+                raise ValueError("experience_snapshot_contract")
         if "partitions" in self.manifest:
             if "partition_pages" in self.manifest:
                 raise ValueError("experience_catalog_schema")
