@@ -111,6 +111,143 @@ def membership(row, plan, schema):
     return "outside", [False] * len(schema["targets"])
 
 
+def validate_v2_temporal_metadata(row, schema, cutoff):
+    """Validate v2 clocks and evidence using metadata available on snapshot readback.
+
+    Dense values and target values deliberately stay outside this gate: partition readers
+    authenticate their column payloads independently.
+    """
+    if schema.get("schema") != "brain-experience-v2" or type(cutoff) is not int or cutoff < 0:
+        raise ValueError("experience_sample_schema")
+    if not isinstance(row, dict):
+        raise ValueError("experience_sample_contract")
+    try:
+        decision, start, input_available = (
+            row[k] for k in ("decision_ns", "input_start_ns", "input_available_ns")
+        )
+        dependencies = row["input_dependencies"]
+        statuses = row["target_status"]
+        available_times = row["target_available_ns"]
+        maturities = row["target_maturity_ns"]
+        captures = row["target_captures"]
+    except KeyError:
+        raise ValueError("experience_sample_contract") from None
+    n = len(schema["targets"])
+    if (
+        not isinstance(row.get("pool"), str) or not row["pool"]
+        or not isinstance(row.get("id"), str) or not row["id"]
+        or any(type(t) is not int for t in (decision, start, input_available))
+        or not 0 <= start <= decision <= cutoff
+        or not 0 <= input_available <= cutoff
+        or schema["availability"] == "point_in_time" and input_available > decision
+        or not isinstance(dependencies, list) or not dependencies
+        or any(not isinstance(v, list) or len(v) != n for v in
+               (statuses, available_times, maturities, captures))
+        or any(not isinstance(status, str) for status in statuses)
+    ):
+        raise ValueError("experience_sample_contract")
+    for dep in dependencies:
+        if (
+            not isinstance(dep, dict)
+            or set(dep) != {"artifact_sha", "event_ns", "available_ns"}
+            or not isinstance(dep["artifact_sha"], str)
+            or not re.fullmatch(r"[0-9a-f]{64}", dep["artifact_sha"])
+            or type(dep["event_ns"]) is not int or type(dep["available_ns"]) is not int
+            or not start <= dep["event_ns"] <= decision
+            or dep["available_ns"] < dep["event_ns"]
+            or dep["available_ns"] > input_available
+            or schema["availability"] == "point_in_time" and dep["available_ns"] > decision
+        ):
+            raise ValueError("experience_dependency_contract")
+    if min(dep["event_ns"] for dep in dependencies) != start or max(
+        dep["available_ns"] for dep in dependencies
+    ) != input_available:
+        raise ValueError("experience_dependency_bounds")
+
+    details = row.get("target_details")
+    if details is None:
+        details = [{} for _ in range(n)]
+    if not isinstance(details, list) or len(details) != n:
+        raise ValueError("experience_target_details")
+    for target, status, at, maturity, pins, detail in zip(
+        schema["targets"], statuses, available_times, maturities, captures, details, strict=True
+    ):
+        if (
+            type(maturity) is not int or maturity < decision
+            or not isinstance(detail, dict)
+            or not isinstance(pins, list)
+            or any(
+                not isinstance(pin, str) or not re.fullmatch(r"[0-9a-f]{64}", pin)
+                for pin in pins
+            )
+        ):
+            raise ValueError("experience_target_maturity")
+        lower = detail.get("lower_bound")
+        lower_at = detail.get("lower_bound_available_ns")
+        if lower is not None and (type(lower) is not int or lower < 0):
+            raise ValueError("experience_censor_lower_bound")
+        if lower_at is not None and (
+            type(lower_at) is not int or not decision <= lower_at <= cutoff
+        ):
+            raise ValueError("experience_censor_bound_availability")
+        if lower and lower_at is None:
+            raise ValueError("experience_censor_bound_availability")
+        if (
+            target["kind"].startswith("observed_process_count@")
+            and status == "censored" and lower and maturity > cutoff
+        ):
+            raise ValueError("experience_censor_target_maturity")
+        if status == "observed":
+            if (
+                type(at) is not int or not maturity <= at <= cutoff or not pins
+                or "reason" in detail
+                and (not isinstance(detail["reason"], str) or not detail["reason"])
+            ):
+                raise ValueError("experience_target_contract")
+            price = detail.get("price_provenance")
+            if price is not None:
+                if not isinstance(price, dict) or set(price) != {"base", "endpoint"}:
+                    raise ValueError("experience_target_provenance")
+                evidence = set()
+                for side in ("base", "endpoint"):
+                    item = price[side]
+                    if (
+                        not isinstance(item, dict)
+                        or set(item) != {"event_ns", "available_ns", "evidence"}
+                        or type(item["event_ns"]) is not int
+                        or type(item["available_ns"]) is not int
+                        or item["event_ns"] < 0
+                        or item["available_ns"] < item["event_ns"]
+                        or item["available_ns"] > cutoff
+                        or not isinstance(item["evidence"], list)
+                        or not item["evidence"]
+                        or any(not isinstance(p, str) or not re.fullmatch(r"[0-9a-f]{64}", p)
+                               for p in item["evidence"])
+                    ):
+                        raise ValueError("experience_target_provenance")
+                    evidence.update(item["evidence"])
+                if (
+                    max(price[s]["available_ns"] for s in ("base", "endpoint")) > at
+                    or not evidence <= set(pins)
+                ):
+                    raise ValueError("experience_target_provenance")
+                if target["kind"] == "endpoint_log_return" and (
+                    price["base"]["event_ns"] != decision
+                    or schema["availability"] == "point_in_time"
+                    and price["base"]["available_ns"] > decision
+                    or price["endpoint"]["event_ns"] != maturity
+                ):
+                    raise ValueError("experience_target_provenance")
+        elif status in {"pending", "missing_future", "unsupported", "censored"}:
+            if at is not None or pins:
+                raise ValueError("experience_target_contract")
+        else:
+            raise ValueError("experience_target_contract")
+        if at is not None and (type(at) is not int or at < 0 or at > cutoff):
+            raise ValueError("experience_target_contract")
+    return row
+
+
 def checked_samples(rows, schema, cutoff):
     """Structural/time/provenance gate. Domain qualification belongs to the pinned producer."""
     validate(schema)
@@ -151,6 +288,7 @@ def checked_samples(rows, schema, cutoff):
         if previous is not None and key <= previous:
             raise ValueError("experience_order_or_duplicate")
         previous = key
+        validate_v2_temporal_metadata(row, schema, cutoff)
         n = len(schema["targets"])
         if (
             not isinstance(row["pool"], str)

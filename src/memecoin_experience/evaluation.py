@@ -32,8 +32,8 @@ COORDINATE_METRICS_V2 = "native_coordinate_macro_pinball_coverage_train_baseline
 COORDINATE_METRICS_V3 = "native_coordinate_macro_pinball_coverage_train_baseline_pool_coverage_v3"
 
 
-def denominator_summary(report):
-    """Summarize pool counts and scored origins from an existing sealed report."""
+def denominator_summary(report, *, include_details=False):
+    """Summarize pool counts; optionally expose recorded per-target support."""
     if not isinstance(report, dict) or report.get("status") != "completed":
         raise ValueError("experience_evaluation_denominator_summary")
 
@@ -84,13 +84,14 @@ def denominator_summary(report):
             and scored_origins > population["test_assigned_origins"]
         ):
             raise ValueError("experience_evaluation_denominator_summary")
-        return dict(
+        summary = dict(
             enrolled_pools=coverage["registered"],
             present_pools=coverage["present_in_snapshot"],
             supported_pools=coverage["exact_scored"],
             scored_origins=scored_origins,
             missing_pools=coverage["missing_registered"],
         )
+        return _denominator_details(report, summary) if include_details else summary
 
     population = report.get("population")
     records = report.get("per_pool_records")
@@ -118,13 +119,123 @@ def denominator_summary(report):
     ):
         raise ValueError("experience_evaluation_denominator_summary")
     missing = sum(count == 0 for count in records.values())
-    return dict(
+    summary = dict(
         enrolled_pools=enrolled,
         present_pools=enrolled - missing,
         supported_pools=supported,
         scored_origins=population["usable"],
         missing_pools=missing,
     )
+    return _denominator_details(report, summary) if include_details else summary
+
+
+def _denominator_details(report, summary):
+    """Reconcile recorded cells without treating omitted Counter keys as measured zeros."""
+    error = "experience_evaluation_denominator_summary"
+    unavailable = {"available": False, "reason": "per_target_denominators_unavailable"}
+    denominators, metrics = report.get("denominators"), report.get("metrics")
+    for key, value, kind in (("denominators", denominators, dict), ("metrics", metrics, list)):
+        if key in report and not isinstance(value, kind):
+            raise ValueError(error)
+    if denominators is not None and any(
+        not isinstance(key, str) or type(value) is not int or value < 0
+        for key, value in denominators.items()
+    ):
+        raise ValueError(error)
+    if denominators is None or not metrics:
+        return {"summary": summary, "per_target": unavailable}
+
+    population = report["population"]
+    origin_keys = (
+        "test", "usable", "test_assigned_origins", "test_scored_origins",
+        "test_exact_usable_origins", "test_exact_usable_cells",
+        "test_pending_target_cells", "test_lower_bound_target_cells",
+    )
+    if any(
+        key in population and (type(population[key]) is not int or population[key] < 0)
+        for key in origin_keys
+    ):
+        raise ValueError(error)
+    assigned = population.get("test_assigned_origins", population.get("test"))
+    scored_origins = summary["scored_origins"]
+    if assigned is not None and scored_origins > assigned:
+        raise ValueError(error)
+    if "per_pool_records" in report and assigned is not None and (
+        assigned != sum(report["per_pool_records"].values())
+    ):
+        raise ValueError(error)
+    names = []
+    for metric in metrics:
+        if (
+            not isinstance(metric, dict)
+            or not (isinstance(metric.get("target"), str) and metric["target"]
+                    or type(metric.get("target")) is int and metric["target"] > 0)
+            or metric["target"] in names
+            or type(metric.get("n")) is not int or metric["n"] < 0
+        ):
+            raise ValueError(error)
+        names.append(metric["target"])
+
+    # Coordinate reports use test/<target>/<bucket>; UTC v1/v2 use <target>/<bucket>.
+    coordinate = any(key.startswith(f"test/{name}/") for name in names for key in denominators)
+    statuses = (("exact", "pending", "lower_bound", "masked") if coordinate else
+                ("observed", "pending", "missing_future", "unsupported", "censored"))
+    details, consumed = {}, set()
+    for target, metric in zip(names, metrics, strict=True):
+        prefix = f"test/{target}/" if coordinate else f"{target}/"
+        recorded = {s: denominators[prefix + s] for s in statuses if prefix + s in denominators}
+        usable_key = prefix + ("exact_usable" if coordinate else "usable")
+        scored_key = prefix + "scored_exact_usable"
+        usable, scored, n = denominators.get(usable_key), denominators.get(scored_key), metric["n"]
+        consumed.update(key for key in denominators if key.startswith(prefix))
+        observed = recorded.get("exact" if coordinate else "observed")
+        if (
+            usable is not None and n != usable or scored is not None and n != scored
+            or observed is not None and n > observed
+            or n > scored_origins
+            or assigned is not None and (
+                sum(recorded.values()) > assigned
+                or len(recorded) == len(statuses) and sum(recorded.values()) != assigned
+                or n > assigned - sum(value for status, value in recorded.items()
+                                      if status != ("exact" if coordinate else "observed"))
+            )
+            or prefix + "eligible_lower_bound" in denominators
+            and "lower_bound" in recorded
+            and denominators[prefix + "eligible_lower_bound"] > recorded["lower_bound"]
+        ):
+            raise ValueError(error)
+        details[target] = {
+            "status_counts": recorded if recorded else None,
+            "status_counts_complete": len(recorded) == len(statuses),
+            "exact_usable_cells": usable if coordinate else None,
+            "scored_exact_usable_cells": scored,
+            "metric_n": n,
+        }
+        if not coordinate:
+            details[target]["usable_cells"] = usable
+    # Target evidence cannot silently disappear when the metric list is truncated.
+    suffixes = set(statuses) | {"usable", "exact_usable", "scored_exact_usable", "eligible_lower_bound"}
+    if any(key.rsplit("/", 1)[-1] in suffixes and key not in consumed for key in denominators):
+        raise ValueError(error)
+    counts = [metric["n"] for metric in metrics]
+    if sum(counts) < scored_origins:
+        raise ValueError(error)
+    for field, bucket in (("test_exact_usable_cells", None),
+                          ("test_pending_target_cells", "pending"),
+                          ("test_lower_bound_target_cells", "lower_bound")):
+        if field not in population:
+            continue
+        values = counts if bucket is None else [
+            item["status_counts"].get(bucket) if item["status_counts"] is not None else None
+            for item in details.values()
+        ]
+        if all(value is not None for value in values) and sum(values) != population[field]:
+            raise ValueError(error)
+    available = any(item["status_counts"] is not None or
+                    item.get("usable_cells", item["exact_usable_cells"]) is not None or
+                    item["scored_exact_usable_cells"] is not None for item in details.values())
+    return {"summary": summary, "per_target": {"available": True, "targets": details}
+            if available else unavailable}
 
 
 def _validate_coordinate_report(protocol, protocol_copy, report, binding):

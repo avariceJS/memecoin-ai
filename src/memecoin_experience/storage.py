@@ -15,7 +15,13 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from .records import contract, experiences
-from .schema import checked_samples, feature_names, target_names, validate
+from .schema import (
+    checked_samples,
+    feature_names,
+    target_names,
+    validate,
+    validate_v2_temporal_metadata,
+)
 
 PIN = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -500,6 +506,10 @@ class Snapshot:
             cutoff_ns = self.manifest.get("binding", {}).get("cutoff_ns")
             for row in rows:
                 validate_temporal_metadata(row, self.schema, cutoff_ns)
+        elif self.schema["schema"] == "brain-experience-v2":
+            cutoff_ns = self.manifest.get("binding", {}).get("cutoff_ns")
+            for row in rows:
+                validate_v2_temporal_metadata(row, self.schema, cutoff_ns)
         if "bounds" in entry:
             from .composition import bounds
 
