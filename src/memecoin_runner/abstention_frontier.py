@@ -26,6 +26,19 @@ _LIMITATIONS = [
     "Coverage uses all supplied rows as its denominator; results describe only the explicit input population.",
     "Mean loss uses accepted rows with known loss only; missing outcomes may bias that mean.",
 ]
+_REVIEW_HELP = """Usage: python -m memecoin_runner.abstention_frontier [--review]
+
+Without --review, analyze the standalone frontier payload (thresholds, rows).
+With --review, unified exact-key input has exactly {policy, thresholds, rows}; policy has exactly
+{max_input_age_ns, max_uncertainty}, and each row has exactly the gate keys
+{id, decision_ns, input_available_ns, source_status, forecast_status,
+uncertainty} plus required loss (finite nonnegative number or explicit null).
+The frozen policy, including max_uncertainty, fixes eligibility; thresholds
+are sensitivity points and cannot restore gate-ineligible rows.
+This is offline descriptive review only; it does not qualify data or recommend
+thresholds or live policy. Example: cat review.json | python -m
+memecoin_runner.abstention_frontier --review
+"""
 
 
 def _number(value: Any, label: str, *, minimum: float, maximum: float | None = None) -> float:
@@ -128,18 +141,54 @@ def analyze(payload: dict) -> dict:
     }
 
 
+def analyze_review(payload: dict) -> dict:
+    """Lazily delegate unified evidence review to its optional core helper."""
+    from memecoin_runner.evidence_review import analyze as review_analyze
+
+    return review_analyze(payload)
+
+
 def _reject_constant(value: str) -> None:
     raise ValueError("nonfinite_json_number")
 
 
-def main() -> int:
+def _finite_float(value: str) -> float:
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError("nonfinite_json_number")
+    return result
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate_json_key")
+        result[key] = value
+    return result
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = sys.argv[1:] if argv is None else argv
+    if args == ["--help"] or args == ["-h"]:
+        sys.stdout.write(_REVIEW_HELP)
+        return 0
+    review = args == ["--review"]
+    if args and not review:
+        print(f"error: unrecognized arguments: {' '.join(args)}", file=sys.stderr)
+        return 2
     try:
-        payload = json.load(sys.stdin, parse_constant=_reject_constant)
-        result = analyze(payload)
+        payload = json.load(
+            sys.stdin,
+            parse_constant=_reject_constant,
+            parse_float=_finite_float if review else float,
+            object_pairs_hook=_unique_object if review else None,
+        )
+        result = analyze_review(payload) if review else analyze(payload)
         json.dump(result, sys.stdout, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
         sys.stdout.write("\n")
         return 0
-    except (ValueError, TypeError, json.JSONDecodeError) as exc:
+    except (ValueError, TypeError, json.JSONDecodeError, ImportError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
