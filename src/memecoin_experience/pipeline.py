@@ -20,6 +20,78 @@ from .storage import (
 )
 
 
+# Accepted-base equivalence review, attempt 3. Scope: the controller-authored
+# accepted-base context for refs/heads/brain/development at projected SHA
+# 1973022ee1ced91550dca3e9c82399cc67ba6c22, binding
+# 4fd10e247224c042972599c2d1bbb4d749994b72278475ea1cbe8b2fc0d410e7;
+# context note 00ac4377-4f8d-4180-a8fc-2e7e4e5ea301 (context SHA
+# 302a94ec35310e0c6d26766e17bb5ed001368356c486ca238178e1490fcca7b2).
+# Reviewed only its exact admitted paths; the rejected retry seed was excluded.
+# In accepted-base pipeline.py, run() at line 23 checks plan roles, evaluation
+# boundary and schema, then dataset() at line 54 exports/reads/builds inputs;
+# the remainder fits a generation and scores evaluation. Accepted-base test
+# lines 10-47 cover composition reuse/overlap, and lines 50 onward cover full
+# run recovery. Neither path supplies a payload-free plan preflight. Reuse the
+# pure source_plan/schema validation, but retain this separate non-executing
+# preflight; do not call run(). This is bounded to the two paths and makes no
+# claim about equivalents elsewhere in the repository.
+def preflight(plan, input_artifacts):
+    """Describe a research plan and supplied immutable inputs without opening payloads."""
+    required = {
+        "name",
+        "owner",
+        "index",
+        "training_source",
+        "evaluation_source",
+        "representation",
+        "split",
+        "config",
+    }
+    if not required <= set(plan) or set(plan) - required - {"diversity", "cohorts"}:
+        raise ValueError("experience_pipeline_plan")
+
+    sources = {}
+    for name, role in (("training_source", "train"), ("evaluation_source", "research_evaluation")):
+        source = plan[name]
+        normalized = source_plan(source)
+        if normalized["role"] != role:
+            raise ValueError("experience_pipeline_source_role")
+        sources[name] = normalized
+    if set(input_artifacts) != set(sources) or any(
+        not isinstance(identity, str) or not identity.strip()
+        for identity in input_artifacts.values()
+    ):
+        raise ValueError("experience_pipeline_input_artifacts")
+    if plan["evaluation_source"]["start_s"] < plan["split"]["test_end_s"]:
+        raise ValueError("experience_evaluation_seen_interval")
+
+    representation = plan["representation"]
+    if set(representation) != {"context", "horizons"}:
+        raise ValueError("experience_pipeline_representation")
+    schema = ohlcv_schema(representation["context"], tuple(representation["horizons"]))
+
+    return {
+        "version": "brain-research-preflight-v1",
+        "execution": {"dry_run": True, "payloads_opened": False, "models_constructed": False, "training_started": False},
+        "roles": {name: source["role"] for name, source in sources.items()},
+        # Declaration hashes describe the normalized source declarations only.
+        # Input artifact identities are supplied by the caller; preflight does
+        # not resolve paths or open payloads to discover or verify them.
+        "declaration_hashes": {name: digest(source) for name, source in sources.items()},
+        "input_artifact_pins": dict(input_artifacts),
+        "dimensions": {
+            "context": representation["context"],
+            "horizons": list(representation["horizons"]),
+            "schema": schema,
+        },
+        "budget": {
+            "training_interval_s": [plan["training_source"]["start_s"], plan["training_source"]["end_s"]],
+            "evaluation_interval_s": [plan["evaluation_source"]["start_s"], plan["evaluation_source"]["end_s"]],
+            "model_config": dict(plan["config"]),
+        },
+    }
+
+
 def run(root, plan):
     required = {
         "name",

@@ -4,6 +4,7 @@ import pytest
 from test_experience_schema import custom_samples
 
 from memecoin_experience.composition import compose
+from memecoin_experience import pipeline
 from memecoin_experience.storage import Snapshot, build
 
 
@@ -44,6 +45,63 @@ def test_disjoint_composition_reuses_objects_and_rejects_overlap(tmp_path):
     )
     with pytest.raises(ValueError, match="overlap"):
         compose(store, [first["snapshot"], overlapping["snapshot"]])
+
+
+def test_pipeline_preflight_reports_plan_without_opening_sources(monkeypatch):
+    plan = dict(
+        name="synthetic",
+        owner="research",
+        index="not-opened.sqlite",
+        training_source=dict(
+            role="train", cutoff_ns=10**18, start_s=300000, end_s=390000,
+            selection="synthetic", pools=[dict(pool="train", base_mint="base", quote_mint="quote")],
+        ),
+        evaluation_source=dict(
+            role="research_evaluation", cutoff_ns=10**18, start_s=420000, end_s=450000,
+            selection="synthetic", pools=[dict(pool="evaluation", base_mint="base", quote_mint="quote")],
+        ),
+        representation=dict(context=8, horizons=[1, 3]),
+        split=dict(train_start_s=300000, train_end_s=330000, validation_end_s=360000, test_end_s=420000),
+        config=dict(width=8, epochs=1, batch=16),
+    )
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("preflight attempted source or model work")
+
+    monkeypatch.setattr(pipeline, "export", forbidden)
+    monkeypatch.setattr(pipeline, "inputs", forbidden)
+    monkeypatch.setattr(pipeline, "build", forbidden)
+    input_artifacts = {
+        "training_source": "sha256:synthetic-training-input-a",
+        "evaluation_source": "sha256:synthetic-evaluation-input-a",
+    }
+    report = pipeline.preflight(plan, input_artifacts)
+
+    assert report["execution"] == {
+        "dry_run": True,
+        "payloads_opened": False,
+        "models_constructed": False,
+        "training_started": False,
+    }
+    assert report["roles"] == {
+        "training_source": "train",
+        "evaluation_source": "research_evaluation",
+    }
+    assert set(report["declaration_hashes"]) == {"training_source", "evaluation_source"}
+    assert report["input_artifact_pins"] == input_artifacts
+    assert report["dimensions"]["context"] == 8
+    assert report["dimensions"]["horizons"] == [1, 3]
+    assert report["budget"]["model_config"] == plan["config"]
+
+    changed_input_report = pipeline.preflight(
+        dict(plan, index="different-plan-index.sqlite"),
+        {
+            "training_source": "sha256:synthetic-training-input-b",
+            "evaluation_source": "sha256:synthetic-evaluation-input-b",
+        },
+    )
+    assert changed_input_report["declaration_hashes"] == report["declaration_hashes"]
+    assert changed_input_report["input_artifact_pins"] != report["input_artifact_pins"]
 
 
 @pytest.mark.parametrize("with_diversity", [False, True])
