@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-from memecoin_experience.paired_loss_report import analyze, render_markdown
+from memecoin_experience.paired_loss_report import _parse_integer, analyze, render_markdown
 from memecoin_experience.research_report import analyze as analyze_legacy
 from memecoin_runner.paired_loss_cluster_influence import analyze as cluster_influence
 from memecoin_runner.paired_loss_comparison import analyze as comparison
@@ -63,6 +63,50 @@ def test_composes_all_actual_producers_preserving_full_diagnostics() -> None:
     assert signflip_report["details"] == []
     assert "raw inputs were not supplied" in result["hash_semantics"]
     assert "different populations" in result["limitations"][1]
+
+
+def test_preserves_actual_producer_4300_digit_integer_through_api_cli_and_markdown() -> None:
+    digit_limit = sys.get_int_max_str_digits()
+    produced = target_mix({
+        "model_a": "A", "model_b": "B", "metric": "synthetic",
+        "target_cohorts": [{"cohort": str(i), "weight": 10**4299} for i in range(10)],
+        "rows": [],
+    })
+    expected = 10**4300
+    expected_decimal = "1" + "0" * 4300
+    assert type(produced["summary"]["target_weight_total"]) is int
+    assert produced["summary"]["target_weight_total"] == expected
+
+    # Feed the actual producer's JSON representation to the dossier CLI so its
+    # large-integer parser path is exercised as well as detached Python input.
+    from memecoin_runner.paired_loss_target_mix import _canonical_output_json
+
+    produced_json = _canonical_output_json(produced)
+    payload_json = '{"reports":[' + produced_json + ']}'
+    detached = analyze({"reports": [produced]})
+    detached_target = detached["reports"][0]
+    assert type(detached_target["summary"]["target_weight_total"]) is int
+    assert detached_target["summary"]["target_weight_total"] == expected
+    assert produced["summary"]["target_weight_total"] == expected
+
+    json_run = subprocess.run(
+        [sys.executable, "-m", "memecoin_experience.paired_loss_report"],
+        input=payload_json, text=True, capture_output=True, check=False,
+    )
+    assert json_run.returncode == 0 and json_run.stderr == ""
+    cli_bundle = json.loads(json_run.stdout, parse_int=_parse_integer)
+    cli_target = cli_bundle["reports"][0]
+    assert type(cli_target["summary"]["target_weight_total"]) is int
+    assert cli_target["summary"]["target_weight_total"] == expected
+
+    markdown_run = subprocess.run(
+        [sys.executable, "-m", "memecoin_experience.paired_loss_report", "--markdown"],
+        input=payload_json, text=True, capture_output=True, check=False,
+    )
+    assert markdown_run.returncode == 0 and markdown_run.stderr == ""
+    assert expected_decimal in markdown_run.stdout
+    assert markdown_run.stdout == render_markdown(detached)
+    assert sys.get_int_max_str_digits() == digit_limit
 
 
 def test_stable_sorting_detachment_and_empty_details_and_reports() -> None:

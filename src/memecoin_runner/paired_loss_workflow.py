@@ -2,18 +2,22 @@
 
 Python API::
 
-    from memecoin_runner.paired_loss_workflow import analyze
-    result = analyze({
-        "model_a": "baseline", "model_b": "candidate", "metric": "log_loss",
+    from memecoin_runner.paired_loss_workflow import analyze, render_markdown
+    roster = {
+        "model_a": "baseline", "model_b": "candidate",
+        "metric": "synthetic_bounded_loss [0, 1]",
         "loss_upper_bound": 1.0,
         "target_cohorts": [{"cohort": "new", "weight": 2},
                            {"cohort": "returning", "weight": 1}],
         "rows": [{"id": "r1", "cohort": "new", "loss_a": 0.4, "loss_b": 0.3}],
-    })
+    }
+    result = analyze(roster)              # unchanged JSON-compatible workflow
+    readable = render_markdown(roster)    # same diagnostics plus readable summary
 
 CLI::
 
     python -m memecoin_runner.paired_loss_workflow < input.json > result.json
+    python -m memecoin_runner.paired_loss_workflow --markdown < input.json > result.md
 
 Input is strict JSON with exactly the fields shown above. Each row must
 explicitly provide nullable ``loss_a`` and ``loss_b``. The caller supplies the
@@ -39,6 +43,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import sys
 from typing import Any
 
@@ -232,6 +237,89 @@ def analyze(payload: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _markdown_value(value: Any) -> str:
+    """Format a calculated JSON scalar without interpreting caller-provided markup."""
+    if value is None:
+        return "null"
+    if type(value) is bool:
+        return "true" if value else "false"
+    if type(value) in (int, float):
+        return _output_json(value)
+    return "null"
+
+
+def _markdown_table(rows: list[tuple[str, Any, Any, Any]]) -> list[str]:
+    lines = ["| Diagnostic | Complete pairs | All-roster cap bounds | Target complete-pair mix |",
+             "|---|---:|---:|---:|"]
+    for label, paired, bounds, target in rows:
+        lines.append(
+            f"| {label} | {_markdown_value(paired)} | {_markdown_value(bounds)} | "
+            f"{_markdown_value(target)} |"
+        )
+    return lines
+
+
+def render_markdown(payload: dict[str, Any]) -> str:
+    """Run one roster through all producers and render a readable report plus exact JSON."""
+    workflow = analyze(payload)
+    comparison, bounds, target_mix = workflow["reports"]
+    paired_summary = comparison["summary"]
+    bounds_summary = bounds["summary"]
+    mix_summary = target_mix["summary"]
+    support = workflow["support"]
+
+    lines = [
+        "# Paired-loss diagnostics",
+        "",
+        "Positive delta is loss_b - loss_a and favors model_a. Values below retain each diagnostic's own estimand and denominator.",
+        "",
+        *_markdown_table([
+            ("Mean delta", paired_summary["micro_mean_delta"],
+             bounds_summary["complete_pair_mean_delta"], mix_summary["pooled_mean_delta"]),
+            ("Mean denominator", paired_summary["paired"],
+             bounds_summary["complete_pair_mean_denominator"], mix_summary["row_count"]),
+            ("All-roster lower mean bound", None,
+             bounds_summary["all_roster_lower_mean_delta"], None),
+            ("All-roster upper mean bound", None,
+             bounds_summary["all_roster_upper_mean_delta"], None),
+            ("All-roster denominator", None, bounds_summary["all_roster_mean_denominator"], None),
+            ("Target mean delta", None, None, mix_summary["target_mean_delta"]),
+            ("Target minus pooled delta", None, None, mix_summary["target_minus_pooled"]),
+            ("Unsupported positive-weight cohorts", None, None,
+             mix_summary["unsupported_positive_weight_cohort_count"]),
+            ("Target weight total", None, None, mix_summary["target_weight_total"]),
+            ("Supported target weight", None, None, mix_summary["supported_target_weight"]),
+            ("Supported target share", None, None, mix_summary["supported_target_share"]),
+        ]),
+        "",
+        "## Roster support",
+        "",
+        f"- Roster: {support['roster_count']} / {support['roster_denominator']}",
+        f"- Complete pairs: {support['complete_pair_count']} / {support['complete_pair_denominator']}",
+        f"- A-only: {support['a_only_count']} / {support['a_only_denominator']}",
+        f"- B-only: {support['b_only_count']} / {support['b_only_denominator']}",
+        f"- Both missing: {support['both_missing_count']} / {support['both_missing_denominator']}",
+        f"- Target projection: {support['target_projection_count']} / {support['target_projection_denominator']}; excluded incomplete rows: {support['target_projection_excluded_count']} / {support['target_projection_excluded_denominator']}",
+        "",
+        "## Interpretation limits",
+        "",
+        "Missing-loss bounds and target-mixture diagnostics are different estimands. Separate missing-loss and target-mix diagnostics do not establish a combined missing-plus-mixture guarantee. Missing values are not zeros; null means the producer did not report a value (including unsupported positive target weight or no complete pairs). The cap, metric, protocol, roster, and target weights are caller assumptions. These diagnostics make no winner, quality, robustness, acceptance, or promotion claim.",
+        "",
+        "## Exact workflow and producer envelopes",
+        "",
+        f"Workflow input SHA-256: `{workflow['input_sha256']}`. Producer envelope SHA-256 values: "
+        + ", ".join(f"`{report['kind']}={report['input_sha256']}`" for report in workflow["reports"])
+        + ".",
+        "The fenced JSON retains the workflow support/projection provenance, limitations, and exact producer envelopes.",
+        "",
+    ]
+    serialized = _output_json(workflow)
+    longest_fence = max((len(run) for run in re.findall(r"`+", serialized)), default=0)
+    fence = "`" * max(3, longest_fence + 1)
+    lines.extend([f"{fence}json", serialized, fence, ""])
+    return "\n".join(lines)
+
+
 def _reject_constant(value: str) -> None:
     raise ValueError(f"invalid JSON constant: {value}")
 
@@ -247,11 +335,13 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 def main() -> int:
     try:
+        if sys.argv[1:] not in ([], ["--markdown"]):
+            raise ValueError("usage: python -m memecoin_runner.paired_loss_workflow [--markdown]")
+        markdown = sys.argv[1:] == ["--markdown"]
         payload = json.load(
             sys.stdin, parse_constant=_reject_constant, object_pairs_hook=_unique_object
         )
-        result = analyze(payload)
-        serialized = _output_json(result)
+        serialized = render_markdown(payload) if markdown else _output_json(analyze(payload))
     except (json.JSONDecodeError, ValueError, RecursionError) as exc:
         sys.stderr.write(_output_json({"error": f"paired_loss_workflow: {exc}"}) + "\n")
         return 2

@@ -76,9 +76,80 @@ def _json_copy(value: Any) -> Any:
     """Validate JSON-compatible finite values and detach caller-owned data."""
     try:
         _validate_json(value)
-        return json.loads(json.dumps(value, ensure_ascii=False, allow_nan=False))
+        return _detach_json(value)
     except (TypeError, ValueError, RecursionError, OverflowError) as exc:
         raise ValueError("paired_loss_report_non_json_value") from exc
+
+
+def _detach_json(value: Any) -> Any:
+    """Copy JSON containers directly, preserving arbitrary-precision integers."""
+    if isinstance(value, list):
+        return [_detach_json(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _detach_json(item) for key, item in value.items()}
+    return value
+
+
+def _integer_json(value: int) -> str:
+    """Format arbitrary integers in small chunks without changing global limits."""
+    if value == 0:
+        return "0"
+    sign = "-" if value < 0 else ""
+    remaining = abs(value)
+    chunks = []
+    while remaining:
+        remaining, chunk = divmod(remaining, 1_000_000_000)
+        chunks.append(chunk)
+    return sign + str(chunks[-1]) + "".join(f"{chunk:09d}" for chunk in reversed(chunks[:-1]))
+
+
+def _json_output(value: Any, *, indent: int | None = None, level: int = 0) -> str:
+    """Serialize validated JSON data, including integers beyond Python's digit cap."""
+    if value is None:
+        return "null"
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    if type(value) is int:
+        return _integer_json(value)
+    if type(value) in (float, str):
+        return json.dumps(value, ensure_ascii=False, allow_nan=False)
+    if isinstance(value, list):
+        if not value:
+            return "[]"
+        if indent is None:
+            return "[" + ",".join(_json_output(item) for item in value) + "]"
+        pad, child_pad = " " * (indent * level), " " * (indent * (level + 1))
+        return "[\n" + child_pad + (",\n" + child_pad).join(
+            _json_output(item, indent=indent, level=level + 1) for item in value
+        ) + "\n" + pad + "]"
+    if isinstance(value, dict):
+        if not value:
+            return "{}"
+        keys = sorted(value)
+        if indent is None:
+            return "{" + ",".join(
+                json.dumps(key, ensure_ascii=False) + ":" + _json_output(value[key]) for key in keys
+            ) + "}"
+        pad, child_pad = " " * (indent * level), " " * (indent * (level + 1))
+        return "{\n" + child_pad + (",\n" + child_pad).join(
+            json.dumps(key, ensure_ascii=False) + ": " + _json_output(value[key], indent=indent, level=level + 1)
+            for key in keys
+        ) + "\n" + pad + "}"
+    raise ValueError("paired_loss_report_non_json_value")
+
+
+def _parse_integer(token: str) -> int:
+    """Parse a JSON integer in bounded chunks without relaxing Python's limit."""
+    sign = -1 if token.startswith("-") else 1
+    digits = token[1:] if sign < 0 else token
+    value = 0
+    first = len(digits) % 9 or 9
+    value = int(digits[:first])
+    for offset in range(first, len(digits), 9):
+        value = value * 1_000_000_000 + int(digits[offset:offset + 9])
+    return sign * value
 
 
 def _reject_constant(_value: str) -> None:
@@ -153,7 +224,7 @@ def render_markdown(bundle: dict) -> str:
     detached = _json_copy(bundle)
     if not isinstance(detached, dict) or detached.get("schema") != "brain-paired-loss-bundle.v1":
         raise ValueError("paired_loss_report_bundle")
-    encoded = json.dumps(detached, sort_keys=True, ensure_ascii=False, indent=2, allow_nan=False)
+    encoded = _json_output(detached, indent=2)
     longest = max((len(run) for run in re.findall(r"`+", encoded)), default=0)
     fence = "`" * max(3, longest + 1)
     return (
@@ -170,7 +241,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--markdown", action="store_true", help="write a safely fenced Markdown dossier")
     args = parser.parse_args(argv)
     try:
-        payload = json.load(sys.stdin, parse_constant=_reject_constant, object_pairs_hook=_unique_object)
+        payload = json.load(
+            sys.stdin, parse_constant=_reject_constant, parse_int=_parse_integer,
+            object_pairs_hook=_unique_object,
+        )
         result = analyze(payload)
     except (ValueError, json.JSONDecodeError, RecursionError) as exc:
         print(str(exc) or "paired_loss_report_invalid_input", file=sys.stderr)
@@ -178,7 +252,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.markdown:
         sys.stdout.write(render_markdown(result))
     else:
-        json.dump(result, sys.stdout, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+        sys.stdout.write(_json_output(result))
         sys.stdout.write("\n")
     return 0
 

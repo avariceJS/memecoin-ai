@@ -7,7 +7,7 @@ import sys
 import pytest
 
 from memecoin_runner import paired_loss_comparison, paired_loss_missing_bounds, paired_loss_target_mix
-from memecoin_runner.paired_loss_workflow import analyze
+from memecoin_runner.paired_loss_workflow import analyze, render_markdown
 
 
 def payload():
@@ -159,6 +159,72 @@ def test_cli_success_and_error_are_atomic_and_duplicate_keys_rejected():
     )
     assert nonfinite.returncode == 2 and nonfinite.stdout == ""
     assert "invalid JSON constant" in nonfinite.stderr
+
+
+def _workflow_from_markdown(markdown):
+    lines = markdown.splitlines()
+    opener_index = next(index for index, line in enumerate(lines) if line.endswith("json")
+                        and line.startswith("```"))
+    fence = lines[opener_index][:-4]
+    closer_index = lines.index(fence, opener_index + 1)
+    return json.loads("\n".join(lines[opener_index + 1:closer_index]))
+
+
+def test_python_markdown_shows_side_by_side_diagnostics_and_retains_exact_envelopes():
+    value = payload()
+    markdown = render_markdown(value)
+    expected = analyze(value)
+    assert "| Diagnostic | Complete pairs | All-roster cap bounds | Target complete-pair mix |" in markdown
+    assert "Unsupported positive-weight cohorts" in markdown
+    assert "A-only: 1 / 5" in markdown
+    assert "B-only: 1 / 5" in markdown
+    assert "Both missing: 1 / 5" in markdown
+    assert "different estimands" in markdown
+    assert "combined missing-plus-mixture guarantee" in markdown
+    assert _workflow_from_markdown(markdown) == expected
+    assert _workflow_from_markdown(markdown)["reports"] == expected["reports"]
+
+
+def test_cli_markdown_and_default_cli_json_both_preserve_workflow():
+    serialized = json.dumps(payload())
+    markdown = subprocess.run(
+        [sys.executable, "-m", "memecoin_runner.paired_loss_workflow", "--markdown"],
+        input=serialized, text=True, capture_output=True, check=False,
+    )
+    assert markdown.returncode == 0 and markdown.stderr == ""
+    assert _workflow_from_markdown(markdown.stdout) == analyze(payload())
+
+    default_json = subprocess.run(
+        [sys.executable, "-m", "memecoin_runner.paired_loss_workflow"],
+        input=serialized, text=True, capture_output=True, check=False,
+    )
+    assert default_json.returncode == 0 and json.loads(default_json.stdout) == analyze(payload())
+
+
+@pytest.mark.parametrize("rows", [[], [
+    {"id": "missing", "cohort": "small", "loss_a": None, "loss_b": None}
+]])
+def test_markdown_preserves_empty_and_no_complete_pair_null_diagnostics(rows):
+    value = payload()
+    value["rows"] = rows
+    markdown = render_markdown(value)
+    workflow = _workflow_from_markdown(markdown)
+    assert workflow == analyze(value)
+    assert "| Mean delta | null | null | null |" in markdown
+    if rows:
+        assert "Both missing: 1 / 1" in markdown
+        assert "all_roster_lower_mean_delta" in markdown
+
+
+def test_markdown_fence_is_safe_for_caller_controlled_backticks_and_closing_text():
+    value = payload()
+    value["model_a"] = "```json\nattacker text\n````"
+    value["rows"][0]["id"] = "id with ``` and a fake close\n````"
+    markdown = render_markdown(value)
+    assert _workflow_from_markdown(markdown) == analyze(value)
+    opener = next(line for line in markdown.splitlines() if line.endswith("json")
+                  and line.startswith("```"))
+    assert len(opener) > 7
 
 
 def test_target_item_and_roster_size_caps():
