@@ -31,7 +31,11 @@ def checked_rows(rows, cutoff):
             or type(available) is not int
             or not (t + BAR) * NS <= available <= cutoff
             or len(values) != 5
-            or any(not math.isfinite(v) for v in values)
+            or any(
+                type(v) not in (int, float)
+                or (type(v) is float and not math.isfinite(v))
+                for v in values
+            )
             or min(values[:4]) <= 0
             or values[4] < 0
             or values[1] < max(values[0], values[3])

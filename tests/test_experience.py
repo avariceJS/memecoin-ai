@@ -4,7 +4,7 @@ from collections import Counter
 import pytest
 
 from memecoin_brain.source import EXCLUDED, NS
-from memecoin_experience.records import experiences, membership, split_plan
+from memecoin_experience.records import checked_rows, experiences, membership, split_plan
 from memecoin_experience.sources import admitted
 from memecoin_experience.storage import Snapshot, build, file_hash, lock
 
@@ -56,6 +56,23 @@ def test_gaps_duplicates_protected_cutoff():
     ]:
         with pytest.raises(ValueError):
             list(experiences(data, cutoff))
+
+
+@pytest.mark.parametrize(
+    "value",
+    [True, False, "1", None, float("nan"), float("inf"), float("-inf")],
+)
+def test_checked_rows_rejects_non_numeric_boolean_and_nonfinite_ohlcv(value):
+    row = next(bars(1))
+    row["ohlcv"][0] = value
+    with pytest.raises(ValueError, match="experience_bar_contract"):
+        list(checked_rows([row], 10000 * NS))
+
+
+def test_checked_rows_preserves_finite_integer_and_float_ohlcv():
+    row = next(bars(1))
+    row["ohlcv"] = [10, 11.0, 9, 10.0, 100]
+    assert list(checked_rows([row], 10000 * NS)) == [row]
 
 
 def test_purge_full_dependencies_and_each_horizon():
