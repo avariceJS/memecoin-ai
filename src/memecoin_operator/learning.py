@@ -100,6 +100,87 @@ def membership(samples):
     return support(samples, weights(samples, True))
 
 
+def preparation_coverage(samples, parts, retained, cutoff):
+    """Account for rows and observed target cells before complete-case filtering and caps."""
+    retained_ids = {s["id"] for group in retained.values() for s in group}
+    role_ids = {s["id"] for role in ("train", "validation", "test") for s in parts[role]}
+    targets = sorted({str(t["horizon"]) for s in samples for t in s["targets"]})
+
+    row_counts = {
+        "original": len(samples),
+        "complete_case_eligible": sum(
+            all(t["log_return"] is not None for t in s["targets"]) for s in samples
+        ),
+        "partition_eligible": len(role_ids),
+        "retained": len(retained_ids),
+    }
+    incomplete_ids = {
+        s["id"] for s in samples if not all(t["log_return"] is not None for t in s["targets"])
+    }
+    temporal_ids = {s["id"] for s in parts["purged"]} - incomplete_ids
+    cap_ids = role_ids - retained_ids
+    row_counts["dropped"] = len(incomplete_ids | temporal_ids | cap_ids)
+    row_counts["dropped_by_reason"] = {
+        "complete_case_exclusion": len(incomplete_ids),
+        "temporal_maturity_purge": len(temporal_ids),
+        "cap_exclusion": len(cap_ids),
+    }
+
+    stages = {
+        "original": samples,
+        "complete_case_eligible": [s for s in samples if s["id"] not in incomplete_ids],
+        "partition_eligible": [
+            s for role in ("train", "validation", "test") for s in parts[role]
+        ],
+        "retained": [s for group in retained.values() for s in group],
+        "dropped_by_reason": {
+            "complete_case_exclusion": [s for s in samples if s["id"] in incomplete_ids],
+            "temporal_maturity_purge": [s for s in parts["purged"] if s["id"] in temporal_ids],
+            "cap_exclusion": [s for s in samples if s["id"] in cap_ids],
+        },
+    }
+
+    def cell_counts(group):
+        result = {}
+        for horizon in targets:
+            values = [
+                t["log_return"]
+                for s in group
+                for t in s["targets"]
+                if str(t["horizon"]) == horizon
+            ]
+            observed = sum(value is not None for value in values)
+            result[horizon] = dict(
+                horizon=int(horizon),
+                total=len(values),
+                observed=observed,
+                missing=len(values) - observed,
+                zero_returns=sum(value == 0 for value in values if value is not None),
+            )
+        return result
+
+    cells = {
+        "stages": {
+            name: cell_counts(group)
+            for name, group in stages.items()
+            if name != "dropped_by_reason"
+        },
+        "dropped_by_reason": {
+            name: cell_counts(group) for name, group in stages["dropped_by_reason"].items()
+        },
+    }
+    return dict(
+        availability_contract=dict(
+            mode="historical_replay",
+            as_of_ns=cutoff,
+            cutoff_inclusive=True,
+            knowledge_claim="sealed as_of cutoff; historical availability does not establish online or point-in-time knowledge",
+        ),
+        rows=row_counts,
+        target_cells=cells,
+    )
+
+
 def prepare(rows, provenance, output):
     full = assemble(shards(rows, provenance), max_decisions=500000)
     parts, bounds = partitions(full, provenance["as_of_ns"])
@@ -120,6 +201,9 @@ def prepare(rows, provenance, output):
         archive=summary(rows),
         original={k: membership(v) for k, v in parts.items()},
         retained={k: membership(v) for k, v in retained.items()},
+        preparation_coverage=preparation_coverage(
+            full["samples"], parts, retained, provenance["as_of_ns"]
+        ),
         matured_samples=sum(len(parts[k]) for k in retained),
         dataset_sha=sha(output / "dataset/manifest.json"),
         as_of_ns=provenance["as_of_ns"],

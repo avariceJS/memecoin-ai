@@ -208,6 +208,199 @@ def _snapshot_censor_cutoff(snapshot):
     return snapshot.censor_cutoff_ns()
 
 
+def _preparation_coverage(snapshot, plan, objective):
+    """Reconcile full input rows and target cells to the existing batch eligibility gate."""
+    schema = snapshot.schema
+    horizons = target_names(schema)
+    rows = Counter()
+    cells = Counter()
+    row_reasons = Counter()
+    cell_reasons = Counter()
+    objective_has_bounds = objective == "partial_count_lower_bound_pinball_v1"
+    v3 = schema.get("schema") == "brain-experience-v3"
+    if v3:
+        from .coordinate_samples import eligibility, role_intervals
+
+    role_ends = (
+        None
+        if v3
+        else {
+            "train": plan["train_end_s"],
+            "validation": plan["validation_end_s"],
+            "test": plan["test_end_s"],
+        }
+    )
+    censor_cutoff_ns = _snapshot_censor_cutoff(snapshot)
+    for index in range(len(snapshot.parts)):
+        _, partition_rows = snapshot.partition(index)
+        for row in partition_rows:
+            role, exact_mask = membership(row, plan, schema)
+            rows["input"] += 1
+            rows[f"{role}/input"] += 1
+            lower_mask = [False] * len(horizons)
+            eligibility_result = None
+            if v3 and role in {"train", "validation", "test"}:
+                eligibility_result = eligibility(row, schema, plan, role)
+                lower_mask = eligibility_result["lower_bound_mask"]
+            _, helper_lower_mask = _censor_bounds(
+                row, schema, role, plan, cutoff_ns=censor_cutoff_ns
+            )
+            # The exact masks come from schema membership; lower-bound masks come from
+            # the same censor path batches() uses when the partial-count objective is selected.
+            lower_mask = helper_lower_mask
+            row_objective = any(exact_mask) or (objective_has_bounds and any(lower_mask))
+            if role in {"train", "validation", "test"} and row_objective:
+                rows[f"{role}/retained_objective"] += 1
+            else:
+                rows[f"{role}/dropped_objective"] += 1
+                if eligibility_result is not None and not eligibility_result["eligible"]:
+                    reason = eligibility_result["reason"]
+                elif role == "purged":
+                    reason = "input_extent_crosses_role_boundary"
+                elif role == "outside":
+                    reason = "origin_outside_roles"
+                elif row.get("_admission", "eligible") != "eligible":
+                    reason = "input_admission_rejected"
+                else:
+                    reason = "no_objective_eligible_target"
+                row_reasons[f"{role}/{reason}"] += 1
+            statuses = row.get("target_status", ["unknown"] * len(horizons))
+            for h, target_name in enumerate(horizons):
+                key = f"{role}/{target_name}"
+                cells[f"{key}/input"] += 1
+                status = statuses[h]
+                cells[f"{key}/status/{status}"] += 1
+                details = row.get("target_details")
+                detail = (
+                    details[h]
+                    if isinstance(details, list)
+                    and len(details) == len(horizons)
+                    and isinstance(details[h], dict)
+                    else {}
+                )
+                exact = bool(exact_mask[h])
+                informative_lower = bool(lower_mask[h])
+                selected = exact or (objective_has_bounds and informative_lower)
+                if role == "outside":
+                    reason = "origin_outside_roles"
+                elif role == "purged":
+                    reason = "input_extent_crosses_role_boundary"
+                elif exact:
+                    if (
+                        schema.get("schema") == "brain-experience-v2"
+                        and schema["availability"] == "historical_replay"
+                        and row["target_available_ns"][h] is not None
+                        and row["target_available_ns"][h] >= role_ends[role] * 10**9
+                    ):
+                        reason = "exact_eligible_historical_late_availability_offline_only"
+                    else:
+                        reason = "exact_eligible"
+                elif objective_has_bounds and informative_lower:
+                    reason = "informative_lower_bound_eligible"
+                elif eligibility_result is not None and not eligibility_result["eligible"]:
+                    reason = eligibility_result["reason"]
+                elif row.get("_admission", "eligible") != "eligible":
+                    reason = "input_admission_rejected"
+                elif status not in {"observed", "exact", "lower_bound", "censored"}:
+                    reason = f"target_status_{status}"
+                    if isinstance(detail.get("reason"), str) and detail["reason"]:
+                        reason += f":{detail['reason']}"
+                elif v3:
+                    window = row["target_windows"][h]
+                    intervals = role_intervals(plan, role)
+                    start, end = next(
+                        (start, end)
+                        for start, end in intervals
+                        if start <= row["origin"]["coordinate"] < end
+                    )
+                    if not (
+                        start <= window["start_coordinate"]
+                        and window["end_coordinate_exclusive"] <= end
+                        and window["maturity_coordinate_exclusive"] <= end
+                    ):
+                        reason = "target_maturity_or_role_boundary"
+                    elif (
+                        row["target_available_ns"][h] is not None
+                        and row["target_available_ns"][h]
+                        > plan["roles"][role]["knowledge_cutoff_ns"]
+                    ):
+                        reason = "knowledge_cutoff"
+                    elif status == "lower_bound":
+                        reason = "lower_bound_not_informative_or_unavailable"
+                    else:
+                        reason = "target_not_exactly_eligible"
+                else:
+                    end_ns = role_ends[role] * 10**9 if role in role_ends else None
+                    if role not in {"train", "validation", "test"}:
+                        # Outside rows have no role boundary against which maturity or
+                        # availability can be judged.
+                        reason = "origin_outside_roles"
+                    elif schema.get("schema") == "brain-experience-v2":
+                        maturity = row["target_maturity_ns"][h]
+                        available = row["target_available_ns"][h]
+                        if maturity >= end_ns:
+                            reason = "target_maturity_or_role_boundary"
+                        elif (
+                            schema["availability"] == "point_in_time"
+                            and available is not None
+                            and available >= end_ns
+                        ):
+                            reason = "knowledge_cutoff"
+                        elif schema["availability"] == "historical_replay" and available is not None and available >= end_ns:
+                            reason = "historical_late_availability_retained_offline_only"
+                        else:
+                            reason = "target_not_exactly_eligible"
+                    elif schema.get("schema") == "brain-experience-v1":
+                        maturity_s = row["origin_s"] + int(target_name) * 300
+                        reason = (
+                            "target_maturity_or_role_boundary"
+                            if end_ns is not None and maturity_s * 10**9 >= end_ns
+                            else "legacy_historical_status_or_mask"
+                        )
+                    else:
+                        reason = "target_not_exactly_eligible"
+                if selected:
+                    cells[f"{key}/retained_objective"] += 1
+                else:
+                    cells[f"{key}/dropped_objective"] += 1
+                cells[f"{key}/exact_eligible"] += int(exact)
+                cells[f"{key}/informative_lower_bound_eligible"] += int(informative_lower)
+                cell_reasons[f"{key}/{reason}"] += 1
+
+    binding = snapshot.manifest.get("binding", {})
+    cutoff_ns = binding.get("cutoff_ns")
+    if schema.get("schema") == "brain-experience-v2" and any(
+        target.get("kind", "").startswith("observed_process_count@")
+        for target in schema.get("targets", [])
+    ):
+        cutoff_ns = _snapshot_censor_cutoff(snapshot)
+        cutoff_provenance = "verified_snapshot_composition_lineage"
+    else:
+        cutoff_provenance = "verified_sealed_snapshot_binding" if type(cutoff_ns) is int else "unavailable"
+    legacy_v1 = schema.get("schema") == "brain-experience-v1"
+    availability = (
+        "legacy_historical_only"
+        if legacy_v1
+        else schema.get("availability", "unspecified")
+    )
+    return {
+        "contract": "experience_preparation_coverage_v1",
+        "objective": objective,
+        "input_rows": rows["input"],
+        "rows": dict(rows),
+        "row_reasons": dict(row_reasons),
+        "targets": dict(cells),
+        "target_reasons": dict(cell_reasons),
+        "availability": {
+            "mode": availability,
+            "point_in_time_claim": not legacy_v1 and availability == "point_in_time",
+            "historical_late_availability_offline_only": availability == "historical_replay",
+            "snapshot_cutoff_ns": cutoff_ns if type(cutoff_ns) is int else None,
+            "cutoff_provenance": cutoff_provenance,
+        },
+    }
+
+
 def batches(
     snapshot,
     plan,
@@ -381,14 +574,26 @@ def prepare(
                 denominators[f"{role}/{h}/usable"] += int(valid)
             if snapshot.schema.get("schema") in {"brain-experience-v2", "brain-experience-v3"}:
                 target_details = row.get("target_details")
-                if target_details is None and not any(
-                    target["kind"].startswith("observed_process_count@")
-                    for target in snapshot.schema["targets"]
-                ):
-                    # Older price-only rows predate per-target censor details.
-                    target_details = [{} for _ in snapshot.schema["targets"]]
                 if target_details is None:
-                    target_details = []
+                    active_censored_status = (
+                        "lower_bound"
+                        if snapshot.schema["schema"] == "brain-experience-v3"
+                        else "censored"
+                    )
+                    active_count_target = any(
+                        target["kind"].startswith("observed_process_count@")
+                        and status == active_censored_status
+                        for target, status in zip(
+                            snapshot.schema["targets"],
+                            row["target_status"],
+                            strict=True,
+                        )
+                    )
+                    if active_count_target:
+                        raise ValueError("experience_censor_detail")
+                    # Older rows without an active censored count target need no
+                    # per-target details for preparation accounting.
+                    target_details = [{} for _ in snapshot.schema["targets"]]
                 for h, (target, status, detail) in enumerate(
                     zip(
                         snapshot.schema["targets"],
@@ -539,6 +744,7 @@ def prepare(
         population=dict(population),
         denominators=dict(denominators),
         validation_objective_support=validation_objective_support,
+        preparation_coverage=_preparation_coverage(snapshot, plan, objective),
         normalization=(
             (
                 "train_objective_eligible_decision_frames_population_variance"
@@ -613,6 +819,123 @@ def validate_statistics(stats, schema):
             or len(values) != len(QUANTILES)
             or any(not finite_number(value) for value in values)
             or any(values[index - 1] > values[index] for index in range(1, len(values)))
+        ):
+            raise ValueError(error)
+
+    coverage = stats.get("preparation_coverage")
+    if coverage is not None:
+        if (
+            not isinstance(coverage, dict)
+            or coverage.get("contract") != "experience_preparation_coverage_v1"
+            or type(coverage.get("input_rows")) is not int
+            or coverage["input_rows"] < 0
+            or not isinstance(coverage.get("rows"), dict)
+            or not isinstance(coverage.get("targets"), dict)
+            or not isinstance(coverage.get("row_reasons"), dict)
+            or not isinstance(coverage.get("target_reasons"), dict)
+            or not isinstance(coverage.get("availability"), dict)
+            or any(
+                type(value) is not int or value < 0
+                for counts in (coverage.get("row_reasons", {}), coverage.get("target_reasons", {}))
+                for value in counts.values()
+            )
+            or any(
+                not isinstance(key, str)
+                for counts in (
+                    coverage.get("rows", {}),
+                    coverage.get("targets", {}),
+                    coverage.get("row_reasons", {}),
+                    coverage.get("target_reasons", {}),
+                )
+                for key in counts
+            )
+        ):
+            raise ValueError(error)
+        row_counts = coverage["rows"]
+        objective = coverage.get("objective")
+        if (
+            objective not in {"masked_pinball_v1", "partial_count_lower_bound_pinball_v1"}
+            or row_counts.get("input") != coverage["input_rows"]
+            or any(type(value) is not int or value < 0 for value in row_counts.values())
+        ):
+            raise ValueError(error)
+        for role in ("train", "validation", "test", "purged", "outside"):
+            role_input = row_counts.get(f"{role}/input", 0)
+            if role_input != row_counts.get(f"{role}/retained_objective", 0) + row_counts.get(
+                f"{role}/dropped_objective", 0
+            ):
+                raise ValueError(error)
+            if sum(
+                count
+                for reason, count in coverage["row_reasons"].items()
+                if reason.startswith(f"{role}/")
+            ) != row_counts.get(f"{role}/dropped_objective", 0):
+                raise ValueError(error)
+        target_counts = coverage["targets"]
+        if any(type(value) is not int or value < 0 for value in target_counts.values()):
+            raise ValueError(error)
+        for role in ("train", "validation", "test", "purged", "outside"):
+            for target in target_names(schema):
+                key = f"{role}/{target}"
+                input_cells = target_counts.get(f"{key}/input", 0)
+                retained_cells = target_counts.get(f"{key}/retained_objective", 0)
+                dropped_cells = target_counts.get(f"{key}/dropped_objective", 0)
+                exact_cells = target_counts.get(f"{key}/exact_eligible", 0)
+                lower_cells = target_counts.get(f"{key}/informative_lower_bound_eligible", 0)
+                selected_cells = exact_cells + (
+                    lower_cells if objective == "partial_count_lower_bound_pinball_v1" else 0
+                )
+                if (
+                    input_cells != row_counts.get(f"{role}/input", 0)
+                    or input_cells != retained_cells + dropped_cells
+                    or exact_cells + lower_cells > input_cells
+                    or retained_cells != selected_cells
+                ):
+                    raise ValueError(error)
+                if sum(
+                    count
+                    for reason, count in coverage["target_reasons"].items()
+                    if reason.startswith(f"{key}/")
+                ) != target_counts.get(f"{key}/input", 0):
+                    raise ValueError(error)
+                if sum(
+                    count
+                    for status_key, count in target_counts.items()
+                    if status_key.startswith(f"{key}/status/")
+                ) != target_counts.get(f"{key}/input", 0):
+                    raise ValueError(error)
+        if sum(
+            row_counts.get(f"{role}/input", 0)
+            for role in ("train", "validation", "test", "purged", "outside")
+        ) != coverage["input_rows"]:
+            raise ValueError(error)
+        availability = coverage["availability"]
+        expected_mode = (
+            "legacy_historical_only"
+            if schema.get("schema") == "brain-experience-v1"
+            else schema.get("availability")
+        )
+        if (
+            availability.get("mode") != expected_mode
+            or type(availability.get("point_in_time_claim")) is not bool
+            or availability["point_in_time_claim"]
+            != (
+                schema.get("schema") != "brain-experience-v1"
+                and availability["mode"] == "point_in_time"
+            )
+            or availability.get("cutoff_provenance")
+            not in {
+                "verified_snapshot_composition_lineage",
+                "verified_sealed_snapshot_binding",
+                "unavailable",
+            }
+            or (
+                availability.get("snapshot_cutoff_ns") is not None
+                and type(availability["snapshot_cutoff_ns"]) is not int
+            )
+            or type(availability.get("historical_late_availability_offline_only")) is not bool
+            or availability["historical_late_availability_offline_only"]
+            != (availability["mode"] == "historical_replay")
         ):
             raise ValueError(error)
 
