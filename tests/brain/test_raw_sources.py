@@ -15,7 +15,7 @@ from memecoin_brain_sources.events import (
 from memecoin_brain_sources.probe import run
 from memecoin_brain_sources.replay import reproduce
 from memecoin_ml.data import read, sha, write
-from memecoin_registry.contracts import seal
+from memecoin_registry.contracts import digest, seal
 from memecoin_runner.ledger import Ledger
 
 
@@ -339,19 +339,24 @@ def test_nonprogressing_pagination_stops_without_hydration(tmp_path):
     assert all((p / "manifest.json").exists() for p in (tmp_path / "attempts").iterdir())
 
 
-def _transaction_fixture(path, *, version, slot, err=None):
+_RESULT_UNSET = object()
+
+
+def _transaction_fixture(path, *, version=None, slot=None, err=None, result=_RESULT_UNSET):
     path.mkdir()
-    value = (
-        None
-        if version is None and slot is None
-        else dict(
-            version=version,
-            slot=slot,
-            blockTime=10,
-            meta=dict(err=err),
-            transaction=dict(signatures=["sig"], message=dict(accountKeys=[])),
+    value = result
+    if value is _RESULT_UNSET:
+        value = (
+            None
+            if version is None and slot is None
+            else dict(
+                version=version,
+                slot=slot,
+                blockTime=10,
+                meta=dict(err=err),
+                transaction=dict(signatures=["sig"], message=dict(accountKeys=[])),
+            )
         )
-    )
     request = json.dumps(
         dict(
             jsonrpc="2.0",
@@ -372,6 +377,172 @@ def _transaction_fixture(path, *, version, slot, err=None):
     write(path / "availability.json", dict(available_ns=3))
     seal(path)
     return path
+
+
+def _valid_transaction_result(**overrides):
+    value = dict(
+        version=0,
+        slot=1,
+        blockTime=10,
+        meta=dict(err=None),
+        transaction=dict(signatures=["sig"], message=dict(accountKeys=[])),
+    )
+    value.update(overrides)
+    return value
+
+
+@pytest.mark.parametrize(
+    ("result", "status", "event_time_s", "slot"),
+    [
+        (None, "unavailable", None, None),
+        (False, "unsupported", None, None),
+        (True, "unsupported", None, None),
+        (0, "unsupported", None, None),
+        (7, "unsupported", None, None),
+        ("", "unsupported", None, None),
+        ("value", "unsupported", None, None),
+        ([], "unsupported", None, None),
+        ([1], "unsupported", None, None),
+    ],
+)
+def test_transaction_evidence_guards_non_dict_results(tmp_path, result, status, event_time_s, slot):
+    evidence = transaction_evidence(
+        _transaction_fixture(tmp_path / "capture", result=result)
+    )
+    assert evidence["status"] == status
+    assert evidence["semantic_sha"] == digest(result)
+    assert evidence["event_time_s"] == event_time_s
+    assert evidence["slot"] == slot
+    assert evidence["available_ns"] == 3
+    assert evidence["raw_path"].endswith("capture")
+    assert evidence["manifest_sha"]
+    assert evidence["semantic_kind"] == "account_reference"
+    assert evidence["decoded_trade"] is False
+    assert evidence["execution_supported"] is False
+    assert evidence["historical_online_available"] is False
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        {},
+        {**_valid_transaction_result(), "transaction": None},
+        _valid_transaction_result(transaction=None),
+        _valid_transaction_result(transaction=[]),
+        _valid_transaction_result(transaction={}),
+        _valid_transaction_result(transaction={"message": {"accountKeys": []}}),
+        _valid_transaction_result(transaction={"signatures": None}),
+        _valid_transaction_result(transaction={"signatures": "sig"}),
+        _valid_transaction_result(transaction={"signatures": {"sig": 1}}),
+        _valid_transaction_result(transaction={"signatures": 3}),
+        _valid_transaction_result(transaction={"signatures": ["sig", 1]}),
+        _valid_transaction_result(transaction={"signatures": [None]}),
+        _valid_transaction_result(meta=None),
+        _valid_transaction_result(meta=[]),
+        _valid_transaction_result(meta={}),
+        _valid_transaction_result(meta={"err": True}),
+        _valid_transaction_result(meta={"err": 1}),
+        _valid_transaction_result(meta={"err": 1.5}),
+        _valid_transaction_result(meta={"err": []}),
+    ],
+)
+def test_transaction_evidence_unsupported_nested_shapes(tmp_path, result):
+    before = copy.deepcopy(result)
+    evidence = transaction_evidence(
+        _transaction_fixture(tmp_path / "capture", result=result)
+    )
+    assert evidence["status"] == "unsupported"
+    assert evidence["semantic_sha"] == digest(result)
+    assert evidence["event_time_s"] == result.get("blockTime")
+    assert evidence["slot"] == result.get("slot")
+    assert result == before
+
+
+def test_transaction_evidence_missing_transaction_field_is_unsupported(tmp_path):
+    result = _valid_transaction_result(slot=7)
+    del result["transaction"]
+    before = copy.deepcopy(result)
+
+    evidence = transaction_evidence(
+        _transaction_fixture(tmp_path / "capture", result=result)
+    )
+
+    assert evidence["status"] == "unsupported"
+    assert evidence["semantic_sha"] == digest(result)
+    assert evidence["provider"] == "fixture"
+    assert evidence["network"] == "solana-mainnet"
+    assert evidence["identity"] == "sig"
+    assert evidence["available_ns"] == 3
+    assert evidence["event_time_s"] == 10
+    assert evidence["slot"] == 7
+    assert evidence["raw_path"].endswith("capture")
+    assert evidence["manifest_sha"]
+    assert evidence["semantic_kind"] == "account_reference"
+    assert evidence["decoded_trade"] is False
+    assert evidence["execution_supported"] is False
+    assert evidence["historical_online_available"] is False
+    assert result == before
+
+
+def test_transaction_evidence_missing_meta_field_is_unsupported(tmp_path):
+    result = _valid_transaction_result(slot=7)
+    del result["meta"]
+    before = copy.deepcopy(result)
+
+    evidence = transaction_evidence(
+        _transaction_fixture(tmp_path / "capture", result=result)
+    )
+
+    assert evidence["status"] == "unsupported"
+    assert evidence["semantic_sha"] == digest(result)
+    assert evidence["provider"] == "fixture"
+    assert evidence["network"] == "solana-mainnet"
+    assert evidence["identity"] == "sig"
+    assert evidence["available_ns"] == 3
+    assert evidence["event_time_s"] == 10
+    assert evidence["slot"] == 7
+    assert evidence["raw_path"].endswith("capture")
+    assert evidence["manifest_sha"]
+    assert evidence["semantic_kind"] == "account_reference"
+    assert evidence["decoded_trade"] is False
+    assert evidence["execution_supported"] is False
+    assert evidence["historical_online_available"] is False
+    assert result == before
+
+
+@pytest.mark.parametrize("signatures", [[], ["other"]])
+def test_transaction_evidence_preserves_signature_mismatch_error(tmp_path, signatures):
+    result = _valid_transaction_result(
+        transaction={"signatures": signatures, "message": {"accountKeys": []}}
+    )
+    with pytest.raises(ValueError) as exc:
+        transaction_evidence(_transaction_fixture(tmp_path / "capture", result=result))
+    assert str(exc.value) == "transaction_signature_mismatch"
+
+
+@pytest.mark.parametrize(
+    ("version", "slot"),
+    [(0, 0.0), (0, 1.5), (0, True), (0, -1), (False, 1), (0.0, 1)],
+)
+def test_transaction_evidence_rejects_exact_type_boundaries(tmp_path, version, slot):
+    result = _valid_transaction_result(version=version, slot=slot)
+    evidence = transaction_evidence(
+        _transaction_fixture(tmp_path / "capture", result=result)
+    )
+    assert evidence["status"] == "unsupported"
+    assert evidence["semantic_sha"] == digest(result)
+    assert evidence["event_time_s"] == 10
+    assert evidence["slot"] == slot
+
+
+@pytest.mark.parametrize("err", ["failed", {"InstructionError": [0, "Custom"]}])
+def test_transaction_evidence_accepts_supported_error_shapes(tmp_path, err):
+    result = _valid_transaction_result(meta={"err": err})
+    evidence = transaction_evidence(
+        _transaction_fixture(tmp_path / "capture", result=result)
+    )
+    assert evidence["status"] == "failed_transaction"
+    assert evidence["semantic_sha"] == digest(result)
 
 
 @pytest.mark.parametrize(

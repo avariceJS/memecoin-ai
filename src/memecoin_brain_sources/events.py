@@ -24,21 +24,37 @@ def transaction_evidence(path: Path) -> dict:
     signature = request["params"][0]
     if value is None:
         status = "unavailable"
-    elif (
-        not (
-            type(value.get("version")) is str and value.get("version") == "legacy"
-            or (type(value.get("version")) is int and value.get("version") == 0)
-        )
-        or not isinstance(value.get("meta"), dict)
-        or type(value.get("slot")) is not int
-        or value["slot"] < 0
-    ):
+    elif type(value) is not dict:
         status = "unsupported"
     else:
-        tx = value["transaction"]
-        if not tx["signatures"] or tx["signatures"][0] != signature:
-            raise ValueError("transaction_signature_mismatch")
-        status = "failed_transaction" if value["meta"].get("err") is not None else "raw_reference"
+        version = value.get("version")
+        slot_value = value.get("slot")
+        meta = value.get("meta")
+        tx = value.get("transaction")
+        supported_version = (
+            type(version) is str and version == "legacy"
+            or type(version) is int and version == 0
+        )
+        if (
+            not supported_version
+            or type(slot_value) is not int
+            or slot_value < 0
+            or type(tx) is not dict
+            or type(meta) is not dict
+            or "err" not in meta
+        ):
+            status = "unsupported"
+        else:
+            signatures = tx.get("signatures")
+            err = meta["err"]
+            if type(signatures) is not list or any(type(item) is not str for item in signatures):
+                status = "unsupported"
+            elif not signatures or signatures[0] != signature:
+                raise ValueError("transaction_signature_mismatch")
+            elif err is not None and type(err) not in (str, dict):
+                status = "unsupported"
+            else:
+                status = "failed_transaction" if err is not None else "raw_reference"
     return dict(
         provider=cap.source_alias,
         network="solana-mainnet",
@@ -46,8 +62,8 @@ def transaction_evidence(path: Path) -> dict:
         semantic_sha=digest(value),
         status=status,
         available_ns=available,
-        event_time_s=value.get("blockTime") if value else None,
-        slot=value.get("slot") if value else None,
+        event_time_s=value.get("blockTime") if type(value) is dict else None,
+        slot=value.get("slot") if type(value) is dict else None,
         raw_path=str(path.resolve()),
         manifest_sha=sha(path / "manifest.json"),
         semantic_kind="account_reference",
