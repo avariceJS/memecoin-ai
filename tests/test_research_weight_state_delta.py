@@ -80,6 +80,76 @@ class WeightStateDeltaTests(unittest.TestCase):
             "entity_concentration": None, "example_ess": None, "entity_ess": None,
         })
 
+    def test_opt_in_cohort_support_mass_shares_and_deltas(self):
+        before = [row("a", "e1", "stable", 2), row("b", "e2", "moving", 2),
+                  row("c", "e3", "missing", 0)]
+        after = [row("a", "e1", "stable", 2), row("b", "e2", "new", 4),
+                 row("d", "e4", "added", 2)]
+        payload = {"before": state("cohort-A", before), "after": state("cohort-B", after)}
+
+        # The default call retains the original result contract.
+        default_result = analyze(payload)
+        self.assertNotIn("cohort_mass", default_result)
+        result = analyze(payload, include_cohort_mass=True)["cohort_mass"]
+
+        self.assertEqual(list(result["before"]), ["added", "missing", "moving", "new", "stable"])
+        self.assertEqual(result["before"]["stable"], {
+            "example_count": 1, "positive_example_count": 1,
+            "total_weight": 2.0, "mass_share": 0.5,
+        })
+        self.assertEqual(result["before"]["missing"], {
+            "example_count": 1, "positive_example_count": 0,
+            "total_weight": 0.0, "mass_share": 0.0,
+        })
+        self.assertEqual(result["after"]["moving"], {
+            "example_count": 0, "positive_example_count": 0,
+            "total_weight": 0.0, "mass_share": 0.0,
+        })
+        self.assertEqual(result["after"]["added"], {
+            "example_count": 1, "positive_example_count": 1,
+            "total_weight": 2.0, "mass_share": 0.25,
+        })
+        self.assertEqual(result["deltas"]["stable"], {
+            "example_count": 0, "positive_example_count": 0,
+            "total_weight": 0.0, "mass_share": -0.25,
+        })
+        self.assertEqual(result["deltas"]["moving"], {
+            "example_count": -1, "positive_example_count": -1,
+            "total_weight": -2.0, "mass_share": -0.5,
+        })
+        self.assertEqual(result["deltas"]["new"], {
+            "example_count": 1, "positive_example_count": 1,
+            "total_weight": 4.0, "mass_share": 0.5,
+        })
+        self.assertEqual(result["denominators"]["before"], {"total_weight": 4.0, "status": "positive"})
+        self.assertEqual(result["denominators"]["after"], {"total_weight": 8.0, "status": "positive"})
+
+    def test_empty_cohort_support_and_zero_total_denominators(self):
+        empty = {"before": state("empty-A", []), "after": state("empty-B", [])}
+        empty_result = analyze(empty, include_cohort_mass=True)["cohort_mass"]
+        self.assertEqual(empty_result["before"], {})
+        self.assertEqual(empty_result["after"], {})
+        self.assertEqual(empty_result["deltas"], {})
+        self.assertEqual(empty_result["denominators"]["before"], {"total_weight": 0.0, "status": "zero"})
+
+        zero_to_positive = {"before": state("zero-A", [row("a", "e", "zero", 0)]),
+                            "after": state("positive-B", [row("b", "f", "other", 3)])}
+        result = analyze_json(json.dumps(zero_to_positive), include_cohort_mass=True)["cohort_mass"]
+        self.assertIsNone(result["before"]["zero"]["mass_share"])
+        self.assertIsNone(result["before"]["other"]["mass_share"])
+        self.assertEqual(result["after"]["other"]["mass_share"], 1.0)
+        self.assertIsNone(result["deltas"]["zero"]["mass_share"])
+        self.assertIsNone(result["deltas"]["other"]["mass_share"])
+        self.assertEqual(result["deltas"]["other"]["total_weight"], 3.0)
+        self.assertEqual(result["denominators"]["before"]["status"], "zero")
+
+    def test_cohort_mass_option_requires_boolean(self):
+        payload = {"before": state("option-A", []), "after": state("option-B", [])}
+        with self.assertRaisesRegex(ValueError, "weight_state_delta_invalid_input"):
+            analyze(payload, include_cohort_mass=1)
+        with self.assertRaisesRegex(ValueError, "weight_state_delta_invalid_input"):
+            analyze_json(json.dumps(payload), include_cohort_mass="yes")
+
     def test_json_interface_duplicate_keys_nonfinite_and_bound(self):
         payload = {"before": state("json-A", [row("x", "e", "c", 1)]),
                    "after": state("json-B", [row("x", "e", "c", 2)])}

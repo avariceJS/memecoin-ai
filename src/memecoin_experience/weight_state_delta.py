@@ -109,13 +109,67 @@ def _metrics(rows: dict[str, dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def analyze(payload: dict) -> dict:
+def _cohort_mass(before: dict[str, dict[str, Any]], after: dict[str, dict[str, Any]],
+                 before_total: float, after_total: float) -> dict[str, Any]:
+    """Summarize declared cohort support and mass over the union of both states."""
+    cohort_ids = sorted(
+        {row["cohort_id"] for row in before.values()}
+        | {row["cohort_id"] for row in after.values()}
+    )
+
+    def by_cohort(rows: dict[str, dict[str, Any]], total: float) -> dict[str, dict[str, Any]]:
+        groups: dict[str, list[float]] = {}
+        for row in rows.values():
+            groups.setdefault(row["cohort_id"], []).append(float(row["weight"]))
+        result = {}
+        for cohort_id in cohort_ids:
+            weights = groups.get(cohort_id, [])
+            mass = _sum(weights)
+            result[cohort_id] = {
+                "example_count": len(weights),
+                "positive_example_count": sum(weight > 0 for weight in weights),
+                "total_weight": mass,
+                # A missing cohort has zero mass and therefore a zero share when
+                # the state has positive mass. A zero-total state has no share.
+                "mass_share": mass / total if total > 0 else None,
+            }
+        return result
+
+    before_cohorts = by_cohort(before, before_total)
+    after_cohorts = by_cohort(after, after_total)
+    deltas = {}
+    for cohort_id in cohort_ids:
+        left, right = before_cohorts[cohort_id], after_cohorts[cohort_id]
+        deltas[cohort_id] = {
+            "example_count": right["example_count"] - left["example_count"],
+            "positive_example_count": right["positive_example_count"] - left["positive_example_count"],
+            "total_weight": right["total_weight"] - left["total_weight"],
+            # Shares are comparable only when both state denominators exist.
+            "mass_share": (right["mass_share"] - left["mass_share"]
+                           if left["mass_share"] is not None and right["mass_share"] is not None else None),
+        }
+    return {
+        "denominators": {
+            "before": {"total_weight": before_total, "status": "positive" if before_total > 0 else "zero"},
+            "after": {"total_weight": after_total, "status": "positive" if after_total > 0 else "zero"},
+            "mass_share_delta": "defined only when both state total weights are positive",
+            "absent_cohort": "zero support and zero total weight; share is zero when its state total is positive",
+        },
+        "before": before_cohorts,
+        "after": after_cohorts,
+        "deltas": deltas,
+    }
+
+
+def analyze(payload: dict, *, include_cohort_mass: bool = False) -> dict:
     """Compare exactly two supplied, pinned weight states, paired by example ID.
 
     State hashes are caller-declared references. Their provenance and relation
     to upstream artifacts are not independently checked.
     """
     try:
+        if type(include_cohort_mass) is not bool:
+            raise _invalid()
         if type(payload) is not dict or set(payload) != _ROOT_KEYS:
             raise _invalid()
         before_meta, before = _state(payload["before"])
@@ -154,7 +208,7 @@ def analyze(payload: dict) -> dict:
                   if before_metrics[key] is not None and after_metrics[key] is not None else None)
             for key in metric_keys
         }
-        return {
+        result = {
             "schema": "brain-research-diagnostic.v1",
             "kind": "weight_state_delta",
             "states": {"before": before_meta, "after": after_meta},
@@ -190,11 +244,16 @@ def analyze(payload: dict) -> dict:
                 "Weights must be finite, zero or within [1e-100, 1e100], with at most 10000 examples per state; results use binary64 arithmetic.",
             ],
         }
+        if include_cohort_mass:
+            result["cohort_mass"] = _cohort_mass(
+                before, after, before_metrics["sum_weights"], after_metrics["sum_weights"]
+            )
+        return result
     except RecursionError as exc:
         raise _invalid() from exc
 
 
-def analyze_json(document: str | bytes) -> dict:
+def analyze_json(document: str | bytes, *, include_cohort_mass: bool = False) -> dict:
     """Parse a bounded JSON document, rejecting duplicate keys and nonfinite values."""
     try:
         if type(document) is str:
@@ -218,7 +277,7 @@ def analyze_json(document: str | bytes) -> dict:
             raise _invalid()
 
         payload = json.loads(encoded, object_pairs_hook=unique_object, parse_constant=reject_constant)
-        return analyze(payload)
+        return analyze(payload, include_cohort_mass=include_cohort_mass)
     except (UnicodeError, json.JSONDecodeError, RecursionError) as exc:
         raise _invalid() from exc
 

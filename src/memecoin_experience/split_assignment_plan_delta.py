@@ -13,6 +13,8 @@ _SPLITS = ("train", "validation", "test")
 _STATES = (*_SPLITS, "unassigned")
 _MAX_ROWS = 5000
 _MAX_ASSIGNMENTS = 10000
+_MAX_GROUPS = 5000
+_MAX_GROUP_MEMBERSHIPS = 10000
 _MAX_INPUT_BYTES = 2_000_000
 
 
@@ -26,7 +28,9 @@ def _identifier(value: Any) -> bool:
 
 def analyze(payload: dict) -> dict:
     """Return deterministic plan deltas without loading or inferring population data."""
-    if type(payload) is not dict or set(payload) != {"row_ids", "before", "after"}:
+    if type(payload) is not dict or set(payload) not in (
+        {"row_ids", "before", "after"}, {"row_ids", "before", "after", "groups"}
+    ):
         raise _invalid()
     row_ids, before_records, after_records = payload["row_ids"], payload["before"], payload["after"]
     if type(row_ids) is not list or type(before_records) is not list or type(after_records) is not list:
@@ -51,6 +55,27 @@ def analyze(payload: dict) -> dict:
         return result
 
     before, after = parse_plan(before_records), parse_plan(after_records)
+    group_declarations = None
+    if "groups" in payload:
+        raw_groups = payload["groups"]
+        if type(raw_groups) is not list or len(raw_groups) > _MAX_GROUPS:
+            raise _invalid()
+        group_declarations = {}
+        membership_count = 0
+        for declaration in raw_groups:
+            if type(declaration) is not dict or set(declaration) != {"group_id", "row_ids"}:
+                raise _invalid()
+            group_id, members = declaration["group_id"], declaration["row_ids"]
+            if not _identifier(group_id) or group_id in group_declarations or type(members) is not list:
+                raise _invalid()
+            if any(not _identifier(row_id) or row_id not in universe for row_id in members):
+                raise _invalid()
+            if len(set(members)) != len(members):
+                raise _invalid()
+            membership_count += len(members)
+            if membership_count > _MAX_GROUP_MEMBERSHIPS:
+                raise _invalid()
+            group_declarations[group_id] = sorted(members)
     try:
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode("utf-8")
     except (TypeError, ValueError, RecursionError) as exc:
@@ -93,7 +118,7 @@ def analyze(payload: dict) -> dict:
     for counts in split_counts.values():
         counts["delta"] = counts["after_count"] - counts["before_count"]
 
-    return {
+    result = {
         "schema": "brain-research-diagnostic.v1",
         "kind": "split_assignment_plan_delta",
         "input_sha256": hashlib.sha256(canonical).hexdigest(),
@@ -128,6 +153,90 @@ def analyze(payload: dict) -> dict:
             "Counts and row moves describe only the supplied declarations and do not establish population completeness, split validity, or scientific qualification.",
         ],
     }
+    if group_declarations is not None:
+        grouped_rows = {row_id for members in group_declarations.values() for row_id in members}
+        undeclared_rows = sorted(universe - grouped_rows)
+
+        def group_plan(group_id: str, members: list[str], plan: dict[str, str | None]) -> dict:
+            present = [row_id for row_id in members if row_id in plan]
+            splits = sorted({plan[row_id] for row_id in present if plan[row_id] is not None}, key=_SPLITS.index)
+            missing_count = len(members) - len(present)
+            unassigned_count = sum(plan[row_id] is None for row_id in present)
+            if not members:
+                status = "no_support"
+            elif len(splits) > 1:
+                status = "fragmented"
+            elif len(splits) == 1:
+                status = "contained"
+            elif missing_count:
+                status = "incomplete"
+            else:
+                status = "unassigned"
+            return {
+                "group_id": group_id,
+                "declared_row_count": len(members),
+                "assigned_row_count": len(present),
+                "missing_assignment_count": missing_count,
+                "explicitly_unassigned_count": unassigned_count,
+                "observed_splits": splits,
+                "status": status,
+            }
+
+        before_groups = {group_id: group_plan(group_id, members, before) for group_id, members in group_declarations.items()}
+        after_groups = {group_id: group_plan(group_id, members, after) for group_id, members in group_declarations.items()}
+        changes = []
+        for group_id in sorted(group_declarations):
+            old, new = before_groups[group_id], after_groups[group_id]
+            if old["status"] == new["status"] and old["observed_splits"] == new["observed_splits"]:
+                change = "unchanged"
+            elif old["status"] == "contained" and new["status"] == "fragmented":
+                change = "contained_to_fragmented"
+            elif old["status"] == "fragmented" and new["status"] == "contained":
+                change = "fragmented_to_contained"
+            elif old["status"] == "contained" and new["status"] == "contained":
+                change = "contained_split_changed"
+            else:
+                change = "status_or_splits_changed"
+            changes.append({"group_id": group_id, "change": change, "before": old, "after": new})
+
+        def group_counts(groups: dict[str, dict]) -> dict[str, int]:
+            return {
+                "declared_group_count": len(groups),
+                "supported_group_count": sum(item["declared_row_count"] > 0 for item in groups.values()),
+                "zero_support_group_count": sum(item["declared_row_count"] == 0 for item in groups.values()),
+                "contained_group_count": sum(item["status"] == "contained" for item in groups.values()),
+                "fragmented_group_count": sum(item["status"] == "fragmented" for item in groups.values()),
+                "incomplete_group_count": sum(item["status"] == "incomplete" for item in groups.values()),
+                "unassigned_group_count": sum(item["status"] == "unassigned" for item in groups.values()),
+                "missing_assignment_denominator": sum(item["missing_assignment_count"] for item in groups.values()),
+            }
+
+        result["group_comparison"] = {
+            "summary": {
+                "declared_group_count": len(group_declarations),
+                "declared_membership_count": membership_count,
+                "undeclared_row_count": len(undeclared_rows),
+                "before": group_counts(before_groups),
+                "after": group_counts(after_groups),
+                "contained_to_fragmented_count": sum(item["change"] == "contained_to_fragmented" for item in changes),
+                "fragmented_to_contained_count": sum(item["change"] == "fragmented_to_contained" for item in changes),
+                "changed_group_count": sum(item["change"] != "unchanged" for item in changes),
+            },
+            "details": {
+                "undeclared_row_ids": undeclared_rows,
+                "zero_support_group_ids": sorted(group_id for group_id, members in group_declarations.items() if not members),
+                "before_groups": [before_groups[group_id] for group_id in sorted(before_groups)],
+                "after_groups": [after_groups[group_id] for group_id in sorted(after_groups)],
+                "changes": changes,
+            },
+            "limitations": [
+                "Group membership and assignments are caller declarations; group membership is not inferred.",
+                "Only supplied group identifiers are compared; groups absent from the declaration cannot be enumerated.",
+                "Containment and fragmentation describe only observed non-null assignments; missing and explicitly unassigned rows are reported separately.",
+                "Group comparisons do not establish leakage, population completeness, split validity, or scientific qualification.",
+            ],
+        }
+    return result
 
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
