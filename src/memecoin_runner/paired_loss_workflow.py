@@ -19,7 +19,11 @@ CLI::
     python -m memecoin_runner.paired_loss_workflow < input.json > result.json
     python -m memecoin_runner.paired_loss_workflow --markdown < input.json > result.md
 
-Input is strict JSON with exactly the fields shown above. Each row must
+Input is strict JSON with the six fields shown above and an optional
+``sensitivity`` object containing exactly ``clusters`` and ``signflip``.
+When supplied, ``clusters`` is null or an explicit full-roster ``id`` to
+``cluster`` mapping, and ``signflip`` is null or explicitly declares
+``exchangeable_signs_under_null``. Each row must
 explicitly provide nullable ``loss_a`` and ``loss_b``. The caller supplies the
 positive loss cap and complete target cohort mixture; neither is inferred from
 observed values or roster frequencies. Every roster cohort must be declared,
@@ -53,6 +57,7 @@ from memecoin_runner import paired_loss_comparison, paired_loss_missing_bounds, 
 _TOP_LEVEL_KEYS = {
     "model_a", "model_b", "metric", "loss_upper_bound", "target_cohorts", "rows"
 }
+_SENSITIVITY_KEYS = {"clusters", "signflip"}
 _ROW_KEYS = {"id", "cohort", "loss_a", "loss_b"}
 _TARGET_KEYS = {"cohort", "weight"}
 _MAX_ITEMS = 10_000
@@ -123,12 +128,46 @@ def _output_json(value: Any) -> str:
     raise ValueError("workflow output must contain only JSON values")
 
 
+def _validate_sensitivity(sensitivity: Any, row_ids: set[str]) -> None:
+    """Validate caller declarations before importing the optional producer helper."""
+    if type(sensitivity) is not dict or set(sensitivity) != _SENSITIVITY_KEYS:
+        raise ValueError("sensitivity must contain exactly clusters, signflip")
+    clusters = sensitivity["clusters"]
+    if clusters is not None:
+        if type(clusters) is not list or len(clusters) > _MAX_ITEMS:
+            raise ValueError("sensitivity.clusters must be null or a list of at most 10000 items")
+        declared: set[str] = set()
+        for index, item in enumerate(clusters):
+            if type(item) is not dict or set(item) != {"id", "cluster"}:
+                raise ValueError(f"sensitivity.clusters[{index}] must contain exactly id, cluster")
+            identity = _nonempty_string(item["id"], f"sensitivity.clusters[{index}].id")
+            _nonempty_string(item["cluster"], f"sensitivity.clusters[{index}].cluster")
+            if identity in declared:
+                raise ValueError("sensitivity cluster ids must be unique")
+            declared.add(identity)
+        if declared != row_ids:
+            raise ValueError("sensitivity.clusters must cover exactly all roster ids")
+    signflip = sensitivity["signflip"]
+    if signflip is not None and (
+        type(signflip) is not dict
+        or set(signflip) != {"assumption"}
+        or type(signflip["assumption"]) is not str
+        or signflip["assumption"] != "exchangeable_signs_under_null"
+    ):
+        raise ValueError(
+            'sensitivity.signflip must be null or exactly '
+            '{"assumption":"exchangeable_signs_under_null"}'
+        )
+
+
 def analyze(payload: dict[str, Any]) -> dict[str, Any]:
-    """Validate one explicit roster and return its three actual producer reports."""
-    if type(payload) is not dict or set(payload) != _TOP_LEVEL_KEYS:
+    """Validate one explicit roster and return its actual producer reports."""
+    if type(payload) is not dict or set(payload) not in (_TOP_LEVEL_KEYS, _TOP_LEVEL_KEYS | {"sensitivity"}):
         raise ValueError(
             "payload must contain exactly model_a, model_b, metric, loss_upper_bound, target_cohorts, rows"
+            " and optional sensitivity"
         )
+    has_sensitivity = "sensitivity" in payload
     model_a = _nonempty_string(payload["model_a"], "model_a")
     model_b = _nonempty_string(payload["model_b"], "model_b")
     if model_a == model_b:
@@ -193,6 +232,9 @@ def analyze(payload: dict[str, Any]) -> dict[str, Any]:
         else:
             counts["both_missing"] += 1
 
+    if has_sensitivity:
+        _validate_sensitivity(payload["sensitivity"], seen_ids)
+
     # Producer payloads are projections only; every report comes from the real,
     # unchanged producer API and is retained without envelope edits.
     common = {"model_a": model_a, "model_b": model_b, "metric": metric}
@@ -224,13 +266,29 @@ def analyze(payload: dict[str, Any]) -> dict[str, Any]:
         "target_projection_excluded_denominator": roster_size,
         "target_projection_complete_pair_denominator": len(complete_rows),
     }
+    reports = [comparison_report, bounds_report, target_report]
     result = {
         "schema": "brain-paired-loss-workflow.v1",
         "input_sha256": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
         "support": support,
-        "reports": [comparison_report, bounds_report, target_report],
+        "reports": reports,
         "limitations": list(_LIMITATIONS),
     }
+    if has_sensitivity:
+        # Keep the default path independent of the separately developed helper.
+        from memecoin_runner import paired_loss_sensitivity
+
+        try:
+            sensitivity_result = paired_loss_sensitivity.analyze_sensitivity(payload)
+        except (TypeError, ValueError, OverflowError, RecursionError) as exc:
+            raise ValueError(f"sensitivity producer rejected the common input: {exc}") from exc
+        if (type(sensitivity_result) is not dict
+                or set(sensitivity_result) != {"reports", "metadata"}
+                or type(sensitivity_result["reports"]) is not list
+                or type(sensitivity_result["metadata"]) is not dict):
+            raise ValueError("sensitivity producer returned an invalid result envelope")
+        result["reports"].extend(sensitivity_result["reports"])
+        result["sensitivity"] = sensitivity_result["metadata"]
     # Detect a nonfinite envelope before returning it, so the CLI never emits a
     # partial response and API callers receive the same failure semantics.
     _output_json(result)
@@ -262,7 +320,7 @@ def _markdown_table(rows: list[tuple[str, Any, Any, Any]]) -> list[str]:
 def render_markdown(payload: dict[str, Any]) -> str:
     """Run one roster through all producers and render a readable report plus exact JSON."""
     workflow = analyze(payload)
-    comparison, bounds, target_mix = workflow["reports"]
+    comparison, bounds, target_mix = workflow["reports"][:3]
     paired_summary = comparison["summary"]
     bounds_summary = bounds["summary"]
     mix_summary = target_mix["summary"]
@@ -313,6 +371,57 @@ def render_markdown(payload: dict[str, Any]) -> str:
         "The fenced JSON retains the workflow support/projection provenance, limitations, and exact producer envelopes.",
         "",
     ]
+    if "sensitivity" in workflow:
+        sensitivity = workflow["sensitivity"]
+        cluster_meta = sensitivity["cluster_influence"]
+        signflip_meta = sensitivity["signflip"]
+        cluster_report = next(
+            (report for report in workflow["reports"]
+             if report.get("kind") == "paired_loss_cluster_influence"), None
+        )
+        signflip_report = next(
+            (report for report in workflow["reports"]
+             if report.get("kind") == "paired_loss_signflip"), None
+        )
+        cluster_reversals = (
+            cluster_report["summary"].get("sign_reversal_count") if cluster_report else None
+        )
+        signflip_summary = signflip_report["summary"] if signflip_report else {}
+        lines.extend([
+            "## Opt-in sensitivity",
+            "",
+            "Cluster deletion is descriptive and is not a confidence interval or recommendation. "
+            "Exact sign-flip enumeration is conditional on the caller's explicit zero-null "
+            "exchangeable-sign assumption; it does not correct for clustering or dependence. "
+            "Null declarations mean not requested; null statistics mean that the producer "
+            "has no value to report for that calculation.",
+            f"- Cluster influence: status `{cluster_meta['status']}`; "
+            f"roster {_markdown_value(cluster_meta.get('roster_count'))}/"
+            f"{_markdown_value(cluster_meta.get('roster_count'))}, complete pairs "
+            f"{_markdown_value(cluster_meta.get('complete_pair_count'))}/"
+            f"{_markdown_value(cluster_meta.get('roster_count'))}, excluded incomplete "
+            f"{_markdown_value(cluster_meta.get('excluded_incomplete_count'))}/"
+            f"{_markdown_value(cluster_meta.get('roster_count'))}; declared clusters "
+            f"{_markdown_value(cluster_meta.get('cluster_count'))}; sign reversals "
+            f"{_markdown_value(cluster_reversals)}; reason "
+            f"`{cluster_meta['reason'] or 'null'}`.",
+            f"- Sign-flip: status `{signflip_meta['status']}`; "
+            f"roster {_markdown_value(signflip_meta.get('roster_count'))}/"
+            f"{_markdown_value(signflip_meta.get('roster_count'))}, complete pairs "
+            f"{_markdown_value(signflip_meta.get('complete_pair_count'))}/"
+            f"{_markdown_value(signflip_meta.get('roster_count'))}, excluded incomplete "
+            f"{_markdown_value(signflip_meta.get('excluded_incomplete_count'))}/"
+            f"{_markdown_value(signflip_meta.get('roster_count'))}; assumption "
+            f"`{signflip_meta['assumption'] or 'null'}`; exact two-sided tail "
+            f"{_markdown_value(signflip_summary.get('exact_two_sided_tail_count'))}/"
+            f"{_markdown_value(signflip_summary.get('sign_flip_assignments'))}, p-value "
+            f"{_markdown_value(signflip_summary.get('exact_two_sided_p_value'))}; reason "
+            f"`{signflip_meta['reason'] or 'null'}`; maximum complete pairs "
+            f"{_markdown_value(signflip_meta.get('maximum_complete_pairs'))}.",
+            "Numeric representation follows each producer, including binary-float sign-flip "
+            "and comparison calculations and exact intermediate bounds, target-mix, and cluster calculations.",
+            "",
+        ])
     serialized = _output_json(workflow)
     longest_fence = max((len(run) for run in re.findall(r"`+", serialized)), default=0)
     fence = "`" * max(3, longest_fence + 1)
