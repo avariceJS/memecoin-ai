@@ -689,3 +689,38 @@ def test_cuda_training_and_resume(tmp_path):
     train(store, pin, tmp_path / "resumed", plan=PLAN, config=config, stop_after=4)
     actual = train(store, pin, tmp_path / "resumed", plan=PLAN, config=config)
     assert actual == expected
+
+
+def test_model_spec_validation_and_legacy_bindings(tmp_path, monkeypatch):
+    from memecoin_experience import models
+
+    _, _, snapshot = dataset(tmp_path)
+    spec = models.model_spec(snapshot.schema, 8)
+    assert isinstance(models.construct(spec), torch.nn.Module)
+
+    legacy = dict(spec)
+    legacy.pop("implementation_sha")
+    legacy.pop("input_encoding")
+    assert isinstance(models.construct(legacy), torch.nn.Module)
+
+    malformed = (
+        None,
+        {},
+        dict(spec, width=True),
+        dict(spec, quantiles=(0.1, 0.5, 0.9)),
+        dict(spec, unexpected=True),
+    )
+
+    def construction_must_not_run(*args, **kwargs):
+        raise AssertionError("module construction ran before spec validation")
+
+    for value in malformed:
+        with monkeypatch.context() as patch:
+            patch.setattr(models, "GRU", construction_must_not_run)
+            with pytest.raises(ValueError, match="experience_model_spec"):
+                models.construct(value)
+
+    for field in ("implementation_sha", "input_encoding"):
+        changed = dict(spec, **{field: "mismatched-binding"})
+        with pytest.raises(ValueError, match="experience_model_implementation"):
+            models.construct(changed)

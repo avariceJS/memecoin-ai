@@ -67,7 +67,21 @@ class TemporalMLP(nn.Module):
 
 
 def construct(spec):
-    if spec != model_spec(spec["schema"], spec["width"], spec["kind"]):
+    required = {"kind", "width", "schema", "quantiles"}
+    optional_bindings = {"implementation_sha", "input_encoding"}
+    if not isinstance(spec, dict) or not required <= spec.keys() or spec.keys() - required - optional_bindings:
+        raise ValueError("experience_model_spec")
+    try:
+        expected = model_spec(spec["schema"], spec["width"], spec["kind"])
+    except (KeyError, TypeError, ValueError, AttributeError):
+        raise ValueError("experience_model_spec") from None
+    if type(spec["quantiles"]) is not list or spec["quantiles"] != expected["quantiles"]:
+        raise ValueError("experience_model_spec")
+    if any(
+        type(spec[key]) is not str or spec[key] != expected[key]
+        for key in optional_bindings
+        if key in spec
+    ):
         raise ValueError("experience_model_implementation")
     schema = spec["schema"]
     args = (spec["width"], len(feature_names(schema)), len(target_names(schema)))
