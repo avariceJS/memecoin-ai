@@ -27,6 +27,45 @@ def test_input_policy_has_no_outcome_or_survival_channel():
     assert decide([[1000, 0]], names, POLICY) == 0
 
 
+def test_denominator_summary_reads_sealed_report_counts():
+    from memecoin_experience.evaluation import denominator_summary
+
+    legacy = dict(
+        status="completed",
+        enrollment=3,
+        supported_pools=2,
+        per_pool_records={"a": 4, "b": 0, "c": 2},
+        per_pool_usable={"a": 4, "b": 0, "c": 1},
+        population={"usable": 5},
+    )
+    assert denominator_summary(legacy) == dict(
+        enrolled_pools=3,
+        present_pools=2,
+        supported_pools=2,
+        scored_origins=5,
+        missing_pools=1,
+    )
+
+    coordinate = dict(
+        status="completed",
+        pool_coverage=dict(
+            registered=4,
+            present_in_snapshot=3,
+            exact_scored=2,
+            missing_registered=1,
+            present_without_exact_scored=["c"],
+        ),
+        population={"test_scored_origins": 5},
+    )
+    assert denominator_summary(coordinate) == dict(
+        enrolled_pools=4,
+        present_pools=3,
+        supported_pools=2,
+        scored_origins=5,
+        missing_pools=1,
+    )
+
+
 def dataset(store):
     schema = ohlcv_schema(8, stable=True)
     raw = list(bars(120))

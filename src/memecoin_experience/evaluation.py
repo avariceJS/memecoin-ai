@@ -32,6 +32,82 @@ COORDINATE_METRICS_V2 = "native_coordinate_macro_pinball_coverage_train_baseline
 COORDINATE_METRICS_V3 = "native_coordinate_macro_pinball_coverage_train_baseline_pool_coverage_v3"
 
 
+def denominator_summary(report):
+    """Summarize pool counts and scored origins from an existing sealed report."""
+    if not isinstance(report, dict) or report.get("status") != "completed":
+        raise ValueError("experience_evaluation_denominator_summary")
+
+    coverage = report.get("pool_coverage")
+    if coverage is not None:
+        required = {
+            "registered",
+            "present_in_snapshot",
+            "exact_scored",
+            "missing_registered",
+            "present_without_exact_scored",
+        }
+        if not isinstance(coverage, dict) or not required.issubset(coverage):
+            raise ValueError("experience_evaluation_denominator_summary")
+        count_keys = required - {"present_without_exact_scored"}
+        if any(
+            type(coverage[key]) is not int or coverage[key] < 0
+            for key in count_keys
+        ):
+            raise ValueError("experience_evaluation_denominator_summary")
+        unscored = coverage["present_without_exact_scored"]
+        population = report.get("population")
+        scored_origins = population.get("test_scored_origins") if isinstance(population, dict) else None
+        if (
+            not isinstance(unscored, list)
+            or any(not isinstance(pool, str) for pool in unscored)
+            or unscored != sorted(set(unscored))
+            or coverage["present_in_snapshot"] + coverage["missing_registered"] != coverage["registered"]
+            or coverage["exact_scored"] + len(unscored) != coverage["present_in_snapshot"]
+            or type(scored_origins) is not int
+            or scored_origins < 0
+        ):
+            raise ValueError("experience_evaluation_denominator_summary")
+        return dict(
+            enrolled_pools=coverage["registered"],
+            present_pools=coverage["present_in_snapshot"],
+            supported_pools=coverage["exact_scored"],
+            scored_origins=scored_origins,
+            missing_pools=coverage["missing_registered"],
+        )
+
+    population = report.get("population")
+    records = report.get("per_pool_records")
+    usable_records = report.get("per_pool_usable")
+    supported = report.get("supported_pools")
+    enrolled = report.get("enrollment")
+    if (
+        not isinstance(population, dict)
+        or not isinstance(records, dict)
+        or not isinstance(usable_records, dict)
+        or type(enrolled) is not int
+        or enrolled < 0
+        or type(supported) is not int
+        or supported < 0
+        or len(records) != enrolled
+        or supported > enrolled
+        or type(population.get("usable")) is not int
+        or population["usable"] < 0
+        or any(type(value) is not int or value < 0 for value in records.values())
+        or set(usable_records) != set(records)
+        or any(type(value) is not int or value < 0 for value in usable_records.values())
+        or sum(value > 0 for value in usable_records.values()) != supported
+    ):
+        raise ValueError("experience_evaluation_denominator_summary")
+    missing = sum(count == 0 for count in records.values())
+    return dict(
+        enrolled_pools=enrolled,
+        present_pools=enrolled - missing,
+        supported_pools=supported,
+        scored_origins=population["usable"],
+        missing_pools=missing,
+    )
+
+
 def _validate_coordinate_report(protocol, protocol_copy, report, binding):
     """Validate sealed output meaning before returning or reusing its report."""
     error = "experience_coordinate_evaluation_output"
