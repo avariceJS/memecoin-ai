@@ -135,6 +135,46 @@ def test_reject_invalid_temporality_or_schema(change):
         advance(state, t)
 
 
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("at_ns", True),
+        ("activation_ns", 309.5 * NS),
+        ("close_s", True),
+        ("available_ns", 305 * NS + 0.5),
+        ("predicted_ns", "310000000000"),
+        ("input_available_ns", False),
+    ],
+)
+def test_tick_clocks_require_exact_integers(field, value):
+    t = tick(predictions=[prediction()])
+    if field in ("at_ns", "activation_ns"):
+        t[field] = value
+    elif field in ("close_s", "available_ns"):
+        t["market"][0][field] = value
+    else:
+        t["predictions"][0][field] = value
+    with pytest.raises(ValueError):
+        advance(initial(), t)
+
+
+@pytest.mark.parametrize("available", [299 * NS, 311 * NS])
+def test_observation_availability_must_be_within_close_and_tick(available):
+    t = tick(market=[obs(300, available=available)])
+    with pytest.raises(ValueError, match="invalid_paper_observation"):
+        advance(initial(), t)
+
+
+def test_prediction_temporality_is_checked_before_processing_existing_book():
+    state = opened()
+    before = deepcopy(state)
+    invalid = prediction("future", at=320)
+    invalid["input_available_ns"] = 321 * NS
+    with pytest.raises(ValueError, match="paper_prediction_temporality"):
+        advance(state, tick(1510, [obs(1500)], [invalid]))
+    assert state == before
+
+
 def test_ledger_restart_exact_replay_and_external_head(tmp_path):
     ts = [tick(predictions=[prediction()]), tick(610, [obs(600)]), tick(1510, [obs(1500)])]
     binding = dict(fixture=True)

@@ -39,10 +39,30 @@ def new_book(model, kind):
     )
 
 
+def _require_clock(value):
+    if type(value) is not int:
+        raise ValueError("invalid_paper_clock")
+
+
 def advance(previous, tick):
-    state = copy.deepcopy(previous)
     now = tick["at_ns"]
+    activation = tick["activation_ns"]
+    _require_clock(now)
+    _require_clock(activation)
+    for obs in tick["market"]:
+        _require_clock(obs["close_s"])
+        _require_clock(obs["available_ns"])
+        if not obs["close_s"] * NS <= obs["available_ns"] <= now:
+            raise ValueError("invalid_paper_observation")
+    for pred in tick["predictions"]:
+        _require_clock(pred["predicted_ns"])
+        _require_clock(pred["input_available_ns"])
+        if not activation <= pred["predicted_ns"] <= now or pred["input_available_ns"] > pred["predicted_ns"]:
+            raise ValueError("paper_prediction_temporality")
+
+    state = copy.deepcopy(previous)
     records = []
+    _require_clock(state["last_ns"])
     if now < state["last_ns"]:
         raise ValueError("paper_clock_regression")
     market = {o["pool"]: o for o in tick["market"]}
@@ -50,7 +70,7 @@ def advance(previous, tick):
         raise ValueError("duplicate_market_pool")
     for o in market.values():
         price = D(o["price"])
-        if not price.is_finite() or price <= 0 or not o["close_s"] * NS <= o["available_ns"] <= now:
+        if not price.is_finite() or price <= 0:
             raise ValueError("invalid_paper_observation")
     for key, book in state["books"].items():
         cash = D(book["cash"])
@@ -147,11 +167,6 @@ def advance(previous, tick):
     for pred in sorted(tick["predictions"], key=lambda p: (p["predicted_ns"], p["id"])):
         if pred["id"] in seen:
             continue
-        if (
-            not tick["activation_ns"] <= pred["predicted_ns"] <= now
-            or pred["input_available_ns"] > pred["predicted_ns"]
-        ):
-            raise ValueError("paper_prediction_temporality")
         seen.add(pred["id"])
         for kind, q in pred["q_by_candidate"].items():
             if (
