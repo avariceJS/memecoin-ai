@@ -138,3 +138,33 @@ def test_population_audit_output_flows_directly_into_split_lineage():
         "train": ["r1"], "validation": [], "test": ["r2"]}
     assert result["excluded_row_count"] == 1
     assert result["excluded_group_count"] == 1
+
+
+def test_population_audit_partial_group_is_excluded_from_split_lineage():
+    snapshot = {"snapshot_id": PIN["snapshot_id"],
+                "snapshot_sha256": PIN["snapshot_sha256"],
+                "row_ids": ["r1", "r2", "r3", "r4", "r5", "r6"]}
+    decisions = [
+        {"row_id": "r1", "group_id": "g1", "disposition": "included", "reason": None},
+        {"row_id": "r2", "group_id": "g1", "disposition": "included", "reason": None},
+        {"row_id": "r3", "group_id": "mixed", "disposition": "included", "reason": None},
+        {"row_id": "r4", "group_id": "mixed", "disposition": "excluded", "reason": "out of scope"},
+        {"row_id": "r5", "group_id": "excluded", "disposition": "excluded", "reason": "out of scope"},
+        {"row_id": "r6", "group_id": "g2", "disposition": "included", "reason": None},
+    ]
+    inclusion = analyze_population(snapshot, decisions)
+    mixed_group = next(group for group in inclusion["groups"] if group["group_id"] == "mixed")
+    assert mixed_group["status"] == "partial"
+    assert mixed_group["disposition"] == "excluded"
+
+    assignments = [{"group_id": "g1", "split": "train"}, {"group_id": "g2", "split": "test"}]
+    result = analyze(PIN, inclusion, assignments, PLAN)
+    assert result["included_row_ids_by_split"] == {
+        "train": ["r1", "r2"], "validation": [], "test": ["r6"]}
+    assert result["excluded_row_count"] == 2
+    assert result["excluded_group_count"] == 2
+    assert result["row_denominators"] == {"before": 6, "after": 4, "change": -2}
+    assert result["group_denominators"] == {"before": 4, "after": 2, "change": -2}
+
+    with pytest.raises(ValueError, match="split_lineage_excluded_assignment"):
+        analyze(PIN, inclusion, assignments + [{"group_id": "mixed", "split": "test"}], PLAN)

@@ -91,7 +91,9 @@ def analyze(snapshot_pin, inclusion, assignments, split_plan):
             counts.append(alias_counts[0])
         counts = tuple(counts)
         actual = group_rows.get(gid, {"included": 0, "excluded": 0})
-        if counts != (actual["included"] + actual["excluded"], actual["included"], actual["excluded"]) or group["disposition"] != ("included" if actual["included"] else "excluded"):
+        expected_disposition = "included" if actual["excluded"] == 0 else "excluded"
+        expected_counts = (actual["included"] + actual["excluded"], actual["included"], actual["excluded"])
+        if counts != expected_counts or group["disposition"] != expected_disposition:
             _fail("split_lineage_inclusion")
         group_contract[gid] = group["disposition"]
     if set(group_contract) != set(group_rows):
