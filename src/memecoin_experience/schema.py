@@ -10,10 +10,23 @@ DENSE = "dense-sequence-f64-v1"
 
 
 def validate(schema):
-    if schema.get("schema") == "brain-experience-v1":
-        if schema != contract(schema["context"]):
+    if not isinstance(schema, dict):
+        raise ValueError("experience_schema")
+
+    version = schema.get("schema")
+    if version == "brain-experience-v1":
+        context = schema.get("context")
+        if type(context) is not int or not 1 <= context <= 256:
+            raise ValueError("experience_schema")
+        if schema != contract(context):
             raise ValueError("experience_schema")
         return schema
+
+    if not isinstance(version, str) or version not in {
+        "brain-experience-v2",
+        "brain-experience-v3",
+    }:
+        raise ValueError("experience_schema")
     required_v2 = {
         "schema",
         "layout",
@@ -23,19 +36,17 @@ def validate(schema):
         "representation",
         "availability",
     }
-    required = (
-        required_v2
-        if isinstance(schema, dict) and schema.get("schema") == "brain-experience-v2"
-        else required_v2
-        | {"coordinate_domain", "coordinate_domain_pin", "coordinate_domains", "sample_contract"}
-    )
+    required = required_v2 if version == "brain-experience-v2" else required_v2 | {
+        "coordinate_domain", "coordinate_domain_pin", "coordinate_domains", "sample_contract"
+    }
     if (
         set(schema) != required
-        or schema["schema"] not in {"brain-experience-v2", "brain-experience-v3"}
         or schema["layout"] != DENSE
         or type(schema["context"]) is not int
         or not 1 <= schema["context"] <= 65536
+        or not isinstance(schema["availability"], str)
         or schema["availability"] not in {"historical_replay", "point_in_time"}
+        or not isinstance(schema["representation"], dict)
         or set(schema["representation"]) != {"name", "version", "code_sha"}
         or not all(isinstance(v, str) and v for v in schema["representation"].values())
         or not re.fullmatch(r"[0-9a-f]{64}", schema["representation"]["code_sha"])
@@ -54,11 +65,13 @@ def validate(schema):
         if (
             not isinstance(columns, list)
             or not columns
-            or len({c.get("name") for c in columns}) != len(columns)
             or any(
-                set(c) != required or not all(isinstance(v, str) and v for v in c.values())
+                not isinstance(c, dict)
+                or set(c) != required
+                or not all(isinstance(v, str) and v for v in c.values())
                 for c in columns
             )
+            or len({c["name"] for c in columns}) != len(columns)
         ):
             raise ValueError("experience_schema_columns")
     return schema
