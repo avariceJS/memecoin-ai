@@ -87,6 +87,8 @@ def ingest(ledger: Ledger, evidence: dict) -> dict:
 
 
 def view(ledger: Ledger, as_of_ns: int) -> dict:
+    if type(as_of_ns) is not int or as_of_ns < 0:
+        raise ValueError("as_of_ns must be a nonnegative integer")
     states = {}
     for row in ledger.audit():
         e = row["payload"]["evidence"]
@@ -102,6 +104,7 @@ def view(ledger: Ledger, as_of_ns: int) -> dict:
                 observations=0,
                 conflicted=False,
                 status=e["status"],
+                historical_online_available=e.get("historical_online_available", False),
             ),
         )
         s["observations"] += 1
@@ -113,7 +116,12 @@ def view(ledger: Ledger, as_of_ns: int) -> dict:
             s["status"] = e["status"]
         if s["conflicted"]:
             s["status"] = "revision_quarantine"
-        s.update(semantic_kind=e["semantic_kind"], decoded_trade=False, execution_supported=False)
+        s.update(
+            semantic_kind=e["semantic_kind"],
+            decoded_trade=False,
+            execution_supported=False,
+            historical_online_available=e.get("historical_online_available", False),
+        )
     return dict(
         events=[dict(key=list(k), **v, training_eligible=False) for k, v in sorted(states.items())],
         as_of_ns=as_of_ns,

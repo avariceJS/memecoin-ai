@@ -1,4 +1,5 @@
 import json
+import copy
 import time
 
 import pytest
@@ -30,6 +31,107 @@ def evidence(**kw):
         semantic_kind="account_reference",
         **kw,
     )
+
+
+class _SyntheticLedger:
+    """Small immutable-audit fixture for boundary and pre-audit guard checks."""
+
+    def __init__(self, rows=()):
+        self.events = copy.deepcopy(list(rows))
+        self.head = "synthetic-head"
+        self.audit_calls = 0
+
+    def audit(self):
+        self.audit_calls += 1
+        return copy.deepcopy(self.events)
+
+
+def _synthetic_observation(receipt_ns, available_ns, *, classification="first_observation"):
+    return dict(
+        time_ns=receipt_ns,
+        kind="observation",
+        payload=dict(
+            key=["provider-a", "fixture-net", "synthetic-id"],
+            classification=classification,
+            evidence=dict(
+                provider="provider-a",
+                network="fixture-net",
+                identity="synthetic-id",
+                semantic_sha="synthetic-sha",
+                status="raw_reference",
+                available_ns=available_ns,
+                semantic_kind="account_reference",
+                decoded_trade=False,
+                execution_supported=False,
+                historical_online_available=False,
+            ),
+        ),
+    )
+
+
+class _IntSubclass(int):
+    pass
+
+
+@pytest.mark.parametrize(
+    "cutoff",
+    [True, False, 1.0, float("nan"), float("inf"), -float("inf"), "1", "", [], {}, (), None, -1, _IntSubclass(1)],
+    ids=["true", "false", "float", "nan", "positive-infinity", "negative-infinity", "numeric-string", "string", "list", "dict", "tuple", "none", "negative", "int-subclass"],
+)
+@pytest.mark.parametrize("populated", [False, True], ids=["empty", "populated"])
+def test_view_rejects_invalid_cutoff_before_audit(cutoff, populated):
+    rows = [_synthetic_observation(1, 1)] if populated else []
+    ledger = _SyntheticLedger(rows)
+    before = copy.deepcopy(ledger.events)
+
+    with pytest.raises(ValueError) as exc:
+        view(ledger, cutoff)
+
+    assert str(exc.value) == "as_of_ns must be a nonnegative integer"
+    assert ledger.audit_calls == 0
+    assert ledger.events == before
+
+
+def test_view_zero_time_populated_observation_and_later_cutoff_preserve_flags():
+    ledger = _SyntheticLedger([_synthetic_observation(0, 0)])
+    before = copy.deepcopy(ledger.events)
+
+    at_zero = view(ledger, 0)["events"]
+    later = view(ledger, 17)["events"]
+
+    assert len(at_zero) == len(later) == 1
+    for event in (at_zero[0], later[0]):
+        assert event["key"] == ["provider-a", "fixture-net", "synthetic-id"]
+        assert event["first_observed_ns"] == 0
+        assert event["first_available_ns"] == 0
+        assert event["semantic_kind"] == "account_reference"
+        assert event["decoded_trade"] is False
+        assert event["execution_supported"] is False
+        assert event["historical_online_available"] is False
+        assert event["training_eligible"] is False
+    assert ledger.audit_calls == 2
+    assert ledger.events == before
+
+
+@pytest.mark.parametrize(
+    ("receipt_ns", "available_ns", "before", "boundary"),
+    [(8, 3, 7, 8), (3, 8, 7, 8)],
+    ids=["receipt-dominant", "availability-dominant"],
+)
+def test_view_uses_max_receipt_and_availability(receipt_ns, available_ns, before, boundary):
+    ledger = _SyntheticLedger([_synthetic_observation(receipt_ns, available_ns)])
+    snapshot = copy.deepcopy(ledger.events)
+
+    assert view(ledger, before)["events"] == []
+    event = view(ledger, boundary)["events"][0]
+    assert event["first_observed_ns"] == max(receipt_ns, available_ns)
+    assert event["first_available_ns"] == max(receipt_ns, available_ns)
+    assert event["key"] == ["provider-a", "fixture-net", "synthetic-id"]
+    assert event["training_eligible"] is False
+    assert event["decoded_trade"] is False
+    assert event["execution_supported"] is False
+    assert event["historical_online_available"] is False
+    assert ledger.events == snapshot
 
 
 def test_duplicate_restart_conflict_and_source_identity_preserve_asof(tmp_path):
