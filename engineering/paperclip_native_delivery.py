@@ -32,6 +32,7 @@ BATCH_POLICY_SCHEMA = "brain-native-batch-publisher-policy-v1"
 BATCH_ACCEPTANCE_SCHEMA = "brain-luna-batch-acceptance-v1"
 BATCH_ACCEPTANCE_V2_SCHEMA = "brain-luna-batch-acceptance-v2"
 BATCH_RECEIPT_SCHEMA = "brain-native-batch-publication-receipt-v1"
+BATCH_PARENT_LEAD_WAIT_SECONDS = 180
 PUBLISH_REF = "refs/heads/develop"
 PROCESS_WORKSPACE_IDS = {
     "stage": "bb6956ed-1210-48a0-8e6a-b28f584855fc",
@@ -3157,8 +3158,11 @@ def _close_batch_parent(
     acceptance_revision: str,
     acceptance_sha: str,
     receipt_body: str,
+    publication: tuple[dict[str, Any], dict[str, Any]] | None = None,
 ) -> None:
-    deadline = time.monotonic() + 60
+    deadline = time.monotonic() + BATCH_PARENT_LEAD_WAIT_SECONDS
+    extended_readback_at = deadline - (BATCH_PARENT_LEAD_WAIT_SECONDS - 60)
+    extended_readback_checked = False
     while True:
         parent = api.issue(parent_id)
         require(
@@ -3235,6 +3239,18 @@ def _close_batch_parent(
             _check_batch_hold(source)
             api.no_pending(source_id)
         lead_runs_active = _batch_parent_runs(api, parent_id, lead_id)
+        if (
+            lead_runs_active
+            and publication is not None
+            and not extended_readback_checked
+            and time.monotonic() >= extended_readback_at
+        ):
+            manifest, operation = publication
+            require(
+                remote_refs(manifest) == operation["remote_readback"],
+                "batch_parent_publication_effect_changed",
+            )
+            extended_readback_checked = True
         if parent.get("status") == "done":
             require(not lead_runs_active, "batch_parent_lead_run_active")
             require(
@@ -3622,6 +3638,7 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
                 revision_id,
                 body_sha,
                 current_doc["body"],
+                (m, published),
             )
             api.complete(own_id)
             _cleanup_batch_candidate(m, candidate)
@@ -3782,6 +3799,7 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
             revision_id,
             body_sha,
             receipt_body_text,
+            (m, receipt_body),
         )
     api.complete(own_id)
     if close_parent:
