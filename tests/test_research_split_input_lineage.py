@@ -51,6 +51,51 @@ def test_valid_manifest_counts_hash_and_ordering():
     assert analyze(PIN, inclusion2, assignments2, PLAN) == result
 
 
+@pytest.mark.parametrize("alias_mode", ["legacy", "published", "mixed", "agreeing_dual"])
+def test_group_count_alias_compatibility(alias_mode):
+    inclusion, assignments = inputs()
+    for index, group in enumerate(inclusion["groups"]):
+        included = group.pop("included_row_count")
+        excluded = group.pop("excluded_row_count")
+        if alias_mode == "legacy" or (alias_mode == "mixed" and index % 2 == 0):
+            group.update(included_count=included, excluded_count=excluded)
+        elif alias_mode == "agreeing_dual":
+            group.update(
+                included_row_count=included,
+                excluded_row_count=excluded,
+                included_count=included,
+                excluded_count=excluded,
+            )
+        else:
+            group.update(included_row_count=included, excluded_row_count=excluded)
+
+    assert analyze(PIN, inclusion, assignments, PLAN)["included_group_counts_by_split"] == {
+        "train": 1, "validation": 0, "test": 1,
+    }
+
+
+@pytest.mark.parametrize("alias_key,conflict", [
+    ("included_count", 1),
+    ("excluded_count", 1),
+])
+def test_conflicting_group_count_aliases_fail(alias_key, conflict):
+    inclusion, assignments = inputs()
+    inclusion["groups"][0][alias_key] = conflict
+    with pytest.raises(ValueError, match="split_lineage_inclusion"):
+        analyze(PIN, inclusion, assignments, PLAN)
+
+
+@pytest.mark.parametrize("alias_key", [
+    "included_row_count", "included_count", "excluded_row_count", "excluded_count",
+])
+@pytest.mark.parametrize("invalid", [True, -1, 2.0, "2"])
+def test_every_supplied_group_count_alias_must_be_a_nonnegative_strict_int(alias_key, invalid):
+    inclusion, assignments = inputs()
+    inclusion["groups"][0][alias_key] = invalid
+    with pytest.raises(ValueError, match="split_lineage_inclusion"):
+        analyze(PIN, inclusion, assignments, PLAN)
+
+
 @pytest.mark.parametrize("mutator,code", [
     (lambda i, a: a.pop(), "split_lineage_missing_assignment"),
     (lambda i, a: a.append(dict(a[0])), "split_lineage_duplicate_assignment"),

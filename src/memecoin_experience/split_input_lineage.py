@@ -80,11 +80,16 @@ def analyze(snapshot_pin, inclusion, assignments, split_plan):
         gid = group["group_id"]
         if gid in group_contract:
             _fail("split_lineage_duplicate_group")
-        included_key = "included_row_count" if "included_row_count" in group else "included_count"
-        excluded_key = "excluded_row_count" if "excluded_row_count" in group else "excluded_count"
-        if included_key not in group or excluded_key not in group:
-            _fail("split_lineage_inclusion")
-        counts = tuple(_count(group[k], "split_lineage_inclusion") for k in ("row_count", included_key, excluded_key))
+        counts = [_count(group["row_count"], "split_lineage_inclusion")]
+        for aliases in (("included_row_count", "included_count"), ("excluded_row_count", "excluded_count")):
+            supplied = [group[key] for key in aliases if key in group]
+            if not supplied:
+                _fail("split_lineage_inclusion")
+            alias_counts = [_count(value, "split_lineage_inclusion") for value in supplied]
+            if any(value != alias_counts[0] for value in alias_counts[1:]):
+                _fail("split_lineage_inclusion")
+            counts.append(alias_counts[0])
+        counts = tuple(counts)
         actual = group_rows.get(gid, {"included": 0, "excluded": 0})
         if counts != (actual["included"] + actual["excluded"], actual["included"], actual["excluded"]) or group["disposition"] != ("included" if actual["included"] else "excluded"):
             _fail("split_lineage_inclusion")

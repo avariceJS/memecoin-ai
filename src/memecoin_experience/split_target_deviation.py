@@ -48,9 +48,9 @@ def analyze(payload: dict) -> dict:
     if len(observed) > 16:
         raise _invalid()
 
-    splits = sorted(observed)
-    if any(not _identifier(split) for split in splits):
+    if any(not _identifier(split) for split in observed):
         raise _invalid()
+    splits = sorted(observed)
     strata: set[str] | None = None
     for table in (observed, target):
         for split in splits:

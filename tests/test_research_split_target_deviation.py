@@ -85,6 +85,8 @@ class SplitTargetDeviationTests(unittest.TestCase):
             {"observed_counts": {"train": {"a": True}}, "target_counts": {"train": {"a": 0}}},
             {"observed_counts": {"train": {"a": 1.0}}, "target_counts": {"train": {"a": 1}}},
             {"observed_counts": {"bad split": {"a": 1}}, "target_counts": {"bad split": {"a": 1}}},
+            {"observed_counts": {"train": {"a": 1}, 1: {"a": 1}},
+             "target_counts": {"train": {"a": 1}, 1: {"a": 1}}},
             {"observed_counts": {"train": {"a": 1_000_001}}, "target_counts": {"train": {"a": 1}}},
         ]
         for payload in invalid:
