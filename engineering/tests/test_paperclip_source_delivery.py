@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from engineering.git_gate import GitGate, VerificationPolicy
 from engineering.paperclip_source_delivery import (
@@ -16,6 +17,7 @@ from engineering.paperclip_source_delivery import (
     materialize_owner_projection,
     refresh_owner_workspace,
     snapshot_records,
+    validate_path_ids,
 )
 
 
@@ -125,6 +127,23 @@ class PaperclipSourceDeliveryTests(unittest.TestCase):
                 self.assertRaisesRegex(SourceDeliveryError, "manifest_invalid"),
             ):
                 snapshot_records(manifest_records(invalid, tuple("x" for _ in invalid)), invalid)
+
+    def test_owner_manifest_rejects_nul_paths_before_io(self):
+        paths_with_nul = (
+            ("src/memecoin_experience\0/records.py", "tests/test_experience.py"),
+            ("src/memecoin_experience/records.py", "tests/test_experience\0.py"),
+        )
+        for paths in paths_with_nul:
+            with (
+                self.subTest(paths=paths),
+                patch.object(Path, "open", side_effect=AssertionError("filesystem access")),
+                patch.object(Path, "stat", side_effect=AssertionError("filesystem access")),
+                self.assertRaisesRegex(SourceDeliveryError, "^source_path_manifest_invalid$"),
+            ):
+                validate_path_ids(paths)
+
+        unicode_paths = ("src/memecoin_experience/naïve.py", "tests/test_café.py")
+        self.assertEqual(validate_path_ids(unicode_paths), unicode_paths)
 
     def test_non_senses_manifest_publishes_only_changed_subset(self):
         paths = (

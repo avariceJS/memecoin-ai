@@ -38,6 +38,7 @@ def validate_path_ids(path_ids: Any) -> tuple[str, ...]:
         any(
             type(path) is not str
             or not path
+            or "\0" in path
             or "\\" in path
             or path.startswith("/")
             or str(PurePosixPath(path)) != path
