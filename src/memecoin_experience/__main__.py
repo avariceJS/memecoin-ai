@@ -2,11 +2,7 @@
 
 import argparse
 import json
-from collections import Counter
 from pathlib import Path
-
-from .sources import inputs
-from .storage import Snapshot, build
 
 
 def main():
@@ -57,7 +53,25 @@ def main():
     predictor.add_argument("--artifact", required=True, type=Path)
     predictor.add_argument("--pin", required=True)
     predictor.add_argument("--frames", required=True, type=Path)
+    reviewer = commands.add_parser("split-review")
+    reviewer.add_argument("--input", required=True, type=Path)
+    reviewer.add_argument("--output", type=Path)
     args = parser.parse_args()
+    if args.action == "split-review":
+        from .split_review import analyze
+
+        request = json.loads(
+            args.input.read_text(encoding="utf-8"),
+            object_pairs_hook=_unique_object,
+            parse_constant=_reject_constant,
+        )
+        result = analyze(request)
+        rendered = json.dumps(result, sort_keys=True, ensure_ascii=False, allow_nan=False) + "\n"
+        if args.output is None:
+            print(rendered, end="")
+        else:
+            args.output.write_text(rendered, encoding="utf-8")
+        return
     if args.action in {
         "publish-observations",
         "build-sparse",
@@ -127,6 +141,11 @@ def main():
 
         result = export(args.index, args.output, json.loads(args.plan.read_text()))
     elif args.action == "build":
+        from collections import Counter
+
+        from .sources import inputs
+        from .storage import build
+
         plan = json.loads(args.plan.read_text())
         required = {"sources", "cutoff_ns", "context", "chunk"}
         if not required <= set(plan) or set(plan) - required - {
@@ -181,6 +200,8 @@ def main():
             k: v for k, v in result.items() if k not in {"partitions", "partition_pages", "binding"}
         }
     elif args.action == "inspect":
+        from .storage import Snapshot
+
         snapshot = Snapshot(args.store, args.snapshot)
         for i in range(len(snapshot.parts)):
             snapshot.partition(i)
@@ -213,6 +234,19 @@ def main():
         result = {k: report[k] for k in ("status", "steps", "rows_seen", "parameters")}
         result["artifact"] = str(args.output / "artifact")
     print(json.dumps(result, sort_keys=True, allow_nan=False))
+
+
+def _unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("experience_split_review_duplicate_json_key")
+        result[key] = value
+    return result
+
+
+def _reject_constant(value):
+    raise ValueError(f"experience_split_review_nonfinite_json_constant:{value}")
 
 
 if __name__ == "__main__":

@@ -31,6 +31,7 @@ def test_reports_rows_groups_and_denominator_changes_including_partial_group():
         ("g1", "partial"), ("g2", "included"), ("g3", "excluded")]
     assert result["groups"][0] == {
         "group_id": "g1", "row_count": 2, "included_count": 1,
+        "included_row_count": 1, "excluded_row_count": 1,
         "excluded_count": 1, "disposition": "excluded", "status": "partial"}
     assert result["denominators"] == {
         "rows": {"before": 4, "after": 2, "included": 2, "excluded": 2},
