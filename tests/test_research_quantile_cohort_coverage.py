@@ -47,13 +47,15 @@ def test_grouped_coverage_counts_status_denominators_and_boundary_equality() -> 
         {"target", "cohort", "row_count", "scored_count", "missing_actual_count", "missing_prediction_count", "unsupported_count", "levels"}
     ] * 2
     assert deep["levels"] == [
-        {"nominal_level": 0.25, "scored_count": 1, "covered_count": 0, "empirical_coverage": 0.0, "signed_gap": -0.25},
-        {"nominal_level": 0.5, "scored_count": 1, "covered_count": 1, "empirical_coverage": 1.0, "signed_gap": 0.5},
+        {"nominal_level": 0.25, "scored_count": 1, "covered_count": 0, "empirical_coverage": 0.0, "signed_gap": -0.25, "mean_pinball_loss": 0.25},
+        {"nominal_level": 0.5, "scored_count": 1, "covered_count": 1, "empirical_coverage": 1.0, "signed_gap": 0.5, "mean_pinball_loss": 0.5},
     ]
     assert young["row_count"] == 5
     assert (young["scored_count"], young["missing_actual_count"], young["missing_prediction_count"], young["unsupported_count"]) == (2, 1, 1, 1)
     assert young["levels"][0]["covered_count"] == 1  # actual == forecast is covered
     assert young["levels"][1]["covered_count"] == 2
+    assert [level["mean_pinball_loss"] for level in young["levels"]] == [0.125, 0.25]
+    assert [level["scored_count"] for level in young["levels"]] == [2, 2]  # missing-status rows excluded
     assert all(math.isfinite(level["signed_gap"]) for group in result["details"] for level in group["levels"])
 
 
@@ -64,7 +66,7 @@ def test_zero_score_group_and_empty_input() -> None:
     group = analyze(payload)["details"][0]
     assert group["levels"] == [{
         "nominal_level": 0.25, "scored_count": 0, "covered_count": 0,
-        "empirical_coverage": None, "signed_gap": None,
+        "empirical_coverage": None, "signed_gap": None, "mean_pinball_loss": None,
     }]
     empty = analyze({"nominal_levels": [0.25], "rows": []})
     assert empty["summary"] == {
@@ -72,6 +74,34 @@ def test_zero_score_group_and_empty_input() -> None:
         "missing_actual_count": 0, "missing_prediction_count": 0, "unsupported_count": 0,
     }
     assert empty["details"] == []
+
+
+def test_pinball_loss_both_residual_signs_equality_distinct_levels_and_extrema() -> None:
+    levels = [0.25, 0.5, 0.75]
+    payload = {
+        "nominal_levels": levels,
+        "rows": [
+            {"id": "positive", "target": "x", "cohort": "edges", "status": "scored", "actual": 1e12,
+             "quantiles": [{"level": q, "value": -1e12} for q in levels]},
+            {"id": "negative", "target": "x", "cohort": "edges", "status": "scored", "actual": -1e12,
+             "quantiles": [{"level": q, "value": 1e12} for q in levels]},
+            {"id": "equal", "target": "x", "cohort": "edges", "status": "scored", "actual": 7,
+             "quantiles": [{"level": q, "value": 7} for q in levels]},
+        ],
+    }
+    scored_levels = analyze(payload)["details"][0]["levels"]
+    assert [item["mean_pinball_loss"] for item in scored_levels] == pytest.approx([2e12 / 3] * 3)
+    assert [item["scored_count"] for item in scored_levels] == [3, 3, 3]
+    assert all(math.isfinite(item["mean_pinball_loss"]) for item in scored_levels)
+
+    # Separate levels make the asymmetric rho_q weighting observable directly.
+    signs = {"nominal_levels": [0.25, 0.75], "rows": [
+        {"id": "positive", "target": "x", "cohort": "signs", "status": "scored", "actual": 2,
+         "quantiles": [{"level": 0.25, "value": 1}, {"level": 0.75, "value": 1}]},
+        {"id": "negative", "target": "x", "cohort": "signs", "status": "scored", "actual": 0,
+         "quantiles": [{"level": 0.25, "value": 1}, {"level": 0.75, "value": 1}]},
+    ]}
+    assert [item["mean_pinball_loss"] for item in analyze(signs)["details"][0]["levels"]] == [0.5, 0.5]
 
 
 def test_ordering_invariance_and_order_sensitive_canonical_hash() -> None:

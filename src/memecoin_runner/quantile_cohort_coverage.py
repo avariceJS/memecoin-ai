@@ -1,4 +1,9 @@
-"""Descriptive quantile coverage grouped by caller-declared cohorts."""
+"""Descriptive quantile coverage and mean pinball loss by caller-declared cohort.
+
+Each level's loss is averaged over scored rows only and is expressed in the
+associated target's units. Scores for different targets therefore should not
+be pooled. These are descriptive summaries, not uncertainty estimates.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +20,7 @@ _LEVEL_KEYS = {"level", "value"}
 _LIMITATIONS = [
     "Target and cohort labels and row membership are caller claims; labels are not inferred or verified.",
     "Overlapping or time-correlated rows do not support iid uncertainty estimates.",
+    "Pinball losses retain target units and should not be pooled across targets with incompatible units.",
     "These descriptive values do not establish general calibration or model quality.",
 ]
 
@@ -103,6 +109,7 @@ def analyze(payload: dict) -> dict:
                 "target": key[0], "cohort": key[1], "row_count": 0,
                 **{f"{name}_count": 0 for name in _STATUSES},
                 "scored": [0] * len(levels), "covered": [0] * len(levels),
+                "pinball_losses": [[] for _ in levels],
             }
         group = groups[key]
         group["row_count"] += 1
@@ -113,6 +120,10 @@ def analyze(payload: dict) -> dict:
                 group["scored"][index] += 1
                 if actual <= forecast:
                     group["covered"][index] += 1
+                residual = actual - forecast
+                level = levels[index]
+                loss = level * residual if residual >= 0 else (1 - level) * -residual
+                group["pinball_losses"][index].append(loss)
 
     details = []
     for key in sorted(groups):
@@ -121,10 +132,12 @@ def analyze(payload: dict) -> dict:
         for index, level in enumerate(levels):
             scored, covered = group["scored"][index], group["covered"][index]
             empirical = covered / scored if scored else None
+            mean_pinball_loss = math.fsum(group["pinball_losses"][index]) / scored if scored else None
             level_results.append({
                 "nominal_level": level, "scored_count": scored, "covered_count": covered,
                 "empirical_coverage": empirical,
                 "signed_gap": empirical - level if empirical is not None else None,
+                "mean_pinball_loss": mean_pinball_loss,
             })
         details.append({
             "target": group["target"], "cohort": group["cohort"], "row_count": group["row_count"],

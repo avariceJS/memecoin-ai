@@ -28,6 +28,7 @@ def test_curve_counts_rejection_reasons_and_known_loss_support() -> None:
     result = analyze(example())
     assert result["schema"] == "brain-research-diagnostic.v1"
     assert result["kind"] == "abstention_frontier"
+    assert "cohort_details" not in result
     assert [point["threshold"] for point in result["details"]] == [0.25, 0.5, 0.8]
     low, mid, high = result["details"]
     assert (low["accepted_count"], low["coverage"], low["mean_loss"]) == (1, 0.2, 2.0)
@@ -113,4 +114,86 @@ def test_large_finite_losses_have_finite_mean_and_valid_cli_json() -> None:
     cli_result = json.loads(process.stdout, parse_constant=lambda value: pytest.fail(value))
     assert cli_result == result
     assert math.isfinite(cli_result["details"][0]["mean_loss"])
+    assert process.stderr == ""
+
+
+def test_opt_in_cohorts_keep_pooled_curve_and_report_own_denominators() -> None:
+    payload = {
+        "thresholds": [0.5],
+        "cohorts": ["small", "large", "empty"],
+        "rows": [
+            {"id": "s1", "cohort": "small", "supported": True, "uncertainty": 0.2, "loss": 10},
+            {"id": "s2", "cohort": "small", "supported": True, "uncertainty": 0.8, "loss": 20},
+            {"id": "l1", "cohort": "large", "supported": True, "uncertainty": 0.2, "loss": 1},
+            {"id": "l2", "cohort": "large", "supported": False, "uncertainty": None, "loss": 3},
+            {"id": "l3", "cohort": "large", "supported": True, "uncertainty": None, "loss": None},
+            {"id": "l4", "cohort": "large", "supported": True, "uncertainty": 0.3, "loss": None},
+        ],
+    }
+    original = json.loads(json.dumps(payload))
+    result = analyze(payload)
+    assert payload == original
+    pooled = result["details"][0]
+    assert (pooled["accepted_count"], pooled["coverage"], pooled["mean_loss"]) == (3, 0.5, 5.5)
+    cohorts = result["cohort_details"]
+    assert [item["cohort"] for item in cohorts] == ["small", "large", "empty"]
+    small, large, empty = cohorts
+    assert small["row_count"] == 2
+    assert (small["details"][0]["coverage"], small["details"][0]["mean_loss"]) == (0.5, 10.0)
+    assert large["row_count"] == 4
+    assert large["details"][0]["coverage"] == 0.5
+    assert large["details"][0]["rejected"] == {
+        "unsupported_count": 1,
+        "missing_uncertainty_count": 1,
+        "above_threshold_count": 0,
+    }
+    assert large["details"][0]["accepted_known_loss_count"] == 1
+    assert large["details"][0]["accepted_missing_loss_count"] == 1
+    assert empty["row_count"] == 0
+    assert empty["details"][0]["coverage"] is None
+    assert empty["details"][0]["mean_loss"] is None
+    assert empty["details"][0]["rejected"] == {
+        "unsupported_count": 0,
+        "missing_uncertainty_count": 0,
+        "above_threshold_count": 0,
+    }
+    for key in ("accepted_count", "accepted_known_loss_count", "accepted_missing_loss_count"):
+        assert pooled[key] == sum(item["details"][0][key] for item in cohorts)
+    for key in pooled["rejected"]:
+        assert pooled["rejected"][key] == sum(
+            item["details"][0]["rejected"][key] for item in cohorts
+        )
+
+
+@pytest.mark.parametrize("cohorts,rows,message", [
+    ([], [], "cohorts_must_be_nonempty_list"),
+    (["a", "a"], [], "cohorts_must_be_unique"),
+    ([""], [], "cohort_names_must_be_nonempty_strings"),
+    (["a"], [{"id": "x", "supported": True, "uncertainty": 0, "loss": 0}], "row_cohort_must_be_nonempty_string"),
+    (["a"], [{"id": "x", "cohort": "b", "supported": True, "uncertainty": 0, "loss": 0}], "row_cohort_must_be_declared"),
+])
+def test_opt_in_cohort_validation(cohorts: list, rows: list, message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        analyze({"thresholds": [0], "cohorts": cohorts, "rows": rows})
+
+
+def test_opt_in_cohort_output_hash_and_cli_are_deterministic() -> None:
+    payload = {
+        "thresholds": [0.5, 0],
+        "cohorts": ["b", "a"],
+        "rows": [
+            {"id": "b1", "cohort": "b", "uncertainty": 0, "supported": True, "loss": 1e308},
+            {"id": "a1", "cohort": "a", "uncertainty": 0, "supported": True, "loss": 1e308},
+        ],
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+    result = analyze(payload)
+    assert result["input_sha256"] == hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    assert result == analyze(payload)
+    assert all(math.isfinite(item["details"][1]["mean_loss"]) for item in result["cohort_details"])
+    process = subprocess.run(
+        [sys.executable, "-m", "memecoin_runner.abstention_frontier"],
+        input=json.dumps(payload), text=True, capture_output=True, check=True,
+    )
+    assert json.loads(process.stdout) == result
     assert process.stderr == ""
