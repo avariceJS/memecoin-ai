@@ -118,10 +118,9 @@ def schema(source, plan):
                 name="sparse-event-sequence",
                 # Price labels now bind an exact, decision-qualified base independently
                 # of the observation arrival that emitted the sample.
-                # Decision-relative inputs now use the same uniquely qualified
-                # event-time base as price labels, so this is a new representation
-                # contract while persisted v2 snapshots remain immutable.
-                version="3",
+                # Relative history can also use a qualified exact decision-time
+                # base for lifecycle origins. Persisted older snapshots stay immutable.
+                version="4",
                 code_sha=digest(
                     dict(
                         implementation=file_hash(Path(__file__)),
@@ -303,7 +302,16 @@ def samples(db, source, plan, counts=None):
             # cutoff. PIT inputs remain constrained to facts known at decision.
             decision_price = None
             decision_price_reason = None
-            if kind == "event":
+            # Event origins always need this base for their price target. Lifecycle
+            # origins need it only when a historical frame will actually emit
+            # relative values; the lifecycle frame itself remains price-null.
+            history_for_frame = (
+                history[1:]
+                if kind == "lifecycle" and len(history) > event_slots
+                else history
+            )
+            needs_relative_base = bool(relative and history_for_frame)
+            if kind == "event" or needs_relative_base:
                 base_known = cutoff if not point else decision
                 base_rows = db.execute(
                     "select payload from events "

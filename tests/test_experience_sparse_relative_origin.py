@@ -129,7 +129,7 @@ def test_pit_late_old_trigger_uses_unique_exact_decision_price_independent_of_id
         ]
     representation = sparse.schema(source, plan)["representation"]
     assert representation["name"] == "sparse-event-sequence"
-    assert representation["version"] == "3"
+    assert representation["version"] == "4"
 
 
 @pytest.mark.parametrize(
