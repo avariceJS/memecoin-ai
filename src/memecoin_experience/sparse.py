@@ -834,6 +834,12 @@ def materialize(store, pin, output, *, plan, role="train", chunk=4096, profile=N
     source = observations.Source(store, pin, role=role)
     validate_plan(plan, source)
     profile_selection = None if profile is None else _observation_profile(source, profile, plan)
+    if profile_selection is not None and profile_selection["name"] == "candle-volume-context-v1":
+        # Import lazily: volume_eligibility depends on sparse profile authentication.
+        # Reuse its row validator before indexing or publishing any output manifest.
+        from .volume_eligibility import validate_source_rows
+
+        validate_source_rows(source)
     representation = schema(source, plan)
     with tempfile.TemporaryDirectory(prefix="sparse-index-") as scratch:
         db = source.index(Path(scratch) / "index.sqlite")

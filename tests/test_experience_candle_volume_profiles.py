@@ -175,12 +175,17 @@ def _sealed_source(tmp_path, mutate=None):
         producer,
     ]
     evidence = [hashlib.sha256(b"synthetic capture").hexdigest()]
+    values = [1.0] * 19
+    # A valid singleton context has no priors or volume delta and uses integer
+    # context counts; unrelated feature placeholders remain synthetic.
+    values[11:15] = [1, 0, None, None]
+    values[17:19] = [0, None]
     rows = [
         {"kind": "enrollment", "entity": "chain/market/pool-1", "start_ns": 0, "end_ns": 600_000_000_000,
          "available_ns": CUTOFF, "evidence": evidence},
         {"kind": "event", "entity": "chain/market/pool-1", "stream": STREAM, "id": "bar-300",
          "event_ns": 300_000_000_000, "available_ns": CUTOFF, "evidence": evidence,
-         "values": [1.0] * 19},
+         "values": values},
     ]
     pin = observations.publish(tmp_path / "observations", rows, schema=schema, cutoff=CUTOFF, sources=sources)
     return pin

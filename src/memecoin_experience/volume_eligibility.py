@@ -73,6 +73,19 @@ def _validate_row(row, indices):
     return "eligible" if eligible else "insufficient_prior" if prior < 2 else "gapped_history"
 
 
+def validate_source_rows(source):
+    """Reject contradictory volume states anywhere in an authenticated source."""
+    stream = source.schema["streams"][_STREAM]
+    names = [feature["name"] for feature in stream["features"]]
+    indices = {name: names.index(name) for name in (
+        "context_count", "context_span_s", "context_max_gap_s", "context_contiguous",
+        "prior_volume_count", "volume_log1p_delta",
+    )}
+    for row in source.rows():
+        if row["kind"] == "event" and row["stream"] == _STREAM:
+            _validate_row(row, indices)
+
+
 def inspect(store, pin, *, role="train"):
     """Summarize prior-volume eligibility from a sealed, authenticated Source."""
     source = observations.Source(store, pin, role=role)
