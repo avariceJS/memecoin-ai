@@ -592,3 +592,202 @@ def test_transaction_evidence_preserves_unavailable_behavior(tmp_path):
     assert evidence["event_time_s"] is None
     assert evidence["slot"] is None
     assert evidence["available_ns"] == 3
+
+
+def test_scope_accounting_is_ordered_and_reconciles_raw_and_unique_counts():
+    from memecoin_brain_sources.probe import _finish_scope, _new_scope
+    scope = _new_scope(["pool-a", "pool-b"])
+    a, b = scope["entries"]
+    a.update(status="completed", reason="page_bound", enumeration_reserved_calls=2,
+             validated_responses=2, page_returned_counts=[20, 20], raw_count=40,
+             unique_signatures=[f"s{i}" for i in range(20)], unique_count=20,
+             selected_signature="s0", hydration_status="raw_reference",
+             hydration_reserved=True, hydration_completed=True)
+    b.update(status="partial", reason="interrupted_or_incomplete",
+             enumeration_reserved_calls=1, validated_responses=1,
+             page_returned_counts=[3], raw_count=3,
+             unique_signatures=["x", "y", "z"], unique_count=3)
+    result = _finish_scope(scope)
+    assert [(e["index"], e["pool"]) for e in result["entries"]] == [(0, "pool-a"), (1, "pool-b")]
+    assert (result["planned"], result["attempted"], result["completed"],
+            result["partial"], result["unattempted"]) == (2, 2, 1, 1, 0)
+    assert result["entries"][0]["raw_count"] == 40
+    assert result["entries"][0]["unique_count"] == 20
+    assert result["entries"][0]["further_enumeration"] == "unknown_after_bounded_work"
+
+
+def test_scope_accounting_rejects_duplicate_planned_pools():
+    from memecoin_brain_sources.probe import _new_scope
+    with pytest.raises(ValueError, match="duplicate_planned_pool"):
+        _new_scope(["same", "same"])
+
+
+@pytest.mark.parametrize("page", [
+    [dict(signature="x", slot=True, err=None, blockTime=1)],
+    [dict(signature="x", slot=1, err=None, blockTime=1), {"signature": "bad"}],
+])
+def test_page_validation_is_atomic_for_invalid_schema(page):
+    from memecoin_brain_sources.probe import _validate_page
+    with pytest.raises(ValueError, match="signature_schema"):
+        _validate_page(page, [], None)
+
+
+def test_page_validation_rejects_conflicting_revision_before_commit():
+    from memecoin_brain_sources.probe import _validate_page
+    prior = [dict(signature="x", slot=4, err=None, blockTime=1)]
+    conflicting = [dict(signature="x", slot=4, err="changed", blockTime=1)]
+    with pytest.raises(ValueError, match="signature_revision"):
+        _validate_page(conflicting, prior, "x")
+
+
+def test_raw_probe_reports_scope_accounting_and_replay_parity(tmp_path):
+    write(tmp_path / "binding.json", dict(universe=["pool"], cohort=["pool"]))
+    calls = []
+    def transport(endpoint, body, timeout, limit):
+        q = json.loads(body)
+        calls.append(q)
+        method = q["method"]
+        if method == "getMultipleAccounts":
+            value = dict(context=dict(slot=100), value=[dict(owner="program")])
+        elif method == "getSignaturesForAddress":
+            value = []
+        else:
+            raise AssertionError("empty page must not hydrate")
+        return json.dumps(dict(jsonrpc="2.0", id=1, result=value)).encode()
+    client = ReadOnlyRPC("https://fixture.invalid/private", "fixture", transport=transport)
+    result = run(tmp_path, client, pacing=0)
+    assert [q["method"] for q in calls] == ["getMultipleAccounts", "getSignaturesForAddress"]
+    account = result["scope_accounting"]
+    assert (account["planned"], account["attempted"], account["completed"],
+            account["partial"], account["unattempted"]) == (1, 1, 1, 0, 0)
+    assert account["entries"][0]["reason"] == "observed_empty"
+    assert account["entries"][0]["page_returned_counts"] == [0]
+    assert reproduce(tmp_path, sha(tmp_path / "manifest.json"))["scope_accounting"] == account
+
+
+def test_transport_stop_records_reserved_call_without_validated_page(tmp_path):
+    write(tmp_path / "binding.json", dict(universe=["pool"], cohort=["pool"]))
+    calls = []
+    def transport(endpoint, body, timeout, limit):
+        calls.append(1)
+        if len(calls) == 1:
+            value = dict(context=dict(slot=100), value=[dict(owner="program")])
+            return json.dumps(dict(jsonrpc="2.0", id=1, result=value)).encode()
+        raise TransportSourceError("timeout")
+    client = ReadOnlyRPC("https://fixture.invalid/private", "fixture", transport=transport)
+    with pytest.raises(RuntimeError, match="transport_timeout"):
+        run(tmp_path, client, pacing=0)
+    stop = read(tmp_path / "STOP")
+    scope = stop["scope_accounting"]
+    entry = scope["entries"][0]
+    assert (scope["attempted"], scope["partial"], scope["unattempted"]) == (1, 1, 0)
+    assert entry["enumeration_reserved_calls"] == 1
+    assert entry["validated_responses"] == 0
+    assert entry["page_returned_counts"] == []
+    assert stop["no_retry"] is True and not (tmp_path / "result.json").exists()
+
+
+def _run_scope_case(tmp_path, page_sets):
+    write(tmp_path / "binding.json", dict(universe=["pool"], cohort=["pool"]))
+    calls = []
+    page_number = 0
+    selected = next((row for page in page_sets for row in page if row["err"] is None), None)
+    def transport(endpoint, body, timeout, limit):
+        nonlocal page_number
+        q = json.loads(body)
+        calls.append(q)
+        if q["method"] == "getMultipleAccounts":
+            value = dict(context=dict(slot=500), value=[dict(owner="program")])
+        elif q["method"] == "getSignaturesForAddress":
+            value = page_sets[page_number]
+            page_number += 1
+        else:
+            assert selected is not None
+            value = dict(slot=selected["slot"], blockTime=10, version=0,
+                         meta=dict(err=selected["err"]),
+                         transaction=dict(signatures=[selected["signature"]],
+                                          message=dict(accountKeys=["pool"])))
+        return json.dumps(dict(jsonrpc="2.0", id=1, result=value)).encode()
+    result = run(tmp_path, ReadOnlyRPC("https://fixture.invalid/private", "fixture",
+                                       transport=transport), pacing=0)
+    replayed = reproduce(tmp_path, sha(tmp_path / "manifest.json"))
+    assert replayed["scope_accounting"] == result["scope_accounting"]
+    return result, calls
+
+
+def _rows(prefix, start, count, *, err=None):
+    return [dict(signature=f"{prefix}{i}", slot=start-i, err=err, blockTime=10)
+            for i in range(count)]
+
+
+def test_producer_empty_page_and_nonempty_then_empty_are_distinct(tmp_path):
+    result, calls = _run_scope_case(tmp_path, [[]])
+    entry = result["scope_accounting"]["entries"][0]
+    assert entry["reason"] == "observed_empty"
+    assert entry["page_returned_counts"] == [0]
+    assert entry["hydration_status"] == "no_eligible_reference"
+    assert [c["method"] for c in calls] == ["getMultipleAccounts", "getSignaturesForAddress"]
+
+def test_producer_short_nonempty_still_requests_second_page(tmp_path):
+    result, calls = _run_scope_case(tmp_path, [_rows("a", 10, 2), []])
+    entry = result["scope_accounting"]["entries"][0]
+    assert entry["reason"] == "observed_empty"
+    assert entry["page_returned_counts"] == [2, 0]
+    assert entry["enumeration_reserved_calls"] == 2
+    assert [c["params"][1].get("before") for c in calls[1:3]] == [None, "a1"]
+
+def test_producer_two_full_pages_reports_raw_duplicate_and_unknown_tail(tmp_path):
+    first = _rows("s", 100, 20)
+    second = [first[-1]] + [dict(signature=f"s{i}", slot=80-(i-20), err=None, blockTime=10) for i in range(20, 39)]
+    result, calls = _run_scope_case(tmp_path, [first, second])
+    entry = result["scope_accounting"]["entries"][0]
+    assert entry["page_returned_counts"] == [20, 20]
+    assert entry["raw_count"] == 40 and entry["unique_count"] == 39
+    assert entry["reason"] == "page_bound"
+    assert entry["further_enumeration"] == "unknown_after_bounded_work"
+    assert len(calls) == 4
+
+def test_producer_two_nonempty_pages_without_eligible_reference_completes(tmp_path):
+    result, calls = _run_scope_case(tmp_path, [_rows("a", 10, 1, err="failed"),
+                                               _rows("b", 8, 1, err="failed")])
+    entry = result["scope_accounting"]["entries"][0]
+    assert entry["status"] == "completed"
+    assert entry["reason"] == "page_bound"
+    assert entry["selected_signature"] is None
+    assert entry["hydration_status"] == "no_eligible_reference"
+    assert len(calls) == 3
+
+
+def test_attempt_and_cu_ceiling_records_completed_and_unattempted_entries(tmp_path):
+    pools = [f"pool-{i}" for i in range(5)]
+    write(tmp_path / "binding.json", dict(universe=pools, cohort=pools))
+    page_counts = {p: 0 for p in pools}
+    calls = []
+    def transport(endpoint, body, timeout, limit):
+        q = json.loads(body); calls.append(q)
+        method = q["method"]
+        if method == "getMultipleAccounts":
+            value = dict(context=dict(slot=500), value=[dict(owner="program") for _ in pools])
+        elif method == "getSignaturesForAddress":
+            pool, _ = q["params"]; page_counts[pool] += 1; page = page_counts[pool]
+            value = [dict(signature=f"{pool}-sig-{page}", slot=100-page,
+                          err=None, blockTime=10)]
+        else:
+            signature, _ = q["params"]
+            pool = signature.split("-sig-")[0]
+            page = int(signature.rsplit("-", 1)[1])
+            value = dict(slot=100-page, blockTime=10, version=0, meta=dict(err=None),
+                         transaction=dict(signatures=[signature],
+                                          message=dict(accountKeys=[pool])))
+        return json.dumps(dict(jsonrpc="2.0", id=1, result=value)).encode()
+    client = ReadOnlyRPC("https://fixture.invalid/private", "fixture", transport=transport)
+    with pytest.raises(ValueError, match="RPC_budget"):
+        run(tmp_path, client, pacing=0)
+    stop = read(tmp_path / "STOP")
+    scope = stop["scope_accounting"]
+    assert len(calls) == scope["total_reserved_calls"] == 13
+    assert scope["nominal_cu"] == 500
+    assert (scope["planned"], scope["completed"], scope["partial"],
+            scope["unattempted"]) == (5, 4, 0, 1)
+    assert scope["entries"][4]["enumeration_reserved_calls"] == 0
+    assert not (tmp_path / "result.json").exists()
