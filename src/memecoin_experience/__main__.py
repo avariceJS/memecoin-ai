@@ -56,6 +56,10 @@ def main():
     reviewer = commands.add_parser("split-review")
     reviewer.add_argument("--input", required=True, type=Path)
     reviewer.add_argument("--output", type=Path)
+    volume_eligibility = commands.add_parser("volume-eligibility")
+    volume_eligibility.add_argument("--store", required=True, type=Path)
+    volume_eligibility.add_argument("--source", required=True)
+    volume_eligibility.add_argument("--role", default="train", choices=("train", "research_evaluation"))
     args = parser.parse_args()
     if args.action == "split-review":
         from .split_review import analyze
@@ -211,6 +215,10 @@ def main():
             partitions=len(snapshot.parts),
             verified=True,
         )
+    elif args.action == "volume-eligibility":
+        from .volume_eligibility import inspect
+
+        result = inspect(args.store, args.source, role=args.role)
     else:
         from .learning import train
 
