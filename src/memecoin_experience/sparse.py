@@ -116,7 +116,9 @@ def schema(source, plan):
             ],
             representation=dict(
                 name="sparse-event-sequence",
-                version="1",
+                # Price labels now bind an exact, decision-qualified base independently
+                # of the observation arrival that emitted the sample.
+                version="2",
                 code_sha=digest(
                     dict(
                         implementation=file_hash(Path(__file__)),
@@ -372,6 +374,30 @@ def samples(db, source, plan, counts=None):
             maturities = []
             pins = []
             details = []
+            decision_price = None
+            decision_price_reason = None
+            if kind == "event":
+                # A sample can be triggered by an older event arriving now (PIT), or by
+                # any event at this event-time in replay. Neither arrival is implicitly
+                # the decision price: require one exact-time event already known then.
+                base_rows = db.execute(
+                    "select payload from events "
+                    "where entity=? and stream=? and t=? and available<=?",
+                    (entity, stream, decision, decision),
+                ).fetchmany(2)
+                if len(base_rows) > 1:
+                    decision_price_reason = "ambiguous_origin"
+                elif not base_rows:
+                    later = db.execute(
+                        "select 1 from events where entity=? and stream=? and t=? limit 1",
+                        (entity, stream, decision),
+                    ).fetchone()
+                    decision_price_reason = (
+                        "origin_not_available_at_decision" if later else "no_decision_price"
+                    )
+                else:
+                    candidate = json.loads(base_rows[0][0])
+                    decision_price = candidate
             for target in plan["targets"]:
                 maturity = decision + target["horizon_ns"]
                 status = "missing_future"
@@ -382,6 +408,7 @@ def samples(db, source, plan, counts=None):
                 lower_available = None
                 reason = "unknown_observation_support"
                 support_reasons = []
+                price_provenance = None
                 if maturity > cutoff:
                     status = "pending"
                     reason = "fit_cutoff"
@@ -390,13 +417,19 @@ def samples(db, source, plan, counts=None):
                     reason = "enrollment_boundary"
                 elif target["kind"] == "endpoint_log_return":
                     j = names.index(target["feature"])
-                    base = current[j]
+                    base = decision_price["values"][j] if decision_price is not None else None
                     endpoints = db.execute(
                         "select payload from events "
                         "where entity=? and stream=? and t=? and available<=?",
                         (entity, stream, maturity, cutoff),
                     ).fetchmany(2)
-                    if kind != "event" or base is None or base <= 0:
+                    if kind != "event":
+                        status = "unsupported"
+                        reason = "no_origin_value"
+                    elif decision_price is None:
+                        status = "unsupported"
+                        reason = decision_price_reason or "no_decision_price"
+                    elif base is None or base <= 0:
                         status = "unsupported"
                         reason = "no_origin_value"
                     elif len(endpoints) > 1:
@@ -412,8 +445,20 @@ def samples(db, source, plan, counts=None):
                             status = "observed"
                             reason = "exact_observed_endpoint"
                             value = log_ratio(v, base)
-                            at = max(anchor["available_ns"], future["available_ns"])
-                            evidence = sorted(set(anchor["evidence"] + future["evidence"]))
+                            at = max(decision_price["available_ns"], future["available_ns"])
+                            evidence = sorted(set(decision_price["evidence"] + future["evidence"]))
+                            price_provenance = dict(
+                                base=dict(
+                                    event_ns=decision_price["event_ns"],
+                                    available_ns=decision_price["available_ns"],
+                                    evidence=sorted(set(decision_price["evidence"])),
+                                ),
+                                endpoint=dict(
+                                    event_ns=future["event_ns"],
+                                    available_ns=future["available_ns"],
+                                    evidence=sorted(set(future["evidence"])),
+                                ),
+                            )
                     else:
                         reason = "no_exact_endpoint_unknown_return"
                 else:
@@ -448,18 +493,19 @@ def samples(db, source, plan, counts=None):
                 avail.append(at)
                 pins.append(evidence)
                 maturities.append(maturity)
-                details.append(
-                    dict(
-                        reason=reason,
-                        interval_start_ns=decision + 1,
-                        interval_end_ns=maturity + 1,
-                        lower_bound=lower,
-                        lower_bound_available_ns=lower_available,
-                        support_reasons=support_reasons,
-                        process=source.schema["streams"][stream]["process"],
-                        evidence_scope="snapshot_source_manifest",
-                    )
+                detail = dict(
+                    reason=reason,
+                    interval_start_ns=decision + 1,
+                    interval_end_ns=maturity + 1,
+                    lower_bound=lower,
+                    lower_bound_available_ns=lower_available,
+                    support_reasons=support_reasons,
+                    process=source.schema["streams"][stream]["process"],
+                    evidence_scope="snapshot_source_manifest",
                 )
+                if price_provenance is not None:
+                    detail["price_provenance"] = price_provenance
+                details.append(detail)
             counts["emitted_origins"] += 1
             counts.update("target_status/" + s for s in statuses)
             unique = {digest(d): d for d in deps}
