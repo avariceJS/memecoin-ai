@@ -74,6 +74,26 @@ def test_group_count_alias_compatibility(alias_mode):
     }
 
 
+def test_legacy_mixed_included_group_remains_assignable():
+    inclusion, assignments = inputs()
+    inclusion["rows"][2].update(disposition="excluded", reason="out of scope")
+    inclusion["groups"][0] = {
+        "group_id": "g1", "row_count": 2, "included_count": 1,
+        "excluded_count": 1, "disposition": "included",
+    }
+    inclusion["row_denominators"]["after"] = 2
+
+    result = analyze(PIN, inclusion, assignments, PLAN)
+
+    assert result["included_row_ids_by_split"] == {
+        "train": ["r1"], "validation": [], "test": ["r3"],
+    }
+    assert result["excluded_row_count"] == 2
+    assert result["excluded_group_count"] == 1
+    assert result["row_denominators"] == {"before": 4, "after": 2, "change": -2}
+    assert result["group_denominators"] == {"before": 3, "after": 2, "change": -1}
+
+
 @pytest.mark.parametrize("alias_key,conflict", [
     ("included_count", 1),
     ("excluded_count", 1),
