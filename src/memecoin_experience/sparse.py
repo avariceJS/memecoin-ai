@@ -37,6 +37,10 @@ _CONTEXT_FEATURES = [
     dict(name="context_ready", unit="indicator", modality="ohlcv"),
     dict(name="context_zero_range", unit="indicator", modality="ohlcv"),
 ]
+_VOLUME_CONTEXT_FEATURES = [
+    dict(name="prior_volume_count", unit="observed_bar_count", modality="ohlcv"),
+    dict(name="volume_log1p_delta", unit="log1p_USD_difference", modality="ohlcv"),
+]
 _MORPHOLOGY_RULES = (
     "For R=high-low>0: upper_wick_fraction=(high-max(open,close))/R; "
     "lower_wick_fraction=(min(open,close)-low)/R; "
@@ -64,12 +68,21 @@ _CONTEXT_RULES = (
     "Event availability is the maximum receipt availability of every retained "
     "contributor; evidence is the deterministic unique capture hashes of all contributors."
 )
+_VOLUME_CONTEXT_RULE = (
+    "prior_volume_count is retained observed contributor count excluding current. "
+    "volume_log1p_delta is log1p(current.volume_usd) minus the arithmetic mean of "
+    "log1p(volume_usd) for all strictly preceding retained contributors, defined only "
+    "with at least two priors and every consecutive gap through current exactly 300 "
+    "seconds; otherwise missing. Zero volume is valid; this log1p USD difference is "
+    "not an exact raw volume ratio."
+)
 
 
 def _observation_profile(source, profile, plan):
     """Authenticate an explicit candle profile against its immutable producer record."""
     if not isinstance(profile, str) or profile not in {
-        "legacy-v1", "candle-morphology-v1", "candle-context-v1"
+        "legacy-v1", "candle-morphology-v1", "candle-context-v1",
+        "candle-volume-context-v1",
     }:
         raise ValueError("observation_profile")
     if plan.get("stream") != _CANDLE_STREAM or plan.get("relative_features"):
@@ -106,10 +119,12 @@ def _observation_profile(source, profile, plan):
             raise ValueError("observation_profile")
         expected_name = "legacy-v1"
     elif producer.get("producer") in {
-        "continuous-observation-adapter-v2", "continuous-observation-adapter-v3"
+        "continuous-observation-adapter-v2", "continuous-observation-adapter-v3",
+        "continuous-observation-adapter-v4",
     }:
         profile_record = producer.get("profile")
-        if producer["producer"] == "continuous-observation-adapter-v2":
+        producer_version = producer["producer"]
+        if producer_version == "continuous-observation-adapter-v2":
             if set(producer) != {"producer", "implementation", "numerics", "profile"}:
                 raise ValueError("observation_profile")
             expected_name = "candle-morphology-v1"
@@ -129,7 +144,7 @@ def _observation_profile(source, profile, plan):
                 base,
                 streams={_CANDLE_STREAM: dict(process=process, features=full_features)},
             )
-        else:
+        elif producer_version == "continuous-observation-adapter-v3":
             if set(producer) != {"producer", "implementation", "numerics", "profile"}:
                 raise ValueError("observation_profile")
             expected_name = "candle-context-v1"
@@ -179,6 +194,69 @@ def _observation_profile(source, profile, plan):
                 + _MORPHOLOGY_RULES
                 + "; candle-context-v1: "
                 + _CONTEXT_RULES
+            )
+            candidate = dict(
+                base,
+                streams={_CANDLE_STREAM: dict(process=process, features=full_features)},
+            )
+        else:
+            if set(producer) != {"producer", "implementation", "numerics", "profile"}:
+                raise ValueError("observation_profile")
+            expected_name = "candle-volume-context-v1"
+            volume_features = _CONTEXT_FEATURES + _VOLUME_CONTEXT_FEATURES
+            parameters = dict(_CONTEXT_PARAMETERS, min_prior_volume_count=2)
+            formulas = dict(
+                prior_close_log_return=(
+                    "log(current.close / immediately_preceding_retained.close) only "
+                    "when immediately_preceding_retained.open == current.open-300s"
+                ),
+                recent_close_position=(
+                    "(current.close-min(contributor.low))/(max(contributor.high)-"
+                    "min(contributor.low)) when range positive"
+                ),
+                context_count="retained observed contributor count including current",
+                context_span_s="latest contributor open minus earliest contributor open",
+                context_max_gap_s=(
+                    "maximum consecutive contributor open-time difference; missing "
+                    "for singleton"
+                ),
+                context_contiguous=(
+                    "one iff count>=2 and all consecutive gaps equal 300s; missing "
+                    "for singleton"
+                ),
+                context_ready="one iff count=12 and context_contiguous=1, otherwise zero",
+                context_zero_range=(
+                    "one iff count>=2 and max(high)==min(low); missing below count two"
+                ),
+                prior_volume_count="retained observed contributor count excluding current",
+                volume_log1p_delta=(
+                    "log1p(current.volume_usd) - mean(log1p(prior.volume_usd)); "
+                    "missing unless prior_volume_count>=2 and all consecutive gaps "
+                    "through current equal 300s"
+                ),
+            )
+            expected_profile = dict(
+                name=expected_name,
+                version=1,
+                features=_LEGACY_FEATURES + _MORPHOLOGY_FEATURES + volume_features,
+                parameters=parameters,
+                revision_selection="geckoterminal/usd/base/5min/first-qualified-receipt",
+                formulas=formulas,
+                morphology_rules=_MORPHOLOGY_RULES,
+                rules=_CONTEXT_RULES + " " + _VOLUME_CONTEXT_RULE,
+                identity=dict(
+                    source_pin=source_pin,
+                    cutoff_ns=binding["cutoff_ns"],
+                    implementation_sha256=producer.get("implementation"),
+                    numerics_sha256=producer.get("numerics"),
+                ),
+            )
+            full_features = _LEGACY_FEATURES + _MORPHOLOGY_FEATURES + volume_features
+            process = (
+                base["streams"][_CANDLE_STREAM]["process"]
+                + "; candle-morphology-v1: " + _MORPHOLOGY_RULES
+                + "; candle-context-v1: " + _CONTEXT_RULES
+                + "; candle-volume-context-v1: " + _VOLUME_CONTEXT_RULE
             )
             candidate = dict(
                 base,

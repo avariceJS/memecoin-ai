@@ -41,6 +41,10 @@ _CONTEXT_FEATURES = (
     ("context_ready", "indicator"),
     ("context_zero_range", "indicator"),
 )
+_VOLUME_FEATURES = (
+    ("prior_volume_count", "observed_bar_count"),
+    ("volume_log1p_delta", "log1p_USD_difference"),
+)
 _CONTEXT_PARAMETERS = dict(
     bar_seconds=300,
     max_count=12,
@@ -48,6 +52,7 @@ _CONTEXT_PARAMETERS = dict(
     min_count=2,
     ready_count=12,
 )
+_VOLUME_PARAMETERS = dict(_CONTEXT_PARAMETERS, min_prior_volume_count=2)
 _CONTEXT_RULES = (
     "At each current open, retain at most 12 observed bars in the same pool and same "
     "original selected half-open enrollment interval with open time in [current-3600, "
@@ -64,6 +69,14 @@ _CONTEXT_RULES = (
     "one iff every gap is 300 seconds. ready is one iff count is 12 and contiguous. "
     "Event availability is the maximum receipt availability of every retained "
     "contributor; evidence is the deterministic unique capture hashes of all contributors."
+)
+_VOLUME_RULES = (
+    "prior_volume_count is retained observed contributor count excluding current. "
+    "volume_log1p_delta is log1p(current.volume_usd) minus the arithmetic mean of "
+    "log1p(volume_usd) for all strictly preceding retained contributors, defined only "
+    "with at least two priors and every consecutive gap through current exactly 300 "
+    "seconds; otherwise missing. Zero volume is valid; this log1p USD difference is "
+    "not an exact raw volume ratio."
 )
 
 
@@ -93,22 +106,30 @@ def from_continuous(
     if plan["role"] != role:
         raise ValueError("observation_reserved_role")
     if not isinstance(profile, str) or profile not in (
-        "legacy-v1", "candle-morphology-v1", "candle-context-v1"
+        "legacy-v1", "candle-morphology-v1", "candle-context-v1",
+        "candle-volume-context-v1",
     ):
         raise ValueError("observation_profile")
-    morphology = profile in ("candle-morphology-v1", "candle-context-v1")
-    context = profile == "candle-context-v1"
+    morphology = profile in (
+        "candle-morphology-v1", "candle-context-v1", "candle-volume-context-v1"
+    )
+    context = profile in ("candle-context-v1", "candle-volume-context-v1")
+    volume_context = profile == "candle-volume-context-v1"
     verify_files(path / "meta", reference["pin"])
     cutoff = plan["cutoff_ns"]
     stream = "qualified_price_bar"
     feature_definitions = _LEGACY_FEATURES + (_MORPHOLOGY_FEATURES if morphology else ())
     if context:
         feature_definitions += _CONTEXT_FEATURES
+    if volume_context:
+        feature_definitions += _VOLUME_FEATURES
     process = "qualified_provider_bar_closes; missing bars do not certify inactivity"
     if morphology:
         process += "; candle-morphology-v1: " + _MORPHOLOGY_RULES
     if context:
         process += "; candle-context-v1: " + _CONTEXT_RULES
+    if volume_context:
+        process += "; candle-volume-context-v1: " + _VOLUME_RULES
     schema = dict(
         version="market-observations-v1",
         role=role,
@@ -237,6 +258,21 @@ def from_continuous(
                                 zero_range,
                             )
                         )
+                        if volume_context:
+                            priors = contributors[:-1]
+                            prior_count = len(priors)
+                            volume_delta = None
+                            if (
+                                prior_count >= _VOLUME_PARAMETERS["min_prior_volume_count"]
+                                and all(
+                                    gap == _CONTEXT_PARAMETERS["bar_seconds"] for gap in gaps
+                                )
+                            ):
+                                prior_log_mean = math.fsum(
+                                    math.log1p(item["ohlcv"][4]) for item in priors
+                                ) / prior_count
+                                volume_delta = math.log1p(v) - prior_log_mean
+                            values.extend((prior_count, volume_delta))
                     yield dict(
                         kind="event",
                         entity=entity,
@@ -297,7 +333,7 @@ def from_continuous(
                 rules=_MORPHOLOGY_RULES,
             ),
         )
-    if context:
+    if context and not volume_context:
         producer = dict(
             producer="continuous-observation-adapter-v3",
             implementation=producer["implementation"],
@@ -328,6 +364,51 @@ def from_continuous(
                 ),
                 morphology_rules=_MORPHOLOGY_RULES,
                 rules=_CONTEXT_RULES,
+                identity=dict(
+                    source_pin=reference["pin"],
+                    cutoff_ns=cutoff,
+                    implementation_sha256=file_hash(Path(__file__)),
+                    numerics_sha256=file_hash(Path(__file__).with_name("numerics.py")),
+                ),
+            ),
+        )
+    if volume_context:
+        producer = dict(
+            producer="continuous-observation-adapter-v4",
+            implementation=producer["implementation"],
+            numerics=producer["numerics"],
+            profile=dict(
+                name="candle-volume-context-v1",
+                version=1,
+                features=[
+                    dict(name=n, unit=u, modality="ohlcv") for n, u in feature_definitions
+                ],
+                parameters=_VOLUME_PARAMETERS,
+                revision_selection=continuous.NAMESPACE,
+                formulas=dict(
+                    prior_close_log_return=(
+                        "log(current.close / immediately_preceding_retained.close) only "
+                        "when immediately_preceding_retained.open == current.open-300s"
+                    ),
+                    recent_close_position=(
+                        "(current.close-min(contributor.low))/(max(contributor.high)-"
+                        "min(contributor.low)) when range positive"
+                    ),
+                    context_count="retained observed contributor count including current",
+                    context_span_s="latest contributor open minus earliest contributor open",
+                    context_max_gap_s="maximum consecutive contributor open-time difference; missing for singleton",
+                    context_contiguous="one iff count>=2 and all consecutive gaps equal 300s; missing for singleton",
+                    context_ready="one iff count=12 and context_contiguous=1, otherwise zero",
+                    context_zero_range="one iff count>=2 and max(high)==min(low); missing below count two",
+                    prior_volume_count="retained observed contributor count excluding current",
+                    volume_log1p_delta=(
+                        "log1p(current.volume_usd) - mean(log1p(prior.volume_usd)); "
+                        "missing unless prior_volume_count>=2 and all consecutive gaps "
+                        "through current equal 300s"
+                    ),
+                ),
+                morphology_rules=_MORPHOLOGY_RULES,
+                rules=_CONTEXT_RULES + " " + _VOLUME_RULES,
                 identity=dict(
                     source_pin=reference["pin"],
                     cutoff_ns=cutoff,
