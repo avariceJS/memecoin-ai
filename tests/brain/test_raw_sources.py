@@ -145,6 +145,67 @@ def test_capacity_exposes_polling_bottleneck():
     assert c["total_CU_per_30days"] == 622080000
 
 
+@pytest.mark.parametrize("pools", [True, 1.5, "3", -1])
+def test_capacity_rejects_invalid_pool_counts(pools):
+    with pytest.raises(ValueError):
+        capacity(pools)
+
+
+@pytest.mark.parametrize("seconds", [True, "300", 0, -1, float("nan"), float("inf"), -float("inf")])
+def test_capacity_rejects_invalid_poll_intervals(seconds):
+    with pytest.raises(ValueError):
+        capacity(3, seconds=seconds)
+
+
+@pytest.mark.parametrize(
+    "rate", [True, "1", -1, float("nan"), float("inf"), -float("inf")]
+)
+def test_capacity_rejects_invalid_transaction_rates(rate):
+    with pytest.raises(ValueError):
+        capacity(3, tx_per_pool_minute=rate)
+
+
+def test_capacity_preserves_zero_pools_and_zero_rate():
+    c = capacity(0, tx_per_pool_minute=0)
+    assert c["gecko_GET_per_day"] == 0
+    assert c["serial_gecko_cycle_seconds"] == 0
+    assert c["signature_poll_CU_per_day"] == 0
+    assert c["hydration_CU_per_day"] == 0
+    assert c["total_CU_per_30days"] == 0
+    assert c["actual_traffic_measured"] is False
+
+    c = capacity(3, tx_per_pool_minute=0)
+    assert c["hydration_CU_per_day"] == 0
+    assert c["total_CU_per_30days"] == c["gecko_GET_per_day"] * 40 * 30
+    assert c["actual_traffic_measured"] is False
+
+
+@pytest.mark.parametrize(
+    ("pools", "seconds", "rate"),
+    [
+        (1, 5e-324, 1),
+        (10**10000, 300, 1),
+        (1, 300, 10**10000),
+    ],
+    ids=["tiny-interval", "huge-pool-count", "huge-rate"],
+)
+def test_capacity_rejects_unrepresentable_derived_arithmetic(pools, seconds, rate):
+    with pytest.raises(ValueError, match="capacity_arithmetic_unrepresentable"):
+        capacity(pools, seconds=seconds, tx_per_pool_minute=rate)
+
+
+def test_capacity_accepts_large_finite_rate_when_results_are_representable():
+    c = capacity(1, tx_per_pool_minute=1e100)
+    assert c["hydration_CU_per_day"] == 1e100 * 1440 * 40
+    assert c["actual_traffic_measured"] is False
+
+
+def test_capacity_preserves_valid_fractional_interval_calculations():
+    c = capacity(3, seconds=2.5, tx_per_pool_minute=0.5)
+    assert c["gecko_GET_per_day"] == 3 * 86400 / 2.5
+    assert c["hydration_CU_per_day"] == 3 * 0.5 * 1440 * 40
+
+
 def test_causal_admission_rejects_future_receipt_and_unknown_health(tmp_path):
     with Ledger(tmp_path / "ledger", dict(scope="fixture")) as ledger:
         e = evidence()

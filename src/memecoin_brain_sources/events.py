@@ -1,6 +1,7 @@
 """Append-only evidence observations with source-scoped identities and causal admission."""
 
 import json
+import math
 import time
 from pathlib import Path
 
@@ -133,16 +134,43 @@ def health_action(category: str) -> dict:
 
 
 def capacity(pools: int, *, seconds=300, tx_per_pool_minute=1) -> dict:
-    polls = pools * 86400 / seconds
-    tx = pools * tx_per_pool_minute * 1440
+    if type(pools) is not int:
+        raise ValueError("pools_must_be_int")
+    if pools < 0:
+        raise ValueError("pools_must_be_nonnegative")
+    if type(seconds) not in (int, float):
+        raise ValueError("seconds_must_be_numeric")
+    if (type(seconds) is float and not math.isfinite(seconds)) or seconds <= 0:
+        raise ValueError("seconds_must_be_finite_positive")
+    if type(tx_per_pool_minute) not in (int, float):
+        raise ValueError("tx_per_pool_minute_must_be_numeric")
+    if (
+        type(tx_per_pool_minute) is float
+        and not math.isfinite(tx_per_pool_minute)
+    ) or tx_per_pool_minute < 0:
+        raise ValueError("tx_per_pool_minute_must_be_finite_nonnegative")
+
+    try:
+        polls = pools * 86400 / seconds
+        tx = pools * tx_per_pool_minute * 1440
+        serial_seconds = pools * 12
+        signature_cu = polls * 40
+        hydration_cu = tx * 40
+        total_cu = (polls * 40 + tx * 40) * 30
+        for value in (polls, signature_cu, hydration_cu, total_cu):
+            if type(value) is float and not math.isfinite(value):
+                raise ValueError("capacity_arithmetic_unrepresentable")
+    except (OverflowError, ZeroDivisionError) as exc:
+        raise ValueError("capacity_arithmetic_unrepresentable") from exc
+
     return dict(
         pools=pools,
         poll_seconds=seconds,
         assumed_transactions_per_pool_minute=tx_per_pool_minute,
         gecko_GET_per_day=polls,
-        serial_gecko_cycle_seconds=pools * 12,
-        signature_poll_CU_per_day=polls * 40,
-        hydration_CU_per_day=tx * 40,
-        total_CU_per_30days=(polls * 40 + tx * 40) * 30,
+        serial_gecko_cycle_seconds=serial_seconds,
+        signature_poll_CU_per_day=signature_cu,
+        hydration_CU_per_day=hydration_cu,
+        total_CU_per_30days=total_cu,
         actual_traffic_measured=False,
     )
