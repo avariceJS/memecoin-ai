@@ -118,7 +118,10 @@ def schema(source, plan):
                 name="sparse-event-sequence",
                 # Price labels now bind an exact, decision-qualified base independently
                 # of the observation arrival that emitted the sample.
-                version="2",
+                # Decision-relative inputs now use the same uniquely qualified
+                # event-time base as price labels, so this is a new representation
+                # contract while persisted v2 snapshots remain immutable.
+                version="3",
                 code_sha=digest(
                     dict(
                         implementation=file_hash(Path(__file__)),
@@ -295,7 +298,37 @@ def samples(db, source, plan, counts=None):
                     )
 
             dependency(anchor)
-            current = anchor["values"] if kind == "event" else [None] * len(names)
+
+            # Historical replay may use any exact-time observation sealed by the
+            # cutoff. PIT inputs remain constrained to facts known at decision.
+            decision_price = None
+            decision_price_reason = None
+            if kind == "event":
+                base_known = cutoff if not point else decision
+                base_rows = db.execute(
+                    "select payload from events "
+                    "where entity=? and stream=? and t=? and available<=?",
+                    (entity, stream, decision, base_known),
+                ).fetchmany(2)
+                if len(base_rows) > 1:
+                    decision_price_reason = "ambiguous_origin"
+                elif not base_rows:
+                    later = db.execute(
+                        "select 1 from events where entity=? and stream=? and t=? limit 1",
+                        (entity, stream, decision),
+                    ).fetchone()
+                    decision_price_reason = (
+                        (
+                            "origin_not_available_at_decision"
+                            if point
+                            else "origin_not_available_by_cutoff"
+                        )
+                        if later
+                        else "no_decision_price"
+                    )
+                else:
+                    decision_price = json.loads(base_rows[0][0])
+                    dependency(decision_price)
 
             def life_values(at, entity=entity, start=start, known=known, dependency=dependency):
                 result = []
@@ -323,11 +356,15 @@ def samples(db, source, plan, counts=None):
                 values = []
                 for j, v in enumerate(row["values"]):
                     if j in relative:
-                        base = current[j]
+                        base = (
+                            decision_price["values"][j]
+                            if decision_price is not None
+                            else None
+                        )
                         if v is None or base is None:
                             values.append(None)
                         elif v <= 0 or base <= 0:
-                            raise ValueError("sparse_relative_nonpositive")
+                            values.append(None)
                         else:
                             values.append(log_ratio(v, base))
                     else:
@@ -374,30 +411,6 @@ def samples(db, source, plan, counts=None):
             maturities = []
             pins = []
             details = []
-            decision_price = None
-            decision_price_reason = None
-            if kind == "event":
-                # A sample can be triggered by an older event arriving now (PIT), or by
-                # any event at this event-time in replay. Neither arrival is implicitly
-                # the decision price: require one exact-time event already known then.
-                base_rows = db.execute(
-                    "select payload from events "
-                    "where entity=? and stream=? and t=? and available<=?",
-                    (entity, stream, decision, decision),
-                ).fetchmany(2)
-                if len(base_rows) > 1:
-                    decision_price_reason = "ambiguous_origin"
-                elif not base_rows:
-                    later = db.execute(
-                        "select 1 from events where entity=? and stream=? and t=? limit 1",
-                        (entity, stream, decision),
-                    ).fetchone()
-                    decision_price_reason = (
-                        "origin_not_available_at_decision" if later else "no_decision_price"
-                    )
-                else:
-                    candidate = json.loads(base_rows[0][0])
-                    decision_price = candidate
             for target in plan["targets"]:
                 maturity = decision + target["horizon_ns"]
                 status = "missing_future"

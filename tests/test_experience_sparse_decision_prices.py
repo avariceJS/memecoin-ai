@@ -67,7 +67,14 @@ def make_source(tmp_path, events, *, availability="historical_replay", cutoff=50
     return observations.Source(store, pin, role="train")
 
 
-def materialize(tmp_path, events, *, availability="historical_replay", cutoff=50 * NS):
+def materialize(
+    tmp_path,
+    events,
+    *,
+    availability="historical_replay",
+    cutoff=50 * NS,
+    relative_features=None,
+):
     source = make_source(tmp_path, events, availability=availability, cutoff=cutoff)
     plan = dict(
         stream="ticks",
@@ -75,7 +82,7 @@ def materialize(tmp_path, events, *, availability="historical_replay", cutoff=50
         max_history_ns=40 * NS,
         lifecycle=[],
         lifecycle_origins=False,
-        relative_features=[],
+        relative_features=[] if relative_features is None else relative_features,
         targets=[
             dict(name="return", kind="endpoint_log_return", horizon_ns=10 * NS, feature="price"),
             dict(name="count", kind="observed_process_count", horizon_ns=10 * NS, feature=None),
@@ -143,6 +150,79 @@ def test_origin_after_decision_is_masked_but_count_is_retained(tmp_path):
     assert row["target_status"] == ["unsupported", "observed"]
     assert row["targets"] == [None, 1]
     assert row["target_details"][0]["reason"] == "origin_not_available_at_decision"
+
+
+def test_replay_base_uses_sealed_cutoff_but_pit_keeps_decision_clock(tmp_path):
+    events = [
+        ("base", 3, 5, 10.0),
+        ("endpoint", 13, 17, 20.0),
+    ]
+    replay, _ = materialize(tmp_path / "replay", events, availability="historical_replay")
+    replay_row = next(row for row in replay if row["decision_ns"] == 3 * NS)
+    assert replay_row["target_status"] == ["observed", "observed"]
+    assert replay_row["targets"] == [pytest.approx(math.log(2)), 1]
+    assert replay_row["target_details"][0]["price_provenance"]["base"]["available_ns"] == 5 * NS
+
+    pit, _ = materialize(tmp_path / "pit", events, availability="point_in_time")
+    pit_row = next(row for row in pit if row["decision_ns"] == 5 * NS)
+    assert pit_row["target_status"] == ["unsupported", "observed"]
+    assert pit_row["target_details"][0]["reason"] == "no_decision_price"
+
+
+@pytest.mark.parametrize("availability", ["historical_replay", "point_in_time"])
+def test_relative_values_share_qualified_decision_base_for_each_trigger(
+    tmp_path, availability
+):
+    rows, _ = materialize(
+        tmp_path,
+        [
+            ("late-old", 1, 10, 10.0),
+            ("decision", 10, 10, 20.0),
+            ("endpoint", 20, 20, 40.0),
+        ],
+        availability=availability,
+        relative_features=["price"],
+    )
+    decision_rows = [row for row in rows if row["decision_ns"] == 10 * NS]
+    assert decision_rows
+    for row in decision_rows:
+        assert row["values"][-1][0] == pytest.approx(0.0)
+        assert row["values"][-2][0] == pytest.approx(math.log(0.5))
+        assert any(
+            pin["event_ns"] == 10 * NS
+            and pin["available_ns"] == 10 * NS
+            and pin["artifact_sha"] == hashlib.sha256(b"decision").hexdigest()
+            for pin in row["input_dependencies"]
+        )
+
+
+def test_missing_or_ambiguous_relative_base_is_masked(tmp_path):
+    rows, _ = materialize(
+        tmp_path,
+        [
+            ("trigger", 1, 3, 10.0),
+            ("decision-a", 3, 3, 20.0),
+            ("decision-b", 3, 3, 21.0),
+            ("endpoint", 13, 13, 40.0),
+        ],
+        availability="point_in_time",
+        relative_features=["price"],
+    )
+    row = next(row for row in rows if row["decision_ns"] == 3 * NS)
+    assert row["target_details"][0]["reason"] == "ambiguous_origin"
+    assert all(frame[0] is None for frame in row["values"])
+
+
+def test_missing_relative_base_is_masked_for_late_pit_trigger(tmp_path):
+    rows, _ = materialize(
+        tmp_path,
+        [("late-old", 1, 3, 10.0), ("endpoint", 13, 13, 20.0)],
+        availability="point_in_time",
+        relative_features=["price"],
+    )
+    row = next(row for row in rows if row["decision_ns"] == 3 * NS)
+    assert row["target_details"][0]["reason"] == "no_decision_price"
+    assert all(frame[0] is None for frame in row["values"])
 
 
 @pytest.mark.parametrize("value", [None, 0.0, -1.0])
