@@ -540,12 +540,15 @@ class NativeDeliveryTests(unittest.TestCase):
                 lose_post: bool = False,
                 post_then_error: bool = False,
                 fail_first_get: bool = False,
+                dependency_blocked: bool = False,
             ) -> None:
                 self.rows = []
                 self.posts = 0
+                self.payloads = []
                 self.lose_post = lose_post
                 self.post_then_error = post_then_error
                 self.fail_first_get = fail_first_get
+                self.dependency_blocked = dependency_blocked
                 self.gets = 0
 
             def request(self, method, route, body=None):
@@ -556,6 +559,9 @@ class NativeDeliveryTests(unittest.TestCase):
                     return list(self.rows)
                 if method == "POST":
                     self.posts += 1
+                    self.payloads.append(body)
+                    if self.dependency_blocked and "resume" in body:
+                        raise delivery.DeliveryError("blocked_manager_resume_rejected")
                     self.rows.append(
                         {"id": "comment-1", "authorAgentId": self.agent_id, "body": body["body"]}
                     )
@@ -577,6 +583,20 @@ class NativeDeliveryTests(unittest.TestCase):
         delivery.notify_manager(api, *kwargs)
         delivery.notify_manager(api, *kwargs)
         self.assertEqual(api.posts, 1)
+
+        blocked = FakeApi(dependency_blocked=True)
+        blocked_kwargs = (
+            manifest,
+            "correction",
+            "task-blocked",
+            "marker-blocked",
+            "corrected candidate staged",
+            "a" * 64,
+        )
+        delivery.notify_manager(blocked, *blocked_kwargs)
+        self.assertEqual(blocked.posts, 1)
+        self.assertEqual(blocked.payloads, [{"body": blocked_kwargs[4]}])
+        self.assertEqual(blocked.rows[0]["body"], blocked_kwargs[4])
 
         committed_but_uncertain = FakeApi(lose_post=True, post_then_error=True)
         committed_kwargs = (

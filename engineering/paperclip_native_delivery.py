@@ -1959,6 +1959,8 @@ def notify_manager(
     marker: str,
     body: str,
     manifest_hash: str,
+    *,
+    resume: bool = False,
 ) -> None:
     manager_id = manifest.get("manager_task_id")
     require(UUID.fullmatch(str(manager_id or "")), "manager_task_not_pinned")
@@ -2008,7 +2010,10 @@ def notify_manager(
         {"schema": intent["schema"], "intent_sha256": digest(json_bytes(intent))},
     )
     try:
-        api.request("POST", f"/issues/{manager_id}/comments", {"body": body, "resume": True})
+        comment = {"body": body}
+        if resume:
+            comment["resume"] = True
+        api.request("POST", f"/issues/{manager_id}/comments", comment)
     except DeliveryError:
         found = readback()
         if found is None:
@@ -2068,6 +2073,7 @@ def notify_preparation_failure(envelope_path: str, error: DeliveryError) -> None
         marker,
         body,
         envelope_hash,
+        resume=True,
     )
 
 
