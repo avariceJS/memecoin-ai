@@ -220,3 +220,37 @@ def test_extended_checkpoint_rejects_inconsistent_evidence(fault):
         decode_supported_checkpoint(
             replace(cap, response=canonical(response).encode()), request["params"][0][0]
         )
+
+
+def test_real_creator_transfer_fee_and_harvest_sequences():
+    import json
+    from pathlib import Path
+
+    from memecoin_ai.protocol import checkpoint, replay_transaction
+    from memecoin_ai.sources import Capture
+
+    root = Path(__file__).parent / "fixtures" / "token2022"
+    manifest = json.loads((root / "manifest.json").read_text())
+    seen_input = seen_output = seen_harvest = False
+    for case in manifest["sequences"]:
+        ctx = checkpoint(Capture.load(root / case["start"]), case["pool"])
+        state = ctx.state
+        withheld = ctx.withheld
+        for path in case["transactions"]:
+            tx = Capture.load(root / path).result()
+            state, detail = replay_transaction(ctx, state, tx, withheld=withheld)
+            for op in detail["operations"]:
+                delta = op["vault_withheld_delta"]
+                withheld = (withheld[0] + delta[0], withheld[1] + delta[1])
+                if op["quote_checked"]:
+                    assert op["quote"]["creator_fee"] > 0
+                    seen_input |= op["token_transfer"]["input_fee"] > 0
+                    seen_output |= op["token_transfer"]["output_fee"] > 0
+                else:
+                    assert op["kind"] == "harvest_withheld_to_mint"
+                    assert delta[1] < 0 and withheld[1] == 0
+                    seen_harvest = True
+        if case["end"]:
+            end = checkpoint(Capture.load(root / case["end"]), case["pool"])
+            assert state == end.state and withheld == end.withheld
+    assert seen_input and seen_output and seen_harvest
