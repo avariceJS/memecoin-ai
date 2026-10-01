@@ -358,3 +358,31 @@ def test_pilot_version_requires_explicit_opt_in(tmp_path):
             store.checkpoint(store.save_capture(cap), pool)
     finally:
         store.close()
+
+
+def test_rate_limit_slows_later_requests_without_hidden_retry(tmp_path):
+    from memecoin_ai.sources import HTTPSourceError
+
+    store, _ = setup_store(tmp_path / "pilot.sqlite")
+    attempts = []
+    sleeps = []
+
+    def transport(endpoint, body, timeout, limit):
+        attempts.append(json.loads(body))
+        if len(attempts) == 1:
+            raise HTTPSourceError(429)
+        return canonical(dict(jsonrpc="2.0", id=1, result=42)).encode()
+
+    client = ReadOnlyRPC("https://example.invalid", "fixture", transport=transport)
+    collector = PilotCollector(store, client, budget=2, delay=1.2, sleep=sleeps.append)
+    try:
+        with pytest.raises(HTTPSourceError):
+            collector.fetch("getSlot", [])
+        assert len(attempts) == 1 and collector.remaining == 1
+        assert collector.fetch("getSlot", [])[1] == 42
+        assert sleeps == [1.2, 10.0, 2.4]
+        with pytest.raises(BudgetExhausted):
+            collector.fetch("getSlot", [])
+        assert len(attempts) == 2
+    finally:
+        store.close()

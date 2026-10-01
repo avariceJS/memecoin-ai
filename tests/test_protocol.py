@@ -309,3 +309,166 @@ def test_unattributed_vault_transfer_cannot_be_treated_as_noop():
     tx["meta"]["logMessages"] = [f"Program {TOKEN} invoke [1]", f"Program {TOKEN} success"]
     with pytest.raises(ValidationError, match="unattributed"):
         replay_transaction(ctx, ctx.state, tx)
+
+
+def test_token2022_program_binding_and_net_transfer_evidence():
+    # Adapt a real classic transaction to an explicitly synthetic metadata-only Token-2022 mint.
+    # Zero transfer fees must preserve its economics while requiring the new owner/program binding.
+    _, ctx, txs = load_case()
+    from memecoin_ai.raydium import TOKEN_2022
+
+    tx = copy.deepcopy(txs[0])
+    ctx = replace(ctx, pool=replace(ctx.pool, token_programs=(TOKEN, TOKEN_2022)), epoch=1)
+    mint = ctx.pool.mints[1]
+    node = target_node(ctx, tx)
+    direction = ctx.pool.vaults.index(node.instruction["accounts"][6])
+    node.instruction["accounts"][8 + (1 - direction)] = TOKEN_2022
+    keys = tx["transaction"]["message"]["accountKeys"]
+    if not any(k["pubkey"] == TOKEN_2022 for k in keys):
+        keys.append(dict(pubkey=TOKEN_2022))
+    child = next(c for c in node.children if c.instruction["parsed"]["info"]["mint"] == mint)
+    child.instruction["programId"] = TOKEN_2022
+    # Replace exactly this token CPI runtime invocation, preserving other route instructions.
+    logs = tx["meta"]["logMessages"]
+    cpmm_start = next(
+        i for i, s in enumerate(logs) if s == f"Program {PROGRAM} invoke [{node.depth}]"
+    )
+    token_starts = [
+        i
+        for i in range(cpmm_start + 1, len(logs))
+        if logs[i] == f"Program {TOKEN} invoke [{node.depth + 1}]"
+    ]
+    selected = token_starts[1 - direction]
+    end = next(i for i in range(selected, len(logs)) if logs[i] == f"Program {TOKEN} success")
+    for i in range(selected, end + 1):
+        logs[i] = logs[i].replace(TOKEN, TOKEN_2022)
+    for side in ("preTokenBalances", "postTokenBalances"):
+        for balance in tx["meta"][side]:
+            if balance["mint"] == mint:
+                balance["programId"] = TOKEN_2022
+    state, detail = replay_transaction(ctx, ctx.state, tx)
+    assert detail["operations"][0]["vault_withheld_delta"] == [0, 0]
+    assert state != ctx.state
+    child.instruction["programId"] = TOKEN
+    with pytest.raises(ValidationError):
+        replay_transaction(ctx, ctx.state, tx)
+
+
+@pytest.mark.parametrize("fault", ["epoch", "mint-base", "withheld"])
+def test_token2022_interval_blocks_unexplained_non_reserve_changes(tmp_path, fault):
+    from memecoin_ai.collection import PilotStore
+    from memecoin_ai.domain import canonical
+    from memecoin_ai.reconciliation import audit_pilot
+    from memecoin_ai.sources import ReadOnlyRPC
+    from memecoin_ai.tokens import decode_supported_checkpoint
+
+    root = Path(__file__).parent / "fixtures" / "token2022"
+    start = Capture.load(root / "checkpoint-1")
+    pool = json.loads(start.request_json)["params"][0][0]
+    raw = json.loads(start.response)
+    slot = raw["result"]["context"]["slot"] + 1
+    raw["result"]["context"]["slot"] = slot
+    values = raw["result"]["value"]
+    clock = bytearray(base64.b64decode(values[6]["data"][0]))
+    struct.pack_into("<Q", clock, 0, slot)
+    if fault == "epoch":
+        struct.pack_into("<Q", clock, 16, struct.unpack_from("<Q", clock, 16)[0] + 1)
+    values[6]["data"][0] = base64.b64encode(clock).decode()
+    if fault != "epoch":
+        index, offset = (5, 36) if fault == "mint-base" else (3, 170)
+        data = bytearray(base64.b64decode(values[index]["data"][0]))
+        struct.pack_into("<Q", data, offset, struct.unpack_from("<Q", data, offset)[0] + 1)
+        values[index]["data"][0] = base64.b64encode(data).decode()
+    end = replace(start, response=canonical(raw).encode(), received_ns=start.received_ns + 1)
+    store = PilotStore(tmp_path / "pilot.sqlite")
+    try:
+        store.configure([pool], start.source_alias, 100, token2022=True)
+        store.checkpoint(store.save_capture(start), pool)
+        store.checkpoint(store.save_capture(end), pool)
+        clock_times = iter(range(start.received_ns + 2, start.received_ns + 100))
+
+        def transport(endpoint, body, timeout, limit):
+            return canonical(
+                dict(
+                    jsonrpc="2.0",
+                    id=1,
+                    result=[
+                        dict(signature="boundary", slot=slot - 1, confirmationStatus="finalized")
+                    ],
+                )
+            ).encode()
+
+        client = ReadOnlyRPC(
+            "https://example.invalid",
+            start.source_alias,
+            transport=transport,
+            clock=lambda: next(clock_times),
+        )
+        for scan in store.db.execute("select * from scans").fetchall():
+            cap = client.fetch(
+                "getSignaturesForAddress",
+                [scan["address"], dict(commitment="finalized", minContextSlot=slot, limit=100)],
+            )
+            store.apply_page(scan["id"], store.save_capture(cap))
+        assert audit_pilot(store)["all_intervals_consistent"]
+        report = audit_protocol(store)
+        assert not report["all_intervals_consistent"]
+        reason = "withheld" if fault == "withheld" else "epoch boundary or mint"
+        assert any(reason in b for b in report["intervals"][0]["blockers"])
+        if fault == "withheld":
+            decoded = decode_supported_checkpoint(end, pool)
+            assert (
+                decoded["vault_balances"]
+                == decode_supported_checkpoint(start, pool)["vault_balances"]
+            )
+    finally:
+        store.close()
+
+
+def test_harvest_uses_current_withheld_once_without_changing_reserves():
+    from memecoin_ai.raydium import TOKEN_2022
+
+    cap = Capture.load(Path(__file__).parent / "fixtures" / "token2022" / "checkpoint-2")
+    pool = json.loads(cap.request_json)["params"][0][0]
+    ctx = checkpoint(cap, pool)
+    keys = [*ctx.pool.vaults, *ctx.pool.mints, TOKEN_2022]
+    balances = [
+        dict(
+            accountIndex=i,
+            mint=ctx.pool.mints[i],
+            programId=ctx.pool.token_programs[i],
+            uiTokenAmount=dict(amount=str(ctx.state.vaults[i])),
+        )
+        for i in range(2)
+    ]
+    ix = dict(
+        programId=TOKEN_2022,
+        parsed=dict(
+            type="harvestWithheldTokensToMint",
+            info=dict(mint=ctx.pool.mints[1], sourceAccounts=[ctx.pool.vaults[1]]),
+        ),
+    )
+    tx = dict(
+        transaction=dict(
+            message=dict(
+                accountKeys=[dict(pubkey=k) for k in keys], instructions=[ix, copy.deepcopy(ix)]
+            )
+        ),
+        meta=dict(
+            err=None,
+            preTokenBalances=balances,
+            postTokenBalances=copy.deepcopy(balances),
+            innerInstructions=[],
+            logMessages=[f"Program {TOKEN_2022} invoke [1]", f"Program {TOKEN_2022} success"] * 2,
+        ),
+    )
+    state, detail = replay_transaction(ctx, ctx.state, tx, withheld=(0, 123))
+    assert state == ctx.state
+    assert [o["vault_withheld_delta"] for o in detail["operations"]] == [[0, -123], [0, 0]]
+    assert all(not o["quote_checked"] for o in detail["operations"])
+    tx["meta"]["err"] = {"InstructionError": [0, "fixture"]}
+    assert replay_transaction(ctx, ctx.state, tx, withheld=(0, 123))[1]["operations"] == []
+    tx["meta"]["err"] = None
+    ix["parsed"]["info"]["mint"] = ctx.pool.mints[0]
+    with pytest.raises(ValidationError, match="harvest mint"):
+        replay_transaction(ctx, ctx.state, tx, withheld=(0, 123))

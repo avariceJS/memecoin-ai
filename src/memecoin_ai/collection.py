@@ -312,7 +312,14 @@ class PilotCollector:
             raise BudgetExhausted("request budget exhausted; pending work retained")
         self.remaining -= 1
         self.sleep(self.delay)
-        capture = self.client.fetch(method, params)
+        try:
+            capture = self.client.fetch(method, params)
+        except HTTPSourceError as exc:
+            if exc.status == 429:
+                # Retain the failed job; slow subsequent attempts without a hidden retry.
+                self.delay = min(10.0, max(2.0, self.delay * 2))
+                self.sleep(10.0)
+            raise
         capture_id = self.store.save_capture(capture)
         return capture_id, capture.result()
 

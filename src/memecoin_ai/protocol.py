@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from memecoin_ai.collection import PilotStore
-from memecoin_ai.cpmm import U64, EconomicState, Fees, collect_fees, liquidity
+from memecoin_ai.cpmm import U64, EconomicState, Fees, collect_fees, liquidity, u64
 from memecoin_ai.domain import ValidationError, canonical, digest
 from memecoin_ai.raydium import (
     PROGRAM,
@@ -62,6 +62,7 @@ class Checkpoint:
     epoch: int | None = None
     withheld: tuple[int, int] = (0, 0)
     mint_hashes: tuple[str, ...] = ()
+    fee_mints: tuple[bool, ...] = ()
 
 
 def checkpoint(cap: Capture, pool_id: str) -> Checkpoint:
@@ -94,6 +95,7 @@ def checkpoint(cap: Capture, pool_id: str) -> Checkpoint:
         checked.get("clock_epoch"),
         tuple(checked.get("vault_withheld", [0, 0])),
         tuple(m["economic_hash"] for m in checked.get("mint_terms", [])),
+        tuple(1 in m["extensions"] for m in checked.get("mint_terms", [])),
     )
 
 
@@ -416,7 +418,11 @@ def transition(
 
 
 def replay_transaction(
-    ctx: Checkpoint, state: EconomicState, tx: dict[str, Any]
+    ctx: Checkpoint,
+    state: EconomicState,
+    tx: dict[str, Any],
+    *,
+    withheld: tuple[int, int] | None = None,
 ) -> tuple[EconomicState, dict[str, Any]]:
     observations = [
         vault_transition(tx, v, m, p)
@@ -427,6 +433,9 @@ def replay_transaction(
             raise ValidationError("transaction pre-balance disagrees with reconstruction")
     if tx["meta"]["err"] is not None:
         return state, dict(failed=True, operations=[])
+    tracked_withheld = list(ctx.withheld if withheld is None else withheld)
+    for value in tracked_withheld:
+        u64(value)
     roots = invocations(tx)
     nodes = flatten(roots)
     consumed: set[int] = set()
@@ -448,6 +457,45 @@ def replay_transaction(
             consumed.update(id(n) for n in transfers)
             consumed.add(id(node))
             operations.append(result)
+            for i, delta in enumerate(result.get("vault_withheld_delta", [0, 0])):
+                tracked_withheld[i] = u64(tracked_withheld[i] + delta)
+        elif (
+            ix["programId"] == TOKEN_2022
+            and ix.get("parsed", {}).get("type") == "harvestWithheldTokensToMint"
+        ):
+            info = ix["parsed"]["info"]
+            sources = info["sourceAccounts"]
+            touched = [i for i, vault in enumerate(ctx.pool.vaults) if vault in sources]
+            if not touched:
+                continue
+            if (
+                ctx.epoch is None
+                or node.children
+                or not isinstance(sources, list)
+                or not all(isinstance(v, str) for v in sources)
+                or not {info["mint"], *sources}
+                <= {k["pubkey"] for k in tx["transaction"]["message"]["accountKeys"]}
+            ):
+                raise ValidationError("invalid/unattributable withheld harvest")
+            delta = [0, 0]
+            for i in touched:
+                if (
+                    info["mint"] != ctx.pool.mints[i]
+                    or not ctx.fee_mints[i]
+                    or ctx.pool.token_programs[i] != TOKEN_2022
+                ):
+                    raise ValidationError("harvest mint/extension mismatch")
+                delta[i] = -tracked_withheld[i]
+                tracked_withheld[i] = 0
+            consumed.add(id(node))
+            operations.append(
+                dict(
+                    kind="harvest_withheld_to_mint",
+                    quote_checked=False,
+                    vault_withheld_delta=delta,
+                    scope="tracked vaults only; other sources and mint total unobserved",
+                )
+            )
     for node in nodes:
         if id(node) in consumed:
             continue
@@ -499,7 +547,9 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
                     if not isinstance(tx, dict):
                         raise ValidationError("invalid transaction result")
                     try:
-                        state, details = replay_transaction(left, state, tx)
+                        state, details = replay_transaction(
+                            left, state, tx, withheld=(withheld[0], withheld[1])
+                        )
                         for op in details["operations"]:
                             for i, delta in enumerate(op.get("vault_withheld_delta", [0, 0])):
                                 withheld[i] += delta
@@ -580,6 +630,7 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
                 "non-allowlisted Token-2022 extensions",
                 "oracle and recent_epoch",
                 "admin/config transitions",
+                "mint-wide withheld total and direct withheld withdrawals",
                 "initialization",
                 "caught CPI failures",
                 "unattributed vault changes",
