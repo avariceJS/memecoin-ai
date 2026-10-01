@@ -13,13 +13,14 @@ from memecoin_ai.domain import Event, ValidationError, canonical
 from memecoin_ai.experiments import RunRecorder, summarize, verify_run
 from memecoin_ai.fixtures import ScriptedFixturePolicy, synthetic_events
 from memecoin_ai.protocol import write_protocol_audit
+from memecoin_ai.provider_audit import crosscheck, measure_latency, verify_provider_bundle
 from memecoin_ai.qualification import qualify_cpmm, verify_qualification
 from memecoin_ai.raydium import checkpoint_inventory
 from memecoin_ai.reconciliation import export_pilot, verify_pilot, write_audit
 from memecoin_ai.replay import CashPolicy, ReferenceReplay
 from memecoin_ai.sources import Capture, ReadOnlyRPC, SourceError, probe_rpc
 from memecoin_ai.storage import EventStore, audit, load_bundle, write_bundle
-from memecoin_ai.witness import write_liquidity_witness
+from memecoin_ai.witness import verify_collection_witness, write_liquidity_witness
 
 
 def main() -> int:
@@ -63,6 +64,11 @@ def main() -> int:
     )
     inspect.add_argument("capture", type=Path)
     inspect.add_argument("--pool", required=True)
+    collection_witness = commands.add_parser(
+        "audit-collection-witness", help="Observed fee transfers; no inferred counter prestate"
+    )
+    collection_witness.add_argument("capture", type=Path)
+    collection_witness.add_argument("--out", type=Path, required=True)
     witness = commands.add_parser(
         "audit-liquidity-witness",
         help="Event-conditioned arithmetic check; not historical state reconstruction",
@@ -122,9 +128,48 @@ def main() -> int:
     )
     protocol.add_argument("--store", type=Path, required=True)
     protocol.add_argument("--out", type=Path, required=True)
+    latency = commands.add_parser(
+        "measure-rpc-latency", help="Bounded Clock sampling; response time is not execution latency"
+    )
+    latency.add_argument("--source-alias", required=True)
+    latency.add_argument("--endpoint-env", default="MEMECOIN_RPC_URL")
+    latency.add_argument("--rounds", type=int, default=12)
+    latency.add_argument("--interval", type=float, default=3)
+    latency.add_argument("--out", type=Path, required=True)
+    cross = commands.add_parser(
+        "crosscheck-captures", help="Repeat exact finalized requests on another provider"
+    )
+    cross.add_argument("captures", nargs="+", type=Path)
+    cross.add_argument("--source-alias", required=True)
+    cross.add_argument("--endpoint-env", default="MEMECOIN_SECONDARY_RPC_URL")
+    cross.add_argument("--out", type=Path, required=True)
+    provider_verify = commands.add_parser(
+        "verify-provider-audit", help="Offline capture/measurement verification"
+    )
+    provider_verify.add_argument("path", type=Path)
     args = parser.parse_args()
     try:
-        if args.command == "audit-protocol":
+        if args.command in ("measure-rpc-latency", "crosscheck-captures"):
+            endpoint = os.environ.get(args.endpoint_env)
+            if not endpoint:
+                raise ValidationError("RPC endpoint environment variable is not set")
+            client = ReadOnlyRPC(endpoint, args.source_alias, max_bytes=32_000_000)
+            if args.command == "measure-rpc-latency":
+                report = measure_latency(
+                    client, args.out, rounds=args.rounds, interval=args.interval
+                )
+            else:
+                report = crosscheck([Capture.load(p) for p in args.captures], client, args.out)
+            print(canonical(report))
+            return (
+                0
+                if not report.get("errors", 0)
+                and report.get("all_requested_observations_match", True)
+                else 1
+            )
+        elif args.command == "verify-provider-audit":
+            print(canonical(verify_provider_bundle(args.path)))
+        elif args.command == "audit-protocol":
             pilot_store = PilotStore(args.store, read_only=True)
             try:
                 report = write_protocol_audit(pilot_store, args.out)
@@ -221,6 +266,12 @@ def main() -> int:
                 return 0 if not any(pending.values()) else 1
             finally:
                 pilot_store.close()
+        elif args.command == "audit-collection-witness":
+            report = verify_collection_witness(Capture.load(args.capture))
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            with args.out.open("x") as stream:
+                stream.write(canonical(report) + "\n")
+            print(canonical(report))
         elif args.command == "audit-liquidity-witness":
             print(canonical(write_liquidity_witness(Capture.load(args.capture), args.out)))
         elif args.command == "inspect-cpmm":

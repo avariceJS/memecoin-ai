@@ -67,3 +67,55 @@ def test_liquidity_witness_rejects_inconsistent_evidence(corruption):
         tx["meta"]["logMessages"].pop()
     with pytest.raises(ValidationError):
         verify_liquidity_witness(replace(cap, response=canonical(payload).encode()))
+
+
+def test_real_fund_collections_and_transfer_deductions():
+    from memecoin_ai.witness import verify_collection_witness
+
+    root = FIXTURES.parent / "fund_collection"
+    manifest = json.loads((root / "manifest.json").read_text())
+    for name, sha in manifest["files"].items():
+        assert digest((root / name).read_bytes()) == sha
+    expected = [[104918084, 0], [7492515, 0], [16656671, 1520]]
+    for path, deductions in zip(sorted(root.glob("fund-tx-*")), expected, strict=True):
+        report = verify_collection_witness(Capture.load(path))
+        assert report["kind"] == "collect_fund_fee"
+        assert report["transfers_and_limits_match"]
+        assert report["observed_transfer_deductions"] == deductions
+        assert not report["fee_counters_reconstructed"] and not report["historical_tariff_verified"]
+
+
+@pytest.mark.parametrize("corruption", ["limit", "transfer", "balance", "logs", "failed"])
+def test_collection_witness_rejects_inconsistent_evidence(corruption):
+    import struct
+
+    from memecoin_ai.raydium import PROGRAM, b58decode, b58encode
+    from memecoin_ai.witness import verify_collection_witness
+
+    cap = Capture.load(FIXTURES.parent / "fund_collection" / "fund-tx-2")
+    payload = json.loads(cap.response)
+    tx = payload["result"]
+    if corruption == "limit":
+        ix = next(
+            ix for ix in tx["transaction"]["message"]["instructions"] if ix["programId"] == PROGRAM
+        )
+        raw = bytearray(b58decode(ix["data"]))
+        struct.pack_into("<Q", raw, 8, 1)
+        ix["data"] = b58encode(raw)
+    elif corruption == "transfer":
+        ix = next(
+            n
+            for g in tx["meta"]["innerInstructions"]
+            for n in g["instructions"]
+            if n.get("parsed", {}).get("type") == "transferChecked"
+        )
+        ix["parsed"]["info"]["tokenAmount"]["amount"] = "1"
+    elif corruption == "balance":
+        b = tx["meta"]["postTokenBalances"][0]
+        b["uiTokenAmount"]["amount"] = str(int(b["uiTokenAmount"]["amount"]) + 1)
+    elif corruption == "logs":
+        tx["meta"]["logMessages"].pop()
+    else:
+        tx["meta"]["err"] = {"fixture": "failure"}
+    with pytest.raises(ValidationError):
+        verify_collection_witness(replace(cap, response=canonical(payload).encode()))

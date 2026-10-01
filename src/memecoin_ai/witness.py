@@ -127,3 +127,114 @@ def write_liquidity_witness(capture: Capture, output: Path) -> dict[str, Any]:
     with output.open("x") as stream:
         stream.write(canonical(report) + "\n")
     return report
+
+
+def verify_collection_witness(capture: Capture) -> dict[str, Any]:
+    from memecoin_ai.cpmm import U64
+    from memecoin_ai.protocol import COLLECTIONS
+    from memecoin_ai.raydium import TOKEN_2022
+
+    req = json.loads(capture.request_json)
+    tx = capture.result()
+    if (
+        capture.method != "getTransaction"
+        or req["params"][1].get("commitment") != "finalized"
+        or req["params"][1].get("encoding") != "jsonParsed"
+        or not isinstance(tx, dict)
+        or tx["transaction"]["signatures"][0] != req["params"][0]
+        or tx["meta"]["err"] is not None
+    ):
+        raise ValidationError(
+            "collection witness requires a successful finalized parsed transaction"
+        )
+    nodes = flatten(invocations(tx))
+    candidates = [
+        n
+        for n in nodes
+        if n.instruction["programId"] == PROGRAM
+        and KINDS.get(b58decode(n.instruction.get("data", ""))[:8]) in COLLECTIONS
+    ]
+    if len(candidates) != 1:
+        raise ValidationError("collection witness requires exactly one collection")
+    node = candidates[0]
+    ix = node.instruction
+    raw = b58decode(ix["data"])
+    kind = KINDS[raw[:8]]
+    creator = kind == "collect_creator_fee"
+    accounts = ix["accounts"]
+    if (
+        len(raw) != (8 if creator else 24)
+        or len(accounts) != (14 if creator else 12)
+        or node.events
+    ):
+        raise ValidationError("unsupported fee collection layout")
+    limits = (U64, U64) if creator else struct.unpack_from("<2Q", raw, 8)
+    vaults, mints, recipients = accounts[4:6], accounts[6:8], accounts[8:10]
+    if len(set(vaults + recipients)) != 4:
+        raise ValidationError("aliased collection accounts")
+    calls = [
+        n
+        for n in nodes
+        if n.instruction["programId"] in (TOKEN, TOKEN_2022)
+        and any(a in canonical(n.instruction) for a in vaults + recipients)
+    ]
+    amounts = [0, 0]
+    programs = {}
+    for call in calls:
+        if call not in node.children:
+            raise ValidationError("additional account flows outside collection")
+        source, dest, mint, amount = transfer(call)
+        if source not in vaults or amount == 0:
+            raise ValidationError("unexpected collection transfer")
+        index = vaults.index(source)
+        if (
+            index in programs
+            or dest != recipients[index]
+            or mint != mints[index]
+            or amount > limits[index]
+        ):
+            raise ValidationError("collection transfer identity/limit mismatch")
+        programs[index] = call.instruction["programId"]
+        amounts[index] = amount
+    net = []
+    for i in range(2):
+        # Metadata proves observed debits/credits, not the unseen fee counter or prior tariff.
+        keys = [k["pubkey"] for k in tx["transaction"]["message"]["accountKeys"]]
+        matches = [
+            b for b in tx["meta"]["preTokenBalances"] if b["accountIndex"] == keys.index(vaults[i])
+        ]
+        if len(matches) != 1 or matches[0]["programId"] not in (TOKEN, TOKEN_2022):
+            raise ValidationError("unknown collection token program")
+        program = matches[0]["programId"]
+        if i in programs and programs[i] != program:
+            raise ValidationError("collection token program mismatch")
+        source_balance = vault_transition(tx, vaults[i], mints[i], program)
+        dest_balance = vault_transition(tx, recipients[i], mints[i], program)
+        if source_balance is None or dest_balance is None:
+            raise ValidationError("collection balance metadata missing")
+        credited = dest_balance[1] - dest_balance[0]
+        if (
+            source_balance[0] - source_balance[1] != amounts[i]
+            or not 0 <= credited <= amounts[i]
+            or (program == TOKEN and credited != amounts[i])
+        ):
+            raise ValidationError("collection balances disagree with transfers")
+        net.append(credited)
+    if not any(amounts):
+        raise ValidationError("empty fee collection witness")
+    return dict(
+        schema_version=1,
+        kind=kind,
+        signature=req["params"][0],
+        slot=tx["slot"],
+        pool=accounts[2],
+        gross_vault_debits=amounts,
+        net_recipient_credits=net,
+        observed_transfer_deductions=[amounts[i] - net[i] for i in range(2)],
+        transfers_and_limits_match=True,
+        fee_counters_reconstructed=False,
+        historical_tariff_verified=False,
+        independent_prestate_verified=False,
+        market_dataset_qualified=False,
+        evidence_sha256=digest(capture.response),
+    )
