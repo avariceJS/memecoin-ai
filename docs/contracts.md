@@ -29,3 +29,17 @@ Ledger reservations prevent double spending. Settlement is atomic, bound to the 
 Risk checks run on observed information: freshness, quote currency, order/position/total exposure and input participation. Exposure checks use observed reserve ratios as conservative sizing references, not as liquidation valuations. Market changes after submission can move exposure beyond a pretrade limit; limits are not a guarantee against loss. Portfolio target-to-intent conversion is separate from policy and risk. Integer swap rounding may overshoot requested base units slightly; risk checks use the resulting quote. HOLD means current units, not constant portfolio weight.
 
 Valuation uses hypothetical executable exit proceeds minus exit network fee. It never adds those proceeds to actual balances. Without gas, a supported pool or a positive exit quote, the asset is reported as unpriced and valued at zero in the conservative mark. Final inventories remain explicit; there is no automatic profitable terminal liquidation. The mark is not evidence that an exit would succeed.
+
+## Supervised research boundary
+
+`Features` and `Target` are separate immutable objects. `Example` joins them for offline training/scoring only; `Forecaster.predict` never accepts targets. `TrainingSet` requires labels to be available by its cutoff. Walk-forward splits purge labels crossing the next test start or arriving after fit time. The included standardizer fits only the supplied training set; this does not replace correct fold construction.
+
+The flat `Features` path and unconditional empirical distribution are reference implementations. They do not choose a neural backbone, representation or final label. Event/sequence/graph encoders and PyTorch training loops can use their own batch representation behind separate adapters; they must preserve the same availability and cutoff semantics. No neural model or profitable strategy is claimed.
+
+Missing outcomes carry an explicit censoring reason. The empirical baseline refuses to silently drop censored rows. Forecasts carry target definitions and reject crossing quantiles. Pinball scoring checks identity and definition. Moving-block bootstrap requires ordered inputs and an explicit block size; it does not correct all selection bias or validate stationarity.
+
+## Runs and promotion
+
+CLI configs are strict TOML with explicit synthetic execution assumptions and risk limits. `scripted_fixture` is a test driver with prespecified actions, not a proposed trading strategy. No hyperparameters are tuned to improve the fixture PnL; the example loses money.
+
+Each run reserves a new directory, records dataset identity, resolved configuration, source hash, Git status and environment, then writes results, checksums and completed/failed status. Existing runs cannot be overwritten. Failed runs remain visible. A dirty checkout is recorded rather than pretending to be the last commit. Completed run verification checks integrity, not economic validity. Promotion requires separate real-OOS, execution-calibration, frozen-protocol, paper and risk evidence; a synthetic run cannot supply these.

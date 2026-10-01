@@ -50,3 +50,7 @@
 ## 2026-10-01 Reference replay и бухгалтерия
 
 Реализованы две временные линии, immutable observations, integer CPMM reference, reservations/settlement, отдельный risk manager, target-to-intent conversion, seeded synthetic outcomes и консервативная ликвидационная оценка. Реальный origin и неизвестная availability отклоняются. Выход за impact-domain делает весь replay недействительным, не превращается в удобную simulated failure. Точные ограничения — `docs/contracts.md`. Это проверка инфраструктуры, не E01–E14 и не калибровка Solana.
+
+## 2026-10-01 Research contracts и воспроизводимый запуск
+
+Добавлены отдельные Features/Target, зрелость labels, purged walk-forward, train-only standardizer, unconditional empirical forecaster и pinball score, block bootstrap, promotion blockers. CLI связывает fixture → bundle audit → reference replay → run manifest/metrics/checksums. Отрицательный synthetic round-trip используется как инженерная проверка; прибыльность не выводится. Backbone, neural training и действительная разметка рынка не выбирались.
