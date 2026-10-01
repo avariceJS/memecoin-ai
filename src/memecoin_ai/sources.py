@@ -17,6 +17,7 @@ READ_METHODS = frozenset(
         "getSlot",
         "getFirstAvailableBlock",
         "getBlock",
+        "getBlocks",
         "getAccountInfo",
         "getMultipleAccounts",
         "getSignaturesForAddress",

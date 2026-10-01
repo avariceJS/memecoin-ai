@@ -6,6 +6,7 @@ import os
 from dataclasses import asdict
 from pathlib import Path
 
+from memecoin_ai.blockrange import recover_ranges
 from memecoin_ai.collection import BudgetExhausted, PilotCollector, PilotStore
 from memecoin_ai.config import RunConfig
 from memecoin_ai.domain import Event, ValidationError, canonical
@@ -76,6 +77,11 @@ def main() -> int:
         pilot.add_argument("--budget", type=int, default=100)
         pilot.add_argument("--rpc-interval", type=float, default=1.2)
         pilot.add_argument("--recovery-page-size", type=int)
+        pilot.add_argument(
+            "--block-range",
+            action="store_true",
+            help="Recover <=256-slot intervals from complete block enumeration",
+        )
         pilot.add_argument(
             "--full-blocks",
             action="store_true",
@@ -181,18 +187,23 @@ def main() -> int:
                     ReadOnlyRPC(
                         endpoint,
                         args.source_alias,
-                        max_bytes=32_000_000 if args.full_blocks else 4_000_000,
+                        max_bytes=32_000_000 if args.full_blocks or args.block_range else 4_000_000,
                     ),
                     full_blocks=args.full_blocks,
                     budget=args.budget,
                     delay=args.rpc_interval,
                     page_size=args.recovery_page_size,
                 )
+                if args.command == "collect-pilot" and args.block_range:
+                    raise ValidationError("use --block-range with recover-pilot after checkpoints")
                 if args.command == "collect-pilot":
                     collector.poll(args.rounds, args.interval, recover=not args.snapshots_only)
                 else:
                     try:
-                        collector.recover()
+                        if args.block_range:
+                            recover_ranges(collector)
+                        else:
+                            collector.recover()
                     except BudgetExhausted:
                         pilot_store.issue(
                             "budget", "request budget exhausted; recovery remains pending"

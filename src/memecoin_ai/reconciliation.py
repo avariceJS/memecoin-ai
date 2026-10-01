@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from memecoin_ai.blockrange import range_evidence
 from memecoin_ai.collection import (
     PilotStore,
     block_signatures,
@@ -170,8 +171,13 @@ def _audit_pilot(store: PilotStore) -> dict[str, Any]:
             signatures = set()
             for scan in scans:
                 signatures.update(_scan_evidence(store, scan, start, end))
+            covered = range_evidence(store, a, b, left, right)
+            if covered is not None:
+                if not signatures <= set(covered[0]):
+                    raise ValidationError("address index disagrees with complete block range")
+                signatures = set(covered[0])
             blockers = []
-            if not all(s["boundary"] for s in scans):
+            if covered is None and not all(s["boundary"] for s in scans):
                 blockers.append("signature pagination has not reached lower boundary")
             ordered = []
             slots = dict(db.execute("SELECT signature,slot FROM transactions"))
@@ -265,6 +271,8 @@ def _audit_pilot(store: PilotStore) -> dict[str, Any]:
                     full_pool_state_reconstructed=False,
                 )
             )
+            if covered is not None:
+                reports[-1]["block_range_coverage_capture"] = covered[1]
     return dict(
         schema_version=1,
         spec=store.spec(),
@@ -278,7 +286,11 @@ def _audit_pilot(store: PilotStore) -> dict[str, Any]:
         and all(r["consistency_passed"] for r in reports),
         market_dataset_qualified=False,
         independent_provider_verified=False,
-        coverage_scope="address index traversed to boundary; completeness conditional on provider",
+        coverage_scope=(
+            "address index or bounded full block range; completeness conditional on provider"
+            if any("block_range_coverage_capture" in r for r in reports)
+            else "address index traversed to boundary; completeness conditional on provider"
+        ),
         historical_availability="original receipts only; recovery does not backdate availability",
     )
 
@@ -308,6 +320,7 @@ def export_pilot(store: PilotStore, output: Path) -> dict[str, Any]:
         snapshot.close()
     modules = (
         "collection.py",
+        "blockrange.py",
         "reconciliation.py",
         "raydium.py",
         "tokens.py",

@@ -653,6 +653,7 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
             "raydium.py",
             "reconciliation.py",
             "collection.py",
+            "blockrange.py",
             "sources.py",
             "domain.py",
         )
@@ -683,7 +684,7 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
             transaction_execution_qualified=False,
             independent_provider_verified=False,
             dependency_history_enabled=schedule is not None,
-            assumptions=["provider address index complete"]
+            assumptions=["provider address index or bounded block enumeration complete"]
             + (
                 ["normal epoch schedule immutable; anchored to both checkpoint Clocks"]
                 if schedule is not None

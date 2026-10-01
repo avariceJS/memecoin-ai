@@ -48,6 +48,11 @@ class PilotStore:
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.executescript("""
+            CREATE TABLE IF NOT EXISTS range_scans(
+                start_id INTEGER NOT NULL REFERENCES checkpoints(id),
+                end_id INTEGER NOT NULL REFERENCES checkpoints(id),
+                capture_id INTEGER NOT NULL REFERENCES captures(id), complete INTEGER NOT NULL,
+                PRIMARY KEY(start_id,end_id));
             CREATE TABLE IF NOT EXISTS settings(id INTEGER PRIMARY KEY CHECK(id=1),
                 body TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS captures(
@@ -136,7 +141,16 @@ class PilotStore:
         return result
 
     def pending(self) -> dict[str, int]:
-        scans = self.db.execute("SELECT count(*) FROM scans WHERE boundary=0").fetchone()[0]
+        has_ranges = self.db.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='range_scans'"
+        ).fetchone()
+        query = "SELECT count(*) FROM scans s WHERE boundary=0"
+        if has_ranges:
+            query += (
+                " AND NOT EXISTS (SELECT 1 FROM range_scans r WHERE "
+                "r.start_id=s.start_id AND r.end_id=s.end_id AND r.complete=1)"
+            )
+        scans = self.db.execute(query).fetchone()[0]
         transactions = self.db.execute(
             "SELECT count(DISTINCT s.signature) FROM signatures s LEFT JOIN transactions t "
             "USING(signature) WHERE t.signature IS NULL"
