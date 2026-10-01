@@ -42,3 +42,10 @@ work/
 
 # Curated configs, manifests and research reports should be versioned
 # in dedicated paths outside the ignored data/output directories.
+
+# Build and packaging
+build/
+dist/
+*.egg-info/
+.coverage
+htmlcov/
