@@ -10,8 +10,10 @@ from memecoin_ai.config import RunConfig
 from memecoin_ai.domain import Event, ValidationError, canonical
 from memecoin_ai.experiments import RunRecorder, summarize, verify_run
 from memecoin_ai.fixtures import ScriptedFixturePolicy, synthetic_events
+from memecoin_ai.qualification import qualify_cpmm, verify_qualification
+from memecoin_ai.raydium import checkpoint_inventory
 from memecoin_ai.replay import CashPolicy, ReferenceReplay
-from memecoin_ai.sources import ReadOnlyRPC, probe_rpc
+from memecoin_ai.sources import Capture, ReadOnlyRPC, SourceError, probe_rpc
 from memecoin_ai.storage import EventStore, audit, load_bundle, write_bundle
 
 
@@ -39,13 +41,41 @@ def main() -> int:
     probe.add_argument("--source-alias", required=True)
     probe.add_argument("--endpoint-env", default="MEMECOIN_RPC_URL")
     probe.add_argument("--out", type=Path, required=True)
+    qualify = commands.add_parser(
+        "qualify-cpmm", help="Bounded real CPMM account/transaction audit"
+    )
+    qualify.add_argument("--source-alias", required=True)
+    qualify.add_argument("--endpoint-env", default="MEMECOIN_RPC_URL")
+    qualify.add_argument("--limit", type=int, default=12)
+    qualify.add_argument("--address", default="CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C")
+    qualify.add_argument("--out", type=Path, required=True)
+    verify_source = commands.add_parser(
+        "verify-qualification", help="Offline reproduction of captured source audit"
+    )
+    verify_source.add_argument("path", type=Path)
+    inspect = commands.add_parser(
+        "inspect-cpmm", help="Offline structural inventory; no executable quotes"
+    )
+    inspect.add_argument("capture", type=Path)
+    inspect.add_argument("--pool", required=True)
     args = parser.parse_args()
     try:
-        if args.command == "probe-rpc":
+        if args.command == "inspect-cpmm":
+            print(canonical(checkpoint_inventory(Capture.load(args.capture), args.pool)))
+        elif args.command == "verify-qualification":
+            print(canonical(verify_qualification(args.path)))
+        elif args.command in ("probe-rpc", "qualify-cpmm"):
             endpoint = os.environ.get(args.endpoint_env)
             if not endpoint:
                 raise ValidationError("RPC endpoint environment variable is not set")
-            report = probe_rpc(ReadOnlyRPC(endpoint, args.source_alias), args.out)
+            client = ReadOnlyRPC(endpoint, args.source_alias)
+            if args.command == "qualify-cpmm":
+                report = qualify_cpmm(
+                    client, args.out, limit=args.limit, discovery_address=args.address
+                )
+                print(canonical(report))
+                return 0 if report["checkpoints"] and not report["failures"] else 1
+            report = probe_rpc(client, args.out)
             print(canonical(report))
             results = report["results"]
             assert isinstance(results, dict)
@@ -90,6 +120,6 @@ def main() -> int:
             print(canonical(verify_run(args.path)))
         else:
             print(canonical(audit(load_bundle(args.bundle))))
-    except (ValueError, TypeError, KeyError, OSError, json.JSONDecodeError) as exc:
+    except (ValueError, TypeError, KeyError, OSError, json.JSONDecodeError, SourceError) as exc:
         parser.exit(2, f"error: {exc}\n")
     return 0

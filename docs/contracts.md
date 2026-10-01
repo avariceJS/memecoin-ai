@@ -49,3 +49,31 @@ Each run reserves a new directory, records dataset identity, resolved configurat
 `observation_stream` reconstructs the information set using arrival order and rejects unknown availability. `pool_features` uses only visible, fresh and tradable pool state; the universe is discovered from past observations. `reference_examples` labels the change in the **observed reserve ratio** after an explicit horizon. It is not a realized or executable return and is intended for pipeline tests. Target coverage end is an explicit caller assertion that must come from a qualified manifest for real research; timestamp bounds alone do not establish coverage. Missing/untradable/stale endpoints remain censored, not dropped. Snapshot history and targets stay outside the policy interface.
 
 Source snapshots are saved with each run, including dirty code. The `run --repo` checkout must match the code actually imported (editable or installed), so a Git hash cannot be borrowed from a different checkout. Bundle publication reserves a destination exclusively and publishes its manifest last; interrupted bundles fail validation. Hashes protect against accidental mutation, not an adversary who edits artifacts and recomputes hashes.
+
+## Real CPMM qualification boundary
+
+`raydium.py` decodes a pinned public PoolState/AmmConfig layout. No claim equates that
+source revision with the deployed binary. Full pool/config/vault/mint checkpoints come
+from one finalized getMultipleAccounts response. The preceding pool lookup only discovers
+addresses. minContextSlot is a lower bound; it does not request historical account state.
+Context slot is a bank checkpoint, not account modification time; receipt time describes
+raw HTTP availability, not a backfilled historical feature's availability.
+
+The strict reserve decoder accepts only classic SPL Token accounts/mints of exact sizes.
+Token-2022 structural inventory preserves extension type IDs and lengths, including unknown
+IDs, while leaving payload semantics uninterpreted and execution unqualified. It is not a
+shortcut around transfer fees, hooks, confidential balances or restrictions. Mint/freeze
+flags, pool status and open time are facts, not automatic permission to trade.
+
+The bounded qualifier accepts parsed transaction versions legacy/0/1 and discovers CPMM
+swap calls at top level and CPI. It records failed/unavailable/unsupported samples. A latest
+signature sample is activity-selected, not a point-in-time memecoin universe. Vault flow
+reconciliation compares parsed SPL transfers against pre/post token metadata from the SAME
+provider; it is neither independent-source corroboration nor swap-price validation. It does
+not reconstruct historical pool fee counters or all intervening state. Unknown extensions,
+failed transactions, missing balances and unknown layouts are never convenient zero returns.
+
+No qualification command removes ReferenceReplay's synthetic-only gate. Outputs can be
+reproduced offline from captures; hashes detect accidental corruption, not a malicious
+provider or an adversary rewriting every checksum. Raw responses are bounded in memory;
+this is a source audit tool, not a continuous collector or full-chain throughput benchmark.

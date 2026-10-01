@@ -230,3 +230,105 @@ def swap_candidates(transaction: Any) -> list[str]:
             raise ValidationError("unsupported swap instruction layout")
         pools.append(public_key(instruction["accounts"][3]))
     return list(dict.fromkeys(pools))
+
+
+TOKEN_2022 = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+TOKEN_SOURCE_REVISION = "5bc7ea3b9568b9fdac2d08c921d73d40260249c7"
+
+
+def token_inventory(account: Any, *, mint: bool) -> dict[str, Any]:
+    """Inspect extension framing; unknown economic semantics remain unsupported."""
+    if not isinstance(account, dict) or account.get("owner") not in (TOKEN, TOKEN_2022):
+        raise ValidationError("unsupported token owner")
+    owner = account["owner"]
+    try:
+        size = len(base64.b64decode(account["data"][0], validate=True))
+    except (KeyError, ValueError, TypeError, IndexError) as exc:
+        raise ValidationError("invalid token account data") from exc
+    raw = account_bytes(account, owner, size)
+    base_size = 82 if mint else 165
+    if size < base_size or size == 355:
+        raise ValidationError("invalid token base size/multisig")
+    extensions: list[dict[str, int]] = []
+    if size != base_size:
+        if owner != TOKEN_2022 or size < 166 or raw[165] != (1 if mint else 2):
+            raise ValidationError("invalid token extension account type")
+        if mint and any(raw[82:165]):
+            raise ValidationError("invalid mint padding")
+        position = 166
+        seen = set()
+        while position < len(raw):
+            if not any(raw[position:]):
+                break
+            if len(raw) - position < 4:
+                raise ValidationError("truncated extension header")
+            kind, length = struct.unpack_from("<HH", raw, position)
+            position += 4
+            if kind == 0 or kind in seen or position + length > len(raw):
+                raise ValidationError("invalid/duplicate/truncated extension")
+            seen.add(kind)
+            extensions.append(dict(type_id=kind, length=length))
+            position += length
+    result: dict[str, Any] = dict(
+        owner=owner, size=size, extensions=extensions, transfer_semantics_verified=False
+    )
+    if mint:
+        result.update(decimals=raw[44], initialized=raw[45] == 1)
+    else:
+        result.update(
+            mint=b58encode(raw[:32]),
+            state=raw[108],
+            base_amount=struct.unpack_from("<Q", raw, 64)[0],
+        )
+    return result
+
+
+def checkpoint_inventory(capture: Capture, pool_id: str) -> dict[str, Any]:
+    import json
+
+    request = json.loads(capture.request_json)
+    if capture.method != "getMultipleAccounts" or request["method"] != capture.method:
+        raise ValidationError("inventory requires getMultipleAccounts")
+    result = capture.result()
+    if (
+        not isinstance(result, dict)
+        or not isinstance(result.get("value"), list)
+        or len(result["value"]) != 6
+    ):
+        raise ValidationError("invalid inventory response")
+    values = result["value"]
+    pool = decode_pool(values[0])
+    addresses, options = request["params"]
+    if (
+        addresses != pool.addresses(pool_id)
+        or options.get("commitment") != "finalized"
+        or options.get("encoding") != "base64"
+        or "dataSlice" in options
+    ):
+        raise ValidationError("invalid inventory linkage/options")
+    slot = result["context"]["slot"]
+    integer(slot, "context slot")
+    if slot < options.get("minContextSlot", 0):
+        raise ValidationError("inventory context regressed")
+    vaults = [token_inventory(v, mint=False) for v in values[2:4]]
+    mints = [token_inventory(v, mint=True) for v in values[4:6]]
+    for i in range(2):
+        if (
+            vaults[i]["mint"] != pool.mints[i]
+            or vaults[i]["owner"] != pool.token_programs[i]
+            or mints[i]["owner"] != pool.token_programs[i]
+            or mints[i]["decimals"] != pool.decimals[i]
+        ):
+            raise ValidationError("token inventory linkage mismatch")
+    return dict(
+        pool_id=pool_id,
+        context_slot=slot,
+        raw_received_ns=capture.received_ns,
+        token_source_revision=TOKEN_SOURCE_REVISION,
+        pool=asdict(pool),
+        fees=decode_config(values[1]),
+        vault_inventory=vaults,
+        mint_inventory=mints,
+        execution_qualified=False,
+        semantics="structural inventory only; extension payloads uninterpreted",
+    )

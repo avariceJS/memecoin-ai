@@ -92,3 +92,20 @@
 ## D21 Граница квалификации источника
 
 **Статус:** принято. Read-only RPC capture отделён от нормализации и квалификации рынка. Успешный getSlot/getVersion/getFirstAvailableBlock подтверждает доступность endpoint, а не полноту данных и pool reconstruction. Пока нет venue decoder, production feed и исторических receipt timestamps. Следующий практический этап — квалификация конкретного источника/сегмента на реальных образцах.
+
+## D22 Первый протокольный adapter — диагностический CPMM
+
+**Статус:** реализовано и проверено на mainnet account/transaction samples. Выбран Raydium
+CPMM из-за доступных исходников и проверяемой структуры счетов. Layout закреплён по revision;
+соответствие deployed binary не доказано. Pool/config/vaults/mints читаются одним finalized
+checkpoint. Суммы protocol/fund/creator fees исключаются из reserve balances. Это data decoder,
+не калиброванная модель исполнения. Источник и мемкоин-сегмент для обучения ещё не утверждены.
+
+## D23 Наблюдение шире поддержанного исполнения
+
+**Статус:** уточнено по реальным данным, не ablation модели. Начальный legacy SPL decoder
+оказался слишком узким для обнаруженных CPMM pools: в образцах встречается Token-2022.
+Поэтому raw capture и structural extension inventory сохраняют эти пулы; reserve/execution
+допуск не расширяется без семантики extensions. Отказ виден в отчёте. Поддержка RPC transaction
+v1 добавлена после ошибки -32015 и сверки текущей документации; старые неудачные captures
+сохранены. Пропуски нельзя выдавать за отсутствие активности. Доказательства: source-audit.

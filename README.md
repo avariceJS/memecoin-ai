@@ -58,6 +58,28 @@ Raw capture → immutable event journal → verified dataset bundle
 
 ## Что пока отсутствует
 
-Нет квалифицированного рыночного dataset, venue decoder, непрерывного collector, откалиброванной latency/fill model, нейросетевого обучения, доказанного OOS edge, MPC/RL или live/paper trading сервиса. RPC receipt сейчас не заменяет историческое время получения. Синтетические reference tests не являются рыночными экспериментами E01–E14.
+Нет квалифицированного рыночного dataset, калиброванного venue execution adapter, непрерывного collector, откалиброванной latency/fill model, нейросетевого обучения, доказанного OOS edge, MPC/RL или live/paper trading сервиса. RPC receipt сейчас не заменяет историческое время получения. Синтетические reference tests не являются рыночными экспериментами E01–E14.
 
 Реальные данные, веса, runs и credentials исключены из Git. Будущие конфигурации и краткие исследовательские отчёты должны оставаться версионированными. Не выбирать backbone, размер модели и горизонты до соответствующих экспериментов.
+
+## Реальные данные: ограниченный аудит CPMM
+
+```sh
+export MEMECOIN_RPC_URL=https://api.mainnet-beta.solana.com
+mcai qualify-cpmm --source-alias solana-public --limit 20 --out work/cpmm-audit
+mcai verify-qualification work/cpmm-audit
+mcai verify-qualification tests/fixtures/cpmm_control
+```
+
+`--address <pubkey>` меняет адрес discovery с программы на конкретный контрольный пул.
+Максимум 30 signatures и 10 pools; время и размер каждого RPC ограничены. Запуск сохраняет
+спецификацию до запросов, raw responses, receipts и все отказы. Exit 1 означает неполный/
+неподдержанный образец, а не необходимость удалить неудачные строки. Exit 0 также **не**
+означает готовность источника для ML: квалификационные flags остаются false.
+
+`mcai inspect-cpmm <capture-directory> --pool <pool-id>` воспроизводит структурный inventory
+сохранённого checkpoint, включая номера/длины Token-2022 extensions без интерпретации их
+торговой семантики. Поддержанный legacy checkpoint отдельно проверяет pool/config/vault/mint
+связи и исключает protocol/fund/creator fee counters из резервов. Это не quote adapter.
+
+Результаты и следующая граница: [source audit](docs/source-audit.md).

@@ -62,3 +62,13 @@
 ## 2026-10-01 Аудит и завершение локального фундамента
 
 Добавлены causal sampling/label reference, lock-файл dev tools, Make targets и CI definition. Аудит исправил disappearance-during-latency, immutable run finalization, source snapshot provenance, strict schema/duplicate JSON checks и конфликт одинаковых pool versions. Проверены 45 тестов, strict mypy, Ruff, CLI smoke с идентичными повторными результатами, sdist/wheel build. RPC проверка реальная, market qualification не выполнена. Документы синхронизированы с кодом; добавлены D18–D21. Это инженерные результаты, не доказательство торгового edge.
+
+## 2026-10-01 Квалификация реального CPMM adapter
+
+Реализованы pinned layout decoder, единый finalized account checkpoint, bounded signature/
+transaction audit, offline verification и сверка vault transfers с pre/post balances.
+Добавлены компактные реальные regression captures. Первые RPC запросы с max version 0
+пропускали v1; после проверки официальных docs добавлено чтение v1. Legacy-only domain
+оказался узким: добавлен структурный Token-2022 inventory, но исполнение extensions не
+объявлено поддержанным. SOL/USDC используется только как контрольный pool, не как memecoin
+research segment. Состав и ограничения проверок зафиксированы в docs/source-audit.md.

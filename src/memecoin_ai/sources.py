@@ -77,7 +77,7 @@ class Capture:
             raise SourceError("RPC response is not JSON") from exc
         if not isinstance(decoded, dict) or decoded.get("jsonrpc") != "2.0":
             raise SourceError("invalid JSON-RPC envelope")
-        if decoded.get("id") != 1:
+        if type(decoded.get("id")) is not int or decoded.get("id") != 1:
             raise SourceError("RPC response ID mismatch")
         if "error" in decoded:
             raise SourceError("RPC returned an error; raw response retained")

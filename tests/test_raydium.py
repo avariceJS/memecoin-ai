@@ -162,3 +162,21 @@ def test_discovery_handles_cpi_and_failed_transactions():
     failed = copy.deepcopy(tx)
     failed["meta"]["err"] = {"InstructionError": [0, "Custom"]}
     assert swap_candidates(failed) == []
+
+
+def test_token_extension_framing_preserves_unknown_types():
+    from memecoin_ai.raydium import TOKEN_2022, token_inventory
+
+    raw = bytearray(166)
+    raw[165] = 1
+    raw += struct.pack("<HH", 65000, 3) + b"abc"
+    inventory = token_inventory(account(raw, TOKEN_2022), mint=True)
+    assert inventory["extensions"] == [dict(type_id=65000, length=3)]
+    assert inventory["transfer_semantics_verified"] is False
+    with pytest.raises(ValidationError, match="truncated"):
+        token_inventory(account(raw[:-1], TOKEN_2022), mint=True)
+    with pytest.raises(ValidationError, match="duplicate"):
+        token_inventory(account(raw + struct.pack("<HH", 65000, 0), TOKEN_2022), mint=True)
+    raw[165] = 2
+    with pytest.raises(ValidationError, match="account type"):
+        token_inventory(account(raw, TOKEN_2022), mint=True)
