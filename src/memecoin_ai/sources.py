@@ -28,6 +28,12 @@ class SourceError(RuntimeError):
     pass
 
 
+class HTTPSourceError(SourceError):
+    def __init__(self, status: int) -> None:
+        self.status = status
+        super().__init__(f"RPC HTTP {status}; endpoint details redacted")
+
+
 @dataclass(frozen=True)
 class Capture:
     source_alias: str
@@ -96,6 +102,8 @@ def http_transport(endpoint: str, request: bytes, timeout: float, limit: int) ->
     try:
         with urllib.request.urlopen(message, timeout=timeout) as response:
             body = response.read(limit + 1)
+    except urllib.error.HTTPError as exc:
+        raise HTTPSourceError(exc.code) from None
     except (urllib.error.URLError, OSError):
         # URL/query strings can contain API keys. Never copy transport exception text into logs.
         raise SourceError("RPC transport failed; endpoint details redacted") from None

@@ -77,3 +77,17 @@ research segment. Состав и ограничения проверок заф
 checkpoint/inventory/flow reproduction и sdist/wheel сборка. В новые qualification specs
 добавлены hashes локальной реализации decoder; старым captures они не приписываются задним
 числом. Исторический coverage gate остаётся открытым, исполнение не объявлено калиброванным.
+
+## 2026-10-01 Durable forward collection и восстановление
+
+Пользователь утвердил ограниченный непрерывный сбор и сверку между snapshots. Добавлены
+fixed-cohort polling, SQLite/WAL raw journal, атомарные pagination cursors, pending transaction/
+block jobs, source-error history и возобновление после перезапуска. Аудит использует реальный
+порядок getBlock и проверяет каждый pre-balance плюс конечные vault residuals. Неподдержанные
+переходы и отсутствие checkpoint остаются blockers. Synthetic-only execution gate сохранён.
+
+Практическая корректировка: page size 5 слишком затратен для активного пула после паузы;
+добавлен регулируемый размер до 100 и reuse идентичных finalized pages между интервалами.
+Найдена и исправлена ошибка передачи recovery параметров CLI; отдельный тест проверяет
+фактические запросы. Прежние receipts/ошибки не переписаны. HTTP status теперь можно записать
+без endpoint/credential; старым ошибкам неизвестный статус не приписывается.

@@ -83,3 +83,12 @@ mcai verify-qualification tests/fixtures/cpmm_control
 связи и исключает protocol/fund/creator fee counters из резервов. Это не quote adapter.
 
 Результаты и следующая граница: [source audit](docs/source-audit.md).
+
+## Forward pilot и восстановление
+
+`collect-pilot` сохраняет finalized checkpoints фиксированной когорты и журнал запросов.
+`recover-pilot` продолжает незавершённые страницы, transactions и block ordering после сбоя.
+`audit-pilot` проверяет непрерывность vault balances между snapshots; `export-pilot` и
+`verify-pilot` обеспечивают переносимый воспроизводимый архив вне Git.
+
+Команды, ограничения и реальные результаты: [forward pilot](docs/forward-pilot.md).

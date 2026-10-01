@@ -57,8 +57,10 @@ def _scan_evidence(store: PilotStore, scan: Any, start: int, end: int) -> set[st
             or request["params"][0] != scan["address"]
             or opts.get("before") != before
             or opts.get("commitment") != "finalized"
-            or opts.get("minContextSlot") != end
-            or opts.get("limit") != store.spec()["page_size"]
+            or type(opts.get("minContextSlot")) is not int
+            or opts["minContextSlot"] < end
+            or type(opts.get("limit")) is not int
+            or not 1 <= opts["limit"] <= 100
         ):
             raise ValidationError("scan provenance mismatch")
         items = cap.result()
@@ -100,6 +102,16 @@ def _scan_evidence(store: PilotStore, scan: Any, start: int, end: int) -> set[st
 
 
 def audit_pilot(store: PilotStore) -> dict[str, Any]:
+    if store.db.in_transaction:
+        raise ValidationError("audit requires its own consistent read transaction")
+    store.db.execute("BEGIN")
+    try:
+        return _audit_pilot(store)
+    finally:
+        store.db.rollback()
+
+
+def _audit_pilot(store: PilotStore) -> dict[str, Any]:
     db = store.db
     if (
         db.execute("PRAGMA integrity_check").fetchone()[0] != "ok"
@@ -128,11 +140,14 @@ def audit_pilot(store: PilotStore) -> dict[str, Any]:
             raise ValidationError("checkpoint cache disagrees with raw")
         checkpoints[row["id"]] = decoded
     reports = []
+    pools_without_interval = []
     for pool in store.spec()["pools"]:
         ids = [
             r[0]
             for r in db.execute("SELECT id FROM checkpoints WHERE pool=? ORDER BY slot", (pool,))
         ]
+        if len(ids) < 2:
+            pools_without_interval.append(pool)
         for a, b in zip(ids, ids[1:], strict=False):
             left, right = checkpoints[a], checkpoints[b]
             start, end = left["context_slot"], right["context_slot"]
@@ -168,7 +183,19 @@ def audit_pilot(store: PilotStore) -> dict[str, Any]:
                     or not start < tx["slot"] <= end
                 ):
                     raise ValidationError("transaction cache identity mismatch")
-                if tx.get("version") not in ("legacy", 0, 1):
+                addresses = {key["pubkey"] for key in tx["transaction"]["message"]["accountKeys"]}
+                claimed_addresses = {
+                    scan["address"]
+                    for scan in scans
+                    if db.execute(
+                        "SELECT 1 FROM signatures WHERE scan_id=? AND signature=?",
+                        (scan["id"], signature),
+                    ).fetchone()
+                }
+                if not claimed_addresses <= addresses:
+                    raise ValidationError("signature index references absent account")
+                version = tx.get("version")
+                if version != "legacy" and (type(version) is not int or version not in (0, 1)):
                     raise ValidationError("unknown transaction version")
                 block_row = db.execute(
                     "SELECT capture_id FROM blocks WHERE slot=?", (row["slot"],)
@@ -248,7 +275,10 @@ def audit_pilot(store: PilotStore) -> dict[str, Any]:
         checkpoints=len(checkpoints),
         intervals=reports,
         issues=[dict(row) for row in db.execute("SELECT * FROM issues ORDER BY id")],
-        all_intervals_consistent=bool(reports) and all(r["consistency_passed"] for r in reports),
+        pools_without_interval=pools_without_interval,
+        all_intervals_consistent=bool(reports)
+        and not pools_without_interval
+        and all(r["consistency_passed"] for r in reports),
         market_dataset_qualified=False,
         independent_provider_verified=False,
         coverage_scope="address index traversed to boundary; completeness conditional on provider",
@@ -262,3 +292,65 @@ def write_audit(store: PilotStore, output: Path) -> dict[str, Any]:
     with output.open("x") as stream:
         stream.write(canonical(result) + "\n")
     return result
+
+
+def export_pilot(store: PilotStore, output: Path) -> dict[str, Any]:
+    """SQLite backup freezes a coherent point while the WAL writer may still progress."""
+    import sqlite3
+
+    output.mkdir(parents=True, exist_ok=False)
+    destination = sqlite3.connect(output / "journal.sqlite")
+    try:
+        store.db.backup(destination)
+    finally:
+        destination.close()
+    snapshot = PilotStore(output / "journal.sqlite", read_only=True)
+    try:
+        report = write_audit(snapshot, output / "report.json")
+    finally:
+        snapshot.close()
+    modules = ("collection.py", "reconciliation.py", "raydium.py", "sources.py", "domain.py")
+    source = {name: (Path(__file__).parent / name).read_text() for name in modules}
+    (output / "decoder-source.json").write_text(canonical(source) + "\n")
+    manifest = dict(
+        schema_version=1,
+        files={
+            name: digest((output / name).read_bytes())
+            for name in ("journal.sqlite", "report.json", "decoder-source.json")
+        },
+        semantics="audit source snapshot; not retroactive collector-version evidence",
+        market_dataset_qualified=False,
+    )
+    (output / "manifest.json").write_text(canonical(manifest) + "\n")
+    return dict(
+        intervals=len(report["intervals"]),
+        consistent=report["all_intervals_consistent"],
+        manifest=manifest,
+    )
+
+
+def verify_pilot(output: Path) -> dict[str, Any]:
+    manifest = json.loads((output / "manifest.json").read_text())
+    if (
+        manifest.get("schema_version") != 1
+        or set(manifest["files"]) != {"journal.sqlite", "report.json", "decoder-source.json"}
+        or manifest.get("market_dataset_qualified") is not False
+    ):
+        raise ValidationError("invalid pilot manifest")
+    for name, sha in manifest["files"].items():
+        if digest((output / name).read_bytes()) != sha:
+            raise ValidationError("pilot artifact checksum mismatch")
+    store = PilotStore(output / "journal.sqlite", read_only=True)
+    try:
+        actual = audit_pilot(store)
+    finally:
+        store.close()
+    expected = json.loads((output / "report.json").read_text())
+    if canonical(actual) != canonical(expected):
+        raise ValidationError("pilot audit reproduction mismatch")
+    return dict(
+        intervals=len(actual["intervals"]),
+        consistent=actual["all_intervals_consistent"],
+        nonempty_intervals=sum(i["nonempty"] for i in actual["intervals"]),
+        market_dataset_qualified=False,
+    )

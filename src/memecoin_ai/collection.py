@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import json
 import sqlite3
 import time
@@ -12,7 +13,11 @@ from typing import Any
 
 from memecoin_ai.domain import ValidationError, canonical, digest, integer
 from memecoin_ai.raydium import decode_checkpoint, decode_pool, public_key
-from memecoin_ai.sources import Capture, ReadOnlyRPC, SourceError
+from memecoin_ai.sources import Capture, HTTPSourceError, ReadOnlyRPC, SourceError
+
+
+def failure_reason(error: Exception) -> str:
+    return f"HTTP {error.status}" if isinstance(error, HTTPSourceError) else type(error).__name__
 
 
 class BudgetExhausted(RuntimeError):
@@ -20,8 +25,20 @@ class BudgetExhausted(RuntimeError):
 
 
 class PilotStore:
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, *, read_only: bool = False) -> None:
+        self._lock = None
+        if read_only:
+            self.db = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)
+            self.db.row_factory = sqlite3.Row
+            self.db.execute("PRAGMA foreign_keys=ON")
+            return
         path.parent.mkdir(parents=True, exist_ok=True)
+        self._lock = path.with_suffix(path.suffix + ".lock").open("a")
+        try:
+            fcntl.flock(self._lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            self._lock.close()
+            raise ValidationError("another collector owns this journal") from None
         self.db = sqlite3.connect(path)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA foreign_keys=ON")
@@ -62,6 +79,8 @@ class PilotStore:
 
     def close(self) -> None:
         self.db.close()
+        if self._lock is not None:
+            self._lock.close()
 
     def configure(self, pools: list[str], source: str, page_size: int) -> dict[str, Any]:
         if not pools or len(pools) > 4 or len(set(pools)) != len(pools):
@@ -96,6 +115,28 @@ class PilotStore:
         result: dict[str, Any] = json.loads(row[0])
         return result
 
+    def pending(self) -> dict[str, int]:
+        scans = self.db.execute("SELECT count(*) FROM scans WHERE boundary=0").fetchone()[0]
+        transactions = self.db.execute(
+            "SELECT count(DISTINCT s.signature) FROM signatures s LEFT JOIN transactions t "
+            "USING(signature) WHERE t.signature IS NULL"
+        ).fetchone()[0]
+        blocks = self.db.execute(
+            "SELECT count(DISTINCT t.slot) FROM transactions t LEFT JOIN blocks b "
+            "USING(slot) WHERE b.slot IS NULL"
+        ).fetchone()[0]
+        missing_checkpoints = sum(
+            self.db.execute("SELECT count(*) FROM checkpoints WHERE pool=?", (pool,)).fetchone()[0]
+            < 2
+            for pool in self.spec()["pools"]
+        )
+        return dict(
+            scans=scans,
+            transactions=transactions,
+            blocks=blocks,
+            pools_without_interval=missing_checkpoints,
+        )
+
     def issue(self, stage: str, reason: str) -> None:
         with self.db:
             self.db.execute(
@@ -128,6 +169,8 @@ class PilotStore:
         ).fetchone()
         if previous:
             old = json.loads(previous["body"])
+            if decoded["raw_received_ns"] < old["raw_received_ns"]:
+                raise ValidationError("checkpoint receipt clock regressed")
             if slot < previous["slot"]:
                 raise ValidationError("checkpoint slot regressed")
             if slot == previous["slot"]:
@@ -172,11 +215,18 @@ class PilotStore:
         if (
             options.get("before") != scan["before_sig"]
             or options.get("commitment") != "finalized"
-            or options.get("minContextSlot") != end
+            or type(options.get("minContextSlot")) is not int
+            or options["minContextSlot"] < end
         ):
             raise ValidationError("page cursor/context mismatch")
         items = capture.result()
-        if not isinstance(items, list) or not items or len(items) > self.spec()["page_size"]:
+        if (
+            not isinstance(items, list)
+            or not items
+            or type(options.get("limit")) is not int
+            or not 1 <= options["limit"] <= 100
+            or len(items) > options["limit"]
+        ):
             # Empty history can mean pruning/index lag. It is NOT proof of a covered empty interval.
             raise ValidationError("empty/invalid page before lower boundary")
         seen = set()
@@ -225,19 +275,28 @@ class PilotCollector:
         client: ReadOnlyRPC,
         *,
         budget: int = 100,
-        delay: float = 0.4,
+        delay: float = 1.2,
         sleep: Callable[[float], None] = time.sleep,
+        page_size: int | None = None,
     ) -> None:
         integer(budget, "request budget", 1)
         if budget > 1000 or not 0 <= delay <= 10:
             raise ValidationError("pilot budget/delay out of bounds")
         if store.spec()["source_alias"] != client.source_alias:
             raise ValidationError("source alias changed")
+        self.page_size = store.spec()["page_size"] if page_size is None else page_size
+        integer(self.page_size, "recovery page size", 1)
+        if self.page_size > 100:
+            raise ValidationError("recovery page size exceeds bound")
         self.store = store
         self.client = client
         self.remaining = budget
         self.delay = delay
         self.sleep = sleep
+        self.page_cache = {}
+        for row in store.db.execute("SELECT DISTINCT capture_id FROM pages"):
+            cap = store.capture(row[0])
+            self.page_cache[cap.request_json] = row[0]
 
     def fetch(self, method: str, params: list[object]) -> tuple[int, Any]:
         if self.remaining <= 0:
@@ -276,20 +335,30 @@ class PilotCollector:
                     scan = db.execute("SELECT * FROM scans WHERE id=?", (scan["id"],)).fetchone()
                     if scan["boundary"]:
                         break
-                    end = db.execute(
-                        "SELECT slot FROM checkpoints WHERE id=?", (scan["end_id"],)
-                    ).fetchone()[0]
                     options: dict[str, Any] = dict(
                         commitment="finalized",
-                        minContextSlot=end,
-                        limit=self.store.spec()["page_size"],
+                        minContextSlot=db.execute(
+                            "SELECT max(slot) FROM checkpoints WHERE pool=?", (scan["pool"],)
+                        ).fetchone()[0],
+                        limit=self.page_size,
                     )
                     if scan["before_sig"]:
                         options["before"] = scan["before_sig"]
-                    cid, _ = self.fetch("getSignaturesForAddress", [scan["address"], options])
+                    request = canonical(
+                        dict(
+                            jsonrpc="2.0",
+                            id=1,
+                            method="getSignaturesForAddress",
+                            params=[scan["address"], options],
+                        )
+                    )
+                    cid = self.page_cache.get(request)
+                    if cid is None:
+                        cid, _ = self.fetch("getSignaturesForAddress", [scan["address"], options])
                     self.store.apply_page(scan["id"], cid)
+                    self.page_cache[request] = cid
             except (SourceError, ValidationError, KeyError, TypeError) as exc:
-                self.store.issue(f"scan:{scan['id']}", type(exc).__name__)
+                self.store.issue(f"scan:{scan['id']}", failure_reason(exc))
         pending = db.execute(
             "SELECT DISTINCT s.signature,s.slot FROM signatures s "
             "LEFT JOIN transactions t USING(signature) WHERE t.signature IS NULL "
@@ -315,7 +384,8 @@ class PilotCollector:
                     or tx.get("meta") is None
                 ):
                     raise ValidationError("missing/mismatched transaction")
-                if tx.get("version") not in ("legacy", 0, 1):
+                version = tx.get("version")
+                if version != "legacy" and (type(version) is not int or version not in (0, 1)):
                     raise ValidationError("unsupported transaction version")
                 with db:
                     db.execute(
@@ -323,7 +393,7 @@ class PilotCollector:
                         (row["signature"], row["slot"], cid),
                     )
             except (SourceError, ValidationError, KeyError, TypeError) as exc:
-                self.store.issue("transaction:" + row["signature"], type(exc).__name__)
+                self.store.issue("transaction:" + row["signature"], failure_reason(exc))
         slots = db.execute(
             "SELECT DISTINCT t.slot FROM transactions t LEFT JOIN blocks b USING(slot) "
             "WHERE b.slot IS NULL ORDER BY t.slot"
@@ -351,7 +421,7 @@ class PilotCollector:
                 with db:
                     db.execute("INSERT INTO blocks VALUES (?,?)", (row["slot"], cid))
             except (SourceError, ValidationError, KeyError, TypeError) as exc:
-                self.store.issue("block:" + str(row["slot"]), type(exc).__name__)
+                self.store.issue("block:" + str(row["slot"]), failure_reason(exc))
 
     def poll(self, rounds: int, interval: float, *, recover: bool = True) -> None:
         integer(rounds, "rounds", 1)
@@ -365,7 +435,7 @@ class PilotCollector:
                     try:
                         self.checkpoint(pool)
                     except (SourceError, ValidationError, KeyError, TypeError) as exc:
-                        self.store.issue("checkpoint:" + pool, type(exc).__name__)
+                        self.store.issue("checkpoint:" + pool, failure_reason(exc))
                 if recover:
                     self.recover()
         except BudgetExhausted:

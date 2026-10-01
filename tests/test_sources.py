@@ -52,3 +52,19 @@ def test_invalid_envelope_and_clock_regression():
     )
     with pytest.raises(SourceError, match="backwards"):
         rpc.fetch("getSlot", [])
+
+
+def test_http_error_status_without_credential_leak(monkeypatch):
+    import urllib.error
+    import urllib.request
+
+    from memecoin_ai.sources import HTTPSourceError, http_transport
+
+    def fail(*args, **kwargs):
+        raise urllib.error.HTTPError("https://host/?key=SECRET", 429, "SECRET", {}, None)
+
+    monkeypatch.setattr(urllib.request, "urlopen", fail)
+    with pytest.raises(HTTPSourceError) as caught:
+        http_transport("https://host/?key=SECRET", b"{}", 1, 100)
+    assert caught.value.status == 429
+    assert "SECRET" not in str(caught.value)

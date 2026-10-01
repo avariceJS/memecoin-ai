@@ -13,7 +13,7 @@ from memecoin_ai.experiments import RunRecorder, summarize, verify_run
 from memecoin_ai.fixtures import ScriptedFixturePolicy, synthetic_events
 from memecoin_ai.qualification import qualify_cpmm, verify_qualification
 from memecoin_ai.raydium import checkpoint_inventory
-from memecoin_ai.reconciliation import write_audit
+from memecoin_ai.reconciliation import export_pilot, verify_pilot, write_audit
 from memecoin_ai.replay import CashPolicy, ReferenceReplay
 from memecoin_ai.sources import Capture, ReadOnlyRPC, SourceError, probe_rpc
 from memecoin_ai.storage import EventStore, audit, load_bundle, write_bundle
@@ -66,9 +66,11 @@ def main() -> int:
         pilot.add_argument("--source-alias", required=True)
         pilot.add_argument("--endpoint-env", default="MEMECOIN_RPC_URL")
         pilot.add_argument("--budget", type=int, default=100)
+        pilot.add_argument("--rpc-interval", type=float, default=1.2)
+        pilot.add_argument("--recovery-page-size", type=int)
         if command == "collect-pilot":
             pilot.add_argument("--pool", action="append")
-            pilot.add_argument("--page-size", type=int, default=25)
+            pilot.add_argument("--page-size", type=int, default=100)
             pilot.add_argument("--rounds", type=int, default=3)
             pilot.add_argument("--interval", type=float, default=10)
             pilot.add_argument("--snapshots-only", action="store_true")
@@ -77,12 +79,29 @@ def main() -> int:
     )
     audit_pilot.add_argument("--store", type=Path, required=True)
     audit_pilot.add_argument("--out", type=Path, required=True)
+    export_capture = commands.add_parser(
+        "export-pilot", help="Freeze journal, audit and decoder source"
+    )
+    export_capture.add_argument("--store", type=Path, required=True)
+    export_capture.add_argument("--out", type=Path, required=True)
+    verify_capture = commands.add_parser(
+        "verify-pilot", help="Offline verification of an exported pilot"
+    )
+    verify_capture.add_argument("path", type=Path)
     args = parser.parse_args()
     try:
-        if args.command in ("collect-pilot", "recover-pilot", "audit-pilot"):
+        if args.command == "verify-pilot":
+            print(canonical(verify_pilot(args.path)))
+        elif args.command == "export-pilot":
+            pilot_store = PilotStore(args.store, read_only=True)
+            try:
+                print(canonical(export_pilot(pilot_store, args.out)))
+            finally:
+                pilot_store.close()
+        elif args.command in ("collect-pilot", "recover-pilot", "audit-pilot"):
             if args.command != "collect-pilot" and not args.store.is_file():
                 raise ValidationError("pilot journal does not exist")
-            pilot_store = PilotStore(args.store)
+            pilot_store = PilotStore(args.store, read_only=args.command == "audit-pilot")
             try:
                 if args.command == "audit-pilot":
                     report = write_audit(pilot_store, args.out)
@@ -105,7 +124,11 @@ def main() -> int:
                 if args.command == "collect-pilot" and args.pool:
                     pilot_store.configure(args.pool, args.source_alias, args.page_size)
                 collector = PilotCollector(
-                    pilot_store, ReadOnlyRPC(endpoint, args.source_alias), budget=args.budget
+                    pilot_store,
+                    ReadOnlyRPC(endpoint, args.source_alias),
+                    budget=args.budget,
+                    delay=args.rpc_interval,
+                    page_size=args.recovery_page_size,
                 )
                 if args.command == "collect-pilot":
                     collector.poll(args.rounds, args.interval, recover=not args.snapshots_only)
@@ -116,19 +139,17 @@ def main() -> int:
                         pilot_store.issue(
                             "budget", "request budget exhausted; recovery remains pending"
                         )
-                pending = pilot_store.db.execute(
-                    "SELECT count(*) FROM scans WHERE boundary=0"
-                ).fetchone()[0]
+                pending = pilot_store.pending()
                 print(
                     canonical(
                         dict(
                             request_budget_remaining=collector.remaining,
-                            pending_scans=pending,
+                            pending=pending,
                             market_dataset_qualified=False,
                         )
                     )
                 )
-                return 0 if pending == 0 else 1
+                return 0 if not any(pending.values()) else 1
             finally:
                 pilot_store.close()
         elif args.command == "inspect-cpmm":
