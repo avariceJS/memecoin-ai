@@ -82,3 +82,17 @@ def test_bad_block_is_retained_without_marking_work_complete(tmp_path, corruptio
         assert not audit_pilot(store)["all_intervals_consistent"]
     finally:
         store.close()
+
+
+def test_mutating_extracted_transaction_cannot_corrupt_cached_raw_evidence(tmp_path):
+    store, info = setup_store(tmp_path / "pilot.sqlite")
+    try:
+        client, _ = client_for_blocks(info)
+        PilotCollector(store, client, delay=0, full_blocks=True).recover()
+        cap = store.capture(store.db.execute("select capture_id from blocks").fetchone()[0])
+        tx = captured_transaction(cap, "a-second", 110)
+        tx["meta"]["err"] = {"fixture": "corrupt"}
+        assert captured_transaction(cap, "a-second", 110)["meta"]["err"] is None
+        assert audit_pilot(store)["all_intervals_consistent"]
+    finally:
+        store.close()

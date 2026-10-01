@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import fcntl
 import json
 import sqlite3
@@ -195,10 +196,10 @@ class PilotStore:
             if slot < previous["slot"]:
                 raise ValidationError("checkpoint slot regressed")
             if slot == previous["slot"]:
-                if any(
-                    old[k] != json.loads(canonical(decoded))[k]
-                    for k in ("pool", "fees", "vault_balances", "mint_flags")
-                ):
+                new = json.loads(canonical(decoded))
+                if {k: v for k, v in old.items() if k != "raw_received_ns"} != {
+                    k: v for k, v in new.items() if k != "raw_received_ns"
+                }:
                     raise ValidationError("conflicting finalized checkpoint")
                 return False
             if old["pool"]["vaults"] != list(decoded["pool"]["vaults"]) or old["pool"][
@@ -549,7 +550,7 @@ def scan_addresses(decoded: dict[str, Any], spec: dict[str, Any]) -> list[str]:
 
 def block_signatures(cap: Capture, slot: int) -> list[str]:
     req = json.loads(cap.request_json)
-    result = parsed_block(cap)
+    result = _parsed_block(cap)
     if (
         cap.method != "getBlock"
         or req["params"][0] != slot
@@ -575,7 +576,7 @@ def block_signatures(cap: Capture, slot: int) -> list[str]:
 
 def captured_transaction(cap: Capture, signature: str, slot: int) -> dict[str, Any]:
     req = json.loads(cap.request_json)
-    result = parsed_block(cap) if cap.method == "getBlock" else cap.result()
+    result = _parsed_block(cap) if cap.method == "getBlock" else cap.result()
     if not isinstance(result, dict):
         raise ValidationError("missing transaction/block result")
     if cap.method == "getBlock":
@@ -583,7 +584,7 @@ def captured_transaction(cap: Capture, signature: str, slot: int) -> dict[str, A
         if req["params"][1].get("transactionDetails") != "full" or signature not in signatures:
             raise ValidationError("transaction absent from full block")
         tx = dict(
-            result["transactions"][signatures.index(signature)],
+            copy.deepcopy(result["transactions"][signatures.index(signature)]),
             slot=slot,
             blockTime=result.get("blockTime"),
         )
@@ -608,7 +609,7 @@ def captured_transaction(cap: Capture, signature: str, slot: int) -> dict[str, A
 
 
 @lru_cache(maxsize=2)
-def parsed_block(cap: Capture) -> dict[str, Any]:
+def _parsed_block(cap: Capture) -> dict[str, Any]:
     # Immutable raw bytes are the cache key. Bounded to two blocks, never persisted as evidence.
     result = cap.result()
     if not isinstance(result, dict):

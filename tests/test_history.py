@@ -261,3 +261,96 @@ def test_wrong_historical_tariff_is_not_repaired_from_swap_event():
             parameters=h,
         )
     assert h.accounts == before
+
+
+def test_dependency_audit_reconstructs_config_and_rejects_wrong_endpoint(tmp_path):
+    import base64
+
+    from memecoin_ai.collection import PilotCollector
+    from memecoin_ai.protocol import audit_protocol
+    from memecoin_ai.sources import ReadOnlyRPC
+
+    cap, history = anchor()
+    history.apply(config_update(history), has_children=False)
+    payload = json.loads(cap.response)
+    payload["result"]["context"]["slot"] += 2
+    payload["result"]["value"][1] = history.accounts[1]
+    clock = bytearray(base64.b64decode(payload["result"]["value"][6]["data"][0]))
+    struct.pack_into("<Q", clock, 0, history.slot + 2)
+    payload["result"]["value"][6]["data"][0] = base64.b64encode(clock).decode()
+    end = replace(cap, response=canonical(payload).encode(), received_ns=cap.received_ns + 1)
+    ctx = checkpoint(cap, history.addresses[0])
+    tx = parameter_transaction(history, [config_update(history)])
+    tx["transaction"]["message"]["accountKeys"] = [
+        dict(pubkey=k) for k in ["authority", *history.addresses]
+    ]
+    balances = [
+        dict(
+            accountIndex=i + 3,
+            mint=ctx.pool.mints[i],
+            programId=ctx.pool.token_programs[i],
+            uiTokenAmount=dict(amount=str(ctx.state.vaults[i])),
+        )
+        for i in range(2)
+    ]
+    tx["meta"]["preTokenBalances"] = tx["meta"]["postTokenBalances"] = balances
+
+    def transport(endpoint, body, timeout, limit):
+        req = json.loads(body)
+        if req["method"] == "getSignaturesForAddress":
+            result = [
+                dict(
+                    signature="fixture-parameter-tx",
+                    slot=history.slot + 1,
+                    confirmationStatus="finalized",
+                ),
+                dict(signature="boundary", slot=history.slot, confirmationStatus="finalized"),
+            ]
+        else:
+            assert req["method"] == "getBlock"
+            result = dict(transactions=[{k: v for k, v in tx.items() if k != "slot"}], blockTime=0)
+        return canonical(dict(jsonrpc="2.0", id=1, result=result)).encode()
+
+    for bad in (False, True):
+        store = PilotStore(tmp_path / ("bad.sqlite" if bad else "good.sqlite"))
+        try:
+            store.configure(
+                [ctx.pool_id], cap.source_alias, 100, token2022=True, dependency_history=True
+            )
+            schedule = Capture.load(FIXTURES.parent / "parameter_history" / "epoch-schedule")
+            store.save_capture(replace(schedule, source_alias=cap.source_alias))
+            store.checkpoint(store.save_capture(cap), ctx.pool_id)
+            ending = end
+            if bad:
+                altered = json.loads(end.response)
+                altered["result"]["value"][1] = json.loads(cap.response)["result"]["value"][1]
+                ending = replace(end, response=canonical(altered).encode())
+            store.checkpoint(store.save_capture(ending), ctx.pool_id)
+            client = ReadOnlyRPC("https://example.invalid", cap.source_alias, transport=transport)
+            PilotCollector(store, client, delay=0, full_blocks=True).recover()
+            report = audit_protocol(store)
+            assert report["all_intervals_consistent"] is (not bad)
+            assert report["counts"]["operations"] == {"update_amm_config": 1}
+            if bad:
+                assert "terminal config mismatch" in report["intervals"][0]["blockers"]
+        finally:
+            store.close()
+
+
+def test_same_finalized_bank_cannot_hide_mint_supply_conflict(tmp_path):
+    import base64
+
+    cap, h = anchor()
+    store = PilotStore(tmp_path / "same-bank.sqlite")
+    try:
+        store.configure([h.addresses[0]], cap.source_alias, 100, token2022=True)
+        store.checkpoint(store.save_capture(cap), h.addresses[0])
+        payload = json.loads(cap.response)
+        raw = bytearray(base64.b64decode(payload["result"]["value"][5]["data"][0]))
+        raw[36] ^= 1
+        payload["result"]["value"][5]["data"][0] = base64.b64encode(raw).decode()
+        conflicting = replace(cap, response=canonical(payload).encode())
+        with pytest.raises(ValidationError, match="conflicting finalized checkpoint"):
+            store.checkpoint(store.save_capture(conflicting), h.addresses[0])
+    finally:
+        store.close()
