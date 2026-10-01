@@ -340,3 +340,21 @@ def test_conflicting_page_is_atomic(tmp_path):
     assert store.db.execute("SELECT count(*) FROM pages").fetchone()[0] == 0
     assert store.db.execute("SELECT before_sig FROM scans LIMIT 1").fetchone()[0] is None
     store.close()
+
+
+def test_pilot_version_requires_explicit_opt_in(tmp_path):
+    import json
+    from pathlib import Path
+
+    from memecoin_ai.collection import PilotStore
+    from memecoin_ai.sources import Capture
+
+    cap = Capture.load(Path(__file__).parent / "fixtures" / "token2022" / "checkpoint-0")
+    pool = json.loads(cap.request_json)["params"][0][0]
+    store = PilotStore(tmp_path / "pilot.sqlite")
+    try:
+        store.configure([pool], cap.source_alias, 100)
+        with pytest.raises(ValidationError, match="checkpoint version"):
+            store.checkpoint(store.save_capture(cap), pool)
+    finally:
+        store.close()

@@ -75,6 +75,11 @@ def main() -> int:
             pilot.add_argument("--rounds", type=int, default=3)
             pilot.add_argument("--interval", type=float, default=10)
             pilot.add_argument("--snapshots-only", action="store_true")
+            pilot.add_argument(
+                "--token-2022",
+                action="store_true",
+                help="Use allowlisted seven-account checkpoints",
+            )
     audit_pilot = commands.add_parser(
         "audit-pilot", help="Offline checkpoint interval reconciliation"
     )
@@ -147,7 +152,9 @@ def main() -> int:
                 if not endpoint:
                     raise ValidationError("RPC endpoint environment variable is not set")
                 if args.command == "collect-pilot" and args.pool:
-                    pilot_store.configure(args.pool, args.source_alias, args.page_size)
+                    pilot_store.configure(
+                        args.pool, args.source_alias, args.page_size, token2022=args.token_2022
+                    )
                 collector = PilotCollector(
                     pilot_store,
                     ReadOnlyRPC(endpoint, args.source_alias),

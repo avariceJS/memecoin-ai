@@ -12,8 +12,9 @@ from pathlib import Path
 from typing import Any
 
 from memecoin_ai.domain import ValidationError, canonical, digest, integer
-from memecoin_ai.raydium import decode_checkpoint, decode_pool, public_key
+from memecoin_ai.raydium import decode_pool, public_key
 from memecoin_ai.sources import Capture, HTTPSourceError, ReadOnlyRPC, SourceError
+from memecoin_ai.tokens import CLOCK, decode_supported_checkpoint
 
 
 def failure_reason(error: Exception) -> str:
@@ -82,7 +83,9 @@ class PilotStore:
         if self._lock is not None:
             self._lock.close()
 
-    def configure(self, pools: list[str], source: str, page_size: int) -> dict[str, Any]:
+    def configure(
+        self, pools: list[str], source: str, page_size: int, *, token2022: bool = False
+    ) -> dict[str, Any]:
         if not pools or len(pools) > 4 or len(set(pools)) != len(pools):
             raise ValidationError("pilot requires 1..4 distinct fixed pools")
         for pool in pools:
@@ -99,6 +102,10 @@ class PilotStore:
             interval="(start finalized bank slot, end finalized bank slot]",
             state_scope="classic SPL vault amounts; pool fee counters not reconstructed",
         )
+        if token2022:
+            spec.update(
+                checkpoint_version=2, state_scope="allowlisted Token-2022 spendable balances"
+            )
         row = self.db.execute("SELECT body FROM settings WHERE id=1").fetchone()
         if row:
             if json.loads(row[0]) != spec:
@@ -162,7 +169,9 @@ class PilotStore:
         return Capture(**json.loads(row["body"]), response=bytes(row["response"]))
 
     def checkpoint(self, capture_id: int, pool: str) -> bool:
-        decoded = decode_checkpoint(self.capture(capture_id), pool)
+        decoded = decode_supported_checkpoint(self.capture(capture_id), pool)
+        if decoded["schema_version"] != self.spec().get("checkpoint_version", 1):
+            raise ValidationError("checkpoint version disagrees with pilot specification")
         slot = decoded["context_slot"]
         previous = self.db.execute(
             "SELECT * FROM checkpoints WHERE pool=? ORDER BY slot DESC LIMIT 1", (pool,)
@@ -321,6 +330,8 @@ class PilotCollector:
             )
             addresses = decode_pool(lookup["value"]).addresses(pool)
             minimum = lookup["context"]["slot"]
+        if self.store.spec().get("checkpoint_version") == 2:
+            addresses.append(CLOCK)
         capture_id, _ = self.fetch(
             "getMultipleAccounts",
             [addresses, dict(encoding="base64", commitment="finalized", minContextSlot=minimum)],

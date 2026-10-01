@@ -123,7 +123,7 @@ def mint_terms(account: dict[str, Any], decimals: int, epoch: int) -> dict[str, 
         newer = TransferFee(*struct.unpack_from("<QQH", ext[1], 90))
     active = newer if epoch >= newer.epoch else older
     # Mint-level harvested withheld tokens do not change transfer rates or vault liquidity.
-    economic = raw[:36] + raw[44:82] + (ext[1][:64] + ext[1][72:] if 1 in ext else b"")
+    economic = raw[:82] + (ext[1][:64] + ext[1][72:] if 1 in ext else b"")
     return dict(
         owner=account["owner"],
         flags=dict(mint_authority=bool(flags[0]), freeze_authority=bool(flags[1])),

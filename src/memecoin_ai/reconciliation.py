@@ -8,10 +8,13 @@ from typing import Any
 
 from memecoin_ai.collection import PilotStore
 from memecoin_ai.domain import ValidationError, canonical, digest, integer
-from memecoin_ai.raydium import TOKEN, decode_checkpoint
+from memecoin_ai.raydium import TOKEN
+from memecoin_ai.tokens import decode_supported_checkpoint
 
 
-def vault_transition(tx: dict[str, Any], vault: str, mint: str) -> tuple[int, int] | None:
+def vault_transition(
+    tx: dict[str, Any], vault: str, mint: str, program: str = TOKEN
+) -> tuple[int, int] | None:
     keys = tx["transaction"]["message"]["accountKeys"]
     addresses = [k["pubkey"] for k in keys]
     if len(set(addresses)) != len(addresses):
@@ -23,7 +26,7 @@ def vault_transition(tx: dict[str, Any], vault: str, mint: str) -> tuple[int, in
     sides = []
     for name in ("preTokenBalances", "postTokenBalances"):
         values = [b for b in meta[name] if b["accountIndex"] == index]
-        if len(values) != 1 or values[0]["mint"] != mint or values[0].get("programId") != TOKEN:
+        if len(values) != 1 or values[0]["mint"] != mint or values[0].get("programId") != program:
             raise ValidationError(
                 "missing/ambiguous/unsupported vault metadata; closure not assumed zero"
             )
@@ -135,7 +138,7 @@ def _audit_pilot(store: PilotStore) -> dict[str, Any]:
             raise ValidationError("capture source/clock mismatch")
     checkpoints = {}
     for row in db.execute("SELECT * FROM checkpoints ORDER BY id"):
-        decoded = decode_checkpoint(store.capture(row["capture_id"]), row["pool"])
+        decoded = decode_supported_checkpoint(store.capture(row["capture_id"]), row["pool"])
         if canonical(decoded) != row["body"] or decoded["context_slot"] != row["slot"]:
             raise ValidationError("checkpoint cache disagrees with raw")
         checkpoints[row["id"]] = decoded
@@ -224,7 +227,9 @@ def _audit_pilot(store: PilotStore) -> dict[str, Any]:
                     zip(left["pool"]["vaults"], left["pool"]["mints"], strict=True)
                 ):
                     try:
-                        transition = vault_transition(tx, vault, mint)
+                        transition = vault_transition(
+                            tx, vault, mint, left["pool"]["token_programs"][i]
+                        )
                         if transition is None:
                             continue
                         before, after = transition
@@ -309,7 +314,15 @@ def export_pilot(store: PilotStore, output: Path) -> dict[str, Any]:
         report = write_audit(snapshot, output / "report.json")
     finally:
         snapshot.close()
-    modules = ("collection.py", "reconciliation.py", "raydium.py", "sources.py", "domain.py")
+    modules = (
+        "collection.py",
+        "reconciliation.py",
+        "raydium.py",
+        "tokens.py",
+        "cpmm.py",
+        "sources.py",
+        "domain.py",
+    )
     source = {name: (Path(__file__).parent / name).read_text() for name in modules}
     (output / "decoder-source.json").write_text(canonical(source) + "\n")
     manifest = dict(

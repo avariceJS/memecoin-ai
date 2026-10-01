@@ -11,22 +11,23 @@ from pathlib import Path
 from typing import Any, Literal
 
 from memecoin_ai.collection import PilotStore
-from memecoin_ai.cpmm import U64, EconomicState, Fees, collect_fees, liquidity, swap
+from memecoin_ai.cpmm import U64, EconomicState, Fees, collect_fees, liquidity
 from memecoin_ai.domain import ValidationError, canonical, digest
 from memecoin_ai.raydium import (
     PROGRAM,
     SOURCE_REVISION,
     TOKEN,
+    TOKEN_2022,
     PoolState,
     account_bytes,
     b58decode,
     b58encode,
-    decode_checkpoint,
     decode_pool,
     discriminator,
 )
 from memecoin_ai.reconciliation import _audit_pilot, vault_transition
 from memecoin_ai.sources import Capture
+from memecoin_ai.tokens import TransferFee, decode_supported_checkpoint, transfer_swap
 
 COLLECTIONS: dict[str, Literal["protocol", "fund", "creator"]] = {
     "collect_protocol_fee": "protocol",
@@ -57,10 +58,14 @@ class Checkpoint:
     lp_mint: str
     structural_hash: str
     config_hash: str
+    token_fees: tuple[TransferFee, TransferFee] = (TransferFee(), TransferFee())
+    epoch: int | None = None
+    withheld: tuple[int, int] = (0, 0)
+    mint_hashes: tuple[str, ...] = ()
 
 
 def checkpoint(cap: Capture, pool_id: str) -> Checkpoint:
-    checked = decode_checkpoint(cap, pool_id)
+    checked = decode_supported_checkpoint(cap, pool_id)
     result = cap.result()
     if not isinstance(result, dict):
         raise ValidationError("invalid checkpoint result")
@@ -80,6 +85,15 @@ def checkpoint(cap: Capture, pool_id: str) -> Checkpoint:
         b58encode(raw[136:168]),
         digest(structural),
         digest(account_bytes(accounts[1], PROGRAM, 236)),
+        (
+            TransferFee(**checked["mint_terms"][0]["transfer_fee"]),
+            TransferFee(**checked["mint_terms"][1]["transfer_fee"]),
+        )
+        if checked["schema_version"] == 2
+        else (TransferFee(), TransferFee()),
+        checked.get("clock_epoch"),
+        tuple(checked.get("vault_withheld", [0, 0])),
+        tuple(m["economic_hash"] for m in checked.get("mint_terms", [])),
     )
 
 
@@ -126,7 +140,9 @@ def invocations(tx: dict[str, Any]) -> list[Invocation]:
             node = Invocation(inner, depth)
             stack[-1].children.append(node)
             stack.append(node)
-    tracked = [n for n in flatten(roots) if n.instruction["programId"] in (PROGRAM, TOKEN)]
+    tracked = [
+        n for n in flatten(roots) if n.instruction["programId"] in (PROGRAM, TOKEN, TOKEN_2022)
+    ]
     # Runtime log prefixes (not `Program log:` strings) attribute Anchor events to invocations.
     log_stack: list[tuple[str, Invocation | None]] = []
     cursor = 0
@@ -141,7 +157,7 @@ def invocations(tx: dict[str, Any]) -> list[Invocation]:
             if depth != len(log_stack) + 1:
                 raise ValidationError("log depth discontinuity")
             current = None
-            if program in (PROGRAM, TOKEN):
+            if program in (PROGRAM, TOKEN, TOKEN_2022):
                 if (
                     cursor >= len(tracked)
                     or tracked[cursor].depth != depth
@@ -172,7 +188,11 @@ def invocations(tx: dict[str, Any]) -> list[Invocation]:
 def transfer(node: Invocation) -> tuple[str, str, str, int]:
     ix = node.instruction
     parsed = ix.get("parsed", {})
-    if ix["programId"] != TOKEN or parsed.get("type") != "transferChecked" or node.children:
+    if (
+        ix["programId"] not in (TOKEN, TOKEN_2022)
+        or parsed.get("type") != "transferChecked"
+        or node.children
+    ):
         raise ValidationError("unsupported vault transfer instruction")
     info = parsed["info"]
     text = info["tokenAmount"]["amount"]
@@ -210,7 +230,12 @@ def swap_event(node: Invocation, expected: dict[str, Any]) -> None:
 
 
 def lp_event(
-    node: Invocation, ctx: Checkpoint, state: EconomicState, amounts: tuple[int, int], deposit: bool
+    node: Invocation,
+    ctx: Checkpoint,
+    state: EconomicState,
+    amounts: tuple[int, int],
+    deposit: bool,
+    transfer_fees: tuple[int, int] = (0, 0),
 ) -> None:
     if len(node.events) != 1:
         raise ValidationError("missing/ambiguous liquidity event")
@@ -219,7 +244,8 @@ def lp_event(
         len(raw) != 97
         or raw[:8] != discriminator("event:LpChangeEvent")
         or b58encode(raw[8:40]) != ctx.pool_id
-        or struct.unpack_from("<7Q", raw, 40) != (state.lp_supply, *state.reserves, *amounts, 0, 0)
+        or struct.unpack_from("<7Q", raw, 40)
+        != (state.lp_supply, *state.reserves, *amounts, *transfer_fees)
         or raw[96] != (0 if deposit else 1)
     ):
         raise ValidationError("liquidity event disagrees with transition")
@@ -238,6 +264,7 @@ def transition(
     accounts = ix["accounts"]
     expected_transfers: list[tuple[str, str, str, int]] = []
     summary: dict[str, Any] = dict(kind=kind, quote_checked=False)
+    withheld_delta = [0, 0]
     if kind.startswith("swap_"):
         if len(raw) != 24 or len(accounts) < 13 or accounts[3] != ctx.pool_id:
             raise ValidationError("unsupported swap layout")
@@ -246,14 +273,15 @@ def transition(
         if (
             accounts[2] != ctx.pool.config
             or accounts[7] != ctx.pool.vaults[other]
-            or accounts[8:10] != [TOKEN, TOKEN]
+            or accounts[8:10]
+            != [ctx.pool.token_programs[direction], ctx.pool.token_programs[other]]
             or accounts[10:12] != [ctx.pool.mints[direction], ctx.pool.mints[other]]
             or ctx.pool.status & 4
         ):
             raise ValidationError("swap account/status mismatch")
         first, second = struct.unpack_from("<2Q", raw, 8)
         exact_input = kind == "swap_base_input"
-        quote = swap(
+        quote, gross_in, net_out, input_fee, output_fee = transfer_swap(
             state,
             ctx.fees,
             direction,
@@ -262,6 +290,7 @@ def transition(
             exact_input=exact_input,
             creator_fee_on=ctx.pool.creator_fee_on,
             creator_enabled=ctx.pool.enable_creator_fee,
+            token_fees=ctx.token_fees,
         )
         swap_event(
             node,
@@ -269,7 +298,7 @@ def transition(
                 pool=ctx.pool_id,
                 reserves=[state.reserves[direction], state.reserves[other]],
                 amounts=[quote.input_amount, quote.output_amount],
-                transfer_fees=[0, 0],
+                transfer_fees=[input_fee, output_fee],
                 exact_input=exact_input,
                 mints=accounts[10:12],
                 trade_fee=quote.trade_fee,
@@ -278,15 +307,20 @@ def transition(
             ),
         )
         expected_transfers = [
-            (accounts[4], accounts[6], accounts[10], quote.input_amount),
+            (accounts[4], accounts[6], accounts[10], gross_in),
             (accounts[7], accounts[5], accounts[11], quote.output_amount),
         ]
+        withheld_delta[direction] = input_fee
         after = quote.after
         summary.update(
             quote_checked=True,
             input_index=direction,
             quote={k: v for k, v in asdict(quote).items() if k != "after"},
         )
+        if ctx.epoch is not None:
+            summary["token_transfer"] = dict(
+                gross_input=gross_in, net_output=net_out, input_fee=input_fee, output_fee=output_fee
+            )
     elif kind in ("deposit", "withdraw"):
         deposit = kind == "deposit"
         if (
@@ -300,15 +334,34 @@ def transition(
         ):
             raise ValidationError("liquidity account/status mismatch")
         lp, limit0, limit1 = struct.unpack_from("<3Q", raw, 8)
-        after, amounts = liquidity(state, lp, (limit0, limit1), deposit=deposit)
-        lp_event(node, ctx, state, amounts, deposit)
+        after, amounts = liquidity(state, lp, (U64, U64) if deposit else (0, 0), deposit=deposit)
+        gross = tuple(
+            ctx.token_fees[i].gross(amounts[i]) if deposit else amounts[i] for i in range(2)
+        )
+        transfer_fees = tuple(ctx.token_fees[i].fee(gross[i]) for i in range(2))
+        net = tuple(gross[i] - transfer_fees[i] for i in range(2))
+        if any(
+            (gross[i] > limit if deposit else net[i] < limit)
+            for i, limit in enumerate((limit0, limit1))
+        ):
+            raise ValidationError("liquidity net/gross slippage limit")
+        lp_event(
+            node,
+            ctx,
+            state,
+            amounts if deposit else (net[0], net[1]),
+            deposit,
+            (transfer_fees[0], transfer_fees[1]),
+        )
+        if deposit:
+            withheld_delta = list(transfer_fees)
         for i in range(2):
             source, dest = (
                 (accounts[4 + i], accounts[6 + i])
                 if deposit
                 else (accounts[6 + i], accounts[4 + i])
             )
-            expected_transfers.append((source, dest, ctx.pool.mints[i], amounts[i]))
+            expected_transfers.append((source, dest, ctx.pool.mints[i], gross[i]))
         lp_calls = [
             c
             for c in node.children
@@ -352,6 +405,11 @@ def transition(
         c for c in children if any(v in canonical(c.instruction) for v in ctx.pool.vaults)
     ]
     actual = [transfer(c) for c in vault_calls]
+    for child, item in zip(vault_calls, actual, strict=True):
+        if child.instruction["programId"] != ctx.pool.token_programs[ctx.pool.mints.index(item[2])]:
+            raise ValidationError("vault transfer token program mismatch")
+    if ctx.epoch is not None:
+        summary["vault_withheld_delta"] = withheld_delta
     if actual != expected_transfers:
         raise ValidationError("CPI transfers disagree with computed transition")
     return after, summary, vault_calls
@@ -361,7 +419,8 @@ def replay_transaction(
     ctx: Checkpoint, state: EconomicState, tx: dict[str, Any]
 ) -> tuple[EconomicState, dict[str, Any]]:
     observations = [
-        vault_transition(tx, v, m) for v, m in zip(ctx.pool.vaults, ctx.pool.mints, strict=True)
+        vault_transition(tx, v, m, p)
+        for v, m, p in zip(ctx.pool.vaults, ctx.pool.mints, ctx.pool.token_programs, strict=True)
     ]
     for i, observation in enumerate(observations):
         if observation is not None and observation[0] != state.vaults[i]:
@@ -395,7 +454,9 @@ def replay_transaction(
         ix = node.instruction
         # Foreign routers cannot mutate classic SPL data without a Token CPI.
         # Read-only/no-op routers can legitimately mention vaults without any CPI.
-        if ix["programId"] == TOKEN and any(v in canonical(ix) for v in ctx.pool.vaults):
+        if ix["programId"] in (TOKEN, TOKEN_2022) and any(
+            v in canonical(ix) for v in ctx.pool.vaults
+        ):
             raise ValidationError("unattributed vault operation")
     for i, observation in enumerate(observations):
         if observation is not None and observation[1] != state.vaults[i]:
@@ -418,6 +479,7 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
             left = checkpoints[interval["start_checkpoint"]]
             right = checkpoints[interval["end_checkpoint"]]
             state = left.state
+            withheld = list(left.withheld)
             blockers = list(interval["blockers"])
             steps = []
             if (
@@ -425,6 +487,8 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
                 or left.config_hash != right.config_hash
             ):
                 blockers.append("pool/config structural change unsupported")
+            if left.epoch != right.epoch or left.mint_hashes != right.mint_hashes:
+                blockers.append("epoch boundary or mint economic terms changed; segment required")
             if not blockers:
                 for step in interval["steps"]:
                     row = store.db.execute(
@@ -436,6 +500,9 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
                         raise ValidationError("invalid transaction result")
                     try:
                         state, details = replay_transaction(left, state, tx)
+                        for op in details["operations"]:
+                            for i, delta in enumerate(op.get("vault_withheld_delta", [0, 0])):
+                                withheld[i] += delta
                         steps.append(
                             dict(
                                 signature=step["signature"],
@@ -447,6 +514,8 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
                     except (ValidationError, ValueError, KeyError, TypeError, IndexError) as exc:
                         blockers.append(f"{step['signature']}:{type(exc).__name__}:{exc}")
                         break  # No endpoint-based repair after an unexplained transition.
+            if tuple(withheld) != right.withheld:
+                blockers.append("terminal withheld balance mismatch")
             if state != right.state:
                 blockers.append("terminal economic state mismatch")
             reports.append(
@@ -461,9 +530,16 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
                     blockers=blockers,
                 )
             )
+            if left.epoch is not None:
+                reports[-1].update(
+                    reconstructed_withheld=withheld,
+                    observed_withheld=list(right.withheld),
+                    epoch=left.epoch,
+                )
         paths = (
             "protocol.py",
             "cpmm.py",
+            "tokens.py",
             "raydium.py",
             "reconciliation.py",
             "collection.py",
@@ -496,9 +572,12 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
             market_dataset_qualified=False,
             transaction_execution_qualified=False,
             independent_provider_verified=False,
-            assumptions=["provider address index complete", "config unchanged between checkpoints"],
+            assumptions=[
+                "provider address index complete",
+                "config and mint economic terms unchanged between checkpoints",
+            ],
             exclusions=[
-                "Token-2022",
+                "non-allowlisted Token-2022 extensions",
                 "oracle and recent_epoch",
                 "admin/config transitions",
                 "initialization",
