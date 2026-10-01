@@ -106,3 +106,13 @@ mcai verify-qualification tests/fixtures/cpmm_control
 Clock того же bank; принимается whitelist metadata/transfer-fee/immutable-owner extensions.
 `audit-protocol` разделяет gross/net transfers и withheld vault balances. Старые journals
 остаются classic-only. Scope и epoch/harvest ограничения: [Token-2022](docs/token2022.md).
+
+## История параметров и bounded block recovery
+
+Новый pilot: `collect-pilot --token-2022 --dependency-history` наблюдает также config
+и mint-адреса. `recover-pilot --full-blocks` группирует recovery по блокам;
+`recover-pilot --block-range` проверяет полный фиксированный диапазон до 256 слотов,
+если пагинация общего config слишком дорога. Оба режима сохраняют настоящие raw
+captures. `audit-liquidity-witness CAPTURE --out REPORT` — отдельная, более слабая
+проверка исторических classic LP операций по event/transfers.
+Контракт и mainnet результаты: [parameter history](docs/parameter-history.md).

@@ -115,3 +115,11 @@ block an interval; captured older/newer schedules never use the collector's curr
 for historical transactions. Harvest-to-mint resets the tracked vault accumulator in invocation order; mint-wide totals,
 direct withheld withdrawals and user account admission remain unsupported.
 Full contract: [Token-2022](token2022.md). Six-account schema 1 decoding is unchanged.
+
+## Parameter history coverage
+
+Config/mint history is explicit opt-in. Captured epoch schedule is anchored to both
+checkpoint Clocks; endpoint matches never reconstruct intermediate tariffs. Full-block
+and bounded-range recovery preserve their distinct raw provenance. A completed pending
+queue is not an audit proof. Event-conditioned LP witnesses never qualify a historical
+dataset. See [parameter history](parameter-history.md) for the current contract/evidence.

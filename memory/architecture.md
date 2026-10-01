@@ -107,3 +107,11 @@ Reward RL, если он появится, строится на согласо�
 Protocol replay учитывает transfer fees и withheld harvest, не включая пользовательские
 account admission/transaction inclusion в доказанную область. Старый six-account codec
 остаётся неизменным. Config/mint updates и переход эпохи требуют дальнейшей реконструкции.
+
+## Временные параметры и evidence adapters
+
+`history.py` применяет config/mint изменения по порядку исполнения; `protocol.py`
+использует актуальные для каждого шага fees. `blockrange.py` даёт отдельный bounded
+способ восстановления покрытия без address pagination. `witness.py` проверяет
+LP arithmetic при event-conditioned prestate, не выдаёт его за checkpoint replay.
+Эти расширения относятся к audit plane и не включают real-data ReferenceReplay.

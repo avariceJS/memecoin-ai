@@ -72,3 +72,11 @@ Allowlist, transfer fees, creator fees и harvest-to-mint проверены н�
 mainnet pilot. Полные config/mint history, epoch boundaries, редкие liquidity/collection
 переходы и независимая source completeness остаются открытыми. Следующий сбор следует
 ориентировать на эти операции; масштабирование public RPC не доказано. См. docs/token2022.md.
+
+## Обновление R2 — история параметров
+
+D28–D30 реализованы; source completeness всё ещё условна. Новые bounded интервалы
+проверяют зависимости, а LP witnesses — арифметику, не полноценные historical anchors.
+Следующий практический gate: синхронный ограниченный сбор с независимой сверкой
+провайдера, измерение задержек/объёма и targeted rare-operation coverage. До этого
+не переходить к ML/backtest claims. Детали — docs/parameter-history.md.

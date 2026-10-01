@@ -129,3 +129,17 @@ recovery завершён. Fixed pacing оказался недостаточн�
 добавлены bounded cooldown и adaptive spacing без скрытых повторов и снижения gates.
 160 тестов и offline/wheel reproduction прошли. Калибровка редких LP/collection/epoch
 переходов и независимая полнота источника не объявлены завершёнными.
+
+## 2026-10-02 — История параметров и целевой поиск редких переходов
+
+- D28: versioned opt-in dependency scans, captured EpochSchedule/Clock, ordered
+  config/transfer-fee/supply transitions; unknown mutations fail closed.
+- D29: после реальной высокой стоимости общего config добавлены full-block и
+  bounded-range recovery. Незавершённая 100-request pagination сохранена; диапазон
+  восстановлен 13 дополнительными запросами без фиктивного закрытия cursors.
+- D30: 13 real LP witnesses; event-provided prestate явно отделён от независимых
+  checkpoints. Найден external mint-withheld withdrawal, mint-wide суммы неизвестны.
+- Два новых интервала: 455 + 863 tx, совпадение economic/withheld/parameters; сами
+  выбранные pools новых успешных операций не имели. Edge и новые quotes не заявлены.
+- Защищены immutable parsed cache и конфликтующие same-bank mint checkpoints.
+  Старые архивы остаются совместимыми. Подробности и provenance — docs/parameter-history.md.

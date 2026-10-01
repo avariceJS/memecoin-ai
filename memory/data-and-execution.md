@@ -117,3 +117,14 @@ fee и CPMM creator/trade fees считаются на разных этапах
 spendable vault amount. Административные изменения не интерполируются, текущая эпоха
 collector не используется как историческая. Свойства пользовательских счетов и hooks
 не считаются проверенными по одному mint. Границы и mainnet evidence: [Token-2022](../docs/token2022.md).
+
+## История параметров и альтернативное покрытие интервала
+
+Текущее расширение D28–D30: config/mints добавляются только явным opt-in;
+экономические параметры применяются по времени исполнения, включая activation в
+эпохах. Старая предпосылка unchanged terms не стала доказательством задним числом.
+Публичная mainnet schedule не имеет warmup; значения не захардкожены в runtime.
+Full-block и bounded-range recovery сохраняют исходное доказательство и отдельно
+от незакрытых address cursors проверяют покрытие. Captures и decode cache нельзя
+использовать для ретроактивной доступности features. LP witnesses имеют более слабый
+уровень, чем interval reconstruction. Точные границы: [history](../docs/parameter-history.md).

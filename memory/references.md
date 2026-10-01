@@ -25,3 +25,14 @@
 ## Первичный источник проектных решений
 
 Два review в исходной пользовательской беседе и последующее принятие последней концепции как базы. Существенное содержание сохранено в документах; доступ к беседе не требуется для продолжения. Различие между исходными рекомендациями и текущим выбором сохранено в [changes.md](changes.md). Все численные архитектурные диапазоны и сравнения являются предложениями исследования, а не опубликованными результатами проекта.
+
+## История параметров (проверено 2026-10-02)
+
+- [Solana getEpochSchedule](https://solana.com/docs/rpc/http/getepochschedule) — поля
+  captured schedule; конкретные mainnet значения взяты из raw response, не примера docs.
+- [Solana getBlocks](https://solana.com/docs/rpc/http/getblocks) — inclusive finalized
+  range; полнота возвращённого списка не является независимой source-проверкой.
+- [Pinned Raydium update_config.rs](https://github.com/raydium-io/raydium-cp-swap/blob/59fb845a9e5bb569c8b2f3415f13b0c0ebcc6b92/programs/cp-swap/src/instructions/admin/update_config.rs)
+  — параметры 0–7. Binary equivalence mainnet всё ещё не доказана.
+- [Pinned Token-2022 transfer fee processor](https://github.com/solana-program/token-2022/blob/5bc7ea3b9568b9fdac2d08c921d73d40260249c7/program/src/extension/transfer_fee/processor.rs)
+  — old/new schedule и epoch+2; реальные тарифные updates в новой выборке не наблюдались.

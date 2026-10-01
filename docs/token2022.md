@@ -99,3 +99,8 @@ transfer-fee/harvest sequences и негативные проверки epoch/mi
 pool fee collection, epoch-boundary реконструкция и прямой withdraw withheld. Их
 нельзя объявлять проверенными из-за общих unit tests. Полные config/mint history,
 независимая source completeness и execution admission/inclusion остаются отдельными gates.
+
+Расширение следующего этапа: opt-in parameter history и epoch schedule реализованы
+в [parameter history](parameter-history.md). Описанные выше запреты на изменение
+эпох/параметров остаются для прежних journals без dependency coverage. Реальный
+epoch-boundary и смена тарифа всё ещё не наблюдались в опубликованной выборке.

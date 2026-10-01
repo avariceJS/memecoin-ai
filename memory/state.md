@@ -27,7 +27,7 @@ Memory Bank принят как source of truth. Пользователь раз
 
 ## Что проверено
 
-Локально на Python 3.13: 160 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 192 автоматических теста, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
@@ -37,7 +37,7 @@ ReferenceReplay намеренно synthetic-only, one-quote, one-pool-per-base 
 
 ## Открытые решения
 
-Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D27: [decisions](decisions.md).
+Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D30: [decisions](decisions.md).
 
 ## Результат bounded data-аудита
 
@@ -118,11 +118,32 @@ Mainnet-подтверждения exact-output с Token-2022, LP changes, pool 
 не было успешных swaps: его snapshots не расширяют доказанное покрытие quote math.
 Qualified dataset, полное execution и edge не заявлены; synthetic gate сохранён.
 
+## Результат истории параметров
+
+Реализованы opt-in config/mint dependency history, epoch schedule с Clock anchors,
+ordered config/transfer fee/supply mutations и отдельные event-conditioned LP witnesses.
+Источник показал дорогую пагинацию общего config: добавлены parsed full blocks и
+альтернативное bounded-range coverage, без подмены raw captures или старых cursors.
+
+На mainnet два новых интервала по 12 слотов: 455 + 863 связанных tx, economic/withheld/
+config/mint endpoints совпали. У самих выбранных pools успешных операций не было;
+это не новые quote calibration observations. 13 отдельно найденных LP witnesses
+совпали по arithmetic/transfers, но их prestate взят из events. Один реальный внешний
+withdraw-withheld сохранён как regression без притязания на полный mint ledger.
+
+Смена config/tariff и граница эпох проверены инженерно, но не наблюдались в новых
+mainnet интервалах. LP между anchors, pool fee collections, прямые withdrawals в/из
+tracked vault, независимая полнота и deployed binary equivalence остаются gates.
+192 tests, lint/typing, smoke/build, offline frozen verification и побитово равные
+dev/wheel range reports прошли; старые classic/Token-2022 audits также прошли.
+E01–E14 не проведены.
+Документ и evidence: [parameter history](../docs/parameter-history.md).
+
 ## Следующий крупный практический этап
 
-История изменяемых параметров и редких протокольных операций: добавить наблюдение
-config/mint updates, корректную сегментацию перехода эпох и проверить реальные liquidity
-changes/fee collections/withdraw-withheld. Использовать целевой сбор таких событий,
-а не бесконечную случайную выборку обычных swaps. Независимая source completeness и
-сервис, пригодный для более широкого длительного сбора, остаются отдельными data gates.
-До их прохождения не использовать backtest/ML как доказательство исполнимого edge.
+Квалификация более длительного синхронного сбора: ограниченная когорта, независимая
+сверка полноты у второго провайдера, измерение receipt latency/объёма и адресный поиск
+редких admin/fee операций. Проверить, какая комбинация account observations и block
+recovery пригодна для устойчивого сбора. Не требовать смены тарифа за произвольный
+короткий срок и не подменять отсутствующие historical anchors текущими snapshots.
+ML/backtest profitability до прохождения data/execution gates не заявлять.
