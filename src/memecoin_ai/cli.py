@@ -11,6 +11,7 @@ from memecoin_ai.config import RunConfig
 from memecoin_ai.domain import Event, ValidationError, canonical
 from memecoin_ai.experiments import RunRecorder, summarize, verify_run
 from memecoin_ai.fixtures import ScriptedFixturePolicy, synthetic_events
+from memecoin_ai.protocol import write_protocol_audit
 from memecoin_ai.qualification import qualify_cpmm, verify_qualification
 from memecoin_ai.raydium import checkpoint_inventory
 from memecoin_ai.reconciliation import export_pilot, verify_pilot, write_audit
@@ -88,9 +89,33 @@ def main() -> int:
         "verify-pilot", help="Offline verification of an exported pilot"
     )
     verify_capture.add_argument("path", type=Path)
+    protocol = commands.add_parser(
+        "audit-protocol", help="Offline CPMM transitions and quote checks"
+    )
+    protocol.add_argument("--store", type=Path, required=True)
+    protocol.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     try:
-        if args.command == "verify-pilot":
+        if args.command == "audit-protocol":
+            pilot_store = PilotStore(args.store, read_only=True)
+            try:
+                report = write_protocol_audit(pilot_store, args.out)
+                print(
+                    canonical(
+                        {
+                            k: report[k]
+                            for k in (
+                                "all_intervals_consistent",
+                                "economic_scope",
+                                "transaction_execution_qualified",
+                            )
+                        }
+                    )
+                )
+                return 0 if report["all_intervals_consistent"] else 1
+            finally:
+                pilot_store.close()
+        elif args.command == "verify-pilot":
             print(canonical(verify_pilot(args.path)))
         elif args.command == "export-pilot":
             pilot_store = PilotStore(args.store, read_only=True)
