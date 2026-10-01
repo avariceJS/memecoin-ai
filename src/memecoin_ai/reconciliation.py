@@ -6,7 +6,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-from memecoin_ai.collection import PilotStore
+from memecoin_ai.collection import (
+    PilotStore,
+    block_signatures,
+    captured_transaction,
+    scan_addresses,
+)
 from memecoin_ai.domain import ValidationError, canonical, digest, integer
 from memecoin_ai.raydium import TOKEN
 from memecoin_ai.tokens import decode_supported_checkpoint
@@ -157,7 +162,10 @@ def _audit_pilot(store: PilotStore) -> dict[str, Any]:
             scans = db.execute(
                 "SELECT * FROM scans WHERE start_id=? AND end_id=?", (a, b)
             ).fetchall()
-            if {s["address"] for s in scans} != {pool, *left["pool"]["vaults"]} or len(scans) != 3:
+            expected_addresses = scan_addresses(left, store.spec())
+            if {s["address"] for s in scans} != set(expected_addresses) or len(scans) != len(
+                expected_addresses
+            ):
                 raise ValidationError("incomplete interval address registry")
             signatures = set()
             for scan in scans:
@@ -166,7 +174,8 @@ def _audit_pilot(store: PilotStore) -> dict[str, Any]:
             if not all(s["boundary"] for s in scans):
                 blockers.append("signature pagination has not reached lower boundary")
             ordered = []
-            for signature in sorted(signatures):
+            slots = dict(db.execute("SELECT signature,slot FROM transactions"))
+            for signature in sorted(signatures, key=lambda sig: (slots.get(sig, -1), sig)):
                 row = db.execute(
                     "SELECT * FROM transactions WHERE signature=?", (signature,)
                 ).fetchone()
@@ -174,18 +183,9 @@ def _audit_pilot(store: PilotStore) -> dict[str, Any]:
                     blockers.append("transaction missing:" + signature)
                     continue
                 cap = store.capture(row["capture_id"])
-                tx = cap.result()
-                req = json.loads(cap.request_json)
-                if (
-                    cap.method != "getTransaction"
-                    or req["params"][0] != signature
-                    or req["params"][1].get("commitment") != "finalized"
-                    or not isinstance(tx, dict)
-                    or tx["slot"] != row["slot"]
-                    or tx["transaction"]["signatures"][0] != signature
-                    or not start < tx["slot"] <= end
-                ):
-                    raise ValidationError("transaction cache identity mismatch")
+                tx = captured_transaction(cap, signature, row["slot"])
+                if not start < tx["slot"] <= end:
+                    raise ValidationError("transaction outside checkpoint interval")
                 addresses = {key["pubkey"] for key in tx["transaction"]["message"]["accountKeys"]}
                 claimed_addresses = {
                     scan["address"]
@@ -207,18 +207,10 @@ def _audit_pilot(store: PilotStore) -> dict[str, Any]:
                     blockers.append("block order missing:" + str(row["slot"]))
                     continue
                 block_cap = store.capture(block_row[0])
-                block = block_cap.result()
-                block_req = json.loads(block_cap.request_json)
-                if (
-                    block_cap.method != "getBlock"
-                    or block_req["params"][0] != tx["slot"]
-                    or block_req["params"][1].get("commitment") != "finalized"
-                    or not isinstance(block, dict)
-                    or signature not in block["signatures"]
-                    or len(set(block["signatures"])) != len(block["signatures"])
-                ):
+                signatures_in_block = block_signatures(block_cap, row["slot"])
+                if signature not in signatures_in_block:
                     raise ValidationError("block/transaction membership mismatch")
-                ordered.append((tx["slot"], block["signatures"].index(signature), signature, tx))
+                ordered.append((tx["slot"], signatures_in_block.index(signature), signature, tx))
             balances = list(left["vault_balances"])
             steps = []
             for slot, index, signature, tx in sorted(ordered, key=lambda x: (x[0], x[1])):
@@ -319,6 +311,7 @@ def export_pilot(store: PilotStore, output: Path) -> dict[str, Any]:
         "reconciliation.py",
         "raydium.py",
         "tokens.py",
+        "history.py",
         "cpmm.py",
         "sources.py",
         "domain.py",

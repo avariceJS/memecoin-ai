@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import base64
+import copy
 import re
 import struct
 from collections import Counter
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any, Literal
 
-from memecoin_ai.collection import PilotStore
+from memecoin_ai.collection import PilotStore, captured_transaction
 from memecoin_ai.cpmm import U64, EconomicState, Fees, collect_fees, liquidity, u64
 from memecoin_ai.domain import ValidationError, canonical, digest
+from memecoin_ai.history import EpochSchedule, ParameterHistory
 from memecoin_ai.raydium import (
     PROGRAM,
     SOURCE_REVISION,
@@ -423,7 +425,12 @@ def replay_transaction(
     tx: dict[str, Any],
     *,
     withheld: tuple[int, int] | None = None,
+    parameters: ParameterHistory | None = None,
 ) -> tuple[EconomicState, dict[str, Any]]:
+    original_parameters = parameters
+    if parameters is not None:
+        parameters = copy.deepcopy(parameters)
+        parameters.advance(tx["slot"])
     observations = [
         vault_transition(tx, v, m, p)
         for v, m, p in zip(ctx.pool.vaults, ctx.pool.mints, ctx.pool.token_programs, strict=True)
@@ -442,6 +449,21 @@ def replay_transaction(
     operations = []
     for node in nodes:
         ix = node.instruction
+        if parameters is not None:
+            keys = {k["pubkey"] for k in tx["transaction"]["message"]["accountKeys"]}
+            if not set(ix.get("accounts", [])) <= keys:
+                raise ValidationError("parameter instruction account absent from transaction keys")
+            mutation = parameters.apply(ix, has_children=bool(node.children))
+            ctx = replace(
+                ctx,
+                fees=parameters.fees,
+                token_fees=parameters.token_fees(),
+                epoch=parameters.epoch,
+            )
+            if mutation is not None:
+                operations.append(mutation)
+                consumed.add(id(node))
+                continue
         if ix["programId"] == PROGRAM and ctx.pool_id in ix.get("accounts", []):
             if not set(ix["accounts"]) <= {
                 k["pubkey"] for k in tx["transaction"]["message"]["accountKeys"]
@@ -509,6 +531,9 @@ def replay_transaction(
     for i, observation in enumerate(observations):
         if observation is not None and observation[1] != state.vaults[i]:
             raise ValidationError("transaction post-balance disagrees with reconstruction")
+    if parameters is not None and original_parameters is not None:
+        original_parameters.accounts = parameters.accounts
+        original_parameters.advance(parameters.slot)
     return state, dict(failed=False, operations=operations)
 
 
@@ -522,6 +547,16 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
             r["id"]: checkpoint(store.capture(r["capture_id"]), r["pool"])
             for r in store.db.execute("SELECT * FROM checkpoints ORDER BY id")
         }
+        schedule = None
+        if store.spec().get("dependency_history"):
+            schedules = [
+                EpochSchedule.from_capture(store.capture(r[0]))
+                for r in store.db.execute("SELECT id FROM captures")
+                if store.capture(r[0]).method == "getEpochSchedule"
+            ]
+            if not schedules or any(s != schedules[0] for s in schedules):
+                raise ValidationError("missing/conflicting captured epoch schedule")
+            schedule = schedules[0]
         reports = []
         for interval in base["intervals"]:
             left = checkpoints[interval["start_checkpoint"]]
@@ -530,25 +565,44 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
             withheld = list(left.withheld)
             blockers = list(interval["blockers"])
             steps = []
-            if (
-                left.structural_hash != right.structural_hash
-                or left.config_hash != right.config_hash
-            ):
-                blockers.append("pool/config structural change unsupported")
-            if left.epoch != right.epoch or left.mint_hashes != right.mint_hashes:
-                blockers.append("epoch boundary or mint economic terms changed; segment required")
+            parameters = None
+            right_capture = None
+            if schedule is not None:
+                left_row = store.db.execute(
+                    "SELECT capture_id FROM checkpoints WHERE id=?", (interval["start_checkpoint"],)
+                ).fetchone()
+                right_row = store.db.execute(
+                    "SELECT capture_id FROM checkpoints WHERE id=?", (interval["end_checkpoint"],)
+                ).fetchone()
+                parameters = ParameterHistory(store.capture(left_row[0]), schedule)
+                right_capture = store.capture(right_row[0])
+            if left.structural_hash != right.structural_hash:
+                blockers.append("pool structural change unsupported")
+            if parameters is None:
+                if left.config_hash != right.config_hash:
+                    blockers.append("config change requires dependency history")
+                if left.epoch != right.epoch or left.mint_hashes != right.mint_hashes:
+                    blockers.append(
+                        "epoch boundary or mint economic terms changed; segment required"
+                    )
             if not blockers:
                 for step in interval["steps"]:
                     row = store.db.execute(
                         "SELECT capture_id FROM transactions WHERE signature=?",
                         (step["signature"],),
                     ).fetchone()
-                    tx = store.capture(row[0]).result()
+                    tx = captured_transaction(
+                        store.capture(row[0]), step["signature"], step["slot"]
+                    )
                     if not isinstance(tx, dict):
                         raise ValidationError("invalid transaction result")
                     try:
                         state, details = replay_transaction(
-                            left, state, tx, withheld=(withheld[0], withheld[1])
+                            left,
+                            state,
+                            tx,
+                            withheld=(withheld[0], withheld[1]),
+                            parameters=parameters,
                         )
                         for op in details["operations"]:
                             for i, delta in enumerate(op.get("vault_withheld_delta", [0, 0])):
@@ -564,6 +618,11 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
                     except (ValidationError, ValueError, KeyError, TypeError, IndexError) as exc:
                         blockers.append(f"{step['signature']}:{type(exc).__name__}:{exc}")
                         break  # No endpoint-based repair after an unexplained transition.
+            if parameters is not None and right_capture is not None:
+                try:
+                    parameters.assert_endpoint(right_capture)
+                except ValidationError as exc:
+                    blockers.append(str(exc))
             if tuple(withheld) != right.withheld:
                 blockers.append("terminal withheld balance mismatch")
             if state != right.state:
@@ -590,6 +649,7 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
             "protocol.py",
             "cpmm.py",
             "tokens.py",
+            "history.py",
             "raydium.py",
             "reconciliation.py",
             "collection.py",
@@ -622,14 +682,17 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
             market_dataset_qualified=False,
             transaction_execution_qualified=False,
             independent_provider_verified=False,
-            assumptions=[
-                "provider address index complete",
-                "config and mint economic terms unchanged between checkpoints",
-            ],
+            dependency_history_enabled=schedule is not None,
+            assumptions=["provider address index complete"]
+            + (
+                ["normal epoch schedule immutable; anchored to both checkpoint Clocks"]
+                if schedule is not None
+                else ["config and mint economic terms unchanged between checkpoints"]
+            ),
             exclusions=[
                 "non-allowlisted Token-2022 extensions",
                 "oracle and recent_epoch",
-                "admin/config transitions",
+                "pool admin transitions and unrecognized mint/config operations",
                 "mint-wide withheld total and direct withheld withdrawals",
                 "initialization",
                 "caught CPI failures",

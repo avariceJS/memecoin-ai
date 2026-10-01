@@ -13,6 +13,7 @@ from memecoin_ai.domain import ValidationError, canonical, digest, integer, stri
 READ_METHODS = frozenset(
     {
         "getVersion",
+        "getEpochSchedule",
         "getSlot",
         "getFirstAvailableBlock",
         "getBlock",

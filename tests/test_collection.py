@@ -280,7 +280,7 @@ def test_cli_recovery_tuning_reaches_actual_requests(tmp_path, monkeypatch):
     store, info = setup_store(path)
     store.close()
     client, calls = fixture_client(info)
-    monkeypatch.setattr(cli, "ReadOnlyRPC", lambda endpoint, source: client)
+    monkeypatch.setattr(cli, "ReadOnlyRPC", lambda endpoint, source, **kwargs: client)
     monkeypatch.setenv("MEMECOIN_RPC_URL", "https://example.invalid")
     monkeypatch.setattr(
         sys,

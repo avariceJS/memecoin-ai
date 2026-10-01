@@ -8,10 +8,12 @@ import sqlite3
 import time
 from collections.abc import Callable
 from dataclasses import asdict
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from memecoin_ai.domain import ValidationError, canonical, digest, integer
+from memecoin_ai.history import EpochSchedule
 from memecoin_ai.raydium import decode_pool, public_key
 from memecoin_ai.sources import Capture, HTTPSourceError, ReadOnlyRPC, SourceError
 from memecoin_ai.tokens import CLOCK, decode_supported_checkpoint
@@ -84,7 +86,13 @@ class PilotStore:
             self._lock.close()
 
     def configure(
-        self, pools: list[str], source: str, page_size: int, *, token2022: bool = False
+        self,
+        pools: list[str],
+        source: str,
+        page_size: int,
+        *,
+        token2022: bool = False,
+        dependency_history: bool = False,
     ) -> dict[str, Any]:
         if not pools or len(pools) > 4 or len(set(pools)) != len(pools):
             raise ValidationError("pilot requires 1..4 distinct fixed pools")
@@ -106,6 +114,10 @@ class PilotStore:
             spec.update(
                 checkpoint_version=2, state_scope="allowlisted Token-2022 spendable balances"
             )
+        if dependency_history:
+            if not token2022:
+                raise ValidationError("dependency history requires Clock checkpoints")
+            spec["dependency_history"] = True
         row = self.db.execute("SELECT body FROM settings WHERE id=1").fetchone()
         if row:
             if json.loads(row[0]) != spec:
@@ -199,7 +211,7 @@ class PilotStore:
                 (pool, slot, capture_id, canonical(decoded)),
             )
             if previous:
-                for address in [pool, *decoded["pool"]["vaults"]]:
+                for address in scan_addresses(decoded, self.spec()):
                     self.db.execute(
                         "INSERT INTO scans(pool,start_id,end_id,address) VALUES (?,?,?,?)",
                         (pool, previous["id"], row.lastrowid, address),
@@ -287,6 +299,7 @@ class PilotCollector:
         delay: float = 1.2,
         sleep: Callable[[float], None] = time.sleep,
         page_size: int | None = None,
+        full_blocks: bool = False,
     ) -> None:
         integer(budget, "request budget", 1)
         if budget > 1000 or not 0 <= delay <= 10:
@@ -297,6 +310,7 @@ class PilotCollector:
         integer(self.page_size, "recovery page size", 1)
         if self.page_size > 100:
             raise ValidationError("recovery page size exceeds bound")
+        self.full_blocks = full_blocks
         self.store = store
         self.client = client
         self.remaining = budget
@@ -324,6 +338,17 @@ class PilotCollector:
         return capture_id, capture.result()
 
     def checkpoint(self, pool: str) -> None:
+        if self.store.spec().get("dependency_history"):
+            found = False
+            for row in self.store.db.execute("SELECT id FROM captures"):
+                cap = self.store.capture(row[0])
+                if cap.method == "getEpochSchedule":
+                    EpochSchedule.from_capture(cap)
+                    found = True
+                    break
+            if not found:
+                cid, _ = self.fetch("getEpochSchedule", [])
+                EpochSchedule.from_capture(self.store.capture(cid))
         previous = self.store.db.execute(
             "SELECT body FROM checkpoints WHERE pool=? ORDER BY slot DESC LIMIT 1", (pool,)
         ).fetchone()
@@ -377,6 +402,9 @@ class PilotCollector:
                     self.page_cache[request] = cid
             except (SourceError, ValidationError, KeyError, TypeError) as exc:
                 self.store.issue(f"scan:{scan['id']}", failure_reason(exc))
+        if self.full_blocks:
+            self.recover_full_blocks()
+            return
         pending = db.execute(
             "SELECT DISTINCT s.signature,s.slot FROM signatures s "
             "LEFT JOIN transactions t USING(signature) WHERE t.signature IS NULL "
@@ -441,6 +469,58 @@ class PilotCollector:
             except (SourceError, ValidationError, KeyError, TypeError) as exc:
                 self.store.issue("block:" + str(row["slot"]), failure_reason(exc))
 
+    def recover_full_blocks(self) -> None:
+        db = self.store.db
+        slots = db.execute(
+            "SELECT DISTINCT s.slot FROM signatures s LEFT JOIN transactions t USING(signature) "
+            "LEFT JOIN blocks b ON b.slot=s.slot WHERE t.signature IS NULL OR b.slot IS NULL "
+            "ORDER BY s.slot"
+        ).fetchall()
+        for row in slots:
+            slot = row[0]
+            try:
+                cid, _ = self.fetch(
+                    "getBlock",
+                    [
+                        slot,
+                        dict(
+                            encoding="jsonParsed",
+                            commitment="finalized",
+                            transactionDetails="full",
+                            rewards=False,
+                            maxSupportedTransactionVersion=1,
+                        ),
+                    ],
+                )
+                cap = self.store.capture(cid)
+                signatures = block_signatures(cap, slot)
+                required = [
+                    r[0]
+                    for r in db.execute(
+                        "SELECT DISTINCT signature FROM signatures WHERE slot=?", (slot,)
+                    )
+                ]
+                if not set(required) <= set(signatures):
+                    raise ValidationError("address index signature absent from full block")
+                previous = db.execute(
+                    "SELECT capture_id FROM blocks WHERE slot=?", (slot,)
+                ).fetchone()
+                if (
+                    previous
+                    and block_signatures(self.store.capture(previous[0]), slot) != signatures
+                ):
+                    raise ValidationError("conflicting finalized block order")
+                for signature in required:
+                    captured_transaction(cap, signature, slot)
+                with db:
+                    db.execute("INSERT OR IGNORE INTO blocks VALUES (?,?)", (slot, cid))
+                    db.executemany(
+                        "INSERT OR IGNORE INTO transactions VALUES (?,?,?)",
+                        [(sig, slot, cid) for sig in required],
+                    )
+            except (SourceError, ValidationError, KeyError, TypeError) as exc:
+                self.store.issue("full-block:" + str(slot), failure_reason(exc))
+
     def poll(self, rounds: int, interval: float, *, recover: bool = True) -> None:
         integer(rounds, "rounds", 1)
         if rounds > 120 or not 0 <= interval <= 60:
@@ -458,3 +538,79 @@ class PilotCollector:
                     self.recover()
         except BudgetExhausted:
             self.store.issue("budget", "request budget exhausted; resume recovery explicitly")
+
+
+def scan_addresses(decoded: dict[str, Any], spec: dict[str, Any]) -> list[str]:
+    addresses = [decoded["pool_id"], *decoded["pool"]["vaults"]]
+    if spec.get("dependency_history"):
+        addresses += [decoded["pool"]["config"], *decoded["pool"]["mints"]]
+    return list(dict.fromkeys(addresses))
+
+
+def block_signatures(cap: Capture, slot: int) -> list[str]:
+    req = json.loads(cap.request_json)
+    result = parsed_block(cap)
+    if (
+        cap.method != "getBlock"
+        or req["params"][0] != slot
+        or req["params"][1].get("commitment") != "finalized"
+        or not isinstance(result, dict)
+    ):
+        raise ValidationError("invalid finalized block capture")
+    mode = req["params"][1].get("transactionDetails")
+    if mode == "signatures":
+        signatures = result["signatures"]
+    elif mode == "full" and req["params"][1].get("encoding") == "jsonParsed":
+        signatures = [t["transaction"]["signatures"][0] for t in result["transactions"]]
+    else:
+        raise ValidationError("unsupported block encoding/details")
+    if (
+        not isinstance(signatures, list)
+        or not all(isinstance(s, str) and s for s in signatures)
+        or len(set(signatures)) != len(signatures)
+    ):
+        raise ValidationError("duplicate/invalid block signatures")
+    return signatures
+
+
+def captured_transaction(cap: Capture, signature: str, slot: int) -> dict[str, Any]:
+    req = json.loads(cap.request_json)
+    result = parsed_block(cap) if cap.method == "getBlock" else cap.result()
+    if not isinstance(result, dict):
+        raise ValidationError("missing transaction/block result")
+    if cap.method == "getBlock":
+        signatures = block_signatures(cap, slot)
+        if req["params"][1].get("transactionDetails") != "full" or signature not in signatures:
+            raise ValidationError("transaction absent from full block")
+        tx = dict(
+            result["transactions"][signatures.index(signature)],
+            slot=slot,
+            blockTime=result.get("blockTime"),
+        )
+    elif (
+        cap.method == "getTransaction"
+        and req["params"][0] == signature
+        and req["params"][1].get("commitment") == "finalized"
+        and req["params"][1].get("encoding") == "jsonParsed"
+    ):
+        tx = result
+    else:
+        raise ValidationError("invalid transaction capture request")
+    version = tx.get("version")
+    if (
+        tx["slot"] != slot
+        or tx["transaction"]["signatures"][0] != signature
+        or tx.get("meta") is None
+        or (version != "legacy" and (type(version) is not int or version not in (0, 1)))
+    ):
+        raise ValidationError("transaction identity/version mismatch")
+    return tx
+
+
+@lru_cache(maxsize=2)
+def parsed_block(cap: Capture) -> dict[str, Any]:
+    # Immutable raw bytes are the cache key. Bounded to two blocks, never persisted as evidence.
+    result = cap.result()
+    if not isinstance(result, dict):
+        raise ValidationError("missing block result")
+    return result

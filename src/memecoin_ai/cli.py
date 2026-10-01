@@ -18,6 +18,7 @@ from memecoin_ai.reconciliation import export_pilot, verify_pilot, write_audit
 from memecoin_ai.replay import CashPolicy, ReferenceReplay
 from memecoin_ai.sources import Capture, ReadOnlyRPC, SourceError, probe_rpc
 from memecoin_ai.storage import EventStore, audit, load_bundle, write_bundle
+from memecoin_ai.witness import write_liquidity_witness
 
 
 def main() -> int:
@@ -61,6 +62,12 @@ def main() -> int:
     )
     inspect.add_argument("capture", type=Path)
     inspect.add_argument("--pool", required=True)
+    witness = commands.add_parser(
+        "audit-liquidity-witness",
+        help="Event-conditioned arithmetic check; not historical state reconstruction",
+    )
+    witness.add_argument("capture", type=Path)
+    witness.add_argument("--out", type=Path, required=True)
     for command in ("collect-pilot", "recover-pilot"):
         pilot = commands.add_parser(command, help="Bounded durable finalized collection/recovery")
         pilot.add_argument("--store", type=Path, required=True)
@@ -69,12 +76,22 @@ def main() -> int:
         pilot.add_argument("--budget", type=int, default=100)
         pilot.add_argument("--rpc-interval", type=float, default=1.2)
         pilot.add_argument("--recovery-page-size", type=int)
+        pilot.add_argument(
+            "--full-blocks",
+            action="store_true",
+            help="Recover parsed blocks instead of individual transactions; 32 MB bound",
+        )
         if command == "collect-pilot":
             pilot.add_argument("--pool", action="append")
             pilot.add_argument("--page-size", type=int, default=100)
             pilot.add_argument("--rounds", type=int, default=3)
             pilot.add_argument("--interval", type=float, default=10)
             pilot.add_argument("--snapshots-only", action="store_true")
+            pilot.add_argument(
+                "--dependency-history",
+                action="store_true",
+                help="Scan config/mints too; requires --token-2022",
+            )
             pilot.add_argument(
                 "--token-2022",
                 action="store_true",
@@ -153,11 +170,20 @@ def main() -> int:
                     raise ValidationError("RPC endpoint environment variable is not set")
                 if args.command == "collect-pilot" and args.pool:
                     pilot_store.configure(
-                        args.pool, args.source_alias, args.page_size, token2022=args.token_2022
+                        args.pool,
+                        args.source_alias,
+                        args.page_size,
+                        token2022=args.token_2022,
+                        dependency_history=args.dependency_history,
                     )
                 collector = PilotCollector(
                     pilot_store,
-                    ReadOnlyRPC(endpoint, args.source_alias),
+                    ReadOnlyRPC(
+                        endpoint,
+                        args.source_alias,
+                        max_bytes=32_000_000 if args.full_blocks else 4_000_000,
+                    ),
+                    full_blocks=args.full_blocks,
                     budget=args.budget,
                     delay=args.rpc_interval,
                     page_size=args.recovery_page_size,
@@ -184,6 +210,8 @@ def main() -> int:
                 return 0 if not any(pending.values()) else 1
             finally:
                 pilot_store.close()
+        elif args.command == "audit-liquidity-witness":
+            print(canonical(write_liquidity_witness(Capture.load(args.capture), args.out)))
         elif args.command == "inspect-cpmm":
             print(canonical(checkpoint_inventory(Capture.load(args.capture), args.pool)))
         elif args.command == "verify-qualification":
