@@ -46,3 +46,7 @@
 ## 2026-10-01 Начало разрешённого архитектурного прохода
 
 Пользователь разрешил автономную реализацию фундамента и push в существующий origin/main. Прежняя пауза до подтверждения снята. Выбран Python 3.11+ со stdlib в runtime и pytest/ruff/mypy для проверок. Первые компоненты: неизменяемые события с observed/assumed/unknown availability, SQLite журнал, content-verified bundles и point-in-time observations. SQLite — локальный reference store, не решение для полного потока Solana.
+
+## 2026-10-01 Reference replay и бухгалтерия
+
+Реализованы две временные линии, immutable observations, integer CPMM reference, reservations/settlement, отдельный risk manager, target-to-intent conversion, seeded synthetic outcomes и консервативная ликвидационная оценка. Реальный origin и неизвестная availability отклоняются. Выход за impact-domain делает весь replay недействительным, не превращается в удобную simulated failure. Точные ограничения — `docs/contracts.md`. Это проверка инфраструктуры, не E01–E14 и не калибровка Solana.
