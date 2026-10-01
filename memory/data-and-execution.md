@@ -87,8 +87,8 @@ Paper trading проверяет живой pipeline, котировки и ре
 Диагностический CPMM reader, структурный Token-2022 inventory и их границы описаны
 в [source audit](../docs/source-audit.md) и [contracts](../docs/contracts.md). Raw receipt
 и context slot не заменяют historical event/feature availability. Реальные checkpoint
-артефакты не подаются в synthetic reference replay. Текущая проверка vault flows
-не восстанавливает прошлые fee counters и не калибрует исполнимую цену.
+артефакты не подаются в synthetic reference replay. Первоначальная проверка vault flows
+не восстанавливала fee counters; новый protocol audit описан ниже.
 
 ## Forward pilot
 
@@ -98,3 +98,14 @@ checkpoints. Сканируются pool и оба vault; order внутри с�
 меняет прежние receipts. Граница доказательности, команды и результат — в
 [forward pilot](../docs/forward-pilot.md). Полное pool state, universe coverage и независимый
 провайдер остаются открытыми; snapshot consistency не является execution calibration.
+
+## Проверка протокольных котировок
+
+Поверх vault-аудита реализована реконструкция classic-SPL экономического состояния из
+инструкций, с независимой проверкой вычисленных сумм по events/transfers. Начисления
+protocol/fund fees проверены на реальных swap; creator fee, LP changes и collections
+имеют source-derived реализации, но недостаточно mainnet coverage. Не использовать
+event reserve/amounts как поправки к состоянию ради совпадения. Успешная транзакция
+может не выполнить ни одного swap. Failed transactions атомарны в экономической модели,
+но их network fees не исчезают из будущего execution ledger.
+Граница conditional quote vs full execution и факты: [protocol audit](../docs/protocol-audit.md).

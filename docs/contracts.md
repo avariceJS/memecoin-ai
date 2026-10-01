@@ -92,3 +92,14 @@ Missing transaction or block order remains pending even when every signature pag
 See [pilot contract and measurements](forward-pilot.md) for provider-index and full-state limits.
 Pilot writing uses a Unix file lock (tested on macOS; CI on Linux). Audits read a consistent
 SQLite transaction, and exported backups are checksummed alongside the auditor's source.
+
+## CPMM economic transitions
+
+`cpmm.py` is a pinned Raydium classic-SPL integer model, separate from `ReferenceCPMM`.
+`protocol.py` reconstructs vaults, six excluded-fee counters and internal LP supply.
+CPI depth and runtime logs attribute events/transfers; event amounts are assertions,
+not state inputs or endpoint repairs. Unknown operations fail the interval. Quote matches
+are conditional on checkpoint configuration and provider index completeness. Oracle,
+recent_epoch, Token-2022, admission and future inclusion are outside this contract.
+`audit-protocol` keeps execution/dataset qualification false. Supported vs empirically
+verified operations and reproducibility are specified in [protocol audit](protocol-audit.md).

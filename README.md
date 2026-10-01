@@ -1,6 +1,6 @@
 # Memecoin AI
 
-Рабочий локальный фундамент ML trading research для Solana memecoins. **Реальный edge не установлен.** Исполнение сейчас проверяется только на явно синтетических данных; поддерживаемый математический CPMM reference не является реализацией Raydium или другой площадки.
+Рабочий локальный фундамент ML trading research для Solana memecoins. **Реальный edge не установлен.** Reference replay остаётся synthetic-only. Отдельный Raydium CPMM adapter проверяет экономические переходы и swap quotes на реальных транзакциях; полная модель исполнения ещё не квалифицирована.
 
 ## Быстрый запуск
 
@@ -92,3 +92,10 @@ mcai verify-qualification tests/fixtures/cpmm_control
 `verify-pilot` обеспечивают переносимый воспроизводимый архив вне Git.
 
 Команды, ограничения и реальные результаты: [forward pilot](docs/forward-pilot.md).
+
+## Протокольные переходы и котировки
+
+`audit-protocol --store JOURNAL --out REPORT` восстанавливает classic-SPL CPMM vaults,
+раздельные fee counters и LP supply; сверяет swap math с событиями, CPI transfers и
+контрольными snapshots. Это read-only проверка условной котировки, не гарантия будущего fill.
+Поддержка, фактические результаты и ограничения: [protocol audit](docs/protocol-audit.md).

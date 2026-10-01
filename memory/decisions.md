@@ -121,7 +121,7 @@ v1 добавлена после ошибки -32015 и сверки текущ�
 
 ## D25 Уровни доказательности реконструкции
 
-**Статус:** принято. В текущем pilot восстанавливаются только classic SPL vault amounts
+**Статус:** принято на этапе forward pilot; расширено D26. В vault-аудите восстанавливаются classic SPL vault amounts
 из pre/post transaction metadata. Порядок внутри слота берётся из getBlock signatures.
 Проверяются непрерывность pre-balance и остаточная ошибка на независимом account checkpoint
 того же RPC. Это независимый путь состояния, но НЕ независимый провайдер. Pool fee counters,
@@ -129,3 +129,21 @@ v1 добавлена после ошибки -32015 и сверки текущ�
 Raw receipts дозагрузки сохраняют фактическое позднее время; историческая availability
 не восстанавливается задним числом. Архив аудита содержит journal, checksums и исходники
 проверяющего кода; не приписывает этот код предыдущим collector sessions.
+
+## D26 Экономическая реконструкция отделена от квалификации исполнения
+
+**Статус:** реализовано; real-evidence coverage ограничен, см. docs/protocol-audit.md.
+Точный integer adapter отделён от generic synthetic reference. Стартовое экономическое
+состояние берётся только из левого checkpoint; инструкции применяются в runtime/CPI порядке,
+сверяются с событиями и token transfers, затем с правым checkpoint. Старый decoder schema
+сохранён для воспроизводимости архивов. Quote-match не означает готовность transaction
+admission, inclusion, latency или counterfactual replay.
+
+Причина: сумма vault flows скрывает ошибки fee splitting и промежуточного execution state.
+Проверка на 189 mainnet tx дала 44 точных swap и 8 совпавших endpoint состояний; две успешных
+транзакции оказались no-op для пула. Неизвестные переходы блокируют интервал.
+Слабость: config считается неизменным между snapshots; модель не воспроизводит oracle и
+epoch, Token-2022 исключён. Creator-fee кандидаты из дополнительной выборки все использовали
+Token-2022, поэтому граница не расширена на основании красивого quote match.
+Пересмотр: реальные переходы недостающих типов, extension semantics, config history и
+независимая source validation. Исследовательские архитектурные гипотезы не менялись.

@@ -100,3 +100,18 @@ block jobs, source-error history и возобновление после пер
 issue records, включая HTTP 429; старые ошибки не удалены. Архив воспроизведён без сети
 двумя установками; повторное recovery не делает запросов. Пройдены 82 теста и проверки
 сборки. Рыночная полнота, full pool state, execution calibration и edge не объявлены.
+
+## 2026-10-01 Протокольная реконструкция CPMM и quote checks
+
+Добавлены отдельная integer venue math и CLI audit-protocol. 44 mainnet swap совпали
+с events/transfers до atomic unit; fee counters и internal LP supply совпали между
+checkpoints во всех 8 интервалах. 143 failures применяются атомарно, два успешных маршрута
+не считаются swaps. Строгое предположение «ровно 13 swap accounts» скорректировано: pinned
+handler допускает неиспользуемые trailing accounts; обнаруженный no-op router допустим
+по ownership/CPI правилам. Raw accounts и старые reports не переписаны.
+
+Source-derived liquidity/collection/creator math покрыта тестами; реального подтверждения
+этих переходов пока нет. Дополнительная выборка 24 tx и четыре pool reads показали
+Token-2022 у всех creator-fee кандидатов. Это основание для следующего ограниченного
+extension этапа, а не для снятия strict gate сейчас. 126 тестов, smoke, build и одинаковые
+аудиты из dev/wheel прошли. Memory Bank сохраняет различие evidence и предпосылок.

@@ -57,3 +57,11 @@ reconciliation. Цифры и отказы не дублируются здес�
 SPL vault amounts совпала с endpoints. Это не полное protocol state и не passing всего R2.
 Следующий gate — protocol transitions/fee counters и независимая полнота источника.
 Измеренные результаты и ограничения: docs/forward-pilot.md.
+
+## Обновление R2 — экономические переходы CPMM
+
+Conditional quote math, fee counters и internal LP supply проверены на classic-SPL
+swap интервалах. Это частичное продвижение R2/R3, не завершение source/execution gates.
+Следующий этап: Token-2022 whitelist semantics и mainnet coverage creator/liquidity/
+collection; config-history и независимая полнота источника остаются зависимостями.
+Факты: docs/protocol-audit.md; текущий статус: state.md.

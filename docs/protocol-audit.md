@@ -58,7 +58,7 @@ protocol/fund/creator counters и LP supply. Creator fee в проверенно
 Дополнительный bounded mainnet probe: из последних 1000 program signatures взяты
 24 успешные транзакции через детерминированный шаг по времени; 25 RPC calls с паузой
 2 секунды (одна страница + 24 transactions). Выбор диагностический, не universe для ML.
-Встречены 14 CPMM swap и 10 транзакций без CPMM swap. Четыре пула с ненулевой creator fee
+Встречены 13 CPMM swap и 11 транзакций без CPMM swap. Четыре пула с ненулевой creator fee
 проверены отдельными account reads: все используют Token-2022; строгий classic-only
 допуск не расширен. Логи других программ с тем же Anchor event discriminator не являются
 CPMM evidence — программа и invocation обязательны для атрибуции.

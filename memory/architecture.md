@@ -95,3 +95,10 @@ Reward RL, если он появится, строится на согласо�
 Локальная ветка TCN или другой encoder + длинная память Transformer/SSM/GRU → sparse/set interactions → локальные temporal graph features → совместные сценарии рынка и исполнения → MPC с learned terminal value или policy/value → независимый риск.
 
 Ни один блок не обязателен без ablation. MoE допускается только при устойчивой специализации режимов и достаточных данных каждому эксперту. Сильный простой baseline остаётся соперником всей системы. Развитие модели не должно опережать достоверность execution model.
+
+## Реализованная граница venue math
+
+`cpmm.py` содержит отдельные immutable economic transitions pinned Raydium CPMM,
+`protocol.py` связывает их с raw evidence и строгим interval audit. Эти слои не зависят
+от neural architecture и не включены в synthetic ReferenceReplay. Условная точная
+котировка и полная execution qualification — разные gates; детали в docs/protocol-audit.md.

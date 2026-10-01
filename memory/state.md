@@ -4,7 +4,7 @@
 
 ## Стадия и авторизация
 
-Memory Bank принят как source of truth. Пользователь разрешил автономный архитектурный проход: реализацию, тесты, локальные инструменты, коммиты и push в существующий `origin/main` при доступной аутентификации. Отдельно утверждён и выполнен bounded forward collection/recovery pilot. Реальные деньги, торговые транзакции и оплата внешних сервисов не разрешены.
+Memory Bank принят как source of truth. Пользователь разрешил автономный архитектурный проход: реализацию, тесты, локальные инструменты, коммиты и push в существующий `origin/main` при доступной аутентификации. Выполнены утверждённые bounded forward collection/recovery pilot и этап протокольной реконструкции CPMM. Реальные деньги, торговые транзакции и оплата внешних сервисов не разрешены.
 
 Локальный инженерный фундамент реализован. Это не прохождение рыночных gates R2–R8: реальный источник/сегмент ещё не квалифицирован, edge не установлен. Git и факт отправки проверять непосредственно через историю и remote, а не по вручную дублируемым hash.
 
@@ -36,7 +36,7 @@ ReferenceReplay намеренно synthetic-only, one-quote, one-pool-per-base 
 
 ## Открытые решения
 
-Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D25: [decisions](decisions.md).
+Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D26: [decisions](decisions.md).
 
 ## Результат bounded data-аудита
 
@@ -67,15 +67,38 @@ benchmark. Журнал и ~8.7 MB архив вне Git; summary/hashes в docs
 Архив повторно проверен без сети из development package и установленного wheel. Повторное
 recovery завершённого журнала не отправило запросов. Подробности — [forward pilot](../docs/forward-pilot.md).
 
-Граница: реконструированы только classic SPL vault amounts. Счётчики комиссий лишь
-наблюдались в endpoints; full pool state и исполнимая цена не восстановлены. Полнота индекса
+На момент завершения forward pilot реконструировались только classic SPL vault amounts.
+Следующий протокольный этап расширил эту проверку — см. ниже. Полнота индекса
 условна относительно одного провайдера; birth/death universe и классификация memecoins
 не доказаны. Synthetic execution gate и market_dataset_qualified=false сохранены.
 
+## Результат протокольного этапа
+
+Реализованы `cpmm.py` (integer transitions) и `protocol.py`/`audit-protocol` (CPI/event/
+transfer/endpoint verification). На прежнем immutable журнале: 44 swap — 42 exact-input,
+2 exact-output; 143 failed без изменения состояния; 2 успешных no-op маршрута. Все суммы
+swap совпали до atomic unit; экономическое состояние совпало во всех 8 интервалах.
+Новая версия не меняет старый checkpoint schema и не подгоняет состояния по endpoints.
+
+126 тестов, lint/format/strict typing, synthetic smoke и package build прошли. Повторный
+аудит, включая установленный wheel, побитово идентичен; прежний frozen pilot также
+проверен повторно. Компактные реальные regression captures сохранены в Git; полный
+журнал, source captures и отчёты вне Git, hashes/summary — docs/evidence.
+
+Deposit/withdraw/collections и creator fee реализованы по pinned source, но подтверждены
+пока только инженерными тестами. Дополнительная диагностическая выборка 24 mainnet tx
+нашла creator-fee swaps; все четыре проверенных кандидата используют Token-2022 и не
+допущены strict classic adapter. Полная source completeness, config-history, binary
+equivalence, oracle/Clock, latency/inclusion/network costs остаются неизвестными.
+Полная execution qualification, market dataset и edge не объявлены.
+Детали, команды и provenance: [protocol audit](../docs/protocol-audit.md).
+
 ## Следующий крупный практический этап
 
-Протокольная реконструкция CPMM поверх этого журнала: successful swaps, liquidity changes,
-fee collection и failed attempts; восстановление fee counters, затем проверка integer quote
-math на отдельных реальных checkpoints/transactions. Независимый источник/проверка полноты
-индекса остаются обязательной data-quality зависимостью. До прохождения этих gates не
-переходить к заявлению готового ML dataset или калиброванного исполнения.
+Контролируемая поддержка Token-2022 в CPMM: семантика только явно разрешённых extensions,
+transfer fees/withheld amounts/epoch schedules и отказ для неподдержанных свойств. Затем
+реальные ограниченные интервалы для creator fee, deposit/withdraw и fee collection.
+Расширять область допуска только по доказательствам; не превращать inventory extensions
+в разрешение исполнения. Параллельная data-quality зависимость — история config и
+независимая проверка полноты источника. До этих gates не запускать ML/backtest как
+доказательство реального edge.
