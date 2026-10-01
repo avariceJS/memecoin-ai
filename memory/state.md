@@ -4,7 +4,7 @@
 
 ## Стадия и авторизация
 
-Memory Bank принят как source of truth. Пользователь разрешил автономный архитектурный проход: реализацию, тесты, локальные инструменты, коммиты и push в существующий `origin/main` при доступной аутентификации. Реальные деньги, торговые транзакции и оплата внешних сервисов не разрешены.
+Memory Bank принят как source of truth. Пользователь разрешил автономный архитектурный проход: реализацию, тесты, локальные инструменты, коммиты и push в существующий `origin/main` при доступной аутентификации. Отдельно утверждён и выполнен bounded forward collection/recovery pilot. Реальные деньги, торговые транзакции и оплата внешних сервисов не разрешены.
 
 Локальный инженерный фундамент реализован. Это не прохождение рыночных gates R2–R8: реальный источник/сегмент ещё не квалифицирован, edge не установлен. Git и факт отправки проверять непосредственно через историю и remote, а не по вручную дублируемым hash.
 
@@ -19,13 +19,14 @@ Memory Bank принят как source of truth. Пользователь раз
 - Purged walk-forward, mature-label guard, train-only standardizer, empirical distribution baseline, pinball и block bootstrap.
 - Run config/provenance/source snapshot, completed/failed lifecycle, checksums и evidence blockers для promotion.
 - Read-only RPC capture/probe и bounded CPMM qualification: реальные v0/v1 транзакции, pinned account decoder, structural Token-2022 inventory, offline reproduction и сверка vault flows.
+- Bounded forward collector фиксированной когорты: SQLite/WAL journal, persisted cursors, recovery, block ordering, vault continuity audit и переносимые snapshots.
 - Make tooling, тесты и CI definition для Python 3.11/3.13. Состояние удалённого CI не следует путать с локальной проверкой.
 
 Команды и карта модулей: [README](../README.md). Точные ограничения: [contracts](../docs/contracts.md). Проверка источника: [source audit](../docs/source-audit.md).
 
 ## Что проверено
 
-Локально на Python 3.13: 67 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 82 автоматических теста, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
@@ -35,7 +36,7 @@ ReferenceReplay намеренно synthetic-only, one-quote, one-pool-per-base 
 
 ## Открытые решения
 
-Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D23: [decisions](decisions.md).
+Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D25: [decisions](decisions.md).
 
 ## Результат bounded data-аудита
 
@@ -52,11 +53,29 @@ Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/h
 на всю наблюдаемую вселенную. История отказов сохранена. Подробности и точные evidence
 в [source audit](../docs/source-audit.md); компактный реальный regression fixture в Git.
 
+## Результат forward pilot
+
+Сбор на фиксированной когорте двух ранее известных пулов: 10 finalized checkpoints за
+211.299 секунды receipt span, 8 интервалов (2 непустых), 189 транзакций в 15 блоках.
+Из них 46 успешных, 143 failed; v0/v1 сохранены. После restart/backfill все 24 address
+scans завершены, pending jobs нет, промежуточные balances и конечные residuals совпали
+во всех интервалах. Перед дозагрузкой gap-open audit не проходил; endpoints не менялись.
+
+56 записей об ошибках/остановках сохранены, включая один измеренный HTTP 429. Начальные
+маленькие страницы и исправленная ошибка CLI привели к лишним запросам: это не throughput
+benchmark. Журнал и ~8.7 MB архив вне Git; summary/hashes в docs/evidence/forward-2026-10-01.json.
+Архив повторно проверен без сети из development package и установленного wheel. Повторное
+recovery завершённого журнала не отправило запросов. Подробности — [forward pilot](../docs/forward-pilot.md).
+
+Граница: реконструированы только classic SPL vault amounts. Счётчики комиссий лишь
+наблюдались в endpoints; full pool state и исполнимая цена не восстановлены. Полнота индекса
+условна относительно одного провайдера; birth/death universe и классификация memecoins
+не доказаны. Synthetic execution gate и market_dataset_qualified=false сохранены.
+
 ## Следующий крупный практический этап
 
-Bounded forward-capture pilot: заданное окно discovery, durable cursor/gap recovery,
-реестр обнаруженных и закрывшихся пулов, account checkpoints и последующая сверка с
-backfill. Проверить реконструкцию интервала между checkpoints и оценить необходимые
-Token-2022 extensions. До объяснения пропусков и reconciliation residuals не переходить
-к ML dataset или к заявлению калиброванного исполнения. Оплата/недоступные credentials
-требуют пользователя; обычные технические решения разрешены.
+Протокольная реконструкция CPMM поверх этого журнала: successful swaps, liquidity changes,
+fee collection и failed attempts; восстановление fee counters, затем проверка integer quote
+math на отдельных реальных checkpoints/transactions. Независимый источник/проверка полноты
+индекса остаются обязательной data-quality зависимостью. До прохождения этих gates не
+переходить к заявлению готового ML dataset или калиброванного исполнения.

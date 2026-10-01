@@ -82,3 +82,13 @@ New qualification specs include hashes of the local decoder/source/contract impl
 Older retained captures predate this field: verification reports fingerprint_recorded=false
 and matches_recorded=false while still reproducing their outputs. Missing hashes are never
 retroactively invented. Raw historical arrival times likewise remain unknown.
+
+## Durable collection pilot
+
+`collection.py` owns a fixed-cohort WAL journal and atomic scan cursors; `reconciliation.py`
+replays classic SPL vault amounts between adjacent finalized banks. The raw capture is stored
+before parsing, and cursor/work transition is atomic. Recovery never rewrites an old receipt.
+Missing transaction or block order remains pending even when every signature page is fetched.
+See [pilot contract and measurements](forward-pilot.md) for provider-index and full-state limits.
+Pilot writing uses a Unix file lock (tested on macOS; CI on Linux). Audits read a consistent
+SQLite transaction, and exported backups are checksummed alongside the auditor's source.

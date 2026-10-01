@@ -50,3 +50,10 @@ regression captures реализованы. R2 market gate не пройден: 
 полная реконструкция исторических состояний и независимая сверка остаются открытыми.
 Следующий practically scoped pilot — forward collection с gap recovery и backfill
 reconciliation. Цифры и отказы не дублируются здесь: см. docs/source-audit.md.
+
+## Обновление R2 — forward pilot
+
+Ограниченный fixed-cohort сбор и recovery проверены: интервальная реконструкция classic
+SPL vault amounts совпала с endpoints. Это не полное protocol state и не passing всего R2.
+Следующий gate — protocol transitions/fee counters и независимая полнота источника.
+Измеренные результаты и ограничения: docs/forward-pilot.md.

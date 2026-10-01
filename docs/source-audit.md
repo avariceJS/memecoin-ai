@@ -63,7 +63,7 @@ redistribution or full-chain throughput was qualified. No payments were needed f
 production data cost remains unknown. Public source revision was not verified against deployed
 program bytecode. ReferenceReplay remains synthetic-only.
 
-## Decision and next gate
+## Decision and next gate at the initial audit
 
 Use Raydium CPMM as the first **data-adapter family**, not an approved trading universe.
 Retain broad raw observations and explicit unsupported inventories. Do not remove Token-2022
@@ -87,3 +87,9 @@ residuals; only then proceed to venue-specific execution math/calibration and re
   [getSignaturesForAddress](https://solana.com/docs/rpc/http/getsignaturesforaddress),
   [getTransaction](https://solana.com/docs/rpc/http/gettransaction),
   [transaction versions](https://solana.com/developers/cookbook/transactions/versions).
+
+## Subsequent forward pilot
+
+The bounded collection/recovery stage has now been run: see [forward pilot](forward-pilot.md).
+It validates vault continuity for a fixed cohort and preserves the limitations above. The
+qualification sample described here remains unchanged historical evidence.

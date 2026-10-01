@@ -91,3 +91,12 @@ block jobs, source-error history и возобновление после пер
 Найдена и исправлена ошибка передачи recovery параметров CLI; отдельный тест проверяет
 фактические запросы. Прежние receipts/ошибки не переписаны. HTTP status теперь можно записать
 без endpoint/credential; старым ошибкам неизвестный статус не приписывается.
+
+## 2026-10-01 Результат реального forward pilot
+
+10 checkpoints / 8 интервалов / 189 транзакций (46 successful, 143 failed), 15 blocks.
+После дозагрузки нет pending scans/transactions/blocks; все промежуточные pre-balances
+согласованы, terminal residuals равны нулю. Сохранены gap-open и recovered evidence, 56
+issue records, включая HTTP 429; старые ошибки не удалены. Архив воспроизведён без сети
+двумя установками; повторное recovery не делает запросов. Пройдены 82 теста и проверки
+сборки. Рыночная полнота, full pool state, execution calibration и edge не объявлены.

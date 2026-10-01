@@ -89,3 +89,12 @@ Paper trading проверяет живой pipeline, котировки и ре
 и context slot не заменяют historical event/feature availability. Реальные checkpoint
 артефакты не подаются в synthetic reference replay. Текущая проверка vault flows
 не восстанавливает прошлые fee counters и не калибрует исполнимую цену.
+
+## Forward pilot
+
+Реализованы ограниченный polling фиксированной когорты и восстановление между finalized
+checkpoints. Сканируются pool и оба vault; order внутри слота берётся из блока. Проверяется
+полная последовательность pre/post token balances, а не только сумма дельт. Recovery не
+меняет прежние receipts. Граница доказательности, команды и результат — в
+[forward pilot](../docs/forward-pilot.md). Полное pool state, universe coverage и независимый
+провайдер остаются открытыми; snapshot consistency не является execution calibration.

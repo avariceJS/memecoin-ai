@@ -54,7 +54,52 @@ Raw data and exports remain outside Git. Old receipts never gain earlier availab
 - A closed or missing vault requires a separate lifecycle decoder; it is never silently valued
   at zero. Token-2022 remains structural inventory in the earlier audit tool, outside this pilot.
 
-## Real validation
+## Real validation — 2026-10-01
 
-The measured mainnet run and its limitations are recorded in the evidence section after the
-bounded collection/recovery run completes. Existing qualification evidence is in source-audit.md.
+[Machine-readable evidence](evidence/forward-2026-10-01.json) pins the counts, interval
+bounds, residuals and artifact hashes. The cohort was fixed before capture: one SOL/token
+pool from the previous adapter audit and the official SOL/USDC control pool. Neither this
+choice nor the token metadata qualifies a representative memecoin research universe.
+
+- 10 finalized checkpoints over **211.299 seconds** of checkpoint receipt time; 8 adjacent
+  pool intervals. Two intervals were nonempty; six were empty according to the address index.
+- 189 distinct transactions: **46 successful and 143 failed**, 131 v0 and 58 v1; 15 blocks.
+  Failed attempts were retained and their token balances checked, not counted as swaps.
+- 24 address scans closed at their lower boundaries. All 189 transactions and block orders
+  were eventually available. No pending jobs remained.
+- All 8 intervals passed sequential pre-balance continuity and endpoint equality. Both vault
+  residuals were zero in every interval, including the interval with 184 transactions.
+- The saved gap-open report was inconsistent/incomplete; after recovery the same checkpoint
+  endpoints passed. The run included intentional deferred transaction ingestion, budget stops,
+  process restart and real source errors. These are not all described as network outages.
+- There were 56 issue records: 53 earlier transport errors without an HTTP classification,
+  two budget stops, and one explicitly recorded HTTP 429 during block recovery. The final block
+  succeeded on a later request. Old failures remain visible; there is no retroactive diagnosis.
+- Small initial pages and a discovered CLI tuning-wiring bug caused excessive requests before
+  correction. Total 538 stored replies and 335 page applications are NOT a production efficiency
+  benchmark. Defaults/overrides and shared-page reuse are tested; continuous backlog and
+  source-limit adaptation still need a longer operational pilot.
+
+The raw journal and ~8.7 MB frozen archive are ignored under `work/forward-pilot/`.
+`frozen-final` includes checksums, the journal, deterministic audit report and auditing source.
+Both the development package and installed wheel reproduced its report offline. Repeated
+recovery after completion used zero RPC requests. The summary in Git references the raw
+artifacts by hash; the complete real dataset is deliberately not committed.
+
+**This proves limited internal accounting consistency, not complete market capture.**
+Pool fee counters changed in the interval but were only observed at endpoints. There is no
+full protocol-state replay, independent provider, Token-2022 execution support, launch/closure
+universe coverage, calibrated executable price, OOS model or trading edge.
+
+## Next practical gate
+
+Decode protocol transitions for the same fixed CPMM domain: distinguish successful swaps,
+liquidity operations, fee collection and failed attempts; reconstruct fee counters as well
+as vault balances. Validate those transitions and integer quote math on held-out real
+transactions/checkpoints. Independent-source/index-completeness checks remain a parallel
+data-quality dependency; successful vault reconciliation must not be used to waive them.
+
+Primary RPC semantics checked: Solana
+[getSignaturesForAddress](https://solana.com/docs/rpc/http/getsignaturesforaddress) and
+[getBlock](https://solana.com/docs/rpc/http/getblock). Finalized bank/account semantics and
+pinned protocol references are recorded in [source audit](source-audit.md).
