@@ -54,3 +54,7 @@
 ## 2026-10-01 Research contracts и воспроизводимый запуск
 
 Добавлены отдельные Features/Target, зрелость labels, purged walk-forward, train-only standardizer, unconditional empirical forecaster и pinball score, block bootstrap, promotion blockers. CLI связывает fixture → bundle audit → reference replay → run manifest/metrics/checksums. Отрицательный synthetic round-trip используется как инженерная проверка; прибыльность не выводится. Backbone, neural training и действительная разметка рынка не выбирались.
+
+## 2026-10-01 Ограниченная проверка RPC
+
+Добавлен read-only RPC client с allowlist, timeout/size limits, raw receipts и редактированием чувствительных endpoint errors. Публичный mainnet endpoint ответил на getVersion/getSlot/getFirstAvailableBlock; локальные raw captures вне Git. Это подтверждает только связность: market_dataset_qualified=false, historical arrivals неизвестны. Qualified pool decoder, реконструкция account state и live/history audit остаются следующей практической зависимостью.

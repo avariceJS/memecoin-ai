@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from dataclasses import asdict
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from memecoin_ai.domain import Event, ValidationError, canonical
 from memecoin_ai.experiments import RunRecorder, summarize, verify_run
 from memecoin_ai.fixtures import ScriptedFixturePolicy, synthetic_events
 from memecoin_ai.replay import CashPolicy, ReferenceReplay
+from memecoin_ai.sources import ReadOnlyRPC, probe_rpc
 from memecoin_ai.storage import EventStore, audit, load_bundle, write_bundle
 
 
@@ -33,9 +35,23 @@ def main() -> int:
     run.add_argument("--repo", type=Path, default=Path.cwd())
     verify = commands.add_parser("verify-run", help="Verify completed run artifacts")
     verify.add_argument("path", type=Path)
+    probe = commands.add_parser("probe-rpc", help="Bounded read-only source probe; no transactions")
+    probe.add_argument("--source-alias", required=True)
+    probe.add_argument("--endpoint-env", default="MEMECOIN_RPC_URL")
+    probe.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     try:
-        if args.command == "ingest":
+        if args.command == "probe-rpc":
+            endpoint = os.environ.get(args.endpoint_env)
+            if not endpoint:
+                raise ValidationError("RPC endpoint environment variable is not set")
+            report = probe_rpc(ReadOnlyRPC(endpoint, args.source_alias), args.out)
+            print(canonical(report))
+            results = report["results"]
+            assert isinstance(results, dict)
+            if any(isinstance(value, dict) and "error" in value for value in results.values()):
+                return 1
+        elif args.command == "ingest":
             events = [Event.from_json(line) for line in args.input.read_text().splitlines()]
             with EventStore(args.store) as store:
                 print(canonical({"inserted": store.append(events)}))
