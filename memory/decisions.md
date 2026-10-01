@@ -197,3 +197,25 @@ checkpoint-anchored replay. 13 реальных LP операций подтве
 withdraw подтверждает отсутствие изменения наших vaults, не mint-wide bookkeeping.
 Причина: исторических pre-checkpoints для этих tx нет. Слабость — частичное покрытие;
 пересмотр при накоплении независимых anchors для редких операций.
+
+## D31 Сверка провайдеров — отдельное доказательство
+
+**Статус:** инструменты реализованы; mainnet agreement не получено из-за доступа.
+Сохранять полный план exact finalized requests, исходные captures и неудачные попытки;
+401/403/429 останавливают серию без fallback. Различать mismatch, unavailable и
+incomparable banks. Причина: null results и разные context slots не доказывают ни
+полноту, ни расхождение. Независимость оператора проверяется отдельно от alias.
+На mainnet PublicNode/OnFinality не вернули данных для comparison; gate остаётся false.
+Ограничение: даже совпадение выбранных tx слабее сравнения полного bounded диапазона.
+Следующий опыт — доступный второй оператор и block-range audit. Evidence: docs/provider-audit.md.
+
+## D32 Время ответа отдельно от возраста данных и исполнения
+
+**Статус:** измерены bounded read-side характеристики, execution latency неизвестна.
+Concurrent confirmed/finalized Clock reads: monotonic HTTP duration, wall receipt-minus-Clock
+и polling-dependent slot visibility считаются отдельно. Маленькая выборка и неопределённость
+часов сохраняются в интерпретации. Причина: mainnet дал ~250 ms response при ~9.7 s
+возрасте finalized Clock; подстановка response duration в execution simulation неверна.
+Слабость: нет синхронизации часов, blockhash finality tracking, длительного load sample
+и submission/inclusion measurements. Выбор feed/frequency требует следующих измерений;
+никакого разрешения торговых транзакций это решение не создаёт.

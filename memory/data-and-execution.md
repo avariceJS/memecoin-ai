@@ -128,3 +128,14 @@ Full-block и bounded-range recovery сохраняют исходное док�
 от незакрытых address cursors проверяют покрытие. Captures и decode cache нельзя
 использовать для ретроактивной доступности features. LP witnesses имеют более слабый
 уровень, чем interval reconstruction. Точные границы: [history](../docs/parameter-history.md).
+
+## Проверка провайдера и измерение задержек
+
+D31–D32: read-side audit хранит точный план и raw ответы; разный account bank не сравнивается
+как одинаковое состояние. HTTP failures и неполный план не дают agreement. Независимый
+оператор пока недоступен; qualification не повышена. Отдельно измерены monotonic response
+и receipt-minus-Clock, без переноса этих значений в trade inclusion/fill model.
+
+D30 расширено тремя реальными fund-collection witnesses: gross vault debits, net recipient
+credits и requested limits проверены, прежние counters и tariffs не восстановлены.
+Подробности, числа и reproducible commands — [provider audit](../docs/provider-audit.md).

@@ -143,3 +143,15 @@ recovery завершён. Fixed pacing оказался недостаточн�
   выбранные pools новых успешных операций не имели. Edge и новые quotes не заявлены.
 - Защищены immutable parsed cache и конфликтующие same-bank mint checkpoints.
   Старые архивы остаются совместимыми. Подробности и provenance — docs/parameter-history.md.
+
+## 2026-10-02 — Read-side latency, второй оператор и fund collections
+
+- D31: exact-request comparison и sealed audit bundles. Попытки PublicNode (403) и
+  OnFinality (429) сохранены как незавершённые планы; независимой сверки фактически нет.
+- D32: isolated mainnet Clock run, 24 requests без ошибок; response ~250 ms существенно
+  отличается от finalized Clock age ~9.7 s. Это не execution calibration.
+- Целевой поиск protocol/fund/creator authorities вместо новых случайных swaps:
+  3 real collect_fund_fee witnesses, включая Token-2022 gross/net deductions.
+  Согласование transfers не подменяет неизвестный counter/tariff prestate (D30).
+- 209 тестов, smoke/build и dev/wheel reproduction; synthetic-only/market gates сохранены.
+  Следующий внешний dependency — доступный второй оператор для block-range verification.

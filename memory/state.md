@@ -27,7 +27,7 @@ Memory Bank принят как source of truth. Пользователь раз
 
 ## Что проверено
 
-Локально на Python 3.13: 192 автоматических теста, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 209 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
@@ -37,7 +37,7 @@ ReferenceReplay намеренно synthetic-only, one-quote, one-pool-per-base 
 
 ## Открытые решения
 
-Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D30: [decisions](decisions.md).
+Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D32: [decisions](decisions.md).
 
 ## Результат bounded data-аудита
 
@@ -139,11 +139,32 @@ dev/wheel range reports прошли; старые classic/Token-2022 audits т�
 E01–E14 не проведены.
 Документ и evidence: [parameter history](../docs/parameter-history.md).
 
+## Результат проверки второго провайдера и времени получения
+
+Реализованы exact-request cross-provider comparison, bounded paired Clock sampler,
+sealed raw/measurement bundles с offline reproduction и collection-transfer witnesses.
+Независимая сверка **не состоялась**: PublicNode вернул 403, OnFinality — 429;
+formal plans сохранены полностью, остановлены после первого отказа. dRPC также дал
+403 в preflight. Смена alias не считается доказательством независимой инфраструктуры.
+
+Изолированный реальный run: 12 пар confirmed/finalized, 24 запроса, 0 ошибок.
+Response p50 253.726 / 249.244 ms; receipt minus chain Clock p50 1.217 / 9.718 s.
+Это read-side measurements с ограничением часов/выборки, не inclusion/fill latency.
+Нельзя присвоить historical finalized данным доступность через 250 ms.
+
+Целевой поиск fee authorities дал 3 collect_fund_fee: CPI/metadata/limits совпали,
+наблюдены Token-2022 deductions. Старые fee counters и historical tariffs неизвестны;
+полная checkpoint-anchored collection реконструкция не объявлена. Protocol/creator
+collections, config/tariff updates и epoch boundary по-прежнему не подтверждены.
+209 tests, lint/format/typing, smoke/build и dev/wheel offline reproduction прошли.
+Подробности и ограничения: [provider audit](../docs/provider-audit.md).
+
 ## Следующий крупный практический этап
 
-Квалификация более длительного синхронного сбора: ограниченная когорта, независимая
-сверка полноты у второго провайдера, измерение receipt latency/объёма и адресный поиск
-редких admin/fee операций. Проверить, какая комбинация account observations и block
-recovery пригодна для устойчивого сбора. Не требовать смены тарифа за произвольный
-короткий срок и не подменять отсутствующие historical anchors текущими snapshots.
+Сначала обеспечить доступный RPC независимого оператора (endpoint/credential через
+локальное окружение, без секретов в Git). Затем синхронный bounded pilot: зафиксировать
+диапазон finalized slots, сверить enumeration и порядок/hash блоков у двух операторов,
+полные metadata релевантных tx и checkpoint reconstruction. Отдельно расширить замеры
+доступности и накопить anchors для редких переходов. Нынешние 403/429 нельзя обойти
+переименованием исходного RPC, а известные три tx не доказывают полноту диапазона.
 ML/backtest profitability до прохождения data/execution gates не заявлять.

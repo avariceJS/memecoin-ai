@@ -1,0 +1,124 @@
+# Второй провайдер, время получения и редкие fee operations
+
+Результат 2026-10-02: инструменты реализованы, read latency измерена, найдены три
+mainnet fund-fee witnesses. **Независимая сверка не состоялась из-за недоступности
+второго RPC.** Полнота источника и execution qualification остаются недоказанными.
+Числа, hashes и provenance: [evidence](evidence/provider-audit-2026-10-02.json).
+
+## Сверка источников
+
+`crosscheck-captures` сначала сохраняет весь план и исходные captures, затем повторяет
+точные finalized-запросы у другого source alias. Поддержаны getBlocks, getBlock
+(full/signatures), getTransaction и account reads. Сравниваются значения accounts,
+порядок транзакций, block identity и transaction metadata; транспортный JSON не обязан
+быть побитово одинаковым. Null/empty block enumeration не считается совпадением.
+Accounts разных context slots получают `incomparable`: minContextSlot — нижняя граница,
+а не запрос исторического состояния. HTTP 401/403/429 останавливают оставшийся план;
+пропущенные запросы не исчезают из знаменателя. Никакого fallback на исходный RPC.
+
+Разные имена/домены не доказывают независимость инфраструктуры. Даже полное совпадение
+не превращает небольшой образец в доказательство полноты истории. Для следующего
+опыта нужны независимый оператор и фиксированный диапазон finalized slots: сравнить
+getBlocks, identity/order каждого блока, затем полные metadata релевантных транзакций.
+Сверка нескольких известных tx сама по себе не проверяет отсутствие пропущенных tx.
+
+| Проверенный кандидат | Наблюдение из текущего окружения | Результат |
+|---|---|---|
+| PublicNode | HTTP 403; formal plan 3, attempted 1 | Ни одного secondary capture |
+| OnFinality | HTTP 429 в preflight, повторе и formal plan 2, attempted 1 | Ни одного secondary capture |
+| dRPC | HTTP 403 в preflight | Не допущен к сверке |
+
+Это наблюдения доступа, а не установленные причины отказа или оценка качества данных
+операторов. Проба неподтверждённого Solana URL 1RPC также дала 403; она **не** считается
+проверкой документированного Solana-сервиса. Ankr требует API key; обращения с чужими
+ключами и покупка доступа не предпринимались. Полные denied plans сохранены локально
+в `work/cross-provider-stage/crosscheck-{publicnode,onfinality}`.
+
+```sh
+# MEMECOIN_SECONDARY_RPC_URL задать безопасно в окружении, не в Git.
+mcai crosscheck-captures tests/fixtures/fund_collection/fund-tx-2 \
+  tests/fixtures/parameter_history/lp-0-tx-1 \
+  --source-alias secondary-operator --out work/secondary-audit
+mcai verify-provider-audit work/secondary-audit
+```
+
+`verify-provider-audit` проверяет registry, hashes и пересчитывает отчёт без сети.
+Отказы тоже являются корректными архивами: успешная offline verification не означает
+успешную независимую сверку. Source snapshot — версия кода при сборе; поздние проверки
+не переписывают этот snapshot. Доказательства ошибки HTTP — локальные записи клиента,
+не подписанные сервером ответы. Credential URLs и тексты transport errors не сохраняются.
+
+## Что именно измерено
+
+Один изолированный run, 12 пар concurrent Clock reads confirmed/finalized, 24 запроса,
+0 ошибок. После завершения каждой пары пауза 3 секунды. Исторический backfill параллельно
+не запускался. Не является нагрузочным тестом, длительным SLA или выбором frequency.
+
+| Величина | confirmed | finalized |
+|---|---:|---:|
+| HTTP response duration, p50 | 253.726 ms | 249.244 ms |
+| HTTP response duration, p95/max | 385.231 ms | 315.638 ms |
+| Receipt minus chain Clock, p50 | 1.217 s | 9.718 s |
+| Receipt minus chain Clock, max | 1.816 s | 10.482 s |
+
+Response duration измеряется monotonic clock вокруг запроса и включает transport/TLS,
+RPC и загрузку ответа. Часы chain и клиента не синхронизированы этим опытом; Unix timestamp
+Clock имеет секундную точность. Поэтому receipt-minus-Clock — наблюдаемый возраст с
+погрешностью часов, не измерение one-way network latency. У 12 samples nearest-rank p95
+совпадает с максимумом; выводы о хвостах нагрузки делать рано.
+
+Первый confirmed slot 452421055 позже увиден в finalized; разница wall-clock receipts
+9.851336 s. Это polling-dependent интервал видимости **номера слота**, не доказательство
+того же blockhash, не точный момент consensus finality и не задержка включения сделки.
+Если finalized достиг target до первого confirmed receipt, delay остаётся null
+(left-censored); если не достиг за run — null и finalized_seen=false (right-censored).
+Wall-clock corrections могут исказить этот показатель. Execution latency остаётся unknown.
+Для коротких горизонтов потребуется отдельное исследование confirmed feed с fork/rollback
+семантикой; нельзя просто приписать historical finalized данным возраст 250 ms.
+
+```sh
+mcai measure-rpc-latency --source-alias solana-public --rounds 12 --interval 3 \
+  --out work/read-latency
+mcai verify-provider-audit work/read-latency
+```
+
+## Новое mainnet-покрытие редких переходов
+
+Вместо случайного поиска swaps использованы protocol/fund authority из ранее полученного
+config и creator известного пула. Это **ретроспективная диагностика**, не PIT universe или
+feature. Для каждого адреса сохранена страница 12 signatures; проверены первые 8.
+У protocol authority все 8 failed (транзакции не догружались), у fund и creator — по
+8 successful captures. Из 16 полученных успешных tx найдены три `collect_fund_fee`:
+
+| Slot | Gross vault debits (atomic units) | Observed deductions |
+|---|---|---|
+| 452419948 | 3497269462 / 96571796 | 104918084 / 0 |
+| 452419907 | 749251459 / 3922 | 7492515 / 0 |
+| 452419856 | 1665667007 / 151948 | 16656671 / 1520 |
+
+`audit-collection-witness` проверяет pinned instruction layout, requested limits,
+прямые token CPI transfers и точное соответствие pre/post vault и recipient balances.
+Лишние потоки через эти accounts, оборванные traces и failed transactions отклоняются.
+Token-2022 net credits могут быть меньше gross debits. Наблюдаемые удержания **не**
+доказывают исторический tariff без mint anchor. Прежние counters неизвестны: равенство
+`min(requested, counter)` и конечный counter не реконструированы. Модель протокола не
+потребовала изменения на этих трёх примерах; уровень доказательства расширен аккуратно.
+
+```sh
+mcai audit-collection-witness tests/fixtures/fund_collection/fund-tx-2 \
+  --out work/fund-witness.json
+```
+
+Компактные неизменённые captures в Git; полный поиск и measurement archives вне Git.
+Не найдены подтверждения protocol/creator collections, config/setTransferFee mutations,
+epoch crossing и LP transitions между независимыми checkpoints. Не выбранные сегменты
+не считаются отсутствующими на рынке. E01–E14 не проведены, synthetic replay gate сохранён.
+
+## Первичные источники
+
+- [PublicNode Solana](https://solana.publicnode.com/),
+  [OnFinality public networks](https://onfinality.io/en/networks),
+  [dRPC Solana API](https://drpc.org/docs/solana-api),
+  [Ankr API access](https://www.ankr.com/docs/api-reference/).
+- [Solana public RPC limitations](https://solana.com/docs/references/clusters).
+- [Pinned Raydium collect_fund_fee](https://github.com/raydium-io/raydium-cp-swap/blob/59fb845a9e5bb569c8b2f3415f13b0c0ebcc6b92/programs/cp-swap/src/instructions/admin/collect_fund_fee.rs).

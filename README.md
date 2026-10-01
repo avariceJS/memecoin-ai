@@ -116,3 +116,12 @@ Clock того же bank; принимается whitelist metadata/transfer-fee
 captures. `audit-liquidity-witness CAPTURE --out REPORT` — отдельная, более слабая
 проверка исторических classic LP операций по event/transfers.
 Контракт и mainnet результаты: [parameter history](docs/parameter-history.md).
+
+## Независимая сверка и read latency
+
+`crosscheck-captures` повторяет точные finalized-запросы у другого RPC, сохраняет весь
+план, raw evidence и отказы. `measure-rpc-latency` измеряет response duration и Clock
+observations; это не latency исполнения сделки. `verify-provider-audit` пересчитывает
+sealed report offline. `audit-collection-witness` проверяет fee transfers без выдуманного
+prestate counters. Результаты, команды и незакрытый доступ ко второму оператору:
+[provider audit](docs/provider-audit.md).
