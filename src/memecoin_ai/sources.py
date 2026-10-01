@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import time
 import urllib.error
 import urllib.request
@@ -9,7 +8,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from memecoin_ai.domain import ValidationError, canonical, digest, integer
+from memecoin_ai.domain import ValidationError, canonical, digest, integer, strict_json
 
 READ_METHODS = frozenset(
     {
@@ -19,6 +18,8 @@ READ_METHODS = frozenset(
         "getBlock",
         "getAccountInfo",
         "getMultipleAccounts",
+        "getSignaturesForAddress",
+        "getTransaction",
     }
 )
 
@@ -47,9 +48,31 @@ class Capture:
         (path / "response.json").write_bytes(self.response)
         (path / "receipt.json").write_text(canonical(metadata) + "\n")
 
+    @classmethod
+    def load(cls, path: Path) -> Capture:
+        metadata = strict_json((path / "receipt.json").read_text())
+        body = (path / "response.json").read_bytes()
+        if metadata.get("schema_version") != 1 or digest(body) != metadata["response_sha256"]:
+            raise SourceError("capture checksum/schema mismatch")
+        request = strict_json(metadata["request_json"])
+        if request.get("method") != metadata["method"] or request.get("id") != 1:
+            raise SourceError("capture request mismatch")
+        for name in ("request_started_ns", "received_ns"):
+            integer(metadata[name], name)
+        if metadata["received_ns"] < metadata["request_started_ns"]:
+            raise SourceError("capture clock regression")
+        return cls(
+            metadata["source_alias"],
+            metadata["method"],
+            metadata["request_json"],
+            metadata["request_started_ns"],
+            metadata["received_ns"],
+            body,
+        )
+
     def result(self) -> object:
         try:
-            decoded = json.loads(self.response)
+            decoded = strict_json(self.response.decode())
         except (ValueError, UnicodeDecodeError) as exc:
             raise SourceError("RPC response is not JSON") from exc
         if not isinstance(decoded, dict) or decoded.get("jsonrpc") != "2.0":
