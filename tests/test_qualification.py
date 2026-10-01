@@ -50,7 +50,9 @@ def test_real_v1_complete_offline_pipeline(tmp_path):
     assert len(report["checkpoints"]) == 1
     assert len(report["failures"]) == 1
     assert report["market_dataset_qualified"] is False
-    assert verify_qualification(tmp_path / "audit")["checkpoints_reproduced"] == 1
+    verified = verify_qualification(tmp_path / "audit")
+    assert verified["checkpoints_reproduced"] == 1
+    assert verified["decoder_matches_recorded"] is True
     with pytest.raises(FileExistsError):
         qualify_cpmm(rpc, tmp_path / "audit")
 

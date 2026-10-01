@@ -81,3 +81,11 @@ Stop-loss — намерение, не гарантия цены. Hard risk limi
 Оценивать диапазон правдоподобных задержек, расходов и ликвидности; стрессовать рыночные разрывы и отказ feed. Проверять прибыль около пропусков, границ эпизода и сбросов состояния. Отделять calibration periods от проверки.
 
 Paper trading проверяет живой pipeline, котировки и решение. Он не доказывает inclusion, конкурентное исполнение, собственный impact и реальную ликвидацию. Эти ограничения остаются явными до любых будущих отдельно разрешённых live-проверок.
+
+## Реализованный data adapter
+
+Диагностический CPMM reader, структурный Token-2022 inventory и их границы описаны
+в [source audit](../docs/source-audit.md) и [contracts](../docs/contracts.md). Raw receipt
+и context slot не заменяют historical event/feature availability. Реальные checkpoint
+артефакты не подаются в synthetic reference replay. Текущая проверка vault flows
+не восстанавливает прошлые fee counters и не калибрует исполнимую цену.

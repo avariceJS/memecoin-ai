@@ -42,3 +42,11 @@ Point-in-time graph features, дополнительные execution mechanisms,
 ## Недопустимые исследовательские практики
 
 Будущие данные в pretraining/features, survivorship selection, прибыль по неисполнимой цене, исключение катастрофических исходов ради метрик, оптимизация на финальном тесте, обход risk limits, автоматическое promotion по максимальному PnL, обещание гарантированного улучшения от continual learning.
+
+## Обновление R2 — bounded audit
+
+Первый диагностический Raydium CPMM adapter проверен на реальных данных; CLI и raw
+regression captures реализованы. R2 market gate не пройден: coverage, births/deaths,
+полная реконструкция исторических состояний и независимая сверка остаются открытыми.
+Следующий practically scoped pilot — forward collection с gap recovery и backfill
+reconciliation. Цифры и отказы не дублируются здесь: см. docs/source-audit.md.

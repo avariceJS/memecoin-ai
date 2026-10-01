@@ -93,6 +93,14 @@ def reconcile_vault_transfers(transaction: Any, vaults: list[str]) -> dict[str, 
     )
 
 
+def decoder_fingerprint() -> dict[str, str]:
+    root = Path(__file__).parent
+    return {
+        name: digest((root / name).read_bytes())
+        for name in ("qualification.py", "raydium.py", "sources.py", "domain.py")
+    }
+
+
 def qualify_cpmm(
     client: ReadOnlyRPC,
     output: Path,
@@ -110,6 +118,7 @@ def qualify_cpmm(
     output.mkdir(parents=True, exist_ok=False)
     spec = dict(
         schema_version=1,
+        implementation=decoder_fingerprint(),
         source_alias=client.source_alias,
         program=PROGRAM,
         source_revision=SOURCE_REVISION,
@@ -305,6 +314,8 @@ def verify_qualification(path: Path) -> dict[str, int | bool]:
             raise ValidationError("reconciliation reproduction mismatch")
     return dict(
         captures_verified=len(captures),
+        decoder_fingerprint_recorded="implementation" in report["spec"],
+        decoder_matches_recorded=report["spec"].get("implementation") == decoder_fingerprint(),
         checkpoints_reproduced=len(report["checkpoints"]),
         inventories_reproduced=len(report.get("inventories", [])),
         reconciliations_reproduced=len(report["reconciliations"]),

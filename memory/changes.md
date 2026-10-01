@@ -72,3 +72,8 @@ transaction audit, offline verification и сверка vault transfers с pre/p
 оказался узким: добавлен структурный Token-2022 inventory, но исполнение extensions не
 объявлено поддержанным. SOL/USDC используется только как контрольный pool, не как memecoin
 research segment. Состав и ограничения проверок зафиксированы в docs/source-audit.md.
+
+Финальный аудит: 67 тестов, Ruff/strict mypy, repeatable synthetic smoke, offline real
+checkpoint/inventory/flow reproduction и sdist/wheel сборка. В новые qualification specs
+добавлены hashes локальной реализации decoder; старым captures они не приписываются задним
+числом. Исторический coverage gate остаётся открытым, исполнение не объявлено калиброванным.

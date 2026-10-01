@@ -77,3 +77,8 @@ No qualification command removes ReferenceReplay's synthetic-only gate. Outputs 
 reproduced offline from captures; hashes detect accidental corruption, not a malicious
 provider or an adversary rewriting every checksum. Raw responses are bounded in memory;
 this is a source audit tool, not a continuous collector or full-chain throughput benchmark.
+
+New qualification specs include hashes of the local decoder/source/contract implementation.
+Older retained captures predate this field: verification reports fingerprint_recorded=false
+and matches_recorded=false while still reproducing their outputs. Missing hashes are never
+retroactively invented. Raw historical arrival times likewise remain unknown.
