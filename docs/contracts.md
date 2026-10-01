@@ -103,3 +103,15 @@ are conditional on checkpoint configuration and provider index completeness. Ora
 recent_epoch, Token-2022, admission and future inclusion are outside this contract.
 `audit-protocol` keeps execution/dataset qualification false. Supported vs empirically
 verified operations and reproducibility are specified in [protocol audit](protocol-audit.md).
+
+## Allowlisted Token-2022 checkpoints
+
+Schema 2 is opt-in per pilot and reads Clock with the six pool accounts. Mint extensions
+1/18/19 and vault extensions 2/7 are supported; unknown transfer restrictions fail closed.
+Gross input, net reserve credit, pool fees, gross output and net recipient amount are
+separate quantities. Vault amount already excludes withheld; the latter is reconstructed
+as a separate accumulator and compared at endpoints. Epoch/base-mint/config changes
+block an interval; captured older/newer schedules never use the collector's current epoch
+for historical transactions. Harvest-to-mint resets the tracked vault accumulator in invocation order; mint-wide totals,
+direct withheld withdrawals and user account admission remain unsupported.
+Full contract: [Token-2022](token2022.md). Six-account schema 1 decoding is unchanged.

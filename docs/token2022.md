@@ -64,3 +64,38 @@ mcai audit-protocol --store work/token2022/pilot.sqlite --out work/token2022/rep
 
 Pinned source revision не доказывает соответствие deployed binary. Протокольная сверка
 не снимает execution/dataset qualification gates и synthetic-only ограничение replay.
+
+## Mainnet-проверка, завершена 2026-10-02 (Europe/Moscow)
+
+Снимки получены 2026-10-01, 23:45:20–23:46:13 MSK: три диагностических пула,
+9 checkpoints, 6 интервалов, receipt span 52.948 секунды. Это не полная мемкоин-вселенная;
+классификация и репрезентативность токенов не доказаны.
+
+- 382 транзакции: 157 failed, 132 exact-input swap с ненулевой creator fee,
+  8 harvest-to-mint и 85 успешных транзакций без поддержанной pool/vault операции.
+- 58 swap с входящей transfer fee, 65 с исходящей; ещё 9 без transfer fee.
+  Активный тариф проверенного fee-bearing mint — 300 bps. Creator fee проверена
+  на входе и выходе. Все суммы совпали с событиями и CPI transfers до atomic unit.
+- Все шесть конечных экономических состояний и withheld balances совпали. Один пул
+  дал только пустой и failed-only интервалы: его наличие не подтверждает swap math.
+- 18 address scans завершены, 88 block orderings получены, pending jobs нет.
+  503 captures сохранены. 19 HTTP 429 и один общий transport SourceError не удалены;
+  после замедления и recovery все необходимые данные получены. Публичный RPC не
+  квалифицирован для непрерывного широкого сбора; полной телеметрии прерванных
+  запросов нет, поэтому точное число всех RPC attempts не заявлено.
+
+Первоначальная модель этапа исключала harvest; реальные транзакции показали её
+неполноту. Без harvest конечный withheld ошибочен при правильных spendable balances.
+Добавлен переход, который обнуляет только известный накопитель отслеживаемого vault.
+Полная сумма на mint после harvest других accounts не подставляется удобным допущением.
+
+Freeze journal (~22.6 MB) и полные отчёты находятся вне Git. Freeze/export повторно
+проверены; dev и installed wheel выдали побитово одинаковый protocol report. Прежний
+classic archive и 44 classic swap также проходят. 160 тестов включают реальные creator/
+transfer-fee/harvest sequences и негативные проверки epoch/mint/withheld изменений.
+Краткие hashes и точные границы: [evidence](evidence/token2022-2026-10-02.json).
+
+**Пока нет mainnet-подтверждения:** exact-output с Token-2022, liquidity changes,
+pool fee collection, epoch-boundary реконструкция и прямой withdraw withheld. Их
+нельзя объявлять проверенными из-за общих unit tests. Полные config/mint history,
+независимая source completeness и execution admission/inclusion остаются отдельными gates.

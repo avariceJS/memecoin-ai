@@ -115,3 +115,17 @@ Source-derived liquidity/collection/creator math покрыта тестами; 
 Token-2022 у всех creator-fee кандидатов. Это основание для следующего ограниченного
 extension этапа, а не для снятия strict gate сейчас. 126 тестов, smoke, build и одинаковые
 аудиты из dev/wheel прошли. Memory Bank сохраняет различие evidence и предпосылок.
+
+## 2026-10-02 Token-2022 и обнаруженный withheld harvest
+
+Пользователь утвердил следующий этап. Реализованы extension whitelist, transfer-fee
+ceil/cap/inverse math, explicit schema 2 с Clock, gross/net quote checks и withheld ledger.
+Главная корректировка по mainnet: withheld регулярно harvest-ится в mint при неизменных
+spendable reserves. Добавлена эта операция, другие withdrawals остаются неподдержанными.
+
+Новый pilot: 132 creator-fee swap, 123 с transfer fees, 8 harvest, 157 failed, 85 no-op;
+все 6 endpoint состояний совпали. 19 rate limits и один transport error сохранены,
+recovery завершён. Fixed pacing оказался недостаточным для getBlock на public RPC;
+добавлены bounded cooldown и adaptive spacing без скрытых повторов и снижения gates.
+160 тестов и offline/wheel reproduction прошли. Калибровка редких LP/collection/epoch
+переходов и независимая полнота источника не объявлены завершёнными.

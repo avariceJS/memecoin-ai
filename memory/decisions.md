@@ -147,3 +147,20 @@ epoch, Token-2022 исключён. Creator-fee кандидаты из допо
 Token-2022, поэтому граница не расширена на основании красивого quote match.
 Пересмотр: реальные переходы недостающих типов, extension semantics, config history и
 независимая source validation. Исследовательские архитектурные гипотезы не менялись.
+
+## D27 Token-2022 через whitelist и версию checkpoint
+
+**Статус:** реализовано; фактическое покрытие mainnet — в docs/token2022.md.
+Выбраны mint extensions TransferFeeConfig/MetadataPointer/TokenMetadata и vault extensions
+TransferFeeAmount/ImmutableOwner. Неизвестные hooks/confidential/delegate/memo ограничения
+отклоняются. Classic decoder не расширен молча: новая immutable pilot spec явно выбирает
+семь accounts с Clock и schema 2. Старые six-account archives воспроизводятся прежним путём.
+
+Причина: token inventory недостаточен для исполнения, transfer fees меняют net reserve
+credit и net user output; withheld нельзя повторно вычитать из amount. Отдельно сохраняются
+тарифы обеих эпох; применяется эпоха снимка, интервал через её границу пока блокируется.
+Минус — узкая область, консервативный отказ при изменении mint base и отсутствие полной mint-wide реконструкции.
+Обнаруженный на mainnet harvest-to-mint добавлен как отдельный переход withheld без
+изменения spendable reserve; это корректировка первоначально неполной модели.
+Пересмотр — проверяемая история config/mint updates, epoch-boundary сегментация, реальные
+редкие liquidity/collection/harvest операции. Никаких изменений ML-гипотез и live-допуска.

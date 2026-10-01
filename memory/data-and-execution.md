@@ -109,3 +109,11 @@ event reserve/amounts как поправки к состоянию ради с�
 может не выполнить ни одного swap. Failed transactions атомарны в экономической модели,
 но их network fees не исчезают из будущего execution ledger.
 Граница conditional quote vs full execution и факты: [protocol audit](../docs/protocol-audit.md).
+
+## Token-2022
+
+Добавлен отдельный allowlisted codec/schema 2 с Clock в том же checkpoint. Token transfer
+fee и CPMM creator/trade fees считаются на разных этапах; withheld ведётся отдельно от
+spendable vault amount. Административные изменения не интерполируются, текущая эпоха
+collector не используется как историческая. Свойства пользовательских счетов и hooks
+не считаются проверенными по одному mint. Границы и mainnet evidence: [Token-2022](../docs/token2022.md).

@@ -1,10 +1,10 @@
 # Текущий статус
 
-Обновлено: **2026-10-01**, Europe/Moscow.
+Обновлено: **2026-10-02**, Europe/Moscow.
 
 ## Стадия и авторизация
 
-Memory Bank принят как source of truth. Пользователь разрешил автономный архитектурный проход: реализацию, тесты, локальные инструменты, коммиты и push в существующий `origin/main` при доступной аутентификации. Выполнены утверждённые bounded forward collection/recovery pilot и этап протокольной реконструкции CPMM. Реальные деньги, торговые транзакции и оплата внешних сервисов не разрешены.
+Memory Bank принят как source of truth. Пользователь разрешил автономный архитектурный проход: реализацию, тесты, локальные инструменты, коммиты и push в существующий `origin/main` при доступной аутентификации. Выполнены утверждённые bounded forward collection/recovery pilot и этапы протокольной реконструкции CPMM и ограниченной поддержки Token-2022. Реальные деньги, торговые транзакции и оплата внешних сервисов не разрешены.
 
 Локальный инженерный фундамент реализован. Это не прохождение рыночных gates R2–R8: реальный источник/сегмент ещё не квалифицирован, edge не установлен. Git и факт отправки проверять непосредственно через историю и remote, а не по вручную дублируемым hash.
 
@@ -20,13 +20,14 @@ Memory Bank принят как source of truth. Пользователь раз
 - Run config/provenance/source snapshot, completed/failed lifecycle, checksums и evidence blockers для promotion.
 - Read-only RPC capture/probe и bounded CPMM qualification: реальные v0/v1 транзакции, pinned account decoder, structural Token-2022 inventory, offline reproduction и сверка vault flows.
 - Bounded forward collector фиксированной когорты: SQLite/WAL journal, persisted cursors, recovery, block ordering, vault continuity audit и переносимые snapshots.
+- Allowlisted Token-2022 checkpoints с Clock, transfer-fee gross/net math и отдельный withheld ledger с harvest-to-mint.
 - Make tooling, тесты и CI definition для Python 3.11/3.13. Состояние удалённого CI не следует путать с локальной проверкой.
 
 Команды и карта модулей: [README](../README.md). Точные ограничения: [contracts](../docs/contracts.md). Проверка источника: [source audit](../docs/source-audit.md).
 
 ## Что проверено
 
-Локально на Python 3.13: 82 автоматических теста, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 160 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
@@ -36,7 +37,7 @@ ReferenceReplay намеренно synthetic-only, one-quote, one-pool-per-base 
 
 ## Открытые решения
 
-Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D26: [decisions](decisions.md).
+Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D27: [decisions](decisions.md).
 
 ## Результат bounded data-аудита
 
@@ -85,20 +86,43 @@ swap совпали до atomic unit; экономическое состоян�
 проверен повторно. Компактные реальные regression captures сохранены в Git; полный
 журнал, source captures и отчёты вне Git, hashes/summary — docs/evidence.
 
-Deposit/withdraw/collections и creator fee реализованы по pinned source, но подтверждены
-пока только инженерными тестами. Дополнительная диагностическая выборка 24 mainnet tx
+На момент завершения classic этапа deposit/withdraw/collections и creator fee были
+подтверждены только инженерными тестами; creator fee проверена в следующем этапе ниже. Дополнительная диагностическая выборка 24 mainnet tx
 нашла creator-fee swaps; все четыре проверенных кандидата используют Token-2022 и не
 допущены strict classic adapter. Полная source completeness, config-history, binary
 equivalence, oracle/Clock, latency/inclusion/network costs остаются неизвестными.
 Полная execution qualification, market dataset и edge не объявлены.
 Детали, команды и provenance: [protocol audit](../docs/protocol-audit.md).
 
+## Результат Token-2022 этапа
+
+Whitelist mint/vault extensions реализован отдельно от inventory. Schema 2 явно
+выбирается при создании pilot и включает Clock того же bank. В новом mainnet pilot:
+9 snapshots трёх пулов за 52.948 секунды, 382 транзакции в 88 блоках, 6 интервалов.
+132 exact-input swap с creator fee совпали до atomic unit; 58 входящих и 65 исходящих
+transfer fees проверены. 8 harvest-to-mint восстановлены отдельно от spendable reserves.
+Все конечные economic/withheld состояния совпали, pending jobs нет.
+
+Реальные harvest показали неполноту первоначальной модели «только начислять withheld»;
+переход добавлен по pinned source и реальным traces. Публичный RPC дал 19 HTTP 429 и
+один transport SourceError: история сохранена, recovery завершён после замедления.
+Новый collector добавляет cooldown и увеличивает spacing после 429 без скрытого retry.
+
+160 тестов, lint/format, strict typing, smoke, build, old archive regression и одинаковые
+dev/wheel protocol reports прошли. ~22.6 MB frozen journal вне Git; компактные реальные
+fixtures и summary/hashes сохранены. Подробности: [Token-2022](../docs/token2022.md).
+
+Mainnet-подтверждения exact-output с Token-2022, LP changes, pool fee collection и
+прямого withdraw withheld ещё нет. Epoch-boundary и mint/config изменения блокируют
+интервал; полная mint-wide сумма withheld не реконструируется. У одного из трёх пулов
+не было успешных swaps: его snapshots не расширяют доказанное покрытие quote math.
+Qualified dataset, полное execution и edge не заявлены; synthetic gate сохранён.
+
 ## Следующий крупный практический этап
 
-Контролируемая поддержка Token-2022 в CPMM: семантика только явно разрешённых extensions,
-transfer fees/withheld amounts/epoch schedules и отказ для неподдержанных свойств. Затем
-реальные ограниченные интервалы для creator fee, deposit/withdraw и fee collection.
-Расширять область допуска только по доказательствам; не превращать inventory extensions
-в разрешение исполнения. Параллельная data-quality зависимость — история config и
-независимая проверка полноты источника. До этих gates не запускать ML/backtest как
-доказательство реального edge.
+История изменяемых параметров и редких протокольных операций: добавить наблюдение
+config/mint updates, корректную сегментацию перехода эпох и проверить реальные liquidity
+changes/fee collections/withdraw-withheld. Использовать целевой сбор таких событий,
+а не бесконечную случайную выборку обычных swaps. Независимая source completeness и
+сервис, пригодный для более широкого длительного сбора, остаются отдельными data gates.
+До их прохождения не использовать backtest/ML как доказательство исполнимого edge.

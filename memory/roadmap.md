@@ -65,3 +65,10 @@ swap интервалах. Это частичное продвижение R2/R
 Следующий этап: Token-2022 whitelist semantics и mainnet coverage creator/liquidity/
 collection; config-history и независимая полнота источника остаются зависимостями.
 Факты: docs/protocol-audit.md; текущий статус: state.md.
+
+## Обновление R2 — ограниченный Token-2022
+
+Allowlist, transfer fees, creator fees и harvest-to-mint проверены на новом bounded
+mainnet pilot. Полные config/mint history, epoch boundaries, редкие liquidity/collection
+переходы и независимая source completeness остаются открытыми. Следующий сбор следует
+ориентировать на эти операции; масштабирование public RPC не доказано. См. docs/token2022.md.

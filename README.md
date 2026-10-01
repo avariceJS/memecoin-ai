@@ -99,3 +99,10 @@ mcai verify-qualification tests/fixtures/cpmm_control
 раздельные fee counters и LP supply; сверяет swap math с событиями, CPI transfers и
 контрольными snapshots. Это read-only проверка условной котировки, не гарантия будущего fill.
 Поддержка, фактические результаты и ограничения: [protocol audit](docs/protocol-audit.md).
+
+## Ограниченный Token-2022 adapter
+
+Новые pilots могут явно выбрать `collect-pilot --token-2022`. Семь accounts включают
+Clock того же bank; принимается whitelist metadata/transfer-fee/immutable-owner extensions.
+`audit-protocol` разделяет gross/net transfers и withheld vault balances. Старые journals
+остаются classic-only. Scope и epoch/harvest ограничения: [Token-2022](docs/token2022.md).

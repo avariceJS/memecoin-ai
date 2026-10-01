@@ -102,3 +102,8 @@ Reward RL, если он появится, строится на согласо�
 `protocol.py` связывает их с raw evidence и строгим interval audit. Эти слои не зависят
 от neural architecture и не включены в synthetic ReferenceReplay. Условная точная
 котировка и полная execution qualification — разные gates; детали в docs/protocol-audit.md.
+
+`tokens.py` добавляет whitelist token semantics и отдельный versioned checkpoint с Clock.
+Protocol replay учитывает transfer fees и withheld harvest, не включая пользовательские
+account admission/transaction inclusion в доказанную область. Старый six-account codec
+остаётся неизменным. Config/mint updates и переход эпохи требуют дальнейшей реконструкции.
