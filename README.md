@@ -1,40 +1,63 @@
 # Memecoin AI
 
-Исследовательский проект обучаемой торговой системы для Solana memecoins. Цель — найти и строго проверить устойчивое торговое преимущество на будущих данных после реалистичных издержек. Прибыльность не установлена и не гарантируется.
+Рабочий локальный фундамент ML trading research для Solana memecoins. **Реальный edge не установлен.** Исполнение сейчас проверяется только на явно синтетических данных; поддерживаемый математический CPMM reference не является реализацией Raydium или другой площадки.
 
-**Текущий этап:** архитектурная база и Memory Bank. Торговая система, сборщик данных, симулятор и модели пока не реализованы. До следующего подтверждения пользователя работа ограничена документацией.
+## Быстрый запуск
 
-## Начало новой сессии
+Python 3.11+; runtime использует стандартную библиотеку. Команды выполняются из корня репозитория.
 
-1. Прочитать [инструкции для агента](AGENTS.md).
-2. Прочитать [текущий статус](memory/state.md) и [цель проекта](memory/project.md).
-3. Проверить [реестр решений](memory/decisions.md): принятый принцип не равен экспериментальной гипотезе.
-4. По [карте Memory Bank](memory/README.md) открыть документы нужной области.
+```sh
+make setup
+make check
+make smoke
+```
 
-## Базовое направление
+`make smoke` создаёт временный synthetic dataset, проверяет ingest/dedup/export, дважды выполняет replay и сравнивает результат. Пример намеренно содержит убыточную сделку; тест проверяет корректность, а не прибыль.
 
-Point-in-time данные → общие представления токенов → отбор и межтокенный контекст → прогнозы исходов → управление портфелем → независимые ограничения → моделируемое исполнение → временная оценка → paper trading.
+Для сохранения локальных артефактов:
 
-Модель работает на PyTorch независимо от LLM. Codex используется для разработки. Последовательное управление сравнивается через прогнозирование и планирование, затем при необходимости через RL. Ни backbone, ни размер сети, ни частота торговли не выбраны окончательно.
+```sh
+.venv/bin/mcai fixture --out work/demo-data
+.venv/bin/mcai audit work/demo-data
+.venv/bin/mcai run work/demo-data --config configs/synthetic.toml --out runs/demo
+.venv/bin/mcai verify-run runs/demo
+```
 
-## Навигация
+Существующие datasets и runs не перезаписываются. Для повторного опыта указать новый output. CLI policies `cash` и `scripted_fixture` — контрольные реализации; альтернативная policy подключается через Python `Policy` interface. Формат TOML задаёт schedule, размеры, риск и execution assumptions явно.
 
-| Документ | Содержание |
+Read-only проверка источника запускается отдельно:
+
+```sh
+export MEMECOIN_RPC_URL=https://api.mainnet-beta.solana.com
+.venv/bin/mcai probe-rpc --source-alias public-mainnet --out work/rpc-probe
+```
+
+URL может содержать credential и не сохраняется в отчётах. `.env` не загружается автоматически. Probe не подписывает и не отправляет транзакции и не квалифицирует источник как торговый dataset.
+
+## Высокоуровневое устройство
+
+```text
+Raw capture → immutable event journal → verified dataset bundle
+                                        ├→ availability-gated observations → features/labels
+                                        │                                  → purged folds/baselines
+                                        └→ dual-clock synthetic replay
+                                             policy → risk → reserved ledger → execution
+                                                        ↓
+                                      run provenance, metrics, checksums, limitations
+```
+
+| Код | Ответственность |
 |---|---|
-| [Карта памяти](memory/README.md) | Как читать, обновлять и расширять Memory Bank |
-| [Проект](memory/project.md) | Цель, ограничения, границы, неизвестные параметры |
-| [Архитектура](memory/architecture.md) | Компоненты, контракты, обучение и рабочий контур, V2/V3 |
-| [Решения](memory/decisions.md) | Выбор, причины, слабости, условия пересмотра |
-| [Эксперименты](memory/research.md) | Гипотезы, ablations и критерии сравнения |
-| [Данные и исполнение](memory/data-and-execution.md) | Время доступности, признаки, граф, симулятор и его пределы |
-| [Оценка](memory/evaluation.md) | Leakage, walk-forward, метрики, допуск моделей и retraining |
-| [Roadmap](memory/roadmap.md) | Этапы, результаты, критерии перехода |
-| [Статус](memory/state.md) | Что реально сделано и что делать следующим |
-| [Изменения](memory/changes.md) | Эволюция концепции и отменённые рекомендации |
-| [Источники](memory/references.md) | Первоисточники и границы их применимости |
+| `domain`, `storage`, `sources` | Временные контракты, raw evidence, SQLite, bundles и read-only RPC |
+| `observations`, `sampling` | Известное на момент решения; reference feature/label pipeline |
+| `execution`, `portfolio`, `replay` | Integer swaps, reservations, risk, target translation и два времени |
+| `research` | Labels availability, purging, walk-forward, train-only normalization и reference forecasts |
+| `config`, `experiments`, `cli` | Строгие настройки, воспроизводимые runs и проверки |
 
-## Почему Markdown
+Подробные границы — [контракты реализации](docs/contracts.md), статус источников — [аудит](docs/source-audit.md). Новый Codex начинает с [AGENTS.md](AGENTS.md) и [Memory Bank](memory/README.md).
 
-Память хранится обычными текстовыми документами с перекрёстными ссылками, стабильными ID решений и экспериментов и историей Git. GraphRAG, векторная база и автоматический retrieval сейчас не нужны. Граф кошельков внутри будущей торговой системы — отдельная исследовательская тема, не архитектура памяти проекта.
+## Что пока отсутствует
 
-Секреты, реальные рыночные датасеты, веса моделей и тяжёлые результаты не должны попадать в Git. Будущие эксперименты должны иметь версионированные конфигурации и отчёты; их отсутствующие результаты нельзя заменять архитектурными ожиданиями.
+Нет квалифицированного рыночного dataset, venue decoder, непрерывного collector, откалиброванной latency/fill model, нейросетевого обучения, доказанного OOS edge, MPC/RL или live/paper trading сервиса. RPC receipt сейчас не заменяет историческое время получения. Синтетические reference tests не являются рыночными экспериментами E01–E14.
+
+Реальные данные, веса, runs и credentials исключены из Git. Будущие конфигурации и краткие исследовательские отчёты должны оставаться версионированными. Не выбирать backbone, размер модели и горизонты до соответствующих экспериментов.

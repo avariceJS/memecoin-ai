@@ -39,13 +39,15 @@ def summarize(result: ReplayResult, initial_cash: int) -> dict[str, object]:
 
 
 def source_snapshot(root: Path) -> dict[str, str]:
-    directory = root.resolve() / "src" / "memecoin_ai"
-    if directory != Path(__file__).resolve().parent:
+    executing = Path(__file__).resolve().parent
+    checkout = root.resolve() / "src" / "memecoin_ai"
+    if not checkout.is_dir():
         raise ValidationError("repo must match the executing source checkout")
-    files = sorted(directory.rglob("*.py"))
-    if not files:
-        raise ValidationError("source checkout required for reproducible run provenance")
-    return {p.relative_to(root.resolve()).as_posix(): p.read_text() for p in files}
+    actual = {p.relative_to(executing).as_posix(): p.read_text() for p in executing.rglob("*.py")}
+    expected = {p.relative_to(checkout).as_posix(): p.read_text() for p in checkout.rglob("*.py")}
+    if not actual or actual != expected:
+        raise ValidationError("repo must match the executing source checkout")
+    return {"src/memecoin_ai/" + name: body for name, body in sorted(actual.items())}
 
 
 def code_fingerprint(root: Path) -> str:

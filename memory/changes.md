@@ -58,3 +58,7 @@
 ## 2026-10-01 Ограниченная проверка RPC
 
 Добавлен read-only RPC client с allowlist, timeout/size limits, raw receipts и редактированием чувствительных endpoint errors. Публичный mainnet endpoint ответил на getVersion/getSlot/getFirstAvailableBlock; локальные raw captures вне Git. Это подтверждает только связность: market_dataset_qualified=false, historical arrivals неизвестны. Qualified pool decoder, реконструкция account state и live/history audit остаются следующей практической зависимостью.
+
+## 2026-10-01 Аудит и завершение локального фундамента
+
+Добавлены causal sampling/label reference, lock-файл dev tools, Make targets и CI definition. Аудит исправил disappearance-during-latency, immutable run finalization, source snapshot provenance, strict schema/duplicate JSON checks и конфликт одинаковых pool versions. Проверены 45 тестов, strict mypy, Ruff, CLI smoke с идентичными повторными результатами, sdist/wheel build. RPC проверка реальная, market qualification не выполнена. Документы синхронизированы с кодом; добавлены D18–D21. Это инженерные результаты, не доказательство торгового edge.

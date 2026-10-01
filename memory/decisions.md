@@ -14,7 +14,7 @@
 
 ## D03 Ресурсы и этап
 
-**Статус:** принято. Два M4 Pro по ~24 GB, long-only без плеча, без реальных денег. Пока только документация. После подтверждения предпочтительно разделить сбор/paper и обучение/replay по двум Mac. Слабость: ноутбуки не гарантируют непрерывность сбора. Пересмотр ресурсов — после benchmark и выявления bottleneck, не заранее.
+**Статус:** принято. Два M4 Pro по ~24 GB, long-only без плеча, без реальных денег. Архитектурная реализация разрешена новым поручением. Для будущего живого контура предпочтительно разделить сбор/paper и обучение/replay по двум Mac. Слабость: ноутбуки не гарантируют непрерывность сбора. Пересмотр ресурсов — после benchmark и выявления bottleneck, не заранее.
 
 ## D04 Проверяемая модульность
 
@@ -75,3 +75,20 @@
 ## Что не зафиксировано
 
 Нет выбранных API/провайдера, пула, размера капитала, риск-порогов, base currency, K, latency, horizons, backbone, parameter count, reward coefficients, deployment и расписания retraining. Ни один описанный эксперимент ещё не проведён.
+
+
+## D18 Реализованный локальный фундамент
+
+**Статус:** принято как инженерное решение текущего прохода. Python 3.11+, stdlib runtime, pytest/ruff/mypy, SQLite reference journal, immutable JSONL bundles с manifests и raw provenance. Причина: переносимость и проверяемость без infrastructure overhead. Слабость: bundle/replay in-memory, не полный поток Solana. Streaming/Parquet и специальные базы добавлять после measured bottleneck. Dev tools закреплены в requirements-dev.lock; PyTorch пока не требуется для data/replay contract tests.
+
+## D19 Доказательность исполнения
+
+**Статус:** реализовано и покрыто инженерными тестами. ReferenceReplay принимает только synthetic origin; observed/assumed/unknown availability различаются, неизвестная отклоняется, assumed требует явного opt-in. CPMM reference, rounding, single quote asset, serial pending и cumulative participation — явные ограничения. Нельзя снять synthetic gate и объявить появившийся PnL достоверным без venue adapter и calibration. Исторические snapshots сбрасывают own impact; бюджет лишь ограничивает, но не решает контрфактуальную проблему.
+
+## D20 Контроль исследовательских артефактов
+
+**Статус:** реализовано. Dataset hash, resolved config, source snapshot/hash, Git/environment, completed/failed status и checksums сохраняются для каждого запуска. Label availability, purging, train-only normalization и censoring имеют проверяемые guards. Эти проверки не заменяют независимый OOS протокол. Promotion helper перечисляет blockers по предоставленным evidence flags, не является автоматической сертификацией или deployment.
+
+## D21 Граница квалификации источника
+
+**Статус:** принято. Read-only RPC capture отделён от нормализации и квалификации рынка. Успешный getSlot/getVersion/getFirstAvailableBlock подтверждает доступность endpoint, а не полноту данных и pool reconstruction. Пока нет venue decoder, production feed и исторических receipt timestamps. Следующий практический этап — квалификация конкретного источника/сегмента на реальных образцах.

@@ -1,5 +1,9 @@
 # Архитектурное направление
 
+## Реализованный reference контур
+
+Точная карта кода и команды находятся в [README](../README.md); ограничения в [contracts](../docs/contracts.md). Реализованы события/хранилище/observations, dual-clock synthetic replay, ledger/risk/target conversion, sampling и supervised contracts, experiment recorder и read-only RPC. Это инфраструктурная проверка архитектуры. Ниже остаётся направление будущей рыночной системы; наличие раздела не означает, что соответствующая модель уже реализована.
+
 ## Общая конструкция
 
 ```text

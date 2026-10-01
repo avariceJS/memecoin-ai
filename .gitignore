@@ -49,3 +49,8 @@ dist/
 *.egg-info/
 .coverage
 htmlcov/
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*.duckdb.wal
