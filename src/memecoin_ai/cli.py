@@ -6,12 +6,14 @@ import os
 from dataclasses import asdict
 from pathlib import Path
 
+from memecoin_ai.collection import BudgetExhausted, PilotCollector, PilotStore
 from memecoin_ai.config import RunConfig
 from memecoin_ai.domain import Event, ValidationError, canonical
 from memecoin_ai.experiments import RunRecorder, summarize, verify_run
 from memecoin_ai.fixtures import ScriptedFixturePolicy, synthetic_events
 from memecoin_ai.qualification import qualify_cpmm, verify_qualification
 from memecoin_ai.raydium import checkpoint_inventory
+from memecoin_ai.reconciliation import write_audit
 from memecoin_ai.replay import CashPolicy, ReferenceReplay
 from memecoin_ai.sources import Capture, ReadOnlyRPC, SourceError, probe_rpc
 from memecoin_ai.storage import EventStore, audit, load_bundle, write_bundle
@@ -58,9 +60,78 @@ def main() -> int:
     )
     inspect.add_argument("capture", type=Path)
     inspect.add_argument("--pool", required=True)
+    for command in ("collect-pilot", "recover-pilot"):
+        pilot = commands.add_parser(command, help="Bounded durable finalized collection/recovery")
+        pilot.add_argument("--store", type=Path, required=True)
+        pilot.add_argument("--source-alias", required=True)
+        pilot.add_argument("--endpoint-env", default="MEMECOIN_RPC_URL")
+        pilot.add_argument("--budget", type=int, default=100)
+        if command == "collect-pilot":
+            pilot.add_argument("--pool", action="append")
+            pilot.add_argument("--page-size", type=int, default=25)
+            pilot.add_argument("--rounds", type=int, default=3)
+            pilot.add_argument("--interval", type=float, default=10)
+            pilot.add_argument("--snapshots-only", action="store_true")
+    audit_pilot = commands.add_parser(
+        "audit-pilot", help="Offline checkpoint interval reconciliation"
+    )
+    audit_pilot.add_argument("--store", type=Path, required=True)
+    audit_pilot.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     try:
-        if args.command == "inspect-cpmm":
+        if args.command in ("collect-pilot", "recover-pilot", "audit-pilot"):
+            if args.command != "collect-pilot" and not args.store.is_file():
+                raise ValidationError("pilot journal does not exist")
+            pilot_store = PilotStore(args.store)
+            try:
+                if args.command == "audit-pilot":
+                    report = write_audit(pilot_store, args.out)
+                    print(
+                        canonical(
+                            {
+                                k: report[k]
+                                for k in (
+                                    "checkpoints",
+                                    "all_intervals_consistent",
+                                    "market_dataset_qualified",
+                                )
+                            }
+                        )
+                    )
+                    return 0 if report["all_intervals_consistent"] else 1
+                endpoint = os.environ.get(args.endpoint_env)
+                if not endpoint:
+                    raise ValidationError("RPC endpoint environment variable is not set")
+                if args.command == "collect-pilot" and args.pool:
+                    pilot_store.configure(args.pool, args.source_alias, args.page_size)
+                collector = PilotCollector(
+                    pilot_store, ReadOnlyRPC(endpoint, args.source_alias), budget=args.budget
+                )
+                if args.command == "collect-pilot":
+                    collector.poll(args.rounds, args.interval, recover=not args.snapshots_only)
+                else:
+                    try:
+                        collector.recover()
+                    except BudgetExhausted:
+                        pilot_store.issue(
+                            "budget", "request budget exhausted; recovery remains pending"
+                        )
+                pending = pilot_store.db.execute(
+                    "SELECT count(*) FROM scans WHERE boundary=0"
+                ).fetchone()[0]
+                print(
+                    canonical(
+                        dict(
+                            request_budget_remaining=collector.remaining,
+                            pending_scans=pending,
+                            market_dataset_qualified=False,
+                        )
+                    )
+                )
+                return 0 if pending == 0 else 1
+            finally:
+                pilot_store.close()
+        elif args.command == "inspect-cpmm":
             print(canonical(checkpoint_inventory(Capture.load(args.capture), args.pool)))
         elif args.command == "verify-qualification":
             print(canonical(verify_qualification(args.path)))
