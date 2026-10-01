@@ -133,7 +133,11 @@ def write_bundle(
             (staging / "raw" / sha).write_bytes(body)
         (staging / "events.jsonl").write_bytes(content)
         (staging / "manifest.json").write_text(canonical(manifest) + "\n")
-        os.rename(staging, path)
+        # Reserve the destination exclusively; a concurrent publisher must not replace it.
+        # Manifest is published last, so interrupted output cannot pass load_bundle.
+        path.mkdir(exist_ok=False)
+        for name in ("raw", "events.jsonl", "manifest.json"):
+            os.rename(staging / name, path / name)
     finally:
         if staging.exists():
             shutil.rmtree(staging)

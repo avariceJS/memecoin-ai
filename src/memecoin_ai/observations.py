@@ -43,6 +43,8 @@ class ObservationBook:
         pool = event.pool
         current = self._pools.get(pool.pool_id)
         version = (event.event_ns, event.sequence)
+        if current is not None and version == current.version and pool != current.pool:
+            raise ValidationError("conflicting state at the same pool version")
         if current is None or version > current.version:
             self._pools[pool.pool_id] = ObservedPool(
                 pool, event.event_ns, event.available_ns, version

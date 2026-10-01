@@ -92,3 +92,8 @@ def test_high_pnl_is_not_enough_for_promotion():
         "execution_calibrated",
         "paper_complete",
     }
+
+
+def test_promotion_string_flags_cannot_bypass_gate():
+    with pytest.raises(ValidationError):
+        PromotionEvidence("false", True, True, True, True, 1.0)

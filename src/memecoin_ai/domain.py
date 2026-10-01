@@ -16,6 +16,26 @@ def integer(value: object, name: str, minimum: int = 0) -> None:
         raise ValidationError(f"{name} must be an integer >= {minimum}")
 
 
+def text_id(value: object, name: str) -> None:
+    if not isinstance(value, str) or not value or value.strip() != value:
+        raise ValidationError(f"{name} must be a nonempty trimmed string")
+
+
+def strict_json(text: str) -> Any:
+    def pairs(items: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in items:
+            if key in result:
+                raise ValidationError(f"duplicate JSON key: {key}")
+            result[key] = value
+        return result
+
+    def constant(value: str) -> None:
+        raise ValidationError(f"nonfinite JSON constant: {value}")
+
+    return json.loads(text, object_pairs_hook=pairs, parse_constant=constant)
+
+
 def canonical(value: object) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
@@ -53,8 +73,8 @@ class Pool:
 
     def __post_init__(self) -> None:
         for name in ("pool_id", "base_asset", "quote_asset"):
-            if not getattr(self, name):
-                raise ValidationError(f"{name} is required")
+            text_id(getattr(self, name), name)
+        text_id(self.mechanism, "mechanism")
         if self.base_asset == self.quote_asset:
             raise ValidationError("base and quote must differ")
         integer(self.base_reserve, "base_reserve")
@@ -83,10 +103,10 @@ class Event:
     schema_version: int = 1
 
     def __post_init__(self) -> None:
-        if self.schema_version != 1:
+        if type(self.schema_version) is not int or self.schema_version != 1:
             raise ValidationError("unsupported event schema")
-        if not self.event_id or not self.source:
-            raise ValidationError("event_id and source are required")
+        text_id(self.event_id, "event_id")
+        text_id(self.source, "source")
         for name in ("event_ns", "sequence"):
             integer(getattr(self, name), name)
         if not isinstance(self.availability, Availability):
@@ -105,14 +125,14 @@ class Event:
             if self.availability == Availability.OBSERVED:
                 if self.received_ns is None or self.available_ns < self.received_ns:
                     raise ValidationError("observed availability requires receipt <= availability")
-            elif not self.assumption:
-                raise ValidationError("assumed availability requires a named assumption")
+            else:
+                text_id(self.assumption, "availability assumption")
         if self.raw_sha256 is not None:
             if len(self.raw_sha256) != 64 or any(
                 c not in "0123456789abcdef" for c in self.raw_sha256
             ):
                 raise ValidationError("invalid raw digest")
-        payload = json.loads(self.payload_json)
+        payload = strict_json(self.payload_json)
         if not isinstance(payload, dict) or canonical(payload) != self.payload_json:
             raise ValidationError("payload must be a canonical JSON object")
         if self.kind == Kind.POOL:
@@ -131,7 +151,9 @@ class Event:
 
     @classmethod
     def from_json(cls, text: str) -> Event:
-        data: dict[str, Any] = json.loads(text)
+        data = strict_json(text)
+        if not isinstance(data, dict):
+            raise ValidationError("event JSON must be an object")
         data["availability"] = Availability(data["availability"])
         data["origin"] = Origin(data["origin"])
         data["kind"] = Kind(data["kind"])

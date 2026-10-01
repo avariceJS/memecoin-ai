@@ -201,3 +201,46 @@ def test_future_changes_do_not_change_prefix_decisions():
     assert [r for r in first.equity if r["time_ns"] < 25] == [
         r for r in second.equity if r["time_ns"] < 25
     ]
+
+
+def test_liquidity_disappears_during_latency_charges_failed_fee():
+    data = events() + (Event.pool_event("gone", 12, 25, pool(0, False)),)
+    result = run(Once(Intent("1", "p", Side.BUY, 1000, 1)), data)
+    assert result.records[0].status == "failed"
+    assert result.records[0].reason == "untradable"
+    assert result.final_balances == {"SOL": 99_998}
+
+
+def test_settlement_identity_is_bound_and_rejection_does_not_mutate():
+    ledger = Ledger("SOL", 100_000)
+    intent = Intent("1", "p", Side.BUY, 1000, 1)
+    ledger.reserve(intent, pool(), 2)
+    before = ledger.view()
+    with pytest.raises(ValidationError, match="match reserved"):
+        ledger.settle(replace(intent, amount_in=500), pool(), amount_out=500, filled=True)
+    assert ledger.view() == before
+    with pytest.raises(ValidationError, match="debit exceeds"):
+        ledger.settle(intent, pool(), network_fee=100_000)
+    assert ledger.view() == before
+
+
+def test_roundtrip_invariants_across_random_reserves():
+    import random
+
+    rng = random.Random(7)
+    model = ReferenceCPMM()
+    for _ in range(200):
+        state = Pool(
+            "p",
+            "TOKEN",
+            "SOL",
+            rng.randrange(10**6, 10**9),
+            rng.randrange(10**6, 10**9),
+            rng.randrange(0, 500),
+        )
+        amount = rng.randrange(10000, 100000)
+        buy = model.quote(state, Side.BUY, amount)
+        sell = model.quote(buy.pool_after, Side.SELL, buy.amount_out)
+        assert sell.amount_out <= amount
+        assert sell.pool_after.base_reserve == state.base_reserve
+        assert sell.pool_after.quote_reserve >= state.quote_reserve

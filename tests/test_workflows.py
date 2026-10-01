@@ -76,3 +76,13 @@ def test_invalid_config_and_failed_runs_are_explicit(tmp_path):
     recorder.fail("ValidationError")
     with pytest.raises(ValidationError, match="not completed"):
         verify_run(recorder.path)
+
+
+def test_provenance_must_match_running_code_and_run_is_final(tmp_path):
+    config = RunConfig.load(ROOT / "configs/synthetic.toml")
+    with pytest.raises(ValidationError, match="executing source"):
+        RunRecorder(tmp_path, tmp_path / "wrong", "dataset", asdict(config))
+    recorder = RunRecorder(ROOT, tmp_path / "valid", "dataset", asdict(config))
+    recorder.fail("TestError")
+    with pytest.raises(ValidationError, match="finalized"):
+        recorder.fail("AnotherError")

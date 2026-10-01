@@ -174,26 +174,30 @@ class ReferenceReplay:
                 if draw < self.assumptions.drop_probability:
                     status, reason, fee = "dropped", "simulated_drop", 0
                 elif draw >= self.assumptions.drop_probability + self.assumptions.fail_probability:
-                    reserve = pool.quote_reserve if intent.side == Side.BUY else pool.base_reserve
-                    participation = Fraction(intent.amount_in, max(reserve, 1))
-                    total = usage.get(pool.pool_id, Fraction(0)) + participation
-                    if (
-                        participation * 10000 > self.limits.max_input_bps
-                        or total * 10000 > self.limits.cumulative_input_bps
-                    ):
-                        raise ValidationError("impact domain exceeded; replay result is invalid")
+                    try:
+                        quote = model.quote(pool, intent.side, intent.amount_in)
+                    except ValidationError:
+                        reason = "untradable"
                     else:
-                        try:
-                            quote = model.quote(pool, intent.side, intent.amount_in)
-                            if quote.amount_out < intent.min_out:
-                                reason = "slippage"
-                            else:
-                                status, reason = "filled", "reference_fill"
-                                output, pool_fee = quote.amount_out, quote.pool_fee
-                                truth[pool.pool_id] = quote.pool_after
-                                usage[pool.pool_id] = total
-                        except ValidationError:
-                            reason = "untradable"
+                        reserve = (
+                            pool.quote_reserve if intent.side == Side.BUY else pool.base_reserve
+                        )
+                        participation = Fraction(intent.amount_in, reserve)
+                        total = usage.get(pool.pool_id, Fraction(0)) + participation
+                        if (
+                            participation * 10000 > self.limits.max_input_bps
+                            or total * 10000 > self.limits.cumulative_input_bps
+                        ):
+                            raise ValidationError(
+                                "impact domain exceeded; replay result is invalid"
+                            )
+                        if quote.amount_out < intent.min_out:
+                            reason = "slippage"
+                        else:
+                            status, reason = "filled", "reference_fill"
+                            output, pool_fee = quote.amount_out, quote.pool_fee
+                            truth[pool.pool_id] = quote.pool_after
+                            usage[pool.pool_id] = total
                 ledger.settle(
                     intent, original, amount_out=output, network_fee=fee, filled=status == "filled"
                 )

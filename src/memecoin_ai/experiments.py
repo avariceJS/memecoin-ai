@@ -38,12 +38,18 @@ def summarize(result: ReplayResult, initial_cash: int) -> dict[str, object]:
     }
 
 
-def code_fingerprint(root: Path) -> str:
-    files = sorted((root / "src" / "memecoin_ai").glob("*.py"))
+def source_snapshot(root: Path) -> dict[str, str]:
+    directory = root.resolve() / "src" / "memecoin_ai"
+    if directory != Path(__file__).resolve().parent:
+        raise ValidationError("repo must match the executing source checkout")
+    files = sorted(directory.rglob("*.py"))
     if not files:
         raise ValidationError("source checkout required for reproducible run provenance")
-    payload = {p.relative_to(root).as_posix(): digest(p.read_bytes()) for p in files}
-    return digest(canonical(payload).encode())
+    return {p.relative_to(root.resolve()).as_posix(): p.read_text() for p in files}
+
+
+def code_fingerprint(root: Path) -> str:
+    return digest(canonical(source_snapshot(root)).encode())
 
 
 def git_identity(root: Path) -> dict[str, object]:
@@ -63,6 +69,7 @@ def git_identity(root: Path) -> dict[str, object]:
 
 class RunRecorder:
     def __init__(self, root: Path, output: Path, dataset_id: str, config: dict[str, Any]) -> None:
+        sources = source_snapshot(root)
         provenance = {
             "schema_version": 1,
             "dataset_id": dataset_id,
@@ -75,6 +82,7 @@ class RunRecorder:
         }
         self.path = output
         self.path.mkdir(parents=True, exist_ok=False)
+        self._write("source.json", sources)
         self._write("manifest.json", provenance)
         self._write("status.json", {"status": "running"})
 
@@ -90,11 +98,13 @@ class RunRecorder:
         self._write("metrics.json", summarize(result, initial_cash))
         hashes = {
             name: digest((self.path / name).read_bytes())
-            for name in ("manifest.json", "result.json", "metrics.json")
+            for name in ("manifest.json", "source.json", "result.json", "metrics.json")
         }
         self._write("status.json", {"status": "completed", "sha256": hashes})
 
     def fail(self, error_type: str) -> None:
+        if json.loads((self.path / "status.json").read_text())["status"] != "running":
+            raise ValidationError("run already finalized")
         self._write("status.json", {"status": "failed", "error_type": error_type})
 
 
@@ -102,12 +112,16 @@ def verify_run(path: Path) -> dict[str, Any]:
     status: dict[str, Any] = json.loads((path / "status.json").read_text())
     if status.get("status") != "completed":
         raise ValidationError("run is not completed")
-    expected = {"manifest.json", "metrics.json", "result.json"}
+    expected = {"manifest.json", "source.json", "metrics.json", "result.json"}
     if set(status.get("sha256", {})) != expected:
         raise ValidationError("invalid run checksum manifest")
     for name, sha in status["sha256"].items():
         if digest((path / name).read_bytes()) != sha:
             raise ValidationError("run artifact checksum mismatch")
+    sources = json.loads((path / "source.json").read_text())
+    manifest = json.loads((path / "manifest.json").read_text())
+    if digest(canonical(sources).encode()) != manifest["source_sha256"]:
+        raise ValidationError("source snapshot disagrees with provenance")
     return status
 
 
@@ -119,6 +133,17 @@ class PromotionEvidence:
     paper_complete: bool
     risk_passed: bool
     improvement_lower_bound: float
+
+    def __post_init__(self) -> None:
+        for name in (
+            "real_oos",
+            "execution_calibrated",
+            "protocol_frozen",
+            "paper_complete",
+            "risk_passed",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise ValidationError("promotion evidence flags must be booleans")
 
 
 def promotion_blockers(evidence: PromotionEvidence, minimum_improvement: float) -> tuple[str, ...]:

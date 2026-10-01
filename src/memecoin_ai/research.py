@@ -21,6 +21,8 @@ class Features:
     def __post_init__(self) -> None:
         integer(self.decision_ns, "decision_ns")
         integer(self.available_ns, "available_ns")
+        if not isinstance(self.names, tuple) or not isinstance(self.values, tuple):
+            raise ValidationError("features must use immutable tuples")
         if self.available_ns > self.decision_ns:
             raise ValidationError("feature leakage: not available at decision time")
         if not self.sample_id or not self.asset or not self.names:
@@ -85,6 +87,8 @@ class TrainingSet:
 
     def __post_init__(self) -> None:
         integer(self.cutoff_ns, "training cutoff")
+        if not isinstance(self.examples, tuple):
+            raise ValidationError("training examples must be immutable")
         if not self.examples:
             raise ValidationError("empty training set")
         if len({e.features.sample_id for e in self.examples}) != len(self.examples):

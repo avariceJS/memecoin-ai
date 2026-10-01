@@ -82,3 +82,46 @@ def test_bundle_raw_provenance_is_required_and_verified(tmp_path):
     (bundle.path / "raw" / digest(raw)).write_bytes(b"changed")
     with pytest.raises(ValidationError):
         load_bundle(bundle.path)
+
+
+def test_reject_duplicate_json_keys_invalid_schema_and_mutable_ids():
+    with pytest.raises(ValidationError, match="duplicate"):
+        Event.from_json('{"event_id":"a","event_id":"b"}')
+    with pytest.raises(ValidationError):
+        replace(event(), schema_version=True)
+    with pytest.raises(ValidationError):
+        replace(event(), source=12)
+    with pytest.raises(ValidationError):
+        Event.from_json("[]")
+
+
+def test_conflicting_observation_version_and_gap_fail_closed():
+    from dataclasses import asdict
+
+    from memecoin_ai.domain import Kind, canonical
+
+    book = ObservationBook()
+    book.ingest(event(), 20)
+    changed = replace(
+        event(),
+        event_id="changed",
+        payload_json=canonical(asdict(replace(event().pool, quote_reserve=20000))),
+    )
+    with pytest.raises(ValidationError, match="conflicting"):
+        book.ingest(changed, 20)
+    gap = replace(
+        event(), event_id="gap", kind=Kind.GAP, payload_json=canonical({"reason": "lost feed"})
+    )
+    book.ingest(gap, 20)
+    assert book.snapshot(20).healthy is False
+
+
+def test_manifest_cannot_relabel_real_or_assumed_as_observed(tmp_path):
+    import json
+
+    bundle = write_bundle(tmp_path / "data", [event()], "fixture")
+    manifest = json.loads((bundle.path / "manifest.json").read_text())
+    manifest["origin"] = ["chain"]
+    (bundle.path / "manifest.json").write_text(json.dumps(manifest))
+    with pytest.raises(ValidationError, match="disagrees"):
+        load_bundle(bundle.path)
