@@ -35,3 +35,18 @@ Counts changes не объявляются полным trade flow; мало/н�
 
 Следующий этап выбирается по результату, с отдельным решением в Memory Bank. Длинный
 corpus, coverage и execution uncertainty остаются gates перед обучением.
+
+## Отказ первоначального запуска и отдельный bounded follow-up
+
+Первый `work/alchemy-pilot-v2-01/segment-00` остановился на WSS EOF после четырёх
+acknowledgements, до Alchemy HTTP snapshots. Close code отсутствует; upstream причина
+не установлена. RFC6455 transport побайтово совпадает с успешным v1. Public контроль
+дал два HTTP200, затем намеренно остановлен; его third attempt SourceError — локальная
+отмена, не третий сетевой запрос и не public provider failure. Failed/raw bundle запечатан.
+
+Новый самостоятельный [план v2b](../configs/alchemy-pilot-v2b.json) сохраняет критерии,
+когорту, частоты и бюджеты сравнения; меняется admission: один subscribe in flight,
+следующий только после ack. Это проверяемое уменьшение startup burst и более точная
+локализация частичной регистрации, не установленное исправление EOF. Максимум одна
+дополнительная кампания steady+stress; любой неожиданный отказ завершает новые WSS
+запросы этой сессии. Первоначальная failed campaign не возобновляется и не переписывается.
