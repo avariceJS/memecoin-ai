@@ -4,7 +4,9 @@
 срок действия и временной calibration cutoff до первого запроса. `create-prospective-campaign`
 создаёт план без сети; `resume-prospective-campaign PATH` собирает **один** новый bounded
 сегмент; `verify-prospective-campaign PATH` воспроизводит завершённые сегменты offline.
-Endpoint поступает через MEMECOIN_HELIUS_RPC_URL, в artifact сохраняется только alias.
+Для новых plans schema 2 origin задаётся явно через --endpoint-origin, а resume
+требует --endpoint-env VARIABLE. В artifact остаются alias и scheme/host/port без
+path/query/key. Origin проверяется до сети; смена провайдера требует нового плана.
 
 Сегмент использует existing collect_forward и сохраняет exact requests/responses,
 receipt/decode/publication timestamps, append-only attempts и frames. Перезапуск процесса

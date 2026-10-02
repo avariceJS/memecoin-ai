@@ -151,12 +151,21 @@ corpora. Training gates остаются false. [Контракт и реаль�
 
 ## Возобновляемый prospective corpus и conditional execution
 
-`create-prospective-campaign --checkpoint CAPTURE ... --source-alias helius-prospective
---out CAMPAIGN` фиксирует bounded план. `resume-prospective-campaign CAMPAIGN` собирает
-один новый сегмент через `MEMECOIN_HELIUS_RPC_URL`; `verify-prospective-campaign CAMPAIGN`
+`create-prospective-campaign --checkpoint CAPTURE ... --source-alias SOURCE
+--endpoint-origin https://api.mainnet-beta.solana.com --out CAMPAIGN` фиксирует bounded
+план. `resume-prospective-campaign CAMPAIGN --endpoint-env VARIABLE` собирает один новый
+сегмент через явно выбранный endpoint; `verify-prospective-campaign CAMPAIGN`
 воспроизводит его offline. `export-execution-targets CAMPAIGN --out TARGETS` и
 `verify-execution-targets CAMPAIGN TARGETS` создают/проверяют отдельные условные метки
 с explicit sizing/delay/slippage/holding. Unknown net PnL не заменяется нулём.
 
 Реальный D36 сбор остановлен на повторном context/Clock mismatch; guards сохранены,
 длительный corpus и ML qualification не достигнуты. [Контракт и результаты](docs/prospective-campaign.md).
+
+
+`diagnose-checkpoint CAPTURE --pool POOL` разделяет bank/Clock agreement и поддержку
+экономического decoder, не создавая observation. `audit-corpus-quality CAMPAIGN TARGETS
+--out REPORT` / `verify-corpus-quality CAMPAIGN TARGETS REPORT` проверяют coverage,
+maturity, censoring/purging, позиции при failed exit и separate latency measurements.
+Актуальный blocker — unknown AmmConfig reserved bytes; обучение не запускается.
+[Разбор и актуальные ограничения](docs/checkpoint-coherence.md).
