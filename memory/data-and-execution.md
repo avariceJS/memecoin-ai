@@ -152,3 +152,19 @@ bounded-range agreement нужны все full block comparisons и ancestry; с
 DNS failure отделён от timeout разрешённой сети и MCP 401 тарифного Console API.
 Явный CLI `--timeout` не является execution latency или общим сетевым deadline.
 Captures/hashes и ограничения: [provider audit](../docs/provider-audit.md).
+
+## Переход проверки второго источника на Helius
+
+2026-10-02: Helius — текущий кандидат вместо QuickNode по прямому поручению. Новые
+QuickNode запросы прекращены, архивы сохраняются. Документационный MCP отвечает,
+chain preflight получил timeout внутреннего getSupply; mainnet, finalized height и
+история через Helius не подтверждены. Runtime endpoint/key отсутствует в доступной
+настройке проекта. MCP tools, parsed data и direct JSON-RPC имеют разные границы;
+MCP tool results сохранены отдельно и не превращены в RPC captures.
+
+Для будущего direct audit — точные reference requests, один getBlocks на 12 слотов
+согласно документированным параметрам Helius, без универсального лимита пять. Новые
+comparison schema 2 сравнивают весь block/transaction result; одинаковая неполнота
+обязательных full-block metadata даёт unavailable. Schema 1 воспроизводит старые
+отчёты. Не подменять MCP wall time HTTP duration или execution latency. Результат,
+ограничения и отложенный план: [Helius](../docs/helius-audit.md).

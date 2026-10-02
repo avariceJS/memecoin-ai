@@ -191,3 +191,22 @@ MCP Console API/Tooling Access вернули 401 тарифного досту�
 Добавлен CLI `--timeout`, default 10s сохранён. 227 tests, lint/typing, smoke и три
 offline bundle verification прошли. Старые captures не изменены. Evidence:
 docs/evidence/quicknode-diagnostic-2026-10-02.json. Полного agreement и qualification нет.
+
+## 2026-10-02 Helius preflight и строгое сравнение результатов
+
+Проверены и отдельно сохранены коммитом ранее незакоммиченные timeout/QuickNode
+изменения; 227 исходных тестов и три legacy bundles прошли повторную проверку.
+По поручению переход на Helius: документация MCP доступна, единственный chain
+preflight получил timeout getSupply; дальнейшая серия остановлена. Helius endpoint
+в доступном окружении/проекте не найден, chain data получено 0, совпало 0/12 blocks.
+Safe log, MCP receipts, manifest, source snapshot и deferred direct plan сохранены.
+
+Offline reference: 12 blocks / 14 809 tx, metadata и ancestry согласованы; frozen
+journal integrity ok. Новые comparison schema 2 проверяют полный result и полноту
+обязательных metadata, schema 1 оставлена для архивов. Три прежних QuickNode blocks
+совпали и по schema 2 без новых сетевых запросов. В allowlist добавлен getGenesisHash;
+планы фиксируют timeout/byte cap/spacing, останавливаются на non-match.
+239 tests, lint/format/typing, smoke и sdist/wheel build прошли; build потребовал
+сетевого разрешения после sandbox DNS error. Helius не квалифицирован, ML/trading
+не начаты. Следующий шаг — локальный авторизованный Helius RPC URL и bounded
+16-request plan; подробнее docs/helius-audit.md.

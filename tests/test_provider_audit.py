@@ -100,6 +100,23 @@ def test_match_reproduces_and_corrupted_receipt_is_rejected(tmp_path):
         verify_provider_bundle(tmp_path / "audit")
 
 
+def test_mismatch_stops_new_plan_without_retry(tmp_path):
+    a = capture("getBlocks", [1, 2, dict(commitment="finalized")], [1, 2])
+    b = capture("getBlocks", [1, 2, dict(commitment="finalized")], [1], alias="b")
+    calls = []
+
+    def transport(*args):
+        calls.append(1)
+        return b.response
+
+    client = ReadOnlyRPC("https://example.invalid", "b", transport=transport)
+    report = crosscheck([a, a], client, tmp_path / "audit")
+    assert len(calls) == report["attempted"] == 1
+    assert report["planned"] == 2
+    assert report["rows"][0]["comparison"]["status"] == "mismatch"
+    assert verify_provider_bundle(tmp_path / "audit") == report
+
+
 def test_monotonic_measurements_and_visibility_censoring(tmp_path, monkeypatch):
     import memecoin_ai.provider_audit as module
 
@@ -150,6 +167,97 @@ def test_real_transaction_metadata_disagreement_is_not_ignored():
     payload["result"]["meta"]["postTokenBalances"][0]["uiTokenAmount"]["amount"] = "0"
     b = replace(b, response=canonical(payload).encode())
     assert compare_captures(a, b)["status"] == "mismatch"
+
+
+def test_full_transaction_result_still_requires_core_fields():
+    from pathlib import Path
+
+    a = Capture.load(Path(__file__).parent / "fixtures/fund_collection/fund-tx-2")
+    payload = json.loads(a.response)
+    del payload["result"]["version"]
+    a = replace(a, response=canonical(payload).encode())
+    with pytest.raises(ValidationError, match="required transaction fields"):
+        compare_captures(a, replace(a, source_alias="b"))
+
+
+@pytest.mark.parametrize("field,value", [("blockHeight", 999), ("rewards", []), ("newField", 1)])
+def test_full_result_comparison_keeps_all_block_fields(field, value):
+    params = [101, dict(commitment="finalized", transactionDetails="full")]
+    body = dict(blockhash="h", previousBlockhash="p", parentSlot=100, blockTime=1, transactions=[])
+    a = capture("getBlock", params, body)
+    b = capture("getBlock", params, dict(body, **{field: value}), alias="b")
+    assert compare_captures(a, b)["status"] == "mismatch"
+    # Historical schema projected a subset; keep this only for archive reproduction.
+    assert compare_captures(a, b, comparison_schema=1)["status"] == "match"
+
+
+@pytest.mark.parametrize(
+    "missing", ["meta", "logMessages", "innerInstructions", "postTokenBalances"]
+)
+def test_identical_incomplete_full_blocks_are_not_agreement(missing):
+    from pathlib import Path
+
+    tx = Capture.load(Path(__file__).parent / "fixtures/fund_collection/fund-tx-2").result()
+    if missing == "meta":
+        tx["meta"] = None
+    else:
+        tx["meta"][missing] = None
+    body = dict(
+        blockhash="h", previousBlockhash="p", parentSlot=100, blockTime=1, transactions=[tx]
+    )
+    a = capture("getBlock", [101, dict(commitment="finalized", transactionDetails="full")], body)
+    assert compare_captures(a, replace(a, source_alias="b"))["status"] == "unavailable"
+
+
+def test_legacy_bundle_reproduces_without_rewriting_old_report(tmp_path):
+    from memecoin_ai.provider_audit import _seal
+
+    a = capture("getBlocks", [1, 2, dict(commitment="finalized")], [1, 2])
+    b = replace(a, source_alias="b")
+    a.save(tmp_path / "000-reference")
+    b.save(tmp_path / "000-secondary")
+    row = dict(
+        reference="000-reference",
+        secondary="000-secondary",
+        comparison=compare_captures(a, b, comparison_schema=1),
+    )
+    spec = dict(
+        schema_version=1, kind="crosscheck", secondary_alias="b", references=["000-reference"]
+    )
+    (tmp_path / "spec.json").write_text(canonical(spec))
+    (tmp_path / "attempts.json").write_text(canonical([row]))
+    report = dict(
+        schema_version=1,
+        planned=1,
+        attempted=1,
+        rows=[row],
+        all_requested_observations_match=True,
+        independent_infrastructure_verified=False,
+        market_dataset_qualified=False,
+    )
+    _seal(tmp_path, report)
+    before = (tmp_path / "report.json").read_bytes()
+    assert verify_provider_bundle(tmp_path) == report
+    assert (tmp_path / "report.json").read_bytes() == before
+
+
+def test_new_bundle_pins_comparison_and_transport_before_request(tmp_path):
+    a = capture("getBlocks", [1, 2, dict(commitment="finalized")], [1, 2])
+
+    def transport(endpoint, body, timeout, limit):
+        spec = json.loads((tmp_path / "audit/spec.json").read_text())
+        assert spec["comparison_schema"] == 2
+        assert spec["timeout_seconds"] == timeout == 42
+        assert spec["max_response_bytes"] == limit == 1234
+        assert spec["interval_seconds"] == 3
+        return a.response
+
+    client = ReadOnlyRPC(
+        "https://example.invalid", "b", transport=transport, timeout=42, max_bytes=1234
+    )
+    report = crosscheck([a], client, tmp_path / "audit")
+    assert report["rows"][0]["comparison"]["comparison_schema"] == 2
+    assert verify_provider_bundle(tmp_path / "audit") == report
 
 
 def test_confirmed_visibility_already_observed_is_left_censored(tmp_path):

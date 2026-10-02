@@ -252,3 +252,25 @@ skipped slots, но сам по себе ничего не доказывает.
 agreement нет. Старому SourceError причину не приписывать. Evidence:
 docs/evidence/quicknode-diagnostic-2026-10-02.json. Пересмотр — после диагностики
 сетевого пути и успешного полного нового плана.
+
+### D31: Helius как следующий кандидат, явная граница MCP/runtime
+
+**Статус:** принято по прямому поручению 2026-10-02; data agreement ещё не получено.
+QuickNode исключён из новых сетевых запросов; его evidence и общая архитектура остаются.
+Helius Knowledge MCP отвечает, chain getNetworkStatus получил getSupply timeout.
+HTTP/RPC status и причина неизвестны. Direct endpoint отсутствует; MCP-подключение не
+считается передачей credentials приложению. Новый endpoint указывается отдельной
+MEMECOIN_HELIUS_RPC_URL, чтобы не использовать прежний URL случайно.
+
+Причина: нужен доступный независимый источник и воспроизводимые raw responses.
+Выбор: bounded direct plan на тот же диапазон, 12 slots одним getBlocks согласно
+официальным docs; реальный допуск пока не проверен. До настройки доступного endpoint
+серия остановлена. Слабость: документация не доказывает доступ или completeness.
+Пересмотр — после успешного preflight и полной сверки, затем синхронный малый pilot.
+Evidence: docs/evidence/helius-preflight-2026-10-02.json; отчёт: docs/helius-audit.md.
+
+Новая comparison schema 2 сравнивает полный block/transaction result, включая
+дополнительные поля; одинаково отсутствующие обязательные full-block metadata не
+дают agreement. Причина: schema 1 выбирала только часть top-level fields блока.
+Старые bundles воспроизводятся прежней schema; их результат не повышается молча.
+Новые планы фиксируют transport bounds и останавливаются при первом non-match/error.

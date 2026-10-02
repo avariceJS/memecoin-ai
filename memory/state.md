@@ -27,7 +27,7 @@ Memory Bank принят как source of truth. Пользователь раз
 
 ## Что проверено
 
-Локально на Python 3.13: 227 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 239 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
@@ -214,7 +214,24 @@ Sandbox дал DNS failure, разрешённая сеть вернула пе�
 
 ## Следующий крупный практический этап
 
-Диагностика перемежающегося timeout полного getBlock, затем новый ограниченный
-план всех full blocks того же диапазона и проверка ancestry. `.env.local` существует,
-CLI не загружает его автоматически. Upgrade не разрешён. До успешной полной сверки
-не заявлять independent data agreement, qualified dataset или edge.
+По новому поручению пользователь выбрал **Helius вместо QuickNode** для следующей
+сверки. Новых QuickNode запросов не делать; его evidence и общие RPC-интерфейсы сохраняются.
+
+Helius MCP документация ответила, но `getNetworkStatus(finalized)` вернул timeout
+внутреннего getSupply (30000 ms); HTTP/RPC code неизвестны. Wall time MCP 288.369 s
+не является HTTP latency прямого RPC. Серия остановлена. В schema есть getBlock,
+но нет getBlocks dispatcher; успешные chain reads не подтверждены. Helius runtime
+endpoint/key в проекте/окружении не найден. Сверено через Helius **0/12 блоков**.
+
+Следующий шаг — локальная настройка `MEMECOIN_HELIUS_RPC_URL` через авторизованный
+доступ, затем mainnet genesis/finalized preflight и сохранённый bounded план максимум
+16 запросов, getBlocks одним диапазоном из 12 slots. CLI dotenv не загружает.
+Secrets в чат/Git не передавать; upgrade не разрешён.
+
+Offline проверены 12 reference blocks / 14 809 tx, checksums/metadata/ancestry;
+SQLite frozen journal цел. Новые сравнения schema 2 сохраняют все поля block/tx
+result и отклоняют неполные metadata; legacy bundles воспроизводятся schema 1.
+Три прежних QuickNode blocks совпали также по schema 2 без новых запросов.
+239 tests, lint/format/typing, smoke и build прошли. Исторические ML E01–E14 не
+проведены, data/execution qualification не повышена. Детали, безопасный лог и план:
+[Helius audit](../docs/helius-audit.md), [evidence](../docs/evidence/helius-preflight-2026-10-02.json).

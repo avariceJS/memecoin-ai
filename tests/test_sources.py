@@ -54,6 +54,13 @@ def test_invalid_envelope_and_clock_regression():
         rpc.fetch("getSlot", [])
 
 
+def test_network_identity_is_read_only_and_response_is_preserved():
+    body = b'{"jsonrpc":"2.0","id":1,"result":"synthetic-genesis"}'
+    cap = client(body).fetch("getGenesisHash", [])
+    assert cap.response == body
+    assert cap.result() == "synthetic-genesis"
+
+
 def test_http_error_status_without_credential_leak(monkeypatch):
     import urllib.error
     import urllib.request

@@ -22,7 +22,11 @@ from memecoin_ai.sources import (
 from memecoin_ai.tokens import CLOCK, SYSVAR_OWNER
 
 
-def compare_captures(left: Capture, right: Capture) -> dict[str, Any]:
+def compare_captures(
+    left: Capture, right: Capture, *, comparison_schema: int = 2
+) -> dict[str, Any]:
+    if type(comparison_schema) is not int or comparison_schema not in (1, 2):
+        raise ValidationError("unsupported provider comparison schema")
     a, b = json.loads(left.request_json), json.loads(right.request_json)
     if left.source_alias == right.source_alias:
         raise ValidationError("cross-provider comparison requires distinct source aliases")
@@ -42,6 +46,8 @@ def compare_captures(left: Capture, right: Capture) -> dict[str, Any]:
         independent_infrastructure_verified=False,
         market_dataset_qualified=False,
     )
+    if comparison_schema == 2:
+        result["comparison_schema"] = 2
     if left_result is None or right_result is None:
         return dict(result, status="unavailable", reason="null result is not evidence of agreement")
     if method in ("getMultipleAccounts", "getAccountInfo"):
@@ -76,18 +82,32 @@ def compare_captures(left: Capture, right: Capture) -> dict[str, Any]:
             or not isinstance(right_result, dict)
         ):
             raise ValidationError("unsupported block comparison")
-        left_result, right_result = (
-            {k: left_result[k] for k in fields},
-            {k: right_result[k] for k in fields},
-        )
+        if comparison_schema == 1:
+            left_result, right_result = (
+                {k: left_result[k] for k in fields},
+                {k: right_result[k] for k in fields},
+            )
+        else:
+            for block in (left_result, right_result):
+                if any(k not in block for k in fields):
+                    raise ValidationError("required block fields missing")
+                if detail == "full" and not _has_transaction_metadata(block["transactions"]):
+                    return dict(
+                        result, status="unavailable", reason="incomplete transaction metadata"
+                    )
     elif method == "getTransaction":
         if not isinstance(left_result, dict) or not isinstance(right_result, dict):
             raise ValidationError("invalid transaction comparison")
         fields = ["slot", "blockTime", "version", "transaction", "meta"]
-        left_result, right_result = (
-            {k: left_result[k] for k in fields},
-            {k: right_result[k] for k in fields},
-        )
+        if comparison_schema == 2 and any(
+            k not in body for body in (left_result, right_result) for k in fields
+        ):
+            raise ValidationError("required transaction fields missing")
+        if comparison_schema == 1:
+            left_result, right_result = (
+                {k: left_result[k] for k in fields},
+                {k: right_result[k] for k in fields},
+            )
         if (
             left_result["transaction"]["signatures"][0] != a["params"][0]
             or right_result["transaction"]["signatures"][0] != a["params"][0]
@@ -108,6 +128,37 @@ def compare_captures(left: Capture, right: Capture) -> dict[str, Any]:
         semantic_left_sha256=digest(canonical(left_result).encode()),
         semantic_right_sha256=digest(canonical(right_result).encode()),
     )
+
+
+def _has_transaction_metadata(transactions: object) -> bool:
+    if not isinstance(transactions, list):
+        return False
+    arrays = (
+        "preBalances",
+        "postBalances",
+        "preTokenBalances",
+        "postTokenBalances",
+        "innerInstructions",
+        "logMessages",
+    )
+    for tx in transactions:
+        if not isinstance(tx, dict) or not isinstance(tx.get("meta"), dict):
+            return False
+        meta = tx["meta"]
+        if "err" not in meta or type(meta.get("fee")) is not int:
+            return False
+        if any(not isinstance(meta.get(k), list) for k in arrays):
+            return False
+        transaction = tx.get("transaction")
+        if (
+            "version" not in tx
+            or not isinstance(transaction, dict)
+            or not isinstance(transaction.get("signatures"), list)
+            or not transaction["signatures"]
+            or not isinstance(transaction.get("message"), dict)
+        ):
+            return False
+    return True
 
 
 def _seal(output: Path, report: dict[str, Any]) -> None:
@@ -291,6 +342,10 @@ def crosscheck(
             dict(
                 schema_version=1,
                 kind="crosscheck",
+                comparison_schema=2,
+                timeout_seconds=client.timeout,
+                max_response_bytes=client.max_bytes,
+                interval_seconds=interval,
                 secondary_alias=client.source_alias,
                 references=references,
             )
@@ -316,8 +371,8 @@ def crosscheck(
                 row["transport_reason"] = exc.reason
         rows.append(row)
         (output / "attempts.json").write_text(canonical(rows) + "\n")
-        if row.get("error"):
-            break  # Preserve the remaining plan; investigate the first failed request.
+        if row.get("error") or row.get("comparison", {}).get("status") != "match":
+            break  # Preserve the remaining plan; investigate the first non-match/error.
     report = dict(
         schema_version=1,
         planned=len(captures),
@@ -375,7 +430,9 @@ def verify_provider_bundle(output: Path) -> dict[str, Any]:
                 if right.source_alias != spec["secondary_alias"]:
                     raise ValidationError("secondary alias disagrees with plan")
                 if row["comparison"] != compare_captures(
-                    Capture.load(output / row["reference"]), right
+                    Capture.load(output / row["reference"]),
+                    right,
+                    comparison_schema=spec.get("comparison_schema", 1),
                 ):
                     raise ValidationError("comparison report does not reproduce")
         matched = len(rows) == report["planned"] and all(
@@ -494,6 +551,9 @@ def crosscheck_chunked_range(
             dict(
                 schema_version=1,
                 kind="chunked_range",
+                timeout_seconds=client.timeout,
+                max_response_bytes=client.max_bytes,
+                interval_seconds=interval,
                 max_slots=max_slots,
                 chunks=plan,
                 secondary_alias=client.source_alias,
