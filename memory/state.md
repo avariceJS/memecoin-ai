@@ -159,6 +159,16 @@ collections, config/tariff updates и epoch boundary по-прежнему не 
 209 tests, lint/format/typing, smoke/build и dev/wheel offline reproduction прошли.
 Подробности и ограничения: [provider audit](../docs/provider-audit.md).
 
+## Повторный запуск с настроенным пользователем RPC
+
+2026-10-02 пользователь сообщил о настройке `MEMECOIN_SECONDARY_RPC_URL`.
+В текущем процессе Codex переменная отсутствует; `.env`/`.env.local` в репозитории
+не найдены, `.env.example` содержит пустое значение. CLI preflight в 09:33:53 UTC
+завершился с exit 2: `RPC endpoint environment variable is not set`.
+Сетевых запросов к новому RPC не было; его доступность не проверена. Запрошено место
+настройки без передачи секрета в чат. CLI не загружает `.env` автоматически.
+Локальный журнал: `work/secondary-env-preflight-20261002T093353Z.json`.
+
 ## Следующий крупный практический этап
 
 Сначала обеспечить доступный RPC независимого оператора (endpoint/credential через

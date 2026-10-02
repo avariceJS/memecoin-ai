@@ -155,3 +155,10 @@ recovery завершён. Fixed pacing оказался недостаточн�
   Согласование transfers не подменяет неизвестный counter/tariff prestate (D30).
 - 209 тестов, smoke/build и dev/wheel reproduction; synthetic-only/market gates сохранены.
   Следующий внешний dependency — доступный второй оператор для block-range verification.
+
+## 2026-10-02 — Повторный preflight остановлен отсутствующей переменной
+
+Пользователь сообщил о новом secondary RPC, но его endpoint не доступен окружению
+Codex. CLI вернул exit 2 до сети; это не новый HTTP-отказ провайдера. Пользователь
+уведомлён сразу, запрошен путь настройки без credentials. Независимая сверка остаётся
+незавершённой; код и исследовательские gates не менялись.
