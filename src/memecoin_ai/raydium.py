@@ -110,18 +110,44 @@ def decode_pool(account: Any) -> PoolState:
     )
 
 
-def decode_config(account: Any) -> dict[str, int]:
+# Layout v2 is confirmed by these independent official artifacts; deployed binary
+# equivalence is still not claimed. Scope: snapshot balances and swap quotes only.
+CONFIG_SDK_REVISION = "cc33ec28a8921a35609e83293e9e07ad830b0779"
+CONFIG_DOCS_REVISION = "3699439bcad7ebdb7d65ba62cb896e93ecd3a204"
+
+
+def decode_config(account: Any, *, layout_version: int = 1) -> dict[str, int]:
     raw = account_bytes(account, PROGRAM, 236)
     if raw[:8] != discriminator("account:AmmConfig") or raw[9] not in (0, 1):
         raise ValidationError("invalid AmmConfig header")
-    if any(raw[116:]):
+    integer(layout_version, "config layout version", 1)
+    if layout_version not in (1, 2):
+        raise ValidationError("unsupported AmmConfig layout version")
+    if any(raw[116 if layout_version == 1 else 124 :]):
         raise ValidationError("unsupported AmmConfig padding")
+    if layout_version == 2 and struct.unpack_from("<Q", raw, 116)[0] > 1_000_000:
+        raise ValidationError("invalid creator fee share rate")
     trade, protocol, fund = struct.unpack_from("<3Q", raw, 12)
     creator = struct.unpack_from("<Q", raw, 108)[0]
     if trade + creator >= 1_000_000 or protocol + fund > 1_000_000:
         raise ValidationError("invalid fee rates")
     return dict(
         trade_ppm=trade, protocol_share_ppm=protocol, fund_share_ppm=fund, creator_ppm=creator
+    )
+
+
+def config_collection_terms(account: Any) -> dict[str, Any]:
+    decode_config(account, layout_version=2)
+    raw = account_bytes(account, PROGRAM, 236)
+    return dict(
+        layout_version=2,
+        creator_fee_share_default_ppm=struct.unpack_from("<Q", raw, 116)[0],
+        effective_creator_fee_share_ppm=None,
+        override_status="unobserved; CreatorFeeShare PDA required for collection",
+        applied_at="creator_fee_collection; not swap",
+        collection_execution_supported=False,
+        sdk_revision=CONFIG_SDK_REVISION,
+        docs_revision=CONFIG_DOCS_REVISION,
     )
 
 

@@ -27,14 +27,19 @@ FEATURE_NAMES = (
 )
 
 
-def observed_checkpoint(cap: Capture, pool_id: str, available_ns: int) -> dict[str, Any]:
+def observed_checkpoint(
+    cap: Capture, pool_id: str, available_ns: int, *, config_layout_version: int = 1
+) -> dict[str, Any]:
     integer(available_ns, "observation available time")
     if available_ns < cap.received_ns:
         raise ValidationError("observation precedes receipt")
-    decoded = decode_supported_checkpoint(cap, pool_id)
+    decoded = decode_supported_checkpoint(cap, pool_id, config_layout_version=config_layout_version)
     if decoded["schema_version"] != 2:
         raise ValidationError("causal snapshot requires same-bank Clock")
-    ctx = checkpoint(cap, pool_id)
+    ctx = checkpoint(cap, pool_id, config_layout_version=config_layout_version)
+    economic = economic_observation(ctx, ctx.state, list(ctx.withheld), decoded["context_slot"])
+    if "config_collection_terms" in decoded:
+        economic["config_collection_terms"] = decoded["config_collection_terms"]
     return dict(
         schema_version=1,
         kind="observed_cpmm_snapshot",
@@ -45,7 +50,7 @@ def observed_checkpoint(cap: Capture, pool_id: str, available_ns: int) -> dict[s
         chain_timestamp_seconds=decoded["clock_timestamp"],
         response_sha256=digest(cap.response),
         source_alias=cap.source_alias,
-        economic=economic_observation(ctx, ctx.state, list(ctx.withheld), decoded["context_slot"]),
+        economic=economic,
         mint_flags=decoded["mint_flags"],
     )
 

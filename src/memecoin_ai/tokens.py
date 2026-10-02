@@ -17,6 +17,7 @@ from memecoin_ai.raydium import (
     WSOL,
     account_bytes,
     b58encode,
+    config_collection_terms,
     decode_checkpoint,
     decode_config,
     decode_pool,
@@ -158,10 +159,14 @@ def vault_terms(account: dict[str, Any], mint: str) -> dict[str, Any]:
     )
 
 
-def decode_supported_checkpoint(capture: Capture, pool_id: str) -> dict[str, Any]:
+def decode_supported_checkpoint(
+    capture: Capture, pool_id: str, *, config_layout_version: int = 1
+) -> dict[str, Any]:
     request = json.loads(capture.request_json)
     addresses, options = request["params"]
     if len(addresses) == 6:
+        if config_layout_version != 1:
+            raise ValidationError("config v2 snapshots require same-bank Clock")
         return decode_checkpoint(capture, pool_id)
     result = capture.result()
     if (
@@ -202,7 +207,7 @@ def decode_supported_checkpoint(capture: Capture, pool_id: str) -> dict[str, Any
     reserves = [vaults[i]["amount"] - pool.excluded_fees[i] for i in range(2)]
     if min(reserves) < 0:
         raise ValidationError("fees exceed spendable vault balance")
-    return dict(
+    decoded = dict(
         schema_version=2,
         pool_id=pool_id,
         context_slot=slot,
@@ -213,7 +218,7 @@ def decode_supported_checkpoint(capture: Capture, pool_id: str) -> dict[str, Any
         token_source_revision=TOKEN_SOURCE_REVISION,
         source_matches_deployed_binary=False,
         pool=asdict(pool),
-        fees=decode_config(values[1]),
+        fees=decode_config(values[1], layout_version=config_layout_version),
         vault_balances=[v["amount"] for v in vaults],
         effective_reserves=reserves,
         vault_withheld=[v["withheld"] for v in vaults],
@@ -224,6 +229,9 @@ def decode_supported_checkpoint(capture: Capture, pool_id: str) -> dict[str, Any
         sol_pair=WSOL in pool.mints,
         execution_qualified=False,
     )
+    if config_layout_version == 2:
+        decoded["config_collection_terms"] = config_collection_terms(values[1])
+    return decoded
 
 
 def transfer_swap(

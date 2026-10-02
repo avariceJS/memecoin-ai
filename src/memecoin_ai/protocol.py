@@ -65,10 +65,11 @@ class Checkpoint:
     withheld: tuple[int, int] = (0, 0)
     mint_hashes: tuple[str, ...] = ()
     fee_mints: tuple[bool, ...] = ()
+    config_layout_version: int = 1
 
 
-def checkpoint(cap: Capture, pool_id: str) -> Checkpoint:
-    checked = decode_supported_checkpoint(cap, pool_id)
+def checkpoint(cap: Capture, pool_id: str, *, config_layout_version: int = 1) -> Checkpoint:
+    checked = decode_supported_checkpoint(cap, pool_id, config_layout_version=config_layout_version)
     result = cap.result()
     if not isinstance(result, dict):
         raise ValidationError("invalid checkpoint result")
@@ -98,6 +99,7 @@ def checkpoint(cap: Capture, pool_id: str) -> Checkpoint:
         tuple(checked.get("vault_withheld", [0, 0])),
         tuple(m["economic_hash"] for m in checked.get("mint_terms", [])),
         tuple(1 in m["extensions"] for m in checked.get("mint_terms", [])),
+        config_layout_version,
     )
 
 
@@ -260,6 +262,8 @@ def transition(
     state: EconomicState,
     node: Invocation,
 ) -> tuple[EconomicState, dict[str, Any], list[Invocation]]:
+    if ctx.config_layout_version != 1:
+        raise ValidationError("config v2 checkpoint is snapshot/quote only; replay unsupported")
     ix = node.instruction
     raw = b58decode(ix["data"])
     kind = KINDS.get(raw[:8])
@@ -427,6 +431,8 @@ def replay_transaction(
     withheld: tuple[int, int] | None = None,
     parameters: ParameterHistory | None = None,
 ) -> tuple[EconomicState, dict[str, Any]]:
+    if ctx.config_layout_version != 1:
+        raise ValidationError("config v2 checkpoint is snapshot/quote only; replay unsupported")
     original_parameters = parameters
     if parameters is not None:
         parameters = copy.deepcopy(parameters)

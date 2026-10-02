@@ -459,3 +459,17 @@ Gatekeeper и ProgramData reads — два timeout, no retries. Выбор сл�
 response defect, затем новый independently verified adapter. Не продолжать pool search,
 не возвращать historical trace milestone D33. 313 tests, offline/wheel reproduction;
 docs/evidence/checkpoint-coherence-2026-10-02.json. Training gate остаётся false.
+
+### D38: versioned snapshot support для creator fee share
+
+**Статус:** семантика подтверждена official SDK+docs и new read-only provider evidence,
+2026-10-02; prospective continuation в работе. Offset116 — default creator fee share
+(denominator 1e6), применяемая при creator fee collection; per-creator PDA override
+неизвестен без отдельного наблюдения. Swap math/reserves не меняются от перераспределения
+между excluded counters. Поддержать только snapshot/quote profile2, сохранить metadata,
+range0..1e6 и нули bytes124+; legacy decoder/replay default1 не расширять. Version2
+Checkpoint отклоняется legacy replay. Причина: достаточно evidence для snapshot quotes,
+недостаточно для полного creator collection replay или deployed binary equivalence.
+Проверенный Rust HEAD отстаёт от docs/SDK; lookup только одного репозитория был неполным.
+Контракт/provenance: docs/creator-fee-share.md; source revisions закреплены. Пересмотр:
+новая область nonzero bytes/неизвестная операция либо независимый collection witness.

@@ -284,7 +284,12 @@ def _result(parent: Path, spec: dict[str, Any]) -> dict[str, Any]:
             if attempt["status"] != "advanced":
                 continue
             cap = Capture.load(corpus / "captures" / f"{attempt['index']:03d}")
-            obs = observed_checkpoint(cap, attempt["pool_id"], attempt["available_ns"])
+            obs = observed_checkpoint(
+                cap,
+                attempt["pool_id"],
+                attempt["available_ns"],
+                config_layout_version=campaign["plan"].get("config_layout_version", 1),
+            )
             observations[obs["response_sha256"]] = obs
         rows = condition_segment(
             _read(corpus / "features.jsonl"),

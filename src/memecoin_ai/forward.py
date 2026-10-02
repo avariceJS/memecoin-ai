@@ -92,6 +92,7 @@ def collect_forward(
     references: list[Capture],
     output: Path,
     *,
+    config_layout_version: int = 2,
     rounds: int = 12,
     interval_seconds: int = 10,
     clock: Callable[[], int] = time.time_ns,
@@ -107,7 +108,12 @@ def collect_forward(
     for cap in references:
         req = json.loads(cap.request_json)
         pool = req["params"][0][0]
-        if decode_supported_checkpoint(cap, pool)["schema_version"] != 2:
+        if (
+            decode_supported_checkpoint(cap, pool, config_layout_version=config_layout_version)[
+                "schema_version"
+            ]
+            != 2
+        ):
             raise ValidationError("forward references require Clock checkpoints")
         cohort.append(
             dict(
@@ -125,6 +131,7 @@ def collect_forward(
         kind="causal_forward_corpus",
         started_ns=start,
         source_alias=client.source_alias,
+        config_layout_version=config_layout_version,
         cohort=cohort,
         rounds=rounds,
         interval_ns=interval_seconds * 10**9,
@@ -190,7 +197,12 @@ def collect_forward(
                 body = json.loads(cap.response)
                 if "error" in body:
                     row.update(rpc_code=body["error"].get("code"), category="rpc_error")
-                obs = observed_checkpoint(cap, item["pool_id"], cap.received_ns)
+                obs = observed_checkpoint(
+                    cap,
+                    item["pool_id"],
+                    cap.received_ns,
+                    config_layout_version=config_layout_version,
+                )
                 obs["available_ns"] = clock()
                 if cap.request_started_ns < start:
                     raise ValidationError("capture predates forward plan")
@@ -291,7 +303,9 @@ def verify_forward(output: Path, *, reproduce_compatible_version: bool = False) 
             or json.loads(cap.request_json)["params"] != item["params"]
         ):
             raise ValidationError("forward cohort provenance differs")
-        decode_supported_checkpoint(cap, item["pool_id"])
+        decode_supported_checkpoint(
+            cap, item["pool_id"], config_layout_version=plan.get("config_layout_version", 1)
+        )
     attempts = _read(output / "attempts.jsonl")
     frames = _read(output / "frames.jsonl")
     if len(attempts) > plan["max_requests"]:
@@ -329,7 +343,12 @@ def verify_forward(output: Path, *, reproduce_compatible_version: bool = False) 
                     or json.loads(cap.request_json)["params"] != item["params"]
                 ):
                     raise ValidationError("forward capture provenance mismatch")
-                obs = observed_checkpoint(cap, item["pool_id"], row["available_ns"])
+                obs = observed_checkpoint(
+                    cap,
+                    item["pool_id"],
+                    row["available_ns"],
+                    config_layout_version=plan.get("config_layout_version", 1),
+                )
                 if book.ingest(obs) != row["status"]:
                     raise ValidationError("forward observation status differs")
             cursor += 1

@@ -62,7 +62,7 @@ def create_campaign(
     if len(set(pools)) != len(pools):
         raise ValidationError("duplicate campaign pool")
     for cap, pool in zip(references, pools, strict=True):
-        if decode_supported_checkpoint(cap, pool)["schema_version"] != 2:
+        if decode_supported_checkpoint(cap, pool, config_layout_version=2)["schema_version"] != 2:
             raise ValidationError("campaign requires Clock")
     # Reuse URL validation; origin must not carry a path, query or credentials.
     identity = ReadOnlyRPC(endpoint_origin, source_alias).endpoint_origin
@@ -73,6 +73,7 @@ def create_campaign(
         schema_version=2,
         kind="prospective_campaign",
         endpoint_origin=identity,
+        config_layout_version=2,
         created_ns=start,
         source_alias=source_alias,
         pools=pools,
@@ -157,6 +158,7 @@ def verify_campaign(root: Path) -> dict[str, Any]:
             if (
                 cp["source_alias"] != plan["source_alias"]
                 or cp["rounds"] != plan["rounds"]
+                or cp.get("config_layout_version", 1) != plan.get("config_layout_version", 1)
                 or cp["interval_ns"] != plan["interval_seconds"] * 10**9
                 or cp["timeout_seconds"] != plan["timeout_seconds"]
                 or cp["max_response_bytes"] != plan["max_response_bytes"]
@@ -255,6 +257,7 @@ def resume_campaign(
             client,
             references,
             directory / "corpus",
+            config_layout_version=plan.get("config_layout_version", 1),
             rounds=plan["rounds"],
             interval_seconds=plan["interval_seconds"],
             clock=clock,
