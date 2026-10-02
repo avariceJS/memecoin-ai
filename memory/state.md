@@ -2,15 +2,17 @@
 
 Обновлено: **2026-10-03**, Europe/Moscow.
 
-**Следующий этап D40:** пользователь согласовал проверку Alchemy HTTP+WSS отдельным
-bounded пилотом параллельно текущему collector; замена основного pipeline не принята.
-Разработка переносится в новый чат Astra с Alchemy MCP. По сообщению пользователя,
-Alchemy HTTP фактически работает и WSS endpoint доступен; в этой сессии его credentials,
-raw evidence, coherence и WSS delivery guarantees не проверялись. MCP не равен runtime
-endpoint. Сначала проверить существующие доступы и evidence, затем Alchemy HTTP baseline
-против Alchemy HTTP+WSS при одинаковой когорте и commitment. Критерии допуска и границы
-пилота: D40 в [decisions](decisions.md) и [data-and-execution](data-and-execution.md).
-Пилот **не проведён**, основной collector и артефакты D39 сохранены.
+**D40 в работе (2026-10-03):** frozen plan `configs/alchemy-pilot-v1.json` принят
+до runtime сети. MCP app/mainnet доступны; отдельные HTTP/WSS настройки найдены в
+ignored `.env.local`. HTTP genesis +6 strict coherent checkpoints (два обхода прежней
+когорты) прошли. Локальный диагностический KeyError после первого decode сохранён;
+не означает provider mismatch. Остальные5 запросов выполнены без превышения бюджета7.
+
+Добавлены stdlib bounded WSS transport и snapshot-trigger reducer, общий CausalBook и
+неизменённые targets. Raw до queue, subscription barrier, gap masks, forced reconnect,
+source-pinned offline verification; основной collector не меняется. Реальное парное
+сравнение и process restart пока **не проведены**. План/контракт:
+[Alchemy pilot](../docs/alchemy-pilot.md). ML/RL/paper/live запрещены.
 
 **Текущий результат D39:** найден и проверен bounded вариант согласованного источника:
 canonical public mainnet `https://api.mainnet.solana.com`, explicit verified TLS keepalive

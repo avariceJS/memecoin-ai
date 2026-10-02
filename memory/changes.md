@@ -358,3 +358,10 @@ forward observations 0; preflight не превращён в прошлые feat
 - Разработка переносится в Astra. Код, raw corpora и runtime не менялись; последнее
   фактическое тестирование кода остаётся 346 tests из D39. В итогах давать ссылки на
   документ этапа и evidence. Сохраняются запреты на реальные сделки/оплату и ML gates.
+
+## 2026-10-03 — D40, план и HTTP preflight
+
+Заморожен bounded Alchemy HTTP/WSS план до runtime requests. MCP и локальный доступ
+разделены; genesis +6 strict snapshots прошли. Локальная ошибка отчётности сохранена
+отдельно, бюджет7 не расширен. Реализуются bounded raw WSS и conservative snapshot
+triggers поверх существующих decoder/CausalBook/targets; миграция не принята.
