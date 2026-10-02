@@ -15,6 +15,7 @@ from memecoin_ai.fixtures import ScriptedFixturePolicy, synthetic_events
 from memecoin_ai.protocol import write_protocol_audit
 from memecoin_ai.provider_audit import (
     audit_provider_range,
+    compare_captures,
     crosscheck,
     crosscheck_chunked_range,
     measure_latency,
@@ -149,6 +150,12 @@ def main() -> int:
     cross.add_argument("--source-alias", required=True)
     cross.add_argument("--endpoint-env", default="MEMECOIN_SECONDARY_RPC_URL")
     cross.add_argument("--out", type=Path, required=True)
+    compare = commands.add_parser(
+        "compare-rpc-captures", help="Offline full comparison with bounded difference diagnostics"
+    )
+    compare.add_argument("left", type=Path)
+    compare.add_argument("right", type=Path)
+    compare.add_argument("--out", type=Path, required=True)
     provider_verify = commands.add_parser(
         "verify-provider-audit", help="Offline capture/measurement verification"
     )
@@ -198,6 +205,13 @@ def main() -> int:
                 and report.get("enumeration_match", True)
                 else 1
             )
+        elif args.command == "compare-rpc-captures":
+            report = compare_captures(Capture.load(args.left), Capture.load(args.right))
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            with args.out.open("x") as stream:
+                stream.write(canonical(report) + "\n")
+            print(canonical(report))
+            return 0 if report["status"] == "match" else 1
         elif args.command == "audit-provider-range":
             report = audit_provider_range(args.enumeration, args.blocks)
             args.out.parent.mkdir(parents=True, exist_ok=True)

@@ -246,7 +246,7 @@ def test_new_bundle_pins_comparison_and_transport_before_request(tmp_path):
 
     def transport(endpoint, body, timeout, limit):
         spec = json.loads((tmp_path / "audit/spec.json").read_text())
-        assert spec["comparison_schema"] == 2
+        assert spec["comparison_schema"] == 3
         assert spec["timeout_seconds"] == timeout == 42
         assert spec["max_response_bytes"] == limit == 1234
         assert spec["interval_seconds"] == 3
@@ -256,7 +256,7 @@ def test_new_bundle_pins_comparison_and_transport_before_request(tmp_path):
         "https://example.invalid", "b", transport=transport, timeout=42, max_bytes=1234
     )
     report = crosscheck([a], client, tmp_path / "audit")
-    assert report["rows"][0]["comparison"]["comparison_schema"] == 2
+    assert report["rows"][0]["comparison"]["comparison_schema"] == 3
     assert verify_provider_bundle(tmp_path / "audit") == report
 
 

@@ -23,9 +23,9 @@ from memecoin_ai.tokens import CLOCK, SYSVAR_OWNER
 
 
 def compare_captures(
-    left: Capture, right: Capture, *, comparison_schema: int = 2
+    left: Capture, right: Capture, *, comparison_schema: int = 3
 ) -> dict[str, Any]:
-    if type(comparison_schema) is not int or comparison_schema not in (1, 2):
+    if type(comparison_schema) is not int or comparison_schema not in (1, 2, 3):
         raise ValidationError("unsupported provider comparison schema")
     a, b = json.loads(left.request_json), json.loads(right.request_json)
     if left.source_alias == right.source_alias:
@@ -46,8 +46,9 @@ def compare_captures(
         independent_infrastructure_verified=False,
         market_dataset_qualified=False,
     )
-    if comparison_schema == 2:
-        result["comparison_schema"] = 2
+    if comparison_schema >= 2:
+        result["comparison_schema"] = comparison_schema
+    truncated: dict[str, list[int]] = {}
     if left_result is None or right_result is None:
         return dict(result, status="unavailable", reason="null result is not evidence of agreement")
     if method in ("getMultipleAccounts", "getAccountInfo"):
@@ -95,14 +96,26 @@ def compare_captures(
                     return dict(
                         result, status="unavailable", reason="incomplete transaction metadata"
                     )
+            if comparison_schema >= 3 and detail == "full":
+                truncated = {
+                    side: _truncated_transactions(body["transactions"])
+                    for side, body in (("left", left_result), ("right", right_result))
+                }
     elif method == "getTransaction":
         if not isinstance(left_result, dict) or not isinstance(right_result, dict):
             raise ValidationError("invalid transaction comparison")
         fields = ["slot", "blockTime", "version", "transaction", "meta"]
-        if comparison_schema == 2 and any(
+        if comparison_schema >= 2 and any(
             k not in body for body in (left_result, right_result) for k in fields
         ):
             raise ValidationError("required transaction fields missing")
+        if comparison_schema >= 3:
+            if not _has_transaction_metadata([left_result, right_result]):
+                return dict(result, status="unavailable", reason="incomplete transaction metadata")
+            truncated = {
+                side: _truncated_transactions([body])
+                for side, body in (("left", left_result), ("right", right_result))
+            }
         if comparison_schema == 1:
             left_result, right_result = (
                 {k: left_result[k] for k in fields},
@@ -122,12 +135,67 @@ def compare_captures(
                 set(slots)
             ):
                 raise ValidationError("invalid block enumeration")
+    same = canonical(left_result) == canonical(right_result)
+    status = "match" if same else "mismatch"
+    if comparison_schema >= 3:
+        if truncated:
+            result["truncated_log_transaction_indices"] = truncated
+            result["log_truncation_observed"] = any(truncated.values())
+            if same and any(truncated.values()):
+                status = "unavailable"
+                result["reason"] = "identical truncated logs are not complete trace evidence"
+        if not same:
+            result["differences"] = json_difference_summary(left_result, right_result)
     return dict(
         result,
-        status="match" if canonical(left_result) == canonical(right_result) else "mismatch",
+        status=status,
         semantic_left_sha256=digest(canonical(left_result).encode()),
         semantic_right_sha256=digest(canonical(right_result).encode()),
     )
+
+
+def json_difference_summary(left: object, right: object, *, limit: int = 16) -> dict[str, Any]:
+    """Count all differing sites; emit bounded JSON-pointer paths, never large values.
+
+    An array length change is one site, plus differences in overlapping elements.
+    This is diagnostic only: no response fields are dropped from the comparison.
+    """
+    integer(limit, "difference sample limit", 1)
+    if limit > 128:
+        raise ValidationError("difference sample limit exceeds 128")
+    samples: list[dict[str, Any]] = []
+    count = 0
+
+    def record(path: str, kind: str, **details: object) -> None:
+        nonlocal count
+        count += 1
+        if len(samples) < limit:
+            samples.append(dict(path=path, kind=kind, **details))
+
+    def visit(a: object, b: object, path: str) -> None:
+        if type(a) is not type(b):
+            record(path, "type", left_type=type(a).__name__, right_type=type(b).__name__)
+        elif isinstance(a, dict) and isinstance(b, dict):
+            for key in sorted(a.keys() | b.keys()):
+                child = path + "/" + key.replace("~", "~0").replace("/", "~1")
+                if key not in a or key not in b:
+                    record(child, "missing_field", left_present=key in a, right_present=key in b)
+                else:
+                    visit(a[key], b[key], child)
+        elif isinstance(a, list) and isinstance(b, list):
+            if len(a) != len(b):
+                record(path, "array_length", left_length=len(a), right_length=len(b))
+            for i, (x, y) in enumerate(zip(a, b, strict=False)):
+                visit(x, y, path + "/" + str(i))
+        elif a != b:
+            record(path, "value")
+
+    visit(left, right, "")
+    return dict(total_sites=count, samples=samples, samples_complete=count <= limit)
+
+
+def _truncated_transactions(transactions: list[Any]) -> list[int]:
+    return [i for i, tx in enumerate(transactions) if "Log truncated" in tx["meta"]["logMessages"]]
 
 
 def _has_transaction_metadata(transactions: object) -> bool:
@@ -342,7 +410,7 @@ def crosscheck(
             dict(
                 schema_version=1,
                 kind="crosscheck",
-                comparison_schema=2,
+                comparison_schema=3,
                 timeout_seconds=client.timeout,
                 max_response_bytes=client.max_bytes,
                 interval_seconds=interval,

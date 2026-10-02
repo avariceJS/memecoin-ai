@@ -123,5 +123,9 @@ captures. `audit-liquidity-witness CAPTURE --out REPORT` — отдельная,
 план, raw evidence и отказы. `measure-rpc-latency` измеряет response duration и Clock
 observations; это не latency исполнения сделки. `verify-provider-audit` пересчитывает
 sealed report offline. `audit-collection-witness` проверяет fee transfers без выдуманного
-prestate counters. Результаты, команды и незакрытый доступ ко второму оператору:
+prestate counters. `compare-rpc-captures LEFT RIGHT --out REPORT` сравнивает сохранённые
+raw captures без сети, показывает пути различий и marker обрезки логов. Одинаковые
+обрезанные traces не дают положительного заключения о полноте. Новые отчёты используют
+comparison schema 3; schema 1/2 сохранены для старых архивов.
+Результаты, команды и ограничения второго источника:
 [provider audit](docs/provider-audit.md).
