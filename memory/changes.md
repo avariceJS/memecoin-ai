@@ -227,3 +227,23 @@ Log truncated. 1 308 tx совпали целиком; identity/order и ост�
 Обновлены Memory Bank и docs/helius-audit.md, evidence/helius-direct-2026-10-02.json.
 Следующий шаг — проверяемый доступ к полным historical traces; новые сетевые серии
 остановлены до устранения metadata blocker. Qualification/ML/trading не повышались.
+
+
+## 2026-10-02 Historical Helius traces и отдельная проверка активного блока
+
+Четыре targeted historical calls для двух signatures (json и indexed full) подтвердили
+ту же обрезку. У untruncated LaserStream нет historical replay по официальной документации.
+Проверенный доступ признан непригодным для полной trace-сверки; остальные способы
+использования не отвергнуты. D32 фиксирует отдельный bounded cohort audit без снижения
+strict/replay gates. Общая offline scope диагностика и 8 tests добавлены.
+
+Первый активный block 452408963 совпал целиком: 1 154 tx и ancestry. Накопленный итог
+1/2 full blocks, 2 462/2 464 tx; 10 blocks ещё не получены, full-range false. Concurrent
+state pair остановлена на public RPC timeout; Helius ответил, но сравнения нет.
+6 успешных Helius calls / 8 318 302 bytes на этапе, один public timeout, no retries.
+Дополнительная загрузка docs .md получила TLS handshake timeout; HTML прочитан отдельно.
+
+252 tests, lint/format/typing, smoke/build passed; manifests и offline diagnostics
+проверены. Memory Bank, docs/helius-audit.md и evidence/helius-traces-2026-10-02.json
+обновлены. CPMM/replay/collection, прежние captures и secrets не менялись. Далее —
+полная независимая история frozen cohort; production/ML/trading qualification нет.

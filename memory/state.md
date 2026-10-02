@@ -2,6 +2,11 @@
 
 Обновлено: **2026-10-02**, Europe/Moscow.
 
+Актуальный итог Helius: 12/12 enumeration, 1/2 full blocks match, 2 462/2 464 tx exact;
+полные historical traces двух исключений недоступны в проверенных методах. 252 tests.
+Последнее решение и следующий этап — D32 в заключительном разделе этого документа;
+предыдущие результаты ниже сохраняются как история проверок.
+
 ## Стадия и авторизация
 
 Memory Bank принят как source of truth. Пользователь разрешил автономный архитектурный проход: реализацию, тесты, локальные инструменты, коммиты и push в существующий `origin/main` при доступной аутентификации. Выполнены утверждённые bounded forward collection/recovery pilot и этапы протокольной реконструкции CPMM и ограниченной поддержки Token-2022. Реальные деньги, торговые транзакции и оплата внешних сервисов не разрешены.
@@ -259,7 +264,7 @@ getTransaction regression. 244 tests, lint/format/strict typing, smoke и sdist/
 Отчёт и raw hashes: [Helius audit](../docs/helius-audit.md),
 [evidence](../docs/evidence/helius-direct-2026-10-02.json).
 
-## Следующий ограниченный шаг
+## Следующий ограниченный шаг на предыдущем этапе (заменён D32 ниже)
 
 Установить доступный способ получать у Helius полные исторические logs на уже
 известной signature; до этого не повторять успешно полученные данные и не начинать
@@ -268,3 +273,34 @@ qualification. Не удалять logs из сравнения и не подс
 получить agreement. Mainnet доступ подтверждён, но market dataset, execution,
 инфраструктурная независимость и edge не квалифицированы. QuickNode для новых
 запросов не используется; прежние archives остаются. ML/RL/trading не начинались.
+
+## Актуальный результат: historical trace gate и D32
+
+2026-10-02: дополнительные getTransaction(json) и getTransactionsForAddress(full)
+для **обеих** проблемных signatures получили HTTP 200, но те же обрезанные logs.
+Полных traces восстановлено 0/2. Helius untruncated LaserStream документирован,
+но historical replay там не поддержан. Проверенный доступ **непригоден для полной
+исторической trace-сверки**; это не запрет использовать его для иных проверок данных.
+
+По новому поручению выполнен следующий ограниченный шаг: scope diagnostic на заранее
+заданном cohort и один новый full block 452408963 — первый с potential write в шесть
+счетов frozen cohort. Все 1 154 tx/metadata совпали; parent ancestry подтверждена.
+Общий результат: **12/12 slots**, **1/2 full blocks match**, **2 462/2 464 tx exact**;
+10 blocks ещё не получены, full-range agreement false. В первом блоке cohort writers
+вообще нет; readonly config mismatch не удалён и не назван pass.
+
+Синхронная finalized пара семи account reads остановлена: Helius slot 452651827
+ответил (0.318 s), public RPC timeout 20.069 s, HTTP/RPC code неизвестны. Сравнения
+счетов одного bank не было. Retries/upgrade/QuickNode requests не выполнялись.
+
+Код: общая offline diagnose_block_account_scope, 8 новых tests; strict comparison
+и replay trace gates сохранены. **252 tests**, lint/format/typing, smoke/build прошли;
+raw manifests проверены, новые comparisons воспроизведены offline. Отчёт:
+[Helius audit](../docs/helius-audit.md), [evidence](../docs/evidence/helius-traces-2026-10-02.json).
+
+**Далее:** bounded независимая сверка полной истории записей frozen cohort на оставшихся
+10 блоках (включая failed/unsupported), с отдельным строгим full-block результатом.
+Не отбирать только удобные traces. Перед новой синхронной парой проверить доступность
+public RPC; текущий snapshot не восстанавливает исторический bank. Для полного tail
+двух исключений нужен другой подтверждённый архив. Dataset/execution/infrastructure
+independence и edge всё ещё не квалифицированы; ML/RL/trading не начинались.

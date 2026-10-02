@@ -1,11 +1,15 @@
 # Helius: проверка доступа, 2026-10-02
 
-**Текущий результат:** direct RPC доступен после локальной настройки endpoint.
-Enumeration совпал **12/12**. Первый full block получен; identity и порядок совпали,
-но у двух из 1 310 транзакций Helius обрезал логи. Полностью совпало **1 308 tx**;
-полных блоков — **0 из 1 проверенного**, ещё 11 не запрашивались. Смена на getTransaction
-не восстановила trace. Полное agreement диапазона остаётся false. Подробности нового
-прогона — в конце документа; ниже сохранена история первоначального preflight.
+**Текущий результат:** проверенный Helius доступ непригоден для **полной исторической
+trace-сверки** двух проблемных транзакций. `getTransaction` (jsonParsed/json) и
+`getTransactionsForAddress(full)` возвращают одинаковую обрезку. Это ограничение
+проверенных методов и доступа, не утверждение обо всех возможных продуктах Helius.
+
+Enumeration совпал **12/12**. Проверены два full blocks: **1 match / 1 mismatch**,
+целиком совпали **2 462/2 464 tx**, ancestry соседних блоков совпала; 10 блоков не
+загружены. Full-range agreement **false**. Дополнительная синхронная пара счетов не
+состоялась из-за timeout Solana public RPC. Текущий результат и следующий шаг — в
+последнем разделе; предыдущие разделы сохраняют историю этапов.
 
 ## Возможности и документация
 
@@ -188,7 +192,7 @@ overhead. Выборка не является sustained backfill benchmark. Cha
 не измерялся; historical receipts не восстанавливают PIT availability. Execution
 latency неизвестна. Сжатие не проверялось: обнаруженный блокер — полнота логов.
 
-## Исправление проверки и следующий шаг
+## Исправление проверки и следующий шаг на предыдущем этапе
 
 Comparison schema **3** обнаруживает точный runtime marker. Одинаково обрезанные
 ответы дают unavailable; различающиеся по-прежнему mismatch с indices и JSON-pointer
@@ -213,3 +217,83 @@ Raw plans/captures/measurements, исходники и hashes сохранены
 244 tests, Ruff lint/format, strict mypy, smoke и sdist/wheel build прошли. Schema 3
 диагностика воспроизведена из wheel; архивы schema 1/2 проверены. Рыночная data/execution
 qualification не повышена; нейросеть/RL/trading не начинались.
+
+## Проверка historical traces и ограниченный следующий шаг
+
+2026-10-02 выполнены отдельные immutable планы, без retries и повторной загрузки
+первого full block. Для обеих signatures из indices 433/743:
+
+| Новый метод | Index | Logs | Response time | Bytes |
+|---|---:|---:|---:|---:|
+| getTransaction, json | 433 | 129, truncated | 0.537 s | 26 949 |
+| getTransaction, json | 743 | 127, truncated | 0.398 s | 29 824 |
+| getTransactionsForAddress, full/jsonParsed | 433 | 129, truncated | 2.121 s | 44 405 |
+| getTransactionsForAddress, full/jsonParsed | 743 | 127, truncated | 0.391 s | 48 587 |
+
+Все HTTP 200, RPC errors нет. Logs во всех четырёх случаях равны Helius getBlock,
+не primary. Indexed method запрошен с limit=1, точными slot и signature bounds;
+identity проверена. Явный research adapter сохраняет настоящий JSON-RPC envelope
+и `result.data`; getTransaction/getBlock captures из него не создаются. Общий
+runtime allowlist не расширен ради разового provider-specific опыта.
+
+В документированных параметрах [getTransaction](https://www.helius.dev/docs/api-reference/rpc/http/gettransaction)
+нет настройки log limit. [Indexed full history](https://www.helius.dev/docs/rpc/gettransactionsforaddress)
+возвращает metadata, но реальный запрос не восстановил отсутствующий tail.
+[LaserStream untruncated](https://www.helius.dev/docs/laserstream/log-truncation)
+поддерживает полные логи, однако **historical replay для этих endpoints не поддержан**.
+Обычный [replay](https://www.helius.dev/docs/laserstream/historical-replay) ограничен
+примерно 48 часами; mainnet требует Business/Professional. Тариф не выяснялся,
+активация/upgrade не выполнялись. Это не доказательство, что upgrade восстановит
+наши traces. MCP troubleshooting не нашёл специальной записи для Log truncated.
+
+Копирование дополнительной `.md` страницы локально завершилось TLS handshake timeout
+(20 s, HTTP/RPC code неизвестны). Серия копирования остановлена; HTML был успешно
+прочитан web tool. Reading notes помечены derived, не выданы за raw HTTP response.
+Сохранённые docs/receipts и MCP result — в `work/helius-trace-research-01`.
+
+**Выбранная альтернатива:** независимое сравнение точных данных выбранного cohort,
+с отдельной диагностикой причин full-block mismatch. Cohort не подбирался под
+результат: шесть счетов получены `scan_addresses` из frozen journal checkpoint 1
+(slot 452408961), включая config и mints. Diagnostic `work/helius-scope-01` сохранил
+все 1 310 tx первого блока: 86 readonly references (85 exact), 1 224 без ссылок
+(1 223 exact), **0 потенциальных writers**. Tx 433 использует только readonly shared
+config, tx 743 не ссылается на cohort. [CPI privileges](https://solana.com/docs/core/cpi)
+не допускают writable escalation; вывод о невозможности записи относится только
+к этим шести счетам и корректности resolved keys. Нулевое число writers не является
+положительной проверкой переходов пула. Full mismatch/replay guards сохранены.
+
+Поэтому до нового запроса выбран первый блок primary-диапазона с writable reference,
+**452408963**, index 1068. Он получен один раз: HTTP 200, **8 164 830 bytes / 15.108 s**.
+Все **1 154 tx**, весь block result и metadata совпали по schema 3; marker отсутствует.
+Ссылка на parent 452408962 / previousBlockhash совпала. Классы: 1 writer, 70 readonly,
+1 083 без ссылок; все exact. Это реальная независимая сверка одного активного блока,
+не доказательство инфраструктурной независимости или полноты всех execution traces.
+План и raw: `work/helius-active-block-01`; данные первых запусков не изменены.
+
+Отдельная current-state проверка `work/helius-state-pairs-01`: максимум три concurrent
+пары (6 calls), те же pool/config/vaults/mints плюс Clock, finalized/base64,
+minContextSlot=452408973 (только нижняя граница). Первая пара: Helius HTTP 200,
+slot **452651827**, **3 707 bytes / 0.318 s**; public RPC — transport timeout **20.069 s**,
+HTTP/RPC code неизвестны. Дальнейшая серия остановлена, вторую/третью пары не запускали.
+Совпадение bank slot и account bytes **не проверено**. Этот snapshot не представляет
+старый диапазон. Глубокая причина public timeout неизвестна.
+
+На этом этапе: 6 успешных Helius requests / 8 318 302 payload bytes, отдельно один
+public timeout. Не смешивать эти response times с chain-state age, sustained backfill
+throughput или execution latency. Полных архивных traces восстановлено **0/2**.
+Общий исторический итог: 12/12 enumeration, 1/2 full blocks matched, 2 462/2 464 tx
+matched, ещё 10 blocks не получены; full-range agreement false.
+
+Добавлена только общая offline account-scope диагностика с fail-closed проверкой
+resolved keys; CPMM/collection/replay и строгий comparator не ослаблены. 252 tests,
+lint/format/strict typing, smoke и build прошли. Manifests проверены, оба новых offline
+сравнения воспроизведены. Evidence: [helius-traces-2026-10-02.json](evidence/helius-traces-2026-10-02.json).
+
+Следующий этап: зафиксировать полный набор потенциальных записей cohort на оставшихся
+10 блоках и провести ограниченную независимую сверку его истории, сохраняя каждый
+full-block mismatch и trace gate. Не выбирать только успешные/короткие traces.
+До нового синхронного state pilot отдельно проверить доступность public RPC. Для
+полной trace-сверки двух исключений потребуется иной доступный архив с полными logs;
+сейчас такой источник не подтверждён, QuickNode не возобновлять. Replay по текущему
+состоянию и склейка primary tail не являются независимым восстановлением истории.
+ML/RL/trading и qualification не повышены.

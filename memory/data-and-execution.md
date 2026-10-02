@@ -183,3 +183,32 @@ Schema 3 выделяет marker и различающиеся JSON paths, не 
 Cross-method getTransaction/getBlock differences (например rewards null/[]) не
 нормализованы ради совпадения. Следующий gate — доступ к полным историческим logs.
 Evidence: docs/evidence/helius-direct-2026-10-02.json; текущий отчёт: docs/helius-audit.md.
+
+
+## D32: границы Helius и независимая проверка cohort
+
+2026-10-02 trace gate проверен четырьмя targeted calls: getTransaction(json) и
+getTransactionsForAddress(full/jsonParsed), по две signatures. Все HTTP 200, та же
+обрезка; documented untruncated LaserStream не поддерживает historical replay.
+Этот доступ не годится для **полной архивной trace-сверки**, но остаётся кандидатом
+для точных state/transaction checks. Processed/enhanced data и current simulation
+не являются восстановлением historical logs. Полный report — docs/helius-audit.md.
+
+По прямому поручению выполнена альтернативная ограниченная проверка, заменяющая
+прежнюю остановку любой работы до полного trace agreement. Она не меняет критерий
+самого full agreement. Шесть счетов заранее заданы frozen checkpoint (pool, 2 vaults,
+config, 2 mints). Scope diagnostic учитывает весь block и разделяет writable/readonly/
+no reference; несовпадающие keys, неоднозначные flags и порядок дают отказ. Failed tx
+не исключаются из potential writers. Ноль writers не доказывает переходы состояния.
+Полнота этого списка экономических зависимостей отдельно не квалифицирована.
+
+Первый активный block 452408963 совпал целиком: 1 154 tx, включая один potential writer,
+и parent link к 452408962. Всего 1/2 blocks / 2 462 из 2 464 tx matched; 10 blocks остаются,
+full-range false. Readonly mismatch первого блока сохраняется. Replay invocations/log
+guards не обходятся. Следующий gate — полная история cohort с fail-closed traces.
+
+Current finalized snapshot pair: Helius получил семь счетов slot 452651827; public RPC
+timeout, поэтому same-bank values не сравнивались. minContextSlot — нижняя граница,
+не архивная фиксация bank. Сеть остановлена на первой паре. Latencies отдельных reads
+не являются исполнением/throughput. 252 tests; raw+plans+hashes и результаты:
+docs/evidence/helius-traces-2026-10-02.json. Инфраструктурная независимость не доказана.

@@ -292,3 +292,32 @@ mismatch. Старые schema 1/2 не переписываются. Причи�
 Слабость: отсутствие marker само по себе не исключает иной вид неполноты.
 Пересмотр — при проверяемом получении полных historical traces через Helius; до
 этого синхронный pilot не начинать. Evidence: docs/evidence/helius-direct-2026-10-02.json.
+
+
+### D32: Helius не проходит полную historical trace-сверку; cohort audit отдельно
+
+**Статус:** принято/проверено 2026-10-02 по новому прямому поручению продолжить и
+выбрать альтернативу. Заменяет запрет D31 на любые следующие проверки до получения
+полных logs, сохраняя критерии full-range agreement и replay без ослабления.
+
+**Основание:** обе signatures одинаково truncated в getBlock, getTransaction(json),
+indexed full history; для первой также jsonParsed getTransaction. Документированный
+untruncated LaserStream не поддерживает historical replay. Доступ признан непригодным
+для полной исторической trace-сверки этих данных; не делаем вывода обо всех продуктах
+Helius или о возможности исправить это тарифом.
+
+**Выбор:** продолжать независимые точные сравнения данных frozen cohort, отдельно от
+полной trace qualification. Полные raw и strict comparisons остаются. Scope diagnostic
+учитывает readonly references/failed tx и проверяет одинаковые resolved keys. Первые
+1 310 tx содержат 0 cohort writers; следующий выбранный по primary earliest active
+block 452408963 совпал целиком (1 154 tx, один writer), ancestry совпала. Current
+state pair остановлена из-за public RPC timeout; совпадение account state не доказано.
+
+**Слабость:** совпадение одного активного блока не квалифицирует полную историю,
+scope dependencies, исполнение или независимость инфраструктуры. Readonly classification
+не заменяет full logs для других целей. Альтернатива — другой доступный архив с полными
+traces; пока не подтверждён. Upgrade/QuickNode/склейка primary logs не используются.
+Пересмотр — новое проверяемое получение недостающих tails или evidence расхождения
+полной истории cohort. Следующий этап: bounded оставшиеся 10 blocks и полная cohort
+history, без выборки только удобных транзакций. Evidence:
+docs/evidence/helius-traces-2026-10-02.json; docs/helius-audit.md.
