@@ -363,5 +363,16 @@ forward observations 0; preflight не превращён в прошлые feat
 
 Заморожен bounded Alchemy HTTP/WSS план до runtime requests. MCP и локальный доступ
 разделены; genesis +6 strict snapshots прошли. Локальная ошибка отчётности сохранена
-отдельно, бюджет7 не расширен. Реализуются bounded raw WSS и conservative snapshot
+отдельно, бюджет 7 не расширен. Реализуются bounded raw WSS и conservative snapshot
 triggers поверх существующих decoder/CausalBook/targets; миграция не принята.
+
+## 2026-10-03 — D40 v1 завершён без миграции
+
+Два 120s paired runs, реальные reconnect и restart: Alchemy144+72 snapshots, public144,
+preflight 6;366 strict passes и1158 raw WSS messages. Dev/wheel/offline и старый D39
+воспроизведены,364 tests/setup/smoke/build прошли. HTTP calls−50%, но usable95,83→80%,
+payload−0,66%; заданный criterion не выполнен. Config noise и coarse min-interval
+scheduler мешают приписать выигрыш WSS. D39 primary сохранён; следующая кандидатура —
+отдельно замороженный v2 с matched5/10s controls и steady/stress окнами. Raw/gaps/availability,
+protocol whitelist, synthetic-only и запреты ML/RL/paper/live не менялись.
+Итог: docs/alchemy-pilot.md; evidence: docs/evidence/alchemy-pilot-2026-10-03.json.

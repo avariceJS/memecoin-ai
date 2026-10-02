@@ -416,11 +416,10 @@ errors/source/seed(null)/hashes — docs/evidence/persistent-source-2026-10-02.j
 ## D40: условия bounded пилота Alchemy HTTP+WSS (2026-10-03)
 
 Пользователь согласовал проверку гибрида; основной pipeline пока остаётся D39.
-Пилот **не проведён**. Информация о рабочем Alchemy HTTP и наличии WSS получена от
-пользователя из другой сессии; сам endpoint, локальные env names и raw evidence здесь
-не проверялись. Новая сессия Astra должна установить фактические доступные методы,
-лимиты/commitments и runtime credentials отдельно от MCP. Секреты не выводить и не
-запрашивать в чате; не подключать платные сервисы/upgrade.
+На момент handoff пилот не был проведён; сведения о доступе были сообщением пользователя.
+Теперь v1 выполнен: MCP и отдельные MEMECOIN_ALCHEMY_HTTP_URL/WSS_URL в ignored
+`.env.local` проверены. Итог ниже. Секреты не выводить/запрашивать в чате;
+платные действия/upgrade не разрешены.
 
 Начальный контракт: finalized WSS notifications — дополнительный raw канал и trigger,
 HTTP — coherent snapshot authority. Сохранить общий observation/feature/target pipeline;
@@ -461,3 +460,30 @@ observations. Начать с finalized; confirmed/processed и rollback — о�
 Официальные ориентиры, прочитанные при архитектурной оценке (актуальность перепроверить):
 https://www.alchemy.com/docs/reference/account-subscribe и
 https://www.alchemy.com/docs/reference/solana-subscription-api-endpoints.
+
+
+### Фактический результат D40-v1
+
+Два 120s segments на прежних3 pools:144 HTTP-only /72 hybrid /144 public strict
+snapshots, плюс 6 Alchemy preflight;366 coherent account responses всего. Сохранены raw,
+receipt/decode/feature availability, config/profile2, source/plan manifests. Runtime WSS
+— отдельный stdlib read-only RFC6455 transport,16 dependency subscriptions +root,
+queue128, message64KiB, bounded cumulative bytes/count и ack deadline. Никаких
+account notifications как атомарного pool state. Subscription ack barrier перед anchors;
+slot>anchor остаётся dirty. Root — liveness, не доказательство sequence completeness.
+
+Два forced disconnect оставили masks, затем resubscribe и новые anchors за1,219/1,468s.
+Restart новым процессом обнулил историю; tails/gaps не склеивались. HTTP recovery здесь
+только current-state resync, не backfill historical writes. Ошибка/переполнение закрывает
+stream; незапечатанный interrupted segment запрещает следующий, сохраняя original bytes.
+Silent omitted hint с изменившимся HTTP state вызывает uncertainty gap; unchanged endpoints
+не доказывают полноту. Live crash/overload не инжектировались; adversarial cases synthetic.
+
+WSS1158 messages/258666bytes; все raw receipts и derived output проверены offline/dev/wheel.
+HTTP-only138/144 usable, hybrid120/150 (120/144 scheduled); payload520818 против524304bytes.
+Calls−50% не компенсируют ухудшение quality: criterion failed. Наблюдается config noise
+и эффект coarse scheduler (~10s actual hybrid); нет чистого causal transport win.
+Итог 364 tests (346 прежних +18 WSS/integrity), smoke/build прошли.
+Основной D39 collector остаётся; v2 требует отдельного frozen matched-cadence плана.
+[Контракт/ограничения](../docs/alchemy-pilot.md),
+[evidence](../docs/evidence/alchemy-pilot-2026-10-03.json). Training/edge false.

@@ -514,12 +514,11 @@ corpus и ML readiness не достигнуты.
 
 ### D40: проверить Alchemy HTTP+WSS до изменения основного pipeline
 
-**Статус:** направление bounded пилота согласовано пользователем 2026-10-03;
-миграция основного pipeline не принята, пилот **не проведён**. Продолжение разработки
-перенесено в новый чат Astra с подключённым Alchemy MCP. По сообщению пользователя,
-в отдельной сессии HTTP RPC Alchemy фактически проверен и работает, WSS endpoint
-доступен. Эти сообщения не заменяют проверку raw evidence, credentials/runtime доступа,
-нужных методов и строгой coherence в новой сессии; текущая сессия Alchemy не тестировала.
+**Статус:** bounded v1 реализован/проверен 2026-10-03; hybrid не допущен к замене.
+Первоначальное согласование пользователя было направлением пилота, не миграцией.
+В новой сессии MCP app/mainnet и отдельные `.env.local` HTTP/WSS фактически проверены;
+секреты не выводились/коммитились. План зафиксирован `b3e7d89` до runtime запросов,
+код `6368caf`. Результат/причина отказа — ниже.
 
 Причина: D39 доказал bounded correctness/restart, но календарное/рыночное покрытие
 остаётся узким. Гибрид потенциально уменьшает polling и даёт лучшее покрытие изменений.
@@ -544,3 +543,22 @@ creator collection replay и не начинать ML/RL/paper/live. D33 histori
 не переоткрывать; QuickNode не использовать для новых запросов. Детальный контракт:
 раздел D40 в memory/data-and-execution.md. Пользователь просит ссылки на итоговый документ
 этапа и evidence в финальных отчётах.
+
+
+Результат D40-v1:6 preflight strict snapshots, 216 Alchemy paired snapshots,
+144 public controls; всё accepted. Два 120 s сегмента, два разных процесса, два forced
+reconnect;1158 WSS messages. Raw→observations/features/observed-price targets побитово
+воспроизводимы dev/wheel. Подписки подтверждены до anchors; WSS values не склеиваются.
+Исторические gaps не восстановлены. Duplicate/late/overflow/silent missing hint проверены
+synthetic adversarial tests; полный silent write loss недоказуем этим subscription API.
+
+Выбор: сохранить D39 primary, Alchemy HTTP считать пригодным только для проверенной
+bounded strict-checkpoint области. HTTP calls hybrid уменьшились50%, но usable fraction
+упала95,83→80% (83,33% на scheduled frames), payload уменьшился0,66%, coverage не выросло.
+Primary criterion провален. Config дал 170 notifications одного value; scheduler фактически
+проредил hybrid до~10s. Нет основания приписать экономию только transport или менять
+основной pipeline. Слабость опыта: короткая fixed cohort, stress только в hybrid,
+нет matched10s HTTP control. Альтернатива: простой более редкий HTTP; следующий D40-v2
+сначала scheduler/coalescing и новый frozen matched-cadence steady/stress plan.
+364 tests; [отчёт](../docs/alchemy-pilot.md),
+[evidence](../docs/evidence/alchemy-pilot-2026-10-03.json). V2 не проведён; ML gates прежние.

@@ -123,3 +123,13 @@ checkpoint Clocks; endpoint matches never reconstruct intermediate tariffs. Full
 and bounded-range recovery preserve their distinct raw provenance. A completed pending
 queue is not an audit proof. Event-conditioned LP witnesses never qualify a historical
 dataset. See [parameter history](parameter-history.md) for the current contract/evidence.
+
+## Bounded Alchemy snapshot-trigger pilot (D40)
+
+WSS is a raw hint channel, never a source of atomic pool snapshots. Every account
+observation still passes the existing finalized HTTP/Clock/profile2 decoder and CausalBook.
+Subscription acknowledgements precede anchors; unresolved gaps reset history. Raw receipts
+are never backdated. There is no proof of complete intermediate writes or historical
+recovery from accountSubscribe. The v1 load/quality criterion failed; existing primary
+collector remains unchanged. See [D40 report](alchemy-pilot.md) for measured scope,
+source-pinned reproduction, queue/frame bounds, restart semantics and limitations.

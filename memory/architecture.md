@@ -176,3 +176,13 @@ measurement. Economic adapter, raw Capture, CausalBook и target semantics об�
 `coverage.py` дополняет quality audit полной scenario-grid проверкой, зрелостью всех
 вариантов в одной partition, chronological nonoverlap и наблюдаемой вариацией prices.
 Никакой новый forecast feature или обучение этим audit не создаются.
+
+
+## D40: transport pilot поверх общей модели наблюдений
+
+`pubsub.py` даёт bounded verified-TLS WSS и reducer hints. `hybrid.py` сохраняет raw до
+очереди, подтверждает subscriptions, принимает только strict HTTP snapshots через прежний
+CausalBook и targets. Между raw WSS и pool state нет merger. Offline replay использует
+тот же reducer, source snapshots и manifest; independent report сверяет receipt metadata.
+Это отдельный pilot, основной D39 collector не заменён: v1 quality criterion провален.
+Следующий v2 — matched cadence/coalescing, не переписывание CPMM/ML/runtime модели.

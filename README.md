@@ -34,6 +34,13 @@ export MEMECOIN_RPC_URL=https://api.mainnet-beta.solana.com
 
 URL может содержать credential и не сохраняется в отчётах. `.env` не загружается автоматически. Probe не подписывает и не отправляет транзакции и не квалифицирует источник как торговый dataset.
 
+## Alchemy transport pilot (D40)
+
+Bounded HTTP/WSS проверка и решение: [отчёт](docs/alchemy-pilot.md),
+[evidence](docs/evidence/alchemy-pilot-2026-10-03.json). Основной collector не заменён.
+Offline: `.venv/bin/python tools/alchemy_pilot.py verify work/alchemy-pilot-01 --segment 0`.
+Только отдельный pilot runner явно читает `.env.local`; credentials не входят в artifacts.
+
 ## Высокоуровневое устройство
 
 ```text

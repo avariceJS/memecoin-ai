@@ -2,17 +2,29 @@
 
 Обновлено: **2026-10-03**, Europe/Moscow.
 
-**D40 в работе (2026-10-03):** frozen plan `configs/alchemy-pilot-v1.json` принят
-до runtime сети. MCP app/mainnet доступны; отдельные HTTP/WSS настройки найдены в
-ignored `.env.local`. HTTP genesis +6 strict coherent checkpoints (два обхода прежней
-когорты) прошли. Локальный диагностический KeyError после первого decode сохранён;
-не означает provider mismatch. Остальные5 запросов выполнены без превышения бюджета7.
+**D40 завершён (2026-10-03): hybrid v1 не принят, основной collector D39 сохранён.**
+Alchemy MCP и отдельные runtime HTTP/WSS доступны. HTTP preflight: mainnet genesis +6
+strict snapshots. Два 120 s параллельных сегмента: Alchemy HTTP-only144 snapshots,
+hybrid72, прежний public collector144; все 360 accepted. Итого с preflight366 strict
+account checkpoints. Два разных процесса, два forced reconnect,1158 raw WSS messages.
+Неожиданных collection failures0. Единственный local preflight reporting KeyError
+сохранён и исправлен offline; исходный бюджет 7 RPC не расширен.
 
-Добавлены stdlib bounded WSS transport и snapshot-trigger reducer, общий CausalBook и
-неизменённые targets. Raw до queue, subscription barrier, gap masks, forced reconnect,
-source-pinned offline verification; основной collector не меняется. Реальное парное
-сравнение и process restart пока **не проведены**. План/контракт:
-[Alchemy pilot](../docs/alchemy-pilot.md). ML/RL/paper/live запрещены.
+HTTP calls hybrid −50%, но usable feature fraction80% против95,83% (83,33% на той же
+scheduled сетке), received payload экономия лишь 0,66%. Критерий D40 не выполнен.
+Общий config многократно уведомляет одинаковое value; interaction5s scheduler/min interval
+даёт фактические ~10s hybrid polls. Выигрыш calls не приписывать только WSS.
+Lossless stream/history не доказаны; gaps/late availability не исправляются задним числом.
+
+364 tests, lint/format/mypy, setup/smoke/build; exact dev/installed-wheel reproduction
+двух paired segments и controls, независимая проверка1158 raw receipts, прежний D39
+перепроверен pinned wheel. CPMM/features/targets и synthetic-only gate не менялись.
+[Итоговый документ](../docs/alchemy-pilot.md),
+[evidence](../docs/evidence/alchemy-pilot-2026-10-03.json).
+
+**Следующий этап:** отдельный D40-v2 — scheduler/content-aware coalescing, matched5/10s
+HTTP controls, отдельные steady/stress окна; заморозить новый bounded plan до сети.
+V2 не проведён. Никакой автоматической миграции, ML/RL/paper/live или нового D33-аудита.
 
 **Текущий результат D39:** найден и проверен bounded вариант согласованного источника:
 canonical public mainnet `https://api.mainnet.solana.com`, explicit verified TLS keepalive
@@ -62,7 +74,7 @@ Memory Bank принят как source of truth. Пользователь раз
 
 ## Что проверено
 
-Локально на Python 3.13: 346 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 364 автоматических теста, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
