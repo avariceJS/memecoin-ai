@@ -139,3 +139,10 @@ D31–D32: read-side audit хранит точный план и raw ответ�
 D30 расширено тремя реальными fund-collection witnesses: gross vault debits, net recipient
 credits и requested limits проверены, прежние counters и tariffs не восстановлены.
 Подробности, числа и reproducible commands — [provider audit](../docs/provider-audit.md).
+
+
+Range enumeration допускает provider-specific размер частей, не меняя исследуемые
+границы. Original capture и все chunk responses сохраняются отдельно. При partial
+failure нельзя объявить неувиденные slots пропущенными у провайдера. Для положительного
+bounded-range agreement нужны все full block comparisons и ancestry; совпадение только
+списка слотов недостаточно. Текущий транспортный отказ не дал такого agreement.

@@ -135,3 +135,36 @@ JSON body — 103 bytes. Причина ответа неизвестна: trans
 или конкретного ограничения тарифа. Пользователь уведомлён, дальнейшая сеть остановлена.
 Теперь crosscheck прерывается при любой ошибке запроса, включая JSON-RPC error,
 с сохранением планов и доступных raw captures. [Evidence](evidence/secondary-access-2026-10-02.json).
+
+
+## Части по пять слотов
+
+Пользователь установил ограничение QuickNode Discover: getBlocks ≤5 slots. Размер
+части — параметр транспорта, не изменение фиксированного исследовательского диапазона.
+Новые команды:
+
+```sh
+mcai crosscheck-range work/secondary-stage/range/000-reference \
+  --source-alias quicknode-secondary --max-slots 5 --out work/new-enumeration
+mcai verify-provider-audit work/new-enumeration
+# После успешной crosscheck-captures всех full blocks исходного диапазона:
+mcai audit-provider-range work/new-enumeration work/new-blocks --out work/range-report.json
+```
+
+Границы inclusive: 452408962–966, 967–971, 972–973. Оригинальный широкий RPC capture
+не переписывается и не нарезается на фиктивные captures. Каждый реальный ответ сохранён
+отдельно; spec фиксирует план до сети. Проверяется точное покрытие диапазона, sorted/unique
+slots и попадание каждого результата в запрошенные границы. Пустые chunks разрешены;
+полностью пустой reference не даёт положительного agreement. Частичный отказ возвращает
+missing/extra=null, а не вывод о пропусках у провайдера.
+
+Full-range audit дополнительно требует совпадения всех full blocks у той же пары
+источников, правильного порядка и parent/hash ancestry между соседними полученными
+блоками. Skipped slots допустимы. За границами диапазона ancestry не доказывается;
+не проверяются deployed binary equivalence, market universe и execution admission.
+
+Фактическая новая попытка остановилась на первой части: SourceError без HTTP status
+и response. Это не установленный повтор HTTP 413 и не доказанный timeout. Остальные
+два enumeration-запроса и full blocks не отправлены. Обновлённый transport различает
+категории timeout/dns/tls/connection/other по типам исключений, не раскрывая их тексты;
+причина прежнего сбоя остаётся неизвестной. [Evidence](evidence/chunked-range-2026-10-02.json).

@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "date_moscow": "2026-10-02",
+  "verifier_code_commit": "be0b5b74c42915bb13ef2f81bf3f1a6d48490fac",
+  "limit_provenance": "User reports QuickNode Discover getBlocks maximum 5 slots; no plan upgrade authorized or performed.",
+  "spec": {
+    "chunks": [
+      [
+        452408962,
+        452408966
+      ],
+      [
+        452408967,
+        452408971
+      ],
+      [
+        452408972,
+        452408973
+      ]
+    ],
+    "kind": "chunked_range",
+    "max_slots": 5,
+    "schema_version": 1,
+    "secondary_alias": "quicknode-secondary"
+  },
+  "report": {
+    "attempted": 1,
+    "coverage_complete": false,
+    "end_slot": 452408973,
+    "enumeration_match": false,
+    "extra_slots": null,
+    "independent_infrastructure_verified": false,
+    "kind": "chunked_range",
+    "market_dataset_qualified": false,
+    "missing_slots": null,
+    "observed_blocks": 0,
+    "planned": 3,
+    "reference_blocks": 12,
+    "rows": [
+      {
+        "chunk": 0,
+        "error": "SourceError"
+      }
+    ],
+    "schema_version": 1,
+    "start_slot": 452408962
+  },
+  "manifest_sha256": "96411ca9cae9940f5e257bad4763b488be108328b8fdbc7c28653397ca4a6d53",
+  "collector_source_snapshot_sha256": "32ea192d59556d351a59035fade01e5eb989b8ab57041f589eaea7e25d6f3456",
+  "local_bundle": "work/secondary-stage/chunked-enumeration",
+  "actual_failed_request": {
+    "method": "getBlocks",
+    "params": [
+      452408962,
+      452408966,
+      {
+        "commitment": "finalized"
+      }
+    ]
+  },
+  "response_captured": false,
+  "http_status": null,
+  "transport_cause": "unknown; underlying exception was not retained by the collector version",
+  "subsequent_rpc_requests": 0,
+  "qualification_changed": false
+}

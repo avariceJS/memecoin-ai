@@ -171,3 +171,12 @@ HTTP body отсутствует; серия остановлена, польз�
 План из 13 запросов сохранён, agreement не получено. Crosscheck теперь прекращает
 оставшийся план при любой ошибке запроса (D31 уточнено), не только 401/403/429.
 212 tests прошли; credentials исключены из Git.
+
+## 2026-10-02 — Chunked getBlocks и новый transport failure
+
+По разрешению пользователя диапазон 12 слотов разбит 5+5+2 без upgrade. Добавлены
+crosscheck-range и audit-provider-range, raw provenance и offline reproduction.
+Первый mainnet chunk вернул SourceError без HTTP response; остальные запросы остановлены,
+пользователь сразу получил лог. HTTP 413 из прежнего запуска не переписан. Safe transport
+categories добавлены для будущей диагностики, прежняя причина осталась unknown.
+227 тестов, smoke/build и wheel verification прошли; data/execution gates не повышены.

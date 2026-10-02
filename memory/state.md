@@ -27,7 +27,7 @@ Memory Bank принят как source of truth. Пользователь раз
 
 ## Что проверено
 
-Локально на Python 3.13: 212 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 227 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
@@ -184,13 +184,26 @@ Crosscheck теперь останавливает серию при любой 
 plan сохраняются, offline verification проходит. Evidence:
 [secondary access](../docs/evidence/secondary-access-2026-10-02.json).
 
-## Следующий крупный практический этап
+## Разбиение по лимиту QuickNode Discover
 
-Сначала выяснить HTTP 413 для getBlocks в настройках/логах QuickNode и согласовать
-продолжение диагностики с пользователем. Endpoint уже доступен через `.env.local`,
-но CLI сам файл не загружает. Затем синхронный bounded pilot: зафиксировать
-диапазон finalized slots, сверить enumeration и порядок/hash блоков у двух операторов,
-полные metadata релевантных tx и checkpoint reconstruction. Отдельно расширить замеры
-доступности и накопить anchors для редких переходов. Нынешние 403/429 нельзя обойти
-переименованием исходного RPC, а известные три tx не доказывают полноту диапазона.
-ML/backtest profitability до прохождения data/execution gates не заявлять.
+Пользователь уточнил причину прежнего HTTP 413: предел getBlocks — 5 слотов;
+разрешил разбить прежний диапазон без upgrade. Реализованы inclusive partition,
+проверка объединения raw ответов против исходного capture и отдельная проверка
+покрытия full blocks с ancestry. Никаких синтетических RPC captures при объединении.
+
+Новый фиксированный план: 452408962–966 / 967–971 / 972–973. Первый запрос завершился
+SourceError без HTTP status и без полученного response; оставшиеся части и getBlock
+не запрашивались. Причина транспорта неизвестна (старый клиент её не сохранял).
+Пользователь уведомлён сразу; новый failed bundle не заменяет прежний HTTP 413.
+Добавлены безопасные категории transport errors для будущих запусков; задним числом
+этому сбою timeout/DNS/TLS не приписаны. Mainnet agreement по-прежнему не получено.
+
+227 tests, lint/format/typing, smoke/build и offline verification установленным wheel
+прошли. Evidence: [chunked range](../docs/evidence/chunked-range-2026-10-02.json).
+
+## Следующий крупный практический этап
+Следующий шаг — согласованная диагностика транспортного сбоя вторичного RPC с
+новыми безопасными категориями ошибок. Затем повторить тот же диапазон по ≤5 слотов
+в новом immutable output, сверить full blocks и реконструкцию. `.env.local` существует,
+CLI не загружает его автоматически. Upgrade тарифа не нужен и не разрешён.
+До успешной сверки не заявлять independent data agreement, qualified dataset или edge.
