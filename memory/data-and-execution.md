@@ -158,7 +158,7 @@ Captures/hashes и ограничения: [provider audit](../docs/provider-aud
 2026-10-02: Helius — текущий кандидат вместо QuickNode по прямому поручению. Новые
 QuickNode запросы прекращены, архивы сохраняются. Документационный MCP отвечает,
 chain preflight получил timeout внутреннего getSupply; mainnet, finalized height и
-история через Helius не подтверждены. Runtime endpoint/key отсутствует в доступной
+история через Helius не подтверждены. На этом первом этапе runtime endpoint/key отсутствовал в доступной
 настройке проекта. MCP tools, parsed data и direct JSON-RPC имеют разные границы;
 MCP tool results сохранены отдельно и не превращены в RPC captures.
 
@@ -168,3 +168,18 @@ comparison schema 2 сравнивают весь block/transaction result; од
 обязательных full-block metadata даёт unavailable. Schema 1 воспроизводит старые
 отчёты. Не подменять MCP wall time HTTP duration или execution latency. Результат,
 ограничения и отложенный план: [Helius](../docs/helius-audit.md).
+
+## Полнота traces: реальное расхождение Helius
+
+После настройки endpoint выполнен direct audit: список 12 slots совпал, первый
+block identity/order совпал, но две logMessages arrays укорочены с Log truncated.
+1 308/1 310 tx совпали целиком; остальные 11 blocks не загружались. Дополнительный
+raw getTransaction сохранил обрезку. Наличие поля logMessages не доказывает полного
+trace. Одинаковая обрезка у двух источников также не даёт positive completeness.
+
+Schema 3 выделяет marker и различающиеся JSON paths, не меняет raw payload и не
+игнорирует поля. Legacy schema 1/2 воспроизводят старые отчёты. Full-block mismatch
+остаётся false для agreement даже при совпадении balances/fees/instructions.
+Cross-method getTransaction/getBlock differences (например rewards null/[]) не
+нормализованы ради совпадения. Следующий gate — доступ к полным историческим logs.
+Evidence: docs/evidence/helius-direct-2026-10-02.json; текущий отчёт: docs/helius-audit.md.

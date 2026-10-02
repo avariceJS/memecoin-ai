@@ -27,7 +27,7 @@ Memory Bank принят как source of truth. Пользователь раз
 
 ## Что проверено
 
-Локально на Python 3.13: 239 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 244 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
@@ -212,7 +212,7 @@ Sandbox дал DNS failure, разрешённая сеть вернула пе�
 227 tests, lint/typing и smoke прошли; три новых bundles проверены offline.
 [Evidence](../docs/evidence/quicknode-diagnostic-2026-10-02.json).
 
-## Следующий крупный практический этап
+## Первый preflight Helius (до настройки endpoint)
 
 По новому поручению пользователь выбрал **Helius вместо QuickNode** для следующей
 сверки. Новых QuickNode запросов не делать; его evidence и общие RPC-интерфейсы сохраняются.
@@ -235,3 +235,36 @@ result и отклоняют неполные metadata; legacy bundles восп�
 239 tests, lint/format/typing, smoke и build прошли. Исторические ML E01–E14 не
 проведены, data/execution qualification не повышена. Детали, безопасный лог и план:
 [Helius audit](../docs/helius-audit.md), [evidence](../docs/evidence/helius-preflight-2026-10-02.json).
+
+## Direct Helius: доступ подтверждён, обнаружена неполнота traces
+
+2026-10-02 после настройки пользователем MEMECOIN_HELIUS_RPC_URL выполнен
+новый immutable read-only plan. Sandbox getGenesisHash дал dns failure; вне sandbox
+mainnet genesis/version/finalized slot подтверждены. Enumeration 452408962–452408973
+совпал 12/12. Первый full block получен за 5.373 s, 10 011 629 bytes, 1 310 tx.
+Identity/order и все поля кроме двух logMessages arrays совпали; 1 308 tx совпали
+целиком. У Helius tx indices 433/743 имеют Log truncated. Полных block matches 0/1,
+11 остальных блоков не запрошены, range agreement false.
+
+Один отдельный getTransaction для tx 433 вернул тот же обрезанный trace; его
+meta.rewards=[] отличается от block null и также сохранён. HTTP 200 у всех шести
+запросов вне sandbox; всего 10 056 361 payload bytes. Это ограниченные response-time
+наблюдения, не sustained throughput/chain age/execution latency. После выявленного
+metadata blocker сеть остановлена; причинный механизм/настройка Helius неизвестны.
+
+Comparison schema 3 обнаруживает marker, сохраняет mismatch и выдаёт bounded
+JSON-pointer diagnostics; одинаковая обрезка даёт unavailable. Старые schema 1/2
+воспроизводятся. Добавлены offline compare-rpc-captures и неизменённый реальный
+getTransaction regression. 244 tests, lint/format/strict typing, smoke и sdist/wheel build прошли.
+Отчёт и raw hashes: [Helius audit](../docs/helius-audit.md),
+[evidence](../docs/evidence/helius-direct-2026-10-02.json).
+
+## Следующий ограниченный шаг
+
+Установить доступный способ получать у Helius полные исторические logs на уже
+известной signature; до этого не повторять успешно полученные данные и не начинать
+синхронный сбор. Если такого пути нет, этот доступ не подходит для полной trace
+qualification. Не удалять logs из сравнения и не подставлять primary tail, чтобы
+получить agreement. Mainnet доступ подтверждён, но market dataset, execution,
+инфраструктурная независимость и edge не квалифицированы. QuickNode для новых
+запросов не используется; прежние archives остаются. ML/RL/trading не начинались.

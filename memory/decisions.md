@@ -274,3 +274,21 @@ Evidence: docs/evidence/helius-preflight-2026-10-02.json; отчёт: docs/heliu
 дают agreement. Причина: schema 1 выбирала только часть top-level fields блока.
 Старые bundles воспроизводятся прежней schema; их результат не повышается молча.
 Новые планы фиксируют transport bounds и останавливаются при первом non-match/error.
+
+### D31: прямой Helius работает, усечённые логи блокируют full agreement
+
+**Статус:** подтверждён реальными ответами 2026-10-02 после настройки endpoint.
+Enumeration 12/12 совпал; первый block из 1 310 tx отличается двумя logMessages
+arrays с marker Log truncated. Один целевой getTransaction не восстановил trace.
+11 оставшихся блоков не запрошены, серия остановлена; full-range agreement false.
+Нет основания объяснять обрезку тарифом, клиентским транспортом или конкретной
+настройкой Helius. Сжатие не решает отсутствие tail в успешно распарсенном JSON.
+
+Выбор: schema 3 сохраняет полный result comparison, отдельно диагностирует marker
+и bounded JSON paths. При одинаковой обрезке статус unavailable, при различии —
+mismatch. Старые schema 1/2 не переписываются. Причина: structural presence guard
+не различал полные logs и список с marker. Альтернатива отбросить logs отклонена:
+это ослабит согласованную проверку metadata и не докажет trace completeness.
+Слабость: отсутствие marker само по себе не исключает иной вид неполноты.
+Пересмотр — при проверяемом получении полных historical traces через Helius; до
+этого синхронный pilot не начинать. Evidence: docs/evidence/helius-direct-2026-10-02.json.

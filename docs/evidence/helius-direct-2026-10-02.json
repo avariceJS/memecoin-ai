@@ -1,0 +1,303 @@
+{
+  "schema_version": 1,
+  "date_moscow": "2026-10-02",
+  "kind": "helius_direct_rpc_audit",
+  "capture_code_commit": "07961a9c85e4f9f39c4ea25def65af518a3eb2c6",
+  "analysis_source_snapshot_sha256": "84292fd5f0b63e1b7e286a6378db54fe40beec0407901dac3d4090de521e4a05",
+  "range": [
+    452408962,
+    452408973
+  ],
+  "seed": null,
+  "temporal_split": null,
+  "execution_model": "none; read-only qualification",
+  "bundles": {
+    "work/helius-range-01-sandbox": "d1681b5d74d48262b00c2d9502cee3811806a6b7961335daf9e4ff19f039c530",
+    "work/helius-range-01": "5fbb405fa43d732b08d0803763c35605596c0af82ae61bf187439957bb4a1929",
+    "work/helius-trace-probe-01": "b4eeddfbda2658d03eddc2b68ad3bfe65c3e7406c1de523eb953b260393ecff0",
+    "work/helius-diagnosis-01": "8f7fa9ea023463ca7246dc714e3ed26039d3072b1610e2b5956a832552e8d745"
+  },
+  "sandbox_error": {
+    "method": "getGenesisHash",
+    "params": [],
+    "category": "dns",
+    "http_status": null,
+    "rpc_code": null
+  },
+  "successful_http_requests": 6,
+  "automatic_retries": 0,
+  "preflight": {
+    "attempted": 5,
+    "bounded_range_agreement": false,
+    "enumeration_match": true,
+    "execution_qualified": false,
+    "getGenesisHash": "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d",
+    "getSlot": 452643948,
+    "getVersion": {
+      "feature-set": 3383571666,
+      "solana-core": "4.3.0"
+    },
+    "market_dataset_qualified": false,
+    "matched_blocks": 0,
+    "schema_version": 1,
+    "status": "stopped_blocks"
+  },
+  "measurements": [
+    {
+      "elapsed_ns": 360182833,
+      "http_status": 200,
+      "index": 0,
+      "method": "getGenesisHash",
+      "params": [],
+      "received_ns": 1790953107921950000,
+      "response_bytes": 80,
+      "response_sha256": "4c7d22c9fc5f5b5da1bb5c38dcb7cfa3014e7ea0e1334a6220663cebcc2acdf8",
+      "rpc_code": null,
+      "started_ns": 1790953107561758000
+    },
+    {
+      "elapsed_ns": 258775208,
+      "http_status": 200,
+      "index": 1,
+      "method": "getVersion",
+      "params": [],
+      "received_ns": 1790953111187031000,
+      "response_bytes": 83,
+      "response_sha256": "f63d921e76a17991fcef1051216fcfff90c15efa90b0588c28eee6412f30a615",
+      "rpc_code": null,
+      "started_ns": 1790953110928251000
+    },
+    {
+      "elapsed_ns": 233331666,
+      "http_status": 200,
+      "index": 2,
+      "method": "getSlot",
+      "params": [
+        {
+          "commitment": "finalized"
+        }
+      ],
+      "received_ns": 1790953114423323000,
+      "response_bytes": 43,
+      "response_sha256": "8ad68a28eafc4a0b1b19b78737d99e5bca97652d3267aec20df6161f98db8793",
+      "rpc_code": null,
+      "started_ns": 1790953114189986000
+    },
+    {
+      "elapsed_ns": 311382375,
+      "http_status": 200,
+      "index": 3,
+      "method": "getBlocks",
+      "params": [
+        452408962,
+        452408973,
+        {
+          "commitment": "finalized"
+        }
+      ],
+      "received_ns": 1790953117738970000,
+      "response_bytes": 155,
+      "response_sha256": "1c863728991864f86e3be513918911dd5497d88b13855467d28653ee23232b6f",
+      "rpc_code": null,
+      "started_ns": 1790953117427584000
+    },
+    {
+      "elapsed_ns": 5373493417,
+      "http_status": 200,
+      "index": 4,
+      "method": "getBlock",
+      "params": [
+        452408962,
+        {
+          "commitment": "finalized",
+          "encoding": "jsonParsed",
+          "maxSupportedTransactionVersion": 1,
+          "rewards": false,
+          "transactionDetails": "full"
+        }
+      ],
+      "received_ns": 1790953126207001000,
+      "response_bytes": 10011629,
+      "response_sha256": "1febb1f150e8a50b33326e81a52411a3a3a048524580724cae96eaf70456c0ff",
+      "rpc_code": null,
+      "started_ns": 1790953120833499000
+    }
+  ],
+  "transaction_probe": {
+    "elapsed_ns": 4235032459,
+    "helius_block_metadata_match": false,
+    "http_status": 200,
+    "log_lines": 129,
+    "method": "getTransaction",
+    "params": [
+      "x5QtkLfgCbcCNusnXAU8BcXUXVKPKWi8mLBgpRdF53ru4bCqX7t3LxRXSv6fkPBVXAaiXHCBymFUquap77H79nB",
+      {
+        "commitment": "finalized",
+        "encoding": "jsonParsed",
+        "maxSupportedTransactionVersion": 1
+      }
+    ],
+    "received_ns": 1790953326250270000,
+    "reference_metadata_match": false,
+    "response_bytes": 44371,
+    "rpc_code": null,
+    "slot": 452408962,
+    "started_ns": 1790953322011806000,
+    "status": "received",
+    "transaction_match": true,
+    "truncated": true,
+    "version_match": true
+  },
+  "diagnostic": {
+    "kind": "derived_offline_diagnosis",
+    "network_requests": 0,
+    "reference_capture_sha256": "2f1bdb5287c217309ac3e6941cd4c8bb0c390de7c87fff7796328876206907f3",
+    "helius_capture_sha256": "1febb1f150e8a50b33326e81a52411a3a3a048524580724cae96eaf70456c0ff",
+    "slot": 452408962,
+    "transaction_count": 1310,
+    "exact_transaction_matches": 1308,
+    "differing_transactions": [
+      {
+        "index": 433,
+        "signature": "x5QtkLfgCbcCNusnXAU8BcXUXVKPKWi8mLBgpRdF53ru4bCqX7t3LxRXSv6fkPBVXAaiXHCBymFUquap77H79nB",
+        "err": null,
+        "reference_log_lines": 139,
+        "helius_log_lines": 129,
+        "reference_log_utf8_bytes": 10765,
+        "helius_log_utf8_bytes": 9989,
+        "differences": {
+          "total_sites": 2,
+          "samples": [
+            {
+              "path": "/meta/logMessages",
+              "kind": "array_length",
+              "left_length": 139,
+              "right_length": 129
+            },
+            {
+              "path": "/meta/logMessages/128",
+              "kind": "value"
+            }
+          ],
+          "samples_complete": true
+        }
+      },
+      {
+        "index": 743,
+        "signature": "3sneF6gjC75UiQXferoXWqev3HjuY2jRa9PqRkwvn8usNqEZ5wsi7UaBHZDcRrULzF2SCBbGFaUWWFEQAyqYG6m",
+        "err": {
+          "InstructionError": [
+            1,
+            {
+              "Custom": 2
+            }
+          ]
+        },
+        "reference_log_lines": 128,
+        "helius_log_lines": 127,
+        "reference_log_utf8_bytes": 10173,
+        "helius_log_utf8_bytes": 10008,
+        "differences": {
+          "total_sites": 2,
+          "samples": [
+            {
+              "path": "/meta/logMessages",
+              "kind": "array_length",
+              "left_length": 128,
+              "right_length": 127
+            },
+            {
+              "path": "/meta/logMessages/125",
+              "kind": "value"
+            }
+          ],
+          "samples_complete": true
+        }
+      }
+    ],
+    "block_fields_match": {
+      "blockHeight": true,
+      "blockTime": true,
+      "blockhash": true,
+      "parentSlot": true,
+      "previousBlockhash": true
+    },
+    "signature_order_match": true,
+    "gettransaction_diagnostic": {
+      "kind": "cross_method_field_diagnostic_not_rpc_capture",
+      "expected_slot_match": true,
+      "expected_block_time_match": true,
+      "embedded_common_fields": [
+        "meta",
+        "transaction",
+        "version"
+      ],
+      "additional_gettransaction_fields": [
+        "blockTime",
+        "slot",
+        "transactionIndex"
+      ],
+      "reference_metadata_differences": {
+        "total_sites": 3,
+        "samples": [
+          {
+            "path": "/logMessages",
+            "kind": "array_length",
+            "left_length": 139,
+            "right_length": 129
+          },
+          {
+            "path": "/logMessages/128",
+            "kind": "value"
+          },
+          {
+            "path": "/rewards",
+            "kind": "type",
+            "left_type": "NoneType",
+            "right_type": "list"
+          }
+        ],
+        "samples_complete": true
+      },
+      "helius_block_metadata_differences": {
+        "total_sites": 1,
+        "samples": [
+          {
+            "path": "/rewards",
+            "kind": "type",
+            "left_type": "NoneType",
+            "right_type": "list"
+          }
+        ],
+        "samples_complete": true
+      },
+      "log_array_equals_helius_block": true
+    }
+  },
+  "full_block_matches": 0,
+  "full_blocks_compared": 1,
+  "full_blocks_not_requested": 11,
+  "enumeration_slots_matched": 12,
+  "bounded_range_agreement": false,
+  "independent_infrastructure_verified": false,
+  "market_dataset_qualified": false,
+  "execution_qualified": false,
+  "total_successful_response_payload_bytes": 10056361,
+  "compression_tested": false,
+  "observed_limitation": "Helius getBlock and one getTransaction return Log truncated; provider-side cause/configuration unknown. 1308/1310 tx match in first block. Do not omit logMessages or fill from primary to claim agreement.",
+  "next_step": "Resolve availability of full historical logs at Helius before resuming untouched block plan; no new full-range download or synchronized collection yet.",
+  "documentation": [
+    "https://solana.com/docs/payments/agentic-payments/x402",
+    "https://www.helius.dev/docs/api-reference/rpc/http/gettransaction"
+  ],
+  "analysis_code_commit": "2e6a955f1197d5531c0b681d06a830f12378df23",
+  "engineering_checks": {
+    "tests_passed": 244,
+    "ruff_lint_format": "passed",
+    "strict_mypy": "passed",
+    "smoke": "passed",
+    "sdist_wheel_build": "passed",
+    "wheel_diagnostic_reproduction": "passed",
+    "legacy_bundle_reproduction": "passed"
+  }
+}

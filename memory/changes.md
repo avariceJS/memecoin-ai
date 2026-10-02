@@ -210,3 +210,20 @@ journal integrity ok. Новые comparison schema 2 проверяют полн
 сетевого разрешения после sandbox DNS error. Helius не квалифицирован, ML/trading
 не начаты. Следующий шаг — локальный авторизованный Helius RPC URL и bounded
 16-request plan; подробнее docs/helius-audit.md.
+
+## 2026-10-02 Прямой Helius: enumeration совпал, logs обрезаны
+
+После настройки локального endpoint проведён bounded direct preflight/range plan.
+Sandbox DNS failure сохранён отдельно; после штатного разрешения mainnet genesis,
+version и finalized slot подтверждены, enumeration совпал 12/12. Первый full block
+(1 310 tx, 10 011 629 bytes, 5.373 s) остановил серию: у двух tx logs с marker
+Log truncated. 1 308 tx совпали целиком; identity/order и остальные поля совпали.
+Целевой getTransaction также обрезан, плюс rewards=[] вместо block null; raw сохранён.
+Всего шесть успешных HTTP requests, 11 других blocks не запрошены; agreement false.
+
+Добавлены schema 3 (marker guard, bounded difference paths), offline compare-rpc-captures,
+реальный неизменённый getTransaction fixture и regression tests. Старые schemas и
+архивы воспроизводятся без переписывания. 244 tests, lint/format/typing, smoke и sdist/wheel build прошли.
+Обновлены Memory Bank и docs/helius-audit.md, evidence/helius-direct-2026-10-02.json.
+Следующий шаг — проверяемый доступ к полным historical traces; новые сетевые серии
+остановлены до устранения metadata blocker. Qualification/ML/trading не повышались.
