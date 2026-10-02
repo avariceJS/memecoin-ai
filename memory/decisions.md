@@ -431,3 +431,18 @@ impact оставлены unknown; net_pnl=null. Реальные trading tx н�
 evaluation decisions на frozen cutoff, исполнение не квалифицировано. Полный отчёт:
 docs/evidence/prospective-execution-2026-10-02.json. Пересмотр — устранённый current-state
 blocker и новые prospective периоды, не ослабление temporal/data gates.
+
+### D37: сохранить strict coherence и сменить текущий snapshot source
+
+**Статус:** принято в автономной области пользователя 2026-10-02; сбор в работе.
+Agave reference подтверждает единый bank для getMultipleAccounts/Clock. Старые два
+Helius mismatch не нормализуются; upstream cause не установлен. MCP troubleshooting
+не дал объяснения. Bounded preflight: public RPC 6/6 valid, Gatekeeper первый timeout.
+Выбор: public RPC для следующей bounded prospective кампании с тем же decoder, без
+нового протокольного adapter. Endpoint origin закреплён новым plan schema 2; aliases
+недостаточно для защиты от случайной смены endpoint при resume. Старые raw/targets
+и source-pinned verifiers сохраняются. Альтернативы: one-slot tolerance/сшивка счетов
+отклонены; simulation/streaming не нужны до проверки простого согласованного источника.
+Слабость: public RPC имеет ограничения доступности, короткий preflight не гарантия.
+Следующий критерий — успешные bounded segments, offline verification и readiness report.
+Контракт: docs/checkpoint-coherence.md. D33 historical audit остаётся закрытым.

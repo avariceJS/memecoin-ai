@@ -169,6 +169,7 @@ def main() -> int:
     )
     campaign.add_argument("--checkpoint", type=Path, action="append", required=True)
     campaign.add_argument("--source-alias", required=True)
+    campaign.add_argument("--endpoint-origin", required=True)
     campaign.add_argument("--segments", type=int, default=4)
     campaign.add_argument("--rounds", type=int, default=30)
     campaign.add_argument("--interval", type=int, default=5)
@@ -177,7 +178,7 @@ def main() -> int:
         "resume-prospective-campaign", help="Collect one new bounded segment"
     )
     resume.add_argument("path", type=Path)
-    resume.add_argument("--endpoint-env", default="MEMECOIN_HELIUS_RPC_URL")
+    resume.add_argument("--endpoint-env", required=True)
     campaign_verify = commands.add_parser(
         "verify-prospective-campaign", help="Offline campaign reproduction"
     )
@@ -309,6 +310,7 @@ def main() -> int:
                         args.out,
                         [Capture.load(p) for p in args.checkpoint],
                         source_alias=args.source_alias,
+                        endpoint_origin=args.endpoint_origin,
                         segments=args.segments,
                         rounds=args.rounds,
                         interval_seconds=args.interval,

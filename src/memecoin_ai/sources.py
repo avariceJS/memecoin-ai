@@ -165,6 +165,15 @@ class ReadOnlyRPC:
         self.transport = transport
         self.clock = clock
 
+    @property
+    def endpoint_origin(self) -> str:
+        """Public routing identity only; never path/query/API credentials."""
+        url = urlsplit(self._endpoint)
+        host = url.hostname or ""
+        if ":" in host:
+            host = "[" + host + "]"
+        return "https://" + host + (":" + str(url.port) if url.port else "")
+
     def fetch(self, method: str, params: list[object]) -> Capture:
         if method not in READ_METHODS:
             raise ValidationError("RPC method is not in the read-only allowlist")

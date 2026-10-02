@@ -40,6 +40,7 @@ def create_campaign(
     references: list[Capture],
     *,
     source_alias: str,
+    endpoint_origin: str,
     segments: int = 4,
     rounds: int = 30,
     interval_seconds: int = 5,
@@ -63,10 +64,15 @@ def create_campaign(
     for cap, pool in zip(references, pools, strict=True):
         if decode_supported_checkpoint(cap, pool)["schema_version"] != 2:
             raise ValidationError("campaign requires Clock")
+    # Reuse URL validation; origin must not carry a path, query or credentials.
+    identity = ReadOnlyRPC(endpoint_origin, source_alias).endpoint_origin
+    if identity != endpoint_origin:
+        raise ValidationError("campaign endpoint must be a canonical HTTPS origin only")
     start = clock()
     plan = dict(
-        schema_version=1,
+        schema_version=2,
         kind="prospective_campaign",
+        endpoint_origin=identity,
         created_ns=start,
         source_alias=source_alias,
         pools=pools,
@@ -198,6 +204,10 @@ def resume_campaign(
         except BlockingIOError as exc:
             raise ValidationError("campaign already collecting") from exc
         plan = _plan(root)
+        if (root / "closure.json").exists():
+            raise ValidationError("campaign explicitly closed; new plan required")
+        if client.endpoint_origin != plan["endpoint_origin"]:
+            raise ValidationError("endpoint origin differs from frozen campaign")
         if (client.source_alias, client.timeout, client.max_bytes) != (
             plan["source_alias"],
             plan["timeout_seconds"],

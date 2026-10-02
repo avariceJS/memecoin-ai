@@ -16,6 +16,7 @@ def setup(root, transport=None):
         root,
         [BASE],
         source_alias="synthetic-campaign",
+        endpoint_origin="https://example.invalid",
         segments=2,
         rounds=4,
         interval_seconds=10,
@@ -139,7 +140,13 @@ def test_two_failed_segments_block_third_even_with_remaining_budget(tmp_path):
     t = FakeTime()
     root = tmp_path / "campaign"
     create_campaign(
-        root, [BASE], source_alias="synthetic-campaign", segments=3, rounds=4, clock=t.clock
+        root,
+        [BASE],
+        source_alias="synthetic-campaign",
+        endpoint_origin="https://example.invalid",
+        segments=3,
+        rounds=4,
+        clock=t.clock,
     )
     calls = []
 
@@ -162,3 +169,41 @@ def test_two_failed_segments_block_third_even_with_remaining_budget(tmp_path):
     with pytest.raises(ValidationError, match="consecutive failed"):
         resume(root, t, client)
     assert len(calls) == 2
+
+
+def test_resume_cannot_switch_endpoint_under_same_alias(tmp_path):
+    root = tmp_path / "campaign"
+    t, client = setup(root)
+    wrong = ReadOnlyRPC(
+        "https://another.invalid/?api-key=secret",
+        client.source_alias,
+        timeout=15,
+        max_bytes=1_000_000,
+        transport=t.transport,
+        clock=t.clock,
+    )
+    with pytest.raises(ValidationError, match="endpoint origin"):
+        resume(root, t, wrong)
+    assert t.calls == 0 and list((root / "segments").iterdir()) == []
+
+
+def test_origin_excludes_secrets_and_closed_campaign_cannot_resume(tmp_path):
+    root = tmp_path / "campaign"
+    t, client = setup(root)
+    assert (
+        ReadOnlyRPC("https://example.invalid/private-key?api-key=secret", "test").endpoint_origin
+        == "https://example.invalid"
+    )
+    write(root / "closure.json", dict(reason="explicit termination"))
+    with pytest.raises(ValidationError, match="explicitly closed"):
+        resume(root, t, client)
+    assert t.calls == 0
+
+
+@pytest.mark.parametrize(
+    "origin", ["https://example.invalid/?api-key=secret", "https://example.invalid/secret"]
+)
+def test_campaign_rejects_secret_bearing_origin(tmp_path, origin):
+    with pytest.raises(ValidationError, match="origin only"):
+        create_campaign(tmp_path / "campaign", [BASE], source_alias="test", endpoint_origin=origin)
+    assert not (tmp_path / "campaign").exists()
