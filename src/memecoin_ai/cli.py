@@ -161,6 +161,10 @@ def main() -> int:
     chunks.add_argument("--endpoint-env", default="MEMECOIN_SECONDARY_RPC_URL")
     chunks.add_argument("--max-slots", type=int, default=5)
     chunks.add_argument("--out", type=Path, required=True)
+    for rpc_command in (latency, cross, chunks):
+        rpc_command.add_argument(
+            "--timeout", type=float, default=10, help="RPC timeout in seconds, (0, 60]"
+        )
     range_audit = commands.add_parser(
         "audit-provider-range", help="Verify enumeration and full block agreement"
     )
@@ -173,7 +177,9 @@ def main() -> int:
             endpoint = os.environ.get(args.endpoint_env)
             if not endpoint:
                 raise ValidationError("RPC endpoint environment variable is not set")
-            client = ReadOnlyRPC(endpoint, args.source_alias, max_bytes=32_000_000)
+            client = ReadOnlyRPC(
+                endpoint, args.source_alias, timeout=args.timeout, max_bytes=32_000_000
+            )
             if args.command == "measure-rpc-latency":
                 report = measure_latency(
                     client, args.out, rounds=args.rounds, interval=args.interval

@@ -239,3 +239,16 @@ getBlocks. Теперь любая SourceError/ValidationError останавл�
 skipped slots, но сам по себе ничего не доказывает. Full-range agreement требует
 совпадения enumeration и всех full blocks плюс ancestry внутри диапазона.
 Реализация проверена инженерно; новая mainnet попытка остановилась на transport failure.
+
+### D31: диагностика сети и отдельный RPC timeout
+
+2026-10-02 подтверждён документированный free-trial предел 5 slots. Прямые запросы
+в sandbox получили dns failure, вне sandbox успешно перечислили весь прежний
+диапазон по 5 + 5 + 2. MCP Console API/Tooling Access недоступны на текущем тарифе;
+это не отказ самого пользовательского RPC endpoint. Добавлен CLI `--timeout`
+(0,60], default 10 s, без автоматических retries. Причина: управлять ожиданием
+через штатную команду. Слабость: timeout не гарантирует общий deadline и не исправляет
+сеть. 30s enumeration и четвёртый full block при 60s получили timeout; полного
+agreement нет. Старому SourceError причину не приписывать. Evidence:
+docs/evidence/quicknode-diagnostic-2026-10-02.json. Пересмотр — после диагностики
+сетевого пути и успешного полного нового плана.

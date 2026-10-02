@@ -146,3 +146,9 @@ Range enumeration допускает provider-specific размер частей
 failure нельзя объявить неувиденные slots пропущенными у провайдера. Для положительного
 bounded-range agreement нужны все full block comparisons и ancestry; совпадение только
 списка слотов недостаточно. Текущий транспортный отказ не дал такого agreement.
+
+Диагностика 2026-10-02 получила полное enumeration 12/12 у QuickNode, но только
+три full blocks до timeout четвёртого. Full-range agreement всё ещё false. Sandbox
+DNS failure отделён от timeout разрешённой сети и MCP 401 тарифного Console API.
+Явный CLI `--timeout` не является execution latency или общим сетевым deadline.
+Captures/hashes и ограничения: [provider audit](../docs/provider-audit.md).

@@ -180,3 +180,14 @@ crosscheck-range и audit-provider-range, raw provenance и offline reproduction
 пользователь сразу получил лог. HTTP 413 из прежнего запуска не переписан. Safe transport
 categories добавлены для будущей диагностики, прежняя причина осталась unknown.
 227 тестов, smoke/build и wheel verification прошли; data/execution gates не повышены.
+
+## 2026-10-02 Диагностика QuickNode через MCP и прямой RPC
+
+MCP Console API/Tooling Access вернули 401 тарифного доступа. Прямой getBlocks
+в sandbox дал dns failure; после сетевого разрешения первая часть прошла.
+Отдельный 30s план получил timeout. Новый 60s план полностью перечислил 12 slots
+по 5 + 5 + 2, три full blocks совпали; четвёртый получил timeout, серия остановлена.
+Причина старого SourceError неизвестна; 60s не объявляется устранением нестабильности.
+Добавлен CLI `--timeout`, default 10s сохранён. 227 tests, lint/typing, smoke и три
+offline bundle verification прошли. Старые captures не изменены. Evidence:
+docs/evidence/quicknode-diagnostic-2026-10-02.json. Полного agreement и qualification нет.

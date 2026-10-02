@@ -145,7 +145,7 @@ JSON body — 103 bytes. Причина ответа неизвестна: trans
 
 ```sh
 mcai crosscheck-range work/secondary-stage/range/000-reference \
-  --source-alias quicknode-secondary --max-slots 5 --out work/new-enumeration
+  --source-alias quicknode-secondary --max-slots 5 --timeout 60 --out work/new-enumeration
 mcai verify-provider-audit work/new-enumeration
 # После успешной crosscheck-captures всех full blocks исходного диапазона:
 mcai audit-provider-range work/new-enumeration work/new-blocks --out work/range-report.json
@@ -168,3 +168,35 @@ Full-range audit дополнительно требует совпадения 
 два enumeration-запроса и full blocks не отправлены. Обновлённый transport различает
 категории timeout/dns/tls/connection/other по типам исключений, не раскрывая их тексты;
 причина прежнего сбоя остаётся неизвестной. [Evidence](evidence/chunked-range-2026-10-02.json).
+
+## Диагностика доступа QuickNode, 2026-10-02
+
+Официальная [документация getBlocks](https://www.quicknode.com/docs/solana/getBlocks)
+указывает предел 5 слотов для free trial и 1005 для paid accounts. Исходный диапазон
+из 12 слотов превышает первый предел; прежнее разбиение 5 + 5 + 2 корректно.
+Старый HTTP 413 остаётся без сохранённого тела: документация объясняет ограничение,
+но не заменяет серверный trace конкретного отказа.
+
+Наличие MCP tools не означает успешный доступ: `list_endpoints` и `call_rpc` сейчас
+возвращают HTTP 401 / Console API unavailable for your plan. MCP `call_rpc` использует
+Tooling Access, а не пользовательский `.env.local` endpoint. Upgrade не выполнялся.
+
+Прямой запрос первой части в sandbox дал категорию `dns`; тот же запрос после
+разрешённого запуска вне sandbox вернул пять ожидаемых слотов. В следующем отдельном
+плане с timeout=30 первая часть получила `timeout`; серия остановлена. Одиночная
+проба timeout=60 вновь прошла примерно за 0.4 s. Это свидетельство перемежающейся
+доступности, а не доказательство, что увеличение timeout устраняет сетевую причину.
+Категория старого SourceError по-прежнему неизвестна.
+
+Команды `crosscheck-range`, `crosscheck-captures` и `measure-rpc-latency` теперь
+принимают `--timeout` в диапазоне (0,60]; прежний default 10 s сохранён. Timeout
+передаётся в urllib/socket и не является гарантированным общим deadline для DNS и
+всей загрузки ответа. Никаких автоматических retries: повтор — отдельный явно
+запущенный план в новом output. Endpoint передавать через окружение; dotenv CLI
+не загружает. При sandbox DNS failure использовать штатное сетевое разрешение.
+
+Новый план timeout=60 полностью получил enumeration: 12/12 slots, missing/extra
+пусты. Из 12 full blocks три совпали по identity/order/metadata, четвёртый запрос
+получил `timeout`; оставшиеся восемь не отправлены. Bounded-range agreement остаётся
+false. Три новых bundles прошли offline verification; старые outputs не переписаны.
+[Диагностический отчёт](evidence/quicknode-diagnostic-2026-10-02.json).

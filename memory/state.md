@@ -201,9 +201,20 @@ SourceError без HTTP status и без полученного response; ост
 227 tests, lint/format/typing, smoke/build и offline verification установленным wheel
 прошли. Evidence: [chunked range](../docs/evidence/chunked-range-2026-10-02.json).
 
+## Диагностика QuickNode, 2026-10-02
+
+Sandbox дал DNS failure, разрешённая сеть вернула первую часть. MCP инструменты
+доступны, но Console API/Tooling Access получили 401 из-за тарифа. Прямой RPC работает
+перемежающе: новый 30s plan остановился на timeout; 60s plan получил все 12 slots
+и три совпавших full blocks, четвёртый getBlock получил timeout. Остальные запросы
+остановлены. Причина старого SourceError неизвестна; увеличение timeout не доказано
+как исправление нестабильности. CLI получил явный `--timeout` (0,60], default 10s.
+227 tests, lint/typing и smoke прошли; три новых bundles проверены offline.
+[Evidence](../docs/evidence/quicknode-diagnostic-2026-10-02.json).
+
 ## Следующий крупный практический этап
-Следующий шаг — согласованная диагностика транспортного сбоя вторичного RPC с
-новыми безопасными категориями ошибок. Затем повторить тот же диапазон по ≤5 слотов
-в новом immutable output, сверить full blocks и реконструкцию. `.env.local` существует,
-CLI не загружает его автоматически. Upgrade тарифа не нужен и не разрешён.
-До успешной сверки не заявлять independent data agreement, qualified dataset или edge.
+
+Диагностика перемежающегося timeout полного getBlock, затем новый ограниченный
+план всех full blocks того же диапазона и проверка ancestry. `.env.local` существует,
+CLI не загружает его автоматически. Upgrade не разрешён. До успешной полной сверки
+не заявлять independent data agreement, qualified dataset или edge.
