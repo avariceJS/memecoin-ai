@@ -562,3 +562,13 @@ Primary criterion провален. Config дал 170 notifications одного
 сначала scheduler/coalescing и новый frozen matched-cadence steady/stress plan.
 364 tests; [отчёт](../docs/alchemy-pilot.md),
 [evidence](../docs/evidence/alchemy-pilot-2026-10-03.json). V2 не проведён; ML gates прежние.
+
+
+### D40-v2: разделить transport, cadence и fault stress
+
+2026-10-03 пользователь разрешил самостоятельно выбрать роль WSS по evidence и перейти
+дальше. План `f58a3d1`: точная matched10s пара http10/wss10, http5 как быстрый контроль,
+adaptive eligibility5s/heartbeat10s как отдельная policy; steady и symmetric stress
+раздельно. Абсолютные ticks не зависят от HTTP completion; identical content нового
+slot не dirty, late messages не заменяют HTTP anchor. Полная write history всё ещё
+не доказана. Итоговое решение — после неизменяемых двух segments; ML запреты прежние.

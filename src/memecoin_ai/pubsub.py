@@ -259,3 +259,90 @@ class SnapshotTriggers:
 
     def needed(self, pool: str) -> bool:
         return self.dirty[pool] > self.anchors[pool]
+
+
+class ContentTriggers(SnapshotTriggers):
+    """Coalesce equal values; keep per-pool anchors and never rewind latest content.
+
+    A hint is evidence of a possible write, not a complete or ordered write log.
+    """
+
+    def __init__(self, dependencies: dict[str, list[str]]):
+        super().__init__(dependencies)
+        self.latest: dict[tuple[str, str], tuple[int, str]] = {}
+        self.account_anchors: dict[tuple[str, str], str] = {}
+        self.changed_slots: dict[tuple[str, str], int] = {}
+
+    def notification(self, address: str, slot: int, value: Any) -> str:
+        integer(slot, "notification slot")
+        pools = [p for p, addresses in self.dependencies.items() if address in addresses]
+        if not pools:
+            raise ValidationError("notification outside frozen dependencies")
+        fingerprint = digest(canonical(value).encode())
+        changed, late = False, False
+        for pool in pools:
+            key = (pool, address)
+            previous = self.latest.get(key)
+            old = self.anchors[pool]
+            if slot <= old:
+                continue  # Covered delivery cannot replace the authoritative HTTP value.
+            if previous is not None and slot < previous[0]:
+                late = True
+                # Old delivery cannot overwrite the latest content; if beyond our
+                # HTTP anchor, retain conservative evidence of an intermediate write.
+                if slot > old:
+                    self.dirty[pool] = max(self.dirty[pool], slot)
+                    self.changed_slots[key] = max(self.changed_slots.get(key, -1), slot)
+                continue
+            if slot > old and (previous is None or fingerprint != previous[1]):
+                self.dirty[pool] = max(self.dirty[pool], slot)
+                self.changed_slots[key] = max(self.changed_slots.get(key, -1), slot)
+                changed = True
+            self.latest[key] = (slot, fingerprint)
+        return "late" if late else "hint" if changed else "unchanged"
+
+    def anchor_accounts(self, pool: str, slot: int, accounts: dict[str, Any]) -> list[str]:
+        if set(accounts) != set(self.dependencies[pool]):
+            raise ValidationError("content anchor dependencies differ")
+        missing = []
+        for address, value in accounts.items():
+            key = (pool, address)
+            fingerprint = digest(canonical(value).encode())
+            previous = self.account_anchors.get(key)
+            if (
+                previous is not None
+                and previous != fingerprint
+                and self.changed_slots.get(key, -1) <= self.anchors[pool]
+            ):
+                missing.append(address)
+            self.account_anchors[key] = fingerprint
+            latest = self.latest.get(key)
+            if latest is None or latest[0] <= slot:
+                self.latest[key] = (slot, fingerprint)
+        self.anchor(pool, slot)
+        return missing
+
+
+class CadenceGrid:
+    """Absolute deadlines; RPC completion never shifts the next sampling tick."""
+
+    def __init__(self, start: float, seconds: float, max_lateness: float):
+        if seconds <= 0 or max_lateness < 0 or max_lateness >= seconds:
+            raise ValidationError("invalid cadence bounds")
+        self.start, self.seconds, self.max_lateness = start, seconds, max_lateness
+
+    def deadline(self, tick: int) -> float:
+        integer(tick, "tick")
+        return self.start + tick * self.seconds
+
+    def check(self, tick: int, now: float) -> None:
+        if now - self.deadline(tick) > self.max_lateness:
+            raise StreamError("schedule_overrun")
+
+    @staticmethod
+    def due(tick: int, period: int, last_tick: int | None, dirty: bool, adaptive: bool) -> bool:
+        integer(tick, "tick")
+        integer(period, "period", 1)
+        if not adaptive:
+            return tick % period == 0
+        return last_tick is None or dirty or tick - last_tick >= period

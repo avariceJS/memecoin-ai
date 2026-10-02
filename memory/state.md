@@ -22,9 +22,12 @@ Lossless stream/history не доказаны; gaps/late availability не ис�
 [Итоговый документ](../docs/alchemy-pilot.md),
 [evidence](../docs/evidence/alchemy-pilot-2026-10-03.json).
 
-**Следующий этап:** отдельный D40-v2 — scheduler/content-aware coalescing, matched5/10s
-HTTP controls, отдельные steady/stress окна; заморозить новый bounded plan до сети.
-V2 не проведён. Никакой автоматической миграции, ML/RL/paper/live или нового D33-аудита.
+**D40-v2 в работе:** пользователь поручил исправить scheduler/coalescing, провести
+matched-cadence сравнение, самостоятельно определить роль WSS и перейти к следующему
+логичному этапу. План v2 заморожен до сети (`f58a3d1`): http5/http10/wss10/adaptive,
+120 s steady +120 s symmetric stress; прежний public collector — contextual control.
+Реализованы абсолютные ticks и per-account content coalescing, 372 tests прошли.
+Новый сбор пока не проведён; migration/ML gates не повышены.
 
 **Текущий результат D39:** найден и проверен bounded вариант согласованного источника:
 canonical public mainnet `https://api.mainnet.solana.com`, explicit verified TLS keepalive

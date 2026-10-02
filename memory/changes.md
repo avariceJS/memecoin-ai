@@ -376,3 +376,10 @@ scheduler мешают приписать выигрыш WSS. D39 primary сох
 отдельно замороженный v2 с matched5/10s controls и steady/stress окнами. Raw/gaps/availability,
 protocol whitelist, synthetic-only и запреты ML/RL/paper/live не менялись.
 Итог: docs/alchemy-pilot.md; evidence: docs/evidence/alchemy-pilot-2026-10-03.json.
+
+## 2026-10-03 — D40-v2 заморожен
+
+По новому поручению пользователя разрешён выбор роли WSS и следующий логичный этап.
+Исправлены absolute scheduler/content coalescing, frozen matched10s + adaptive/5s
+controls, раздельный steady/symmetric stress, общий feature grid. 372 tests прошли;
+до нового сбора критерии/budgets сохранены в configs/alchemy-pilot-v2.json.

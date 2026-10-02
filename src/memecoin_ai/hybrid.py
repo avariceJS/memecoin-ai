@@ -22,7 +22,13 @@ from memecoin_ai.causal import (
 )
 from memecoin_ai.domain import ValidationError, canonical, digest, strict_json
 from memecoin_ai.prospective import hashes, read, write
-from memecoin_ai.pubsub import ReadOnlyWebSocket, SnapshotTriggers, StreamError
+from memecoin_ai.pubsub import (
+    CadenceGrid,
+    ContentTriggers,
+    ReadOnlyWebSocket,
+    SnapshotTriggers,
+    StreamError,
+)
 from memecoin_ai.sources import Capture, HTTPSourceError, ReadOnlyRPC, TransportSourceError
 from memecoin_ai.tokens import CLOCK
 
@@ -116,7 +122,17 @@ class Reducer:
     def __init__(self, root: Path, plan: dict[str, Any]):
         self.root, self.plan = root, plan
         deps = {c["pool_id"]: [a for a in c["params"][0] if a != CLOCK] for c in plan["cohort"]}
-        self.triggers = SnapshotTriggers(deps)
+        self.arms = tuple(plan.get("arms", ARMS))
+        self.stream_arms = tuple(plan.get("stream_arms", ("hybrid",)))
+        self.triggers_by_arm = (
+            {
+                a: ContentTriggers(deps) if plan["schema_version"] == 2 else SnapshotTriggers(deps)
+                for a in self.stream_arms
+            }
+            if "schema_version" in plan
+            else {"hybrid": SnapshotTriggers(deps)}
+        )
+        self.triggers = self.triggers_by_arm[self.stream_arms[-1]]
         self.books = {
             a: CausalBook(
                 list(deps),
@@ -124,15 +140,18 @@ class Reducer:
                 max_chain_age_ns=45 * 10**9,
                 max_gap_ns=25 * 10**9,
             )
-            for a in ARMS
+            for a in self.arms
         }
-        self.rows: dict[str, list[dict[str, Any]]] = {a: [] for a in ARMS}
+        self.rows: dict[str, list[dict[str, Any]]] = {a: [] for a in self.arms}
         self.subscriptions: dict[int, str | None] = {}
         self.requests: dict[int, str | None] = {}
         self.generation = -1
         self.stats: Counter[str] = Counter()
         self.last_event_ns = 0
         self.last_accounts: dict[str, str] = {}
+        self.schedule_start_ns: int | None = None
+        self.poll_ticks: dict[str, int] = {}
+        self.pending_decisions: set[str] = set()
 
     def apply(self, event: dict[str, Any]) -> Any:
         now = event["available_ns"]
@@ -140,6 +159,11 @@ class Reducer:
             raise ValidationError("event availability regressed")
         self.last_event_ns = now
         kind = event["kind"]
+        if kind == "schedule_start":
+            if self.schedule_start_ns is not None:
+                raise ValidationError("duplicate grid start")
+            self.schedule_start_ns = now
+            return None
         if kind == "connect":
             self.generation += 1
             if event["generation"] != self.generation:
@@ -183,12 +207,39 @@ class Reducer:
             if msg.get("method") != "accountNotification":
                 raise StreamError("invalid_notification")
             result = params["result"]
-            status = self.triggers.notification(address, result["context"]["slot"], result["value"])
+            statuses = {
+                a: t.notification(address, result["context"]["slot"], result["value"])
+                for a, t in self.triggers_by_arm.items()
+            }
+            status = statuses[self.stream_arms[-1]]
             self.stats[status] += 1
             return status
+        if kind == "sampling_decision":
+            arm, pool, tick = event["arm"], event["pool"], event["tick"]
+            key = f"{arm}:{pool}"
+            recovery = self.root.name == "segment-01" and tick == self.plan["stress_recovery_tick"]
+            dirty = arm in self.stream_arms and self.triggers_by_arm[arm].needed(pool)
+            due = recovery or CadenceGrid.due(
+                tick,
+                self.plan["period_ticks"][arm],
+                self.poll_ticks.get(key),
+                dirty,
+                arm == "adaptive",
+            )
+            if due:
+                if key in self.pending_decisions:
+                    raise ValidationError("unfulfilled previous sampling decision")
+                self.poll_ticks[key] = tick
+                self.pending_decisions.add(key)
+            return dict(due=due, dirty=dirty, recovery=recovery)
         if kind == "snapshot":
             arm, pool = event["arm"], event["pool"]
-            if arm == "hybrid" and (self.requests or self.generation < 0):
+            if self.plan.get("schema_version") == 2:
+                key = f"{arm}:{pool}"
+                if key not in self.pending_decisions:
+                    raise ValidationError("snapshot without a due sampling decision")
+                self.pending_decisions.remove(key)
+            if arm in self.stream_arms and (self.requests or self.generation < 0):
                 raise ValidationError("snapshot before subscription barrier")
             cap = Capture.load(self.root / event["capture"])
             item = next(c for c in self.plan["cohort"] if c["pool_id"] == pool)
@@ -196,7 +247,8 @@ class Reducer:
             if request["params"] != item["params"] or cap.method != "getMultipleAccounts":
                 raise ValidationError("snapshot differs from frozen cohort")
             obs = observed_checkpoint(cap, pool, now, config_layout_version=2)
-            if arm == "hybrid":
+            if arm in self.stream_arms:
+                trigger = self.triggers_by_arm[arm]
                 body = cap.result()
                 assert isinstance(body, dict)
                 fingerprint = digest(
@@ -208,20 +260,33 @@ class Reducer:
                         ]
                     ).encode()
                 )
-                if (
-                    pool in self.last_accounts
-                    and self.last_accounts[pool] != fingerprint
-                    and not self.triggers.needed(pool)
-                ):
-                    # Could be silent loss OR a delivery race. Neither proves no activity.
+                key = f"{arm}:{pool}"
+                if isinstance(trigger, ContentTriggers):
+                    missing = trigger.anchor_accounts(
+                        pool,
+                        obs["slot"],
+                        {
+                            addr: value
+                            for addr, value in zip(item["params"][0], body["value"], strict=True)
+                            if addr != CLOCK
+                        },
+                    )
+                    uncertain = bool(missing)
+                else:
+                    uncertain = (
+                        key in self.last_accounts
+                        and self.last_accounts[key] != fingerprint
+                        and not trigger.needed(pool)
+                    )
+                if uncertain:
                     self.books[arm].gap(pool, now, "unwitnessed_account_change")
                     self.stats["unwitnessed_account_change"] += 1
-                self.last_accounts[pool] = fingerprint
+                self.last_accounts[key] = fingerprint
             status = self.books[arm].ingest(obs)
             if status in ("regressed_slot", "conflicting_same_bank"):
                 raise ValidationError("invalid finalized snapshot progression")
-            if arm == "hybrid":
-                self.triggers.anchor(pool, obs["slot"])
+            if arm in self.stream_arms:
+                self.triggers_by_arm[arm].anchor(pool, obs["slot"])
             return dict(status=status, slot=obs["slot"], response_sha256=obs["response_sha256"])
         if kind == "gap":
             for pool in self.books[event["arm"]].pools:
@@ -246,7 +311,7 @@ def derived(reducer: Reducer, start: int) -> dict[str, Any]:
                 rows,
                 horizon_ns=20 * 10**9,
                 tolerance_ns=15 * 10**9,
-                calibration_end_ns=start + 60 * 10**9,
+                calibration_end_ns=(reducer.schedule_start_ns or start) + 60 * 10**9,
             )
             if rows
             else []
@@ -279,7 +344,7 @@ def verify_segment(root: Path) -> dict[str, Any]:
     return dict(
         verified=True,
         stream_stats=output["stream_stats"],
-        rows={a: len(output[a]["features"]) for a in ARMS},
+        rows={a: len(output[a]["features"]) for a in reducer.arms},
     )
 
 
@@ -337,6 +402,21 @@ def run_segment(
         ),
     )
     reducer = Reducer(root, plan)
+    arms = reducer.arms
+    clients = (
+        {
+            arm: ReadOnlyRPC(
+                http_endpoint,
+                "alchemy-http",
+                keep_alive=True,
+                timeout=plan["timeout_seconds"],
+                max_bytes=plan["max_http_response_bytes"],
+            )
+            for arm in arms
+        }
+        if plan["schema_version"] == 2
+        else {arm: client for arm in arms}
+    )
     reader: StreamReader | None = None
     counts: Counter[str] = Counter()
     measurements: list[dict[str, Any]] = []
@@ -350,8 +430,8 @@ def run_segment(
         append(root / "events.jsonl", dict(event=event, result=result))
         return result
 
-    def frame(arm: str) -> None:
-        as_of = time.time_ns()
+    def frame(arm: str, common_as_of: int | None = None) -> None:
+        as_of = common_as_of if common_as_of is not None else time.time_ns()
         reducer.books[arm].features(as_of)  # Complete computation BEFORE publication timestamp.
         record("frame", arm=arm, as_of_ns=as_of)
 
@@ -421,10 +501,12 @@ def run_segment(
             raise StreamError("http_budget")
         if time.monotonic() - mono + client.timeout > plan["max_wall_seconds_per_segment"]:
             raise StreamError("wall_budget")
+        if sum(counts.values()) >= plan.get("max_total_http_per_segment", 10000):
+            raise StreamError("total_http_budget")
         counts[arm] += 1
         name = f"captures/{arm}-{counts[arm]:04d}"
         began = time.monotonic()
-        cap = client.fetch("getMultipleAccounts", item["params"])
+        cap = clients[arm].fetch("getMultipleAccounts", item["params"])
         cap.save(root / name)
         observed_checkpoint(cap, item["pool_id"], cap.received_ns, config_layout_version=2)
         # Validation/decode completed before the recorded availability timestamp.
@@ -436,7 +518,7 @@ def run_segment(
                 capture=name,
                 response_seconds=time.monotonic() - began,
                 bytes=len(cap.response),
-                transport=client.transport_measurement(),
+                transport=clients[arm].transport_measurement(),
                 **result,
             )
         )
@@ -444,53 +526,110 @@ def run_segment(
     last = {a: dict.fromkeys(reducer.triggers.dependencies, -float("inf")) for a in ARMS}
     try:
         connect()
-        forced = False
-        round_index = 0
-        while time.monotonic() - mono < plan["segment_seconds"]:
-            drain()
-            elapsed = time.monotonic() - mono
-            if not forced and elapsed >= plan["forced_disconnect_seconds"]:
-                record("gap", arm="hybrid", reason="forced_disconnect_history_unrecoverable")
-                frame("hybrid")
-                disconnect()
-                connect()
-                # Recovery means a NEW observed state, never a backdated historical state.
-                last["hybrid"] = dict.fromkeys(last["hybrid"], -float("inf"))
-                forced = True
-            if elapsed < round_index * plan["http_interval_seconds"]:
-                time.sleep(0.02)
-                continue
-            # Alternate serial ordering to avoid always favouring one Alchemy arm.
-            arms = ARMS if round_index % 2 == 0 else tuple(reversed(ARMS))
-            for arm in arms:
-                for item in plan["cohort"]:
+        if plan["schema_version"] == 2:
+            record("schedule_start")
+            grid = CadenceGrid(time.monotonic(), plan["grid_seconds"], plan["max_lateness_seconds"])
+            stress = plan["segment_modes"][index] == "symmetric_stress"
+            for tick in range(plan["ticks"]):
+                while time.monotonic() < grid.deadline(tick):
                     drain()
-                    pool = item["pool_id"]
-                    age = time.monotonic() - last[arm][pool]
-                    reason = "periodic" if arm == "http" else "heartbeat"
-                    due = arm == "http" or age >= plan["hybrid_heartbeat_seconds"]
-                    if (
-                        arm == "hybrid"
-                        and reducer.triggers.needed(pool)
-                        and age >= plan["hybrid_min_interval_seconds"]
-                    ):
-                        due, reason = True, "notification"
-                    if due:
-                        snapshot(arm, item, reason)
-                        last[arm][pool] = time.monotonic()
-                frame(arm)
-            round_index += 1
+                    time.sleep(min(0.02, max(0, grid.deadline(tick) - time.monotonic())))
+                grid.check(tick, time.monotonic())
+                drain()
+                if stress and tick == plan["stress_tick"]:
+                    for arm in arms:
+                        record("gap", arm=arm, reason="symmetric_disconnect_history_unrecoverable")
+                        clients[arm].close()
+                    common_as_of = time.time_ns()
+                    for arm in arms:
+                        frame(arm, common_as_of)
+                    disconnect()
+                    connect()
+                    continue
+                rotation = tick % len(arms)
+                for arm in arms[rotation:] + arms[:rotation]:
+                    for item in plan["cohort"]:
+                        pool = item["pool_id"]
+                        drain()
+                        grid.check(tick, time.monotonic())
+                        decision = record("sampling_decision", arm=arm, pool=pool, tick=tick)
+                        dirty, recovery = decision["dirty"], decision["recovery"]
+                        if decision["due"]:
+                            reason = (
+                                "recovery"
+                                if recovery
+                                else (
+                                    "content_hint"
+                                    if arm == "adaptive" and dirty
+                                    else "heartbeat"
+                                    if arm == "adaptive"
+                                    else "periodic"
+                                )
+                            )
+                            snapshot(arm, item, reason)
+                            measurements[-1].update(
+                                tick=tick,
+                                scheduled_ns=(reducer.schedule_start_ns or start)
+                                + tick * plan["grid_seconds"] * 10**9,
+                                scheduling_lateness_seconds=time.monotonic() - grid.deadline(tick),
+                            )
+                grid.check(tick, time.monotonic())
+                common_as_of = time.time_ns()
+                for arm in arms:
+                    frame(arm, common_as_of)
+            while time.monotonic() < grid.deadline(plan["ticks"]):
+                drain()
+                time.sleep(0.02)
+        else:
+            forced = False
+            round_index = 0
+            while time.monotonic() - mono < plan["segment_seconds"]:
+                drain()
+                elapsed = time.monotonic() - mono
+                if not forced and elapsed >= plan["forced_disconnect_seconds"]:
+                    record("gap", arm="hybrid", reason="forced_disconnect_history_unrecoverable")
+                    frame("hybrid")
+                    disconnect()
+                    connect()
+                    # Recovery means a NEW observed state, never a backdated historical state.
+                    last["hybrid"] = dict.fromkeys(last["hybrid"], -float("inf"))
+                    forced = True
+                if elapsed < round_index * plan["http_interval_seconds"]:
+                    time.sleep(0.02)
+                    continue
+                # Alternate serial ordering to avoid always favouring one Alchemy arm.
+                arms = ARMS if round_index % 2 == 0 else tuple(reversed(ARMS))
+                for arm in arms:
+                    for item in plan["cohort"]:
+                        drain()
+                        pool = item["pool_id"]
+                        age = time.monotonic() - last[arm][pool]
+                        reason = "periodic" if arm == "http" else "heartbeat"
+                        due = arm == "http" or age >= plan["hybrid_heartbeat_seconds"]
+                        if (
+                            arm == "hybrid"
+                            and reducer.triggers.needed(pool)
+                            and age >= plan["hybrid_min_interval_seconds"]
+                        ):
+                            due, reason = True, "notification"
+                        if due:
+                            snapshot(arm, item, reason)
+                            last[arm][pool] = time.monotonic()
+                    frame(arm)
+                round_index += 1
         drain()
     except Exception as exc:
         failure = safe_error(exc)
         print(canonical(dict(stage="D40", **failure)), flush=True)
         write(root / "failure.json", dict(**failure, time_ns=time.time_ns()))
-        for arm in ARMS:
+        for arm in arms:
             record("gap", arm=arm, reason=failure["category"])
             frame(arm)
         record("error", **failure)
     finally:
         disconnect()
+        for c in clients.values():
+            c.close()
         client.close()
         lock.close()
     write(root / "derived.json", derived(reducer, start))
