@@ -1,5 +1,8 @@
 # AmmConfig creator fee share: подтверждённая ограниченная поддержка (D38)
 
+Продолжение проверки доступности источника и prospective corpus —
+[D39: persistent transport](persistent-source.md). Ниже сохранён результат D38.
+
 Новое u64 по offset 116 — `creatorFeeShareRate`, не произвольный padding.
 Официальный SDK commit `cc33ec28a8921a35609e83293e9e07ad830b0779`,
 [src/raydium/cpmm/layout.ts](https://github.com/raydium-io/raydium-sdk-V2/blob/cc33ec28a8921a35609e83293e9e07ad830b0779/src/raydium/cpmm/layout.ts)

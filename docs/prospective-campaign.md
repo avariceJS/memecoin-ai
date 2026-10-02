@@ -117,3 +117,12 @@ domain. Legacy replay не расширен. Новая public campaign прош
 после двух timeout остановлена: 2 accepted snapshots, 6 masked features, 48 censored
 scenarios, 0 mature labels. Реальный bounded resume состоялся; history reset и frozen
 cutoff сохранены. [Семантика, evidence и следующий gate](creator-fee-share.md).
+
+
+## Продолжение D39: persistent TLS и проверка restart
+
+Новый явный transport_profile закрепляет verified TLS connection reuse. Предпочтительный
+bounded public вариант: canonical api.mainnet.solana.com, отдельная invocation и
+соединение на сегмент; warmup и tail censoring остаются. Длительный сбор, случай обрыва
+соединения и реальные restart результаты — в [D39](persistent-source.md). Полная scenario
+grid и неперекрывающиеся окна проверяются отдельным offline target-support audit.

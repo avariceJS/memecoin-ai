@@ -166,3 +166,13 @@ share; неизвестный остаток не допускается. `token
 использует тот же профиль. Старые plans по умолчанию version1 и требуют pinned source.
 Profile2 checkpoint нельзя передать legacy transition/replay. CLI diagnostics поддерживает
 явный --config-layout-version 2, оставаясь diagnostic-only, не feature ingestion.
+
+## Persistent read transport и target support QA (D39)
+
+ReadOnlyRPC может явно выбрать stdlib PersistentHTTPTransport: TLS verified, endpoint-bound,
+serial keepalive, no retries/redirects, bounded response/deadline. Campaign/forward plans
+фиксируют transport_profile; resume отвергает смену до сети, attempt хранит phase/reuse
+measurement. Economic adapter, raw Capture, CausalBook и target semantics общие.
+`coverage.py` дополняет quality audit полной scenario-grid проверкой, зрелостью всех
+вариантов в одной partition, chronological nonoverlap и наблюдаемой вариацией prices.
+Никакой новый forecast feature или обучение этим audit не создаются.

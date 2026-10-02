@@ -372,3 +372,43 @@ reproduction прошли; old D36/D37 artifacts проверены оригин
 Evidence: docs/evidence/creator-fee-share-2026-10-02.json. Следующий gate — восстановить
 доступность coherent snapshot source после отдельной диагностики/изменения условий,
 затем новый bounded plan и длинный corpus. ML/RL/paper/live не запускались.
+
+
+## D39: доступный coherent transport, prospective corpus и support QA
+
+2026-10-02 выбран canonical public mainnet https://api.mainnet.solana.com и explicit
+stdlib_persistent_v1. Mainnet genesis и 12/12 strict preflight snapshots подтверждены.
+Старый и canonical public host разрешились в один IP; это не независимые providers.
+Диагностика 24 RPC: 20 HTTP200  / 4 timeout. Как минимум два отказа наблюдались на
+connect/TLS до HTTP; exact upstream cause остальных неизвестна. User-Agent отдельно
+не устранил проблему. Helius Clock mismatch остаётся rejected, QuickNode не запрашивался.
+
+Кампания 01: 4×30×5 s, 303 requests / 302 valid, три полных сегмента; четвёртый прерван
+connection error на headers, 3.856 s, HTTP/RPC code null. Raw/error сохранены;
+скрытого reconnect нет, исчерпанный budget и closure запрещают продолжение. Кампания02:
+2×30×5 s, 180/180 valid, отдельные процессы и новое TLS-соединение на каждый сегмент.
+Реальный restart/resume прошёл. Предпочтительный дальнейший режим — connection reuse
+внутри сегмента, закрытие на границе, одна invocation на сегмент. Это bounded result,
+не production SLA. Все decoder/Clock/linkage/freshness/censoring guards сохранены.
+
+Всего 482 новых accepted snapshots  / 483 corpus requests, 483 feature rows,
+464 usable, 781.187 s суммарного внутрисегментного coverage. Gaps не заполнены.
+Targets: 3864 scenarios, {'censored': 1250, 'conditional_roundtrip': 2472, 'entry_unfilled': 76, 'exit_unfilled': 66}.
+345 distinct mature decisions, в том числе 141 engineering evaluation.
+Frozen cutoffs не переносились; final holdout отсутствует. Complete all-eight-scenario
+decisions=307; chronological all-pool nonoverlap windows=15 суммарно
+по двум отдельным кампаниям/partitions. Это не оценка independent effective sample size.
+
+HTTP response distributions, возраст chain Clock и conditional observation delays
+измерены отдельно. Network costs/admission/impact неизвестны; net_pnl=null.
+Новый coverage.py проверяет grid/maturity/overlap и variation, не обучает модель и не
+фильтрует online decisions по будущему. Обе пары campaign/targets/quality/support
+воспроизведены offline и installed wheel work/persistent-wheel-01; D38 сохранён и
+проверен прежним pinned wheel. 346 tests, lint/format/mypy, smoke/build прошли.
+
+Artifacts: work/prospective-persistent-01/02, work/persistent-targets-01/02,
+work/persistent-quality-01/02, work/persistent-support-01/02. Provenance/plans/cutoffs/
+errors/source/seed(null)/hashes — docs/evidence/persistent-source-2026-10-02.json;
+контракт docs/persistent-source.md. Следующий этап — coverage разных календарных окон
+на том же bounded режиме и оценка execution uncertainty перед ML. Минут/трёх pools
+недостаточно; market universe, simulator calibration, training/edge не квалифицированы.

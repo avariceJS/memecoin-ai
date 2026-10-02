@@ -483,3 +483,31 @@ binary equivalence. Public probe timeout, затем новая campaign public 
 воспроизведены dev и installed wheel, 327 tests, smoke/build прошли. Дальнейший gate —
 доступный coherent source; требуются новые основания для ограниченного source preflight,
 не бесконечный retry. docs/evidence/creator-fee-share-2026-10-02.json.
+
+### D39: bounded public source через persistent verified TLS
+
+**Статус:** transport и independent target-support QA реализованы 2026-10-02;
+bounded qualification и real process restart выполнены. Выбран официальный
+https://api.mainnet.solana.com со stdlib_persistent_v1, после mainnet genesis и 12/12
+strict coherent snapshots. Старый и canonical host сейчас имеют один IP: не независимые
+providers. Helius Clock mismatch unresolved; его guards не ослаблять и не использовать
+слепой fallback. QuickNode остаётся retired для новых запросов.
+
+Диагностика показала как минимум TLS/connect timeout до RPC. Смена User-Agent не
+оказалась достаточным fix. Exact upstream cause всех отказов неизвестен. Keepalive
+уменьшает необходимость повторять cold TLS setup; TLS/hostname verification сохраняется.
+Transport привязан к endpoint, max bytes/deadline, не следует redirects и не повторяет
+запросы. Phase/reuse metadata и transport profile закреплены в immutable plans/attempts;
+source-pinned offline reproduction сохраняется. Public RPC не получает SLA от этого выбора.
+
+Следующий QA этап: учитывать полную scenario grid и chronological nonoverlap target
+windows; не объявлять variants/overlapping labels независимыми samples. Все planned
+scenarios решения должны созреть в одной partition. Это offline coverage diagnostic,
+не future-conditioned online filter. ML всё ещё за coverage/execution gates.
+Пересмотр: failed strict snapshot, recurrent availability failures, server closing behavior
+или insufficient coverage; не расширять tolerances ради продолжения. Контракт:
+docs/persistent-source.md. Результат: 482 valid / 483 corpus requests; campaign01 оборван на headers, campaign02 180/180
+при новом процессе/соединении на сегмент. 345 mature decisions, 141 evaluation,
+15 chronological nonoverlap windows. 346 tests, smoke/build, offline/wheel проверены.
+Evidence: docs/evidence/persistent-source-2026-10-02.json. Полный длительный/рыночный
+corpus и ML readiness не достигнуты.

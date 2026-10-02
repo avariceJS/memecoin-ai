@@ -139,3 +139,17 @@ source при новых основаниях, затем immutable prospective 
 Не запускать одинаковые серии снова, не обходить Helius Clock equality. До достаточного
 coverage и execution calibration training не начинается. Полный new creator collection
 replay — отдельный evidence-driven adapter, не обязательное условие snapshot quotes.
+
+
+## D39: bounded availability gate пройден, corpus coverage остаётся узким
+
+Canonical public RPC + persistent verified TLS дал 482 accepted snapshots и реальный
+restart между сегментами. Один долгоживущий connection оборван; предпочтителен новый
+процесс/соединение на сегмент с прежними stop/cooldown/budget правилами. Phase root cause
+всех прежних отказов не установлен; production reliability не объявлена.
+
+Coverage QA теперь считает complete scenario decisions и chronological nonoverlap:
+345 mature decisions, 141 engineering evaluation, только 15 неперекрывающихся
+окон в двух кампаниях/partitions. Следующий крупный прирост — prospective observations
+в разных календарных окнах при той же фиксированной когорте/guards, затем execution
+uncertainty/selection coverage. Нельзя начинать ML только потому, что пройден один cutoff.

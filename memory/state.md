@@ -2,27 +2,28 @@
 
 Обновлено: **2026-10-02**, Europe/Moscow.
 
-**Текущий результат D38:** AmmConfig word@116 подтверждён official SDK и docs как
-`creator_fee_share_rate`: 50000 / 1e6 = 5% накопленной creator fee, переходящих протоколу
-при collection. Это не дополнительная swap fee. Helius независимо вернул те же bytes
-двух configs; ProgramData upgrade_slot=452376460. Binary equivalence не установлена.
-Поддержан только явный snapshot/quote profile 2; legacy replay закрыт для этого профиля.
-Остальные reserved bytes, strict Clock equality и temporal guards сохранены.
+**Текущий результат D39:** найден и проверен bounded вариант согласованного источника:
+canonical public mainnet `https://api.mainnet.solana.com`, explicit verified TLS keepalive
+внутри сегмента, новый процесс/соединение на его границе. Account/Clock/temporal checks
+не ослаблены. Некоторые прежние timeout локализованы до HTTP на connect/TLS; полная
+причина всех отказов неизвестна. User-Agent сам по себе проблему не устранил.
 
-Сбор возобновлён через public RPC на прежней когорте: **2 accepted snapshots / 4 requests**,
-два сегмента завершились timeout одного и того же следующего getMultipleAccounts.
-После cooldown выполнен один bounded resume, затем кампания явно закрыта. Причина
-timeout неизвестна. 6 masked feature rows, 48 censored scenarios, 0 usable/mature labels;
-длинный corpus не завершён, ML не начинается. Public source availability — текущий
-blocker; старый Helius Clock mismatch не исправлен. D33 historical audit остаётся закрытым.
+**482 новых accepted snapshots  / 483 corpus requests**, 483 feature rows, 464 usable,
+781.187 s суммарного segment coverage. Первая кампания 302 valid остановилась на
+connection error четвёртого сегмента; вторая 180/180 завершена с реальным process restart.
+Все failed/censored artifacts сохранены. Helius Clock mismatch unresolved; QuickNode
+не использован, D33 whole-chain historical audit остаётся закрытым.
 
-За D38 всего 7 RPC: 4 HTTP200, 3 timeout (один config probe и два collection).
-327 tests, lint/format/mypy, smoke/build и dev/installed-wheel воспроизведение прошли.
-Контракт: [creator fee share](../docs/creator-fee-share.md);
-[evidence](../docs/evidence/creator-fee-share-2026-10-02.json).
-Следующий этап: квалифицировать доступность coherent snapshot source на ограниченном
-плане после новой диагностики/изменения условий доступа, затем длинные prospective
-сегменты и execution QA. Не повторять ту же сетевую серию и не ослаблять checks.
+Execution-conditioned targets: 3864 scenarios, 345 distinct mature decisions,
+141 engineering evaluation. Все восемь scenarios созрели в одной partition у 307
+решений; chronological nonoverlap оставляет 15 окон по двум кампаниям. Это не
+независимые samples и не final holdout. Net PnL неизвестен, ML/RL/paper/live не запускались.
+
+346 tests, lint/format/mypy, smoke/build и dev/installed-wheel verification прошли.
+Memory и previous raw/source snapshots сохранены. Контракт: [persistent source](../docs/persistent-source.md);
+[evidence](../docs/evidence/persistent-source-2026-10-02.json). Следующий этап —
+разные календарные окна bounded prospective сбора и execution uncertainty QA, затем
+решение о dataset sufficiency. Public RPC не объявлен production source.
 
 ## Стадия и авторизация
 
@@ -49,7 +50,7 @@ Memory Bank принят как source of truth. Пользователь раз
 
 ## Что проверено
 
-Локально на Python 3.13: 327 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 346 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
@@ -59,7 +60,7 @@ ReferenceReplay намеренно synthetic-only, one-quote, one-pool-per-base 
 
 ## Открытые решения
 
-Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D38: [decisions](decisions.md).
+Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D39: [decisions](decisions.md).
 
 ## Результат bounded data-аудита
 

@@ -333,3 +333,17 @@ forward observations 0; preflight не превращён в прошлые feat
 - Dev/installed-wheel verification, smoke/build прошли; D36/D37 frozen artifacts также
   воспроизведены прежними wheels. Следующий blocker — доступность coherent source.
   Training, RL, реальные транзакции и платные подключения не запускались.
+
+
+## 2026-10-02 — persistent TLS, real restart и target support D39
+
+- Диагностика отделила как минимум connect/TLS timeout от RPC/account semantics.
+  UA оказался недостаточен. Canonical public host + verified persistent connection
+  выбран для bounded сбора; Helius integrity guards и старая история сохранены.
+- Transport profile закреплён в plans; no redirects/hidden retries, response bounds
+  и deadline, phase/reuse measurements. Реальный restart между сегментами проверен.
+- 482 accepted snapshots, 464 usable features, 345 mature decisions (141 evaluation).
+  Один headers connection error сохранён; второй run 180/180 completed.
+- Новый offline audit полной scenario grid и overlap: 307 complete decisions,
+  15 chronological nonoverlap windows. 346 tests, smoke/build, dev/wheel reproduction.
+  ML/edge не объявлены; далее новые календарные окна и execution uncertainty QA.

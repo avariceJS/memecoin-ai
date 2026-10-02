@@ -173,3 +173,10 @@ maturity, censoring/purging, позиции при failed exit и separate laten
 AmmConfig blocker решён в этой области; новая кампания остановлена после двух timeout
 публичного RPC. Длинный corpus и обучение пока не готовы.
 [Coherence](docs/checkpoint-coherence.md), [семантика и результаты D38](docs/creator-fee-share.md).
+
+Для нового bounded public сбора выбран `https://api.mainnet.solana.com` и
+`--transport-profile stdlib_persistent_v1` при создании кампании. Verified TLS connection
+переиспользуется; hidden retries отсутствуют, endpoint/transport закреплены в плане.
+`audit-target-support CAMPAIGN TARGETS --out REPORT` и `verify-target-support CAMPAIGN
+TARGETS REPORT` проверяют complete scenario grid и неперекрывающиеся label windows.
+[Диагностика доступности, контракт и результаты D39](docs/persistent-source.md).

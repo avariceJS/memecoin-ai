@@ -71,3 +71,33 @@ target_available среди вариантов — по каждому pool и �
 оценка статистически независимого effective sample size. Signs/values PnL не участвуют
 в выборе; будущие метки не становятся online features или фильтром торговых решений.
 Flat observed price не доказывает отсутствия intervening trades. Training gate остаётся false.
+
+## Реальное продолжение и ограничение длинной сессии
+
+`work/prospective-persistent-01`: immutable4×30 rounds×5s, прежние три pools,
+max360 requests. Три сегмента 90/90 завершены; четвёртый 32 valid, затем connection error
+при ожидании headers на request303 (3.856s, HTTP/RPC code отсутствуют). Сегмент остановлен,
+кампания закрыта по исчерпанному бюджету. Это не полная успешная кампания:302 accepted,
+303 feature rows,290 usable,2424 conditional scenarios. Скрытого reconnect/retry нет.
+
+Сбор впервые дошёл до engineering evaluation на первоначальном frozen cutoff:
+211 distinct mature decisions, из них136 calibration и75 evaluation. Все восемь
+сценариев зрелые в одной partition у185 решений (122/63). Совместный chronological
+nonoverlap оставляет6 calibration и4 evaluation окна; это не независимый sample size.
+Причинный split не превращает короткий engineering sample в final holdout.
+
+Вторая кампания `work/prospective-persistent-02` проверяет реальный restart между
+сегментами (2×30×5s, max180 requests): одна invocation/процесс/новое TLS-соединение на
+каждый сегмент. Это предпочтительная эксплуатационная форма следующего bounded сбора:
+connection reuse внутри сегмента, закрытие на его границе; не бесконечно живая сессия.
+Причина оборванного соединения первой кампании неизвестна, server lifetime limit не
+объявляется установленным. Финальные результаты второй кампании — в evidence D39.
+
+
+Финальный результат restart campaign 02: 180/180 strict snapshots, 2 сегмента и 2 новых
+TLS-соединения, 0 ошибок. Итого по двум кампаниям 482 accepted  / 483 requests,
+464 usable features, 345 distinct mature decisions, 141 evaluation.
+Полный отчёт:[evidence](evidence/persistent-source-2026-10-02.json). 346 tests, smoke/build,
+offline dev/wheel reproduction прошли. Совместный итог 15 chronological nonoverlap
+окон не даёт основания для ML; следующий этап — более длинное календарное покрытие
+и uncertainty исполнения. Source production readiness/edge не объявлены.
