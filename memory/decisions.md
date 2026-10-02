@@ -404,7 +404,8 @@ Compatibility verification требует точного воспроизвед�
 
 ### D36: возобновляемый prospective corpus и execution-conditioned targets
 
-**Статус:** этап утверждён пользователем 2026-10-02; реализация и сбор в работе.
+**Статус:** этап утверждён пользователем 2026-10-02; реализация завершена, длительный
+сбор остановлен из-за повторного checkpoint inconsistency (результат ниже).
 Новые immutable bounded сегменты продолжают frozen campaign, не историю causal book.
 Crash evidence сохраняется, segment boundary сбрасывает warmup и цензурирует labels;
 общий бюджет и temporal cutoff фиксируются до сети. Причина: увеличить prospective
@@ -413,3 +414,20 @@ coverage без превращения recovery receipts в прошлые obser
 cooldown; повторный последовательный отказ останавливает серию. Контракт:
 docs/prospective-campaign.md. Объём, execution uncertainty и temporal guards остаются
 основаниями допуска к ML; запуск обучения сейчас не разрешён качеством данных.
+
+Результат D36 (2026-10-02): код segment resume и conditional execution targets завершён,
+длинный сбор заблокирован двумя observed context/Clock mismatches (разные pools/slots).
+После первого отказа разрешён один отдельный consistency probe; он прошёл, но новая
+bounded кампания снова остановлена. Это не повод разрешить mismatch или продолжать
+создавать новые кампании. Дальнейшая сеть остановлена; нужен targeted разбор текущей
+bank consistency или другой уже разрешённый источник. D33 historical milestone остаётся
+закрытым. 115 valid snapshots, 234.789 s segment coverage, 120 features, 960 scenarios /
+432 conditional roundtrips / 516 censored; 297 tests и offline/wheel reproduction.
+
+Execution targets ограничены моделью независимых будущих snapshots, explicit size/
+entry-and-exit delay/slippage/holding. Unknown inclusion/network costs/persistent own
+impact оставлены unknown; net_pnl=null. Реальные trading tx не отправлялись. Обучение
+не начинается: fixed three-pool/minutes sample, две ошибки consistency, zero engineering
+evaluation decisions на frozen cutoff, исполнение не квалифицировано. Полный отчёт:
+docs/evidence/prospective-execution-2026-10-02.json. Пересмотр — устранённый current-state
+blocker и новые prospective периоды, не ослабление temporal/data gates.

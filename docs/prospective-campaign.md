@@ -63,3 +63,46 @@ fills, ни исполнимый net edge этими метками не док�
 
 Эта сетка — инженерный контракт, выбранный до генерации labels, а не fitted execution
 calibration или final holdout design. Достаточность данных оценивается отдельно.
+
+## Реальный результат 2026-10-02
+
+Collection revision `5975456`, target revision `d7436ca`; seed отсутствует. Fixed cohort
+взята из прежних трёх pools до новых outcomes. Точные cutoff/receipt timestamps, plans,
+errors, byte counts и SHA256: [evidence](evidence/prospective-execution-2026-10-02.json).
+
+| Artifact | Requests | Valid snapshots | Feature rows / usable | Segment span |
+|---|---:|---:|---:|---:|
+| work/prospective-campaign-01 | 49 | 48 | 51 / 47 | 116.016 s |
+| work/prospective-campaign-02 | 68 | 67 | 69 / 65 | 118.773 s |
+
+Между ними один isolated consistency probe, valid, исключённый из corpus features.
+Всего 118 HTTP 200; два ответа отклонены: context/Clock 452681508/452681509 и
+452682339/452682340. Метод getMultipleAccounts, finalized/base64, точные семь адресов
+и minContextSlot сохранены в safe error rows. RPC error code отсутствует; категория
+checkpoint_validation, причина decoder — Clock does not match checkpoint bank.
+Upstream причина **не установлена**. Согласно [Solana RPC docs](https://solana.com/docs/rpc/http/getmultipleaccounts),
+ответ содержит общий context и упорядоченный массив account values; документация
+не объясняет наблюдаемое расхождение. Контракт same-bank не ослаблен. Оба raw responses
+в regression fixtures, bytes исходных corpus неизменны. После повторения серии закрыты.
+
+Получено 234.789 s суммарного segment coverage внутри 333.407 s wall envelope с разрывом.
+Старые D35 данные сюда не приклеены. Real resume внутри одной кампании не состоялся:
+non-transient validation policy запретила его. Resume/crash/cooldown/locking/budget
+проверены synthetic tests. Длительный непрерывный corpus **не собран**.
+
+HTTP response time min/median/max: 264/390/11594 ms и 257/370/4563 ms. Это измерения
+read requests; не trade execution latency и не backfill throughput. Возраст chain Clock
+в usable features median 11.658 / 11.107 s; это отдельная величина, не HTTP delay.
+
+Два derived artifact `work/conditional-execution-targets-01/02`: 960 сценариев,
+432 conditional roundtrip, 4 entry-unfilled, 8 exit-unfilled, 516 censored. Mature
+outcomes относятся к 67 distinct decisions. Все 444 mature scenarios — calibration;
+engineering evaluation **0**, frozen campaign cutoffs не достигнуты и не перенесены.
+Net PnL labels — 0. Обучение не начиналось: minutes/fixed cohort/overlapping labels,
+источник нестабилен относительно checkpoint contract, execution не квалифицирован.
+
+297 tests, Ruff/strict mypy, smoke/build, offline и installed-wheel reproduction обеих
+пар artifacts прошли (`work/prospective-wheel-01`). Следующий шаг — targeted решение
+current-checkpoint coherence blocker через Helius diagnosis или другой разрешённый
+согласованный source, затем расширение prospective coverage и калибровка execution.
+Whole-chain historical trace-аудит D33 остаётся закрытым.

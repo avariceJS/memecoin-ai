@@ -135,3 +135,13 @@ nullable features/masks → отдельно matured/censored/purged diagnostic 
 reproduction и versioned target refinement. Исторический economic tape не подаётся
 в этот слой как наблюдение с выдуманной доступностью. Snapshot features не выдают
 trade flow или executable return; synthetic replay gate остаётся.
+
+## Возобновляемый сбор и conditional execution (D36)
+
+`prospective.py` оборачивает existing forward collector в кампанию с immutable plan,
+reference captures, source snapshot, exclusive lock, segment reservation и linked seal.
+Resume добавляет новый сегмент; crash bytes не удаляет. Causal book не переносится через
+границы. `execution_targets.py` читает только воспроизведённые campaign artifacts и
+строит separate derived targets с size/delay/slippage/holding условиями, censoring и
+campaign-wide purging. Математика из tokens/cpmm общая; synthetic Replay не меняется.
+Unknown full execution costs/admission/persistent impact не попадают в labels как нули.

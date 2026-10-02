@@ -2,16 +2,23 @@
 
 Обновлено: **2026-10-02**, Europe/Moscow.
 
-**Текущий результат D35:** реализованы causal snapshot observations/features и bounded
-forward corpus. 31 успешный Helius snapshot из 32 отправленных / 36 planned;
-один timeout 10.006 s остановил серию без retry. 33 feature rows / 29 usable;
-строгие targets schema 2: 8 calibration, 4 engineering evaluation, 7 purged, 14 censored.
-280 tests; offline и wheel reproduction прошли. Обучение не начиналось.
+**Текущий результат D36:** реализованы resumable bounded campaigns и условные
+execution targets. 115 новых валидных snapshots, 120 feature rows / 112 usable;
+960 сценарных меток, 432 conditional roundtrip, 4 entry-unfilled / 8 exit-unfilled,
+516 censored. 297 tests, smoke/build, offline и installed-wheel reproduction прошли.
 
-Этап второго RPC закрыт D33, economic dataset D34 построен. Дальнейший приоритет —
-более длинный prospective corpus возобновляемыми bounded сегментами с сохранением
-пропусков, затем execution-conditioned targets. Неполнота Helius whole-chain traces
-не возвращается в качестве отдельного проекта. Подробности D35 — в последнем разделе.
+Длительный corpus **не завершён**: две серии остановлены strict decoder на HTTP 200
+ответах с Clock.slot = context.slot + 1. После одного успешного отдельного контрольного
+запроса ошибка повторилась в новой кампании; сеть остановлена, guards не ослаблены.
+234.789 s суммарного segment coverage, 333.407 s wall envelope с разрывом; evaluation
+cutoffs не достигнуты и не перенесены. ML не запускается: недостаточно данных и нет
+qualified execution. Следующий практический gate — bank-consistent текущие checkpoints
+через targeted диагностику Helius или другой разрешённый coherent источник, затем
+длительный prospective corpus и калибровка execution. Это конкретный blocker CPMM,
+а не возврат к закрытой D33 historical trace-сверке всей Solana.
+
+Контракт: [prospective campaign](../docs/prospective-campaign.md), результат и hashes:
+[отчёт D36](../docs/evidence/prospective-execution-2026-10-02.json).
 
 ## Стадия и авторизация
 
@@ -38,7 +45,7 @@ Memory Bank принят как source of truth. Пользователь раз
 
 ## Что проверено
 
-Локально на Python 3.13: 280 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 297 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
@@ -48,7 +55,7 @@ ReferenceReplay намеренно synthetic-only, one-quote, one-pool-per-base 
 
 ## Открытые решения
 
-Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D35: [decisions](decisions.md).
+Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D36: [decisions](decisions.md).
 
 ## Результат bounded data-аудита
 
@@ -384,3 +391,38 @@ labels и незавершённый сбор не заменяют квалиф
 использовался для инженерной проверки контракта, не final holdout. Следующий этап —
 возобновляемый segmented prospective collector и более длинное покрытие с честными
 пропусками; затем execution-conditioned labels до ML. RL/paper/live не начинались.
+
+
+## Результат D36: bounded segments и условное исполнение
+
+Кампания фиксирует cohort/budget/expiry/source и единый calibration cutoff до сети.
+Resume создаёт новый immutable segment с warmup, hash-linked seal и OS lock; crash bytes
+сохраняются, весь planned segment budget резервируется, пропуски не backfill. HTTP/RPC/
+validation ошибки останавливают кампанию; timeout/connection могут продолжиться новой
+invocation после cooldown, максимум два failed сегмента подряд. Resume/budget/crash/
+concurrency проверены synthetic tests; реальное продолжение той же кампании в этом
+запуске не выполнялось из-за non-transient validation guards.
+
+Реальные artifacts: `work/prospective-campaign-01` (48 valid / 49 requests),
+`work/prospective-campaign-02` (67 / 68), isolated `work/prospective-clock-check-01`
+(1 valid, не входит в features). Всего 118 requests, все HTTP 200; два несовместимых
+checkpoint в quarantine. Context/Clock пары: 452681508/452681509 и 452682339/452682340.
+Root cause upstream не установлен. Raw fixtures добавлены, исходные responses неизменны.
+Plan-01 360 maximum, остановлен; после probe plan-02 ограничен 270, также остановлен.
+Новые запросы прекращены; 360 не было фактически израсходовано.
+
+`work/conditional-execution-targets-01/02`: два направления, sizing 100/1000 ppm
+по decision reserve, delay scenarios 0/5 s, holding 20 s, tolerance 15 s, minOut с
+100 bps slippage. Quotes используют existing integer CPMM/transfer fee math. Entry,
+exit-decision и exit-fill требуют новых snapshots, causal availability, no gaps.
+Exit failure сохраняет acquired position; unknown network costs/admission/persistent
+impact не подменяются нулями. `net_pnl=null` для всех labels; результат roundtrip только
+после pool/transfer fees до network expenses, не executable/realized PnL.
+
+444 mature scenario outcomes относятся к 67 различным decisions, все calibration;
+engineering evaluation 0. Восемь вариантов и перекрывающиеся окна не независимы.
+Полный долгий сбор и execution qualification остаются открытыми, training_ready=false.
+Исходный D35 corpus и все прошлые journals не изменялись. 297 tests, lint/format/mypy,
+smoke/build, обе пары campaign/target воспроизведены offline и из installed wheel
+`work/prospective-wheel-01`. Seeds отсутствуют (детерминированная data QA), code/plan/
+source hashes, точные times/cutoffs/errors и measurement metrics — в evidence D36.

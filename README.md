@@ -148,3 +148,15 @@ online features/masks и diagnostic targets. Для нескольких pools �
 сохраняются, серия останавливается без скрытых retries. `refine-forward-targets` и
 `verify-forward-targets` создают/проверяют отдельные fresh-endpoint labels для старых
 corpora. Training gates остаются false. [Контракт и реальный результат](docs/causal-forward.md).
+
+## Возобновляемый prospective corpus и conditional execution
+
+`create-prospective-campaign --checkpoint CAPTURE ... --source-alias helius-prospective
+--out CAMPAIGN` фиксирует bounded план. `resume-prospective-campaign CAMPAIGN` собирает
+один новый сегмент через `MEMECOIN_HELIUS_RPC_URL`; `verify-prospective-campaign CAMPAIGN`
+воспроизводит его offline. `export-execution-targets CAMPAIGN --out TARGETS` и
+`verify-execution-targets CAMPAIGN TARGETS` создают/проверяют отдельные условные метки
+с explicit sizing/delay/slippage/holding. Unknown net PnL не заменяется нулём.
+
+Реальный D36 сбор остановлен на повторном context/Clock mismatch; guards сохранены,
+длительный corpus и ML qualification не достигнуты. [Контракт и результаты](docs/prospective-campaign.md).

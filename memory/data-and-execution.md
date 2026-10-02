@@ -271,3 +271,35 @@ docs/causal-forward.md; docs/evidence/causal-forward-2026-10-02.json.
 Далее — более длинный prospective сбор возобновляемыми bounded сегментами, не заполнение
 пропусков задним числом. Execution-conditioned targets требуют следующей отдельной
 проверки costs/admission/delay; synthetic-only replay и запрет ML/RL/paper/live сохранены.
+
+## D36: сегменты prospective corpus и execution-conditioned targets
+
+Реализованы `prospective.py` (неизменяемые bounded segments, persisted reservations,
+crash evidence, hash-linked seals, общий бюджет/cutoff, эксклюзивный OS lock) и
+`execution_targets.py` (условные size/delay/slippage/holding probes). История CausalBook
+не переносится через границы; tails censored. Interrupted сегмент не участвует в labels,
+raw bytes сохраняются. Completed/failed сегменты offline воспроизводятся с pinned source.
+
+115 новых valid snapshots / 117 corpus requests плюс один isolated probe; 120 features,
+112 usable. Два HTTP 200 ответа имеют Clock.slot на единицу больше context.slot;
+строгий decoder остановил обе кампании. Probe между ними был согласован, однако
+повторный отказ исключает продолжение серии без расследования. Ни поля, ни guards
+не исправлены ради приёма данных. Два original captures — regression fixtures.
+Источник проблемы не установлен; это наблюдаемое нарушение текущего checkpoint
+контракта, не доказательство universal Helius failure. Historical audit D33 закрыт.
+
+Условная execution model: фиксированный по decision reserve gross input, future
+entry quote с minOut, fixed holding от entry publication, отдельные exit decision и
+future fill. Integer CPMM/creator/Token-2022 fees; target_available по наблюдённой
+publication последнего нужного snapshot. Неудачный выход оставляет позицию и unknown
+PnL, censored не заменяется нулём. Network costs, inclusion, native FX, rent/ATA и
+persistent own impact неизвестны, поэтому net_pnl всегда null. Модель independent
+future snapshot reset — явное контрфактуальное допущение, не калиброванный симулятор.
+
+Получено 960 вариантов: 432 conditional roundtrip, 4 entry unfilled, 8 exit unfilled,
+516 censored. 67 distinct decisions имеют хотя бы один mature scenario, evaluation=0:
+ни одна frozen campaign boundary не достигнута. Cutoffs не перенесены задним числом.
+234.789 s coverage двух сегментов с gaps недостаточно для ML. Следующий gate —
+согласованный текущий snapshot источник, затем новые длительные сегменты и отдельная
+калибровка исполнения. Контракт/результат: docs/prospective-campaign.md и
+docs/evidence/prospective-execution-2026-10-02.json.

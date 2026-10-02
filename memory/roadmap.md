@@ -105,3 +105,14 @@ semantics. Сам sample слишком короткий и неполный д�
 возобновляемый collector с более длинными bounded prospective segments и явными gaps;
 затем executable/size-conditioned label contract с execution uncertainty. Текущие
 observed-price targets служат temporal QA, не обоснованию входа в ML.
+
+## D36: реализация завершена, расширенный сбор ограничен качеством источника
+
+Segment resume и execution-conditioned snapshot targets реализованы; 115 valid snapshots,
+234.789 s суммарного coverage, два rejected context/Clock mismatch. После одного
+consistency probe ошибка повторилась; дальнейшая сеть остановлена. Следующий шаг —
+точечное устранение current-checkpoint bank inconsistency или квалификация другого
+доступного coherent source; затем длительный prospective corpus с неизменёнными guards.
+Это относится к CPMM data correctness, не к закрытой whole-chain trace задаче.
+Execution labels пока conditional pre-network-cost outcomes с unknown inclusion/impact;
+calibrated simulator и ML gates открыты. Evaluation period фактически не достигнут.

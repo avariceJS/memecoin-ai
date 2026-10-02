@@ -288,3 +288,18 @@ late/repeated snapshots, actual source hashes и offline/wheel reproduction. 280
 lint/format/typing, smoke/build прошли. Memory Bank, CLI, docs/causal-forward.md и
 соответствующий evidence обновлены. Далее — более длинные prospective segments,
 затем execution-conditioned targets; no ML/RL/paper/live/edge claims.
+
+## 2026-10-02 — D36: bounded campaigns и условные execution targets
+
+Добавлены resumable immutable segments с общим бюджетом, source pinning, crash sealing,
+OS lock, warmup/censoring на границах и ограниченным возобновлением transient failures.
+Offline size/delay/minOut/holding probes используют existing CPMM/Token-2022 math;
+failed exit сохраняет позицию, unknown full net PnL остаётся null.
+
+Собрано 115 valid snapshots в двух прерванных кампаниях; два HTTP 200 context/Clock
+mismatch остановили сеть. Один контрольный запрос между кампаниями прошёл; systematic
+cause неизвестна. Raw regression fixtures сохранены. 120 features / 112 usable,
+960 target variants (432 conditional roundtrips, 4 entry/8 exit failures, 516 censored),
+zero engineering evaluation decisions. 297 tests, smoke/build, offline/wheel reproduction.
+Memory и docs/evidence обновлены. ML не запускается; длительный corpus остаётся
+неполным до решения current-checkpoint coherence blocker. Historical RPC audit не открыт.
