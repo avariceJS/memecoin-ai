@@ -1,6 +1,16 @@
 # Текущий статус
 
-Обновлено: **2026-10-02**, Europe/Moscow.
+Обновлено: **2026-10-03**, Europe/Moscow.
+
+**Следующий этап D40:** пользователь согласовал проверку Alchemy HTTP+WSS отдельным
+bounded пилотом параллельно текущему collector; замена основного pipeline не принята.
+Разработка переносится в новый чат Astra с Alchemy MCP. По сообщению пользователя,
+Alchemy HTTP фактически работает и WSS endpoint доступен; в этой сессии его credentials,
+raw evidence, coherence и WSS delivery guarantees не проверялись. MCP не равен runtime
+endpoint. Сначала проверить существующие доступы и evidence, затем Alchemy HTTP baseline
+против Alchemy HTTP+WSS при одинаковой когорте и commitment. Критерии допуска и границы
+пилота: D40 в [decisions](decisions.md) и [data-and-execution](data-and-execution.md).
+Пилот **не проведён**, основной collector и артефакты D39 сохранены.
 
 **Текущий результат D39:** найден и проверен bounded вариант согласованного источника:
 canonical public mainnet `https://api.mainnet.solana.com`, explicit verified TLS keepalive
@@ -21,9 +31,9 @@ Execution-conditioned targets: 3864 scenarios, 345 distinct mature decisions,
 
 346 tests, lint/format/mypy, smoke/build и dev/installed-wheel verification прошли.
 Memory и previous raw/source snapshots сохранены. Контракт: [persistent source](../docs/persistent-source.md);
-[evidence](../docs/evidence/persistent-source-2026-10-02.json). Следующий этап —
-разные календарные окна bounded prospective сбора и execution uncertainty QA, затем
-решение о dataset sufficiency. Public RPC не объявлен production source.
+[evidence](../docs/evidence/persistent-source-2026-10-02.json). Приоритет следующего этапа
+уточнён D40: проверить гибридный сбор для расширения календарного покрытия; execution QA
+и решение о dataset sufficiency остаются необходимыми. Public RPC не объявлен production source.
 
 ## Стадия и авторизация
 
@@ -60,7 +70,7 @@ ReferenceReplay намеренно synthetic-only, one-quote, one-pool-per-base 
 
 ## Открытые решения
 
-Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D39: [decisions](decisions.md).
+Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D40: [decisions](decisions.md).
 
 ## Результат bounded data-аудита
 

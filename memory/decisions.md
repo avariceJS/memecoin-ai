@@ -511,3 +511,36 @@ docs/persistent-source.md. Результат: 482 valid / 483 corpus requests; 
 15 chronological nonoverlap windows. 346 tests, smoke/build, offline/wheel проверены.
 Evidence: docs/evidence/persistent-source-2026-10-02.json. Полный длительный/рыночный
 corpus и ML readiness не достигнуты.
+
+### D40: проверить Alchemy HTTP+WSS до изменения основного pipeline
+
+**Статус:** направление bounded пилота согласовано пользователем 2026-10-03;
+миграция основного pipeline не принята, пилот **не проведён**. Продолжение разработки
+перенесено в новый чат Astra с подключённым Alchemy MCP. По сообщению пользователя,
+в отдельной сессии HTTP RPC Alchemy фактически проверен и работает, WSS endpoint
+доступен. Эти сообщения не заменяют проверку raw evidence, credentials/runtime доступа,
+нужных методов и строгой coherence в новой сессии; текущая сессия Alchemy не тестировала.
+
+Причина: D39 доказал bounded correctness/restart, но календарное/рыночное покрытие
+остаётся узким. Гибрид потенциально уменьшает polling и даёт лучшее покрытие изменений.
+Начальный вариант: WSS сохраняет уведомления и инициирует обновления, HTTP остаётся
+источником coherent snapshots и контроля. Не считать отдельные account notifications
+атомарным состоянием pool+dependencies или полной упорядоченной историей транзакций.
+HTTP recovery/backfill допустим только в реально поддержанной области; endpoint access
+не доказывает возможность восстановить любое historical account state.
+
+Пилот сравнивает Alchemy HTTP и Alchemy HTTP+WSS на одной заранее фиксированной когорте,
+начиная с finalized; смену провайдера отделить от эффекта transport. Доказать строгую
+snapshot корректность, безопасную границу snapshot→stream, обнаружение gaps и восстановление
+после forced disconnect/process restart, обработку duplicate/late/out-of-order delivery
+и перегрузки, воспроизводимость online/offline. Совпадение endpoints не доказывает
+полноту intermediate transitions. Невосстановимые интервалы маскировать/censor; recovered
+receipts не становятся прошлой доступностью. Нужен измеримый выигрыш в пригодном coverage
+или нагрузке при сохранении качества, с учётом трафика и разрешённого бюджета.
+
+Не менять основной pipeline до evidence отчёта и отдельного явного решения по этим
+критериям. Не снимать Clock/linkage/decoder/availability guards, не расширять scope
+creator collection replay и не начинать ML/RL/paper/live. D33 historical trace audit
+не переоткрывать; QuickNode не использовать для новых запросов. Детальный контракт:
+раздел D40 в memory/data-and-execution.md. Пользователь просит ссылки на итоговый документ
+этапа и evidence в финальных отчётах.

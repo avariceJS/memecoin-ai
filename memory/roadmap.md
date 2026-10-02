@@ -153,3 +153,12 @@ Coverage QA теперь считает complete scenario decisions и chronolog
 окон в двух кампаниях/partitions. Следующий крупный прирост — prospective observations
 в разных календарных окнах при той же фиксированной когорте/guards, затем execution
 uncertainty/selection coverage. Нельзя начинать ML только потому, что пройден один cutoff.
+
+## D40: следующий приоритет — проверка гибрида Alchemy
+
+2026-10-03 пользователь согласовал bounded Alchemy HTTP+WSS пилот в новой сессии Astra.
+Перед увеличением масштаба проверить строгий HTTP baseline и сравнить его с гибридом
+на том же провайдере/когорте; доказать stream handoff, gap handling, restart и реальный
+выигрыш coverage/нагрузки. Основной collector D39 сохраняется до отдельного решения по
+результатам. Критерии D40 — memory/data-and-execution.md; пилот не проведён. Календарное
+покрытие и execution QA остаются целью, ускорение transport само по себе не ведёт к ML.

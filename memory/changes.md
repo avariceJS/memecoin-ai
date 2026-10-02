@@ -347,3 +347,14 @@ forward observations 0; preflight не превращён в прошлые feat
 - Новый offline audit полной scenario grid и overlap: 307 complete decisions,
   15 chronological nonoverlap windows. 346 tests, smoke/build, dev/wheel reproduction.
   ML/edge не объявлены; далее новые календарные окна и execution uncertainty QA.
+
+## 2026-10-03 — handoff в Astra и согласование пилота Alchemy (D40)
+
+- Пользователь сообщил о подключённом в другой сессии Alchemy MCP, фактически рабочем
+  HTTP RPC и доступном WSS; в этой сессии Alchemy runtime/raw evidence не проверялись.
+- Согласован bounded пилот HTTP+WSS параллельно существующему pipeline. Миграция не
+  принята. Зафиксированы baseline на том же провайдере, strict coherence/availability,
+  handoff/recovery/failure tests и критерии практического выигрыша. Пилот не проведён.
+- Разработка переносится в Astra. Код, raw corpora и runtime не менялись; последнее
+  фактическое тестирование кода остаётся 346 tests из D39. В итогах давать ссылки на
+  документ этапа и evidence. Сохраняются запреты на реальные сделки/оплату и ML gates.

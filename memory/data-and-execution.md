@@ -412,3 +412,52 @@ errors/source/seed(null)/hashes — docs/evidence/persistent-source-2026-10-02.j
 контракт docs/persistent-source.md. Следующий этап — coverage разных календарных окон
 на том же bounded режиме и оценка execution uncertainty перед ML. Минут/трёх pools
 недостаточно; market universe, simulator calibration, training/edge не квалифицированы.
+
+## D40: условия bounded пилота Alchemy HTTP+WSS (2026-10-03)
+
+Пользователь согласовал проверку гибрида; основной pipeline пока остаётся D39.
+Пилот **не проведён**. Информация о рабочем Alchemy HTTP и наличии WSS получена от
+пользователя из другой сессии; сам endpoint, локальные env names и raw evidence здесь
+не проверялись. Новая сессия Astra должна установить фактические доступные методы,
+лимиты/commitments и runtime credentials отдельно от MCP. Секреты не выводить и не
+запрашивать в чате; не подключать платные сервисы/upgrade.
+
+Начальный контракт: finalized WSS notifications — дополнительный raw канал и trigger,
+HTTP — coherent snapshot authority. Сохранить общий observation/feature/target pipeline;
+не склеивать последние values разных accounts в якобы same-bank snapshot. Сохранить
+pool/config/mint/vault/Clock linkage и versioned decoder. Account updates сами по себе
+не дают доказательства каждого swap или transaction order. Если потребуется иной
+уровень stream semantics, его квалифицировать отдельным adapter, сохранив исходный ответ.
+
+До сети зафиксировать cohort, два сопоставимых режима Alchemy HTTP / HTTP+WSS, длительность,
+request/byte/subscription budgets, commitment, source/code versions, retry/stop/recovery
+policy, критерии сравнения и отчёт. Получить строгий HTTP baseline прежде admission WSS
+observations. Начать с finalized; confirmed/processed и rollback — отдельная проверка.
+
+Пилот должен проверить:
+
+- Snapshot/stream handoff без скрытого окна потерь; границы доказанной полноты и порядка
+  сформулированы для конкретных методов. Сверка конечного snapshot не доказывает всех
+  промежуточных изменений, тишина WSS не доказывает отсутствие активности.
+- Forced disconnect, restart, late/duplicate/out-of-order сообщения и backpressure:
+  gaps обнаружены, история сохранена, восстановление bounded и проверяемое. Если API
+  не позволяет восстановить нужную историю или protocol replay не поддержан, интервал
+  остаётся непригодным; HTTP доступность не разрешает выдумывать отсутствующие states.
+- Raw сообщения, subscription/connection provenance, фактические receipt/decode/feature
+  availability timestamps, immutable plan и ошибки. Recovery не переписывает прошлую
+  online доступность; gap masks, warmup, censoring, maturity и split guards сохраняются.
+- Побитно/семантически воспроизводимые observations/features/targets согласно существующему
+  контракту. New creator fee share поддержан только для snapshot/quote profile2 (D38),
+  не для полноценной collection reconstruction. Synthetic replay gate остаётся.
+- Реальное улучшение пригодного calendar/change coverage либо нагрузки относительно
+  HTTP-only при неизменном качестве. Отдельно измерять HTTP response time, WSS delivery/
+  receipt age, chain-state age, recovery throughput, CPU/memory/traffic; ни одна из этих
+  величин не объявляется измеренной trade execution latency. Учитывать subscription/
+  bandwidth limits существующего доступа; платные действия не разрешены.
+
+Основной data pipeline менять только после отчёта и отдельного зафиксированного решения.
+Итоговый документ должен описывать доказанную область, несоответствия, unresolved gaps и
+условия перехода/отказа. ML readiness, execution qualification и edge пилот не доказывает.
+Официальные ориентиры, прочитанные при архитектурной оценке (актуальность перепроверить):
+https://www.alchemy.com/docs/reference/account-subscribe и
+https://www.alchemy.com/docs/reference/solana-subscription-api-endpoints.
