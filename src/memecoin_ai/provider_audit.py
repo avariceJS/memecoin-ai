@@ -306,8 +306,8 @@ def crosscheck(
                 row["http_status"] = exc.status
         rows.append(row)
         (output / "attempts.json").write_text(canonical(rows) + "\n")
-        if row.get("http_status") in (401, 403, 429):
-            break
+        if row.get("error"):
+            break  # Preserve the remaining plan; investigate the first failed request.
     report = dict(
         schema_version=1,
         planned=len(captures),

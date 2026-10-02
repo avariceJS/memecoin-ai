@@ -69,12 +69,13 @@ def test_block_enumeration_comparison(values):
     )
 
 
-def test_denied_provider_retains_plan_and_stops_without_claiming_match(tmp_path):
+@pytest.mark.parametrize("status", [403, 413, 500])
+def test_denied_provider_retains_plan_and_stops_without_claiming_match(tmp_path, status):
     calls = []
 
     def transport(endpoint, body, timeout, limit):
         calls.append(body)
-        raise HTTPSourceError(403)
+        raise HTTPSourceError(status)
 
     client = ReadOnlyRPC("https://example.invalid", "secondary", transport=transport)
     captures = [capture("getBlocks", [1, 2, dict(commitment="finalized")], [1, 2])] * 2
@@ -176,3 +177,22 @@ def test_confirmed_visibility_already_observed_is_left_censored(tmp_path):
     report = latency_report(tmp_path)
     assert report["finalized_seen"]
     assert report["observed_visibility_delay_seconds"] is None
+
+
+def test_rpc_error_retains_capture_and_stops_remaining_plan(tmp_path):
+    calls = []
+
+    def transport(*args):
+        calls.append(1)
+        return canonical(
+            dict(jsonrpc="2.0", id=1, error=dict(code=-32602, message="Invalid params"))
+        ).encode()
+
+    client = ReadOnlyRPC("https://example.invalid", "secondary", transport=transport)
+    captures = [capture("getBlocks", [1, 2, dict(commitment="finalized")], [1, 2])] * 2
+    report = crosscheck(captures, client, tmp_path / "audit")
+    assert report["attempted"] == 1 and report["planned"] == 2 and len(calls) == 1
+    assert report["rows"][0]["error"] == "SourceError"
+    assert (tmp_path / "audit/000-secondary/response.json").exists()
+    assert not report["all_requested_observations_match"]
+    assert verify_provider_bundle(tmp_path / "audit") == report
