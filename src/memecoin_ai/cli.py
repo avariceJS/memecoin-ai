@@ -190,6 +190,11 @@ def main() -> int:
     campaign.add_argument("--checkpoint", type=Path, action="append", required=True)
     campaign.add_argument("--source-alias", required=True)
     campaign.add_argument("--endpoint-origin", required=True)
+    campaign.add_argument(
+        "--transport-profile",
+        choices=("stdlib_urllib", "stdlib_persistent_v1"),
+        default="stdlib_urllib",
+    )
     campaign.add_argument("--segments", type=int, default=4)
     campaign.add_argument("--rounds", type=int, default=30)
     campaign.add_argument("--interval", type=int, default=5)
@@ -348,6 +353,7 @@ def main() -> int:
                         [Capture.load(p) for p in args.checkpoint],
                         source_alias=args.source_alias,
                         endpoint_origin=args.endpoint_origin,
+                        transport_profile=args.transport_profile,
                         segments=args.segments,
                         rounds=args.rounds,
                         interval_seconds=args.interval,
@@ -362,16 +368,19 @@ def main() -> int:
                 if not endpoint:
                     raise ValidationError("RPC endpoint environment variable is not set")
                 plan = json.loads((args.path / "plan.json").read_text())
-                report = resume_campaign(
-                    args.path,
-                    ReadOnlyRPC(
-                        endpoint,
-                        plan["source_alias"],
-                        timeout=plan["timeout_seconds"],
-                        max_bytes=plan["max_response_bytes"],
-                    ),
-                    emit=lambda row: print(canonical(row), flush=True),
+                client = ReadOnlyRPC(
+                    endpoint,
+                    plan["source_alias"],
+                    timeout=plan["timeout_seconds"],
+                    max_bytes=plan["max_response_bytes"],
+                    keep_alive=plan.get("transport_profile") == "stdlib_persistent_v1",
                 )
+                try:
+                    report = resume_campaign(
+                        args.path, client, emit=lambda row: print(canonical(row), flush=True)
+                    )
+                finally:
+                    client.close()
             print(canonical(report))
         elif args.command in ("refine-forward-targets", "verify-forward-targets"):
             report = (

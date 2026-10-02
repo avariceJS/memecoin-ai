@@ -41,11 +41,14 @@ def create_campaign(
     *,
     source_alias: str,
     endpoint_origin: str,
+    transport_profile: str = "stdlib_urllib",
     segments: int = 4,
     rounds: int = 30,
     interval_seconds: int = 5,
     clock: Callable[[], int] = time.time_ns,
 ) -> dict[str, Any]:
+    if transport_profile not in ("stdlib_urllib", "stdlib_persistent_v1"):
+        raise ValidationError("unsupported campaign transport profile")
     for value, name, low, high in (
         (segments, "segments", 2, 8),
         (rounds, "rounds", 4, 30),
@@ -73,6 +76,7 @@ def create_campaign(
         schema_version=2,
         kind="prospective_campaign",
         endpoint_origin=identity,
+        transport_profile=transport_profile,
         config_layout_version=2,
         created_ns=start,
         source_alias=source_alias,
@@ -157,6 +161,8 @@ def verify_campaign(root: Path) -> dict[str, Any]:
             cp = read(directory / "corpus/plan.json")
             if (
                 cp["source_alias"] != plan["source_alias"]
+                or cp.get("transport_profile", "stdlib_urllib")
+                != plan.get("transport_profile", "stdlib_urllib")
                 or cp["rounds"] != plan["rounds"]
                 or cp.get("config_layout_version", 1) != plan.get("config_layout_version", 1)
                 or cp["interval_ns"] != plan["interval_seconds"] * 10**9
@@ -210,6 +216,8 @@ def resume_campaign(
             raise ValidationError("campaign explicitly closed; new plan required")
         if client.endpoint_origin != plan["endpoint_origin"]:
             raise ValidationError("endpoint origin differs from frozen campaign")
+        if client.transport_profile != plan.get("transport_profile", "stdlib_urllib"):
+            raise ValidationError("transport profile differs from frozen campaign")
         if (client.source_alias, client.timeout, client.max_bytes) != (
             plan["source_alias"],
             plan["timeout_seconds"],

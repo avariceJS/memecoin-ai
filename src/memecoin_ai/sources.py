@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import http.client
 import socket
 import ssl
 import time
@@ -108,6 +109,120 @@ class Capture:
 Transport = Callable[[str, bytes, float, int], bytes]
 
 
+class PersistentHTTPTransport:
+    """Serial, endpoint-bound verified TLS. Never retries or follows redirects."""
+
+    def __init__(self) -> None:
+        self._endpoint: str | None = None
+        self._connection: http.client.HTTPSConnection | None = None
+        self._context = ssl.create_default_context()
+        self.last_measurement: dict[str, object] = {}
+
+    def close(self) -> None:
+        if self._connection is not None:
+            self._connection.close()
+            self._connection = None
+
+    def __call__(self, endpoint: str, request: bytes, timeout: float, limit: int) -> bytes:
+        url = urlsplit(endpoint)
+        if (
+            url.scheme != "https"
+            or not url.hostname
+            or url.username
+            or url.password
+            or url.fragment
+        ):
+            raise ValidationError("persistent transport requires HTTPS without userinfo/fragment")
+        if self._endpoint is not None and endpoint != self._endpoint:
+            raise ValidationError("persistent transport is bound to one endpoint")
+        self._endpoint = endpoint
+        started = time.monotonic()
+        deadline = started + timeout
+        phase = "connect"
+        reused = self._connection is not None and self._connection.sock is not None
+        self.last_measurement = dict(reused_connection=reused, http_status=None)
+        try:
+            if self._connection is None:
+                self._connection = http.client.HTTPSConnection(
+                    url.hostname, url.port, timeout=timeout, context=self._context
+                )
+            conn = self._connection
+            if not reused:
+                conn.timeout = timeout
+                conn.connect()
+            self.last_measurement["connect_ns"] = int((time.monotonic() - started) * 10**9)
+            sock = conn.sock
+            if sock is None:
+                raise ConnectionError("missing connected socket")
+
+            def remaining() -> None:
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    raise TimeoutError()
+                sock.settimeout(left)
+
+            phase = "send"
+            remaining()
+            target = (url.path or "/") + ("?" + url.query if url.query else "")
+            conn.request(
+                "POST",
+                target,
+                body=request,
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "memecoin-ai/0.1 read-only-research",
+                    "Accept-Encoding": "identity",
+                },
+            )
+            phase = "headers"
+            remaining()
+            response = conn.getresponse()
+            self.last_measurement.update(
+                http_status=response.status,
+                headers_ns=int((time.monotonic() - started) * 10**9),
+            )
+            if response.status != 200:
+                raise HTTPSourceError(response.status)
+            if response.getheader("Content-Encoding", "identity") != "identity":
+                raise SourceError("unexpected content encoding in persistent transport")
+            expected = response.length
+            if expected is not None and expected > limit:
+                raise SourceError("RPC response exceeded configured byte limit")
+            phase = "body"
+            body = bytearray()
+            while True:
+                remaining()
+                chunk = response.read1(min(65536, limit + 1 - len(body)))
+                if not chunk:
+                    break
+                body.extend(chunk)
+                if len(body) > limit:
+                    raise SourceError("RPC response exceeded configured byte limit")
+            if expected is not None and len(body) != expected:
+                raise SourceError("incomplete HTTP response body")
+            self.last_measurement["connection_retained"] = conn.sock is not None
+            return bytes(body)
+        except (OSError, http.client.HTTPException) as exc:
+            self.last_measurement["failed_phase"] = phase
+            self.close()
+            reason = (
+                "timeout"
+                if isinstance(exc, TimeoutError)
+                else "dns"
+                if isinstance(exc, socket.gaierror)
+                else "tls"
+                if isinstance(exc, ssl.SSLError)
+                else "connection"
+            )
+            raise TransportSourceError(reason) from None
+        except SourceError:
+            self.last_measurement["failed_phase"] = phase
+            self.close()
+            raise
+        finally:
+            self.last_measurement["total_ns"] = int((time.monotonic() - started) * 10**9)
+
+
 def http_transport(endpoint: str, request: bytes, timeout: float, limit: int) -> bytes:
     message = urllib.request.Request(
         endpoint,
@@ -153,6 +268,7 @@ class ReadOnlyRPC:
         max_bytes: int = 4_000_000,
         transport: Transport = http_transport,
         clock: Callable[[], int] = time.time_ns,
+        keep_alive: bool = False,
     ) -> None:
         url = urlsplit(endpoint)
         if url.scheme != "https" or not url.hostname or url.username or url.password:
@@ -168,8 +284,20 @@ class ReadOnlyRPC:
         self.source_alias = source_alias
         self.timeout = timeout
         self.max_bytes = max_bytes
-        self.transport = transport
+        if keep_alive and transport is not http_transport:
+            raise ValidationError("choose either persistent or custom transport")
+        self.transport: Transport = PersistentHTTPTransport() if keep_alive else transport
+        self.transport_profile = "stdlib_persistent_v1" if keep_alive else "stdlib_urllib"
         self.clock = clock
+
+    def close(self) -> None:
+        if isinstance(self.transport, PersistentHTTPTransport):
+            self.transport.close()
+
+    def transport_measurement(self) -> dict[str, object] | None:
+        if isinstance(self.transport, PersistentHTTPTransport):
+            return dict(self.transport.last_measurement)
+        return None
 
     @property
     def endpoint_origin(self) -> str:

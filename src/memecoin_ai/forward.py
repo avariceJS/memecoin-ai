@@ -131,6 +131,7 @@ def collect_forward(
         kind="causal_forward_corpus",
         started_ns=start,
         source_alias=client.source_alias,
+        transport_profile=client.transport_profile,
         config_layout_version=config_layout_version,
         cohort=cohort,
         rounds=rounds,
@@ -227,6 +228,9 @@ def collect_forward(
                     row["http_status"] = exc.status
                 book.gap(item["pool_id"], row["available_ns"], row["category"])
             row.setdefault("response_ns", int((monotonic() - before) * 10**9))
+            measurement = client.transport_measurement()
+            if measurement is not None:
+                row["transport_measurement"] = measurement
             attempts.append(row)
             round_attempts += 1
             _append(output / "attempts.jsonl", row)
