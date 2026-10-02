@@ -79,3 +79,40 @@ inclusion, latency, MEV, user-account permissions, network/priority fees и rent
 Clock/blockTime не доказывает admission. Наблюдавшаяся `meta.fee` хранится отдельно как
 `observed_network_fee_lamports` и не выдаётся за цену будущей сделки. Quote samples и
 roundtrip outputs — не fills, не PnL стратегии и не logged transitions для offline RL.
+
+
+## Первый воспроизведённый corpus — 2026-10-02
+
+Code: `e68c01e`. Config: 10/100/1000 ppm, seed/split не применяются, offline data QA;
+execution model `conditional_transfer_swap_v1`. Новых RPC-запросов нет.
+
+| Frozen journal | Интервалы | Tx rows | State rows | Quoted | Unavailable |
+|---|---:|---:|---:|---:|---:|
+| classic | 8 | 189 | 205 | 1 134 | 96 |
+| token2022 | 6 | 382 | 394 | 2 364 | 0 |
+| dependency-index | 1 | 455 | 457 | 2 742 | 0 |
+| dependency-range | 1 | 863 | 865 | 5 190 | 0 |
+| Всего | 16 | 1 889 | 1 921 | 11 430 | 96 |
+
+Все 16 интервалов прошли, quarantine=0 на этих исходниках. В отрицательных regression
+проверках испорченный endpoint карантинирует весь segment. 96 unavailable относятся
+к 16 classic checkpoint rows × 6 probe combinations: chain timestamp неизвестен.
+Успешные quote round trips не дали положительного выхода сверх входа; это проверка
+арифметики, не PnL стратегии. 176 swap / 8 harvest checks взяты из прежних наблюдений.
+
+5 уникальных pools, 1 889 signatures, 127 transaction slots. Envelope 452384039–452408973
+**не** непрерывная рыночная история. Котировки нескольких размеров на повторяющихся
+состояниях не являются независимыми наблюдениями. Memecoin universe/births/deaths не
+квалифицированы. Все historical_available_ns=null, training_ready=false.
+
+Raw bundles и immutable plan/runner: `work/economic-corpus-01`. Hashes, источники,
+индивидуальные build/reproduction times и результаты:
+[economic-corpus-2026-10-02.json](evidence/economic-corpus-2026-10-02.json).
+Все bundles полностью воспроизведены; originals побитно неизменны. Token-2022 corpus
+проверен также CLI из установленного wheel. 264 tests, lint/format/strict typing,
+synthetic smoke и sdist/wheel build прошли.
+
+Следующий этап: causal observation/feature contract с observed/assumed/unknown
+availability, gap masks и сегментацией, затем bounded forward corpus с реальными
+receipts и заранее отделёнными calibration/evaluation windows. Исторические audit
+receipts не следует подменять time-of-trade timestamps ради запуска ML.

@@ -15,6 +15,7 @@ Memory Bank — канонический, пригодный для чтения
 | Что принято, почему и когда пересмотреть | [decisions.md](decisions.md) |
 | Как объективно выбрать спорный вариант | [research.md](research.md) |
 | Какие данные и исполнение необходимы | [data-and-execution.md](data-and-execution.md) |
+| Как воспроизвести economic dataset и quote probes | [economic-dataset.md](../docs/economic-dataset.md) |
 | Как проверять edge и выпускать новую модель | [evaluation.md](evaluation.md) |
 | В каком порядке работать | [roadmap.md](roadmap.md) |
 | Что уже существует и что дальше | [state.md](state.md) |

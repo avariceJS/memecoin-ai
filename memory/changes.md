@@ -247,3 +247,23 @@ state pair остановлена на public RPC timeout; Helius ответил
 проверены. Memory Bank, docs/helius-audit.md и evidence/helius-traces-2026-10-02.json
 обновлены. CPMM/replay/collection, прежние captures и secrets не менялись. Далее —
 полная независимая история frozen cohort; production/ML/trading qualification нет.
+
+
+## 2026-10-02 Закрыт второй RPC; начат и проверен economic dataset
+
+По прямому поручению пользователя D33 закрывает исходную задачу второго RPC с
+наблюдаемыми ограничениями, отменяя обязательную дозагрузку 10 blocks из D32.
+Сохранены evidence, full-range=false, truncation и public timeout; новых RPC нет.
+
+D34 реализует offline dataset exporter/verifier поверх existing protocol reconstruction:
+coherent journal snapshot, state tape, raw provenance, ordered fees/epoch, whole-segment
+quarantine, явная unknown historical availability. Добавлены conditional size probes
+с Token-2022 fees и no-free-roundtrip invariant; старый replay gate не менялся.
+
+Реально построены и воспроизведены четыре bundles: 16 intervals, 5 pools, 1 889 tx,
+1 921 states, 11 430 conditional quotes + 96 unavailable. Оригиналы неизменны;
+это повторное использование audit data, не новые независимые market observations.
+264 tests, lint/format/typing, smoke/build, CLI и wheel verification прошли.
+Memory Bank, README и docs/economic-dataset.md обновлены; provenance/results:
+docs/evidence/economic-corpus-2026-10-02.json. Дальше causal observation/features,
+gap masks и bounded forward data. ML/RL/paper/live не начаты; edge не установлен.

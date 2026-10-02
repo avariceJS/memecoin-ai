@@ -339,7 +339,7 @@ docs/evidence/helius-traces-2026-10-02.json; docs/helius-audit.md.
 
 ### D34: следующий крупный этап — экономический dataset и условная симуляция
 
-**Статус:** реализован инженерный exporter, первый corpus build выполняется отдельно.
+**Статус:** реализован и проверен на четырёх frozen journals, 2026-10-02.
 Причина: после достаточного source audit наибольший разрыв — отсутствие воспроизводимого
 формата реальных экономических состояний между raw journals и будущими features/labels/
 execution research. Выбор: offline state tape на existing protocol reconstruction,
@@ -354,3 +354,9 @@ ReferenceReplay gate. ML/RL/paper/live не начинать. Сетка ppm —
 OOS edge. Следующий критерий — воспроизводимый corpus/quality report, затем causal
 observation/feature contract и подготовка bounded forward dataset. Контракт:
 docs/economic-dataset.md. Текущий build/result — memory/state.md.
+
+
+Результат D34: 16/16 intervals, 1 889 tx, 1 921 states, 11 430 quoted / 96 unavailable;
+264 tests, offline reproduction всех bundles и wheel verification Token-2022 прошли.
+Evidence: docs/evidence/economic-corpus-2026-10-02.json. Source gates не повышены:
+следующий приоритет causal availability/feature contract и bounded forward corpus.

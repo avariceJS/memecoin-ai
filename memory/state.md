@@ -7,7 +7,9 @@
 новых запросов ради полной historical trace-сверки не делать. Дальнейший план D32
 по оставшимся 10 блокам отменён. Следующий этап D34 — воспроизводимый CPMM economic
 dataset для data QA и условной симуляции, затем causal observation pipeline.
-Инженерная реализация exporter готова, 264 tests; результаты corpus build будут ниже.
+Первый corpus построен и воспроизведён: 16 интервалов, 5 pools, 1 889 tx,
+1 921 states; 11 430 conditional quotes и 96 unavailable. 264 tests прошли.
+Текущий результат D34 и следующий этап — в последнем разделе этого документа.
 
 ## Стадия и авторизация
 
@@ -34,7 +36,7 @@ Memory Bank принят как source of truth. Пользователь раз
 
 ## Что проверено
 
-Локально на Python 3.13: 244 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 264 автоматических теста, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
@@ -306,3 +308,38 @@ raw manifests проверены, новые comparisons воспроизвед�
 public RPC; текущий snapshot не восстанавливает исторический bank. Для полного tail
 двух исключений нужен другой подтверждённый архив. Dataset/execution/infrastructure
 independence и edge всё ещё не квалифицированы; ML/RL/trading не начинались.
+
+
+## Текущий этап D34: economic dataset построен
+
+Вместо дальнейшей RPC-сверки реализованы offline `export-economic-dataset` и
+`verify-economic-dataset`: SQLite snapshot + source/config/hashes + states/quotes/report.
+Состояния экспортируются непосредственно existing protocol replay; fees, counters,
+LP supply, withheld, epoch и порядок tx сохраняются. Failed/no-op не удаляются.
+Любой blocker карантинирует интервал целиком, без endpoint repair. Quote probes
+с Token-2022 используют isolated hypothetical state и проверяют immediate round trip;
+ReferenceReplay по-прежнему synthetic-only, ML/RL/paper/live не запускались.
+
+Четыре immutable исходных journals (classic, token2022, dependency-index/range)
+обработаны **без сети**. 16/16 интервалов прошли, 5 pools, 1 889 уникальных tx,
+1 921 state rows, 11 430 conditional quotes; 96 unavailable на classic anchors без
+chain timestamp. 176 наблюдавшихся swap checks и 8 harvest сохраняются из прежних
+аудитов, это не новые market observations. В corpus 127 tx slots, sparse envelope
+452384039–452408973 не означает непрерывное покрытие. Нулевой positive roundtrip
+на данной сетке — проверка модели, не свидетельство PnL или edge.
+
+Все четыре bundles пересчитаны из собственной journal-копии, Token-2022 — также из
+установленного wheel. Оригиналы остались побитно прежними. **264 tests**, lint/format/
+strict typing, smoke и build прошли. Raw+bundles: work/economic-corpus-01; контракт:
+[dataset](../docs/economic-dataset.md); [evidence](../docs/evidence/economic-corpus-2026-10-02.json).
+
+**Ограничения:** historical_available_ns=null для всех строк; receipt и поздняя
+endpoint verification не становятся исторической доступностью features. Training,
+market dataset и execution qualification false. Короткий fixed cohort не покрывает
+births/deaths, разнообразие режимов или calibrated inclusion/costs. Quotes одной
+истории/размеров не являются независимыми сделками или логами поведения агента.
+
+**Следующий крупный шаг:** causal observation/feature pipeline с отдельным контрактом
+доступности и gap masks, затем bounded forward corpus с настоящими receipts и
+разделением calibration/evaluation. Не интерполировать будущие snapshots/параметры.
+Provider stage закрыт D33; оставшиеся 10 blocks не являются текущим заданием.

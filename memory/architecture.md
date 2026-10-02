@@ -115,3 +115,13 @@ account admission/transaction inclusion в доказанную область. 
 способ восстановления покрытия без address pagination. `witness.py` проверяет
 LP arithmetic при event-conditioned prestate, не выдаёт его за checkpoint replay.
 Эти расширения относятся к audit plane и не включают real-data ReferenceReplay.
+
+
+## Реализованный переход от chain audits к dataset (D34)
+
+`datasets.py` использует optional state export из единого `audit_protocol`, сохраняя
+его проверки и реконструкцию. Frozen raw journal → quarantined/accepted intervals →
+ordered economic state rows → conditional quote grid. В bundle остаются source version,
+receipts/hashes и offline verifier. Нет преобразования реального CPMM в synthetic
+reference Pool или снятия replay gate. Historical availability неизвестна; этот слой
+служит data QA и условной симуляции, causal observations/features — следующий слой.

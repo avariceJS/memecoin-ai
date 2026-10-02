@@ -132,8 +132,8 @@ Full-block и bounded-range recovery сохраняют исходное док�
 ## Проверка провайдера и измерение задержек
 
 D31–D32: read-side audit хранит точный план и raw ответы; разный account bank не сравнивается
-как одинаковое состояние. HTTP failures и неполный план не дают agreement. Независимый
-оператор пока недоступен; qualification не повышена. Отдельно измерены monotonic response
+как одинаковое состояние. HTTP failures и неполный план не дают agreement. На первом этапе независимый
+оператор был недоступен; последующие результаты и закрытие этапа — D33 ниже. Отдельно измерены monotonic response
 и receipt-minus-Clock, без переноса этих значений в trade inclusion/fill model.
 
 D30 расширено тремя реальными fund-collection witnesses: gross vault debits, net recipient
@@ -212,3 +212,33 @@ timeout, поэтому same-bank values не сравнивались. minConte
 не архивная фиксация bank. Сеть остановлена на первой паре. Latencies отдельных reads
 не являются исполнением/throughput. 252 tests; raw+plans+hashes и результаты:
 docs/evidence/helius-traces-2026-10-02.json. Инфраструктурная независимость не доказана.
+
+
+## D33–D34: source audit закрыт, воспроизводимый economic dataset
+
+По поручению пользователя 2026-10-02 текущая независимая сверка достаточна для исходной
+цели второго RPC. Дозагрузка 10 blocks и идеальная trace-сверка всей сети отменены.
+Две усечённые Helius traces, incomplete full-range agreement и отсутствие same-bank
+current-state comparison остаются фактами; gates не превращаются в pass. Пересмотр
+нужен только при влиянии конкретной неполноты на новую задачу CPMM.
+
+Следующий реализованный этап — economic state tape и conditional quote grid из
+существующих journals. Export/verify offline, coherent SQLite backup, source snapshots,
+настоящие receipts и raw hashes. Все tx, в том числе failed/no-op, сохраняются в
+прошедших audit интервалах; failed intervals отдельно карантинируются целиком.
+Нет восстановления прошлого из будущего endpoint. Mint/epoch/fee semantics используют
+existing ParameterHistory и CPMM math, не отдельную упрощённую копию.
+
+`historical_available_ns=null`; evidence_ready_ns — максимум receipts всего journal,
+включая endpoint evidence, не время доступности историческому агенту. Никаких ложных
+feature timestamps или автоматического допуска к training. Размеры 10/100/1000 ppm
+— явно заданный инженерный probe; quotes не observed fills. Reverse leg использует
+hypothetical after-state forward leg; own impact не переносится на исторический рынок.
+Старый synthetic-only replay gate остаётся. Dataset не использует generic fee_bps Pool.
+
+Первый corpus: 4 bundles, 16 consistent intervals, 5 pools, 1 889 tx, 1 921 states,
+11 430 quotes и 96 unavailable (classic checkpoint timestamp unknown). Reproduction
+и checksums прошли, новых RPC нет; 264 tests. Дальше causal observations/features,
+gap masks и forward receipts для подготовки пригодного temporal research sample.
+Точная схема/ограничения: docs/economic-dataset.md; measured build evidence:
+docs/evidence/economic-corpus-2026-10-02.json.

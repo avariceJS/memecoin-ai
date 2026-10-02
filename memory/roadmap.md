@@ -92,4 +92,6 @@ D28–D30 реализованы; source completeness всё ещё условн
 roundtrip checks → causal observation/feature/target contract → bounded forward corpus.
 Это использует уже собранные журналы, а не продолжает RPC comparison как самоцель.
 R4/ML остаётся за gates доступности, покрытия, симуляции и temporal evaluation.
-Первый реализуемый результат/контракт: docs/economic-dataset.md.
+Первый результат реализован и воспроизведён на четырёх frozen journals:
+16 intervals / 1 921 states. Контракт: docs/economic-dataset.md. Следующий результат —
+causal observation/features и gap masks перед bounded forward sample.
