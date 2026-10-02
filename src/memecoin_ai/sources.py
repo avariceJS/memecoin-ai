@@ -110,7 +110,13 @@ Transport = Callable[[str, bytes, float, int], bytes]
 
 def http_transport(endpoint: str, request: bytes, timeout: float, limit: int) -> bytes:
     message = urllib.request.Request(
-        endpoint, data=request, headers={"Content-Type": "application/json"}, method="POST"
+        endpoint,
+        data=request,
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "memecoin-ai/0.1 read-only-research",
+        },
+        method="POST",
     )
     try:
         with urllib.request.urlopen(message, timeout=timeout) as response:

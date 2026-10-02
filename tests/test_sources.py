@@ -77,6 +77,25 @@ def test_http_error_status_without_credential_leak(monkeypatch):
     assert "SECRET" not in str(caught.value)
 
 
+def test_transport_identifies_application_without_changing_rpc_payload(monkeypatch):
+    import io
+    import urllib.request
+
+    from memecoin_ai.sources import http_transport
+
+    payload = b'{"jsonrpc":"2.0","id":1,"method":"getSlot","params":[]}'
+    response = b'{"jsonrpc":"2.0","id":1,"result":123}'
+
+    def receive(message, *, timeout):
+        assert message.get_header("User-agent") == "memecoin-ai/0.1 read-only-research"
+        assert message.data == payload and message.method == "POST"
+        assert timeout == 3
+        return io.BytesIO(response)
+
+    monkeypatch.setattr(urllib.request, "urlopen", receive)
+    assert http_transport("https://example.invalid", payload, 3, 1000) == response
+
+
 @pytest.mark.parametrize("category", ["timeout", "dns", "tls", "connection", "other"])
 def test_transport_diagnostics_expose_category_not_secret(monkeypatch, category):
     import socket
