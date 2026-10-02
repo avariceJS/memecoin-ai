@@ -13,6 +13,7 @@ from memecoin_ai.datasets import export_economic_dataset, verify_economic_datase
 from memecoin_ai.domain import Event, ValidationError, canonical
 from memecoin_ai.experiments import RunRecorder, summarize, verify_run
 from memecoin_ai.fixtures import ScriptedFixturePolicy, synthetic_events
+from memecoin_ai.forward import collect_forward, verify_forward
 from memecoin_ai.protocol import write_protocol_audit
 from memecoin_ai.provider_audit import (
     audit_provider_range,
@@ -146,6 +147,19 @@ def main() -> int:
         "verify-economic-dataset", help="Reproduce economic dataset from its frozen journal"
     )
     verify_dataset.add_argument("path", type=Path)
+    forward = commands.add_parser(
+        "collect-forward-corpus", help="Bounded causal finalized snapshots; no trading"
+    )
+    forward.add_argument("--checkpoint", type=Path, action="append", required=True)
+    forward.add_argument("--source-alias", required=True)
+    forward.add_argument("--endpoint-env", default="MEMECOIN_HELIUS_RPC_URL")
+    forward.add_argument("--rounds", type=int, default=12)
+    forward.add_argument("--interval", type=int, default=10)
+    forward.add_argument("--out", type=Path, required=True)
+    verify_forward_command = commands.add_parser(
+        "verify-forward-corpus", help="Reproduce online causal features and targets offline"
+    )
+    verify_forward_command.add_argument("path", type=Path)
     latency = commands.add_parser(
         "measure-rpc-latency", help="Bounded Clock sampling; response time is not execution latency"
     )
@@ -231,6 +245,23 @@ def main() -> int:
             print(canonical(report))
         elif args.command == "verify-provider-audit":
             print(canonical(verify_provider_bundle(args.path)))
+        elif args.command in ("collect-forward-corpus", "verify-forward-corpus"):
+            if args.command == "verify-forward-corpus":
+                report = verify_forward(args.path)
+            else:
+                endpoint = os.environ.get(args.endpoint_env)
+                if not endpoint:
+                    raise ValidationError("RPC endpoint environment variable is not set")
+                report = collect_forward(
+                    ReadOnlyRPC(endpoint, args.source_alias, timeout=10, max_bytes=1_000_000),
+                    [Capture.load(p) for p in args.checkpoint],
+                    args.out,
+                    rounds=args.rounds,
+                    interval_seconds=args.interval,
+                    emit=lambda row: print(canonical(row), flush=True),
+                )
+            print(canonical(report))
+            return 0 if report["complete"] else 1
         elif args.command in ("export-economic-dataset", "verify-economic-dataset"):
             if args.command == "verify-economic-dataset":
                 report = verify_economic_dataset(args.path)

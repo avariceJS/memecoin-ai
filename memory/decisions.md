@@ -360,3 +360,28 @@ docs/economic-dataset.md. Текущий build/result — memory/state.md.
 264 tests, offline reproduction всех bundles и wheel verification Token-2022 прошли.
 Evidence: docs/evidence/economic-corpus-2026-10-02.json. Source gates не повышены:
 следующий приоритет causal availability/feature contract и bounded forward corpus.
+
+### D35: наблюдённые causal snapshots и bounded forward corpus
+
+**Статус:** реализован контракт; bounded сбор запускается на зафиксированной версии.
+Пользователь утвердил следующий этап 2026-10-02. Выбор: семь счетов одного finalized
+bank с Clock, фактические receipt/decode/feature-publication timestamps и общая
+live/offline CausalBook. Historical state tape не превращается в past observations.
+
+Причина: будущему ML нужны причинные входы, проверяемая maturity labels и gap masks.
+12 простых features не используют будущую реконструкцию или train/test normalization.
+Duplicate banks не обновляют age; gap/regression/conflict сбрасывают history. Невалидные
+rows сохраняются с причинами. Target — future observed log-price change, не executable
+return; censoring/actual label maturity и purging на временной границе обязательны.
+
+Первый инженерный план: прежняя fixed cohort из трёх Token-2022 pools, 12 rounds ×
+10 s, максимум 36 read-only Helius requests; 10 s timeout / 1 MB cap, no retries,
+stop on first error. Max ages 25/45 s, gap 25 s, horizon 20 s, target tolerance 15 s;
+первая половина запланированного времени calibration, вторая engineering evaluation.
+Это допущения data QA, не утверждённые параметры торговли или финальный holdout.
+
+Альтернатива backfill receipts как историческая доступность отклонена. Слабость:
+короткий cohort sample и polling не дают trade flow, regime coverage или execution
+calibration. ML/RL/paper/live и synthetic replay gate не меняются. Пересмотр — реальные
+проблемы доступности/покрытия в corpus, без ослабления temporal guards. Контракт:
+docs/causal-forward.md; результат — memory/state.md и отдельный evidence report.
