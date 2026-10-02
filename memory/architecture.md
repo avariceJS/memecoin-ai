@@ -155,3 +155,14 @@ campaign/targets независимыми temporal/accounting инвариант
 раздельные latency distributions, не запускает обучение. Campaign schema 2 закрепляет
 public endpoint origin; закрытая кампания не возобновляется. Старые source snapshots
 и verifiers воспроизводятся через pinned wheels без изменения прошлых artifacts.
+
+
+## Versioned AmmConfig snapshot domain (D38)
+
+`raydium.decode_config(layout_version=2)` понимает подтверждённое поле creator fee
+share; неизвестный остаток не допускается. `tokens`/`protocol.checkpoint` явно выбирают
+профиль, `causal` сохраняет collection terms отдельно от swap state. `forward` и
+`prospective` закрепляют config_layout_version в frozen plan; offline target reconstruction
+использует тот же профиль. Старые plans по умолчанию version1 и требуют pinned source.
+Profile2 checkpoint нельзя передать legacy transition/replay. CLI diagnostics поддерживает
+явный --config-layout-version 2, оставаясь diagnostic-only, не feature ingestion.

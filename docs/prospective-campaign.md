@@ -108,3 +108,12 @@ Net PnL labels — 0. Обучение не начиналось: minutes/fixed 
 current-checkpoint coherence blocker через Helius diagnosis или другой разрешённый
 согласованный source, затем расширение prospective coverage и калибровка execution.
 Whole-chain historical trace-аудит D33 остаётся закрытым.
+
+
+## Продолжение D38
+
+Новые plans явно выбирают config_layout_version=2, подтверждённый для snapshot/quote
+domain. Legacy replay не расширен. Новая public campaign прошла config decoder, однако
+после двух timeout остановлена: 2 accepted snapshots, 6 masked features, 48 censored
+scenarios, 0 mature labels. Реальный bounded resume состоялся; history reset и frozen
+cutoff сохранены. [Семантика, evidence и следующий gate](creator-fee-share.md).

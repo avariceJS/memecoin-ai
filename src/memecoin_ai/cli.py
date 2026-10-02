@@ -161,6 +161,7 @@ def main() -> int:
     )
     diagnosis.add_argument("capture", type=Path)
     diagnosis.add_argument("--pool", required=True)
+    diagnosis.add_argument("--config-layout-version", type=int, choices=(1, 2), default=1)
     quality = commands.add_parser(
         "audit-corpus-quality", help="Offline coverage, maturity and execution uncertainty"
     )
@@ -316,7 +317,15 @@ def main() -> int:
         elif args.command == "verify-provider-audit":
             print(canonical(verify_provider_bundle(args.path)))
         elif args.command == "diagnose-checkpoint":
-            print(canonical(diagnose_checkpoint(Capture.load(args.capture), args.pool)))
+            print(
+                canonical(
+                    diagnose_checkpoint(
+                        Capture.load(args.capture),
+                        args.pool,
+                        config_layout_version=args.config_layout_version,
+                    )
+                )
+            )
         elif args.command in ("audit-corpus-quality", "verify-corpus-quality"):
             report = (
                 export_quality(args.campaign, args.targets, args.out)

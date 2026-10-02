@@ -318,3 +318,18 @@ independent corpus-quality report и реальные regression captures. 313 t
 offline/new wheel QA; старые D36 bundles повторно verified pinned wheel. Новых accepted
 forward observations 0; preflight не превращён в прошлые features. Следующий gate —
 поддержанная deployed семантика config. Memory/docs/evidence обновлены, ML не начиналось.
+
+
+## 2026-10-02 — подтверждён AmmConfig creator fee share, bounded resume D38
+
+- Official SDK/docs объяснили word@116: default доля creator fee для protocol при collection;
+  swap quotes не меняются. Helius подтвердил оба config и ProgramData upgrade metadata;
+  binary equivalence и override PDA неизвестны. Прежний D37 unknown-layout вывод уточнён.
+- Explicit snapshot/quote profile2, remaining-padding/range/Clock guards, metadata с
+  unknown effective rate и запрет legacy replay. Versioned CLI diagnostics. 327 tests.
+- Public prospective campaign с неизменяемым планом: 2 accepted /4 requests, два timeout
+  после одного cooldown/resume. Кампания закрыта, 6 masked rows /48 censored scenarios,
+  нет mature labels. История запросов/ошибок/raw сохранена, бесконечных retries нет.
+- Dev/installed-wheel verification, smoke/build прошли; D36/D37 frozen artifacts также
+  воспроизведены прежними wheels. Следующий blocker — доступность coherent source.
+  Training, RL, реальные транзакции и платные подключения не запускались.

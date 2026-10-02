@@ -126,3 +126,16 @@ Public RPC даёт coherent Clock/context в восьми новых account re
 R4/ML не начинается. Следующий этап — deployed config semantics/source compatibility
 или подтверждение source defect, затем независимо проверенный versioned adapter.
 Не игнорировать padding и не менять pools до случайного прохождения guards.
+
+
+## D38: config gate решён для snapshots; следующий gate — доступность source
+
+Семантика creator fee share подтверждена official docs/SDK и двумя provider observations
+в разных slots. Snapshot/quote profile2 реализован без расширения legacy reconstruction.
+Новый сбор возобновлён, но два сегмента подряд прерваны timeout public RPC: accepted2,
+usable0, mature0. Сеть остановлена по плану; dataset/ML readiness не достигнуты.
+Следующий практический этап: отдельная ограниченная диагностика доступности coherent
+source при новых основаниях, затем immutable prospective segments на прежней когорте.
+Не запускать одинаковые серии снова, не обходить Helius Clock equality. До достаточного
+coverage и execution calibration training не начинается. Полный new creator collection
+replay — отдельный evidence-driven adapter, не обязательное условие snapshot quotes.

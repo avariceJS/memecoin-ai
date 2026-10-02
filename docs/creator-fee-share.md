@@ -48,3 +48,34 @@ V2 Checkpoint применяется только для snapshots и conditiona
 profile 2; v1 по-прежнему отвергает их. Проверены boundaries, unknown remaining bytes,
 Clock mismatch и запрет legacy replay. Независимая integer accounting проверка
 подтверждает invariance reserves/quotes при документированном перераспределении fees.
+
+
+## Prospective continuation и воспроизведение
+
+Новый immutable plan `work/prospective-config-v2-01`: public RPC, прежние три пула,
+3×20 rounds×10 s, максимум180 requests. Фактически 4 requests в двух сегментах:
+2 valid seven-account captures, 2 timeout15.008/15.007s у следующего пула4GWh…QYfm.
+Метод getMultipleAccounts, finalized/base64, minContextSlot452398741; HTTP/RPC code
+отсутствуют, причина transport timeout не установлена. После первого отказа выполнен
+один resume с cooldown; после второго серия закрыта, третьего сегмента нет.
+Один слишком ранний локальный resume был отклонён cooldown guard до сети.
+
+`work/config-v2-execution-targets-01`: 6 masked feature rows, 48 censored scenarios,
+0 usable/mature decisions. `work/config-v2-quality-01` подтверждает temporal/accounting
+инварианты; warmup/reset/gap rules сохранены. Между frames70.385s, coverage внутри
+каждого одноточечного сегмента0s. Успешные HTTP responses0.795/0.692s, всего7048bytes;
+chain age для usable features и conditional execution latency не измерены (нет eligible
+rows). Два быстрых ответа не характеризуют доступность сервиса или trade latency.
+
+7 RPC с probe вместе: 4 HTTP200 /3 timeout. Source/plan/capture/receipt/target/quality
+hashes и безопасные ошибки: [evidence](evidence/creator-fee-share-2026-10-02.json).
+327 tests, lint/format/mypy, smoke/build прошли. Campaign, targets, quality повторены
+без сети из development package и `work/config-v2-wheel-01`; D36/D37 сохранены и
+повторены оригинальными wheels. `diagnose-checkpoint ... --config-layout-version 2`
+проверяет новую схему явно; default1 сохраняет прежний смысл результатов диагностики.
+
+Следующий этап — доступность coherent source, затем новый длинный prospective corpus.
+Нужна отдельная диагностика/изменение условий RPC перед новой серией; прежний Helius
+Clock mismatch не исправлен. Переключение обратно само по себе не решает integrity.
+ML/market qualification не достигнуты; полный collection replay не нужен для snapshot
+quote domain, но не может считаться поддержанным без отдельного evidence.

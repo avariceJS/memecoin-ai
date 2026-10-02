@@ -7,12 +7,16 @@ import struct
 from typing import Any
 
 from memecoin_ai.domain import ValidationError, digest, integer
-from memecoin_ai.raydium import PROGRAM, account_bytes, decode_pool
+from memecoin_ai.raydium import PROGRAM, account_bytes, config_collection_terms, decode_pool
 from memecoin_ai.sources import Capture
 from memecoin_ai.tokens import CLOCK, SYSVAR_OWNER, decode_supported_checkpoint
 
 
-def diagnose_checkpoint(cap: Capture, pool_id: str) -> dict[str, Any]:
+def diagnose_checkpoint(
+    cap: Capture, pool_id: str, *, config_layout_version: int = 1
+) -> dict[str, Any]:
+    if type(config_layout_version) is not int or config_layout_version not in (1, 2):
+        raise ValidationError("unsupported config layout version")
     request = json.loads(cap.request_json)
     addresses, options = request["params"]
     result = cap.result()
@@ -40,7 +44,7 @@ def diagnose_checkpoint(cap: Capture, pool_id: str) -> dict[str, Any]:
     config = account_bytes(values[1], PROGRAM, 236)
     words = [
         dict(offset=i, value=struct.unpack_from("<Q", config, i)[0])
-        for i in range(116, 236, 8)
+        for i in range(116 if config_layout_version == 1 else 124, 236, 8)
         if any(config[i : i + 8])
     ]
     report: dict[str, Any] = dict(
@@ -62,6 +66,8 @@ def diagnose_checkpoint(cap: Capture, pool_id: str) -> dict[str, Any]:
         historical_available_ns=None,
         source_revision_matches_binary=False,
     )
+    if config_layout_version == 2:
+        report["config_layout_version"] = 2
     if not report["bank_clock_agreement"]:
         report["reason"] = "clock_context_mismatch"
     elif words:
@@ -69,9 +75,11 @@ def diagnose_checkpoint(cap: Capture, pool_id: str) -> dict[str, Any]:
         report["reason"] = "unsupported_config_reserved_bytes"
     else:
         try:
-            decode_supported_checkpoint(cap, pool_id)
+            decode_supported_checkpoint(cap, pool_id, config_layout_version=config_layout_version)
         except ValidationError:
             report["reason"] = "other_protocol_validation"
         else:
             report.update(reason=None, economic_decoder_supported=True)
+            if config_layout_version == 2:
+                report["config_collection_terms"] = config_collection_terms(values[1])
     return report

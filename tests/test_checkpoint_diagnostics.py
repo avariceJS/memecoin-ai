@@ -41,3 +41,15 @@ def test_supported_capture_remains_supported_without_creating_an_observation():
     assert result["bank_clock_agreement"] and result["economic_decoder_supported"]
     assert result["historical_available_ns"] is None
     assert result["kind"] == "checkpoint_diagnostic_only"
+
+
+def test_versioned_diagnosis_recognizes_only_confirmed_collection_terms():
+    cap = Capture.load(FIXTURES / "config-reserved/token2022")
+    pool = json.loads(cap.request_json)["params"][0][0]
+    report = diagnose_checkpoint(cap, pool, config_layout_version=2)
+    assert report["economic_decoder_supported"] and report["reason"] is None
+    assert report["reserved_config_words"] == []
+    assert report["config_collection_terms"]["creator_fee_share_default_ppm"] == 50000
+    assert report["config_collection_terms"]["effective_creator_fee_share_ppm"] is None
+    with pytest.raises(ValidationError, match="layout version"):
+        diagnose_checkpoint(cap, pool, config_layout_version=3)

@@ -333,3 +333,42 @@ scenarios. 313 tests, smoke/build, offline/wheel QA прошли. Требует
 поддержанной deployed семантики либо ошибки source responses до следующего economic
 сбора. Contract/evidence: docs/checkpoint-coherence.md и
 docs/evidence/checkpoint-coherence-2026-10-02.json.
+
+
+## D38: подтверждённая семантика config и результат нового сбора
+
+Прежний D37 вывод «неизвестные bytes» уточнён новым evidence: official SDK
+cc33ec28a8921a35609e83293e9e07ad830b0779 и docs
+3699439bcad7ebdb7d65ba62cb896e93ecd3a204 называют word@116 creator fee share.
+50000 означает 5% накопленного creator counter для protocol при collection;
+per-creator PDA может менять ставку. Shared остаётся в vault и переходит в excluded
+protocol counter; creator payout уменьшает vault и creator counter. Effective reserves
+и swap quotes от этого перераспределения не меняются. Swap fee не повышена на 5%.
+
+Поддержан explicit config_layout_version=2 для семи linked accounts с Clock.
+Default legacy version1 остаётся прежним. V2 требует share<=1e6 и нули bytes124+,
+не меняет account owners/linkage/Token-2022/Clock/availability guards. Новые plans
+фиксируют profile2; observation хранит default rate и unknown effective override
+отдельно от swap Fees. V2 checkpoint запрещён в legacy replay/transition. Это не
+поддержка новой collection execution: нужны PDA, history и independent CPI witness.
+
+Read-only probe: public timeout20.331s; Helius coherent configs context452694796
+(оба word50000), ProgramData upgrade_slot452376460. Это не same-bank cross-provider
+comparison и не доказательство бинарной эквивалентности public Rust source.
+
+Новая immutable campaign work/prospective-config-v2-01: прежние три pools, public
+origin, max3 segments ×20 rounds ×10s, 180 max requests. Фактически два сегмента:
+по одному valid snapshot, затем timeout15.008/15.007s следующего getMultipleAccounts;
+HTTP/RPC code null, transport cause unknown. Один resume после cooldown; третьего
+сегмента нет, closure.json запрещает продолжение. Ни успешные raw, ни features не
+скачивались повторно для воспроизведения; второй snapshot — новое prospective время.
+Warmup после каждого сегмента сохраняется: 6 masked rows, 0 usable, 48 censored
+execution scenarios, 0 mature decisions. Gap между decision frames 70.385s не заполнен.
+HTTP successful response times 0.795/0.692s, total response bytes7048; usable chain age
+и execution-delay distributions пусты. Это не trade latency/backfill throughput.
+
+7 RPC суммарно: 4 HTTP200 / 3 timeout. 327 tests, smoke/build и offline dev/wheel
+reproduction прошли; old D36/D37 artifacts проверены оригинальными pinned wheels.
+Evidence: docs/evidence/creator-fee-share-2026-10-02.json. Следующий gate — восстановить
+доступность coherent snapshot source после отдельной диагностики/изменения условий,
+затем новый bounded plan и длинный corpus. ML/RL/paper/live не запускались.

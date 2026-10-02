@@ -463,7 +463,7 @@ docs/evidence/checkpoint-coherence-2026-10-02.json. Training gate остаётс
 ### D38: versioned snapshot support для creator fee share
 
 **Статус:** семантика подтверждена official SDK+docs и new read-only provider evidence,
-2026-10-02; prospective continuation в работе. Offset116 — default creator fee share
+2026-10-02; snapshot adapter реализован, bounded continuation выполнен. Offset116 — default creator fee share
 (denominator 1e6), применяемая при creator fee collection; per-creator PDA override
 неизвестен без отдельного наблюдения. Swap math/reserves не меняются от перераспределения
 между excluded counters. Поддержать только snapshot/quote profile2, сохранить metadata,
@@ -473,3 +473,13 @@ Checkpoint отклоняется legacy replay. Причина: достато�
 Проверенный Rust HEAD отстаёт от docs/SDK; lookup только одного репозитория был неполным.
 Контракт/provenance: docs/creator-fee-share.md; source revisions закреплены. Пересмотр:
 новая область nonzero bytes/неизвестная операция либо независимый collection witness.
+
+Результат: Helius подтвердил оба config в coherent read (slot452694796), ProgramData
+upgrade_slot452376460; это не same-bank comparison с прежним public capture и не
+binary equivalence. Public probe timeout, затем новая campaign public profile2:
+2 valid snapshots / 4 requests, два timeout подряд после одного bounded resume.
+Кампания закрыта; не переключаться автоматически на Helius с unresolved Clock mismatch.
+6 masked features / 48 censored scenarios / 0 mature decisions. Corpus/targets/quality
+воспроизведены dev и installed wheel, 327 tests, smoke/build прошли. Дальнейший gate —
+доступный coherent source; требуются новые основания для ограниченного source preflight,
+не бесконечный retry. docs/evidence/creator-fee-share-2026-10-02.json.

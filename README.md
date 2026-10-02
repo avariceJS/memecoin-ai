@@ -167,5 +167,9 @@ corpora. Training gates остаются false. [Контракт и реаль�
 экономического decoder, не создавая observation. `audit-corpus-quality CAMPAIGN TARGETS
 --out REPORT` / `verify-corpus-quality CAMPAIGN TARGETS REPORT` проверяют coverage,
 maturity, censoring/purging, позиции при failed exit и separate latency measurements.
-Актуальный blocker — unknown AmmConfig reserved bytes; обучение не запускается.
-[Разбор и актуальные ограничения](docs/checkpoint-coherence.md).
+`--config-layout-version 2` явно диагностирует подтверждённый creator fee share layout;
+без флага сохраняется legacy profile 1. Новые prospective plans используют profile 2
+только для snapshots/conditional quotes, не для legacy collection replay.
+AmmConfig blocker решён в этой области; новая кампания остановлена после двух timeout
+публичного RPC. Длинный corpus и обучение пока не готовы.
+[Coherence](docs/checkpoint-coherence.md), [семантика и результаты D38](docs/creator-fee-share.md).

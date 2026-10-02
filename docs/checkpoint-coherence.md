@@ -1,5 +1,10 @@
 # Coherent prospective checkpoints (D37)
 
+Статус после D38: описанный ниже unknown AmmConfig blocker решён только для explicit
+snapshot/quote profile2; новый сбор остановлен на повторных public RPC timeout.
+[Уточнённая семантика и текущие ограничения](creator-fee-share.md). Ниже сохранён
+результат этапа D37; прежний Helius Clock mismatch остаётся unresolved.
+
 Старые Helius responses с Clock.slot=context.slot+1 остаются rejected. В reference
 [Agave getMultipleAccounts](https://github.com/anza-xyz/agave/blob/master/rpc/src/rpc.rs)
 выбирается один bank, из него читаются все accounts и context.slot. В
