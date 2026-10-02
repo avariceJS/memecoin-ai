@@ -28,3 +28,38 @@ version нужна новая кампания или pinned source для пр�
 разметки используется **единый frozen cutoff кампании**, а не повторяющееся чередование
 calibration/evaluation каждого сегмента. Это engineering split, не финальный holdout.
 Обучение, рыночная достаточность и execution qualification не следуют из complete=true.
+
+## Условные targets исполнения
+
+`export-execution-targets CAMPAIGN --out DIR` и
+`verify-execution-targets CAMPAIGN DIR` работают offline, связывают artifact с plan и
+всеми segment seals. Append к родителю требует нового export. Source snapshot включает
+все transforms; старые файлы не переписываются.
+
+Сетка: два направления × 100/1000 ppm decision reserve × assumed delay 0/5 s.
+Gross wallet input выбирается по initial observation, до future states. Quote включает
+integer CPMM trade/creator fees и Token-2022 transfer fees на каждом плече; применяется
+existing transfer_swap, отдельная упрощённая математика не вводится. Для входа minOut
+равен decision quote минус 100 bps; первый новый snapshot после decision+delay должен
+уложиться в 15 s tolerance. Нулевая задержка тоже требует нового snapshot; фактическая
+задержка ограничена polling resolution и сохраняется через leg timestamps.
+
+После входа удерживаем весь net acquired amount 20 s от entry publication. Первый
+fresh snapshot после этого времени становится exit decision. Его quote задаёт minOut;
+exit fill проверяется на следующем fresh snapshot после exit decision+delay. Каждое
+плечо требует новых slot/receipt, неизменного causal segment и отсутствия unusable rows.
+Неудачный вход оставляет нулевую позицию, неудачный выход сохраняет всю acquired position;
+ни один не становится нулевым profitable/безубыточным roundtrip. Censored outcome не
+имеет PnL; на хвостах нет интерполяции. Label maturity — публикация final observation,
+не позднейший CPU time разметки; maturity на/после campaign cutoff удаляется из calibration.
+
+Модель `independent_future_snapshot_reset_v1` оценивает каждую сделку отдельно.
+Immediate own impact учтён внутри integer quote; перенос нашей сделки в будущий рынок
+не моделируется. Admission, inclusion, network fees, rent/ATA setup, native-token FX,
+MEV и persistent own impact неизвестны. Поэтому `net_pnl=null` всегда; вычисляется
+только условный результат после pool/transfer fees **до сетевых расходов**. Ни реальные
+fills, ни исполнимый net edge этими метками не доказаны. Нет накопления PnL портфеля.
+Восемь вариантов одной decision и пересекающиеся окна не независимые samples.
+
+Эта сетка — инженерный контракт, выбранный до генерации labels, а не fitted execution
+calibration или final holdout design. Достаточность данных оценивается отдельно.

@@ -108,3 +108,57 @@ def test_plan_tampering_stops_before_network(tmp_path):
     with pytest.raises(ValidationError, match="checksum"):
         resume(root, t, client)
     assert t.calls == 0
+
+
+@pytest.mark.parametrize("name", ["first", "second"])
+def test_real_clock_context_mismatch_remains_quarantined(name):
+    from pathlib import Path
+
+    from memecoin_ai.sources import Capture
+    from memecoin_ai.tokens import decode_supported_checkpoint
+
+    cap = Capture.load(Path(__file__).parent / "fixtures/clock-mismatch" / name)
+    pool = json.loads(cap.request_json)["params"][0][0]
+    with pytest.raises(ValidationError, match="Clock does not match checkpoint bank"):
+        decode_supported_checkpoint(cap, pool)
+
+
+def test_concurrent_resume_does_not_collect(tmp_path):
+    import fcntl
+
+    root = tmp_path / "campaign"
+    t, client = setup(root)
+    with (root / ".lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        with pytest.raises(ValidationError, match="already collecting"):
+            resume(root, t, client)
+    assert t.calls == 0
+
+
+def test_two_failed_segments_block_third_even_with_remaining_budget(tmp_path):
+    t = FakeTime()
+    root = tmp_path / "campaign"
+    create_campaign(
+        root, [BASE], source_alias="synthetic-campaign", segments=3, rounds=4, clock=t.clock
+    )
+    calls = []
+
+    def fail(*args):
+        calls.append(1)
+        raise TransportSourceError("timeout")
+
+    client = ReadOnlyRPC(
+        "https://example.invalid",
+        "synthetic-campaign",
+        timeout=15,
+        max_bytes=1_000_000,
+        transport=fail,
+        clock=t.clock,
+    )
+    resume(root, t, client)
+    t.sleep(31)
+    resume(root, t, client)
+    t.sleep(31)
+    with pytest.raises(ValidationError, match="consecutive failed"):
+        resume(root, t, client)
+    assert len(calls) == 2

@@ -11,6 +11,7 @@ from memecoin_ai.collection import BudgetExhausted, PilotCollector, PilotStore
 from memecoin_ai.config import RunConfig
 from memecoin_ai.datasets import export_economic_dataset, verify_economic_dataset
 from memecoin_ai.domain import Event, ValidationError, canonical
+from memecoin_ai.execution_targets import export_execution_targets, verify_execution_targets
 from memecoin_ai.experiments import RunRecorder, summarize, verify_run
 from memecoin_ai.fixtures import ScriptedFixturePolicy, synthetic_events
 from memecoin_ai.forward import (
@@ -153,6 +154,16 @@ def main() -> int:
         "verify-economic-dataset", help="Reproduce economic dataset from its frozen journal"
     )
     verify_dataset.add_argument("path", type=Path)
+    execution = commands.add_parser(
+        "export-execution-targets", help="Conditional snapshot probes; no actual fills"
+    )
+    execution.add_argument("parent", type=Path)
+    execution.add_argument("--out", type=Path, required=True)
+    execution_verify = commands.add_parser(
+        "verify-execution-targets", help="Reproduce conditional targets offline"
+    )
+    execution_verify.add_argument("parent", type=Path)
+    execution_verify.add_argument("path", type=Path)
     campaign = commands.add_parser(
         "create-prospective-campaign", help="Freeze bounded segment campaign"
     )
@@ -284,6 +295,13 @@ def main() -> int:
             print(canonical(report))
         elif args.command == "verify-provider-audit":
             print(canonical(verify_provider_bundle(args.path)))
+        elif args.command in ("export-execution-targets", "verify-execution-targets"):
+            report = (
+                export_execution_targets(args.parent, args.out)
+                if args.command == "export-execution-targets"
+                else verify_execution_targets(args.parent, args.path)
+            )
+            print(canonical(report))
         elif args.command == "create-prospective-campaign":
             print(
                 canonical(
