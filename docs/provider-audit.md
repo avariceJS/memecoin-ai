@@ -204,3 +204,18 @@ Tooling Access, а не пользовательский `.env.local` endpoint. 
 получил `timeout`; оставшиеся восемь не отправлены. Bounded-range agreement остаётся
 false. Три новых bundles прошли offline verification; старые outputs не переписаны.
 [Диагностический отчёт](evidence/quicknode-diagnostic-2026-10-02.json).
+
+## Диагностика заранее заданной группы счетов
+
+`diagnose_block_account_scope(left, right, addresses)` — offline диагностика двух
+full jsonParsed captures, отдельно от qualification. Она сохраняет строгий schema 3
+результат и классифицирует **все** транзакции по совпавшим resolved accountKeys:
+есть writable reference на заданные счета; только readonly reference; ссылок нет.
+Failed transactions остаются в потенциальных writers. Сравниваются полные transaction
+objects; неизвестные поля и truncated logs не удаляются. Неоднозначные writable flags,
+разный порядок транзакций или accountKeys запрещают классификацию.
+
+Список счетов и его происхождение фиксируются в плане до анализа. Совпадение группы
+потенциальных writers не доказывает полноту списка зависимостей, trace completeness
+всего блока, правильность replay или независимость инфраструктуры. Readonly mismatch
+остаётся mismatch. Этот инструмент не меняет gates CPMM replay и full-range audit.

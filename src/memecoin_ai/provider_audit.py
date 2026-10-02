@@ -194,6 +194,95 @@ def json_difference_summary(left: object, right: object, *, limit: int = 16) -> 
     return dict(total_sites=count, samples=samples, samples_complete=count <= limit)
 
 
+def diagnose_block_account_scope(
+    left: Capture, right: Capture, addresses: list[str]
+) -> dict[str, Any]:
+    """Localize differences using an externally frozen account cohort, never qualify it.
+
+    Writable references are potential mutations, including failed transactions. Read-only
+    references remain in the report. This does not bypass replay's complete-log gate or
+    establish that the supplied cohort covers every economic dependency.
+    """
+    if (
+        not addresses
+        or any(not isinstance(a, str) or not a for a in addresses)
+        or len(set(addresses)) != len(addresses)
+    ):
+        raise ValidationError("account scope requires nonempty unique addresses")
+    request = json.loads(left.request_json)
+    if (
+        request["method"] != "getBlock"
+        or request["params"][1].get("transactionDetails") != "full"
+        or request["params"][1].get("encoding") != "jsonParsed"
+    ):
+        raise ValidationError("account scope requires full jsonParsed blocks")
+    strict = compare_captures(left, right)
+    a, b = left.result(), right.result()
+    if not isinstance(a, dict) or not isinstance(b, dict):
+        raise ValidationError("account scope requires available blocks")
+    if not all(_has_transaction_metadata(x.get("transactions")) for x in (a, b)):
+        raise ValidationError("account scope requires complete metadata structure")
+    if len(a["transactions"]) != len(b["transactions"]):
+        raise ValidationError("account scope transaction counts differ")
+    groups: dict[str, Any] = {
+        name: dict(
+            count=0, exact_matches=0, mismatched_indices=[], truncated_left=[], truncated_right=[]
+        )
+        for name in ("writable_reference", "readonly_reference", "no_reference")
+    }
+    mismatches = []
+    watched = set(addresses)
+    for index, (x, y) in enumerate(zip(a["transactions"], b["transactions"], strict=True)):
+        tx, other = x["transaction"], y["transaction"]
+        keys = tx["message"].get("accountKeys")
+        if tx["signatures"] != other["signatures"]:
+            raise ValidationError("account scope transaction order differs")
+        if (
+            not isinstance(keys, list)
+            or not keys
+            or any(
+                not isinstance(k, dict)
+                or not isinstance(k.get("pubkey"), str)
+                or type(k.get("writable")) is not bool
+                for k in keys
+            )
+        ):
+            raise ValidationError("account scope requires resolved writable flags")
+        if len({k["pubkey"] for k in keys}) != len(keys):
+            raise ValidationError("account scope contains duplicate resolved keys")
+        if canonical(keys) != canonical(other["message"].get("accountKeys")):
+            raise ValidationError("account scope resolved keys differ")
+        touched = [k for k in keys if k["pubkey"] in watched]
+        group = (
+            "writable_reference"
+            if any(k["writable"] for k in touched)
+            else "readonly_reference"
+            if touched
+            else "no_reference"
+        )
+        row = groups[group]
+        row["count"] += 1
+        same = canonical(x) == canonical(y)
+        row["exact_matches"] += int(same)
+        for side, transaction in (("left", x), ("right", y)):
+            if "Log truncated" in transaction["meta"]["logMessages"]:
+                row["truncated_" + side].append(index)
+        if not same:
+            row["mismatched_indices"].append(index)
+            mismatches.append(dict(index=index, group=group, referenced_accounts=touched))
+    return dict(
+        schema_version=1,
+        kind="block_account_scope_diagnostic",
+        addresses=addresses,
+        strict_comparison=strict,
+        groups=groups,
+        mismatches=mismatches,
+        scope_completeness_verified=False,
+        market_dataset_qualified=False,
+        execution_qualified=False,
+    )
+
+
 def _truncated_transactions(transactions: list[Any]) -> list[int]:
     return [i for i, tx in enumerate(transactions) if "Log truncated" in tx["meta"]["logMessages"]]
 
