@@ -16,6 +16,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=("run", "verify"))
     parser.add_argument("root", type=Path)
+    parser.add_argument("--plan", type=Path)
     parser.add_argument("--version", type=int, choices=(1, 2), default=1)
     parser.add_argument("--segment", type=int, choices=(0, 1), default=0)
     parser.add_argument("--env-file", type=Path, default=Path(".env.local"))
@@ -26,7 +27,7 @@ def main() -> None:
         print(json.dumps(verify_segment(segment)))
         print(json.dumps(verify_forward(control)))
         return
-    plan_path = Path(f"configs/alchemy-pilot-v{args.version}.json")
+    plan_path = args.plan or Path(f"configs/alchemy-pilot-v{args.version}.json")
     plan = json.loads(plan_path.read_text())
     values = {}
     for line in args.env_file.read_text().splitlines():

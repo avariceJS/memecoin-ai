@@ -79,33 +79,36 @@ class StreamReader:
     def run(self) -> None:
         try:
             while not self.stop.is_set():
-                if (
-                    self.count >= self.plan["max_notifications_per_segment"]
-                    or self.byte_count + self.plan["max_wss_message_bytes"]
-                    > self.plan["max_wss_bytes_per_segment"]
-                ):
-                    raise StreamError("stream_budget")
-                raw = self.ws.receive()
-                receipt = time.time_ns()
-                name = f"{self.count:06d}.bin"
-                with (self.root / name).open("xb") as output:
-                    output.write(raw)
-                    output.flush()
-                    os.fsync(output.fileno())
-                row = dict(file=name, received_ns=receipt, sha256=digest(raw), bytes=len(raw))
-                append(self.root / "receipts.jsonl", row)
-                self.count += 1
-                self.byte_count += len(raw)
-                try:
-                    self.pending.put_nowait(row)
-                except queue.Full:
-                    raise StreamError("queue_overflow") from None
+                self.receive_one()
         except Exception as exc:
             if not self.stop.is_set():
                 self.failure = dict(**safe_error(exc), available_ns=time.time_ns())
                 write(self.root / "failure.json", self.failure)
         finally:
             self.ws.close()
+
+    def receive_one(self) -> None:
+        if (
+            self.count >= self.plan["max_notifications_per_segment"]
+            or self.byte_count + self.plan["max_wss_message_bytes"]
+            > self.plan["max_wss_bytes_per_segment"]
+        ):
+            raise StreamError("stream_budget")
+        raw = self.ws.receive()
+        receipt = time.time_ns()
+        name = f"{self.count:06d}.bin"
+        with (self.root / name).open("xb") as output:
+            output.write(raw)
+            output.flush()
+            os.fsync(output.fileno())
+        row = dict(file=name, received_ns=receipt, sha256=digest(raw), bytes=len(raw))
+        append(self.root / "receipts.jsonl", row)
+        self.count += 1
+        self.byte_count += len(raw)
+        try:
+            self.pending.put_nowait(row)
+        except queue.Full:
+            raise StreamError("queue_overflow") from None
 
     def close(self) -> None:
         self.stop.set()
@@ -486,10 +489,17 @@ def run_segment(
             - stream_totals["messages"],
         }
         reader = StreamReader(ws, root / f"stream-{generation:02d}", remaining)
+        deadline = time.monotonic() + plan["timeout_seconds"]
+        serial = plan.get("subscription_policy") == "serial_ack_before_next_request"
         for rid, address in reqs.items():
             ws.subscribe(rid, address)
+            if serial:
+                while rid in reducer.requests:
+                    if time.monotonic() > deadline:
+                        raise StreamError("ack_timeout")
+                    reader.receive_one()
+                    drain()
         reader.thread.start()
-        deadline = time.monotonic() + plan["timeout_seconds"]
         while reducer.requests:
             drain()
             if time.monotonic() > deadline:
