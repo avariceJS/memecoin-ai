@@ -122,3 +122,16 @@ epoch crossing и LP transitions между независимыми checkpoints
   [Ankr API access](https://www.ankr.com/docs/api-reference/).
 - [Solana public RPC limitations](https://solana.com/docs/references/clusters).
 - [Pinned Raydium collect_fund_fee](https://github.com/raydium-io/raydium-cp-swap/blob/59fb845a9e5bb569c8b2f3415f13b0c0ebcc6b92/programs/cp-swap/src/instructions/admin/collect_fund_fee.rs).
+
+
+## Повторная попытка с QuickNode
+
+Пользователь настроил `.env.local`; файл прочитан явно, без `source`/исполнения его
+содержимого. CLI автоматически dotenv не загружает. `getSlot(finalized)` прошёл, но
+первая сверка `getBlocks(452408962,452408973,{commitment:finalized})` вернула HTTP 413.
+План 13 / attempted 1 / agreement false; остальные запросы не отправлялись.
+JSON body — 103 bytes. Причина ответа неизвестна: transport сохраняет status, но
+не response body HTTPError. Не считать это доказательством размера запроса сверх лимита
+или конкретного ограничения тарифа. Пользователь уведомлён, дальнейшая сеть остановлена.
+Теперь crosscheck прерывается при любой ошибке запроса, включая JSON-RPC error,
+с сохранением планов и доступных raw captures. [Evidence](evidence/secondary-access-2026-10-02.json).

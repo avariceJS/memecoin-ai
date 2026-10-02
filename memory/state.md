@@ -27,7 +27,7 @@ Memory Bank принят как source of truth. Пользователь раз
 
 ## Что проверено
 
-Локально на Python 3.13: 209 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 212 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
@@ -169,10 +169,26 @@ collections, config/tariff updates и epoch boundary по-прежнему не 
 настройки без передачи секрета в чат. CLI не загружает `.env` автоматически.
 Локальный журнал: `work/secondary-env-preflight-20261002T093353Z.json`.
 
+## QuickNode: доступ восстановлен, range-запрос отклонён
+
+После уточнения пользователя `.env.local` прочитан явно без выполнения shell-кода;
+секрет не выведен и не сохранён в Git. `getSlot(finalized)` у QuickNode прошёл.
+Первый exact-request `getBlocks(452408962,452408973,finalized)` получил HTTP 413.
+План: 13 запросов; отправлен 1, остальные 12 остановлены. JSON request — 103 bytes,
+поэтому причина 413 не объявляется установленной по одному HTTP status. Тело HTTP
+ошибки текущий transport не сохраняет. Пользователь уведомлён сразу; дальнейшие RPC
+запросы остановлены по его условию. Независимого agreement пока нет.
+
+Crosscheck теперь останавливает серию при любой SourceError/ValidationError, а не
+только HTTP 401/403/429. 212 tests и lint/format/typing прошли. Raw references и failed
+plan сохраняются, offline verification проходит. Evidence:
+[secondary access](../docs/evidence/secondary-access-2026-10-02.json).
+
 ## Следующий крупный практический этап
 
-Сначала обеспечить доступный RPC независимого оператора (endpoint/credential через
-локальное окружение, без секретов в Git). Затем синхронный bounded pilot: зафиксировать
+Сначала выяснить HTTP 413 для getBlocks в настройках/логах QuickNode и согласовать
+продолжение диагностики с пользователем. Endpoint уже доступен через `.env.local`,
+но CLI сам файл не загружает. Затем синхронный bounded pilot: зафиксировать
 диапазон finalized slots, сверить enumeration и порядок/hash блоков у двух операторов,
 полные metadata релевантных tx и checkpoint reconstruction. Отдельно расширить замеры
 доступности и накопить anchors для редких переходов. Нынешние 403/429 нельзя обойти

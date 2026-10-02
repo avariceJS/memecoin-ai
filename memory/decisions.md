@@ -219,3 +219,11 @@ Concurrent confirmed/finalized Clock reads: monotonic HTTP duration, wall receip
 Слабость: нет синхронизации часов, blockhash finality tracking, длительного load sample
 и submission/inclusion measurements. Выбор feed/frequency требует следующих измерений;
 никакого разрешения торговых транзакций это решение не создаёт.
+
+### D31: уточнение после HTTP 413
+
+Первый настроенный пользователем QuickNode endpoint прошёл getSlot, но отклонил
+getBlocks. Теперь любая SourceError/ValidationError останавливает оставшийся план;
+это сохраняет budget и позволяет сначала разобраться с причиной, как запросил
+пользователь. Старые failed plans не переписываются. Тело HTTP error отсутствует,
+поэтому фактическая причина 413 остаётся unknown; следующий сетевой запуск отложен.
