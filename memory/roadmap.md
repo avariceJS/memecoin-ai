@@ -80,3 +80,16 @@ D28–D30 реализованы; source completeness всё ещё условн
 Следующий практический gate: синхронный ограниченный сбор с независимой сверкой
 провайдера, измерение задержек/объёма и targeted rare-operation coverage. До этого
 не переходить к ML/backtest claims. Детали — docs/parameter-history.md.
+
+
+## Текущий приоритет R2 → R3 после закрытия второго RPC (D33–D34)
+
+Пользователь принял текущую сверку как достаточную для исходной задачи второго RPC;
+полная historical trace-сверка всей сети не блокирует дальнейшую работу. Технические
+ограничения в docs/helius-audit.md остаются, blanket market qualification не объявлена.
+
+Следующий крупный этап: воспроизводимый economic state dataset → conditional quote/
+roundtrip checks → causal observation/feature/target contract → bounded forward corpus.
+Это использует уже собранные журналы, а не продолжает RPC comparison как самоцель.
+R4/ML остаётся за gates доступности, покрытия, симуляции и temporal evaluation.
+Первый реализуемый результат/контракт: docs/economic-dataset.md.

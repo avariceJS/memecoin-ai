@@ -537,7 +537,33 @@ def replay_transaction(
     return state, dict(failed=False, operations=operations)
 
 
-def audit_protocol(store: PilotStore) -> dict[str, Any]:
+def economic_observation(
+    ctx: Checkpoint,
+    state: EconomicState,
+    withheld: list[int],
+    slot: int,
+    parameters: ParameterHistory | None = None,
+) -> dict[str, Any]:
+    """Export a value snapshot, without advancing or mutating the replay context."""
+    if parameters is not None:
+        parameters = copy.deepcopy(parameters)
+        parameters.advance(slot)
+    return dict(
+        state=asdict(state),
+        effective_reserves=list(state.reserves),
+        withheld=list(withheld),
+        pool=asdict(ctx.pool),
+        fees=asdict(ctx.fees if parameters is None else parameters.fees),
+        token_fees=[
+            asdict(f) for f in (ctx.token_fees if parameters is None else parameters.token_fees())
+        ],
+        epoch=ctx.epoch if parameters is None else parameters.epoch,
+    )
+
+
+def audit_protocol(
+    store: PilotStore, *, state_rows: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
     if store.db.in_transaction:
         raise ValidationError("protocol audit requires its own read transaction")
     store.db.execute("BEGIN")
@@ -565,6 +591,14 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
             withheld = list(left.withheld)
             blockers = list(interval["blockers"])
             steps = []
+            observations = []
+            identity = dict(
+                pool_id=left.pool_id,
+                start_checkpoint=interval["start_checkpoint"],
+                end_checkpoint=interval["end_checkpoint"],
+                start_slot=interval["start_slot"],
+                end_slot=interval["end_slot"],
+            )
             parameters = None
             right_capture = None
             if schedule is not None:
@@ -586,6 +620,19 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
                         "epoch boundary or mint economic terms changed; segment required"
                     )
             if not blockers:
+                if state_rows is not None:
+                    observations.append(
+                        dict(
+                            **identity,
+                            phase="start_checkpoint",
+                            slot=interval["start_slot"],
+                            transaction_index=None,
+                            signature=None,
+                            **economic_observation(
+                                left, state, withheld, interval["start_slot"], parameters
+                            ),
+                        )
+                    )
                 for step in interval["steps"]:
                     row = store.db.execute(
                         "SELECT capture_id FROM transactions WHERE signature=?",
@@ -615,6 +662,21 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
                                 **details,
                             )
                         )
+                        if state_rows is not None:
+                            observations.append(
+                                dict(
+                                    **identity,
+                                    phase="transaction",
+                                    slot=step["slot"],
+                                    transaction_index=step["transaction_index"],
+                                    signature=step["signature"],
+                                    failed=details["failed"],
+                                    operations=copy.deepcopy(details["operations"]),
+                                    **economic_observation(
+                                        left, state, withheld, step["slot"], parameters
+                                    ),
+                                )
+                            )
                     except (ValidationError, ValueError, KeyError, TypeError, IndexError) as exc:
                         blockers.append(f"{step['signature']}:{type(exc).__name__}:{exc}")
                         break  # No endpoint-based repair after an unexplained transition.
@@ -627,6 +689,20 @@ def audit_protocol(store: PilotStore) -> dict[str, Any]:
                 blockers.append("terminal withheld balance mismatch")
             if state != right.state:
                 blockers.append("terminal economic state mismatch")
+            if state_rows is not None and not blockers:
+                observations.append(
+                    dict(
+                        **identity,
+                        phase="end_checkpoint",
+                        slot=interval["end_slot"],
+                        transaction_index=None,
+                        signature=None,
+                        **economic_observation(
+                            right, right.state, list(right.withheld), interval["end_slot"]
+                        ),
+                    )
+                )
+                state_rows.extend(observations)
             reports.append(
                 dict(
                     pool_id=left.pool_id,

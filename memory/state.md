@@ -2,10 +2,12 @@
 
 Обновлено: **2026-10-02**, Europe/Moscow.
 
-Актуальный итог Helius: 12/12 enumeration, 1/2 full blocks match, 2 462/2 464 tx exact;
-полные historical traces двух исключений недоступны в проверенных методах. 252 tests.
-Последнее решение и следующий этап — D32 в заключительном разделе этого документа;
-предыдущие результаты ниже сохраняются как история проверок.
+**Этап второго RPC закрыт по прямому поручению пользователя (D33).** Накопленная
+сверка принята как достаточная для исходной цели; ограничения Helius сохраняются,
+новых запросов ради полной historical trace-сверки не делать. Дальнейший план D32
+по оставшимся 10 блокам отменён. Следующий этап D34 — воспроизводимый CPMM economic
+dataset для data QA и условной симуляции, затем causal observation pipeline.
+Инженерная реализация exporter готова, 264 tests; результаты corpus build будут ниже.
 
 ## Стадия и авторизация
 
@@ -42,7 +44,7 @@ ReferenceReplay намеренно synthetic-only, one-quote, one-pool-per-base 
 
 ## Открытые решения
 
-Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D32: [decisions](decisions.md).
+Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D34: [decisions](decisions.md).
 
 ## Результат bounded data-аудита
 

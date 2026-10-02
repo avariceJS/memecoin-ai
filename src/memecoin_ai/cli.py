@@ -9,6 +9,7 @@ from pathlib import Path
 from memecoin_ai.blockrange import recover_ranges
 from memecoin_ai.collection import BudgetExhausted, PilotCollector, PilotStore
 from memecoin_ai.config import RunConfig
+from memecoin_ai.datasets import export_economic_dataset, verify_economic_dataset
 from memecoin_ai.domain import Event, ValidationError, canonical
 from memecoin_ai.experiments import RunRecorder, summarize, verify_run
 from memecoin_ai.fixtures import ScriptedFixturePolicy, synthetic_events
@@ -135,6 +136,16 @@ def main() -> int:
     )
     protocol.add_argument("--store", type=Path, required=True)
     protocol.add_argument("--out", type=Path, required=True)
+    dataset = commands.add_parser(
+        "export-economic-dataset", help="Offline CPMM state tape and conditional quote grid"
+    )
+    dataset.add_argument("--store", type=Path, required=True)
+    dataset.add_argument("--out", type=Path, required=True)
+    dataset.add_argument("--size-ppm", type=int, action="append", required=True)
+    verify_dataset = commands.add_parser(
+        "verify-economic-dataset", help="Reproduce economic dataset from its frozen journal"
+    )
+    verify_dataset.add_argument("path", type=Path)
     latency = commands.add_parser(
         "measure-rpc-latency", help="Bounded Clock sampling; response time is not execution latency"
     )
@@ -220,6 +231,23 @@ def main() -> int:
             print(canonical(report))
         elif args.command == "verify-provider-audit":
             print(canonical(verify_provider_bundle(args.path)))
+        elif args.command in ("export-economic-dataset", "verify-economic-dataset"):
+            if args.command == "verify-economic-dataset":
+                report = verify_economic_dataset(args.path)
+            else:
+                if not args.store.is_file():
+                    raise ValidationError("pilot journal does not exist")
+                pilot_store = PilotStore(args.store, read_only=True)
+                try:
+                    report = export_economic_dataset(pilot_store, args.out, sizes_ppm=args.size_ppm)
+                finally:
+                    pilot_store.close()
+            print(
+                canonical(
+                    {k: report[k] for k in ("counts", "training_ready", "execution_qualified")}
+                )
+            )
+            return 0 if report["protocol_audit"]["all_intervals_consistent"] else 1
         elif args.command == "audit-protocol":
             pilot_store = PilotStore(args.store, read_only=True)
             try:

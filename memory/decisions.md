@@ -321,3 +321,36 @@ traces; пока не подтверждён. Upgrade/QuickNode/склейка p
 полной истории cohort. Следующий этап: bounded оставшиеся 10 blocks и полная cohort
 history, без выборки только удобных транзакций. Evidence:
 docs/evidence/helius-traces-2026-10-02.json; docs/helius-audit.md.
+
+
+### D33: этап второго RPC закрыт в согласованной области
+
+**Статус:** принято по прямому поручению пользователя 2026-10-02. Накопленная
+независимая сверка достаточна для исходной цели проверки второго RPC. Отменяет
+предложение D32 дозагрузить оставшиеся 10 блоков как обязательный следующий этап.
+Новых запросов ради идеальной historical trace-сверки всей Solana не выполнять.
+
+Факты не повышаются: enumeration 12/12, full blocks 1 match / 1 mismatch,
+2 462/2 464 tx exact, две Helius traces truncated, current-state pair без сравнения
+из-за public timeout. Full-range agreement остаётся false, инфраструктурная
+независимость не доказана. Это принятые ограничения, а не открытый бесконечный проект.
+Пересмотр только если конкретная неполнота влияет на новый CPMM segment или задачу.
+История и evidence сохраняются; QuickNode для новых запросов не используется.
+
+### D34: следующий крупный этап — экономический dataset и условная симуляция
+
+**Статус:** реализован инженерный exporter, первый corpus build выполняется отдельно.
+Причина: после достаточного source audit наибольший разрыв — отсутствие воспроизводимого
+формата реальных экономических состояний между raw journals и будущими features/labels/
+execution research. Выбор: offline state tape на existing protocol reconstruction,
+целые интервалы в карантин при blocker, atomic units/fees/withheld/epoch/provenance,
+явно неизвестная historical availability; conditional size grid и immediate round trip.
+
+Не преобразовывать реальные состояния в synthetic Pool с одной fee_bps, не снимать
+ReferenceReplay gate. ML/RL/paper/live не начинать. Сетка ppm — инженерное допущение,
+не торговый sizing. Альтернатива масштабировать RPC/продолжать редкие trace hunts
+отложена: имеющиеся данные ещё не доведены до исследовательского формата.
+Слабость: короткая fixed cohort история и неизвестная доступность не годятся для
+OOS edge. Следующий критерий — воспроизводимый corpus/quality report, затем causal
+observation/feature contract и подготовка bounded forward dataset. Контракт:
+docs/economic-dataset.md. Текущий build/result — memory/state.md.

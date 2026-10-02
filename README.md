@@ -129,3 +129,11 @@ raw captures без сети, показывает пути различий и 
 comparison schema 3; schema 1/2 сохранены для старых архивов.
 Результаты, команды и ограничения второго источника:
 [provider audit](docs/provider-audit.md).
+
+## Экономический dataset для следующего этапа симуляции
+
+`export-economic-dataset --store JOURNAL --size-ppm 10 --size-ppm 100 --size-ppm 1000
+--out NEW_DIRECTORY` строит offline state tape и условную quote grid из frozen pilot.
+`verify-economic-dataset NEW_DIRECTORY` полностью воспроизводит их из включённого raw
+journal. Непроверенные интервалы карантинируются; historical availability остаётся
+unknown, synthetic replay gate сохранён. Контракт: [economic dataset](docs/economic-dataset.md).
