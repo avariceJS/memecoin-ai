@@ -8,9 +8,23 @@ from pathlib import Path
 
 from memecoin_ai.corpus_quality import export_quality, verify_quality
 from memecoin_ai.coverage import export_support, verify_support
+from memecoin_ai.domain import ValidationError
 from memecoin_ai.execution_targets import export_execution_targets, verify_execution_targets
 from memecoin_ai.prospective import create_campaign, read, resume_campaign, verify_campaign, write
 from memecoin_ai.sources import Capture, ReadOnlyRPC
+
+
+def require_clean_stage_boundary(root: Path) -> None:
+    """D41's stricter stop rule also survives a crash before closure is written."""
+    if (root / "closure.json").exists():
+        raise ValidationError("D41 explicitly closed; no retry")
+    for directory in sorted((root / "segments").iterdir()):
+        seal_path = directory / "seal.json"
+        if not seal_path.exists():
+            raise ValidationError("D41 interrupted segment; no automatic recovery or retry")
+        seal = read(seal_path)
+        if seal["interrupted"] or not (seal["report"] or {}).get("complete"):
+            raise ValidationError("D41 failed segment; no retry even without closure marker")
 
 
 def main():
@@ -45,6 +59,7 @@ def main():
         )
         return
     if args.action == "resume":
+        require_clean_stage_boundary(root)
         spec = read(root / "stage-plan.json")
         values = {}
         for line in Path(".env.local").read_text().splitlines():
