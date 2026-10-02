@@ -303,3 +303,18 @@ cause неизвестна. Raw regression fixtures сохранены. 120 feat
 zero engineering evaluation decisions. 297 tests, smoke/build, offline/wheel reproduction.
 Memory и docs/evidence обновлены. ML не запускается; длительный corpus остаётся
 неполным до решения current-checkpoint coherence blocker. Historical RPC audit не открыт.
+
+## 2026-10-02 — D37: coherence диагностика и новый protocol-support blocker
+
+Подтверждён strict Clock/context contract по Agave; public RPC прошёл шесть preflight
+проверок, Gatekeeper timeout. Новый public prospective запуск coherent, но отклонён из-за
+unknown AmmConfig reserved word@116=50000. Classic cohort с другим config дала тот же
+отказ; pool search/network collection остановлены. ProgramData metadata read timeout,
+смысл bytes и binary/source equivalence неизвестны. Старые два Helius mismatch не
+исправлены и не замаскированы; extended economic corpus остаётся незавершённым.
+
+Добавлены campaign origin pinning/closure guard, отдельная checkpoint diagnosis,
+independent corpus-quality report и реальные regression captures. 313 tests, smoke/build,
+offline/new wheel QA; старые D36 bundles повторно verified pinned wheel. Новых accepted
+forward observations 0; preflight не превращён в прошлые features. Следующий gate —
+поддержанная deployed семантика config. Memory/docs/evidence обновлены, ML не начиналось.

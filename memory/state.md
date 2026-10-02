@@ -2,23 +2,25 @@
 
 Обновлено: **2026-10-02**, Europe/Moscow.
 
-**Текущий результат D36:** реализованы resumable bounded campaigns и условные
-execution targets. 115 новых валидных snapshots, 120 feature rows / 112 usable;
-960 сценарных меток, 432 conditional roundtrip, 4 entry-unfilled / 8 exit-unfilled,
-516 censored. 297 tests, smoke/build, offline и installed-wheel reproduction прошли.
+**Текущий результат D37:** strict Clock/context guard подтверждён reference Agave;
+старые Helius mismatch не исправлены и не приняты. Solana public RPC выбран как bounded
+кандидат: 8/8 новых account snapshots имеют согласованный Clock/context, из них 6
+preflight прошли полный decoder. Однако возобновлённый economic сбор остановлен на
+**новом blocker: неизвестные AmmConfig reserved bytes**, u64=50000 по offset 116,
+наблюдаемые у двух разных config. Они не объявлены комиссией или безопасным padding.
 
-Длительный corpus **не завершён**: две серии остановлены strict decoder на HTTP 200
-ответах с Clock.slot = context.slot + 1. После одного успешного отдельного контрольного
-запроса ошибка повторилась в новой кампании; сеть остановлена, guards не ослаблены.
-234.789 s суммарного segment coverage, 333.407 s wall envelope с разрывом; evaluation
-cutoffs не достигнуты и не перенесены. ML не запускается: недостаточно данных и нет
-qualified execution. Следующий практический gate — bank-consistent текущие checkpoints
-через targeted диагностику Helius или другой разрешённый coherent источник, затем
-длительный prospective corpus и калибровка execution. Это конкретный blocker CPMM,
-а не возврат к закрытой D33 historical trace-сверке всей Solana.
+Всего 11 RPC: 9 HTTP 200, 2 timeout (Gatekeeper и ProgramData metadata). Новых accepted
+prospective observations **0**; 3 error/missing feature rows, 24 censored scenarios,
+0 mature labels. Preflight не превращён задним числом в live features. Длинный corpus
+не завершён, ML не начинается. Нужно установить deployed семантику config/соответствие
+source либо ошибку выдачи account bytes, затем независимо проверить versioned adapter.
+Перебор пулов и сеть остановлены, temporal/protocol checks не ослаблены.
 
-Контракт: [prospective campaign](../docs/prospective-campaign.md), результат и hashes:
-[отчёт D36](../docs/evidence/prospective-execution-2026-10-02.json).
+Реализованы endpoint-origin pinning/closed-campaign guard, раздельная offline диагностика
+coherence и protocol support, независимый corpus-quality audit. 313 tests, smoke/build,
+новый offline/wheel quality replay прошли; обе D36 пары воспроизведены старым pinned
+wheel без переписывания artifacts. Контракт: [checkpoint coherence](../docs/checkpoint-coherence.md);
+[evidence](../docs/evidence/checkpoint-coherence-2026-10-02.json). D33 historical audit закрыт.
 
 ## Стадия и авторизация
 
@@ -45,7 +47,7 @@ Memory Bank принят как source of truth. Пользователь раз
 
 ## Что проверено
 
-Локально на Python 3.13: 297 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 313 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
@@ -55,7 +57,7 @@ ReferenceReplay намеренно synthetic-only, one-quote, one-pool-per-base 
 
 ## Открытые решения
 
-Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D36: [decisions](decisions.md).
+Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D37: [decisions](decisions.md).
 
 ## Результат bounded data-аудита
 
@@ -426,3 +428,43 @@ engineering evaluation 0. Восемь вариантов и перекрыва�
 smoke/build, обе пары campaign/target воспроизведены offline и из installed wheel
 `work/prospective-wheel-01`. Seeds отсутствуют (детерминированная data QA), code/plan/
 source hashes, точные times/cutoffs/errors и measurement metrics — в evidence D36.
+
+
+## Результат D37: coherence отдельно от поддержки protocol version
+
+Agave getMultipleAccounts выбирает один bank для accounts/context; Clock.slot в Bank
+равен slot. Это поддерживает прежний strict equality guard, но не устанавливает
+upstream причину двух Helius ответов. Helius MCP troubleshooting не дал объяснения;
+документированный Gatekeeper с existing key получил timeout первого запроса 10.061 s.
+
+`work/coherence-source-probe-01`: Solana public 6/6 full strict snapshots прежних трёх
+пулов, Gatekeeper 0/1 timeout. `work/prospective-public-coherent-01`: новый fixed plan
+3×20 rounds×10 s, 180 max requests, прежняя cohort, public origin закреплён. Первый
+getMultipleAccounts дал context=Clock=452687445, но config CRRS… word@116=50000;
+collection остановлен, raw сохранён. Последний preflight в slot 452686853 имел нули
+в этой области. Точная write transition и смысл изменения не доказаны.
+
+`work/coherence-classic-probe-01`: заранее выбраны оба classic pools прежнего pilot
+(включая SOL/USDC control), другой общий config D4FPE…. Первый ответ в slot 452688467
+тоже coherent, но word@116=50000; второй запрос не отправлялся. Пул по доходности не
+выбирался, успешно прошедшая замещающая cohort не найдена и не объявлена. Разумный
+следующий этап — source/deployed layout qualification, а не дальнейший перебор.
+
+Текущий публичный Raydium source всё ещё описывает bytes 116+ как padding, update_config
+не объясняет это значение. Копии/хеши в work/checkpoint-coherence-research. Program read
+`work/cpmm-program-version-01` установил ProgramData адрес DMaw…tHhU, но чтение его
+первых 45 bytes завершилось timeout. Upgrade slot/authority и binary equivalence
+неизвестны. Нельзя делать вывод, что подтверждён upgrade или новая комиссия.
+
+`checkpoint_diagnostics.py` даёт отдельный diagnostic-only kind, не observation;
+разделяет Clock mismatch и unsupported config words. `corpus_quality.py` проверяет
+coverage/maturity/boundaries/inventory и отдельно измеряет HTTP, chain age и условные
+observation delays. Новые raw fixtures сохраняют оба distinct-config отказа. Guard
+AmmConfig padding и все cpmm/tokens decoders не менялись.
+
+Plans schema 2 требуют endpoint_origin (без path/query/key); resume сверяет host даже
+при совпадающем alias и запрещает закрытые кампании. Новые CLI явно требуют endpoint
+origin/env, Helius не подставляется в public campaign. Raw, requests, receipt times,
+failures, plans, source/hashes, engineering cutoff и conditional execution model — в
+D37 evidence. Новый quality artifact work/coherence-quality-01 воспроизведён offline
+и из work/coherence-wheel-01; D36 history проверена work/prospective-wheel-01.

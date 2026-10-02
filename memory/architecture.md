@@ -145,3 +145,13 @@ Resume добавляет новый сегмент; crash bytes не удаля
 строит separate derived targets с size/delay/slippage/holding условиями, censoring и
 campaign-wide purging. Математика из tokens/cpmm общая; synthetic Replay не меняется.
 Unknown full execution costs/admission/persistent impact не попадают в labels как нули.
+
+## Разделённые coherence/support/quality gates (D37)
+
+`checkpoint_diagnostics.py` — отдельный diagnostic-only результат с raw hashes,
+Clock/context equality и uninterpreted unknown config words; не путь допуска observations.
+Existing tokens/raydium decoder остаётся строгим. `corpus_quality.py` проверяет verified
+campaign/targets независимыми temporal/accounting инвариантами, считает coverage и
+раздельные latency distributions, не запускает обучение. Campaign schema 2 закрепляет
+public endpoint origin; закрытая кампания не возобновляется. Старые source snapshots
+и verifiers воспроизводятся через pinned wheels без изменения прошлых artifacts.

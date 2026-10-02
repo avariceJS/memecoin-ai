@@ -303,3 +303,33 @@ future snapshot reset — явное контрфактуальное допущ
 согласованный текущий snapshot источник, затем новые длительные сегменты и отдельная
 калибровка исполнения. Контракт/результат: docs/prospective-campaign.md и
 docs/evidence/prospective-execution-2026-10-02.json.
+
+## D37: согласованность bank не равна поддержке layout
+
+Strict Clock.slot=context.slot сохранён и подтверждён reference Agave. Bounded public
+RPC preflight — шесть fully supported snapshots прежней когорты; новый первый economic
+collection response coherent, но содержит неизвестные config bytes. Classic control
+с другим config повторил protocol-domain отказ при coherent Clock. Нельзя расширить
+padding whitelist или молча перенести старые fees в новое состояние.
+
+Диагноз: два разных AmmConfig имеют u64=50000 по offset 116, который pinned/current
+public source называет reserved padding. Это наблюдаемый raw факт, не подтверждённое
+значение комиссии/upgrade. ProgramData read timeout не позволил установить deployed
+upgrade metadata. До выяснения семантики обе когорты не допускаются к economic features.
+Новые согласованные preflight captures не имеют online feature publication и не
+превращаются задним числом в observations. New accepted prospective=0; old corpora
+не удалены. D33 whole-chain historical trace milestone остаётся закрытым.
+
+Origin pinning в campaign schema 2 запрещает смену endpoint под прежним alias; origin
+не содержит секретов и не доказывает backend independence. Explicit closure запрещает
+resume. Диагностический kind не принимается CausalBook. Corpus quality report независимо
+проверяет label maturity, frozen cutoff, actual endpoint availability, no cross-segment
+legs, failed-exit inventory и unknown net PnL. HTTP response delay, chain Clock age,
+feature computation и conditional observation delay — отдельные distributions.
+
+11 RPC calls: 9 HTTP200 / 2 timeout, 8 coherent snapshots / 6 full preflight passes,
+2 unsupported configs; 0 accepted forward snapshots, 3 masked features, 24 censored
+scenarios. 313 tests, smoke/build, offline/wheel QA прошли. Требуется установление
+поддержанной deployed семантики либо ошибки source responses до следующего economic
+сбора. Contract/evidence: docs/checkpoint-coherence.md и
+docs/evidence/checkpoint-coherence-2026-10-02.json.

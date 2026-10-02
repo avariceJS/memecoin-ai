@@ -116,3 +116,13 @@ consistency probe ошибка повторилась; дальнейшая се
 Это относится к CPMM data correctness, не к закрытой whole-chain trace задаче.
 Execution labels пока conditional pre-network-cost outcomes с unknown inclusion/impact;
 calibrated simulator и ML gates открыты. Evaluation period фактически не достигнут.
+
+## D37: current bank coherence обойдён, economic layout gate остаётся
+
+Public RPC даёт coherent Clock/context в восьми новых account responses; это bounded
+кандидат, не production source qualification. Helius root cause неизвестен. После
+шести preflight passes новый prospective сбор остановлен: неизвестные bytes AmmConfig
+у двух configs не поддержаны pinned/current source. Длительный corpus не завершён,
+R4/ML не начинается. Следующий этап — deployed config semantics/source compatibility
+или подтверждение source defect, затем независимо проверенный versioned adapter.
+Не игнорировать padding и не менять pools до случайного прохождения guards.

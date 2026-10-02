@@ -18,6 +18,7 @@ Memory Bank — канонический, пригодный для чтения
 | Как воспроизвести economic dataset и quote probes | [economic-dataset.md](../docs/economic-dataset.md) |
 | Causal observations, masks и prospective corpus | [causal-forward.md](../docs/causal-forward.md) |
 | Возобновляемые сегменты и execution-conditioned targets | [prospective-campaign.md](../docs/prospective-campaign.md) |
+| Checkpoint coherence, protocol support и corpus quality | [checkpoint-coherence.md](../docs/checkpoint-coherence.md) |
 | Как проверять edge и выпускать новую модель | [evaluation.md](evaluation.md) |
 | В каком порядке работать | [roadmap.md](roadmap.md) |
 | Что уже существует и что дальше | [state.md](state.md) |

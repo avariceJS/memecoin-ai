@@ -80,3 +80,10 @@ chain age и observation delays. Это не модель включения т�
 подтвердить ошибку выдачи config источником. До этого длительный economic prospective
 corpus остаётся незавершённым. Public источник — bounded working candidate, не production
 qualification; прежняя Helius backend inconsistency не объявляется исправленной.
+
+Итоговые provenance/errors/hashes/планы и quality result:
+[evidence D37](evidence/checkpoint-coherence-2026-10-02.json). Всего 11 RPC: 9 HTTP200,
+2 timeout, 8/8 bank/Clock agreements, 6 supported preflight captures, 2 unsupported config
+responses. Новых принятых prospective observations — 0. 313 tests, lint/typing, smoke/build,
+offline и installed-wheel quality reproduction прошли; обе D36 пары artifacts отдельно
+воспроизведены прежним pinned wheel. Ключи/реальные env не менялись и не коммитились.

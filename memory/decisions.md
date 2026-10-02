@@ -434,7 +434,8 @@ blocker и новые prospective периоды, не ослабление temp
 
 ### D37: сохранить strict coherence и сменить текущий snapshot source
 
-**Статус:** принято в автономной области пользователя 2026-10-02; сбор в работе.
+**Статус:** реализовано 2026-10-02; сбор возобновлён, затем остановлен новым
+protocol-support blocker (подробный результат ниже).
 Agave reference подтверждает единый bank для getMultipleAccounts/Clock. Старые два
 Helius mismatch не нормализуются; upstream cause не установлен. MCP troubleshooting
 не дал объяснения. Bounded preflight: public RPC 6/6 valid, Gatekeeper первый timeout.
@@ -446,3 +447,15 @@ Helius mismatch не нормализуются; upstream cause не устан�
 Слабость: public RPC имеет ограничения доступности, короткий preflight не гарантия.
 Следующий критерий — успешные bounded segments, offline verification и readiness report.
 Контракт: docs/checkpoint-coherence.md. D33 historical audit остаётся закрытым.
+
+
+Результат D37: public RPC 8/8 новых Clock/context agreement, шесть strict preflight
+passes, два unsupported AmmConfig responses у разных configs. Unknown u64=50000 по
+offset 116 не интерпретируется как fee и не игнорируется. Public source обходит
+наблюдённый Clock mismatch в этой bounded выборке, но Helius upstream root cause не
+установлен и новый full economic corpus не квалифицирован. Actual prospective accepted=0.
+Gatekeeper и ProgramData reads — два timeout, no retries. Выбор следующего этапа:
+подтвердить deployed layout/семантику config и source compatibility либо account
+response defect, затем новый independently verified adapter. Не продолжать pool search,
+не возвращать historical trace milestone D33. 313 tests, offline/wheel reproduction;
+docs/evidence/checkpoint-coherence-2026-10-02.json. Training gate остаётся false.
