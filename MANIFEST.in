@@ -1,5 +1,5 @@
 include Makefile requirements-dev.lock AGENTS.md .env.example
-recursive-include configs *.toml
+recursive-include configs *.toml *.json
 recursive-include docs *.md *.json
 recursive-include memory *.md
 recursive-include tools *.py

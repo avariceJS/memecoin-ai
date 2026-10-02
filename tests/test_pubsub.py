@@ -255,3 +255,107 @@ def test_recovery_never_backdates_missing_online_history(tmp_path):
     assert recovered["input_available_ns"] == 30 * 10**9
     assert original[0]["input_available_ns"] == 20 * 10**9
     assert recovered["segment"] > original[0]["segment"]
+
+
+def test_silent_notification_loss_is_censored_not_repaired_by_late_delivery(tmp_path):
+    import base64
+    from dataclasses import replace
+
+    from test_causal import FakeTime
+
+    t = FakeTime()
+    r = Reducer(tmp_path, dict(cohort=[dict(pool_id=POOL, params=PARAMS)]))
+    now = t.clock()
+    r.apply(dict(kind="connect", available_ns=now, generation=0, requests={"1": POOL}))
+    raw = canonical(dict(jsonrpc="2.0", id=1, result=7)).encode()
+    (tmp_path / "ack").write_bytes(raw)
+    r.apply(
+        dict(
+            kind="stream",
+            available_ns=t.clock(),
+            received_ns=now,
+            generation=0,
+            file="ack",
+            sha256=digest(raw),
+        )
+    )
+    for index in range(3):
+        t.sleep(5)
+        body = json.loads(t.transport(None, None, None, None))
+        vault = body["result"]["value"][2]
+        data = bytearray(base64.b64decode(vault["data"][0]))
+        amount = struct.unpack_from("<Q", data, 64)[0]
+        struct.pack_into("<Q", data, 64, amount + index)
+        vault["data"][0] = base64.b64encode(data).decode()
+        slot = body["result"]["context"]["slot"]
+        cap = replace(
+            BASE,
+            response=canonical(body).encode(),
+            request_started_ns=t.clock(),
+            received_ns=t.clock(),
+        )
+        cap.save(tmp_path / f"cap-{index}")
+        if index == 1:
+            r.triggers.notification(POOL, slot, {"synthetic": index})
+        r.apply(
+            dict(
+                kind="snapshot",
+                available_ns=t.clock(),
+                arm="hybrid",
+                pool=POOL,
+                capture=f"cap-{index}",
+            )
+        )
+        rows = r.books["hybrid"].features(t.clock())
+        if index == 1:
+            assert rows[0]["usable"]
+        if index == 2:
+            assert rows[0]["reasons"] == ["history_warmup"]
+            assert r.stats["unwitnessed_account_change"] == 1
+            segment = rows[0]["segment"]
+    r.triggers.notification(POOL, slot - 1, {"synthetic": "late"})
+    after = r.books["hybrid"].features(t.clock())[0]
+    assert after["segment"] == segment and not after["usable"]
+
+
+def test_incomplete_process_reservation_blocks_next_segment_before_network(tmp_path):
+    from memecoin_ai.hybrid import run_segment
+
+    plan = json.loads((Path(__file__).parents[1] / "configs/alchemy-pilot-v1.json").read_text())
+    frozen = tmp_path / "plan.json"
+    frozen.write_text(canonical(plan))
+    (tmp_path / "segment-00").mkdir()
+    preserved = tmp_path / "segment-00/interrupted.bin"
+    preserved.write_bytes(b"synthetic interrupted raw")
+    with pytest.raises(FileNotFoundError):
+        run_segment(
+            frozen,
+            tmp_path / "segment-01",
+            plan["http_origin"] + "/v2/SECRET",
+            plan["wss_origin"] + "/v2/SECRET",
+        )
+    assert preserved.read_bytes() == b"synthetic interrupted raw"
+    assert not (tmp_path / "segment-01").exists()
+
+
+def test_independent_audit_rejects_earlier_fabricated_stream_receipt(tmp_path):
+    import runpy
+
+    audit = runpy.run_path(str(Path(__file__).parents[1] / "tools/alchemy_pilot_report.py"))[
+        "audit_raw_stream"
+    ]
+    directory = tmp_path / "stream-00"
+    directory.mkdir()
+    raw = canonical(dict(jsonrpc="2.0", id=1, result=7)).encode()
+    (directory / "000000.bin").write_bytes(raw)
+    receipt = dict(file="000000.bin", received_ns=100, sha256=digest(raw), bytes=len(raw))
+    (directory / "receipts.jsonl").write_text(canonical(receipt) + "\n")
+    events = [
+        dict(kind="connect", requests={"1": POOL}),
+        dict(kind="stream", file="stream-00/000000.bin", received_ns=100, sha256=digest(raw)),
+    ]
+    report = dict(stream=dict(messages=1, bytes=len(raw)))
+    assert audit(tmp_path, events, report)["receipts_verified"] == 1
+    events[1]["received_ns"] = 99
+    with pytest.raises(ValidationError, match="raw receipt"):
+        audit(tmp_path, events, report)
