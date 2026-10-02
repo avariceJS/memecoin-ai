@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import socket
+import ssl
 import time
 import urllib.error
 import urllib.request
@@ -34,6 +36,14 @@ class HTTPSourceError(SourceError):
     def __init__(self, status: int) -> None:
         self.status = status
         super().__init__(f"RPC HTTP {status}; endpoint details redacted")
+
+
+class TransportSourceError(SourceError):
+    def __init__(self, reason: str) -> None:
+        if reason not in {"timeout", "dns", "tls", "connection", "other"}:
+            raise ValueError("invalid transport category")
+        self.reason = reason
+        super().__init__(f"RPC transport failed ({reason}); endpoint details redacted")
 
 
 @dataclass(frozen=True)
@@ -106,9 +116,21 @@ def http_transport(endpoint: str, request: bytes, timeout: float, limit: int) ->
             body = response.read(limit + 1)
     except urllib.error.HTTPError as exc:
         raise HTTPSourceError(exc.code) from None
-    except (urllib.error.URLError, OSError):
-        # URL/query strings can contain API keys. Never copy transport exception text into logs.
-        raise SourceError("RPC transport failed; endpoint details redacted") from None
+    except (urllib.error.URLError, OSError) as exc:
+        # Classify exception types only: their messages can contain endpoint credentials.
+        cause = exc.reason if isinstance(exc, urllib.error.URLError) else exc
+        reason = (
+            "timeout"
+            if isinstance(cause, TimeoutError)
+            else "dns"
+            if isinstance(cause, socket.gaierror)
+            else "tls"
+            if isinstance(cause, ssl.SSLError)
+            else "connection"
+            if isinstance(cause, ConnectionError)
+            else "other"
+        )
+        raise TransportSourceError(reason) from None
     if len(body) > limit:
         raise SourceError("RPC response exceeded configured byte limit")
     return bytes(body)

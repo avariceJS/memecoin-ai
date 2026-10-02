@@ -12,7 +12,13 @@ from typing import Any
 
 from memecoin_ai.domain import ValidationError, canonical, digest, integer, strict_json
 from memecoin_ai.raydium import account_bytes
-from memecoin_ai.sources import Capture, HTTPSourceError, ReadOnlyRPC, SourceError
+from memecoin_ai.sources import (
+    Capture,
+    HTTPSourceError,
+    ReadOnlyRPC,
+    SourceError,
+    TransportSourceError,
+)
 from memecoin_ai.tokens import CLOCK, SYSVAR_OWNER
 
 
@@ -251,6 +257,8 @@ def measure_latency(
             attempt["error"] = type(exc).__name__
             if isinstance(exc, HTTPSourceError):
                 attempt["http_status"] = exc.status
+            if isinstance(exc, TransportSourceError):
+                attempt["transport_reason"] = exc.reason
         return attempt
 
     with ThreadPoolExecutor(max_workers=2) as executor:
@@ -304,6 +312,8 @@ def crosscheck(
             row["error"] = type(exc).__name__
             if isinstance(exc, HTTPSourceError):
                 row["http_status"] = exc.status
+            if isinstance(exc, TransportSourceError):
+                row["transport_reason"] = exc.reason
         rows.append(row)
         (output / "attempts.json").write_text(canonical(rows) + "\n")
         if row.get("error"):
@@ -339,7 +349,10 @@ def verify_provider_bundle(output: Path) -> dict[str, Any]:
         ):
             raise ValidationError("provider bundle checksum/path mismatch")
     report: dict[str, Any] = strict_json((output / "report.json").read_text())
-    if "groups" in report:
+    if report.get("kind") == "chunked_range":
+        if report != chunked_range_report(output):
+            raise ValidationError("chunked range report does not reproduce")
+    elif "groups" in report:
         if report != latency_report(output):
             raise ValidationError("latency report does not reproduce")
     else:
@@ -371,3 +384,195 @@ def verify_provider_bundle(output: Path) -> dict[str, Any]:
         if report["all_requested_observations_match"] != matched:
             raise ValidationError("comparison success claim disagrees with evidence")
     return report
+
+
+def slot_chunks(start: int, end: int, max_slots: int) -> list[tuple[int, int]]:
+    integer(start, "start slot")
+    integer(end, "end slot", start)
+    integer(max_slots, "chunk size", 1)
+    if end - start + 1 > 256 or max_slots > 256:
+        raise ValidationError("range exceeds bounded slot budget")
+    return [(s, min(s + max_slots - 1, end)) for s in range(start, end + 1, max_slots)]
+
+
+def _enumeration(cap: Capture, start: int, end: int) -> list[int]:
+    slots = cap.result()
+    if not isinstance(slots, list) or any(
+        type(s) is not int or not start <= s <= end for s in slots
+    ):
+        raise ValidationError("invalid block enumeration")
+    if slots != sorted(set(slots)):
+        raise ValidationError("block enumeration is not sorted and unique")
+    return slots
+
+
+def _range_request(cap: Capture) -> tuple[int, int, dict[str, Any]]:
+    req = strict_json(cap.request_json)
+    params = req["params"]
+    if (
+        cap.method != "getBlocks"
+        or req["method"] != "getBlocks"
+        or len(params) != 3
+        or not isinstance(params[2], dict)
+        or params[2].get("commitment") != "finalized"
+    ):
+        raise ValidationError("range comparison requires explicit finalized getBlocks bounds")
+    start, end, options = params
+    slot_chunks(start, end, 1)
+    return start, end, options
+
+
+def chunked_range_report(output: Path) -> dict[str, Any]:
+    spec = strict_json((output / "spec.json").read_text())
+    reference = Capture.load(output / "reference")
+    start, end, options = _range_request(reference)
+    expected = _enumeration(reference, start, end)
+    plan = slot_chunks(start, end, spec["max_slots"])
+    if spec["chunks"] != [list(p) for p in plan]:
+        raise ValidationError("chunk plan does not partition the original range")
+    if reference.source_alias == spec["secondary_alias"]:
+        raise ValidationError("secondary alias must differ from reference")
+    rows = strict_json((output / "attempts.json").read_text())
+    if not 1 <= len(rows) <= len(plan):
+        raise ValidationError("invalid chunk attempt count")
+    observed = []
+    for index, row in enumerate(rows):
+        if row["chunk"] != index:
+            raise ValidationError("chunk attempt ordering mismatch")
+        if row.get("error"):
+            if index != len(rows) - 1:
+                raise ValidationError("requests continued after chunk failure")
+            continue
+        cap = Capture.load(output / f"chunk-{index:03d}")
+        req = strict_json(cap.request_json)
+        lo, hi = plan[index]
+        if (
+            cap.source_alias != spec["secondary_alias"]
+            or cap.method != "getBlocks"
+            or req["method"] != "getBlocks"
+            or req["params"] != [lo, hi, options]
+        ):
+            raise ValidationError("chunk request differs from plan")
+        observed.extend(_enumeration(cap, lo, hi))
+    complete = len(rows) == len(plan) and not any(r.get("error") for r in rows)
+    return dict(
+        schema_version=1,
+        kind="chunked_range",
+        start_slot=start,
+        end_slot=end,
+        planned=len(plan),
+        attempted=len(rows),
+        rows=rows,
+        reference_blocks=len(expected),
+        observed_blocks=len(observed),
+        coverage_complete=complete,
+        enumeration_match=complete and bool(expected) and observed == expected,
+        missing_slots=sorted(set(expected) - set(observed)) if complete else None,
+        extra_slots=sorted(set(observed) - set(expected)) if complete else None,
+        independent_infrastructure_verified=False,
+        market_dataset_qualified=False,
+    )
+
+
+def crosscheck_chunked_range(
+    reference: Capture,
+    client: ReadOnlyRPC,
+    output: Path,
+    *,
+    max_slots: int = 5,
+    interval: float = 3,
+) -> dict[str, Any]:
+    start, end, options = _range_request(reference)
+    _enumeration(reference, start, end)
+    plan = slot_chunks(start, end, max_slots)
+    if not 1 <= interval <= 60 or client.source_alias == reference.source_alias:
+        raise ValidationError("invalid interval or secondary alias")
+    output.mkdir(parents=True, exist_ok=False)
+    reference.save(output / "reference")
+    (output / "spec.json").write_text(
+        canonical(
+            dict(
+                schema_version=1,
+                kind="chunked_range",
+                max_slots=max_slots,
+                chunks=plan,
+                secondary_alias=client.source_alias,
+            )
+        )
+        + "\n"
+    )
+    rows = []
+    for index, (lo, hi) in enumerate(plan):
+        if index:
+            time.sleep(interval)
+        row: dict[str, Any] = dict(chunk=index)
+        try:
+            cap = client.fetch("getBlocks", [lo, hi, options])
+            cap.save(output / f"chunk-{index:03d}")
+            _enumeration(cap, lo, hi)
+        except (SourceError, ValidationError) as exc:
+            row["error"] = type(exc).__name__
+            if isinstance(exc, HTTPSourceError):
+                row["http_status"] = exc.status
+            if isinstance(exc, TransportSourceError):
+                row["transport_reason"] = exc.reason
+        rows.append(row)
+        (output / "attempts.json").write_text(canonical(rows) + "\n")
+        if row.get("error"):
+            break
+    report = chunked_range_report(output)
+    _seal(output, report)
+    return report
+
+
+def audit_provider_range(enumeration: Path, blocks: Path) -> dict[str, Any]:
+    enum = verify_provider_bundle(enumeration)
+    comparisons = verify_provider_bundle(blocks)
+    if enum.get("kind") != "chunked_range" or not enum.get("enumeration_match"):
+        raise ValidationError("range enumeration has not independently matched")
+    if not comparisons.get("all_requested_observations_match"):
+        raise ValidationError("block comparisons have not all matched")
+    ref = Capture.load(enumeration / "reference")
+    expected = _enumeration(ref, enum["start_slot"], enum["end_slot"])
+    secondary = strict_json((enumeration / "spec.json").read_text())["secondary_alias"]
+    slots = []
+    count = 0
+    previous = None
+    for row in comparisons["rows"]:
+        left = Capture.load(blocks / row["reference"])
+        right = Capture.load(blocks / row["secondary"])
+        req = strict_json(left.request_json)
+        if (
+            left.source_alias != ref.source_alias
+            or right.source_alias != secondary
+            or left.method != "getBlock"
+            or req["params"][1].get("transactionDetails") != "full"
+        ):
+            raise ValidationError("wrong source pair or incomplete block metadata")
+        slot = req["params"][0]
+        body = left.result()
+        if not isinstance(body, dict) or not isinstance(body.get("transactions"), list):
+            raise ValidationError("invalid full block")
+        if body["parentSlot"] >= slot:
+            raise ValidationError("invalid block parent")
+        if previous is not None and (
+            body["parentSlot"] != slots[-1] or body["previousBlockhash"] != previous["blockhash"]
+        ):
+            raise ValidationError("broken block ancestry within range")
+        slots.append(slot)
+        count += len(body["transactions"])
+        previous = body
+    if slots != expected:
+        raise ValidationError("block comparisons do not cover the enumerated range exactly")
+    return dict(
+        schema_version=1,
+        range=[enum["start_slot"], enum["end_slot"]],
+        blocks=len(slots),
+        transactions=count,
+        bounded_range_agreement=True,
+        enumeration_manifest_sha256=digest((enumeration / "manifest.json").read_bytes()),
+        blocks_manifest_sha256=digest((blocks / "manifest.json").read_bytes()),
+        independent_infrastructure_verified=False,
+        market_dataset_qualified=False,
+        execution_qualified=False,
+    )

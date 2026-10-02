@@ -196,3 +196,101 @@ def test_rpc_error_retains_capture_and_stops_remaining_plan(tmp_path):
     assert (tmp_path / "audit/000-secondary/response.json").exists()
     assert not report["all_requested_observations_match"]
     assert verify_provider_bundle(tmp_path / "audit") == report
+
+
+def test_inclusive_slot_partition_and_bounds():
+    from memecoin_ai.provider_audit import slot_chunks
+
+    assert slot_chunks(962, 973, 5) == [(962, 966), (967, 971), (972, 973)]
+    assert slot_chunks(10, 10, 5) == [(10, 10)]
+    for args in ((1, 0, 5), (0, 256, 5), (0, 1, 0), (True, 2, 5)):
+        with pytest.raises(ValidationError):
+            slot_chunks(*args)
+
+
+@pytest.mark.parametrize("mode", ["match", "missing", "extra", "out_of_bounds", "failure"])
+def test_chunked_range_preserves_provenance_and_failures(tmp_path, monkeypatch, mode):
+    import memecoin_ai.provider_audit as module
+
+    monkeypatch.setattr(module.time, "sleep", lambda _: None)
+    reference = capture("getBlocks", [10, 21, dict(commitment="finalized")], [10, 20, 21])
+    calls = []
+
+    def transport(endpoint, body, timeout, limit):
+        req = json.loads(body)
+        lo, hi, _ = req["params"]
+        calls.append((lo, hi))
+        if mode == "failure" and len(calls) == 2:
+            raise HTTPSourceError(413)
+        slots = [s for s in [10, 20, 21] if lo <= s <= hi]
+        if len(calls) == 1:
+            if mode == "missing":
+                slots = []
+            elif mode == "extra":
+                slots = [10, 11]
+            elif mode == "out_of_bounds":
+                slots = [15]
+        return canonical(dict(jsonrpc="2.0", id=1, result=slots)).encode()
+
+    client = ReadOnlyRPC("https://example.invalid", "secondary", transport=transport)
+    out = tmp_path / "enum"
+    report = module.crosscheck_chunked_range(reference, client, out)
+    assert Capture.load(out / "reference") == reference
+    assert module.verify_provider_bundle(out) == report
+    assert report["enumeration_match"] == (mode == "match")
+    assert report["coverage_complete"] == (mode in ("match", "missing", "extra"))
+    assert calls[0] == (10, 14)
+    if mode == "failure":
+        assert len(calls) == 2 and report["missing_slots"] is None
+    elif mode == "out_of_bounds":
+        assert len(calls) == 1
+    else:
+        assert calls == [(10, 14), (15, 19), (20, 21)]
+    with pytest.raises(FileExistsError):
+        module.crosscheck_chunked_range(reference, client, out)
+
+
+@pytest.mark.parametrize("mode", ["match", "missing_block", "ancestry", "signatures_only"])
+def test_complete_range_requires_full_blocks_and_ancestry(tmp_path, monkeypatch, mode):
+    import memecoin_ai.provider_audit as module
+
+    monkeypatch.setattr(module.time, "sleep", lambda _: None)
+    reference = capture("getBlocks", [1, 3, dict(commitment="finalized")], [1, 3])
+    enum_client = ReadOnlyRPC(
+        "https://example.invalid", "b", transport=lambda *a: reference.response
+    )
+    module.crosscheck_chunked_range(reference, enum_client, tmp_path / "enum")
+    blocks = []
+    for slot, parent, previous in ((1, 0, "h0"), (3, 1, "h1")):
+        body = dict(
+            blockhash=f"h{slot}",
+            parentSlot=parent,
+            previousBlockhash=previous,
+            blockTime=1,
+            transactions=[],
+            signatures=[],
+        )
+        if mode == "ancestry" and slot == 3:
+            body["previousBlockhash"] = "wrong"
+        detail = "signatures" if mode == "signatures_only" else "full"
+        blocks.append(
+            capture(
+                "getBlock", [slot, dict(commitment="finalized", transactionDetails=detail)], body
+            )
+        )
+    if mode == "missing_block":
+        blocks.pop()
+    by_slot = {json.loads(c.request_json)["params"][0]: c.response for c in blocks}
+    client = ReadOnlyRPC(
+        "https://example.invalid",
+        "b",
+        transport=lambda endpoint, body, *args: by_slot[json.loads(body)["params"][0]],
+    )
+    module.crosscheck(blocks, client, tmp_path / "blocks")
+    if mode == "match":
+        report = module.audit_provider_range(tmp_path / "enum", tmp_path / "blocks")
+        assert report["bounded_range_agreement"] and report["blocks"] == 2
+        assert not report["market_dataset_qualified"]
+    else:
+        with pytest.raises(ValidationError):
+            module.audit_provider_range(tmp_path / "enum", tmp_path / "blocks")

@@ -68,3 +68,30 @@ def test_http_error_status_without_credential_leak(monkeypatch):
         http_transport("https://host/?key=SECRET", b"{}", 1, 100)
     assert caught.value.status == 429
     assert "SECRET" not in str(caught.value)
+
+
+@pytest.mark.parametrize("category", ["timeout", "dns", "tls", "connection", "other"])
+def test_transport_diagnostics_expose_category_not_secret(monkeypatch, category):
+    import socket
+    import ssl
+    import urllib.error
+    import urllib.request
+
+    from memecoin_ai.sources import TransportSourceError, http_transport
+
+    causes = {
+        "timeout": TimeoutError("SECRET"),
+        "dns": socket.gaierror("SECRET"),
+        "tls": ssl.SSLError("SECRET"),
+        "connection": ConnectionResetError("SECRET"),
+        "other": "SECRET",
+    }
+
+    def fail(*args, **kwargs):
+        raise urllib.error.URLError(causes[category])
+
+    monkeypatch.setattr(urllib.request, "urlopen", fail)
+    with pytest.raises(TransportSourceError) as caught:
+        http_transport("https://host/SECRET", b"{}", 1, 100)
+    assert caught.value.reason == category
+    assert "SECRET" not in str(caught.value)

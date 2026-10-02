@@ -13,7 +13,13 @@ from memecoin_ai.domain import Event, ValidationError, canonical
 from memecoin_ai.experiments import RunRecorder, summarize, verify_run
 from memecoin_ai.fixtures import ScriptedFixturePolicy, synthetic_events
 from memecoin_ai.protocol import write_protocol_audit
-from memecoin_ai.provider_audit import crosscheck, measure_latency, verify_provider_bundle
+from memecoin_ai.provider_audit import (
+    audit_provider_range,
+    crosscheck,
+    crosscheck_chunked_range,
+    measure_latency,
+    verify_provider_bundle,
+)
 from memecoin_ai.qualification import qualify_cpmm, verify_qualification
 from memecoin_ai.raydium import checkpoint_inventory
 from memecoin_ai.reconciliation import export_pilot, verify_pilot, write_audit
@@ -147,9 +153,23 @@ def main() -> int:
         "verify-provider-audit", help="Offline capture/measurement verification"
     )
     provider_verify.add_argument("path", type=Path)
+    chunks = commands.add_parser(
+        "crosscheck-range", help="Compare a finalized range via bounded chunks"
+    )
+    chunks.add_argument("capture", type=Path)
+    chunks.add_argument("--source-alias", required=True)
+    chunks.add_argument("--endpoint-env", default="MEMECOIN_SECONDARY_RPC_URL")
+    chunks.add_argument("--max-slots", type=int, default=5)
+    chunks.add_argument("--out", type=Path, required=True)
+    range_audit = commands.add_parser(
+        "audit-provider-range", help="Verify enumeration and full block agreement"
+    )
+    range_audit.add_argument("enumeration", type=Path)
+    range_audit.add_argument("blocks", type=Path)
+    range_audit.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     try:
-        if args.command in ("measure-rpc-latency", "crosscheck-captures"):
+        if args.command in ("measure-rpc-latency", "crosscheck-captures", "crosscheck-range"):
             endpoint = os.environ.get(args.endpoint_env)
             if not endpoint:
                 raise ValidationError("RPC endpoint environment variable is not set")
@@ -158,6 +178,10 @@ def main() -> int:
                 report = measure_latency(
                     client, args.out, rounds=args.rounds, interval=args.interval
                 )
+            elif args.command == "crosscheck-range":
+                report = crosscheck_chunked_range(
+                    Capture.load(args.capture), client, args.out, max_slots=args.max_slots
+                )
             else:
                 report = crosscheck([Capture.load(p) for p in args.captures], client, args.out)
             print(canonical(report))
@@ -165,8 +189,15 @@ def main() -> int:
                 0
                 if not report.get("errors", 0)
                 and report.get("all_requested_observations_match", True)
+                and report.get("enumeration_match", True)
                 else 1
             )
+        elif args.command == "audit-provider-range":
+            report = audit_provider_range(args.enumeration, args.blocks)
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            with args.out.open("x") as stream:
+                stream.write(canonical(report) + "\n")
+            print(canonical(report))
         elif args.command == "verify-provider-audit":
             print(canonical(verify_provider_bundle(args.path)))
         elif args.command == "audit-protocol":
