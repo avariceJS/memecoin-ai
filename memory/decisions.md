@@ -401,3 +401,15 @@ Compatibility verification требует точного воспроизвед�
 7 purged / 14 censored. 280 tests, offline/wheel reproduction. Data/execution/ML gates
 не повышены. Evidence: docs/evidence/causal-forward-2026-10-02.json. Следующий приоритет —
 длиннее prospective coverage через возобновляемые сегменты, затем execution targets.
+
+### D36: возобновляемый prospective corpus и execution-conditioned targets
+
+**Статус:** этап утверждён пользователем 2026-10-02; реализация и сбор в работе.
+Новые immutable bounded сегменты продолжают frozen campaign, не историю causal book.
+Crash evidence сохраняется, segment boundary сбрасывает warmup и цензурирует labels;
+общий бюджет и temporal cutoff фиксируются до сети. Причина: увеличить prospective
+coverage без превращения recovery receipts в прошлые observations. Альтернатива
+заполнять gaps историей отклонена. Timeout допускает ограниченный новый сегмент после
+cooldown; повторный последовательный отказ останавливает серию. Контракт:
+docs/prospective-campaign.md. Объём, execution uncertainty и temporal guards остаются
+основаниями допуска к ML; запуск обучения сейчас не разрешён качеством данных.

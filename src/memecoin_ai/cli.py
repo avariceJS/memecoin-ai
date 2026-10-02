@@ -19,6 +19,7 @@ from memecoin_ai.forward import (
     verify_forward,
     verify_forward_targets,
 )
+from memecoin_ai.prospective import create_campaign, resume_campaign, verify_campaign
 from memecoin_ai.protocol import write_protocol_audit
 from memecoin_ai.provider_audit import (
     audit_provider_range,
@@ -152,6 +153,24 @@ def main() -> int:
         "verify-economic-dataset", help="Reproduce economic dataset from its frozen journal"
     )
     verify_dataset.add_argument("path", type=Path)
+    campaign = commands.add_parser(
+        "create-prospective-campaign", help="Freeze bounded segment campaign"
+    )
+    campaign.add_argument("--checkpoint", type=Path, action="append", required=True)
+    campaign.add_argument("--source-alias", required=True)
+    campaign.add_argument("--segments", type=int, default=4)
+    campaign.add_argument("--rounds", type=int, default=30)
+    campaign.add_argument("--interval", type=int, default=5)
+    campaign.add_argument("--out", type=Path, required=True)
+    resume = commands.add_parser(
+        "resume-prospective-campaign", help="Collect one new bounded segment"
+    )
+    resume.add_argument("path", type=Path)
+    resume.add_argument("--endpoint-env", default="MEMECOIN_HELIUS_RPC_URL")
+    campaign_verify = commands.add_parser(
+        "verify-prospective-campaign", help="Offline campaign reproduction"
+    )
+    campaign_verify.add_argument("path", type=Path)
     forward = commands.add_parser(
         "collect-forward-corpus", help="Bounded causal finalized snapshots; no trading"
     )
@@ -265,6 +284,38 @@ def main() -> int:
             print(canonical(report))
         elif args.command == "verify-provider-audit":
             print(canonical(verify_provider_bundle(args.path)))
+        elif args.command == "create-prospective-campaign":
+            print(
+                canonical(
+                    create_campaign(
+                        args.out,
+                        [Capture.load(p) for p in args.checkpoint],
+                        source_alias=args.source_alias,
+                        segments=args.segments,
+                        rounds=args.rounds,
+                        interval_seconds=args.interval,
+                    )
+                )
+            )
+        elif args.command in ("resume-prospective-campaign", "verify-prospective-campaign"):
+            if args.command == "verify-prospective-campaign":
+                report = verify_campaign(args.path)
+            else:
+                endpoint = os.environ.get(args.endpoint_env)
+                if not endpoint:
+                    raise ValidationError("RPC endpoint environment variable is not set")
+                plan = json.loads((args.path / "plan.json").read_text())
+                report = resume_campaign(
+                    args.path,
+                    ReadOnlyRPC(
+                        endpoint,
+                        plan["source_alias"],
+                        timeout=plan["timeout_seconds"],
+                        max_bytes=plan["max_response_bytes"],
+                    ),
+                    emit=lambda row: print(canonical(row), flush=True),
+                )
+            print(canonical(report))
         elif args.command in ("refine-forward-targets", "verify-forward-targets"):
             report = (
                 refine_forward_targets(args.parent, args.out)
