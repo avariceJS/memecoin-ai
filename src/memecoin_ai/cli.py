@@ -11,6 +11,7 @@ from memecoin_ai.checkpoint_diagnostics import diagnose_checkpoint
 from memecoin_ai.collection import BudgetExhausted, PilotCollector, PilotStore
 from memecoin_ai.config import RunConfig
 from memecoin_ai.corpus_quality import export_quality, verify_quality
+from memecoin_ai.coverage import export_support, verify_support
 from memecoin_ai.datasets import export_economic_dataset, verify_economic_dataset
 from memecoin_ai.domain import Event, ValidationError, canonical
 from memecoin_ai.execution_targets import export_execution_targets, verify_execution_targets
@@ -174,6 +175,18 @@ def main() -> int:
     quality_verify.add_argument("campaign", type=Path)
     quality_verify.add_argument("targets", type=Path)
     quality_verify.add_argument("path", type=Path)
+    support = commands.add_parser(
+        "audit-target-support", help="Offline scenario and window coverage"
+    )
+    support.add_argument("campaign", type=Path)
+    support.add_argument("targets", type=Path)
+    support.add_argument("--out", type=Path, required=True)
+    support_verify = commands.add_parser(
+        "verify-target-support", help="Reproduce target support audit"
+    )
+    support_verify.add_argument("campaign", type=Path)
+    support_verify.add_argument("targets", type=Path)
+    support_verify.add_argument("path", type=Path)
     execution = commands.add_parser(
         "export-execution-targets", help="Conditional snapshot probes; no actual fills"
     )
@@ -336,6 +349,13 @@ def main() -> int:
                 export_quality(args.campaign, args.targets, args.out)
                 if args.command == "audit-corpus-quality"
                 else verify_quality(args.campaign, args.targets, args.path)
+            )
+            print(canonical(report))
+        elif args.command in ("audit-target-support", "verify-target-support"):
+            report = (
+                export_support(args.campaign, args.targets, args.out)
+                if args.command == "audit-target-support"
+                else verify_support(args.campaign, args.targets, args.path)
             )
             print(canonical(report))
         elif args.command in ("export-execution-targets", "verify-execution-targets"):
