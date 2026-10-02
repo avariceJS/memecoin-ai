@@ -22,12 +22,18 @@ Lossless stream/history не доказаны; gaps/late availability не ис�
 [Итоговый документ](../docs/alchemy-pilot.md),
 [evidence](../docs/evidence/alchemy-pilot-2026-10-03.json).
 
-**D40-v2 в работе:** пользователь поручил исправить scheduler/coalescing, провести
-matched-cadence сравнение, самостоятельно определить роль WSS и перейти к следующему
-логичному этапу. План v2 заморожен до сети (`f58a3d1`): http5/http10/wss10/adaptive,
-120 s steady +120 s symmetric stress; прежний public collector — contextual control.
-Реализованы абсолютные ticks и per-account content coalescing, 372 tests прошли.
-Новый сбор пока не проведён; migration/ML gates не повышены.
+**D40-v2 завершён:** matched10s и common feature grid подтверждены, content coalescing
+подавил198 unchanged hints, 421 Alchemy snapshots/144 controls в двух успешных120s окнах.
+Initial v2 получил startup EOF после4 ack (cause unknown, original preserved); единственный
+новый preregistered serial-ack вариант v2b прошёл steady/symmetric stress и dev/wheel QA.
+Adaptive HTTP−31,94%, quality−4,17п.п., но payload+28,49% кHTTP5: criterion false.
+372 tests. [Отчёт](../docs/alchemy-pilot-v2.md),
+[evidence](../docs/evidence/alchemy-pilot-v2-2026-10-03.json).
+
+**Решение:** WSS optional diagnostic, off by default. Для новых bounded prospective
+campaigns выбран Alchemy HTTP5 persistent TLS через прежний collector, без fallback.
+Следующий D41 уже спланирован:2×30×5s/max180 HTTP, stop-at-first-failure; потом existing
+execution targets/quality/nonoverlap QA. Сбор D41 пока не проведён; ML gates прежние.
 
 **Текущий результат D39:** найден и проверен bounded вариант согласованного источника:
 canonical public mainnet `https://api.mainnet.solana.com`, explicit verified TLS keepalive

@@ -383,3 +383,10 @@ protocol whitelist, synthetic-only и запреты ML/RL/paper/live не ме�
 Исправлены absolute scheduler/content coalescing, frozen matched10s + adaptive/5s
 controls, раздельный steady/symmetric stress, общий feature grid. 372 tests прошли;
 до нового сбора критерии/budgets сохранены в configs/alchemy-pilot-v2.json.
+
+## 2026-10-03 — D40-v2 решение и старт D41
+
+Initial startup EOF сохранён, один preregistered serial-ack follow-up завершён. Matched
+cadence/common features и content coalescing проверены; criterion не выполнен из-за
+payload overhead. WSS оставлен optional/off; Alchemy HTTP5 выбран для нового bounded
+corpus D41 (180 max, stop first error) поверх прежних decoder/collector/targets.

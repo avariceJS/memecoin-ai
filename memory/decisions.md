@@ -572,3 +572,25 @@ adaptive eligibility5s/heartbeat10s как отдельная policy; steady и 
 раздельно. Абсолютные ticks не зависят от HTTP completion; identical content нового
 slot не dirty, late messages не заменяют HTTP anchor. Полная write history всё ещё
 не доказана. Итоговое решение — после неизменяемых двух segments; ML запреты прежние.
+
+
+Результат D40-v2: initial WSS EOF после4 ack, без close code, unknown cause; stopped
+bundle сохранён. Новый frozen v2b меняет только serial subscription admission; две
+120s campaigns steady/stress прошли. Matched10s ticks/common as-of проверены,421 Alchemy
+snapshots,144 public controls,1274 WSS messages. Adaptive49 vsHTTP5 72 calls, quality
+66/72 vs69/72; total payload336855 vs262152 bytes. Criterion false, v1 cadence artifact
+устранён. Выбор: WSS optional diagnostic, выключен в дальнейшем corpus. Не обязательная
+часть ML/runtime. Слабость: короткая fixed cohort, разные banks; не доказана causal
+эффективность serial subscribe. Пересмотр только при новой конкретной change-discovery
+гипотезе и заранее заданном resource/quality win, не endless tuning.
+
+### D41: qualified HTTP corpus и проверка достаточности данных
+
+**Статус:** новый bounded план принят автономно по прямому поручению пользователя
+2026-10-03, до сбора. Следующие2×30×5s segments/max180 requests используют Alchemy HTTP
+persistent TLS, source origin/config profile2 pinned. HTTP5 выбран ради observation
+coverage; не является утверждением оптимальной decision frequency. WSS off. Прежний
+public collector остаётся reference, fallback нет. Первый failure закрывает campaign.
+Затем неизменённые execution targets/quality/support, всё offline+wheel. Не расширять
+протокол или ML gates. Причина: source/scheduler уже проверены, следующий bottleneck —
+календарное coverage и execution uncertainty. План configs/qualified-http-corpus-v1.json.

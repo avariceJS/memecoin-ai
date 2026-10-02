@@ -50,3 +50,71 @@ acknowledgements, до Alchemy HTTP snapshots. Close code отсутствует
 локализация частичной регистрации, не установленное исправление EOF. Максимум одна
 дополнительная кампания steady+stress; любой неожиданный отказ завершает новые WSS
 запросы этой сессии. Первоначальная failed campaign не возобновляется и не переписывается.
+
+## Итог D40-v2, 2026-10-03
+
+[Evidence](evidence/alchemy-pilot-v2-2026-10-03.json), код `57927ec`.
+V2b steady и symmetric-stress завершены; новые процессы, 421 strict Alchemy snapshots,
+144 public controls. Начальная неудачная попытка добавила 2 public snapshots и 4 ack,
+но ни одного Alchemy snapshot. EOF остаётся unexplained; успешный serial вариант
+не доказывает причинного исправления provider failure. Других WSS повторов не было.
+
+| Steady 120 s | HTTP5 | HTTP10 | WSS10 | Adaptive |
+|---|---:|---:|---:|---:|
+| HTTP requests | 72 | 36 | 36 | 49 |
+| Usable / 72 common rows | 69 | 66 | 66 | 66 |
+| Observed economic changes | 13 | 9 | 10 | 14 |
+| Standalone received payload, bytes | 262152 | 131076 | 288942 | 336855 |
+
+Scheduler corrected: http10/wss10 имеют одинаковые planned/actual ticks; все четыре
+варианта имеют один и тот же feature as-of grid. Content coalescing сохранил raw, но
+подавил 94 unchanged hints в steady и 104 в stress. Late messages не заменяют HTTP
+anchors; неизвестный write по другому dependency не скрывается unrelated hint.
+Каждое решение adaptive «читать/пропустить» пересчитано из того же arrival-order журнала.
+
+Adaptive экономит 31,94% HTTP против HTTP5 при снижении usable на4,17 п.п., но payload
+на28,49% выше HTTP5 и в2,57 раза выше HTTP10. Primary criterion **false**. Больше observed
+changes не доказывает лучшую полноту: даже matched10s пара отличается9/10 из-за порядка
+serial reads и разных banks. Exact same-bank equality и statistical superiority не заявлены.
+Общий WSS канал физически shared, но standalone budget каждого WSS arm консервативно
+включает весь его payload, без искусственного деления overhead между экспериментами.
+
+В symmetric stress: HTTP counts69/36/36/47; usable63/60/60/61 из72 common rows.
+Gap введён всем arm на tick12; tick13 — новые recovery reads, затем исходная сетка.
+Это отдельный stress, а не часть primary steady score. 1274 WSS messages в v2b,
+ни одна notification не стала pool observation. Полнота intermediate history false.
+
+372 tests, lint/format/mypy, smoke/build, точное dev/wheel воспроизведение обоих segments
+и public controls. Failed v2 воспроизведён своим pinned wheel. Верификатор дополнительно
+проверяет raw receipt times и matching cadence. Bounds/receipts/config/CPMM/targets не ослаблены.
+CPU/RSS общепроцессные, WSS source-to-receipt latency неизвестна; фактический bill не измерен.
+
+## Архитектурное решение и переход к D41
+
+WSS **опционален, выключен по умолчанию**, не обязательная зависимость prospective
+collection или торговой модели. Его raw/diagnostic adapter сохраняется для конкретных
+гипотез change discovery, но очередной цикл transport tuning не является приоритетом.
+Full transactional stream потребовал бы отдельной семантики; эта работа не начата.
+
+Для следующих bounded prospective segments выбран **Alchemy HTTP, persistent TLS,
+5 s**, с неизменённым existing collector/profile2. Это явное решение по bounded
+источнику, не production SLA и не фиксация частоты будущей торговой системы. Public
+D39 сохраняется как reference/control; hidden fallback нет. Alchemy HTTP прошёл
+строгие checkpoints v1/v2, а HTTP5 дал больше доступных snapshots на общей сетке.
+
+Следующий логичный этап D41: [план](../configs/qualified-http-corpus-v1.json),
+2×30 rounds×5 s, максимум180 HTTP, новая invocation/TLS на сегмент. Первая ошибка
+закрывает кампанию без resume/retry. Только новая prospective availability, два
+immutable segments; затем existing execution-conditioned targets, quality и full-grid
+nonoverlap support. Seed null; execution model остаётся conditional snapshot reset,
+unknown costs/inclusion/own impact; net_pnl null. Обучение/RL/paper/live не разрешены.
+
+Воспроизведение v2b:
+
+```sh
+.venv/bin/python tools/alchemy_pilot.py verify work/alchemy-pilot-v2b-01 --segment 0
+.venv/bin/python tools/alchemy_pilot.py verify work/alchemy-pilot-v2b-01 --segment 1
+.venv/bin/python tools/alchemy_v2_report.py work/alchemy-pilot-v2b-01
+# Начальная неудача требует собственного source-pinned пакета:
+PYTHONPATH=work/alchemy-v2-initial-wheel .venv/bin/python tools/alchemy_pilot.py verify work/alchemy-pilot-v2-01 --segment 0
+```
