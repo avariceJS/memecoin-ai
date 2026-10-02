@@ -125,3 +125,45 @@ Derived verifier сначала полностью воспроизводит и
 Для самостоятельного old-corpus CLI это `verify-forward-corpus --compatible-version`;
 без флага требуется совпадение source. Сбор новых corpora фиксирует target_schema=2.
 Тот же sample использован для инженерной доработки контракта и не является final holdout.
+
+
+## Реальный bounded результат — 2026-10-02
+
+Исходный plan/source: `a666c5b`, session `work/causal-forward-session-01`; schema 2
+labels/source: `7cc4f91`, `work/causal-forward-targets-02`. Выбор cohort — все три пула
+из прежнего frozen Token-2022 pilot, без отбора по текущей активности. Seed не нужен,
+торговой execution model нет, temporal split записан абсолютным cutoff до запросов.
+
+Из 36 запланированных вызовов отправлены **32**, успешно **31** (112 971 response bytes).
+На index 31, round 10: `getMultipleAccounts`, 7 accounts пула `4GWh…QYfm`,
+finalized/base64/minContextSlot=452398741 — transport **timeout 10.006 s**;
+HTTP/RPC code отсутствуют, глубокая причина неизвестна. Полные безопасные params и
+ошибка сохранены в evidence. Серия остановлена без retries; четыре вызова не выполнены.
+Успешные response times: min 244.738 / median 318.753 / max 6 783.030 ms, отдельно
+неуспешный timeout. Это HTTP read observations, не inclusion/execution benchmark.
+
+Сохранены 11 frames / **33 features**, **29 usable**. Masks: 3 history_warmup, 1 timeout.
+Последний frame сохраняет предыдущий ещё допустимый по возрасту snapshot третьего pool,
+не изображая его как новый successful request. Feature-time span **109.038 s**;
+между polls trade flow неизвестен. По трём pools 3/7/2 различных observed prices в
+usable rows; неизменная snapshot price не доказывает отсутствие сделок.
+
+Текущие **schema 2** targets: **8 calibration / 4 engineering_evaluation / 7 purged /
+14 censored**. Censor reasons: 4 invalid start, 9 right-censored, 1 late endpoint.
+Actual target horizon для доступных labels 20.129–32.554 s; nominal horizon 20 s,
+никакой интерполяции к точной секунде нет. Старые schema 1 counts (9/8/6/10) сохранены
+только как история. Исходные raw/frames/plan не изменены, новых RPC для исправления нет.
+Target available time — maturity исходных наблюдений по feature publication, не
+измерение CPU времени более позднего offline label builder.
+
+Оба artifacts воспроизведены offline и из соответствующего установленного wheel;
+compatibility replay полностью повторил старые values из raw. Manifest/hash и свежесть
+каждого endpoint/label maturity проверены. **280 tests**, lint/format/strict typing,
+smoke и sdist/wheel прошли. CLI verifier оригинального corpus возвращает 1 из-за
+`complete=false`, хотя integrity/reproduction проходят; derived verifier возвращает 0.
+
+Результаты и provenance: [causal-forward-2026-10-02.json](evidence/causal-forward-2026-10-02.json).
+Короткий corpus доказывает инженерный путь данных и обработку реального отказа,
+но не пригодность ML, market coverage или execution. Следующий этап — более длинный
+prospective сбор возобновляемыми bounded сегментами с сохранением gaps/per-pool coverage,
+затем execution-conditioned targets. Не запускать обучение ради формального результата.

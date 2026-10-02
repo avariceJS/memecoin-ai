@@ -125,3 +125,13 @@ ordered economic state rows → conditional quote grid. В bundle остаютс
 receipts/hashes и offline verifier. Нет преобразования реального CPMM в synthetic
 reference Pool или снятия replay gate. Historical availability неизвестна; этот слой
 служит data QA и условной симуляции, causal observations/features — следующий слой.
+
+
+## Реализованный causal forward слой (D35)
+
+`causal.py`: validated same-bank snapshots → availability-ordered CausalBook →
+nullable features/masks → отдельно matured/censored/purged diagnostic targets.
+`forward.py`: bounded fixed-cohort acquisition, immutable raw/online frames, offline
+reproduction и versioned target refinement. Исторический economic tape не подаётся
+в этот слой как наблюдение с выдуманной доступностью. Snapshot features не выдают
+trade flow или executable return; synthetic replay gate остаётся.

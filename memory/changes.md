@@ -267,3 +267,24 @@ quarantine, явная unknown historical availability. Добавлены condi
 Memory Bank, README и docs/economic-dataset.md обновлены; provenance/results:
 docs/evidence/economic-corpus-2026-10-02.json. Дальше causal observation/features,
 gap masks и bounded forward data. ML/RL/paper/live не начаты; edge не установлен.
+
+
+## 2026-10-02 Causal observations/features и реальный bounded forward corpus
+
+По утверждённому D35 реализованы общая live/offline CausalBook, 12 признаков, freshness/
+gap masks, измеренные receipt/decode/publication timestamps и temporal guards. Collector
+с immutable plan/raw/code/error records ограничен бюджетом и останавливается на первом
+сбое. Targets имеют maturity/purging/censoring; training не запускался.
+
+Реальный Helius run: 31 success / 32 requests из max 36, 112 971 bytes. На round 10
+transport timeout 10.006 s, HTTP/RPC code отсутствуют; retries нет. 33 feature rows,
+29 usable, 3 warmup/1 timeout masks. Корпус сохранён как incomplete, не замаскирован pass.
+
+QA выявил отличие публикации feature frame от нового snapshot endpoint. Schema 2
+требует fresh post-horizon input и новый slot; old schema 1/raw/frames не переписаны.
+Отдельный derived artifact: 8 calibration, 4 engineering evaluation, 7 purged, 14 censored.
+Проверены prefix invariance, late input, maturity, same-bank conflict, gap recovery,
+late/repeated snapshots, actual source hashes и offline/wheel reproduction. 280 tests,
+lint/format/typing, smoke/build прошли. Memory Bank, CLI, docs/causal-forward.md и
+соответствующий evidence обновлены. Далее — более длинные prospective segments,
+затем execution-conditioned targets; no ML/RL/paper/live/edge claims.

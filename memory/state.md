@@ -2,14 +2,16 @@
 
 Обновлено: **2026-10-02**, Europe/Moscow.
 
-**Этап второго RPC закрыт по прямому поручению пользователя (D33).** Накопленная
-сверка принята как достаточная для исходной цели; ограничения Helius сохраняются,
-новых запросов ради полной historical trace-сверки не делать. Дальнейший план D32
-по оставшимся 10 блокам отменён. Следующий этап D34 — воспроизводимый CPMM economic
-dataset для data QA и условной симуляции, затем causal observation pipeline.
-Первый corpus построен и воспроизведён: 16 интервалов, 5 pools, 1 889 tx,
-1 921 states; 11 430 conditional quotes и 96 unavailable. 264 tests прошли.
-Текущий результат D34 и следующий этап — в последнем разделе этого документа.
+**Текущий результат D35:** реализованы causal snapshot observations/features и bounded
+forward corpus. 31 успешный Helius snapshot из 32 отправленных / 36 planned;
+один timeout 10.006 s остановил серию без retry. 33 feature rows / 29 usable;
+строгие targets schema 2: 8 calibration, 4 engineering evaluation, 7 purged, 14 censored.
+280 tests; offline и wheel reproduction прошли. Обучение не начиналось.
+
+Этап второго RPC закрыт D33, economic dataset D34 построен. Дальнейший приоритет —
+более длинный prospective corpus возобновляемыми bounded сегментами с сохранением
+пропусков, затем execution-conditioned targets. Неполнота Helius whole-chain traces
+не возвращается в качестве отдельного проекта. Подробности D35 — в последнем разделе.
 
 ## Стадия и авторизация
 
@@ -36,7 +38,7 @@ Memory Bank принят как source of truth. Пользователь раз
 
 ## Что проверено
 
-Локально на Python 3.13: 264 автоматических теста, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 280 автоматических тестов, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
@@ -46,7 +48,7 @@ ReferenceReplay намеренно synthetic-only, one-quote, one-pool-per-base 
 
 ## Открытые решения
 
-Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D34: [decisions](decisions.md).
+Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D35: [decisions](decisions.md).
 
 ## Результат bounded data-аудита
 
@@ -310,7 +312,7 @@ public RPC; текущий snapshot не восстанавливает исто
 independence и edge всё ещё не квалифицированы; ML/RL/trading не начинались.
 
 
-## Текущий этап D34: economic dataset построен
+## Результат D34: economic dataset построен
 
 Вместо дальнейшей RPC-сверки реализованы offline `export-economic-dataset` и
 `verify-economic-dataset`: SQLite snapshot + source/config/hashes + states/quotes/report.
@@ -343,3 +345,42 @@ births/deaths, разнообразие режимов или calibrated inclusi
 доступности и gap masks, затем bounded forward corpus с настоящими receipts и
 разделением calibration/evaluation. Не интерполировать будущие snapshots/параметры.
 Provider stage закрыт D33; оставшиеся 10 blocks не являются текущим заданием.
+
+
+## Текущий результат D35: causal features и forward corpus
+
+CausalBook обрабатывает только реальные validated finalized snapshots семи счетов
+одного bank с Clock. Receipt/decode/as-of/feature-publication timestamps разделены;
+future append/mutation не меняет прошлые features. 12 признаков, nullable values и
+явные masks; duplicate bank не обновляет freshness, gap/regression/conflict/invalid
+history требует нового прогрева. Старый economic tape не объявляется causal dataset.
+
+Реальный frozen plan: все три прежних Token-2022 pool, 12 rounds × 10 s, max 36 calls,
+10 s timeout / 1 MB, spacing 1 s, max ages 25/45 s, max gap 25 s. Выполнены 32 вызова,
+31 HTTP success / 112 971 bytes; index 31 к pool 4GWh…QYfm получил transport timeout
+10.006 s, HTTP/RPC code неизвестны. Серия остановлена, retries нет, оставшиеся четыре
+calls не выполнялись. Успешные response median 318.753 ms — не execution latency.
+
+11 frames / 33 rows, 29 usable, 3 warmup + 1 timeout mask; ~109.038 s span.
+В ходе QA усилен endpoint contract: fresh targets schema 2 требуют snapshot available
+не раньше horizon end и slot новее start. Это исключает превращение carry-forward
+feature frame в новое будущее наблюдение. Результат: **8 calibration / 4 engineering
+ evaluation / 7 purged / 14 censored**. Horizon 20 s, tolerance 15 s; actual endpoints
+20.129–32.554 s, без интерполяции. Schema 1 artifact сохранён неизменным как история.
+
+Пути: work/causal-forward-session-01/corpus и work/causal-forward-targets-02.
+Оба artifacts воспроизведены offline и из wheel; все raw/source/manifest checks прошли.
+**280 tests**, lint/format/typing, smoke/build. Подробный контракт:
+[causal forward](../docs/causal-forward.md), [evidence](../docs/evidence/causal-forward-2026-10-02.json).
+
+Original collector code a666c5b; target-v2 code 7cc4f91. Для оригинала на новой версии
+`verify-forward-corpus --compatible-version` разрешает отличие source только при
+точном воспроизведении всех values; ожидаемый exit 1 означает incomplete collection.
+`verify-forward-targets PARENT DERIVED` пересчитывает оба слоя. Secrets не сохранялись.
+
+**Граница:** temporal contract проверен, но training_ready/market_dataset/execution/edge
+false. Fixed cohort, короткая история, unknown intervening trades, неисполняемые price
+labels и незавершённый сбор не заменяют квалифицированную выборку. Evaluation partition
+использовался для инженерной проверки контракта, не final holdout. Следующий этап —
+возобновляемый segmented prospective collector и более длинное покрытие с честными
+пропусками; затем execution-conditioned labels до ML. RL/paper/live не начинались.

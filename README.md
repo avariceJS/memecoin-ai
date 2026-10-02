@@ -137,3 +137,14 @@ comparison schema 3; schema 1/2 сохранены для старых архи�
 `verify-economic-dataset NEW_DIRECTORY` полностью воспроизводит их из включённого raw
 journal. Непроверенные интервалы карантинируются; historical availability остаётся
 unknown, synthetic replay gate сохранён. Контракт: [economic dataset](docs/economic-dataset.md).
+
+
+## Causal observations/features и bounded forward corpus
+
+`collect-forward-corpus --checkpoint OLD_CLOCK_CAPTURE --source-alias helius-forward
+--out NEW_DIRECTORY` сохраняет новые finalized snapshots, measured availability,
+online features/masks и diagnostic targets. Для нескольких pools повторить `--checkpoint`.
+`verify-forward-corpus` пересчитывает raw → features/targets offline. Ошибки/пропуски
+сохраняются, серия останавливается без скрытых retries. `refine-forward-targets` и
+`verify-forward-targets` создают/проверяют отдельные fresh-endpoint labels для старых
+corpora. Training gates остаются false. [Контракт и реальный результат](docs/causal-forward.md).

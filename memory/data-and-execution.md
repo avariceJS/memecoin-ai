@@ -242,3 +242,32 @@ hypothetical after-state forward leg; own impact не переносится н�
 gap masks и forward receipts для подготовки пригодного temporal research sample.
 Точная схема/ограничения: docs/economic-dataset.md; measured build evidence:
 docs/evidence/economic-corpus-2026-10-02.json.
+
+
+## D35: наблюдённая доступность и prospective corpus
+
+Snapshot observations имеют фактические received/decode-available timestamps;
+feature rows — as_of и feature_available, earliest decision не раньше publication.
+Требуется Clock того же finalized bank. Старый state tape с unknown availability не
+допускается через этот интерфейс. 12 простых features computed одинаковой CausalBook
+в runtime/offline; нет fitted scaler, будущих corrections или blanket carry через gaps.
+Duplicate bank не обновляет age; missing, stale, warmup, clock-ahead, timeout и
+slot conflicts остаются masks, а не числовыми нулями. Между polls trade flow unknown.
+
+Targets schema 2: observed log reserve-price change, не executable return. Endpoint
+snapshot available >= decision+horizon, slot новее start, с bounded tolerance;
+per-pool coverage, censoring и actual label maturity обязательны. Calibration labels
+с maturity на/после frozen cutoff purged. Feature carry-forward в пределах freshness
+может быть допустим, но не является fresh endpoint target. Original schema 1 сохранена
+как история; новый artifact не меняет raw/frames и ссылается на parent manifest.
+
+Первый сбор: 31 успешный snapshot, 1 transport timeout, 4 planned calls не отправлены;
+no retries. 33 feature rows / 29 usable, v2 partitions 8/4/7/14 (calibration/evaluation/
+purged/censored). ~109 s и три pools — инженерный sample, не ML-ready corpus.
+Actual endpoint horizons 20.129–32.554 s, не точные 20 s. Оба artifact offline/wheel
+reproduced, 280 tests. Контракт, flags и safe error log:
+docs/causal-forward.md; docs/evidence/causal-forward-2026-10-02.json.
+
+Далее — более длинный prospective сбор возобновляемыми bounded сегментами, не заполнение
+пропусков задним числом. Execution-conditioned targets требуют следующей отдельной
+проверки costs/admission/delay; synthetic-only replay и запрет ML/RL/paper/live сохранены.

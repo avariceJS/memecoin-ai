@@ -95,3 +95,13 @@ R4/ML остаётся за gates доступности, покрытия, си
 Первый результат реализован и воспроизведён на четырёх frozen journals:
 16 intervals / 1 921 states. Контракт: docs/economic-dataset.md. Следующий результат —
 causal observation/features и gap masks перед bounded forward sample.
+
+
+## D35 выполнен как bounded инженерный этап
+
+Причинный observation/feature contract и gap masks реализованы и проверены на реальном
+сборе, остановленном на timeout: 31 snapshot, 33 features, corrected target endpoint
+semantics. Сам sample слишком короткий и неполный для R4. Следующий практический этап —
+возобновляемый collector с более длинными bounded prospective segments и явными gaps;
+затем executable/size-conditioned label contract с execution uncertainty. Текущие
+observed-price targets служат temporal QA, не обоснованию входа в ML.

@@ -363,7 +363,7 @@ Evidence: docs/evidence/economic-corpus-2026-10-02.json. Source gates не по�
 
 ### D35: наблюдённые causal snapshots и bounded forward corpus
 
-**Статус:** реализован контракт; bounded сбор запускается на зафиксированной версии.
+**Статус:** реализован и проверен реальным bounded сбором 2026-10-02.
 Пользователь утвердил следующий этап 2026-10-02. Выбор: семь счетов одного finalized
 bank с Clock, фактические receipt/decode/feature-publication timestamps и общая
 live/offline CausalBook. Historical state tape не превращается в past observations.
@@ -394,3 +394,10 @@ carry-forward ещё свежего старого snapshot; schema 2 target т�
 Compatibility verification требует точного воспроизведения всех старых values из raw,
 несмотря на отличие source version. Это инженерная корректировка, не настройка модели
 по holdout. Все новые collection plans фиксируют target_schema=2.
+
+
+Результат D35: 31 successful snapshot / 32 requests, остановка на timeout без retry;
+33 features / 29 usable, schema 2 targets 8 calibration / 4 engineering evaluation /
+7 purged / 14 censored. 280 tests, offline/wheel reproduction. Data/execution/ML gates
+не повышены. Evidence: docs/evidence/causal-forward-2026-10-02.json. Следующий приоритет —
+длиннее prospective coverage через возобновляемые сегменты, затем execution targets.
