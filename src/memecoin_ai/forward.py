@@ -139,6 +139,7 @@ def collect_forward(
         max_chain_age_ns=45 * 10**9,
         max_gap_ns=25 * 10**9,
         horizon_ns=20 * 10**9,
+        target_schema=2,
         target_tolerance_ns=15 * 10**9,
         calibration_end_ns=start + (rounds // 2) * interval_seconds * 10**9,
         seed=None,
@@ -205,7 +206,10 @@ def collect_forward(
                     if isinstance(exc, TransportSourceError)
                     else "http_error"
                     if isinstance(exc, HTTPSourceError)
-                    else row.get("category", "checkpoint_validation"),
+                    else row.get(
+                        "category",
+                        "source_error" if isinstance(exc, SourceError) else "checkpoint_validation",
+                    ),
                 )
                 if isinstance(exc, HTTPSourceError):
                     row["http_status"] = exc.status
@@ -245,6 +249,7 @@ def collect_forward(
         horizon_ns=plan["horizon_ns"],
         tolerance_ns=plan["target_tolerance_ns"],
         calibration_end_ns=plan["calibration_end_ns"],
+        target_schema=plan.get("target_schema", 1),
     )
     for name, rows in (("features", features), ("targets", targets)):
         (output / (name + ".jsonl")).write_text("".join(canonical(r) + "\n" for r in rows))
@@ -259,7 +264,7 @@ def collect_forward(
     return report
 
 
-def verify_forward(output: Path) -> dict[str, Any]:
+def verify_forward(output: Path, *, reproduce_compatible_version: bool = False) -> dict[str, Any]:
     manifest = json.loads((output / "manifest.json").read_text())
     paths = {
         str(p.relative_to(output))
@@ -271,7 +276,10 @@ def verify_forward(output: Path) -> dict[str, Any]:
     for name, sha in manifest["files"].items():
         if digest((output / name).read_bytes()) != sha:
             raise ValidationError("forward artifact checksum mismatch")
-    if json.loads((output / "source.json").read_text()) != _source():
+    if (
+        not reproduce_compatible_version
+        and json.loads((output / "source.json").read_text()) != _source()
+    ):
         raise ValidationError("forward transformation version differs")
     plan = json.loads((output / "plan.json").read_text())
     if plan.get("kind") != "causal_forward_corpus" or plan.get("schema_version") != 1:
@@ -336,10 +344,108 @@ def verify_forward(output: Path) -> dict[str, Any]:
         horizon_ns=plan["horizon_ns"],
         tolerance_ns=plan["target_tolerance_ns"],
         calibration_end_ns=plan["calibration_end_ns"],
+        target_schema=plan.get("target_schema", 1),
     )
     if targets != _read(output / "targets.jsonl"):
         raise ValidationError("forward target reproduction differs")
     report = _report(plan, attempts, features, targets)
     if report != json.loads((output / "report.json").read_text()):
         raise ValidationError("forward report reproduction differs")
+    return report
+
+
+def _fresh_target_result(parent: Path) -> dict[str, Any]:
+    # Explicit compatibility replay: every legacy feature/target/report must still match
+    # raw evidence. Source-version differences do not waive any value comparison.
+    prior = verify_forward(parent, reproduce_compatible_version=True)
+    plan = json.loads((parent / "plan.json").read_text())
+    features = _read(parent / "features.jsonl")
+    targets = observation_targets(
+        features,
+        horizon_ns=plan["horizon_ns"],
+        tolerance_ns=plan["target_tolerance_ns"],
+        calibration_end_ns=plan["calibration_end_ns"],
+        target_schema=2,
+    )
+    return dict(
+        targets=targets,
+        report=dict(
+            schema_version=2,
+            kind="fresh_snapshot_targets",
+            parent_manifest_sha256=digest((parent / "manifest.json").read_bytes()),
+            parent_reproduced_without_value_changes=True,
+            parent_collection_complete=prior["complete"],
+            feature_rows=len(features),
+            usable_feature_rows=prior["usable_feature_rows"],
+            target_partitions=dict(Counter(t["partition"] for t in targets)),
+            censor_reasons=dict(Counter(t["censor_reason"] for t in targets if t["censor_reason"])),
+            original_target_partitions=prior["target_partitions"],
+            training_ready=False,
+            execution_qualified=False,
+            market_dataset_qualified=False,
+        ),
+    )
+
+
+def refine_forward_targets(parent: Path, output: Path) -> dict[str, Any]:
+    output.mkdir(parents=True, exist_ok=False)
+    (output / "spec.json").write_text(
+        canonical(
+            dict(
+                schema_version=2,
+                kind="fresh_snapshot_targets",
+                parent_manifest_sha256=digest((parent / "manifest.json").read_bytes()),
+                rule="endpoint snapshot available at/after horizon end and slot newer than start",
+                network_requests=0,
+            )
+        )
+        + "\n"
+    )
+    (output / "source.json").write_text(canonical(_source()) + "\n")
+    result = _fresh_target_result(parent)
+    (output / "targets.jsonl").write_text("".join(canonical(t) + "\n" for t in result["targets"]))
+    (output / "report.json").write_text(canonical(result["report"]) + "\n")
+    (output / "manifest.json").write_text(
+        canonical(
+            dict(
+                schema_version=2,
+                files={
+                    name: digest((output / name).read_bytes())
+                    for name in ("spec.json", "source.json", "targets.jsonl", "report.json")
+                },
+            )
+        )
+        + "\n"
+    )
+    report: dict[str, Any] = result["report"]
+    return report
+
+
+def verify_forward_targets(parent: Path, output: Path) -> dict[str, Any]:
+    manifest = json.loads((output / "manifest.json").read_text())
+    if manifest.get("schema_version") != 2 or set(manifest["files"]) != {
+        "spec.json",
+        "source.json",
+        "targets.jsonl",
+        "report.json",
+    }:
+        raise ValidationError("invalid fresh target manifest")
+    for name, sha in manifest["files"].items():
+        if digest((output / name).read_bytes()) != sha:
+            raise ValidationError("fresh target checksum mismatch")
+    spec = json.loads((output / "spec.json").read_text())
+    if (
+        spec.get("schema_version") != 2
+        or spec.get("kind") != "fresh_snapshot_targets"
+        or spec["parent_manifest_sha256"] != digest((parent / "manifest.json").read_bytes())
+        or json.loads((output / "source.json").read_text()) != _source()
+    ):
+        raise ValidationError("fresh target provenance/version mismatch")
+    result = _fresh_target_result(parent)
+    if (
+        _read(output / "targets.jsonl") != result["targets"]
+        or json.loads((output / "report.json").read_text()) != result["report"]
+    ):
+        raise ValidationError("fresh target reproduction mismatch")
+    report: dict[str, Any] = result["report"]
     return report

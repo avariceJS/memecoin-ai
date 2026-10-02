@@ -121,7 +121,7 @@ def feature_sequence():
 def test_labels_maturity_boundary_purge_and_right_censoring():
     rows = feature_sequence()
     labels = observation_targets(
-        rows, horizon_ns=20 * NS, tolerance_ns=NS, calibration_end_ns=40 * NS
+        rows, horizon_ns=20 * NS - 1, tolerance_ns=NS, calibration_end_ns=40 * NS
     )
     assert labels[0]["censor_reason"] == "invalid_start_observation"
     assert labels[1]["partition"] == "purged"
@@ -236,3 +236,30 @@ def test_unusable_snapshot_cannot_seed_return_history_after_recovery():
     b.ingest(observation(20, 101))
     row = b.features(21 * NS)[0]
     assert row["reasons"] == ["history_warmup"] and row["segment"] == 1
+
+
+def test_fresh_frame_with_old_snapshot_is_not_a_mature_target():
+    rows = feature_sequence()
+    for row in rows[2:]:
+        row.update(input_available_ns=rows[1]["input_available_ns"], slot=rows[1]["slot"])
+    legacy = observation_targets(
+        rows, horizon_ns=20 * NS, tolerance_ns=15 * NS, calibration_end_ns=40 * NS, target_schema=1
+    )
+    strict = observation_targets(
+        rows, horizon_ns=20 * NS, tolerance_ns=15 * NS, calibration_end_ns=40 * NS, target_schema=2
+    )
+    assert legacy[1]["value"] is not None
+    assert strict[1]["value"] is None and strict[1]["censor_reason"] == "right_censored"
+
+
+def test_fresh_targets_are_new_artifact_with_parent_provenance(tmp_path):
+    from memecoin_ai.forward import refine_forward_targets, verify_forward_targets
+
+    parent, derived = tmp_path / "parent", tmp_path / "derived"
+    run_forward(parent)
+    before = (parent / "manifest.json").read_bytes()
+    report = refine_forward_targets(parent, derived)
+    assert verify_forward_targets(parent, derived) == report
+    assert (parent / "manifest.json").read_bytes() == before
+    with pytest.raises(FileExistsError):
+        refine_forward_targets(parent, derived)

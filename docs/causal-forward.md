@@ -93,3 +93,35 @@ market_dataset_qualified, execution_qualified и edge_established остаютс
 неполное покрытие режимов/births/deaths, некалиброванные inclusion/costs. Next gate —
 подходящий объём prospective data и наблюдаемые execution/label assumptions, а не
 принудительное обучение на коротком engineering sample.
+
+## Уточнение targets schema 2 по результатам первого сбора
+
+Первый bounded corpus собран кодом `a666c5b`, с targets schema 1 (отсутствующий
+маркер в его плане). В неполном последнем раунде frame может законно показывать
+последнее известное состояние ещё не stale пула, который не успели опросить.
+Для **features** это допустимый causal carry-forward с возрастом. Для **target**
+такой frame не считается новым конечным наблюдением.
+
+Поэтому новая default schema 2 требует `future.input_available_ns >= horizon_end_ns`
+и `future.slot > start.slot`. Coverage end определяется отдельно по последнему
+полученному snapshot каждого pool, а не по общему времени последнего frame.
+Publication/maturity и временная граница остаются обязательными. Effective endpoint
+может быть позднее nominal horizon в пределах tolerance; оба времени сохраняются.
+
+Исходный corpus не переписывается; его schema 1 воспроизводится только как история.
+Исправленные targets создаются отдельно, с SHA родительского manifest и новой версией
+source, без RPC и без создания преобразованных captures:
+
+```sh
+mcai refine-forward-targets work/causal-forward-session-01/corpus \
+  --out work/causal-forward-targets-02
+mcai verify-forward-targets work/causal-forward-session-01/corpus \
+  work/causal-forward-targets-02
+```
+
+Derived verifier сначала полностью воспроизводит исходные features, старые targets
+и report из raw. Явный compatibility replay допускает только отличие версии source,
+при **точном совпадении всех archived values**; проверки данных не отключаются.
+Для самостоятельного old-corpus CLI это `verify-forward-corpus --compatible-version`;
+без флага требуется совпадение source. Сбор новых corpora фиксирует target_schema=2.
+Тот же sample использован для инженерной доработки контракта и не является final holdout.

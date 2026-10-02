@@ -385,3 +385,12 @@ stop on first error. Max ages 25/45 s, gap 25 s, horizon 20 s, target tolerance 
 calibration. ML/RL/paper/live и synthetic replay gate не меняются. Пересмотр — реальные
 проблемы доступности/покрытия в corpus, без ослабления temporal guards. Контракт:
 docs/causal-forward.md; результат — memory/state.md и отдельный evidence report.
+
+Уточнение D35 после первого bounded сбора: feature frame может содержать допустимый
+carry-forward ещё свежего старого snapshot; schema 2 target требует **новый** snapshot
+с input_available_ns >= horizon end и slot > start slot. Per-pool coverage и censoring
+не расширяются общим временем frame. Первые schema 1 targets остаются историческими;
+исправленные labels — отдельный производный artifact с parent hash, без новых RPC.
+Compatibility verification требует точного воспроизведения всех старых values из raw,
+несмотря на отличие source version. Это инженерная корректировка, не настройка модели
+по holdout. Все новые collection plans фиксируют target_schema=2.

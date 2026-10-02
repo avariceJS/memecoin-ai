@@ -230,12 +230,19 @@ def validate_feature_row(row: dict[str, Any]) -> None:
 
 
 def observation_targets(
-    rows: list[dict[str, Any]], *, horizon_ns: int, tolerance_ns: int, calibration_end_ns: int
+    rows: list[dict[str, Any]],
+    *,
+    horizon_ns: int,
+    tolerance_ns: int,
+    calibration_end_ns: int,
+    target_schema: int = 2,
 ) -> list[dict[str, Any]]:
     """Future observed log-price change, not an executable return or a strategy target."""
     integer(horizon_ns, "target horizon", 1)
     integer(tolerance_ns, "target tolerance")
     integer(calibration_end_ns, "calibration cutoff")
+    if type(target_schema) is not int or target_schema not in (1, 2):
+        raise ValidationError("unsupported observation target schema")
     by_pool: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
         validate_feature_row(row)
@@ -247,7 +254,11 @@ def observation_targets(
         history.append(row)
     targets = []
     for history in by_pool.values():
-        coverage_end = history[-1]["decision_ns"]
+        coverage_end = (
+            history[-1]["decision_ns"]
+            if target_schema == 1
+            else max(r["input_available_ns"] or 0 for r in history)
+        )
         for i, start in enumerate(history):
             end = start["decision_ns"] + horizon_ns
             reason, value, selected = None, None, None
@@ -261,6 +272,10 @@ def observation_targets(
                         reason = "observation_gap"
                         break
                     if future["decision_ns"] >= end:
+                        if target_schema == 2 and (
+                            future["input_available_ns"] < end or future["slot"] <= start["slot"]
+                        ):
+                            continue  # Publication of a frame is not receipt of a new snapshot.
                         if future["decision_ns"] - end > tolerance_ns:
                             reason = "target_late"
                         else:
@@ -270,6 +285,8 @@ def observation_targets(
                                 - start["values"]["log_price_1_per_0"]
                             )
                         break
+                if selected is None and reason is None:
+                    reason = "no_fresh_target_snapshot"
             partition = (
                 "calibration"
                 if start["decision_ns"] < calibration_end_ns
@@ -290,11 +307,17 @@ def observation_targets(
                     target_observed_ns=selected["decision_ns"] if selected else None,
                     target_available_ns=selected["feature_available_ns"]
                     if selected
-                    else coverage_end,
+                    else history[-1]["decision_ns"],
                     value=value,
                     censor_reason=reason,
                     partition=partition,
                     definition="future_observed_log_reserve_price_change; not executable return",
                 )
             )
+            if target_schema == 2:
+                targets[-1].update(
+                    target_schema=2,
+                    target_input_available_ns=selected["input_available_ns"] if selected else None,
+                    target_slot=selected["slot"] if selected else None,
+                )
     return targets

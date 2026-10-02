@@ -13,7 +13,12 @@ from memecoin_ai.datasets import export_economic_dataset, verify_economic_datase
 from memecoin_ai.domain import Event, ValidationError, canonical
 from memecoin_ai.experiments import RunRecorder, summarize, verify_run
 from memecoin_ai.fixtures import ScriptedFixturePolicy, synthetic_events
-from memecoin_ai.forward import collect_forward, verify_forward
+from memecoin_ai.forward import (
+    collect_forward,
+    refine_forward_targets,
+    verify_forward,
+    verify_forward_targets,
+)
 from memecoin_ai.protocol import write_protocol_audit
 from memecoin_ai.provider_audit import (
     audit_provider_range,
@@ -160,6 +165,21 @@ def main() -> int:
         "verify-forward-corpus", help="Reproduce online causal features and targets offline"
     )
     verify_forward_command.add_argument("path", type=Path)
+    verify_forward_command.add_argument(
+        "--compatible-version",
+        action="store_true",
+        help="Permit code-version change only when all archived values reproduce exactly",
+    )
+    refined = commands.add_parser(
+        "refine-forward-targets", help="Derive fresh-snapshot targets offline"
+    )
+    refined.add_argument("parent", type=Path)
+    refined.add_argument("--out", type=Path, required=True)
+    refined_verify = commands.add_parser(
+        "verify-forward-targets", help="Reproduce refined targets and parent"
+    )
+    refined_verify.add_argument("parent", type=Path)
+    refined_verify.add_argument("path", type=Path)
     latency = commands.add_parser(
         "measure-rpc-latency", help="Bounded Clock sampling; response time is not execution latency"
     )
@@ -245,9 +265,18 @@ def main() -> int:
             print(canonical(report))
         elif args.command == "verify-provider-audit":
             print(canonical(verify_provider_bundle(args.path)))
+        elif args.command in ("refine-forward-targets", "verify-forward-targets"):
+            report = (
+                refine_forward_targets(args.parent, args.out)
+                if args.command == "refine-forward-targets"
+                else verify_forward_targets(args.parent, args.path)
+            )
+            print(canonical(report))
         elif args.command in ("collect-forward-corpus", "verify-forward-corpus"):
             if args.command == "verify-forward-corpus":
-                report = verify_forward(args.path)
+                report = verify_forward(
+                    args.path, reproduce_compatible_version=args.compatible_version
+                )
             else:
                 endpoint = os.environ.get(args.endpoint_env)
                 if not endpoint:
