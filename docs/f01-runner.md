@@ -115,3 +115,36 @@ Low-level fit/worker — внутренние компоненты; не аль�
 admission. Library не является OS sandbox против владельца данных/произвольного Python.
 При будущей интеграции запускать только через admission-aware runner. Torch/source/platform
 updates требуют нового conformance/code binding до research, не continuation после scores.
+
+## Фактический результат D47 — 2026-10-03
+
+Планf4aebb7, реализация225ab0f. [Итоговое evidence](evidence/f01-runner-2026-10-03.json).
+Два final smoke runs на этой версии,9candidates×3seeds×2epochs каждый: synthetic и
+existing D45 revision000000 development. Engineering partitions synthetic58/28/28,
+purged6; real78/17/30,purged49. Это отдельные smoke cuts, не F01 chronology и не
+reserved holdout. Полный grid выполнен, но победитель smoke не становится выбранной
+архитектурой проекта. Предварительный27fit development smoke сохранён отдельно.
+
+17 новых tests,445 base+2 optional skips,465 combined;ruff/strict mypy/base smoke/build
+успешны. Tests включают exact CPU resume, test-label independence, fixed refit,111slot
+orchestration при selected=linear, hash/receipt tamper, closed gate, paired weighting,
+constant/variable bootstrap, gaps/short runs, worker timeout и exposure-before-hash.
+Два final reports точно воспроизведены из installed wheel, включая package source
+identity, score/bootstrap и ledger audit. Paired uncertainty этих однодневных smoke
+естественно inconclusive; это не evidence качества/edge.
+
+Во время разработки были только static-analysis замечания: E501 и две mypy annotations;
+исходные logs сохранены в `work/runner-d47/logs`. Final fits без failures. Crash/timeout
+в tests — намеренные synthetic fault injections. D45 registry/D46 protocol bindings
+прошли offline verification; audit-hook parent/protocol verification зарегистрировал
+0 попыток открыть D43. Workers читали только pinned engineering copy. Git diff подтверждает
+отсутствие правок D43–D46 sources/spec; operational status collector не перепроверялся,
+поэтому pending counts в Memory остаются last published. Remote CI не проверен.
+
+**Решение:** принять D47 как engineering execution foundation. Настоящий F01 не проведён:
+research fits0,actual admissions0,holdout releases0,RPC0. Источник/targets/CPMM не менялись.
+До настоящего обучения по-прежнему нужны достаточный prospective corpus, sampling/source
+binding, qualified sealed-data adapter и содержательный readiness review. Следующий
+**D48** — отдельный будущий collection/source contract и development ingestion/readiness
+adapter для84day F01 design, без изменения D43 и без inherited holdout reveal. Не
+устанавливать collector и не считать его budget автоматически разрешённым этим отчётом.

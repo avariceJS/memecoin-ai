@@ -224,3 +224,9 @@ ledger, exact scoring/masks/weighting, paired block inference, budgets/resume, �
 admission/release receipts. Разрабатывать и проверять на fixtures, не снимая gate и не
 раскрывая D45 holdout. Новый prospective sampling binding потребуется отдельно; он не
 создаётся автоматически в D46 и не меняет действующий D43.
+
+
+Обновление D47: описанный выше gap runner/scoring/ledger реализован и проверен на
+engineering fixtures/data; historical D46 results остаются неизменны. Содержание F01-v1
+не изменялось. Sampling/source adapter и actual admission пока отсутствуют.
+[Текущее состояние D47](f01-runner.md).

@@ -3,6 +3,28 @@
 Обновлено: **2026-10-03**, Europe/Moscow.
 
 
+**D47 завершён: runner/ledger/scoring foundation frozen F01.**
+Отдельный `memecoin_runner` сохраняет D43–D46 sources/bindings. Полный fold/selection/
+refit graph, CPU trainer, immutable trial/exposure chain, provenance-bound validation,
+paired UTC-day scoring/bootstrap, отдельные pinned admission/release receipts.
+Реальные research fits0,admissions0,holdout releases0,RPC0. Research gate закрыт.
+
+Final engineering runs: synthetic27fits и D45 development27fits,2epochs,seeds7/19/41,
+9configs; это smoke, не качество модели. Partitions real78/17/30,purged49.17new tests,
+445base+2optional skips,465combined;ruff/mypy/smoke/build и exact installed-wheel
+score/bootstrap reproduction прошли. Evidence хранит ledger heads и artifact hashes.
+Предварительный27fit smoke и static-analysis failure logs сохранены. D43 paths не
+открывались audit-hook проверками; D43 runtime не менялся, operational status не обновлён.
+[Итог D47](../docs/f01-runner.md), [evidence](../docs/evidence/f01-runner-2026-10-03.json).
+
+**Следующий независимый D48:** future sampling/source binding и qualified sealed
+prospective development adapter/readiness dossier для F01. Не менять D43/D45 и не
+читать inherited holdout. Для actual admission всё ещё нужны достаточный corpus,
+linked substantive reviews и RAM/compute feasibility. Receipt hashes проверяют bytes,
+не заменяют review. Crash conservatively consumes reservations; raw holdout retry
+после consumption закрыт до incident review. Новый collection budget не следует
+автоматически из frozen84day design. D43/D45 counts ниже — last published inventory.
+
 **D46 завершён: frozen F01 research specification и readiness framework.**
 F01-v1 — conditional forecast skill только fixed3pool cohort, не net-edge/реальные fills.
 Frozen9candidates×3seeds,validation-only selection,≤114fits; отдельный будущий84day
@@ -18,7 +40,8 @@ synthetic design/reviews не выдаёт executable permission. D44 trainer sm
 D44/D45 source identities неизменны. Реальных research fits0,holdout releases0.
 [Итог D46](../docs/research-readiness.md), [evidence](../docs/evidence/research-readiness-2026-10-03.json).
 
-**Следующий независимый этап D47:** admitted fold-aware runner conformance, immutable
+**На момент завершения D46 следующим был D47 (теперь выполнен выше):** admitted
+fold-aware runner conformance, immutable
 trial/exposure ledger, frozen scoring/bootstrap, consumed budgets и resume, отдельные
 admission/release receipts. Только fixtures/smoke до readiness; no new collection или
 holdout reveal. Новому F01 corpus потребуется отдельный future sampling binding,

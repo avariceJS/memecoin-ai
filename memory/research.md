@@ -195,3 +195,14 @@ support/censoring/coverage плюс linked semantic/scope/dependence/runner/expo
 обоих comparators, block2/4 sensitivity, predefined CI width/calibration guards.
 F01 не проведён. Текущий assessment false, research launch и holdout release отсутствуют.
 [Спецификация](../docs/research-readiness.md), [machine config](../configs/research-f01-v1.json).
+
+
+## D47: execution foundation F01, без начала исследования
+
+Frozen F01-v1 не изменён. Реализованы runner всей selection/refit процедуры, provenance
+результатов, budgets/ledger, exact masks/scoring/bootstrap.54final engineering fits
+и27предварительных smoke не являются F01/E01 результатом. Архитектура остаётся
+экспериментальной; validation winner на малом corpus не принят как backbone.
+Research/admission/holdout release0. Следующий D48 — future source/sampling binding,
+sealed development adapter и readiness dossier; не auto collection/training.
+[Итог/evidence](../docs/f01-runner.md).

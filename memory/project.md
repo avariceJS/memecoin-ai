@@ -64,3 +64,9 @@ synthetic/имеющихся данных. Это не признание corpus
 Обучаемые heads пока conditional return-before-network-costs/statuses, не trading policy.
 Техническая готовность trainer/checkpoint/inference не снимает corpus/execution/evaluation
 gates. D43 не изменять/не переустанавливать. [Итог D44](../docs/ml-foundation.md).
+
+
+D47 подготовил admission-aware F01 runner/ledger/scoring на fixtures и engineering
+data. Это техническая готовность вычислительной процедуры, не достаточность corpus
+или разрешение исследования. Separate future sampling/ingestion qualification и
+reviewed admission остаются обязательными; [D47](../docs/f01-runner.md).

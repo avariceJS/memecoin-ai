@@ -704,3 +704,19 @@ Forecast semantic readiness отделён от economic qualification: conditio
 не требует притворяться калиброванной собственной торговлей, но не доказывает net-edge.
 Следующий D47 — runner/ledger/scoring conformance на fixtures, пока не выполнен.
 Документ docs/research-readiness.md, evidence docs/evidence/research-readiness-2026-10-03.json.
+
+
+### D47: frozen F01 execution foundation, admission остаётся отдельным
+
+2026-10-03. По поручению пользователя реализованы isolated runner, immutable trial/
+exposure ledger, CPU worker deadlines, frozen scoring/bootstrap и selection/refit.
+Принято для engineering use, не research admission. Не модифицировать D44 smoke trainer
+ради разрешения F01; новый пакет сохраняет прежние fingerprints. Unclosed attempts/
+sessions консервативно расходуют reservations, без free retry. Holdout consumption
+пишется до read/hash; crash требует incident review, не новой модели на раскрытом test.
+
+Планf4aebb7,code225ab0f;54final+27preliminary engineering fits, research fits0.17new/
+445base/465combined tests, exact wheel reproduction. Архитектура не выбрана по smoke.
+Следующий D48: отдельный future sampling/source/ingestion contract/readiness dossier;
+D43 и inherited holdout сохраняются. Документ/evidence: docs/f01-runner.md и
+docs/evidence/f01-runner-2026-10-03.json.

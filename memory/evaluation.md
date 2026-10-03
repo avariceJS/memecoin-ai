@@ -150,3 +150,18 @@ loss improvement,2% max half-width,2/4day blocks и calibration guards. Это �
 дизайна, не гарантия valid coverage/power. Короткие contiguous day runs/недостаток support
 →inconclusive без удаления неудобных дней. Никакого optional stopping/retuning по holdout.
 Runner/bootstrap/ledger ещё требуют реализации и conformance D47. [Точный protocol](../docs/research-readiness.md).
+
+
+## D47: scoring, provenance и exposure реализованы
+
+D46 future runner gap закрыт engineering implementation: train-only scaler/IQR,
+all-seed validation selection, selected+comparators-only outer test, fixed refit.
+Actions→decisions→pools→days, masks отдельных heads, CE floor+renormalization,
+paired ratio-of-means bootstrap2/4days/5000/seed4601,97.5% CI. Missing support/short
+runs→inconclusive. Exact offline reproduction из wheel;17conformance tests.
+Immutable trial/artifact binding и separate admission/release receipts; durable
+exposure BEFORE protected hashing. Crash расходует reservations; completed prediction
+report можно пересчитать без raw reopening. Full ledger rewriting владельцем не
+исключён: нужен external pinned head. Receipt byte checks не заменяют substantive
+review, sampling/coverage dossier и corpus feasibility. F01 не проведён; ни один
+research/economic gate не снят. [D47](../docs/f01-runner.md).

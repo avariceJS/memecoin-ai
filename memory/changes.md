@@ -484,3 +484,18 @@ availability. Далее cold-connection observability и новые кален�
   факты не заимствованы. E501 formatting failure исправлен, исходный log сохранён.
 - Следующий D47 — ledger/runner/scoring conformance на fixtures. Отчёт docs/research-readiness.md,
   evidence docs/evidence/research-readiness-2026-10-03.json. F01 исследование не проведено.
+
+
+## 2026-10-03 — D47: runner/immutable ledger/scoring conformance
+
+- Frozen planf4aebb7/code225ab0f: отдельный memecoin_runner, full selection/refit graph,
+  streaming tensors/CPU deterministic checkpoints, per-worker hard deadline.
+- Durable hash-chain trial/exposure ledger, separate byte-bound reviewed receipts,
+  validation prediction provenance, consumption before protected read.
+- Exact paired hierarchical scoring, block2/4 bootstrap и support/precision guards.
+-17new/445base/465combined tests, smoke/build,54final engineering fits на synthetic
+  и existing D45 development, exact installed-wheel reproduction.27preliminary fits
+  сохранены; E501/two mypy annotation failures исправлены с сохранением logs.
+- Research/admission/holdout release/RPC0. D43 не изменялся/не перечитывался; D45/D46
+  offline bindings прежние. Следующий D48: future sampling/source/data adapter и
+  readiness dossier. Отчёт docs/f01-runner.md; evidence docs/evidence/f01-runner-2026-10-03.json.

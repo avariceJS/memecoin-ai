@@ -611,3 +611,15 @@ scenarios/nonoverlap независимыми samples. D45 finite6windows не �
 corpus; нужна новая отдельно bound sampling plan после inherited holdout, без автоматического
 сбора. D46 assessment использует только D45 immutable development revision000000, D43
 raw не открывает и holdout не освобождает. [Контракт](../docs/research-readiness.md).
+
+
+### D47: данные отделены от admission и execution claims
+
+Runner читает отдельно bound development JSON, global whole-decision purge использует
+maturity+nominal horizon; source/availability/targets не переписываются. JSON eager,
+tensors batch-wise; actual-corpus RAM/compute qualification ещё предстоит. Future
+collector→F01 adapter и sampling schedule/coverage provenance требуют D48, существующий
+D45 corpus не превращается в sufficient research corpus. D47 real smoke использует
+только уже sealed revision000000 development copy; никаких D43 raw/holdout reads
+или network calls. D45/D46 bindings verified offline; прежние sources неизменны.
+Неизвестные own execution costs/admission остаются unknown. [D47](../docs/f01-runner.md).
