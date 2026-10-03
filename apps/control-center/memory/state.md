@@ -52,3 +52,7 @@ No raw/work/holdout/credentials/checkpoints reads, no RPC/training/control, no c
 Memory edits. Published snapshot остаётся historical D49, не обновляется из main автоматически.
 Core interface deficiency → existing proposal discipline; CC-P001 не блокирует redesign.
 Запуск приложения: `../README.md`; запуск Coordinator: docs/control-center/GROK-PROMPT.md.
+
+CC02 audit/guard implementation: `9f47abf9e473ef4f46c6238d805c917490aa9b21`. Final check evidence:
+[cc02/audit-evidence.json](../../../docs/control-center/cc02/audit-evidence.json).
+37 scoped unittest PASS; workflow/reference/scope, exact projection, Ruff/format PASS.

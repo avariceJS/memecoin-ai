@@ -159,3 +159,5 @@ Native model preflight/web implementation намеренно остаются ne
   Final: 37 scoped unittest PASS (9 adapter + 13 workflow + 15 visual), Ruff/format PASS.
   Review docs также исправил обещание, будто restart Mac не затрагивает core, невозможное
   требование future captures до первой реализации и размер final reviewer response.
+
+CC02 audit/guard commit `9f47abf9e473ef4f46c6238d805c917490aa9b21`; последующая запись закрепляет только evidence/state.

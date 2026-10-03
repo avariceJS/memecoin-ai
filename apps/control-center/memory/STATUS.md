@@ -6,8 +6,8 @@ Generated from WORK_STATE.json; не редактировать вручную.
 - Current phase: **0**
 - Current task: **CC02.0 — Baseline и browser gate harness**
 - Last completed: Web v1 engineering foundation готов; visual acceptance REJECTED. CC02 audit/handoff подготовлен; redesign ещё не выполнен.
-- Last verified commit: `b97c7b2`; latest фактически: `git log -1 --oneline`.
-- Checks: CC02 audit: target + 10 user PNG reviewed; 44 Vitest PASS; tsc/build PASS (existing warnings); 37 scoped Python PASS; Ruff/format, exact projection, scope PASS. Browser redesign acceptance NOT_RUN.
+- Last verified commit: `9f47abf9e473ef4f46c6238d805c917490aa9b21`; latest фактически: `git log -1 --oneline`.
+- Checks: CC02 audit: target + 10 user PNG reviewed; 44 Vitest PASS; tsc/build PASS (existing warnings); 37 scoped Python PASS; Ruff/format, exact projection, scope PASS. Browser redesign acceptance NOT_RUN. Workflow/reference conformance PASS; see cc02/audit-evidence.json.
 - Model binding: UNVERIFIED (config ≠ runtime; nonblocking).
 - User acceptance: REJECTED_V1; CC02_NOT_REVIEWED.
 - Blockers: нет глобального blocker

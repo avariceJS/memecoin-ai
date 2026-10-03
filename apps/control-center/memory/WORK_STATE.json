@@ -4,8 +4,8 @@
   "overall": "IN_PROGRESS",
   "current_task": "CC02.0",
   "last_completed": "Web v1 engineering foundation готов; visual acceptance REJECTED. CC02 audit/handoff подготовлен; redesign ещё не выполнен.",
-  "last_verified_commit": "b97c7b2",
-  "last_checks": "CC02 audit: target + 10 user PNG reviewed; 44 Vitest PASS; tsc/build PASS (existing warnings); 37 scoped Python PASS; Ruff/format, exact projection, scope PASS. Browser redesign acceptance NOT_RUN.",
+  "last_verified_commit": "9f47abf9e473ef4f46c6238d805c917490aa9b21",
+  "last_checks": "CC02 audit: target + 10 user PNG reviewed; 44 Vitest PASS; tsc/build PASS (existing warnings); 37 scoped Python PASS; Ruff/format, exact projection, scope PASS. Browser redesign acceptance NOT_RUN. Workflow/reference conformance PASS; see cc02/audit-evidence.json.",
   "model_binding": {
     "configured_coordinator": "grok-4.7 / xhigh (picker)",
     "configured_executor": "composer-2.5[fast=false]",
