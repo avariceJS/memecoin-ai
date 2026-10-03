@@ -623,3 +623,16 @@ conditional cost/delay evidence не калибрует admission/costs и не 
 Transport gate закрыт в bounded области; дальше разные часы/дни и execution evidence,
 не новый transport tuning. Контракт docs/cold-connection-corpus.md;
 evidence docs/evidence/cold-connection-corpus-2026-10-03.json.
+
+### D43: finite calendar schedule и реальные address-related execution observations
+
+2026-10-03 пользователь разрешил автономный сбор по часам/дням и read-only исследование
+execution costs/timing; transport tuning закрыт. Frozen план6ec6bad:6 окон0/6/12/24/36/48h,
+180 corpus+12 execution RPC на окно,1152 максимум, первая ошибка закрывает окно, две
+failed windows закрывают расписание. Sleep/missed не catch-up. Local launchd в рамках
+прямого поручения; pinned tools/wheel/reference hashes, no secrets in plist, STOP marker.
+Чужие meta.fee/compute units и observed commitment transitions — empirical inputs,
+не own admission/submission latency, не full strategy costs или net PnL. Отдельный
+read-only method getSignatureStatuses включён в allowlist; торговые методы не добавлены.
+Статус до запуска: код/tests готовы, calendar/execution сбор ещё не проведён.
+Контракт docs/calendar-execution.md, конфигурация configs/calendar-execution-v1.json.

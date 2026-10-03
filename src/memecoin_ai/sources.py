@@ -25,6 +25,7 @@ READ_METHODS = frozenset(
         "getAccountInfo",
         "getMultipleAccounts",
         "getSignaturesForAddress",
+        "getSignatureStatuses",
         "getTransaction",
     }
 )
