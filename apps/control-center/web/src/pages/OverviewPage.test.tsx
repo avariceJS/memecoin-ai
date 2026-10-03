@@ -90,4 +90,16 @@ describe("OverviewPage", () => {
     });
     expect(fetch).not.toHaveBeenCalled();
   });
+
+  it("shows a local failure when clipboard rejects", async () => {
+    const writeText = vi.fn().mockRejectedValue(new DOMException("not focused", "NotAllowedError"));
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    renderOverview();
+    const copyButtons = screen.getAllByRole("button", { name: /Копировать pool id/i });
+    fireEvent.click(copyButtons[0]!);
+
+    expect(await screen.findByText("Не скопировано")).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });

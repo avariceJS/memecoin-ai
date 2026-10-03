@@ -18,11 +18,18 @@ export function BottomFactsRow({ qualification }: BottomFactsRowProps) {
   const { pools, requests, accepted, recordedBaseTestsPassed, recordedCombinedTestsPassed } =
     qualification;
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [failedId, setFailedId] = useState<string | null>(null);
 
   const onCopy = useCallback(async (poolId: string) => {
-    await copyText(poolId);
-    setCopiedId(poolId);
-    window.setTimeout(() => setCopiedId((current) => (current === poolId ? null : current)), 2000);
+    try {
+      await copyText(poolId);
+      setFailedId((current) => (current === poolId ? null : current));
+      setCopiedId(poolId);
+      window.setTimeout(() => setCopiedId((current) => (current === poolId ? null : current)), 2000);
+    } catch {
+      setCopiedId((current) => (current === poolId ? null : current));
+      setFailedId(poolId);
+    }
   }, []);
 
   return (
@@ -43,7 +50,7 @@ export function BottomFactsRow({ qualification }: BottomFactsRowProps) {
                 aria-label={`Копировать pool id ${poolId}`}
                 onClick={() => void onCopy(poolId)}
               >
-                {copiedId === poolId ? "Скопировано" : "Копировать"}
+                {copiedId === poolId ? "Скопировано" : failedId === poolId ? "Не скопировано" : "Копировать"}
               </button>
             </li>
           ))}
