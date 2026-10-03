@@ -61,7 +61,7 @@
 
 .metric dt {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--cc-text-muted);
 }
 
@@ -75,7 +75,7 @@
 
 .metricSub {
   margin: 2px 0 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--cc-text-muted);
 }
 
@@ -98,7 +98,7 @@
 .samplingItem span {
   display: block;
   color: var(--cc-text-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .samplingItem strong {
@@ -115,7 +115,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .offsetChip {

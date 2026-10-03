@@ -122,3 +122,9 @@ Native model preflight/web implementation намеренно остаются ne
 - `/replay`: reason из capability, нет file input и кнопки запуска.
 - Ложный AVAILABLE остаётся LOCKED. Старый export из PlaceholderPages удалён.
 - Vitest 43 PASS. Boundary PASS.
+
+## 2026-10-03 — P7.1 a11y и ширина
+
+- `:focus-visible` 2px cyan на ссылках, кнопках и select.
+- Подписи не ниже 12px. Горизонтальный скролл таблиц внутри панелей.
+- На 768px страница не шире окна, aria-label «Торговля» сохранён. Vitest 44 PASS.

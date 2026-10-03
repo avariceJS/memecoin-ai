@@ -2,15 +2,15 @@
 
 Generated from WORK_STATE.json; не редактировать вручную.
 
-- Overall: **IN_PROGRESS** — web v1, 13/15 tasks; Tauri вне scope.
+- Overall: **IN_PROGRESS** — web v1, 14/15 tasks; Tauri вне scope.
 - Current phase: **7**
-- Current task: **P7.1 — Responsive, a11y, perf и final visual review**
-- Last completed: P6.2 Replay unavailable: нет import/launch. Boundary PASS.
-- Last verified commit: `624c9f815d85beccf19821cd6d6ec09ae5717af8`; latest фактически: `git log -1 --oneline`.
-- Checks: 2026-10-03: web vitest 43 PASS, tsc PASS. Replay route has no file input or launch button.
+- Current task: **P7.2 — Clean install/E2E, docs, web-v1 acceptance**
+- Last completed: P7.1 focus, 12px captions, table overflow, 768 без горизонтального скролла страницы. Visual и boundary PASS.
+- Last verified commit: `a0c1c43886e998d2a976979210059ecdce3880ba`; latest фактически: `git log -1 --oneline`.
+- Checks: 2026-10-03: web vitest 44 PASS, tsc PASS. Browser 768: scrollWidth=innerWidth, aria-label Торговля сохранён.
 - Model binding: UNVERIFIED (config ≠ runtime).
 - Blockers: нет глобального blocker
-- Next action: **P7.1: responsive, keyboard, contrast и perf на реальных экранах.**
+- Next action: **P7.2: clean npm ci, build/test/scope/adapter checks, записать ограничения, не merge main.**
 
 | Task | Role | State |
 |---|---|---|
@@ -27,7 +27,7 @@ Generated from WORK_STATE.json; не редактировать вручную.
 | P5.1 Models / runs / benchmarks | ui-builder | DONE |
 | P6.1 System и capability placeholders | ui-builder | DONE |
 | P6.2 Replay/future proposals и boundary tests | adapter-builder | DONE |
-| P7.1 Responsive, a11y, perf и final visual review | test-debugger | PENDING |
+| P7.1 Responsive, a11y, perf и final visual review | test-debugger | DONE |
 | P7.2 Clean install/E2E, docs, web-v1 acceptance | coordinator | PENDING |
 
 ## Ограничения

@@ -7,6 +7,7 @@
 .mainColumn {
   margin-left: var(--cc-sidebar-w);
   min-height: 100vh;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }

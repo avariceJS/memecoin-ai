@@ -37,9 +37,8 @@ worktree отсутствует, не добавлять symlink к основн
 
 Phase 1 shell есть в `apps/control-center/web`: validated snapshot client и navy
 навигация на реальной проекции. Model binding остаётся UNVERIFIED, configured policy
-`composer-2.5[fast=false]` не менялась. `/replay` явно недоступен: нет импорта raw и нет запуска. System, models,
-research, sources, overview и календарь уже на recorded snapshot. Следующий шаг —
-P7.1 responsive/a11y/perf, затем clean install и handoff web v1. Core interface deficiency →
+`composer-2.5[fast=false]` не менялась. Экраны recorded snapshot собраны, фокус и узкая ширина проверены. Следующий шаг —
+P7.2: чистая установка, полный прогон команд и handoff web v1 без merge в main. Core interface deficiency →
 proposal, никакого core patch.
 
 Запуск/проверки: ../README.md. План: docs/control-center/04-phases.md.

@@ -140,6 +140,8 @@
 
 .tableWrap {
   overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
   border: 1px solid var(--cc-border);
   border-radius: 6px;
   max-height: 420px;

@@ -63,6 +63,38 @@ describe("AppShell", () => {
     expect(screen.queryByText(/DEMO/i)).not.toBeInTheDocument();
   });
 
+  it("exposes primary nav links for keyboard focus", () => {
+    vi.mocked(useSnapshot).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      data: snapshotResponse,
+      error: null,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useSnapshot>);
+    vi.mocked(useCapabilities).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      data: snapshotResponse.data.capabilities,
+      error: null,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useCapabilities>);
+
+    renderShell("/");
+
+    const overview = screen.getByRole("link", { name: "Обзор" });
+    const trading = screen.getByRole("link", { name: "Торговля" });
+    expect(overview.tagName).toBe("A");
+    expect(trading.tagName).toBe("A");
+    expect(overview).not.toHaveAttribute("tabindex", "-1");
+    expect(trading).not.toHaveAttribute("tabindex", "-1");
+    overview.focus();
+    expect(overview).toHaveFocus();
+    trading.focus();
+    expect(trading).toHaveFocus();
+  });
+
   it("shows safe error code on snapshot failure", () => {
     vi.mocked(useSnapshot).mockReturnValue({
       isLoading: false,

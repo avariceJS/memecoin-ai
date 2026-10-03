@@ -27,7 +27,7 @@
 
 .brandSub {
   margin: 4px 0 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--cc-text-muted);
 }
 
@@ -41,7 +41,7 @@
 
 .groupLabel {
   margin: 12px 8px 4px;
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--cc-text-muted);
@@ -62,6 +62,13 @@
 }
 
 .link:hover {
+  background: var(--cc-panel-raised);
+  color: var(--cc-text);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--cc-cyan);
+  outline-offset: 2px;
   background: var(--cc-panel-raised);
   color: var(--cc-text);
 }
@@ -111,7 +118,7 @@
   }
 
   .brandTitle {
-    font-size: 11px;
+    font-size: 12px;
     text-align: center;
   }
 
