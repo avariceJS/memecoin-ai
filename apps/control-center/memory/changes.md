@@ -116,3 +116,9 @@ Native model preflight/web implementation намеренно остаются ne
 - `/system`: «UI adapter ответил» отдельно от pane system UNAVAILABLE.
 - servedAt — время ответа API. DESIGN-роли не live-машины.
 - predictions/paper/live/shadow/emergencyStop/replay без кнопок. Vitest 38 PASS.
+
+## 2026-10-03 — P6.2 Replay unavailable
+
+- `/replay`: reason из capability, нет file input и кнопки запуска.
+- Ложный AVAILABLE остаётся LOCKED. Старый export из PlaceholderPages удалён.
+- Vitest 43 PASS. Boundary PASS.

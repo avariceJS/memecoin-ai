@@ -77,22 +77,6 @@ export function SystemPage() {
   );
 }
 
-export function ReplayPage() {
-  const { capabilities } = useOutletContext<ShellOutletContext>();
-  const replay = capabilities.find((c) => c.id === "replay");
-  const reason =
-    replay && replay.availability === "UNAVAILABLE"
-      ? replay.reasonCode
-      : "NO_APPROVED_CORE_READ_OR_CONTROL_CONTRACT";
-
-  return (
-    <>
-      <SimpleSection heading="Replay" />
-      <UnavailableState reasonCode={reason} />
-    </>
-  );
-}
-
 export function TradingPage() {
   const { snapshotResponse } = useOutletContext<ShellOutletContext>();
   const reason =
