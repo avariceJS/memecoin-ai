@@ -499,3 +499,10 @@ availability. Далее cold-connection observability и новые кален�
 - Research/admission/holdout release/RPC0. D43 не изменялся/не перечитывался; D45/D46
   offline bindings прежние. Следующий D48: future sampling/source/data adapter и
   readiness dossier. Отчёт docs/f01-runner.md; evidence docs/evidence/f01-runner-2026-10-03.json.
+
+
+D47 final review: bbcd0e8 закрывает source/data TOCTOU на границе worker и проверяет
+membership digests.18new/466combined tests; новые54smoke fits воспроизвели прежние score
+hashes. Суммарно135 bounded smoke fits, research0. При parallel build был установлен
+старый wheel; source SHA mismatch обнаружен до reproduction, log/install сохранены,
+fresh завершённый wheel verified. Append-only evidence: docs/evidence/f01-runner-integrity-2026-10-03.json.

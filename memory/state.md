@@ -10,12 +10,14 @@ paired UTC-day scoring/bootstrap, отдельные pinned admission/release re
 Реальные research fits0,admissions0,holdout releases0,RPC0. Research gate закрыт.
 
 Final engineering runs: synthetic27fits и D45 development27fits,2epochs,seeds7/19/41,
-9configs; это smoke, не качество модели. Partitions real78/17/30,purged49.17new tests,
-445base+2optional skips,465combined;ruff/mypy/smoke/build и exact installed-wheel
+9configs; это smoke, не качество модели. Partitions real78/17/30,purged49.18new tests,
+445base+2optional skips,466combined;ruff/mypy/smoke/build и exact installed-wheel
 score/bootstrap reproduction прошли. Evidence хранит ledger heads и artifact hashes.
-Предварительный27fit smoke и static-analysis failure logs сохранены. D43 paths не
+Дополнительный54fit повтор после integrity-fix bbcd0e8 дал те же score hashes;
+всего135 bounded smoke fits. Прежние artifacts/static logs сохранены. Stale wheel
+при параллельной сборке обнаружен SHA guard; fresh wheel reproduction успешен. D43 paths не
 открывались audit-hook проверками; D43 runtime не менялся, operational status не обновлён.
-[Итог D47](../docs/f01-runner.md), [evidence](../docs/evidence/f01-runner-2026-10-03.json).
+[Итог D47](../docs/f01-runner.md), [финальное evidence](../docs/evidence/f01-runner-integrity-2026-10-03.json).
 
 **Следующий независимый D48:** future sampling/source binding и qualified sealed
 prospective development adapter/readiness dossier для F01. Не менять D43/D45 и не

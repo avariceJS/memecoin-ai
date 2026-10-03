@@ -148,3 +148,21 @@ binding, qualified sealed-data adapter и содержательный readiness
 **D48** — отдельный будущий collection/source contract и development ingestion/readiness
 adapter для84day F01 design, без изменения D43 и без inherited holdout reveal. Не
 устанавливать collector и не считать его budget автоматически разрешённым этим отчётом.
+
+### Финальный integrity review и повторная проверка
+
+После первой публикации выявлен TOCTOU риск между initial plan validation и worker:
+необходимо повторно сверить code/data перед и после subprocess, а внутри worker ещё
+и train/validation membership digests. Исправление **bbcd0e8**, без изменения F01 rules
+или outputs прежних запусков. Новые immutable directories `synthetic-boundary` и
+`engineering-boundary`: ещё54 bounded engineering fits; score hashes в точности совпали
+с предыдущими. За этап135 smoke fits (27preliminary+54initial+54post-fix), все2epochs;
+unit-test fixtures учитываются отдельно. Это не hidden research tuning и не market study.
+
+Итоговые проверки:18new,445base+2optional skips,466combined;ruff/mypy/build прошли.
+Source/data mutation regression проверен до reservation. Новый wheel сначала случайно
+устанавливался параллельно сборке предыдущего artifact; source hash guard обнаружил
+несовпадение до reproduction. Старый install/log сохранён, завершённый wheel установлен
+в новый каталог и прошёл полное совпадение sources и exact scoring/bootstrap reproduction.
+[Финальное evidence/addendum](evidence/f01-runner-integrity-2026-10-03.json) ссылается на
+неизменное исходное evidence. Research/admission/release/RPC по-прежнему0.

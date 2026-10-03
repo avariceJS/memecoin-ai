@@ -720,3 +720,10 @@ sessions консервативно расходуют reservations, без free
 Следующий D48: отдельный future sampling/source/ingestion contract/readiness dossier;
 D43 и inherited holdout сохраняются. Документ/evidence: docs/f01-runner.md и
 docs/evidence/f01-runner-2026-10-03.json.
+
+
+D47 integrity addendum bbcd0e8: repeated source/data verification на worker boundary
+обязательна, чтобы initial admission не принимала изменённые между fits bytes.
+Повтор54engineering fits не меняет научный protocol; score hashes прежние.18new/466combined
+tests и final wheel reproduction; original evidence сохранено, addendum
+docs/evidence/f01-runner-integrity-2026-10-03.json. Admission по-прежнему отсутствует.

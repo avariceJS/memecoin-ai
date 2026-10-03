@@ -165,3 +165,9 @@ report можно пересчитать без raw reopening. Full ledger rewri
 исключён: нужен external pinned head. Receipt byte checks не заменяют substantive
 review, sampling/coverage dossier и corpus feasibility. F01 не проведён; ни один
 research/economic gate не снят. [D47](../docs/f01-runner.md).
+
+
+D47 final integrity review добавил worker boundary code/data/membership checks.
+18conformance tests,466combined, повторные engineering scoring hashes равны прежним.
+Финальное evidence: [addendum](../docs/evidence/f01-runner-integrity-2026-10-03.json);
+старые outputs/evidence не перезаписывались.
