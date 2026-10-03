@@ -177,3 +177,21 @@ qualification и fixed global folds/holdout. Реально импортиров
 и universe, target limitations, execution assumptions, поддержка/uncertainty criteria,
 model-selection budget и release protocol. Никакое число окон само по себе не включает
 research mode. [D45 evidence](../docs/evidence/corpus-registry-2026-10-03.json).
+
+
+## F01-v1 / D46: первый frozen conditional forecast design
+
+F01 — самостоятельный подготовительный predictive study, не выполнение net-E01–E14.
+Scope fixed3pool/CPMM profile2 и existing conditional reset labels; не whole-market
+универсальность, не фактическая fill probability. Empirical+linear обязательны;
+MLP/GRU/TCN/Transformer width16/64,context8;9configs×3seeds,3outer folds+final selection,
+≤114trainable fits. Mean validation loss all seeds,1% simplicity tie rule; no test tuning.
+Смена grid/targets/weighting/cutoffs после результата — новая версия и fresh evaluation.
+
+Новый future T/calendar84days:3walk-forward folds и reserved28day final holdout, без
+переиспользования D45 holdout4/5. Source sampling binding пока не установлен. Критерии
+support/censoring/coverage плюс linked semantic/scope/dependence/runner/exposure review;
+числа не гарантируют power. Primary paired daily joint proper-loss improvement относительно
+обоих comparators, block2/4 sensitivity, predefined CI width/calibration guards.
+F01 не проведён. Текущий assessment false, research launch и holdout release отсутствуют.
+[Спецификация](../docs/research-readiness.md), [machine config](../configs/research-f01-v1.json).

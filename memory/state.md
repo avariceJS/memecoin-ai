@@ -3,6 +3,29 @@
 Обновлено: **2026-10-03**, Europe/Moscow.
 
 
+**D46 завершён: frozen F01 research specification и readiness framework.**
+F01-v1 — conditional forecast skill только fixed3pool cohort, не net-edge/реальные fills.
+Frozen9candidates×3seeds,validation-only selection,≤114fits; отдельный будущий84day
+календарный дизайн. Это не новый collector и не автоматическое продление D43/D45.
+Существующий finite D45 corpus не может удовлетворить F01. Reserved holdout4/5 сохранён,
+не прочитан и не переименован. D46 assessment открывал только D45 development artifacts.
+
+Readiness разделён: conditional semantics/scope/support для forecast admission; полные
+costs/admission/risk/MPC/net evaluation для economic claims остаются отдельными gates.
+Текущее assessment revision000000:design=false,launch=false,release=false. Даже positive
+synthetic design/reviews не выдаёт executable permission. D44 trainer smoke-only без правок.
+15 новых/434base/448combined tests,ruff/mypy/smoke/build; exact wheel assessment.
+D44/D45 source identities неизменны. Реальных research fits0,holdout releases0.
+[Итог D46](../docs/research-readiness.md), [evidence](../docs/evidence/research-readiness-2026-10-03.json).
+
+**Следующий независимый этап D47:** admitted fold-aware runner conformance, immutable
+trial/exposure ledger, frozen scoring/bootstrap, consumed budgets и resume, отдельные
+admission/release receipts. Только fixtures/smoke до readiness; no new collection или
+holdout reveal. Новому F01 corpus потребуется отдельный future sampling binding,
+который не изменяет действующий D43. Числа D43/D45 ниже — last published inventory;
+операционный D43 inventory в D46 не обновлялся, содержимое reserved окон не читалось.
+
+
 **D45 завершён: immutable registry и frozen global folds готовы к новым D43 окнам.**
 Root `work/corpus-registry-01`, revision000000:1 development/5 pending,180 starts,
 174 usable decisions/1392 scenarios,122 all-scenarios-observed,5 greedy nonoverlap
@@ -15,15 +38,8 @@ resync=no_change, exact offline audit/fold export из wheel.70 protected D43 ha
 D44 source identity не изменены. Research training этого этапа не запускался.
 [Итог D45](../docs/corpus-registry.md), [evidence](../docs/evidence/corpus-registry-2026-10-03.json).
 
-**Следующий независимый этап D46:** research specification/readiness dossier — scope/
-universe, target и execution assumptions, достаточность поддержки/uncertainty, бюджет
-model selection. Параллельно новые окна подключать командой
-`.venv/bin/python tools/corpus_registry.py sync work/corpus-registry-01`, затем `audit`.
-Не пересоздавать registry/protocol. Обычный status теперь через D45: старый D43 inventory
-выводит target reports всех окон и после появления4/5 может раскрыть reserved holdout.
-Не просматривать holdout labels/uncertainty для подбора модели. Research gate закрыт;
-D43 не изменять/не переустанавливать и не ждать календаря для независимой разработки.
-
+Routine D45 status: `tools/corpus_registry.py sync/audit`, без пересоздания root.
+Full D43 inventory может раскрыть holdout labels; не использовать его для model selection.
 
 **D44 завершён: независимый ML/training foundation принят для engineering smoke.**
 Optional `memecoin_ml` и `work/ml-venv` (Python3.13/PyTorch2.14.1), immutable causal

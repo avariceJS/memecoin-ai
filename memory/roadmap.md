@@ -214,3 +214,14 @@ wheel reproduction. Дальше независимый D46: scope/universe, tar
 support/uncertainty criteria и model-selection budget; затем формальное решение о
 readiness по фактическому corpus, не календарному плану. D43 продолжает свой frozen job.
 Использовать D45 status, старый полный D43 inventory может раскрыть holdout labels.
+
+
+## D46 завершён → D47 runner conformance, не market training
+
+F01 specification frozen до новых результатов: scope/target/selection/CI/coverage rules,
+future84day design,9configs×3seeds и114fit budget. Current D45 calendar не может пройти
+эти критерии; его holdout не меняется.15new tests/448combined, exact assessment wheel;
+launch/release false. D47 — ledger/reservation/exposure, actual fold-aware runner и
+paired scoring/bootstrap conformance на fixtures. Затем отдельно будущий sampling binding
+и dossier по фактическим данным; никаких автоматически запущенных новых календарей,
+research training или holdout releases. [D46](../docs/research-readiness.md).

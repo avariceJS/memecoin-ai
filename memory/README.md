@@ -28,6 +28,7 @@ Memory Bank — канонический, пригодный для чтения
 | Активное 48h расписание, управление и реальные execution observations D43 | [calendar-execution.md](../docs/calendar-execution.md) |
 | Optional ML/training, causal bundles, encoders, checkpoint/resume и M4 benchmarks D44 | [ml-foundation.md](../docs/ml-foundation.md) |
 | D45 registry: подключение sealed окон, global folds, qualification и reserved holdout | [corpus-registry.md](../docs/corpus-registry.md) |
+| D46 F01: research specification, readiness, selection budget и launch/release границы | [research-readiness.md](../docs/research-readiness.md) |
 | Как проверять edge и выпускать новую модель | [evaluation.md](evaluation.md) |
 | В каком порядке работать | [roadmap.md](roadmap.md) |
 | Что уже существует и что дальше | [state.md](state.md) |

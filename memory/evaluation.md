@@ -129,3 +129,24 @@ Holdout release/metrics/export API отсутствует; metadata/hash checks 
 raw через иные инструменты не может быть автоматически обнаружено. При external exposure
 нельзя называть holdout globally unseen; следующий release требует отдельного review.
 Для status применять D45 sync/audit, не старый full D43 target inventory. [Контракт](../docs/corpus-registry.md).
+
+
+## D46: frozen admission/selection/confirmation contract
+
+Forecast admission и economic promotion разведены. F01 conditional scope требует exact
+snapshot-label semantics, source/temporal integrity и support; реальные own execution
+costs/admission остаются обязательными для net-edge, но не выдаются за известные ради
+разрешения conditional prediction. D44/D45 gates не сняты: D46 — assessment, не permission.
+
+Validation-only all-seed selector отвергает missing/failed/duplicate/unknown trials,
+NaN и любые test fields. Порог1% выбирает simpler priority; lucky seed не выбирается.
+Final refit epochs заранее определены median validation epochs. Параметры/masks/scaler/
+IQR train-only. Одинаковое paired support, equal actions→decisions→pools→UTCdays,
+masked heads и explicit conditional estimand; censorship не объявлять MAR.
+
+Новый final holdout требует отдельного release после frozen predictions/selection,
+не заменяется D45 reserved окнами. Planned97.5% block CI для двух comparators,2% practical
+loss improvement,2% max half-width,2/4day blocks и calibration guards. Это критерии
+дизайна, не гарантия valid coverage/power. Короткие contiguous day runs/недостаток support
+→inconclusive без удаления неудобных дней. Никакого optional stopping/retuning по holdout.
+Runner/bootstrap/ledger ещё требуют реализации и conformance D47. [Точный protocol](../docs/research-readiness.md).

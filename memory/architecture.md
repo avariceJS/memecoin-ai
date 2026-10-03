@@ -235,3 +235,15 @@ Holdout metadata-only quarantine отделён от development exporter; resea
 Audit воспроизводит report/folds без calendar root, по pinned objects. Installed wheel
 work/registry-d45/installed-wheel даёт exact audit/export. Raw holdout не дублируется;
 последующее source availability/semantic release — отдельный этап. [D45](../docs/corpus-registry.md).
+
+
+## D46: research contracts без изменения collectors/ML artifacts
+
+Новый stdlib memecoin_research: frozen spec/source fingerprint, будущий calendar
+materializer,114slot trial planner, строгий validation-only selector, role support
+assessment и result-summary guard. CLI не содержит training/release/network действий.
+D44/D45 source identity сохранена; assessment воспроизводится из installed wheel.
+Current D45 adapter намеренно не подтверждает F01 sampling binding. Generic positive
+checks/review fixture остаётся non-executable; formal launch/release receipts ещё нет.
+Следующий D47 обязан реализовать trial/exposure ledger, fold-aware admitted runner,
+masked day scoring/block inference и проверку budget/resume на fixtures. [D46](../docs/research-readiness.md).

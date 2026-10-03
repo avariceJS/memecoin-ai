@@ -691,3 +691,16 @@ D43/D45/holdout4–5 не менять и не раскрывать. Их finite
 новый будущий84day binding только проектируется, сеть/collector не запускаются.
 Frozen rules: configs/research-f01-v1.json; мотивировка docs/research-readiness.md.
 Никаких post-hoc cutoff/seed/metric changes. Research launch/release остаются закрыты.
+
+
+D46 завершён: prereg58c66da,code2fbd09d; frozen F01-v1 и executable planner/selector/
+assessment в отдельном memecoin_research.9candidates,seeds7/19/41,114fit ceiling,
+paired proper-loss CI lower bound>2% against empirical AND linear с predeclared precision/
+calibration guards. Новый84day design требует будущего binding после inherited holdout;
+D43/D45 не расширяются задним числом. Count/coverage floors необходимы, не power guarantee.
+15new/434base/448combined tests, exact installed-wheel assessment; текущий launch/release
+false, research fits0. D43 не открывался assessment; D44/D45 source identities прежние.
+Forecast semantic readiness отделён от economic qualification: conditional prediction
+не требует притворяться калиброванной собственной торговлей, но не доказывает net-edge.
+Следующий D47 — runner/ledger/scoring conformance на fixtures, пока не выполнен.
+Документ docs/research-readiness.md, evidence docs/evidence/research-readiness-2026-10-03.json.

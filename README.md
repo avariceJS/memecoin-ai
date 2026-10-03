@@ -220,3 +220,11 @@ checkpoint/resume/inference и actual CPU/MPS benchmarks. Только engineeri
 holdout: [runbook](docs/corpus-registry.md). Текущий root `work/corpus-registry-01`;
 `tools/corpus_registry.py sync`/`audit` не запускают collector и не раскрывают holdout
 labels. Research readiness остаётся закрытым. [Evidence](docs/evidence/corpus-registry-2026-10-03.json).
+
+
+## Research specification/readiness (D46)
+
+[Frozen F01 protocol](docs/research-readiness.md): conditional forecast skill,
+future calendar design, data/selection/uncertainty criteria. Stdlib CLI
+`tools/research_readiness.py` создаёт plan/assessment; research training и holdout
+release отсутствуют. [Evidence](docs/evidence/research-readiness-2026-10-03.json).

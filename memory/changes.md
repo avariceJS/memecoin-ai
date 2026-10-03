@@ -467,3 +467,20 @@ availability. Далее cold-connection observability и новые кален�
 - Status workflow теперь D45 sync/audit; старый full D43 inventory раскрывает target
   details и может contaminate holdout. Следующий D46 — research specification/readiness
   dossier. Отчёт docs/corpus-registry.md, evidence docs/evidence/corpus-registry-2026-10-03.json.
+
+
+## 2026-10-03 — D46: frozen F01 research specification/readiness
+
+- По прямому поручению frozen F01-v1: conditional forecast scope, numeric support/
+  coverage floors,3future folds+новый final holdout,9configs×3seeds≤114fits,
+  validation-only model selection и paired CI/calibration критерии до результатов.
+- Разведены conditional forecasting и economic readiness; net-edge/risk/MPC/costs не
+  квалифицированы. Новый84day design не является collection authorization или power guarantee.
+- Stdlib framework/spec fingerprint/planner/selector/assessment; текущая D45 revision
+  не подходит для F01. Research launch/release false даже на positive synthetic fixture.
+-15new/434base/448combined tests,ruff/mypy/smoke/build, exact wheel assessment. D44/D45
+  sources прежние; D43 raw/holdout не открывались assessment, никаких collector изменений.
+- Web-reference lookup остался pending и остановлен без retries, cause unknown; внешние
+  факты не заимствованы. E501 formatting failure исправлен, исходный log сохранён.
+- Следующий D47 — ledger/runner/scoring conformance на fixtures. Отчёт docs/research-readiness.md,
+  evidence docs/evidence/research-readiness-2026-10-03.json. F01 исследование не проведено.

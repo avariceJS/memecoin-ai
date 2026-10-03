@@ -596,3 +596,18 @@ verification deferred until release. Whole crossing window quarantine. Routine s
 не выводит holdout outcomes/returns/status class counts; читать старый full D43 target
 inventory после появления holdout нельзя без фиксации exposure. Это process guard,
 не OS protection от владельца raw. [D45](../docs/corpus-registry.md).
+
+
+### D46: predictive readiness отдельно от economic claims
+
+F01 использует existing conditional_snapshot_execution_targets independent future reset,
+20s holding,assumed delays0/5s,size100/1000ppm; net of pool/transfer fees, unknown network/
+admission/costs остаются unknown. Fixed cohort только observed supported CPMM scope,
+никакого survivor replacement по outcomes или новых protocol adapters. Data snapshots,
+features, target masks/availability и D43/D45 sources не менялись.
+Readiness floors для будущего prospective corpus: temporal breadth +per-action/class
+support +censoring/usable/observed-schedule coverage +pool/UTC-strata balance. Не считать
+scenarios/nonoverlap независимыми samples. D45 finite6windows не станет F01 достаточным
+corpus; нужна новая отдельно bound sampling plan после inherited holdout, без автоматического
+сбора. D46 assessment использует только D45 immutable development revision000000, D43
+raw не открывает и holdout не освобождает. [Контракт](../docs/research-readiness.md).
