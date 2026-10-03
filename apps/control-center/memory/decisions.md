@@ -89,3 +89,38 @@ Boundary review матрицы PASS до установки. Экспериме�
 `composer-2.5[fast=false]`; YAML агентов не переписывать на fast или inherit.
 `VERIFIED` допустим только вместе с observed id и evidence. P0.1 закрывается по
 DTO/boundary, не по карточке. Web v1 phases 1–7 продолжаются.
+
+
+## CC-011 — visual acceptance web v1 отклонён; foundation сохраняется
+
+Принято 2026-10-04 по пользователю и independent screenshot/code review.
+CC02/AUDIT.md: architecture 8/10, visual 3/10, reference similarity 3/10 — экспертная
+оценка, не измеренный benchmark. Все 10 before PNG сохранены с SHA, capture revision неизвестен.
+Не переписывать adapter/schema/projection или core. Shell и page composition заменить,
+reusable semantics сохранить. Frontend DEMO badge mapping и benchmark comparability
+исправить в CC02 с tests. Старые PASS/history не удалять и не считать новой приёмкой.
+
+## CC-012 — screenshot conformance + independent quality judgment
+
+Принято. CC02 tasks требуют first capture → independent critique → fix → second capture,
+четыре desktop/narrow viewports и fullpage; final source-bound matrix всех шести screens.
+Developer validator проверяет files/hash/matrix/layout reports, не доказывает происхождение
+рисунка или эстетическое качество. Независимый reviewer обязан лично открыть target и
+captures, обосновать rubric; green unit tests недостаточны. User acceptance — отдельное поле.
+WORK_STATE schema 2, v1 queue архивирована byte-for-byte; state не второй core source of truth.
+
+## CC-013 — Grok High для сложного visual reasoning; routine Composer
+
+Принято по новой политике пользователя. Coordinator Grok 4.7 xhigh; cc-ui-builder и
+cc-visual-reviewer configured `grok-4.7` (High — documented default); остальные четыре
+definitions остаются `composer-2.5[fast=false]`. Не угадывать effort syntax.
+Observed model binding UNVERIFIED, не blocker. Это частично заменяет CC-007/CC-010,
+не отменяя runtime honesty, isolated tasks и core boundaries.
+
+## CC-014 — минимальные frontend additions, 3D отложить
+
+Принято как рекомендация CC02, установка ещё не проведена. Lucide static icons, local Inter,
+нужные Radix Dialog/Tooltip, Playwright dev harness; CSS/SVG для нынешних небольших datasets.
+Exact pins/production bytes проверит CC02.0. Recharts/Table из прежней roadmap не обязательны;
+Motion/ECharts только при доказанной потребности. Three/R3F не решает hierarchy/overflow,
+в CC02 не добавлять. Optional небольшой decorative SVG после Overview acceptance.

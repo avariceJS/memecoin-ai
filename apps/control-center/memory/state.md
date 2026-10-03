@@ -1,76 +1,54 @@
-# UI workstream status
+# Control Center — текущий статус
 
-Обновлено2026-10-03, Europe/Moscow. CC-00 принят; CC-01 visual/team follow-up подготовлен.
-Текущая очередь реализации — WORK_STATE.json; краткий обзор — STATUS.md.
-Core baseline `6a7e079` (D49), UI plan `f28e5fd`, adapter/guards `06893f3`.
-Branch `control-center/observatory-handoff`; тот же managed worktree
-`/Users/root1/.codex/worktrees/ec89/memecoin-ai`. Main развивается в другом core-чате.
+Обновлено 2026-10-04, Europe/Moscow. Branch `control-center/observatory-handoff`,
+worktree `/Users/root1/.codex/worktrees/ec89/memecoin-ai`. Core baseline D49 `6a7e079`.
+Core/main D50+ развивается независимо; здесь его не читаем как operational state и не меняем.
 
-## Готово
+## Что готово
 
-- Правила UI AGENTS + Cursor alwaysApply, curated onboarding, product/architecture/stack,
-  data map, typedDTO, read-only API, security/Git/demo/testing workflow, phased plan.
-- Отдельный UI Memory Bank, formal operational export proposal CC-P001 (не принят).
-- Stdlib Python adapter без core imports/RPC/subprocess/ML. Только2GET endpoints наloopback.
--9pinned committed sources → deterministic reviewed projection33 910bytes. Это real
-  historical evidence с engineering/synthetic qualification, не fake realtime и не raw.
-- D43calendar6окон (4–5protected metadata only), D45summary174decisions/1392scenarios,
-  F01recorded0/114researchfits/135engineeringfits, D48plan336windows/0admitted,
-  D44runs15/benchmarks40, D49source6/6qualification иNOT_READY verdict.
--9stdlib tests, scoped Ruff/format, exact projection reproduction и Git scope guard прошли.
-  HTTP tests bind only ephemeral loopback; provider calls0, training0, core changes0.
-- Python3.13.6, Node24.5.0, npm11.5.1 доступны. Frontend dependencies НЕ установлены,
-  npm lock/frontend/typecheck/E2E ещё не созданы/не проведены. Глобальный Ruff был доступен;
-  использовался только для UI файлов, core environment не изменялся.
+- Web v1 существует: React/TypeScript/Vite, 8 routes, validated read-only API client,
+  approved recorded projection. Это полезный engineering foundation.
+- Adapter / DTO / source pins / published projection сохранены без изменений CC02.
+  Current live services/market/training/execution недоступны; recorded status не current health.
+- CC02 architecture/design audit подготовлен: все 10 пользовательских screenshots и target
+  открыты, code review выполнен. [Audit](../../../docs/control-center/cc02/AUDIT.md),
+  [план](../../../docs/control-center/cc02/PLAN.md),
+  [acceptance](../../../docs/control-center/cc02/VISUAL-ACCEPTANCE.md).
+- Новый developer-only visual receipt validator требует реальные файлы, SHA, source binding,
+  desktop matrix, independent review и layout reports. Он не browser runner и не aesthetic judge.
 
-## Не готово / ограничения
+## Visual verdict
 
-React frontend пока отсутствует; это безопасная стартовая база, не большой GUI.
-Actual current service health/live market/models/predictions/hardware/logs unavailable.
-No global exposure count; recorded release0 не globally unseen proof.
-No collector controls/research launch/emergency-stop/trading/wallet API.
-D43/F01 operational roots/holdout/credentials не читались и не изменялись. `work/` этого
-worktree отсутствует, не добавлять symlink к основному checkout. Public evidence относится
-кD49 baseline и не обновляется автоматически main D50+.
+**Web v1 визуально REJECTED пользователем и independent audit.** Его исторический COMPLETE
+не означает product acceptance. Причины: broken D48 grid, overflow codes, пустые cards,
+слабые hierarchy/type/navigation, technical evidence viewer вместо цельного operator product.
+Это не задача сменить цвета. Требуется reconstruction presentation поверх сохранённого data layer.
+История не удалена: `history/web-v1-WORK_STATE.json`, `history/web-v1-STATUS.md`,
+`history/pre-CC02-state.md`, старые review receipts и `changes.md`.
 
-## Следующий шаг Grok
+## Текущая очередь / следующий шаг
 
-Phase 1 shell есть в `apps/control-center/web`: validated snapshot client и navy
-навигация на реальной проекции. Model binding остаётся UNVERIFIED, configured policy
-`composer-2.5[fast=false]` не менялась. Web v1 на ветке `control-center/observatory-handoff` готова к отдельному review.
-Main не объединялся. Live/paper/replay остаются недоступными. Model binding UNVERIFIED. Core interface deficiency →
-proposal, никакого core patch.
+`WORK_STATE.json` schema 2 и generated `STATUS.md`: **CC02 IN_PROGRESS, implementation
+ещё не начата**, задачи CC02.0–8 PENDING. Этот audit fork не реализует redesign.
+Grok начинает CC02.0 browser harness → CC02.1 shell → CC02.2 Overview; остальные visual pages
+только после принятия Overview. Не пересоздавать app, adapter, Memory или worktree.
 
-Запуск/проверки: ../README.md. План: docs/control-center/04-phases.md.
-После каждого крупного phase обновлять эту память и коротко сообщать результат.
+Coordinator Grok 4.7 Extra High; сложный UI и visual reviewer — Grok 4.7 High;
+routine analyst/adapter/tests/boundary — Composer 2.5 standard. Native definitions настроены;
+**actual model binding UNVERIFIED**, не blocker и не доказательство модели прежних workers.
+Каждый visual worker сам открывает target. No crop-only PASS, no tests-green-only DONE.
 
+## Проверки и ограничения audit
 
-## CC-01 — visual contract и Coordinator (2026-10-03)
+На baseline `b97c7b2`: 44 Vitest PASS, TypeScript + production build PASS. Build warnings:
+PostCSS plugin без `from`, JS chunk >500 kB; Node/jsdom compatibility отмечена в v1.
+Первые команды-обёртки завершились ошибкой zsh `read-only variable: status` после успешных
+npm runs; это ошибка wrapper, не приложения. Безопасные логи в ignored `.local/cc02-audit/`.
+Scoped Python tests и final checks записаны в CC02 audit evidence и WORK_STATE.
+Browser runtime/layout harness в этом audit не запускался: рассмотрены пользовательские PNG.
+Responsive/visual PASS новому UI не назначен. Новые frontend dependencies не установлены.
 
-Primary PNG предоставлен пользователем, открыт, hash pinned в DESIGN-SYSTEM; описание
-композиции/типографики/states/charts/a11y и обязательный independent visual gate готовы.
-Добавлены 6 native `.cursor/agents/cc-*.md`, explicit Composer2.5 standard binding;
-Coordinator — Grok4.7 Extra High picker. Cursor3.22.12 arm64 установлен, native docs и
-локальные признаки сверены. Account entitlement/actual model task card ещё UNVERIFIED;
-CLI отсутствует, launcher auto-install не запускался. Native smoke — первая задача P0.1.
-
-AGENT-TEAM/AUTONOMOUS-WORKFLOW: bounded briefs, ≤3000char summaries, disjoint leases,
-Coordinator-only state/Git/lockfile, no nested/cloud agents, ordinary fixes автономно,
-три recovery prompts и loop до web-v1 COMPLETE/внешнего BLOCKED_NEEDS_USER.
-WORK_STATE содержит 15 незавершённых web tasks, не притворяется готовым GUI.
-Scope расширен явно только на6named definitions, не permissions/hooks/global settings.
-
-22 unittest PASS (9adapter+13workflow/guard); scope/exact projection/Ruff/format PASS.
-Independent review нашёл и устранил index/rename bypass в старом guard; проверено fixtures
-в disposable Git repo внутри ignored `.local/`, основной Git config не менялся.
-Lint first pass E501/F401, затем I001 исправлены; runtime/provider failures отсутствовали.
-Новые scripts только development, adapter/runtime/data map/source pins не менялись.
-Core/root Memory Bank не изменены; D50 не начат. Web implementation не проведена.
-
-- Final review correction CC-01: canonical/ancestor lease overlap checks и shared-directory
-  denial; missing PNG не мешает state recovery, explicit `--visual` fail-closed.
-  Два regression tests добавлены; итог22tests PASS. Исторические review receipts не
-  доказывают наличие картинки в новом session, каждый visual agent обязан открыть её снова.
-
-CC-01 implementation commit `38765863d54e54115e4beca72a0012fd050a4b3e`; итоговый review/evidence:
-`reports/CC-01-review.md`, `docs/control-center/autonomy-evidence.json`.
+No raw/work/holdout/credentials/checkpoints reads, no RPC/training/control, no core/root
+Memory edits. Published snapshot остаётся historical D49, не обновляется из main автоматически.
+Core interface deficiency → existing proposal discipline; CC-P001 не блокирует redesign.
+Запуск приложения: `../README.md`; запуск Coordinator: docs/control-center/GROK-PROMPT.md.

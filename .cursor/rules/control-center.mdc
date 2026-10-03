@@ -16,6 +16,12 @@ alwaysApply: true
 
 Coordinator до coding читает AUTONOMOUS-WORKFLOW.md, AGENT-TEAM.md, DESIGN-SYSTEM.md
 в docs/control-center и UI memory/WORK_STATE.json. Выполнять autonomous loop до COMPLETE
-web v1 или BLOCKED_NEEDS_USER. После phase не спрашивать «продолжить?». Native subagents
-Composer 2.5 standard; каждый visual subagent сам открывает primary reference PNG.
+текущего CC02 или BLOCKED_NEEDS_USER. После phase не спрашивать «продолжить?». Native subagents
+Composer 2.5 standard для routine; cc-ui-builder/visual-reviewer — Grok 4.7 High.
+Actual binding UNVERIFIED не blocker. Каждый visual subagent сам открывает target + before PNG.
 State/Git/lockfile пишет только Coordinator. Никаких cloud agents/новых worktrees/auto chat.
+
+CC02: web v1 visual acceptance REJECTED. Сначала docs/control-center/cc02/AUDIT.md,
+PLAN.md, VISUAL-ACCEPTANCE.md. Не реализовывать core или новый backend scope.
+Visual DONE требует before/fix/second browser capture, desktop matrix, layout audit и
+independent quality review; tests green недостаточно. Сохранять current-v1 baseline.

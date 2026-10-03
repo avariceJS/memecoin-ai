@@ -2,41 +2,35 @@
 
 Generated from WORK_STATE.json; не редактировать вручную.
 
-- Overall: **COMPLETE** — web v1, 15/15 tasks; Tauri вне scope.
-- Current phase: **7**
-- Current task: **P7.2 — Clean install/E2E, docs, web-v1 acceptance**
-- Last completed: P7.2 web v1 handoff: clean install и повторные проверки PASS. Main не объединялся.
-- Last verified commit: `fd9f2997dc24781ff46513c43b21af97e030aeae`; latest фактически: `git log -1 --oneline`.
-- Checks: 2026-10-03: npm ci 153 packages PASS (executor); Coordinator повтор: vitest 44, tsc, vite build, scope, exact projection, 22 adapter tests PASS.
-- Model binding: UNVERIFIED (config ≠ runtime).
+- Overall: **IN_PROGRESS** — CC02 visual reconstruction, 0/9 tasks; Tauri вне scope.
+- Current phase: **0**
+- Current task: **CC02.0 — Baseline и browser gate harness**
+- Last completed: Web v1 engineering foundation готов; visual acceptance REJECTED. CC02 audit/handoff подготовлен; redesign ещё не выполнен.
+- Last verified commit: `b97c7b2`; latest фактически: `git log -1 --oneline`.
+- Checks: CC02 audit: target + 10 user PNG reviewed; 44 Vitest PASS; tsc/build PASS (existing warnings); 37 scoped Python PASS; Ruff/format, exact projection, scope PASS. Browser redesign acceptance NOT_RUN.
+- Model binding: UNVERIFIED (config ≠ runtime; nonblocking).
+- User acceptance: REJECTED_V1; CC02_NOT_REVIEWED.
 - Blockers: нет глобального blocker
-- Next action: **Ветка готова к отдельному review. Не merge в main. Tauri и CC-P001 остаются вне web v1.**
+- Next action: **Grok: прочитать CC02 audit/plan/acceptance, baseline и target; начать CC02.0 browser harness, затем shell first. Не переписывать adapter/core.**
 
 | Task | Role | State |
 |---|---|---|
-| P0.1 Native model preflight | coordinator | DONE |
-| P0.2 DTO audit и toolchain pins | artifact-analyst | DONE |
-| P1.1 Vite shell, design tokens, navigation | ui-builder | DONE |
-| P1.2 Validated providers и state components | adapter-builder | DONE |
-| P2.1 D43 calendar и window details | ui-builder | DONE |
-| P2.2 D48 design grid и corpus summary | ui-builder | DONE |
-| P3.1 Overview и evidence hierarchy | ui-builder | DONE |
-| P3.2 Sources / Pools qualification | ui-builder | DONE |
-| P4.1 Research spec, gates и counters | ui-builder | DONE |
-| P4.2 Research adversarial state tests | test-debugger | DONE |
-| P5.1 Models / runs / benchmarks | ui-builder | DONE |
-| P6.1 System и capability placeholders | ui-builder | DONE |
-| P6.2 Replay/future proposals и boundary tests | adapter-builder | DONE |
-| P7.1 Responsive, a11y, perf и final visual review | test-debugger | DONE |
-| P7.2 Clean install/E2E, docs, web-v1 acceptance | coordinator | DONE |
+| CC02.0 Baseline и browser gate harness | coordinator | PENDING |
+| CC02.1 App shell и design primitives | ui-builder | PENDING |
+| CC02.2 Overview — visual gold standard | ui-builder | PENDING |
+| CC02.3 Calendar / corpus reconstruction | ui-builder | PENDING |
+| CC02.4 Research gate visualization | ui-builder | PENDING |
+| CC02.5 Models / matched benchmarks | ui-builder | PENDING |
+| CC02.6 Sources evidence topology | ui-builder | PENDING |
+| CC02.7 System / locked surfaces | ui-builder | PENDING |
+| CC02.8 Integration и final visual acceptance | coordinator | PENDING |
 
 ## Ограничения
 
-- Native task card остаётся UNVERIFIED; configured policy composer-2.5[fast=false].
-- Live/paper/trading/replay недоступны. CC-P001 не принят core.
-- Node 24.5.0: EBADENGINE у части jsdom-зависимостей, которые просят Node 24.15+.
-- Vite предупреждает про PostCSS from и JS chunk около 515 kB.
-- Tauri и D50 вне этой оболочки. Main не объединялся.
+- User rejected web v1 visuals; historical PASS superseded, before preserved.
+- No browser E2E/layout harness currently in package.json; required in CC02.0.
+- Current recorded data limited; no live/control/new backend scope.
+- Actual model binding UNVERIFIED is nonblocking.
 
 Interface requests: CC-P001 PROPOSED — safe operational metadata export; web v1 не ждёт его
 

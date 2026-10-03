@@ -76,14 +76,30 @@ UI фазы без постоянных вопросов. Недостающий
 `AGENT-TEAM.md`, `DESIGN-SYSTEM.md` и UI `memory/WORK_STATE.json` / `STATUS.md`.
 Coordinator Grok 4.7 Extra High — единственный writer task state, shared lockfile и Git.
 Рядовые bounded задачи делегировать именованным Composer 2.5 subagents, без nested spawn.
+CC02 визуально сложные tasks и visual-reviewer — Grok4.7 High; см. override ниже.
 Subagents читают этот AGENTS и общий AGENT-TEAM protocol, затем только task-specific context.
 Не требовать от каждого исполнителя перечитывать весь core onboarding Coordinator.
 Каждый visual builder/reviewer сам открывает primary PNG до visual работы; текст и hash
 не заменяют просмотра. Передать reference emphasis в brief. Отсутствует image/tool —
 не придумывать содержимое, продолжать независимые задачи, visual gate остаётся незакрытым.
 После tests/review/state/commit немедленно следующая задача; phase report не вопрос.
-Stop только COMPLETE согласованной web v1 или реальный внешний BLOCKED_NEEDS_USER.
+Stop только COMPLETE текущего согласованного UI этапа или реальный внешний BLOCKED_NEEDS_USER.
 Compilation/test/style failures исправлять автономно. Missing future core interface →
 formal proposal + UNAVAILABLE/LOCKED, затем независимая работа. Tauri/D50 вне этого loop.
-Native model assignment не гарантирует account availability: первая task card должна
-подтвердить Composer standard, иначе применить model policy из AUTONOMOUS-WORKFLOW.
+Native model assignment не гарантирует account availability. По CC-010/CC02
+UNVERIFIED actual model не блокирует работу; не выдумывать successful binding.
+
+
+## CC02 — visual rejection и reconstruction
+
+Перед работой прочитать docs/control-center/cc02/{AUDIT,PLAN,VISUAL-ACCEPTANCE}.md.
+Этот architecture fork готовит audit/guards/handoff, не реализует redesign. Grok после
+startup продолжает 9 CC02 tasks из WORK_STATE schema 2. V1 state архивирован без переписывания
+истории. Core/main/adapter/pinned evidence не менять; no D50/D51/Tauri/new backend scope.
+Каждый major screen DONE только после actual screenshot → independent critique → fix →
+second screenshot → layout matrix → reference rubric acceptance. Старый PASS не основание.
+`visual_gate.py` проверяет artifacts/coverage, но не красоту; слабый screenshot → NEEDS_FIX.
+Перед commit visual task: receipt current-web digest check + workflow/scope + semantic tests.
+Primary + все relevant before images открывает сам каждый visual subagent. Model policy:
+Grok 4.7 xhigh Coordinator; Grok 4.7 default High ui-builder/reviewer; Composer standard остальные.
+Фактическая модель UNVERIFIED — nonblocking. User acceptance отдельно от agent acceptance.

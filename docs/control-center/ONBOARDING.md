@@ -1,6 +1,12 @@
 # Начать здесь: Grok 4.7 Extra High
 
-**Не начинать реализацию до чтения пунктов1–4 и проверки Git ниже.**
+**Не начинать реализацию до обязательного чтения и проверки Git.**
+
+Текущий этап CC02: сначала UI Memory/WORK_STATE/STATUS, затем
+`cc02/AUDIT.md`, `cc02/PLAN.md`, `cc02/VISUAL-ACCEPTANCE.md`, DESIGN-SYSTEM CC02 addendum,
+AUTONOMOUS-WORKFLOW/AGENT-TEAM. Лично открыть primary PNG и все before images из
+`current-v1/` (реальный путь; manifest cc02/baseline.json). Web v1 существует и визуально
+отклонён; не начинать новый scaffold и не принимать historicalPASS за нынешнее acceptance.
 Работа — независимая визуальная оболочка. Основной chat выполняет D50+; ты этого не делаешь.
 Контекст восстанавливается из files, не из предыдущего чата. Язык — русский.
 
@@ -92,6 +98,5 @@ Expected directory `/Users/root1/.codex/worktrees/ec89/memecoin-ai`, branch
 новые UI commits после handoff; читать latest UI memory, сохранять чужие изменения.
 
 После чтения кратко сообщить: branch, understood scope, actual verification, первые задачи.
-Затем autonomous loop из WORK_STATE: Phase0/Phase1 и следующие ready задачи. Большой backend/GUI здесь за тебя не сделан: создатьweb/,
-выбранную tooling matrix, useful Observatory. Прогресс записывать вUI Memory Bank.
+Затем autonomous CC02 loop из текущего WORK_STATE. Web scaffold уже существует. Переработать presentation по CC02, не создавать web/ заново. Прогресс записывать вUI Memory Bank.
 Готовый стартовый prompt: [GROK-PROMPT.md](GROK-PROMPT.md).

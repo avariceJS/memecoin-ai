@@ -152,3 +152,95 @@ No generic admin drift. Не принимать screenshot, если нет visu
 затем лично открыть PNG. Команда не заменяет просмотра. Общий `--check/--render`
 при missing/changed image предупреждает, но сохраняет возможность независимой работы;
 предыдущие review receipts остаются историческими, новый visual PASS запрещён.
+
+## CC-02 — обязательное уточнение после visual rejection (2026-10-04)
+
+CC-01 tokens не равны принятому дизайну. V1 screenshots [current-v1](current-v1/README.md)
+показывают, что отдельные navy cards и cyan borders не дают нужной композиции. В случае
+конфликта этот addendum и [CC02 acceptance](cc02/VISUAL-ACCEPTANCE.md) важнее старого PASS.
+Стартовые размеры выше — guidance, не основание растягивать пустые panels ради min-height.
+
+### Shell и информация на первом экране
+
+Desktop master 1600×1000 CSS px, DPR 1, zoom 100%; дополнительно 1440×900/1920×1080,
+1024×768 fallback; target 1672×941 для side-by-side comparison. Sidebar 212–224 px,
+header 64–72 px. Main использует доступную ширину, без неожиданного narrow island на широком
+мониторе. Grid 12 cols, content-first minmax(0,..); рабочая область 8 cols, side context 4 cols,
+При ограниченной ширине columns располагаются друг под другом. На 1600 px aside предпочтительно 320–400 px, но не rigid
+по всем страницам: System matrix не должна оказаться в aside. У page один shell title
+и одна постоянная дата записи / RECORDED EVIDENCE, без двух дублирующих banner.
+
+Sidebar: небольшой original SVG brand mark, product Memecoin AI / Observatory mode,
+Lucide outline icons 20 px, active cyan line + subtle inset surface, groups Evidence / Research /
+System / Future. Реальные routes прежние. Group labels тише page content. Collapsed rail
+показывает различимые icons и accessible labels/tooltips, не одинаковые dots. Hover/focus
+согласованы, keyboard path не теряется, длинный brand не пытаться вместить в 56 px.
+
+Header: navigation title + as-of context, справа честный recorded status и действие
+manual refresh только существующего API (если реализовано); timestamp/hash — disclosure.
+Никаких fake search, notification counts, Live toggle или command launcher. При неизвестном
+core runtime краткое «Состояние core недоступно», а не красная авария на половину экрана.
+
+Overview: сверху 4 compact KPI со строгим выравниванием label/value/context; центральный
+D43 evidence timeline примерно 60% рабочей области; справа corpus/research/source states.
+Внизу 2–3 плотных полезных widgets, а не одинаковые пустые boxes высотой 240 px. Latency probes — secondary detail.
+Все cards имеют одну задачу; объём свободного места должен поддерживать hierarchy, не быть
+побочным эффектом fixed min-height / align stretch. Длинная страница допустима, пустота вместо
+информационного решения — нет. Shell и Overview принимаются раньше остальных redesign.
+
+### Typography / reason presentation
+
+Inter variable / статические 400/500/600 self-hosted, кириллица/latin, system fallback.
+Не загружать remote font в runtime. Font choice помогает consistency, не заменяет дизайн.
+Tokens: page-title 22–24/1.2 semibold; section 16/1.35; KPI 26–30/1.15 tabular; body 14/1.5;
+table 13/1.4; caption 12/1.4. Metadata 12 px; monospace только id/hash/exact code, не все labels.
+Числа выровнены, tabular; labels в sentence case; caps ограничены badges; body copy max 60–72 ch.
+Основная операторская лексика — русская; technical labels единообразны в details, без сырого camelCase.
+
+Пример locked card: «Обучение» → LOCKED → «Допуск к исследованию не выдан» →
+«Технические детали» (точный underlying code). Не заменять `NO_APPROVED_CORE...` фразой
+«Корпус недостаточен», если такой причинной связи нет в source. Qualification/permission/
+provenance независимы. DEMO обязателен отдельным state, никогда не SYNTHETIC INPUT.
+
+IDs: one-line ellipsis в summary с copy feedback/tooltip доступным keyboard; полный value
+в drawer/detail с wrap-anywhere. Никаких codes за border, `overflow:hidden` на page для сокрытия
+дефектов или microscopic font. Technical details сохраняются, но не занимают главное внимание.
+
+### Surface / color / motion
+
+Уровни: canvas → navigation → primary analytical panel → secondary context → inset detail.
+Тональный gradient внутри panel почти незаметен; 1 px border, локальная elevation, glows
+только active focus / brand / chart selection. Семантический цвет не меняет доступность или время.
+Muted purple — protection/engineering distinction, amber — конкретное attention/locked
+основание, red — failure/error, **UNAVAILABLE не системная авария**. No rainbow.
+
+Движение — реакция UI на действие, не имитация новых данных: hover 100–160 ms, drawer/page
+opacity/transform 160–220 ms, chart reveal 250–400 ms **однократно**. Counter animation по умолчанию
+не нужна: значения сразу доступны screenreader; если count-up используется, явно лишь как entry effect,
+не тикер и не пересчёт recorded facts. Никаких periodic status pulses / core heartbeat / glowing data flow.
+Decorative slow SVG motif — optional и aria-hidden, не часть data encoding. При hidden — pause;
+при reduced motion — static. Focus/reduced-motion/idle browser performance обязательны. Не больше одного ambient-элемента.
+
+### Dense visualization / interaction system
+
+ChartFrame: title/question, source/units/state, plot, short legend, table alternative/details.
+Data table в scroll container со sticky header; это не единственный visual mode каждой страницы.
+Tooltips показывают datum + units + recorded status, no protected details. Drawers поддерживают focus return
+и Escape; любое mouse action имеет keyboard path. Copy feedback не меняет текущую page. Active
+cell/filter/selected row всегда видимы. Не прятать essential status только на hover.
+
+D48: четыре strata × даты, компактные square/rect cells, цвет + shape/hatch; подписи dates/
+week/month вокруг матрицы, одна legend. 336 virtual text cards запрещены. На узких экранах — разбиение на
+week/month blocks или явно именованный local scroll, никакого page overflow. Protected cells
+передают только public design metadata; не 112 tab stops, а roving focus / legend summary.
+D43 markers не рисуют duration без published start. Research diagram не вычисляет новый admission.
+Models charts группируются по matched contexts; нельзя выделять скорость несопоставимого batch как преимущество.
+
+### Visual acceptance выше convenience
+
+Для major task недостаточно тестов и декларации «looks good». Обязательны actual browser
+screenshot → independent critique → fixes → second actual screenshot → layout audit → acceptance.
+Reviewer называет, что плохо, что исправлено и что остаётся слабым. Если посредственно,
+NEEDS_FIX даже при semantic PASS. Before/current/target смотрятся рядом, не по памяти Coordinator.
+Новые механические receipts проверяются script, но premium quality остаётся human/independent
+judgment. Подробная rubric/coverage в CC02 acceptance; user visual rejection важнее старого PASS.

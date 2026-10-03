@@ -7,6 +7,7 @@ from pathlib import Path
 
 from check_scope import AGENT_NAMES, allowed
 from check_scope import main as check_git_scope
+from visual_gate import TASK_ROUTES, validate_receipt, web_digest
 
 APP = Path(__file__).resolve().parents[1]
 ROOT = APP.parents[1]
@@ -34,12 +35,21 @@ def overlaps(left, right):
 
 
 def validate(state):
-    require(state["schema_version"] == 1, "Unsupported workflow schema")
-    require(state["scope"] == "control-center-web-v1-phases-0-7", "Scope drift")
+    require(state["schema_version"] in {1, 2}, "Unsupported workflow schema")
+    cc02 = state["schema_version"] == 2
+    expected_scope = (
+        "control-center-cc02-visual-reconstruction" if cc02 else "control-center-web-v1-phases-0-7"
+    )
+    require(state["scope"] == expected_scope, "Scope drift")
     require(state["overall"] in {"IN_PROGRESS", "COMPLETE", "BLOCKED_NEEDS_USER"}, "Overall")
     tasks = {t["id"]: t for t in state["tasks"]}
     require(len(tasks) == len(state["tasks"]) and tasks, "Duplicate/empty tasks")
     require(state["current_task"] in tasks, "Unknown current task")
+    if cc02:
+        require(set(tasks) == set(TASK_ROUTES), "CC02 task coverage changed")
+        for task_id, task in tasks.items():
+            expected = {"boundary", "visual"} if TASK_ROUTES[task_id] else {"boundary"}
+            require(set(task["required_reviews"]) == expected, "CC02 mandatory reviews removed")
     visited, visiting = set(), set()
 
     def visit(task_id):
@@ -122,6 +132,14 @@ def validate(state):
                         ),
                         "Missing actual visual comparison",
                     )
+    if cc02:
+        for task in tasks.values():
+            if task["status"] == "DONE" and TASK_ROUTES[task["id"]]:
+                expected_digest = (
+                    web_digest() if task["id"] == "CC02.8" else task["accepted_web_sha256"]
+                )
+                require(expected_digest and task["visual_receipt"], "CC02 visual receipt absent")
+                validate_receipt(task["visual_receipt"], task["id"], expected_digest)
     binding = state["model_binding"]
     require(binding["configured_executor"] == "composer-2.5[fast=false]", "Executor policy drift")
     require(binding["status"] in {"UNVERIFIED", "VERIFIED"}, "Model binding status")
@@ -164,7 +182,10 @@ def check_definitions():
             "Unexpected native field",
         )
         require(fields["name"] == "cc-" + role, "Agent name mismatch")
-        require(fields["model"] == "composer-2.5[fast=false]", "Unexpected model")
+        expected_model = (
+            "grok-4.7" if role in {"ui-builder", "visual-reviewer"} else "composer-2.5[fast=false]"
+        )
+        require(fields["model"] == expected_model, "Unexpected model")
         require(fields["readonly"] == str(expected_readonly).lower(), "Readonly mismatch")
         require(fields["is_background"] == "false", "Background disabled for this team")
         require(
@@ -192,19 +213,21 @@ def render(state):
     tasks = state["tasks"]
     active = next(t for t in tasks if t["id"] == state["current_task"])
     done = sum(t["status"] == "DONE" for t in tasks)
+    label = "CC02 visual reconstruction" if state["schema_version"] == 2 else "web v1"
     lines = [
         "# Control Center — STATUS",
         "",
         "Generated from WORK_STATE.json; не редактировать вручную.",
         "",
-        f"- Overall: **{state['overall']}** — web v1, {done}/{len(tasks)} tasks; Tauri вне scope.",
+        f"- Overall: **{state['overall']}** — {label}, {done}/{len(tasks)} tasks; Tauri вне scope.",
         f"- Current phase: **{active['phase']}**",
         f"- Current task: **{active['id']} — {active['title']}**",
         f"- Last completed: {state['last_completed']}",
         f"- Last verified commit: `{state['last_verified_commit']}`; "
         "latest фактически: `git log -1 --oneline`.",
         f"- Checks: {state['last_checks']}",
-        f"- Model binding: {state['model_binding']['status']} (config ≠ runtime).",
+        f"- Model binding: {state['model_binding']['status']} (config ≠ runtime; nonblocking).",
+        f"- User acceptance: {state.get('user_acceptance', 'historical v1 declaration')}.",
         f"- Blockers: {'; '.join(state['blockers']) or 'нет глобального blocker'}",
         f"- Next action: **{state['next_action']}**",
         "",

@@ -1,7 +1,8 @@
 # Автономный Coordinator: запуск, границы и recovery
 
-Это расширение принятого handoff, не новый engine/adapter. Текущий scope — web v1 phases
-0–7 из [04-phases.md](04-phases.md). Tauri phase8, D50+, live/research actions вне scope.
+Это расширение принятого handoff, не новый engine/adapter. Текущий scope — **CC02 visual reconstruction** из [cc02/PLAN.md](cc02/PLAN.md).
+Web v1 functional foundation сохранён; его visual acceptance отклонён пользователем.
+Tauri, D50/D51, новые backend capabilities и live/research actions вне scope.
 Открой [STATUS](../../apps/control-center/memory/STATUS.md): 30 секунд для текущей задачи,
 проверок, blockers и next action. Source task state — WORK_STATE.json рядом; не market truth.
 
@@ -11,11 +12,11 @@
 
 | Capability | Evidence / фактический статус | Наш выбор |
 |---|---|---|
-| Cursor IDE | `/Applications/Cursor.app`, `cursor --version`: 3.22.12, arm64, build `3a92974361033b2051526321308c2740fe5912c0` | используем установленный IDE |
+| Cursor IDE | `/Applications/Cursor.app`, `cursor --version`: 3.22.12, arm64, build `3a92974361033b2051526321308c2740fe5912c0` | используем установленную IDE |
 | Project rules | existing `.cursor/rules/control-center.mdc`, alwaysApply | один entrypoint, не дублировать root semantics |
 | Custom agents | native `.cursor/agents/` документирован; путь найден в installed app bundle | шесть CC definitions, scoped allowlist |
-| Model binding / readonly | поддержаны YAML fields `model`, `readonly`, `is_background`; local Composer2.5 token присутствует | model explicit, reviewers readonly; account run ещё не выполнен |
-| Grok / Composer | официальные IDs `grok-4.7`, `composer-2.5`; Grok effort `xhigh` | Coordinator picker Extra High, executors standard tier |
+| Model binding / readonly | поддержаны YAML fields `model`, `readonly`, `is_background`; local Composer 2.5 token присутствует | model explicit, reviewers readonly; actual model runtime UNVERIFIED |
+| Grok / Composer | официальные IDs `grok-4.7`, `composer-2.5`; Grok effort `xhigh` | Coordinator Extra High; CC02 visual roles High, routine Composer standard |
 | Native commands / skills | documented skills, `/loop`; project skill/command здесь не требуется | не создаём дополнительные .cursor paths |
 | CLI / SDK | `cursor --help` содержит agent; отдельный `~/.local/bin/cursor-agent` отсутствует | CLI НЕ запускали: launcher auto-installs/updates; SDK не нужен |
 | Foreground/background agents | native documented, actual account availability unknown | direct local subagents; cloud/worktree isolation не используем |
@@ -32,32 +33,28 @@ model syntax `composer-2.5[fast=false]`, model fallback и task-card verificatio
 Локальные строки bundle — подтверждение наличия механизма, не account entitlement.
 Не извлекать credentials/настройки аккаунта для «полного доказательства».
 
-## Model policy — configuration ≠ observed execution
+## Model policy CC-02 — quality-sensitive delegation
 
-- Coordinator: выбрать **Grok 4.7 → Extra High** в picker. Prompt не переключает модель.
-- Все шесть custom agents: `model: composer-2.5[fast=false]`, стандартный экономичный tier.
-  Это документированный ID/parameter, не выдуманный alias и не `inherit`/Auto.
-- Первая bounded task P0.1: read-only cc-artifact-analyst на known safe DTO, ≤3000 chars;
-  проверить **native task card** actual model/variant, не спрашивать модель о её имени.
-  Записать observed model + evidence description + date в WORK_STATE. Если tool result
-  не показывает модель, пользователь один раз смотрит task card; скрытые account stores
-  читать нельзя. Account access / billing pool / auto-fallback здесь ещё **UNVERIFIED**.
-- При mismatch/недоступности: не повторять дорогие spawns и не использовать неявный Grok
-  fallback. Исправить definition/config в scope по documented supported syntax, если можно;
-  иначе оставить model verification unresolved, выполнять независимый onboarding/review
-  Coordinator. Когда дальше нужна delegation — внешний settings blocker с точным действием.
+Coordinator: Grok 4.7 Extra High в picker; фактическое исполнение может оставаться UNVERIFIED.
+Именованные cc-ui-builder и cc-visual-reviewer: `model: grok-4.7`, documented default High.
+Native параметр effort для этой модели не угадываем: default High подтверждён официальной
+[страницей Grok 4.7](https://cursor.com/docs/models/grok-4-7); actual task card отдельно.
+Routine artifact/adapter/test/boundary agents остаются `composer-2.5[fast=false]`.
+Список IDs/syntax основан на [native subagents docs](https://cursor.com/docs/subagents).
 
-Наблюдение 2026-10-03. Карточка модели в tool result не появилась, и через UI её
-подтвердить нельзя. Binding остаётся `UNVERIFIED`: `observed_executor` пустой, статус
-`VERIFIED` без exact observed id и evidence по-прежнему запрещён. Configured policy и
-YAML остаются `composer-2.5[fast=false]`. Это не блокер web v1: P0.1 можно закрыть по
-карте DTO и boundary review, Phase 1 идёт дальше. Fast tier и inherit не подставлять.
-- Grok-subagent только explicit escalation сложного architecture/UX/integration review,
-  reason/model записать; не менять стандартную policy всех agents. Не покупать quota,
-  не включать on-demand/Max автоматически. Настроенный tier не обещает нулевую стоимость.
-- Built-in Explore/Bash/Browser не равны нашим pinned agents; не поручать им bulk work
-  вместо именованных executors. Native read-only restrictions не фильтруют все inherited
-  tools: AGENTS запреты RPC/MCP/core apply независимо от наличия tool.
+Grok High: shell, design system, Overview, Calendar, Research/Models visualizations,
+motion architecture и independent visual acceptance. Composer: fixtures/tests, ordinary
+bugfixes, bounded mapping, routine component wiring после принятого design primitive.
+Coordinator не раздаёт каждую мелочь дорогой модели; file leases и actual requested model
+записываются в task attempts. Docs/state/shared package lock/Git — Coordinator.
+
+Проверять actual model по tool/task card, если сведения доступны. Известно из v1, что
+Task parameter с bracketed model string был отклонён; это не доказательство отсутствия
+native file configuration. Не пробовать бесконечно variants и не выдумывать model IDs.
+При отсутствии evidence оставить UNVERIFIED и **продолжать работу** — прямое указание
+пользователя CC-02/CC-010. Ни качество, ни runtime model не доказываются self-report.
+Если native override не поддержан — зафиксировать fallback/unknown; сложный design review
+Coordinator выполняет дополнительно. Не менять account/settings/оплату за пользователя.
 
 ## Что включить человеку в Cursor
 
@@ -68,10 +65,11 @@ YAML остаются `composer-2.5[fast=false]`. Это не блокер web v
    Уже существующие team constraints не обходить. Если действие отклонено — безопасная
    scoped альтернатива; если невозможна, сохранить точную причину external blocker.
 3. Custom subagents должны обнаружиться из project files; не требуется global config.
-   На первом запуске проверить Composer standard в task card. Если его нет в account,
-   не нужен secret в chat: конкретный выбор доступной модели/настройка выполняется человеком.
+   Requested model проверить по task card, если доступна; UNVERIFIED не блокирует CC02.
+   Не запрашивать secret или менять account автоматически.
 4. Отключить использование cloud/background deployments для этого workstream. Native local
-   foreground делегирование достаточно. Sleep/restart Mac остановит computation, не core.
+   foreground делегирование достаточно. Закрытие GUI/IDE не является core control action.
+   Сон или restart всей машины могут затронуть и core processes; не выполнять их ради UI workflow.
 
 Официальный [Auto-review](https://cursor.com/docs/agent/security/run-modes) — convenience,
 не гарантия исполнения без prompts и не замена read-only boundaries. Не редактируем
@@ -80,14 +78,17 @@ YAML остаются `composer-2.5[fast=false]`. Это не блокер web v
 ## Coordinator loop
 
 START → root/UI AGENTS → UI memory → WORK_STATE/STATUS → onboarding architecture/design
-→ Git status/log/worktree → scope/conformance → следующий unfinished dependency-ready task.
+→ CC02 audit/plan/acceptance + target/current-v1 images → Git status/log/worktree
+→ scope/conformance → следующий unfinished dependency-ready task.
 
 1. Краткий task brief по AGENT-TEAM, назначить role/explicit write lease; зафиксировать в state.
 2. Самому решать architecture/integration; остальное native custom subagent. Максимум два
    writers на disjoint paths; no nested spawn. Definitions в [AGENT-TEAM.md](AGENT-TEAM.md).
 3. Принять компактный summary, прочитать diff и фактические targeted checks; интегрировать.
 4. Ordinary errors: diagnose → fix (executor) → verify. Не ждать разрешения на исправление.
-5. Visual gate по DESIGN-SYSTEM; boundary gate для data/API и перед общим acceptance.
+5. CC02 gate: first browser capture → independent critique → fix → second screenshots
+   на 4 viewport + fullpage → overflow/layout report → rubric → receipt validator.
+   Boundary gate отдельно. Bare PASS, один crop или один Overview на ширине 768 px не являются acceptance.
 6. Обновить task checks/reviews/attempts/next action; state/STATUS и нужную UI Memory Bank.
 7. Scope guard + conformance + diff review → logical commit (единственный Git writer).
    Commit message содержит task IDs. После commit записать hash в next state update;
@@ -106,7 +107,8 @@ START → root/UI AGENTS → UI memory → WORK_STATE/STATUS → onboarding arch
 `apps/control-center/memory/WORK_STATE.json` — единственный task state, Coordinator writer.
 `STATUS.md` генерируется `scripts/workflow.py --render`; `--check` проверяет consistency,
 task dependencies/reviews/leases/model receipt и UI scope. Missing/changed PNG даёт warning
-для независимых задач; `--visual` жёстко требует exact image перед новой visual работой. Не интегрирован в HTTP adapter.
+для независимых задач; `--visual` жёстко требует exact image перед новой visual работой.
+Workflow script не интегрирован в HTTP adapter.
 Reports — `memory/reports/<task>.md` (краткие, versioned), большие логи — ignored `.local/`.
 Сохранять источник failure, retries и interface requests. Не редактировать core Memory Bank.
 
@@ -123,8 +125,10 @@ Coordinator; один local session владеет очередью, task IDs и
 
 ## Stop policy
 
-COMPLETE: все current web-v1 tasks DONE, final tests/build/visual/boundary passed, docs/memory
-и Git review завершены. Future Tauri/core proposals не prerequisite, остаются unavailable.
+COMPLETE: все CC02 tasks DONE, current-build matrix для всех 6 screens и final
+visual/layout/semantic/boundary gates passed, docs/memory
+и Git review завершены. Future Tauri/core proposals не prerequisite, остаются unavailable. User acceptance
+отдельно, не автоматически ACCEPTED из reviewer PASS.
 BLOCKED_NEEDS_USER: нет независимой разрешённой задачи и нужен внешний account/settings
 action, credential (не присылать в chat), payment, существенное product/core interface
 решение или действие, физически недоступное agent. Указать safe cause/action и pending tasks.
@@ -143,3 +147,17 @@ cursor -n /Users/root1/.codex/worktrees/ec89/memecoin-ai
 Progress: STATUS.md; audit: WORK_STATE/receipts + `git log --oneline -8`.
 При новом chat/IDE/Mac restart ничего переустанавливать не нужно; выполнять RESUME,
 проверяя фактический branch/dirty state. Память чата optional, repo обязательный.
+
+
+## CC02 durable evidence и pre-commit
+
+V1 queue сохранена byte-for-byte в UI memory/history/web-v1-WORK_STATE.json;
+активный WORK_STATE schema 2 содержит 9 CC02 tasks; old PASS не переносится. STATUS regenerated.
+Visual tasks требуют artifacts receipts по cc02/VISUAL-ACCEPTANCE.md; before PNG в current-v1
+неизменны. Validator `visual_gate.py --receipt ... --task ...` проверяет current source digest,
+`workflow.py --check` сохраняет historical accepted digests по завершённым tasks, а CC02.8
+требует current digest. Ни validator, ни hash не заменяет subjective independent review.
+Схема receipt и frozen task/route matrix не ослабляются ради green. Major defects → NEEDS_FIX.
+Browser harness отсутствовал в v1: implement CC02.0, не обозначать Vitest как E2E.
+Recovery: root/UI rules → UI state/history → CC02 docs → Git → next action; потерянный
+browser screenshot/review artifact делает review NOT_VERIFIED, не повод создавать fabricated PASS.

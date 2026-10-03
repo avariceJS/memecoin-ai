@@ -16,7 +16,7 @@ import workflow  # noqa: E402
 
 class WorkflowTests(unittest.TestCase):
     def setUp(self):
-        self.state = json.loads((APP / "memory/WORK_STATE.json").read_text())
+        self.state = json.loads((APP / "memory/history/web-v1-WORK_STATE.json").read_text())
         # Independent fixtures remain meaningful after real project tasks advance.
         self.state["overall"] = "IN_PROGRESS"
         self.state["blockers"] = []

@@ -134,3 +134,28 @@ Native model preflight/web implementation намеренно остаются ne
 - `npm ci`: 153 пакета, 0 vulnerabilities. Повтор Coordinator: vitest 44, tsc, build, scope, projection, 22 adapter tests PASS.
 - Lockfile не изменился. Main не объединялся.
 - Остаются UNVERIFIED model card, CC-P001, предупреждения Node/jsdom и размера bundle.
+
+
+## 2026-10-04 — CC02 independent audit / reconstruction handoff
+
+- Web v1 visual acceptance REJECTED; все 10 user PNG и target открыты. Before сохранены
+  в исходном `docs/control-center/current-v1/`, SHA/dimensions — cc02/baseline.json.
+- Code / visual audit, KEEP/REFACTOR/REPLACE/DELETE, nine-task plan, design addendum,
+  screenshot/overflow/motion/a11y acceptance подготовлены. Сам redesign не выполнен.
+- Выявлены не только visual defects: DEMO→SYNTHETIC badge mapping и неполный benchmark
+  comparability predicate (batch/status). Fixes запланированы внутри frontend, не core.
+- Старые WORK_STATE/STATUS/state архивированы; active queue CC02 PENDING. Model policy
+  ui-builder + visual-reviewer → Grok High, routine → Composer standard; actual UNVERIFIED.
+- Добавлен developer-only receipt conformance и adversarial fixtures. Старые semantic tests
+  сохранены; screenshots не заменяются synthetic test PNG. Adapter/projection/web source untouched.
+- Baseline Vitest44/build PASS. Wrapper failure: zsh запрещает присваивать `status`; логи npm
+  показывают успех. Это orchestration failure, не runtime/provider. Предупреждения build сохранены.
+- Финальные checks/commit/provenance — docs/control-center/cc02/audit-evidence.json.
+  Independent reviewers — Codex audit agents, не подтверждение Cursor/Grok model runtime.
+- Core/main/root Memory/D43/F01 и D50/D51 не изменялись; никакого merge UI.
+
+- Independent guard review нашёл shell/page dependency conflict, слабое final-log binding,
+  отсутствие capture binding и принятие truncated PNG. Все исправлены и покрыты fixtures.
+  Final: 37 scoped unittest PASS (9 adapter + 13 workflow + 15 visual), Ruff/format PASS.
+  Review docs также исправил обещание, будто restart Mac не затрагивает core, невозможное
+  требование future captures до первой реализации и размер final reviewer response.

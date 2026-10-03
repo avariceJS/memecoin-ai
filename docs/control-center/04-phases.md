@@ -1,3 +1,7 @@
+> 2026-10-04: этот web-v1 implementation plan выполнен как foundation, но visual acceptance
+> отклонён пользователем. Текущая очередь — [CC02 PLAN](cc02/PLAN.md), не повтор phases0–7.
+> Старые acceptance receipts не считаются visual PASS CC02. Документ сохранён как история.
+
 # План реализации Grok: Observatory → полноценная web v1
 
 Оценка — 5–8 рабочих дней, а не обещание срока. Фазы идут по зависимости, не по

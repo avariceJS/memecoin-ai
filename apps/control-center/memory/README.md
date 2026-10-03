@@ -11,7 +11,8 @@
 | Product/stack/process separation | docs/control-center/01-architecture.md |
 | Разрешённые данные и неизвестности | docs/control-center/02-data-map.md |
 | DTO/provider/API | docs/control-center/03-contracts.md + ../contracts/types.ts |
-| План и acceptance | docs/control-center/04-phases.md |
+| Текущий CC02 plan / acceptance | docs/control-center/cc02/PLAN.md + VISUAL-ACCEPTANCE.md |
+| Web v1 historical plan | docs/control-center/04-phases.md |
 | Git/security/demo/tests | docs/control-center/05-security-workflow.md |
 | Подтверждённая безопасность handoff | docs/control-center/06-review.md |
 
@@ -21,7 +22,7 @@ reference и actual result. Не заменять failure history; не счит
 source integrity. Core snapshot baseline указан явно; не объявлять D50+ статус без export.
 
 
-CC-01 durable execution: [WORK_STATE.json](WORK_STATE.json) — task queue/leases/checks,
+Durable execution (с CC02 — schema 2, v1 архивирован): [WORK_STATE.json](WORK_STATE.json) — task queue/leases/checks,
 [STATUS.md](STATUS.md) — короткая generated сводка. Workflow не второй market source of truth.
 Coordinator-only writer; `python3 apps/control-center/scripts/workflow.py --render` обновляет
 STATUS из JSON; `--check` проверяет consistency. Compact review receipts — `reports/`.

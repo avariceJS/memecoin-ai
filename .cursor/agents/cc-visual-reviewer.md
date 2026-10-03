@@ -1,7 +1,7 @@
 ---
 name: cc-visual-reviewer
 description: Review actual Control Center screens against the primary PNG; density hierarchy accessibility and honest states.
-model: composer-2.5[fast=false]
+model: grok-4.7
 readonly: true
 is_background: false
 ---
@@ -22,3 +22,12 @@ Missing core interface → proposal suggestion + UNAVAILABLE/LOCKED, не core p
 Возврат ≤3000 символов: STATUS / TASK / FILES CHANGED / WHAT WAS DONE / TESTS /
 IMPORTANT FINDINGS / RISKS / NEXT / ESCALATION. Полные transcripts не возвращать.
 Native task card model проверяет Coordinator; self-report имени модели не evidence.
+
+
+CC02 policy: Grok4.7 High — native documented default high; actual binding UNVERIFIED
+если task card недоступна. Это не blocker и не основание объявлять verified. До visual
+работы читать docs/control-center/cc02/AUDIT.md, PLAN.md и VISUAL-ACCEPTANCE.md.
+До начала открыть target + relevant current-v1 PNG. Actual browser screenshots открывать
+по мере появления first/second captures; обе итерации обязательны перед acceptance.
+Quality важнее скорости. Назвать defects, fix changes, remaining weaknesses и score
+по всем rubric axes; нет PASS по одному факту «navy / tests green». No core changes.

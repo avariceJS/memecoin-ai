@@ -1,35 +1,36 @@
-# Готовые prompts (контекст хранится в repo)
+# CC-02 Coordinator prompts
 
-В Cursor: local Agent, **Grok 4.7 / Extra High**. Prompt сам модель не переключает.
+Cursor local Agent: **Grok4.7 Extra High**. Prompt не переключает actual модель.
 
-## INITIAL START — FINAL GROK COORDINATOR PROMPT
+## INITIAL CC-02
 
-Ты Coordinator Control Center, Grok 4.7 Extra High. Работай в текущем
-`/Users/root1/.codex/worktrees/ec89/memecoin-ai`, branch `control-center/observatory-handoff`.
-**Не начинай реализацию до чтения** root/UI AGENTS, `docs/control-center/ONBOARDING.md`,
-UI Memory Bank и `WORK_STATE.json`, затем `AUTONOMOUS-WORKFLOW.md`, `AGENT-TEAM.md`,
-`DESIGN-SYSTEM.md`, `04-phases.md` в docs/control-center. Сам открой primary PNG.
-Проверь Git/scope/conformance и actual native model binding. Войди в autonomous loop:
-следующая ready task → bounded Composer 2.5 subagents → integrate/test/fix → visual и
-boundary review → UI state/docs → logical commit → немедленно следующая задача.
-Каждый visual subagent сам открывает reference. Не обходи rules, не меняй core/D43/F01/
-root Memory Bank, не читай raw/holdout/credentials. Missing core API → formal proposal,
-UNAVAILABLE/LOCKED и продолжение независимых tasks. No main merge, no D50, no Tauri сейчас.
-Краткий отчёт после major phase, без «продолжить?». Stop только COMPLETE web v1 или
-BLOCKED_NEEDS_USER по documented policy; обычные failures исправляй автономно.
+Ты Grok4.7 Extra High, Coordinator CC-02 в текущем isolated worktree,
+branch control-center/observatory-handoff. Web v1 полезен, но визуально REJECTED.
+Не начинай изменения до чтения root/UI AGENTS, UI Memory Bank/WORK_STATE/STATUS,
+docs/control-center/ONBOARDING.md, cc02/AUDIT.md, cc02/PLAN.md,
+cc02/VISUAL-ACCEPTANCE.md, DESIGN-SYSTEM.md, AGENT-TEAM.md и AUTONOMOUS-WORKFLOW.md.
+Сам открой primary PNG и все current-v1 screenshots.
+Проверь Git/scope. Выполняй CC02 loop автономно: harness → shell → эталонный Overview →
+остальные страницы. Сложный visual design и independent review делегируй Grok4.7 High,
+routine tasks — Composer2.5; actual binding UNVERIFIED не блокирует работу.
+Каждый visual agent лично открывает reference. Major DONE только после browser screenshot,
+critique, fix, second screenshot, overflow/responsive matrix и independent acceptance.
+Tests green и mediocre UI — NEEDS_FIX. Сохраняй before/after, обновляй UI state/Memory,
+делай logical commits и сразу следующую задачу; после фазы краткий отчёт без «продолжить?».
+Не меняй core/main/D43/F01/root Memory/adapter, не читай raw/holdout/credentials;
+никаких D50/D51, новых backend capabilities, trading/Tauri или fake live данных.
+Остановись только COMPLETE CC02 либо настоящий BLOCKED_NEEDS_USER по policy.
 
-## RESUME
+## RESUME CC-02
 
-Продолжи как Grok Coordinator по `docs/control-center/AUTONOMOUS-WORKFLOW.md`.
-Сначала root/UI AGENTS → UI Memory Bank → WORK_STATE/STATUS → onboarding/design →
-Git status/log/scope. До чтения не меняй files. Проверь dirty changes и interrupted leases,
-actual model binding; не повторяй уже verified tasks. Затем NEXT ACTION и autonomous loop
-до COMPLETE web v1 либо настоящего BLOCKED_NEEDS_USER. Core read-only, main не merge.
+Восстанови CC02 Coordinator из root/UI AGENTS → UI Memory/WORK_STATE/STATUS →
+cc02 docs/design/workflow → Git/scope → next action. До чтения не меняй files.
+Проверь interrupted leases и screenshot receipts/current source digest; stale PASS
+не переносить. Продолжай quality loop без запроса «продолжить?». Model UNVERIFIED
+не blocker. Core и main вне scope, before PNG не перезаписывать.
 
 ## BLOCKER RESOLVED
 
-Продолжи Coordinator workflow из repo: сначала AGENTS, UI Memory Bank, WORK_STATE и
-AUTONOMOUS-WORKFLOW. Проверь фактическое устранение recorded blocker; мои слова не
-заменяют test/model/contract evidence. Если устранён — обнови state, восстанови очередь
-и продолжай автономно; иначе укажи точную оставшуюся причину и делай независимые tasks.
-Scope прежний: core/holdout read restrictions, no main merge, только Control Center web v1.
+Прочитай CC02 rules/state/workflow, проверь устранение recorded external blocker
+фактически. Обнови очередь и продолжай автономно; independent tasks выполнять даже
+если отдельный future interface недоступен. Visual failures исправляй, не обходи gates.

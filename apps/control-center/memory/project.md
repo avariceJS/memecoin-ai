@@ -22,3 +22,11 @@ Future core interfaces обсуждаются proposals, не внедряютс
 
 Пользователь доверил Grok автономную разработку UI в этой dedicated branch после чтения
 правил. Logical commits и scoped branch push разрешены; merge/main push запрещены.
+
+
+CC02 (2026-10-04): функциональный web v1 сохраняется, visual acceptance REJECTED.
+Текущий scope — presentation/UX reconstruction. Порядок: shell → Overview как эталон →
+остальные страницы. Data correctness не заменяет visual quality; tests + independent
+browser screenshot review обязательны. Current plan: docs/control-center/cc02/PLAN.md.
+Существующий write scope также включает шесть exact `.cursor/agents/cc-*.md` по CC-007;
+новое расширение permissions в CC02 не требуется.

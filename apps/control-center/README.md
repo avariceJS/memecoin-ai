@@ -1,4 +1,4 @@
-# Memecoin AI Control Center — стартовая база
+# Memecoin AI Control Center — web v1 / CC02
 
 **Read-only Observatory, исторические evidence, core baseline6a7e079.**
 Adapter — stdlib, без PyTorch/venv. Frontend — `web/`, exact pins в
@@ -43,7 +43,7 @@ HTTP API не раздаёт repository/static files, не имеет PUT/POST/c
 задаёт конечный offline allowlist; runtime не читает его sources и не ходит в `work/`.
 Не перегенерировать bundle поверх старого и не редактировать числа вручную.
 
-План Grok: [фазы](../../docs/control-center/04-phases.md),
+Текущий план Grok: [CC02](../../docs/control-center/cc02/PLAN.md),
 [готовый prompt](../../docs/control-center/GROK-PROMPT.md).
 
 
@@ -63,3 +63,10 @@ Primary visual contract: [DESIGN-SYSTEM](../../docs/control-center/DESIGN-SYSTEM
 Перед coding/commit также `python3 apps/control-center/scripts/workflow.py --check`.
 После обновления WORK_STATE: `python3 apps/control-center/scripts/workflow.py --render`.
 Эти developer scripts не вызываются runtime API и не управляют core/services.
+
+## CC02 — visual reconstruction pending
+
+Web v1 функционально сохраняется, визуально отклонён. [Independent audit](../../docs/control-center/cc02/AUDIT.md)
+и [screenshot acceptance](../../docs/control-center/cc02/VISUAL-ACCEPTANCE.md) обязательны перед redesign.
+Новые frontend libraries и browser harness в audit не установлены. Сначала shell, затем Overview
+как эталон; старые visual PASS не переносятся. Current queue — memory/WORK_STATE.json.
