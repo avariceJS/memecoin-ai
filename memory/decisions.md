@@ -661,3 +661,12 @@ installed-wheel reproduction,17 ML/416 combined tests. CPU engineering default; 
 отдельной corpus/protocol qualification. D43 protected hashes70/70 равны. Следующий
 независимый D45 — multi-window registry/qualification/global folds, пока не проведён.
 Evidence: docs/evidence/ml-foundation-2026-10-03.json.
+
+### D45: registry и qualification независимо от frozen D43
+
+2026-10-03 пользователь разрешил multi-window registry, corpus qualification и global
+chronological folds/holdout, сохраняя запрет research training до readiness decision.
+До опытов закреплён план docs/corpus-registry.md: immutable append revisions/objects,
+semantic admission development, future holdout quarantine, fixed absolute folds с
+group maturity purge. Count floors только diagnostics; research readiness не включается
+автоматически. D43/CPMM/features/targets/D44 model sources не изменять. Результат не получен.
