@@ -2,10 +2,10 @@
   "schema_version": 1,
   "scope": "control-center-web-v1-phases-0-7",
   "overall": "IN_PROGRESS",
-  "current_task": "P5.1",
-  "last_completed": "P4.2 adversarial research fixtures: numeric pass не снимает LOCKED. Boundary PASS.",
-  "last_verified_commit": "be53e8415c99692e457669eea6e704918eb1a526",
-  "last_checks": "2026-10-03: web vitest 30 PASS, tsc PASS. Synthetic research fixtures не пишут published JSON.",
+  "current_task": "P6.1",
+  "last_completed": "P5.1 Models: 15 runs, 40 benchmarks, без winner. Visual и boundary PASS.",
+  "last_verified_commit": "6a349c05c68fa7ad526ed30a602cdb200e6be9b9",
+  "last_checks": "2026-10-03: web vitest 36 PASS, tsc PASS. Browser /models: cpu+16×8 → 10/40, activeModel не выбрана.",
   "model_binding": {
     "configured_coordinator": "grok-4.7 / xhigh (picker)",
     "configured_executor": "composer-2.5[fast=false]",
@@ -14,7 +14,7 @@
     "evidence": "2026-10-03: task card cannot be confirmed in Cursor UI. User directed binding to stay UNVERIFIED and not block web v1. Configured executor remains composer-2.5[fast=false]. Earlier Task parameter composer-2.5[fast=false] was rejected; tool results had no model field. VERIFIED is not claimed."
   },
   "blockers": [],
-  "next_action": "P5.1: Models / runs / benchmarks — SYNTHETIC INPUT и ENGINEERING рядом с метриками, без winner.",
+  "next_action": "P6.1: System — статус своего API отдельно от core, locked predictions/paper/live без fake online.",
   "capabilities": [
     "existing read-only adapter + immutable historical projection",
     "primary visual reference available",
@@ -597,15 +597,51 @@
         "visual",
         "boundary"
       ],
-      "status": "PENDING",
-      "write_files": [],
-      "checks": [],
-      "reviews": [],
-      "attempts": [],
+      "status": "DONE",
+      "write_files": [
+        "apps/control-center/web/src/pages/models",
+        "apps/control-center/web/src/routes.tsx"
+      ],
+      "checks": [
+        {
+          "command": "npm --prefix apps/control-center/web test",
+          "result": "PASS"
+        },
+        {
+          "command": "npm --prefix apps/control-center/web run check",
+          "result": "PASS"
+        }
+      ],
+      "reviews": [
+        {
+          "kind": "visual",
+          "result": "PASS",
+          "evidence": "cc-visual-reviewer db07cfe4-08d9-45b7-9708-5615241722a3 accepted dense timings table and REAL dataset badge. Screenshot sha256 bfe00d5b0ad1ccfb6ecbb941287bfb82e735567cab5170deb0260111b8126795.",
+          "reviewed_revision": "6a349c05c68fa7ad526ed30a602cdb200e6be9b9+models",
+          "reference_viewed": true,
+          "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+          "screenshot": "apps/control-center/.local/reviews/p5-models.png sha256 bfe00d5b0ad1ccfb6ecbb941287bfb82e735567cab5170deb0260111b8126795"
+        },
+        {
+          "kind": "boundary",
+          "result": "PASS",
+          "evidence": "cc-boundary-reviewer 8ee3ed0a-be6a-40e6-8a1e-532869795b29: no winner actions, null is not zero, no torch/fetch.",
+          "reviewed_revision": "6a349c05c68fa7ad526ed30a602cdb200e6be9b9+models"
+        }
+      ],
+      "attempts": [
+        {
+          "at": "2026-10-03",
+          "kind": "delegate",
+          "role": "cc-ui-builder",
+          "configured_model": "composer-2.5[fast=false]",
+          "note": "Task slug composer-2.5; open primary PNG; observed card UNVERIFIED"
+        }
+      ],
       "blocker": "",
-      "summary": "",
-      "reference_viewed": false,
-      "reference_sha256": null
+      "summary": "Models page: 15 runs and 40 benchmarks, shape/device filters, null timings stay unpublished, no winner actions. Batch caveat is visible inside a comparable group.",
+      "reference_viewed": true,
+      "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6"
     },
     {
       "id": "P6.1",

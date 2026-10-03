@@ -104,3 +104,9 @@ Native model preflight/web implementation намеренно остаются ne
 - blockers 0 при checks 42 остаётся LOCKED. Releases 0 не названы exposures.
 - Совпадающие 88/88 не сливаются. Чужой specId без GRU. label/target/holdoutMetric не в DOM.
 - Vitest 30 PASS. Boundary PASS.
+
+## 2026-10-03 — P5.1 Models
+
+- `/models`: 15 runs (10 SYNTHETIC, 5 REAL), 40 benchmarks, activeModel «не выбрана».
+- Фильтр cpu и 16×8 оставляет 10 строк. Смешанные shape/device — «несопоставимо».
+- Null timing — «не измерено». Нет winner/launch. Vitest 36 PASS.

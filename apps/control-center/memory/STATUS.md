@@ -2,15 +2,15 @@
 
 Generated from WORK_STATE.json; не редактировать вручную.
 
-- Overall: **IN_PROGRESS** — web v1, 10/15 tasks; Tauri вне scope.
-- Current phase: **5**
-- Current task: **P5.1 — Models / runs / benchmarks**
-- Last completed: P4.2 adversarial research fixtures: numeric pass не снимает LOCKED. Boundary PASS.
-- Last verified commit: `be53e8415c99692e457669eea6e704918eb1a526`; latest фактически: `git log -1 --oneline`.
-- Checks: 2026-10-03: web vitest 30 PASS, tsc PASS. Synthetic research fixtures не пишут published JSON.
+- Overall: **IN_PROGRESS** — web v1, 11/15 tasks; Tauri вне scope.
+- Current phase: **6**
+- Current task: **P6.1 — System и capability placeholders**
+- Last completed: P5.1 Models: 15 runs, 40 benchmarks, без winner. Visual и boundary PASS.
+- Last verified commit: `6a349c05c68fa7ad526ed30a602cdb200e6be9b9`; latest фактически: `git log -1 --oneline`.
+- Checks: 2026-10-03: web vitest 36 PASS, tsc PASS. Browser /models: cpu+16×8 → 10/40, activeModel не выбрана.
 - Model binding: UNVERIFIED (config ≠ runtime).
 - Blockers: нет глобального blocker
-- Next action: **P5.1: Models / runs / benchmarks — SYNTHETIC INPUT и ENGINEERING рядом с метриками, без winner.**
+- Next action: **P6.1: System — статус своего API отдельно от core, locked predictions/paper/live без fake online.**
 
 | Task | Role | State |
 |---|---|---|
@@ -24,7 +24,7 @@ Generated from WORK_STATE.json; не редактировать вручную.
 | P3.2 Sources / Pools qualification | ui-builder | DONE |
 | P4.1 Research spec, gates и counters | ui-builder | DONE |
 | P4.2 Research adversarial state tests | test-debugger | DONE |
-| P5.1 Models / runs / benchmarks | ui-builder | PENDING |
+| P5.1 Models / runs / benchmarks | ui-builder | DONE |
 | P6.1 System и capability placeholders | ui-builder | PENDING |
 | P6.2 Replay/future proposals и boundary tests | adapter-builder | PENDING |
 | P7.1 Responsive, a11y, perf и final visual review | test-debugger | PENDING |
