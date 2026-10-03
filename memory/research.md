@@ -165,3 +165,15 @@ GRU default и CPU default — инженерные стартовые конф�
 Следующий независимый D45: multi-window registry, qualification и global protocol/folds;
 реальное обучение требует отдельного принятия corpus/protocol, не count threshold.
 [Контракт/результат](../docs/ml-foundation.md), [evidence](../docs/evidence/ml-foundation-2026-10-03.json).
+
+
+## D45 и следующий D46
+
+D45 реализован без самостоятельных training runs: immutable registry, diagnostic
+qualification и fixed global folds/holdout. Реально импортировано1sealed D43 окно;
+несколько окон/restart/holdout/false-readiness проверены на явно synthetic fixtures,
+не на выдуманном многодневном corpus. Source/temporal/execution semantics не ослаблены.
+Следующий независимый D46 — research specification/readiness dossier: целевой scope
+и universe, target limitations, execution assumptions, поддержка/uncertainty criteria,
+model-selection budget и release protocol. Никакое число окон само по себе не включает
+research mode. [D45 evidence](../docs/evidence/corpus-registry-2026-10-03.json).

@@ -450,3 +450,20 @@ availability. Далее cold-connection observability и новые кален�
 - CPU engineering default, GRU первый temporal candidate; market backbone не выбран.
   Следующий D45: multi-window registry/qualification/global folds, без изменения D43.
   Отчёт docs/ml-foundation.md, evidence docs/evidence/ml-foundation-2026-10-03.json.
+
+
+## 2026-10-03 — D45: multi-window registry и закрытый readiness gate
+
+- Frozen план6da8aba, реализация1038265: отдельный stdlib registry, exact source/seal/
+  outcome/semantics admission, dedup identities, immutable objects/revisions, fsync,
+  writer lock, staging restart и idempotent sync. D43/D44 source files не менялись.
+- Absolute fold0/1 +embargo/group maturity purge, future holdout4/5 quarantine,
+  qualifier per-action/classes/calendar/observed spans, no automatic research promotion.
+- Реальная revision000000:1window/5pending,174 decisions,1392variants,122complete-grid,
+ 5greedy nonoverlap,1day/hour; оба folds val/test0. Gate false. Multi-window properties
+  проверены на synthetic D43-shaped fixtures, не дополнительных реальных данных.
+-17 registry tests,419 base/433 combined;ruff/mypy/smoke/build, exact wheel audit/export,
+  repeat no_change,70 protected D43 hashes и D44 source identity неизменны. No new training.
+- Status workflow теперь D45 sync/audit; старый full D43 inventory раскрывает target
+  details и может contaminate holdout. Следующий D46 — research specification/readiness
+  dossier. Отчёт docs/corpus-registry.md, evidence docs/evidence/corpus-registry-2026-10-03.json.

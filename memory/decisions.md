@@ -670,3 +670,14 @@ chronological folds/holdout, сохраняя запрет research training д�
 semantic admission development, future holdout quarantine, fixed absolute folds с
 group maturity purge. Count floors только diagnostics; research readiness не включается
 автоматически. D43/CPMM/features/targets/D44 model sources не изменять. Результат не получен.
+
+
+D45 завершён: code1038265, registry work/corpus-registry-01/revision000000.1 реальное
+окно/5pending,174 decisions; fold0/fold1 train174,val0,test0. Absolute protocol создан
+до будущих окон; holdout4/5 quarantined до отдельного release, API release отсутствует.
+Window0 exposed в D44 остаётся development.17 synthetic registry tests,419 base/433
+combined, exact wheel audit/export, repeat no_change. Diagnostic count floors сами
+не открывают research gate. D43 protected70hashes/D44 model source identity неизменны.
+Следующий D46: research specification/readiness dossier; пока не проведён. Routine
+status через D45: старый D43 inventory раскрывает label reports и не подходит для
+защиты holdout. Контракт/evidence: docs/corpus-registry.md и docs/evidence/corpus-registry-2026-10-03.json.

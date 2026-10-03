@@ -3,6 +3,28 @@
 Обновлено: **2026-10-03**, Europe/Moscow.
 
 
+**D45 завершён: immutable registry и frozen global folds готовы к новым D43 окнам.**
+Root `work/corpus-registry-01`, revision000000:1 development/5 pending,180 starts,
+174 usable decisions/1392 scenarios,122 all-scenarios-observed,5 greedy nonoverlap
+(не independent samples),1 UTC day/hour. Оба folds пока train174/validation0/test0.
+Readiness false; counts сами его не снимают. Holdout окна4/5 закреплены заранее,
+labels не экспортируются; пересекающие holdout окна quarantine целиком.
+
+17 registry tests,419 base/433 combined tests,ruff/mypy/smoke/build прошли. Idempotent
+resync=no_change, exact offline audit/fold export из wheel.70 protected D43 hashes и
+D44 source identity не изменены. Research training этого этапа не запускался.
+[Итог D45](../docs/corpus-registry.md), [evidence](../docs/evidence/corpus-registry-2026-10-03.json).
+
+**Следующий независимый этап D46:** research specification/readiness dossier — scope/
+universe, target и execution assumptions, достаточность поддержки/uncertainty, бюджет
+model selection. Параллельно новые окна подключать командой
+`.venv/bin/python tools/corpus_registry.py sync work/corpus-registry-01`, затем `audit`.
+Не пересоздавать registry/protocol. Обычный status теперь через D45: старый D43 inventory
+выводит target reports всех окон и после появления4/5 может раскрыть reserved holdout.
+Не просматривать holdout labels/uncertainty для подбора модели. Research gate закрыт;
+D43 не изменять/не переустанавливать и не ждать календаря для независимой разработки.
+
+
 **D44 завершён: независимый ML/training foundation принят для engineering smoke.**
 Optional `memecoin_ml` и `work/ml-venv` (Python3.13/PyTorch2.14.1), immutable causal
 sequences, grouped maturity purge, train-only scaler, empirical+linear baselines,
@@ -17,11 +39,6 @@ ruff/mypy/smoke/build прошли; remote CI пока не проверен.
 validation содержит только roundtrip, test180/360 variants censored. Engineering
 CPU default, GRU2174 params — первый temporal candidate; рыночный backbone не выбран.
 [Итог D44](../docs/ml-foundation.md), [evidence](../docs/evidence/ml-foundation-2026-10-03.json).
-
-**Следующий независимый этап D45:** multi-window dataset registry/dedup/provenance,
-coverage/target-support qualification и frozen global folds/holdout; сначала fixtures,
-без ожидания календарных окон и без изменения D43. Настоящий research-training gate
-пока закрыт. Пользователь разрешил engineering training, не edge/качество на малом corpus.
 
 **D43 активно: конечное 48-часовое расписание установлено, первое окно выполнено.**
 Local LaunchAgent `ai.memecoin.d43.calendar01`, immutable plan/runtime в
@@ -39,7 +56,7 @@ reproduction dev/frozen wheel прошли.
 [Документ D43](../docs/calendar-execution.md),
 [evidence на первое окно](../docs/evidence/calendar-execution-2026-10-03.json).
 
-**Следующий шаг потока D43:** read-only inventory активного job; следующие окна
+**Следующий шаг потока D43:** read-only D45 sync/audit активного расписания; следующие окна
 03 октября16:53/22:53,04 октября10:53/22:53,05 октября10:53 (Москва),5 pending.
 Затем audit реальных часов/дней, gaps/full-grid support и отдельно execution evidence.
 Будущие окна не считать состоявшимися. На Mac нужен активный user session/доступ;

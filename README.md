@@ -212,3 +212,11 @@ checkpoint/resume/inference и actual CPU/MPS benchmarks. Только engineeri
 текущий corpus не квалифицирован для market ML результата. Frozen D43 не изменяется.
 [Команды, архитектура и границы](docs/ml-foundation.md),
 [воспроизводимое evidence](docs/evidence/ml-foundation-2026-10-03.json).
+
+
+## Corpus registry (D45)
+
+Повторяемый offline sync sealed D43 окон, immutable revisions, global folds и reserved
+holdout: [runbook](docs/corpus-registry.md). Текущий root `work/corpus-registry-01`;
+`tools/corpus_registry.py sync`/`audit` не запускают collector и не раскрывают holdout
+labels. Research readiness остаётся закрытым. [Evidence](docs/evidence/corpus-registry-2026-10-03.json).

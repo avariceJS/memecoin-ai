@@ -109,3 +109,23 @@ Real smoke validation136 variants все roundtrip; test180/360 censored, failur
 слишком мал. Engineering test повторяемый и не считается protected market holdout.
 Research mode закрыт; будущий D45 должен отдельно определить corpus qualification,
 global folds/embargo/holdout и model-selection budget. [D44](../docs/ml-foundation.md).
+
+
+## D45: frozen chronological membership и reserved holdout
+
+Protocol configs/corpus-registry-v1.json фиксирует absolute cutoffs до новых окон:
+fold0 train0/validation1/outer-test2,fold1 train0–1/validation2/outer-test3; окна4/5
+reserved holdout. Embargo30s, purge целого решения по max(sibling maturity, nominal
+horizon end); все scenarios остаются в одной partition. Late registry admission может
+добавить IDs только в новой revision, не изменить прежнюю frozen dataset/membership.
+Разделение не утверждает независимость folds или overlapping outcomes. Исторический
+outer test может входить в validation более позднего заранее заданного fold.
+
+Qualification считает actual temporal breadth, observed span union, unique decisions,
+full-grid/censorship/nonoverlap и per-action/class support. Preregistered engineering
+floors лишь diagnostics: даже synthetic с all numeric true сохраняет readiness false.
+Real revision000000 имеет train174/val0/test0 в обоих folds. Ни один research gate не снят.
+Holdout release/metrics/export API отсутствует; metadata/hash checks разрешены, чтение
+raw через иные инструменты не может быть автоматически обнаружено. При external exposure
+нельзя называть holdout globally unseen; следующий release требует отдельного review.
+Для status применять D45 sync/audit, не старый full D43 target inventory. [Контракт](../docs/corpus-registry.md).

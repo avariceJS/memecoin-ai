@@ -202,3 +202,15 @@ fixtures. Затем применить к реально накопленным
 research readiness/нужном sampling. Multi-window registry пока не реализован. Policy/MPC,
 net evaluation и full execution calibration остаются следующими самостоятельными gates.
 [Документ D44](../docs/ml-foundation.md).
+
+
+## D45 завершён → D46 research specification/readiness dossier
+
+Registry work/corpus-registry-01/revision000000 принимает новые sealed D43 окна через
+ручной offline sync без переустановки runtime. Сейчас1development/5pending,1day/hour;
+оба global folds пока train174/validation0/test0, readiness false. Holdout4/5 закреплён
+в будущем и не раскрывается.17 registry property tests,419 base/433 combined, exact
+wheel reproduction. Дальше независимый D46: scope/universe, target/execution assumptions,
+support/uncertainty criteria и model-selection budget; затем формальное решение о
+readiness по фактическому corpus, не календарному плану. D43 продолжает свой frozen job.
+Использовать D45 status, старый полный D43 inventory может раскрыть holdout labels.

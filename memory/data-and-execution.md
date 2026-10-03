@@ -575,3 +575,24 @@ Artifact dirs append-only/new; dataset/run/checkpoint checksums и source bindin
 raw/checkpoints вне Git.70 frozen D43 protected files совпали до/после; RPC не было.
 Рабочая реализация пока eager/bounded, research qualification false, multi-window merge
 и dedup следующий D45. [Контракт](../docs/ml-foundation.md), [evidence](../docs/evidence/ml-foundation-2026-10-03.json).
+
+
+### D45: immutable multi-window registry
+
+Stdlib memecoin_registry связывает одну frozen calendar plan, cohort/target semantics,
+reference seal и converter sources. Development admission: exact seal inventory/outcome,
+no unsafe paths/symlinks, semantic D44 export, scenario grid/availability verification,
+source seal recheck; duplicate(pool,decision_ns) между окнами — отказ, не новые samples.
+Partial/failed/missed не становятся training corpus. Pending не добавляет coverage.
+Writer lock, fsync/staging/atomic revision publish, immutable objects и parent hashes;
+failed attempts сохраняются, idempotent restart не переписывает старые artifacts.
+Registry_available/as-of не подменяет source decision/online availability: folds —
+offline historical protocol, не утверждение прошлой доступности обученной модели.
+
+Первый реальный registry1window:180 starts,174 usable,6 unusable;1392 variants,362censored;
+122 complete-grid decisions,5 greedy nonoverlap,279.775962s union observed spans.
+Holdout окна4/5 только hashes/operational metadata; raw/targets остаются в D43, semantic
+verification deferred until release. Whole crossing window quarantine. Routine sync/audit
+не выводит holdout outcomes/returns/status class counts; читать старый full D43 target
+inventory после появления holdout нельзя без фиксации exposure. Это process guard,
+не OS protection от владельца raw. [D45](../docs/corpus-registry.md).

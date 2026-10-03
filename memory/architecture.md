@@ -222,3 +222,16 @@ load, source/dataset/config binding, optimizer/RNG epoch resume и label-free Pr
 CPU default, actual MPS forward/backward/parity проверены; distributed/streaming не
 реализованы,256MiB eager tensor guard/partition. Большой research mode закрыт отдельно.
 [Runbook/границы/результат](../docs/ml-foundation.md).
+
+
+## D45: registry рядом с immutable collector и ML foundation
+
+Новый stdlib пакет memecoin_registry, без изменений memecoin_ai/memecoin_ml sources.
+Contract → hash-addressed development objects → atomic revision chain → causal combined
+bundle +fold membership +qualification. No collector/network/launchd mutations; повторный
+CLI sync подключает только завершённые новые окна. Один registry pin-ит одну calendar
+plan/cohort/target semantics; другие источники требуют нового reviewed contract.
+Holdout metadata-only quarantine отделён от development exporter; research gate закрыт.
+Audit воспроизводит report/folds без calendar root, по pinned objects. Installed wheel
+work/registry-d45/installed-wheel даёт exact audit/export. Raw holdout не дублируется;
+последующее source availability/semantic release — отдельный этап. [D45](../docs/corpus-registry.md).
