@@ -110,3 +110,9 @@ Native model preflight/web implementation намеренно остаются ne
 - `/models`: 15 runs (10 SYNTHETIC, 5 REAL), 40 benchmarks, activeModel «не выбрана».
 - Фильтр cpu и 16×8 оставляет 10 строк. Смешанные shape/device — «несопоставимо».
 - Null timing — «не измерено». Нет winner/launch. Vitest 36 PASS.
+
+## 2026-10-03 — P6.1 System
+
+- `/system`: «UI adapter ответил» отдельно от pane system UNAVAILABLE.
+- servedAt — время ответа API. DESIGN-роли не live-машины.
+- predictions/paper/live/shadow/emergencyStop/replay без кнопок. Vitest 38 PASS.

@@ -2,15 +2,15 @@
 
 Generated from WORK_STATE.json; не редактировать вручную.
 
-- Overall: **IN_PROGRESS** — web v1, 11/15 tasks; Tauri вне scope.
+- Overall: **IN_PROGRESS** — web v1, 12/15 tasks; Tauri вне scope.
 - Current phase: **6**
-- Current task: **P6.1 — System и capability placeholders**
-- Last completed: P5.1 Models: 15 runs, 40 benchmarks, без winner. Visual и boundary PASS.
-- Last verified commit: `6a349c05c68fa7ad526ed30a602cdb200e6be9b9`; latest фактически: `git log -1 --oneline`.
-- Checks: 2026-10-03: web vitest 36 PASS, tsc PASS. Browser /models: cpu+16×8 → 10/40, activeModel не выбрана.
+- Current task: **P6.2 — Replay/future proposals и boundary tests**
+- Last completed: P6.1 System: adapter отдельно от core, future surfaces без кнопок. Visual и boundary PASS.
+- Last verified commit: `a3c59d04730021cfd68009975882fad2249ae7c9`; latest фактически: `git log -1 --oneline`.
+- Checks: 2026-10-03: web vitest 38 PASS, tsc PASS. Browser /system: adapter ответил, pane UNAVAILABLE, emergencyStop без кнопки.
 - Model binding: UNVERIFIED (config ≠ runtime).
 - Blockers: нет глобального blocker
-- Next action: **P6.1: System — статус своего API отдельно от core, locked predictions/paper/live без fake online.**
+- Next action: **P6.2: unavailable replay и тесты, что UI не запускает raw replay или actions.**
 
 | Task | Role | State |
 |---|---|---|
@@ -25,7 +25,7 @@ Generated from WORK_STATE.json; не редактировать вручную.
 | P4.1 Research spec, gates и counters | ui-builder | DONE |
 | P4.2 Research adversarial state tests | test-debugger | DONE |
 | P5.1 Models / runs / benchmarks | ui-builder | DONE |
-| P6.1 System и capability placeholders | ui-builder | PENDING |
+| P6.1 System и capability placeholders | ui-builder | DONE |
 | P6.2 Replay/future proposals и boundary tests | adapter-builder | PENDING |
 | P7.1 Responsive, a11y, perf и final visual review | test-debugger | PENDING |
 | P7.2 Clean install/E2E, docs, web-v1 acceptance | coordinator | PENDING |

@@ -3,11 +3,8 @@ import { AppShell } from "./shell/AppShell";
 import { OverviewPage } from "./pages/OverviewPage";
 import { CalendarPage } from "./pages/calendar/CalendarPage";
 import { ModelsPage } from "./pages/models";
-import {
-  ReplayPage,
-  SystemPage,
-  TradingPage,
-} from "./pages/PlaceholderPages";
+import { ReplayPage, TradingPage } from "./pages/PlaceholderPages";
+import { SystemPage } from "./pages/system";
 import { ResearchPage } from "./pages/research";
 import { SourcesPage } from "./pages/sources";
 
