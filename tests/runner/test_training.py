@@ -84,7 +84,10 @@ def test_parent_timeout_stops_experiment(tmp_path: Path, monkeypatch: pytest.Mon
     spec = read(Path("configs/research-f01-v1.json"))
     dataset = tmp_path / "data.json"
     dataset.write_text("{}")
-    binding = {"fixture": True}
+    from memecoin_ml.data import sha
+    from memecoin_runner.contracts import sources
+
+    binding = {"sources": sources(), "dataset_sha256": sha(dataset)}
 
     def timeout(*args: object, **kwargs: object) -> object:
         raise subprocess.TimeoutExpired("fixture", 0.01)
@@ -266,3 +269,31 @@ def test_all_phases_and_linear_deduplicated_refit(
     procedure = read(tmp_path / "run/procedure.json")
     assert set(procedure["models"]) == {"linear16"}
     assert result["holdout_opened"] is False
+
+
+def test_worker_boundary_rejects_dataset_mutation(tmp_path: Path) -> None:
+    from memecoin_ml.data import sha
+    from memecoin_runner.contracts import sources
+    from memecoin_runner.ledger import Ledger
+    from memecoin_runner.runner import _fit
+
+    path = tmp_path / "data.json"
+    path.write_text("{}")
+    binding = dict(sources=sources(), dataset_sha256=sha(path))
+    path.write_text('{"changed": true}')
+    with Ledger(tmp_path / "ledger", dict(trial_ids=["fixture"])) as ledger:
+        with pytest.raises(ValueError, match="boundary_source_or_data_changed"):
+            _fit(
+                ledger,
+                read(Path("configs/research-f01-v1.json")),
+                binding,
+                path,
+                tmp_path,
+                "fixture",
+                {},
+                [],
+                [],
+                [],
+                epochs=1,
+            )
+        assert ledger.events == []

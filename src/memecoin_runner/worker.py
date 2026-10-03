@@ -6,16 +6,23 @@ import sys
 from pathlib import Path
 
 from memecoin_ml.data import read, sha
+from memecoin_registry.contracts import digest
+from memecoin_runner.contracts import sources
 from memecoin_runner.trainer import fit
 
 
 def main() -> None:
     job = read(Path(sys.argv[1]))
     path = Path(job["dataset"])
-    if sha(path) != job["dataset_sha256"]:
+    if sources() != job["sources"] or sha(path) != job["dataset_sha256"]:
         raise ValueError("worker_dataset_changed")
     bundle = read(path)
     samples = {s["id"]: s for s in bundle["samples"]}
+    if (
+        digest([samples[k] for k in job["train"]]) != job["identity"]["train"]
+        or digest([samples[k] for k in job["validation"]]) != job["identity"]["validation"]
+    ):
+        raise ValueError("worker_membership_changed")
     fit(
         bundle,
         [samples[k] for k in job["train"]],

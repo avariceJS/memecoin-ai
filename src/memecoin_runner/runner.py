@@ -11,7 +11,7 @@ from typing import Any
 from memecoin_ml.data import read, sha
 from memecoin_registry.contracts import digest, inventory
 from memecoin_research.framework import DAY, role_checks, role_statistics, select_validation
-from memecoin_runner.contracts import partition, receipt, validate_plan
+from memecoin_runner.contracts import partition, receipt, sources, validate_plan
 from memecoin_runner.ledger import Ledger, publish
 from memecoin_runner.scoring import (
     bootstrap,
@@ -50,6 +50,8 @@ def _fit(
     epochs: int,
     fixed: bool = False,
 ) -> Row:
+    if sources() != binding["sources"] or sha(dataset) != binding["dataset_sha256"]:
+        raise ValueError("worker_boundary_source_or_data_changed")
     directory = output / "trials" / trial
     result = _completed(ledger, trial, directory)
     if result is not None:
@@ -71,7 +73,8 @@ def _fit(
     )
     job = dict(
         dataset=str(dataset.resolve()),
-        dataset_sha256=sha(dataset),
+        dataset_sha256=binding["dataset_sha256"],
+        sources=binding["sources"],
         output=str(directory.resolve()),
         train=[s["id"] for s in train],
         validation=[s["id"] for s in validation],
@@ -96,6 +99,8 @@ def _fit(
                 timeout=limit,
                 check=False,
             )
+        if sources() != binding["sources"] or sha(dataset) != binding["dataset_sha256"]:
+            raise ValueError("worker_boundary_source_or_data_changed")
         status = "completed" if process.returncode == 0 else "failed"
     except subprocess.TimeoutExpired:
         status = "budget_exhausted"
@@ -335,7 +340,6 @@ def evaluate_holdout(
 
     from memecoin_ml.data import _validate
     from memecoin_registry.qualification import interval_end
-    from memecoin_runner.contracts import sources
     from memecoin_runner.trainer import load_predict
 
     if sources() != binding["sources"]:
@@ -423,7 +427,6 @@ def evaluate_holdout(
 
 def reproduce_released(spec: Row, output: Path, runtime_binding: Row, *, expected_head: str) -> Row:
     """Recompute consumed report from its pinned observations; never reopen raw holdout."""
-    from memecoin_runner.contracts import sources
 
     if runtime_binding["binding"]["sources"] != sources():
         raise ValueError("reproduction_sources_changed")
