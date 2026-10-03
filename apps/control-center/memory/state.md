@@ -37,9 +37,9 @@ worktree отсутствует, не добавлять symlink к основн
 
 Phase 1 shell есть в `apps/control-center/web`: validated snapshot client и navy
 навигация на реальной проекции. Model binding остаётся UNVERIFIED, configured policy
-`composer-2.5[fast=false]` не менялась. Overview показывает исторические latency и блокеры, не текущее здоровье RPC.
-Календарь D43 и сетка D48 уже на /calendar. Следующий шаг — P3.2 Sources / Pools,
-затем Research, Models, System, quality. Core interface deficiency →
+`composer-2.5[fast=false]` не менялась. Overview и `/sources` показывают исторический probe, не текущее здоровье RPC.
+Календарь D43 и сетка D48 уже на `/calendar`. Следующий шаг — P4.1 Research:
+fits 0/114 отдельно от 135 engineering, admission LOCKED. Затем Models, System, quality. Core interface deficiency →
 proposal, никакого core patch.
 
 Запуск/проверки: ../README.md. План: docs/control-center/04-phases.md.

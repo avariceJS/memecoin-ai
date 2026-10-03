@@ -2,15 +2,15 @@
 
 Generated from WORK_STATE.json; не редактировать вручную.
 
-- Overall: **IN_PROGRESS** — web v1, 7/15 tasks; Tauri вне scope.
-- Current phase: **3**
-- Current task: **P3.2 — Sources / Pools qualification**
-- Last completed: P3.1 Overview: 6 latency, NOT_READY, p95 не опубликован, pools copy. Visual и boundary PASS.
-- Last verified commit: `476a99123349f2dcc52e40e86b627fd22d72528d`; latest фактически: `git log -1 --oneline`.
-- Checks: 2026-10-03: web vitest 20 PASS, tsc PASS. Browser a11y: 6 latency seconds, NOT_READY, LOCKED, p95 не опубликован, 3 copy buttons.
+- Overall: **IN_PROGRESS** — web v1, 8/15 tasks; Tauri вне scope.
+- Current phase: **4**
+- Current task: **P4.1 — Research spec, gates и counters**
+- Last completed: P3.2 Sources / Pools: stamps, latency seconds, probe не health. Visual и boundary PASS.
+- Last verified commit: `7f8eff4258d3f8667d709520dde82c13b51c3e52`; latest фактически: `git log -1 --oneline`.
+- Checks: 2026-10-03: web vitest 24 PASS, tsc PASS. Browser /sources: NOT_READY, 6/6 disclaimer, 481/502, 3 copy buttons.
 - Model binding: UNVERIFIED (config ≠ runtime).
 - Blockers: нет глобального blocker
-- Next action: **P3.2: Sources / Pools — единицы, provenance, без вывода health из старого probe.**
+- Next action: **P4.1: Research — recorded fits 0/114 отдельно от 135 engineering, admission LOCKED, release 0 не global exposures.**
 
 | Task | Role | State |
 |---|---|---|
@@ -21,7 +21,7 @@ Generated from WORK_STATE.json; не редактировать вручную.
 | P2.1 D43 calendar и window details | ui-builder | DONE |
 | P2.2 D48 design grid и corpus summary | ui-builder | DONE |
 | P3.1 Overview и evidence hierarchy | ui-builder | DONE |
-| P3.2 Sources / Pools qualification | ui-builder | PENDING |
+| P3.2 Sources / Pools qualification | ui-builder | DONE |
 | P4.1 Research spec, gates и counters | ui-builder | PENDING |
 | P4.2 Research adversarial state tests | test-debugger | PENDING |
 | P5.1 Models / runs / benchmarks | ui-builder | PENDING |

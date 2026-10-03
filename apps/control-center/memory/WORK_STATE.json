@@ -2,10 +2,10 @@
   "schema_version": 1,
   "scope": "control-center-web-v1-phases-0-7",
   "overall": "IN_PROGRESS",
-  "current_task": "P3.2",
-  "last_completed": "P3.1 Overview: 6 latency, NOT_READY, p95 не опубликован, pools copy. Visual и boundary PASS.",
-  "last_verified_commit": "476a99123349f2dcc52e40e86b627fd22d72528d",
-  "last_checks": "2026-10-03: web vitest 20 PASS, tsc PASS. Browser a11y: 6 latency seconds, NOT_READY, LOCKED, p95 не опубликован, 3 copy buttons.",
+  "current_task": "P4.1",
+  "last_completed": "P3.2 Sources / Pools: stamps, latency seconds, probe не health. Visual и boundary PASS.",
+  "last_verified_commit": "7f8eff4258d3f8667d709520dde82c13b51c3e52",
+  "last_checks": "2026-10-03: web vitest 24 PASS, tsc PASS. Browser /sources: NOT_READY, 6/6 disclaimer, 481/502, 3 copy buttons.",
   "model_binding": {
     "configured_coordinator": "grok-4.7 / xhigh (picker)",
     "configured_executor": "composer-2.5[fast=false]",
@@ -14,7 +14,7 @@
     "evidence": "2026-10-03: task card cannot be confirmed in Cursor UI. User directed binding to stay UNVERIFIED and not block web v1. Configured executor remains composer-2.5[fast=false]. Earlier Task parameter composer-2.5[fast=false] was rejected; tool results had no model field. VERIFIED is not claimed."
   },
   "blockers": [],
-  "next_action": "P3.2: Sources / Pools — единицы, provenance, без вывода health из старого probe.",
+  "next_action": "P4.1: Research — recorded fits 0/114 отдельно от 135 engineering, admission LOCKED, release 0 не global exposures.",
   "capabilities": [
     "existing read-only adapter + immutable historical projection",
     "primary visual reference available",
@@ -434,15 +434,51 @@
         "visual",
         "boundary"
       ],
-      "status": "PENDING",
-      "write_files": [],
-      "checks": [],
-      "reviews": [],
-      "attempts": [],
+      "status": "DONE",
+      "write_files": [
+        "apps/control-center/web/src/pages/sources",
+        "apps/control-center/web/src/routes.tsx"
+      ],
+      "checks": [
+        {
+          "command": "npm --prefix apps/control-center/web test",
+          "result": "PASS"
+        },
+        {
+          "command": "npm --prefix apps/control-center/web run check",
+          "result": "PASS"
+        }
+      ],
+      "reviews": [
+        {
+          "kind": "visual",
+          "result": "PASS",
+          "evidence": "cc-visual-reviewer dd3fc225-1446-4b18-8460-6093facfb707 accepted dense recorded sources page. Probe caption now uses accepted/requests.",
+          "reviewed_revision": "7f8eff4258d3f8667d709520dde82c13b51c3e52+sources",
+          "reference_viewed": true,
+          "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+          "screenshot": "apps/control-center/.local/reviews/p3-sources.png sha256 06808e0c6a2c8cc2b9c8181e01f9cdf72fe9430bc0269e1d40431fb3e4cedda7"
+        },
+        {
+          "kind": "boundary",
+          "result": "PASS",
+          "evidence": "cc-boundary-reviewer d845c0d2-5d3d-4ca9-851f-299c41e2da9c: no explorer fetch, p95 not computed, clipboard rejection stays local.",
+          "reviewed_revision": "7f8eff4258d3f8667d709520dde82c13b51c3e52+sources"
+        }
+      ],
+      "attempts": [
+        {
+          "at": "2026-10-03",
+          "kind": "delegate",
+          "role": "cc-ui-builder",
+          "configured_model": "composer-2.5[fast=false]",
+          "note": "Task slug composer-2.5; open primary PNG; observed card UNVERIFIED"
+        }
+      ],
       "blocker": "",
-      "summary": "",
-      "reference_viewed": false,
-      "reference_sha256": null
+      "summary": "Sources page: 9 stamps, 6 latency seconds, NOT_READY, dynamic probe disclaimer, clipboard failure is local. 24 vitest PASS.",
+      "reference_viewed": true,
+      "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6"
     },
     {
       "id": "P4.1",

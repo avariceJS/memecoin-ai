@@ -6,10 +6,10 @@ import {
   ModelsPage,
   ReplayPage,
   ResearchPage,
-  SourcesPage,
   SystemPage,
   TradingPage,
 } from "./pages/PlaceholderPages";
+import { SourcesPage } from "./pages/sources";
 
 export const appRoutes: RouteObject[] = [
   {

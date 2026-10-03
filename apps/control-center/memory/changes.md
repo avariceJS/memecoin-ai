@@ -85,3 +85,9 @@ Native model preflight/web implementation намеренно остаются ne
 - Справа: NOT_READY, blockers, clock-age 9.95–10.77 с, «p95 не опубликован», admission LOCKED.
 - Снизу: 3 pool id с копированием без сети, tests 481/502 как recorded stage.
 - Vitest 20 PASS. Высота центра 400px, подписи 12px.
+
+## 2026-10-03 — P3.2 Sources / Pools
+
+- `/sources`: 9 stamps, latency в секундах, NOT_READY, clock-age, 3 pool id.
+- Подпись probe строится из accepted/requests и говорит, что это не текущий RPC health.
+- Отказ clipboard показывается локально. Vitest 24 PASS.
