@@ -1,13 +1,22 @@
 import { useOutletContext } from "react-router";
+import { UnavailableState } from "../components/status";
 import type { ShellOutletContext } from "../shell/AppShell";
+import {
+  BottomFactsRow,
+  CompactSourcesPanel,
+  LatencyEvidencePanel,
+  QualificationStatusPanel,
+  admissionStatus,
+  getSourceQualificationView,
+} from "./overview";
 import {
   calendarWindowCount,
   engineeringFits,
   recordedFits,
-  recordedVerdict,
   runCount,
 } from "./snapshotFacts";
 import styles from "./shared.module.css";
+import layout from "./overview/overview.module.css";
 
 export function OverviewPage() {
   const { snapshotResponse, capabilities } = useOutletContext<ShellOutletContext>();
@@ -17,11 +26,10 @@ export function OverviewPage() {
   const fits = recordedFits(snapshot);
   const engFits = engineeringFits(snapshot);
   const runs = runCount(snapshot);
-  const verdict = recordedVerdict(snapshot);
+  const qualification = getSourceQualificationView(snapshot);
+  const admission = admissionStatus(snapshot);
   const systemReason =
     snapshot.system.availability !== "AVAILABLE" ? snapshot.system.reasonCode : null;
-
-  const sources = Object.entries(snapshot.sources).sort(([a], [b]) => a.localeCompare(b));
 
   const available = capabilities.filter((c) => c.availability === "AVAILABLE");
   const unavailable = capabilities.filter((c) => c.availability === "UNAVAILABLE");
@@ -51,38 +59,29 @@ export function OverviewPage() {
         </article>
       </div>
 
-      <div className={styles.overviewGrid}>
-        <section className={styles.panel} aria-labelledby="sources-heading">
-          <h2 id="sources-heading" className={styles.panelTitle}>
-            Источники проекции
-          </h2>
-          <div className={styles.sourceGrid}>
-            {sources.map(([id, stamp]) => (
-              <article key={id} className={styles.sourceCard}>
-                <p className={styles.sourceId}>{id}</p>
-                <p className={styles.sourceMeta}>
-                  evidence {stamp.evidenceDate}
-                  <br />
-                  {stamp.integrity}
-                  <br />
-                  {stamp.recordedAtNs ?? "время не опубликовано"}
-                </p>
-              </article>
-            ))}
+      {qualification ? (
+        <>
+          <div className={layout.mainGrid}>
+            <LatencyEvidencePanel qualification={qualification} />
+            <QualificationStatusPanel
+              qualification={qualification}
+              systemReason={systemReason}
+              admission={admission}
+            />
           </div>
-        </section>
+          <BottomFactsRow qualification={qualification} />
+        </>
+      ) : (
+        <UnavailableState
+          reasonCode={
+            snapshot.sourceQualification.availability !== "AVAILABLE"
+              ? snapshot.sourceQualification.reasonCode
+              : "SOURCE_QUALIFICATION_UNAVAILABLE"
+          }
+        />
+      )}
 
-        <aside className={styles.verdictPanel} aria-labelledby="verdict-heading">
-          <h2 id="verdict-heading" className={styles.verdictTitle}>
-            Recorded verdict
-          </h2>
-          <p className={styles.verdictCode}>{verdict ?? "UNAVAILABLE"}</p>
-          <p className={styles.verdictNote}>
-            Текущее здоровье сервиса неизвестно: pane system{" "}
-            {systemReason ?? "UNAVAILABLE"} — UI adapter не подтверждает core online.
-          </p>
-        </aside>
-      </div>
+      <CompactSourcesPanel snapshot={snapshot} />
 
       <section className={styles.capList} aria-labelledby="caps-heading">
         <h2 id="caps-heading" className={styles.panelTitle}>

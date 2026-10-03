@@ -78,3 +78,10 @@ Native model preflight/web implementation намеренно остаются ne
 - На /calendar: revision 000000, 174/1392/362, 122 отдельно от all-start 1440.
 - Сетка 336: 224 DESIGN «не активировано», 112 PROTECTED без чисел, admitted 0.
 - Collector явно не активирован. Vitest 18 PASS. Шрифт ячеек поднят до 12px.
+
+## 2026-10-03 — P3.1 Overview
+
+- Центр: 6 latency в секундах, подпись «исторический probe, не текущий RPC».
+- Справа: NOT_READY, blockers, clock-age 9.95–10.77 с, «p95 не опубликован», admission LOCKED.
+- Снизу: 3 pool id с копированием без сети, tests 481/502 как recorded stage.
+- Vitest 20 PASS. Высота центра 400px, подписи 12px.
