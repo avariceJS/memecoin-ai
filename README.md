@@ -52,6 +52,10 @@ D42 завершил [cold diagnosis и два prospective окна](docs/cold-c
 Alchemy HTTP persistent TLS; transport tuning закрыт, далее calendar coverage и
 execution uncertainty. Offline воспроизведение: `tools/calendar_report.py`.
 
+D43: [активный календарный сбор и read-only execution evidence](docs/calendar-execution.md).
+Уже установлен конечный local LaunchAgent; перед новым сбором проверить его inventory,
+не создавать дубликат. Первое окно completed, пять будущих pending.
+
 ## Высокоуровневое устройство
 
 ```text

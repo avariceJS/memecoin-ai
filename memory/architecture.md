@@ -198,3 +198,11 @@ DNS/TCP/TLS calls в отдельных bounded процессах; corpus_windo
 prospective pipeline; execution_uncertainty.py и calendar_report.py проверяют immutable
 targets и агрегируют QA. Runtime modules/CPMM/features/targets не менялись. Два окна
 с отдельными cutoffs не становятся global ML split. WSS остаётся off.
+
+
+D43 использует finite launchd dispatcher поверх существующего collector: immutable
+schedule+runtime hashes, OS lock, reservation-before-network, no replay interrupted
+windows, per-window seals/outcomes. Report snapshot отдельно от живого schedule.
+Observed execution — sidecar raw/QA, не изменение CausalBook/features/targets. Только
+getSignatureStatuses добавлен в read-only RPC allowlist; старые bundles требуют свои
+source-pinned packages. Секретов в plist/source snapshots нет.

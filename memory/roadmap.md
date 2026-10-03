@@ -179,3 +179,12 @@ Cold diagnosis не воспроизвела timeout. Выбран bounded Alche
 затем read-only наблюдения network fees/receipt-to-chain timing и границ inclusion.
 Нельзя считать чужие успешные сделки калибровкой admission собственной стратегии.
 Не менять cohort по conditional profits, не начинать ML по нескольким минутам данных.
+
+
+## D43 выполняется в календарном времени
+
+Local finite schedule уже запущен до2026-10-05: первое окно выполнено,5 pending.
+Сначала читать актуальный inventory; не перезапускать completed/reserved windows.
+После новых окон — hours/days/gaps/full-grid audit, достаточность market universe и
+новое preregistered timing наблюдение до finalization. Первые6 samples already finalized,
+они не дают submission→inclusion latency. ML readiness пока false. [Runbook](../docs/calendar-execution.md).

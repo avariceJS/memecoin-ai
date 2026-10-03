@@ -634,5 +634,10 @@ failed windows закрывают расписание. Sleep/missed не catch-
 Чужие meta.fee/compute units и observed commitment transitions — empirical inputs,
 не own admission/submission latency, не full strategy costs или net PnL. Отдельный
 read-only method getSignatureStatuses включён в allowlist; торговые методы не добавлены.
-Статус до запуска: код/tests готовы, calendar/execution сбор ещё не проведён.
+Результат первого окна:180 accepted/174 usable,135 mature (67 evaluation),5 nonoverlap.
+Execution12 RPC/6 tx, observed fees15 001–154 999 lamports; все6 timing left-censored.
+Первое окно completed, остальные5 pending; background job реально установлен/запущен.
+399 tests и exact dev/frozen-package reproduction. Не объявлять календарный этап
+полностью завершённым. Следующий шаг — inventory после новых due окон и решение о
+недостающей universe/timing выборке; никакой текущей ML readiness.
 Контракт docs/calendar-execution.md, конфигурация configs/calendar-execution-v1.json.

@@ -2,6 +2,29 @@
 
 Обновлено: **2026-10-03**, Europe/Moscow.
 
+**D43 активно: конечное 48-часовое расписание установлено, первое окно выполнено.**
+Local LaunchAgent `ai.memecoin.d43.calendar01`, immutable plan/runtime в
+`work/calendar-execution-01`. Окна 0/6/12/24/36/48 h; максимум1 152 RPC,
+первый failure закрывает окно, два failed windows — весь план. Sleep/missed не catch-up.
+Не пересоздавать и не запускать второй collector поверх существующего расписания.
+
+Первое окно 2026-10-03 10:54–10:59 Europe/Moscow:180/180 strict snapshots,174 usable,
+135 mature decisions (67 evaluation),5 chronological nonoverlap windows. Execution:
+12 RPC,6 observed transactions, fees15 001–154 999 lamports; все6 already finalized
+при первом poll, timing left-censored. Submission/inclusion latency, own admission,
+полные strategy costs/FX/rent/impact и net PnL остаются unknown. Это empirical evidence,
+не калибровка собственных сделок. Ошибок сети0;399 tests/check/smoke/build и exact
+reproduction dev/frozen wheel прошли.
+[Документ D43](../docs/calendar-execution.md),
+[evidence на первое окно](../docs/evidence/calendar-execution-2026-10-03.json).
+
+**Следующий шаг:** проверить actual inventory активного job; следующие окна
+03 октября16:53/22:53,04 октября10:53/22:53,05 октября10:53 (Москва),5 pending.
+Затем audit реальных часов/дней, gaps/full-grid support и отдельно execution evidence.
+Будущие окна не считать состоявшимися. На Mac нужен активный user session/доступ;
+пропуски остаются missing. STOP и команды управления — в документе D43. Job не делает
+автоматических Git/Memory updates. Transport tuning закрыт, WSS off, ML не начинается.
+
 **D42 завершён с сохранённым отклонением календарного guard.** Все 4 cold connections
 и 8 strict checkpoints прошли. DNS/TCP/TLS наблюдались без изменения транспорта;
 причина прежнего D41 timeout остаётся неизвестной. По frozen правилу выбран Alchemy
@@ -96,7 +119,7 @@ Memory Bank принят как source of truth. Пользователь раз
 
 ## Что проверено
 
-Локально на Python 3.13: 386 автоматических теста, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 399 автоматических теста, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
@@ -106,7 +129,7 @@ ReferenceReplay намеренно synthetic-only, one-quote, one-pool-per-base 
 
 ## Открытые решения
 
-Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D42: [decisions](decisions.md).
+Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D43: [decisions](decisions.md).
 
 ## Результат bounded data-аудита
 

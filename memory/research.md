@@ -143,3 +143,10 @@ conditional execution uncertainty audit; E01–E14 по-прежнему не п
 cost grid не является выбором реалистичного тарифа по profitable результату. Результат
 не меняет ML gates; дальнейшая работа — calendar/market coverage и execution evidence.
 [Отчёт](../docs/cold-connection-corpus.md).
+
+
+D43 запустил bounded календарное пополнение и read-only fee/status наблюдения. Это
+engineering data qualification, не выполнение E01–E14. Первое окно завершено;5 ещё
+pending до2026-10-05. Следующий sampling plan для timing должен давать pre-finalization
+наблюдения, сохраняя неизвестный момент отправки и selection bias. Текущую когорту
+не менять по observed profits. [Контракт](../docs/calendar-execution.md).

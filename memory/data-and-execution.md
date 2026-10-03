@@ -539,3 +539,23 @@ calendar bounds/разрывы/источники/config/code/seed/QA — в
 Strict calendar created_ns criterion текущего D42 false:599,994084s (недобор5,916ms),
 при actual segment starts600,037526s. Offline audit сохранил нарушение, future anchor
 исправлен; raw/times/план не менялись, дополнительных network requests не было.
+
+
+### D43: active finite schedule и наблюдённые transaction costs
+
+Шесть frozen окон по часам/дням,192 maximum RPC на окно (180 corpus+12 execution),
+1152 total. First error stops window,2 failed windows stop whole plan, missed/crash
+не retry/backfill. Pinned package/tools/reference hashes, global OS lock, guard deadlines,
+`.env.local` только runtime. LaunchAgent `ai.memecoin.d43.calendar01` действительно
+работает независимо от чата; root work/calendar-execution-01. Текущий inventory
+проверять до нового запуска. Первое окно completed:180 accepted/174 usable,135 mature,
+5 nonoverlap; другие5 pending. Guards/features/targets/CPMM не менялись.
+
+getSignatureStatuses добавлен только в read-only allowlist. Address listings confirmed,
+3 polls0/5/15s, до6 finalized tx: сохраняются meta.fee/err/CU и настоящие receipt times.
+Не обещается доказанный swap type/full protocol replay. Первые6 tx successful, fees
+15 001–154 999lamports; timing6/6 left-censored (already finalized), inclusion неизвестен.
+Meta.fee не включает все расходы стратегии; приписывать fee одной ноге swap/переводить
+в input-asset bps без маршрута/FX нельзя. Net targets остаются null. Документ:
+[calendar execution](../docs/calendar-execution.md),
+[evidence первого окна](../docs/evidence/calendar-execution-2026-10-03.json).

@@ -85,3 +85,10 @@ sample/pool/direction/size/partition, censored/unfilled не входят в ч�
 Не превращать conditional negative outcomes фиксированной когорты в отрицание edge
 всего рынка; суммы scenario PnL не являются portfolio PnL. Два per-window engineering
 cutoff не задают global chronological train/test split. [Результат](../docs/cold-connection-corpus.md).
+
+
+D43 meta.fee является наблюдаемой transaction fee, но не полным экономическим cost
+стратегии; own inclusion/admission denominator неизвестен. Шесть первых samples уже
+finalized при первом poll и left-censored для transition timing. Не использовать
+receipt−blockTime как submit→inclusion latency. Calendar schedule pending windows не
+увеличивают sample size/coverage. [Evidence](../docs/evidence/calendar-execution-2026-10-03.json).

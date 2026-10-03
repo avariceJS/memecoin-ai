@@ -419,3 +419,17 @@ availability. Далее cold-connection observability и новые кален�
 - Strict calendar audit выявил недобор5,916ms между created_ns планов; actual segment
   starts разнесены600,037526s. Ошибка anchor исправлена только для будущих запусков,
   критерий текущего run оставлен false; данные не переписывались и не пересобирались.
+
+
+## 2026-10-03 — D43: активное расписание по часам/дням и observed execution
+
+- Frozen48h/6 windows/1152 max RPC; установлен local LaunchAgent, runtime/package
+  закреплены отдельно от рабочего дерева. Missed/interrupted не catch-up,2 failed stop.
+- Первое окно180/180 strict snapshots,174 usable,135 mature/67 evaluation,5 nonoverlap.
+  Остальные5 окон ещё pending; фоновый job не обновляет Git/Memory автоматически.
+-12 read-only execution RPC,6 transactions, observed fees15 001–154 999lamports,
+  status timing6/6 left-censored. Никакой собственной inclusion/cost calibration.
+-399 tests/check/smoke/build, exact dev/frozen package reproduction, прежний D42 проверен
+  своим wheel. Transport не менялся; no ML/trading/signing/payment/QuickNode/D33.
+- Следующая сессия сначала проверяет active inventory и schedule, затем coverage/timing
+  gaps; нельзя дублировать job или объявлять будущие дни уже собранными.
