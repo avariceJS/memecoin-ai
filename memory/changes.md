@@ -523,3 +523,19 @@ fresh завершённый wheel verified. Append-only evidence: docs/evidence
   collision; failed logs/outputs сохранены. D43 не открывался/не изменялся; old bindings
   подтверждены. Следующий D49 — source/quota/runtime/activation qualification.
 - Отчёт docs/f01-sampling.md, evidence docs/evidence/f01-sampling-2026-10-03.json.
+
+
+## 2026-10-03 — D49 bounded collector qualification, activation закрыт
+
+- Frozen plan4af4ae9,implementationb1ad81a:6live RPC strict finalized/profile2,Clock fresh;
+  source probe/raw retained,nominal120CU. MCP usage delta120CU,USD0,plan/hard cap unknown.
+- memecoin_collector: durable due-only reservation/journal,crash/no retry,8failure ceiling,
+  window adapter,exact staged activation candidate. No service/source activation.
+-16new/481base/502combined tests,ruff/mypy/smoke/build;180fake integration,installed-wheel
+  probe/raw/dossier reproduction. Fixed lint style and verifier API arity before smoke.
+-135,67GB free;empirical2,65GB source+registry raw projection vs100,8GB max response
+  ceiling before metadata. Space/uptime/supervisor210s/600s не production-qualified.
+- NOT READY: account no-charge/cap/key mapping +service envelope +full live qualification
+  +separate final activation decision. Следующий D50 закрывает эти blockers.
+- D43/F01/holdout не менялись;training0;actualF01windows0. Doc/evidence:
+  docs/f01-collector-qualification.md;docs/evidence/f01-collector-qualification-2026-10-03.json.

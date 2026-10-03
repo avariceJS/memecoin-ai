@@ -640,3 +640,17 @@ targets/converter replay exact, кроме location-only provenance path. Holdou
 Actual registry пуст, D45 данные остаются engineering. Source timestamps не сдвигаются
 ради F01; synthetic shape fixtures с изменёнными times явно маркированы и не admitted
 как prospective. Denominator/failed unknowns сохраняются. [D48](../docs/f01-sampling.md).
+
+
+### D49: live source qualification не равна разрешению calendar collector
+
+6finalized/profile2 HTTP responses coherent, fresh Clock9,95–10,77s,requests120CU nominal;
+raw и actual availability сохраняются, offline reproduction exact. Никакого history
+recovery/backfill, cross-pool atomicity или84day SLA из этого не следует. MCP usage
+27 540→27 660CU/$0 не подтверждает actual plan/monetary cap; paid budget0. Fixed D48
+proposal60480RPC=1 209 600CU max432000CU/month, service/source root не активирован.
+New collector qualification engine прошёл180fake window→D48 admission/reproduction,
+не новый prospective F01 corpus. Exact staged candidate binds proposal/runtime/refs/
+interpreter/credential fingerprint/evidence, но не даёт permission. Production supervisor
+210s/600s,space/budget preflights и host uptime остаются D50 gates. D43/F01 не менялись.
+[Результат и evidence](../docs/f01-collector-qualification.md).

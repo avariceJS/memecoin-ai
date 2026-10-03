@@ -3,6 +3,32 @@
 Обновлено: **2026-10-03**, Europe/Moscow.
 
 
+**D49 завершён как qualification; verdict NOT READY FOR ACTIVATION.**
+Реальный Alchemy runtime HTTP:6/6 strict finalized/profile2 checkpoints3pools, Clock age
+9,95–10,77s, nominal120CU. MCP usage27 540→27 660CU/$0,00; plan tier/hard monetary cap и
+exact credential→billing account mapping не подтверждены. Public budget1 209 600CU,
+max432 000CU/month не разрешает расходы. Paid budget$0, full180RPC live window не проведено.
+Billing UI недоступен: browser runtime no browser, список пуст; account plan/limit нельзя
+подтвердить имеющимися admin tools. Нужен read-only billing evidence, не ключ в чате.
+
+Новый isolated memecoin_collector: due-only durable scheduler, crash full180reservation,
+no retry/catchup,8failure stop, window adapter, staged exact activation candidate.
+16new/481base/502combined tests, strict checks/smoke/build;180fake full raw integration;
+installed wheel reproduced live probe/raw/dossiers. Actual F01 windows0,source root не
+создан, service не установлен. D43/F01/holdout не читались/не менялись. Protocol sources
+D43–D48 совпадают с577954c; D43 operational inventory по-прежнему last published.
+
+Space135,67GB; empirical source+registry raw projection2,65GB vs100,8GB max response
+ceiling без metadata. Storage reservation, host uptime и совместный production supervisor
+210s/600s ещё не квалифицированы. Candidate work/collector-d49/activation-candidate
+имеет все permissions false; exact SHA/pins и remaining blockers в отчёте.
+**Следующий D50:** account-specific no-charge/budget proof, production service envelope/
+disk/runtime checks и bounded180RPC live qualification после no-charge proof; затем
+отдельное activation decision. Frozen calendar не сдвигать и не backfill.
+[Итог D49](../docs/f01-collector-qualification.md),
+[evidence](../docs/evidence/f01-collector-qualification-2026-10-03.json).
+
+
 **D48 завершён: future sampling/source contract, sealed adapter и readiness dossier.**
 Новый stdlib `memecoin_sampling` сохраняет D43–D47 sources/F01-v1. Immutable proposal
 `work/sampling-d48/proposal`:T2026-10-07 00:00UTC, development до2026-12-02, reserved

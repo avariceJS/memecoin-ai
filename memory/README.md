@@ -31,6 +31,7 @@ Memory Bank — канонический, пригодный для чтения
 | D46 F01: research specification, readiness, selection budget и launch/release границы | [research-readiness.md](../docs/research-readiness.md) |
 | D47 frozen runner, trial/exposure ledger, scoring/bootstrap и conformance | [f01-runner.md](../docs/f01-runner.md) |
 | D48 future sampling/source binding, sealed adapter и readiness dossier | [f01-sampling.md](../docs/f01-sampling.md) |
+| D49 source/budget/scheduler qualification и закрытый activation gate | [f01-collector-qualification.md](../docs/f01-collector-qualification.md) |
 | Как проверять edge и выпускать новую модель | [evaluation.md](evaluation.md) |
 | В каком порядке работать | [roadmap.md](roadmap.md) |
 | Что уже существует и что дальше | [state.md](state.md) |

@@ -746,3 +746,21 @@ reproduction; actual registry0windows,training/RPC/release0. Capacity fixture л
 path feasibility. Следующий D49 — source/quota/runtime/activation qualification перед
 отдельным решением о новом collector. Документ docs/f01-sampling.md; evidence
 docs/evidence/f01-sampling-2026-10-03.json.
+
+
+### D49: источник квалифицирован bounded probe; proposal не активировать
+
+2026-10-03. Принято: current finalized persistent Alchemy/profile2 остаётся source candidate,
+6/6 coherent checkpoints/120CU прошли. MCP account usage delta120CU/USD0 согласуется с
+HTTP, но не доказывает plan tier/zero-dollar hard cap/exact credential binding к account.
+Public1 209 600CU ceiling не денежная авторизация; paid budget0. NOT READY FOR ACTIVATION.
+
+Engineering engine/adapter/immutable staged binding приняты: due-only,full reservation
+при crash,no retry/catchup,8failed stop,16new/502combined tests,180fake raw integration и
+exact wheel reproduction. Production supervisor210s/600s,storage/runtime checks,host wake/
+login и full180RPC live qualification ещё gates. Никакого source/service activation,
+D43/F01/holdout изменений или настоящего training. Candidate сохранять; дальнейшие
+изменения runtime требуют нового candidate, не silent rewrite этого evidence.
+Следующий D50 закрывает operational blockers; только затем отдельное activation decision.
+[Документ](../docs/f01-collector-qualification.md),
+[evidence](../docs/evidence/f01-collector-qualification-2026-10-03.json).

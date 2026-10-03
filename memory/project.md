@@ -75,3 +75,8 @@ reviewed admission остаются обязательными; [D47](../docs/f0
 D48 материализует будущий F01 sampling contract и sealed development ingestion/readiness
 без collector activation и без признания corpus достаточным. Пороговые checks не
 заменяют source/coverage/dependence reviews; [D48](../docs/f01-sampling.md).
+
+D49 qualification (2026-10-03) не активировала новый collector: source6/6 strict HTTP
+checkpoints подтверждён, но account monetary cap/plan и production service envelope
+не подтверждены. Paid budget0, D48 calendar/F01 gates неизменны. Следующий D50 — закрыть
+эти operational blockers до отдельного решения. [Итог](../docs/f01-collector-qualification.md).

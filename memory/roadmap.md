@@ -225,3 +225,13 @@ launch/release false. D47 — ledger/reservation/exposure, actual fold-aware run
 paired scoring/bootstrap conformance на fixtures. Затем отдельно будущий sampling binding
 и dossier по фактическим данным; никаких автоматически запущенных новых календарей,
 research training или holdout releases. [D46](../docs/research-readiness.md).
+
+
+## D49 завершён → D50 operational activation blockers
+
+Bounded live source прошёл; proposal NOT READY для activation. Engine/binding/ingestion
+conformance не заменяет account no-charge/cap proof и production service qualification.
+D50: read-only billing identity/budget,supervisor210s/600s,disk/runtime guards,host sleep/
+restart semantics; bounded full180RPC live окно после no-charge proof. Затем отдельное
+итоговое решение о запуске frozen D48. Нет автоматического переноса дат/backfill или
+изменения D43/F01. [D49](../docs/f01-collector-qualification.md).

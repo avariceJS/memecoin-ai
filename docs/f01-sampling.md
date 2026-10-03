@@ -168,3 +168,8 @@ qualification для этого конкретного proposal: freshness/coher
 due-only/no-retry/failure-budget и безопасная operational отчётность. После такой
 квалификации отдельно фиксируется запуск в пределах конкретного разрешённого бюджета.
 D43/inherited holdout не менять; настоящее F01 обучение по-прежнему не допущено.
+
+
+D49 qualification завершена: source6/6 strict checkpoints прошёл, но verdict
+NOT READY FOR ACTIVATION из-за account budget proof и production service envelope.
+Этот proposal/source calendar не изменён и не запущен. [D49](f01-collector-qualification.md).
