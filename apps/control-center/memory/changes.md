@@ -91,3 +91,9 @@ Native model preflight/web implementation намеренно остаются ne
 - `/sources`: 9 stamps, latency в секундах, NOT_READY, clock-age, 3 pool id.
 - Подпись probe строится из accepted/requests и говорит, что это не текущий RPC health.
 - Отказ clipboard показывается локально. Vitest 24 PASS.
+
+## 2026-10-03 — P4.1 Research
+
+- `/research`: 0/114 отдельно от 135 engineering, checks 113, blockers 111 без процента.
+- Releases 0 подписаны как не global exposures. Admission LOCKED. Ledger UNAVAILABLE и CC-P001.
+- Vitest 25 PASS. KPI min-height 112px.

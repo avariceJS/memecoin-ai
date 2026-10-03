@@ -2,15 +2,15 @@
 
 Generated from WORK_STATE.json; не редактировать вручную.
 
-- Overall: **IN_PROGRESS** — web v1, 8/15 tasks; Tauri вне scope.
+- Overall: **IN_PROGRESS** — web v1, 9/15 tasks; Tauri вне scope.
 - Current phase: **4**
-- Current task: **P4.1 — Research spec, gates и counters**
-- Last completed: P3.2 Sources / Pools: stamps, latency seconds, probe не health. Visual и boundary PASS.
-- Last verified commit: `7f8eff4258d3f8667d709520dde82c13b51c3e52`; latest фактически: `git log -1 --oneline`.
-- Checks: 2026-10-03: web vitest 24 PASS, tsc PASS. Browser /sources: NOT_READY, 6/6 disclaimer, 481/502, 3 copy buttons.
+- Current task: **P4.2 — Research adversarial state tests**
+- Last completed: P4.1 Research console: 0/114, 135 engineering, releases не exposures. Visual и boundary PASS.
+- Last verified commit: `62b62c4395cb71ac779026f0250b2d3f86405b59`; latest фактически: `git log -1 --oneline`.
+- Checks: 2026-10-03: web vitest 25 PASS, tsc PASS. Browser /research: 0/114, 135, 113/111, LOCKED, ledger UNAVAILABLE.
 - Model binding: UNVERIFIED (config ≠ runtime).
 - Blockers: нет глобального blocker
-- Next action: **P4.1: Research — recorded fits 0/114 отдельно от 135 engineering, admission LOCKED, release 0 не global exposures.**
+- Next action: **P4.2: adversarial fixtures — numeric pass не даёт permission, без label payload.**
 
 | Task | Role | State |
 |---|---|---|
@@ -22,7 +22,7 @@ Generated from WORK_STATE.json; не редактировать вручную.
 | P2.2 D48 design grid и corpus summary | ui-builder | DONE |
 | P3.1 Overview и evidence hierarchy | ui-builder | DONE |
 | P3.2 Sources / Pools qualification | ui-builder | DONE |
-| P4.1 Research spec, gates и counters | ui-builder | PENDING |
+| P4.1 Research spec, gates и counters | ui-builder | DONE |
 | P4.2 Research adversarial state tests | test-debugger | PENDING |
 | P5.1 Models / runs / benchmarks | ui-builder | PENDING |
 | P6.1 System и capability placeholders | ui-builder | PENDING |

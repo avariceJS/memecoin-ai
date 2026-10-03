@@ -5,10 +5,10 @@ import { CalendarPage } from "./pages/calendar/CalendarPage";
 import {
   ModelsPage,
   ReplayPage,
-  ResearchPage,
   SystemPage,
   TradingPage,
 } from "./pages/PlaceholderPages";
+import { ResearchPage } from "./pages/research";
 import { SourcesPage } from "./pages/sources";
 
 export const appRoutes: RouteObject[] = [

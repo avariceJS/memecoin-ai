@@ -2,10 +2,10 @@
   "schema_version": 1,
   "scope": "control-center-web-v1-phases-0-7",
   "overall": "IN_PROGRESS",
-  "current_task": "P4.1",
-  "last_completed": "P3.2 Sources / Pools: stamps, latency seconds, probe не health. Visual и boundary PASS.",
-  "last_verified_commit": "7f8eff4258d3f8667d709520dde82c13b51c3e52",
-  "last_checks": "2026-10-03: web vitest 24 PASS, tsc PASS. Browser /sources: NOT_READY, 6/6 disclaimer, 481/502, 3 copy buttons.",
+  "current_task": "P4.2",
+  "last_completed": "P4.1 Research console: 0/114, 135 engineering, releases не exposures. Visual и boundary PASS.",
+  "last_verified_commit": "62b62c4395cb71ac779026f0250b2d3f86405b59",
+  "last_checks": "2026-10-03: web vitest 25 PASS, tsc PASS. Browser /research: 0/114, 135, 113/111, LOCKED, ledger UNAVAILABLE.",
   "model_binding": {
     "configured_coordinator": "grok-4.7 / xhigh (picker)",
     "configured_executor": "composer-2.5[fast=false]",
@@ -14,7 +14,7 @@
     "evidence": "2026-10-03: task card cannot be confirmed in Cursor UI. User directed binding to stay UNVERIFIED and not block web v1. Configured executor remains composer-2.5[fast=false]. Earlier Task parameter composer-2.5[fast=false] was rejected; tool results had no model field. VERIFIED is not claimed."
   },
   "blockers": [],
-  "next_action": "P4.1: Research — recorded fits 0/114 отдельно от 135 engineering, admission LOCKED, release 0 не global exposures.",
+  "next_action": "P4.2: adversarial fixtures — numeric pass не даёт permission, без label payload.",
   "capabilities": [
     "existing read-only adapter + immutable historical projection",
     "primary visual reference available",
@@ -492,15 +492,51 @@
         "visual",
         "boundary"
       ],
-      "status": "PENDING",
-      "write_files": [],
-      "checks": [],
-      "reviews": [],
-      "attempts": [],
+      "status": "DONE",
+      "write_files": [
+        "apps/control-center/web/src/pages/research",
+        "apps/control-center/web/src/routes.tsx"
+      ],
+      "checks": [
+        {
+          "command": "npm --prefix apps/control-center/web test",
+          "result": "PASS"
+        },
+        {
+          "command": "npm --prefix apps/control-center/web run check",
+          "result": "PASS"
+        }
+      ],
+      "reviews": [
+        {
+          "kind": "visual",
+          "result": "PASS",
+          "evidence": "cc-visual-reviewer 48c8e14f-d698-4770-96af-27d6fbf77fd4 accepted KPI and honest disclaimers. KPI min-height raised to 112px.",
+          "reviewed_revision": "62b62c4395cb71ac779026f0250b2d3f86405b59+research",
+          "reference_viewed": true,
+          "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+          "screenshot": "apps/control-center/.local/reviews/p4-research.png sha256 29731e1145dc662b5c14d38cf3391dc3df749eaffd5778e0a2d079f663e3207f"
+        },
+        {
+          "kind": "boundary",
+          "result": "PASS",
+          "evidence": "cc-boundary-reviewer 2075017e-6aee-4f33-8d14-4e39327098ad: no permission from counts, releases are not global exposures, no fetch or runner.",
+          "reviewed_revision": "62b62c4395cb71ac779026f0250b2d3f86405b59+research"
+        }
+      ],
+      "attempts": [
+        {
+          "at": "2026-10-03",
+          "kind": "delegate",
+          "role": "cc-ui-builder",
+          "configured_model": "composer-2.5[fast=false]",
+          "note": "Task slug composer-2.5; open primary PNG; observed card UNVERIFIED"
+        }
+      ],
       "blocker": "",
-      "summary": "",
-      "reference_viewed": false,
-      "reference_sha256": null
+      "summary": "Research page separates 0/114 from 135 engineering, refuses percent-ready and global-exposure wording, shows LOCKED admission and unavailable ledger.",
+      "reference_viewed": true,
+      "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6"
     },
     {
       "id": "P4.2",
