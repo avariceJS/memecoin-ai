@@ -605,3 +605,14 @@ strict checkpoints. WSS остаётся off, запусков сверх stop b
 checks, увеличивать timeout ради success или начинать ML нельзя. Слабость: одна
 connect ошибка не определяет upstream cause и не оценивает долгосрочную reliability.
 [Итог](../docs/qualified-http-corpus.md), [evidence](../docs/evidence/qualified-http-corpus-2026-10-03.json).
+
+### D42: завершить cold диагностику и вернуться к данным
+
+2026-10-03 пользователь разрешил bounded диагностику, выбор режима и новые календарные
+окна с execution uncertainty. План07fc1ae, diagnostic code add2ef1:4 новых соединения
+Alchemy/public/public/Alchemy,8/8 strict snapshots, warm reuse4/4. Ошибок нет; прошлый
+D41 timeout не воспроизведён, upstream причина неизвестна. По заранее заданному tie
+правилу выбран Alchemy HTTP persistent TLS внутри сегмента, новые процессы на границах,
+без WSS/fallback. Это bounded operational choice, не SLA. Дальнейший transport tuning
+не приоритет; два prospective окна с разнесёнными стартами≥600s и uncertainty audit.
+Сбор этих окон пока не проведён. Контракт docs/cold-connection-corpus.md.
