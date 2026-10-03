@@ -1,0 +1,21 @@
+# Memory Bank Control Center
+
+Самостоятельная память UI workstream. Не является копией/заменой core Memory Bank.
+Новая сессия: `../AGENTS.md` → `state.md` → `project.md` → `decisions.md` → `changes.md` →
+[onboarding](../../../docs/control-center/ONBOARDING.md). После compaction вернуться сюда.
+
+| Вопрос | Где ответ |
+|---|---|
+| Цель, границы, следующий шаг | state/project |
+| Что принято, что proposal | decisions + docs/control-center/proposals |
+| Product/stack/process separation | docs/control-center/01-architecture.md |
+| Разрешённые данные и неизвестности | docs/control-center/02-data-map.md |
+| DTO/provider/API | docs/control-center/03-contracts.md + ../contracts/types.ts |
+| План и acceptance | docs/control-center/04-phases.md |
+| Git/security/demo/tests | docs/control-center/05-security-workflow.md |
+| Подтверждённая безопасность handoff | docs/control-center/06-review.md |
+
+Обновлять state после большой фазы, decisions при изменениях выбора, changes append-only;
+детали features — тематические UI docs. Tests/results должны иметь commit/config/data
+reference и actual result. Не заменять failure history; не считать screenshots доказательством
+source integrity. Core snapshot baseline указан явно; не объявлять D50+ статус без export.

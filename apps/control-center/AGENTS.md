@@ -31,7 +31,9 @@ Runtime adapter может читать только `published/observatory-v1.j
 Offline exporter: только 9 explicit Git files из `contracts/source-pins.json`, ни glob,
 ни переходов по содержащимся в JSON paths. Published bundle — воспроизводимая проекция,
 не ручная база правды. Не редактировать её значения вручную; не автоматически repin hashes.
-Новый source/pin/операционный export требует документированного review/proposal, особенно
+Добавление новых полей из тех же approved engineering inputs допустимо автономно: field-level
+review, tests и новая projection version, без переписывания прежней. Не требует отдельного
+подтверждения обычная UI разработка. Новый source/pin/операционный export требует review/proposal, особенно
 если источник не относится к уже раскрытому engineering development. Runtime не запускает exporter.
 
 Нельзя читать/сканировать `work/**`, raw datasets, D43 calendars/windows, holdout, model
