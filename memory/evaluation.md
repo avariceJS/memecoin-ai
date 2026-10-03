@@ -92,3 +92,20 @@ D43 meta.fee является наблюдаемой transaction fee, но не 
 finalized при первом poll и left-censored для transition timing. Не использовать
 receipt−blockTime как submit→inclusion latency. Calendar schedule pending windows не
 увеличивают sample size/coverage. [Evidence](../docs/evidence/calendar-execution-2026-10-03.json).
+
+
+## D44: engineering-only training/evaluation contract
+
+Global explicit train/validation/test cutoffs, all scenarios решения в одной partition,
+purge по MAX target_available_ns всех siblings; validation-only epoch selection.
+Normalization по unique train history frames; доступная прошлая history на validation
+разрешена, future labels/IDs/absolute times не входят в model inputs. Censorship masked,
+fully censored batches не делают optimizer step. Tests подтверждают неизменность
+selected weights при изменении test labels и exact CPU epoch-boundary resume.
+Pinball/coverage/class log-loss/Brier +3 temporal descriptive blocks сохраняются с
+support counts. Это conditional-label диагностика, не net returns/edge/causal effect
+действия. Scenarios/overlapping targets не независимы; significance не вычисляется.
+Real smoke validation136 variants все roundtrip; test180/360 censored, failure support
+слишком мал. Engineering test повторяемый и не считается protected market holdout.
+Research mode закрыт; будущий D45 должен отдельно определить corpus qualification,
+global folds/embargo/holdout и model-selection budget. [D44](../docs/ml-foundation.md).

@@ -433,3 +433,20 @@ availability. Далее cold-connection observability и новые кален�
   своим wheel. Transport не менялся; no ML/trading/signing/payment/QuickNode/D33.
 - Следующая сессия сначала проверяет active inventory и schedule, затем coverage/timing
   gaps; нельзя дублировать job или объявлять будущие дни уже собранными.
+
+
+## 2026-10-03 — D44: независимый ML/training foundation
+
+- По прямому указанию пользователя engineering training разрешён; рыночный ML результат
+  на малом corpus не заявляется. D43 frozen job/runtime не менялись,70 protected hashes равны.
+- Optional PyTorch package/env/lock, immutable causal dataset, grouped maturity purge,
+  train-only transforms, empirical+linear и MLP/GRU/TCN/Transformer, masked conditional
+  heads/trainer, checkpoints/resume/inference, actual CPU/MPS scaling benchmark.
+-15 CPU smoke+1 MPS train прошли;40 benchmark cases, prediction/gradient parity5encoders;
+  exact CPU resume и standalone installed-wheel real reproduction.402 base/17 ML/416
+  combined tests,ruff/mypy/smoke/build. Remote CI добавлен, пока не проверен.
+- Сохранены исправленные development failures: batch initialization, test basename
+  collision, NumPy typing target; transport tuning/RPC не запускались.
+- CPU engineering default, GRU первый temporal candidate; market backbone не выбран.
+  Следующий D45: multi-window registry/qualification/global folds, без изменения D43.
+  Отчёт docs/ml-foundation.md, evidence docs/evidence/ml-foundation-2026-10-03.json.

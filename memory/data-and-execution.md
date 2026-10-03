@@ -559,3 +559,19 @@ Meta.fee не включает все расходы стратегии; при�
 в input-asset bps без маршрута/FX нельзя. Net targets остаются null. Документ:
 [calendar execution](../docs/calendar-execution.md),
 [evidence первого окна](../docs/evidence/calendar-execution-2026-10-03.json).
+
+
+### D44: read-only sealed window → ML engineering bundle
+
+Optional memecoin_ml проверяет window seal и exact execution_targets reproduction,
+не меняя source corpus/CPMM/features/targets. Bundle хранит исходные decision/availability
+и target maturity, group histories по campaign segment/pool/causal segment; unusable
+и gaps>15s сбрасывают контекст. Missing flags не теряются; unknown costs остаются unknown.
+Восемь scenarios не размножают independent decisions. MAX maturity siblings используется
+для новых global smoke partitions; прежние per-window calibration/evaluation cuts не
+переименованы в ML folds. Export174 usable из180 source starts;1392 variants. Сценарии
+censored на usable starts остаются в bundle и counts, без fabricated labels.
+Artifact dirs append-only/new; dataset/run/checkpoint checksums и source binding,
+raw/checkpoints вне Git.70 frozen D43 protected files совпали до/после; RPC не было.
+Рабочая реализация пока eager/bounded, research qualification false, multi-window merge
+и dedup следующий D45. [Контракт](../docs/ml-foundation.md), [evidence](../docs/evidence/ml-foundation-2026-10-03.json).

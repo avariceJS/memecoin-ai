@@ -2,6 +2,27 @@
 
 Обновлено: **2026-10-03**, Europe/Moscow.
 
+
+**D44 завершён: независимый ML/training foundation принят для engineering smoke.**
+Optional `memecoin_ml` и `work/ml-venv` (Python3.13/PyTorch2.14.1), immutable causal
+sequences, grouped maturity purge, train-only scaler, empirical+linear baselines,
+MLP/GRU/TCN/Transformer, conditional quantile/status heads, trainer/checkpoint/resume/
+label-free inference. D43 plan/runtime/LaunchAgent не изменены:70 protected hashes равны.
+15 CPU smoke runs +1 MPS training прошли;40 CPU/MPS benchmark cases и numerical
+prediction/gradient parity пяти кандидатов прошли. Exact CPU epoch resume и installed-
+wheel real-data reproduction подтверждены.402 base /17 ML /416 combined tests,
+ruff/mypy/smoke/build прошли; remote CI пока не проверен.
+
+Это не real ML result: real smoke train87/validation17/test45 decisions,purged25;
+validation содержит только roundtrip, test180/360 variants censored. Engineering
+CPU default, GRU2174 params — первый temporal candidate; рыночный backbone не выбран.
+[Итог D44](../docs/ml-foundation.md), [evidence](../docs/evidence/ml-foundation-2026-10-03.json).
+
+**Следующий независимый этап D45:** multi-window dataset registry/dedup/provenance,
+coverage/target-support qualification и frozen global folds/holdout; сначала fixtures,
+без ожидания календарных окон и без изменения D43. Настоящий research-training gate
+пока закрыт. Пользователь разрешил engineering training, не edge/качество на малом corpus.
+
 **D43 активно: конечное 48-часовое расписание установлено, первое окно выполнено.**
 Local LaunchAgent `ai.memecoin.d43.calendar01`, immutable plan/runtime в
 `work/calendar-execution-01`. Окна 0/6/12/24/36/48 h; максимум1 152 RPC,
@@ -18,12 +39,12 @@ reproduction dev/frozen wheel прошли.
 [Документ D43](../docs/calendar-execution.md),
 [evidence на первое окно](../docs/evidence/calendar-execution-2026-10-03.json).
 
-**Следующий шаг:** проверить actual inventory активного job; следующие окна
+**Следующий шаг потока D43:** read-only inventory активного job; следующие окна
 03 октября16:53/22:53,04 октября10:53/22:53,05 октября10:53 (Москва),5 pending.
 Затем audit реальных часов/дней, gaps/full-grid support и отдельно execution evidence.
 Будущие окна не считать состоявшимися. На Mac нужен активный user session/доступ;
 пропуски остаются missing. STOP и команды управления — в документе D43. Job не делает
-автоматических Git/Memory updates. Transport tuning закрыт, WSS off, ML не начинается.
+автоматических Git/Memory updates. Transport tuning закрыт, WSS off; market ML не начинается, engineering smoke разрешён D44.
 
 **D42 завершён с сохранённым отклонением календарного guard.** Все 4 cold connections
 и 8 strict checkpoints прошли. DNS/TCP/TLS наблюдались без изменения транспорта;
@@ -45,7 +66,8 @@ Offline/dev/installed-wheel reproduction и 386 tests/check/smoke/build прош
 в разные часы/дни с прежними guards, затем read-only execution-cost/availability evidence.
 Offline sensitivity0/5/10/25/50/100bps и paired delay0/5s реализованы; это assumptions,
 не calibrated costs/inclusion. Conditional failures/censoring не zero-fill; net_pnl=null.
-Нет ML/RL/paper/live, подписи, оплаты или расширения protocol scope. SLA не объявлен.
+Нет market ML/RL/paper/live, подписи, оплаты или расширения protocol scope.
+Engineering smoke разрешён D44; SLA не объявлен.
 
 **D40-v2 завершён; WSS оставлен опциональной диагностикой, выключен по умолчанию.**
 Исправлены absolute scheduler/content coalescing. Matched10s ticks и общая feature grid

@@ -651,3 +651,13 @@ D43 не менять/переустанавливать. Отдельный opt
 causal sequences, grouped maturity purge, train-only scaler, сменные backbone и
 conditional heads, checkpoint/resume/inference, CPU/MPS benchmarks. Нет dogmatic TCN,
 размера или частоты; нет RL/trading/paper/live. Контракт docs/ml-foundation.md.
+
+
+D44 завершён:15 CPU smoke+1 MPS train,40 benchmark cases, exact CPU resume и real
+installed-wheel reproduction,17 ML/416 combined tests. CPU engineering default; GRU16
+первый temporal candidate, но backbone/size/frequency не фиксируются. MPS ops/parity
+подтверждены на M4 Pro; speed зависит от shapes. Corpus readiness false: validation
+не покрывает failure classes, test50% censored variants. Research mode закрыт до
+отдельной corpus/protocol qualification. D43 protected hashes70/70 равны. Следующий
+независимый D45 — multi-window registry/qualification/global folds, пока не проведён.
+Evidence: docs/evidence/ml-foundation-2026-10-03.json.

@@ -150,3 +150,18 @@ engineering data qualification, не выполнение E01–E14. Перво�
 pending до2026-10-05. Следующий sampling plan для timing должен давать pre-finalization
 наблюдения, сохраняя неизвестный момент отправки и selection bias. Текущую когорту
 не менять по observed profits. [Контракт](../docs/calendar-execution.md).
+
+
+## D44: инженерные ML-опыты разрешены отдельно от market research
+
+2026-10-03 пользователь разрешил ML foundation параллельно frozen D43, не ожидая
+календарных окон. Реализованы empirical/linear comparators и сменные MLP/GRU/causalTCN/
+Transformer с единым conditional head contract.15 runs (synthetic seeds7/19, real seed7),
+3epochs,width16/context8 проверяют только plumbing. Дополнительный1epoch MPS run и
+40 actual-device benchmark cases не являются E01/E02 ablation по рыночному качеству.
+GRU default и CPU default — инженерные стартовые конфигурации, не selected backbone.
+Гипотезы/market experiments выше остаются непроведёнными; текущие labels before costs
+и conditional reset не заменяют downstream execution-aware/MPC evaluation.
+Следующий независимый D45: multi-window registry, qualification и global protocol/folds;
+реальное обучение требует отдельного принятия corpus/protocol, не count threshold.
+[Контракт/результат](../docs/ml-foundation.md), [evidence](../docs/evidence/ml-foundation-2026-10-03.json).

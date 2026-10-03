@@ -202,3 +202,13 @@ AmmConfig blocker решён в этой области; новая кампан
 `audit-target-support CAMPAIGN TARGETS --out REPORT` и `verify-target-support CAMPAIGN
 TARGETS REPORT` проверяют complete scenario grid и неперекрывающиеся label windows.
 [Диагностика доступности, контракт и результаты D39](docs/persistent-source.md).
+
+
+## Optional ML foundation (D44)
+
+Отдельно от collector: `make ml-setup` (Python3.13), `make ml-check`.
+Causal dataset, empirical/linear baselines, MLP/GRU/TCN/Transformer, masked trainer,
+checkpoint/resume/inference и actual CPU/MPS benchmarks. Только engineering smoke:
+текущий corpus не квалифицирован для market ML результата. Frozen D43 не изменяется.
+[Команды, архитектура и границы](docs/ml-foundation.md),
+[воспроизводимое evidence](docs/evidence/ml-foundation-2026-10-03.json).

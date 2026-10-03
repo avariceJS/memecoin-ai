@@ -188,3 +188,17 @@ Local finite schedule уже запущен до2026-10-05: первое окн�
 После новых окон — hours/days/gaps/full-grid audit, достаточность market universe и
 новое preregistered timing наблюдение до finalization. Первые6 samples already finalized,
 они не дают submission→inclusion latency. ML readiness пока false. [Runbook](../docs/calendar-execution.md).
+
+
+## D44 завершён; независимый D45 не ждёт календаря
+
+Пользователь разрешил engineering-only обучение и ML foundation параллельно D43.
+Dataset/training/evaluation/checkpoint/inference и пять сменных encoders реализованы;
+15 CPU+1 MPS smoke,40 benchmark cases, exact resume/reproduction,416 combined tests.
+Это не продвижение в доказательство market edge; малый corpus не признан достаточным.
+D43 не трогать/не переустанавливать. Следующий D45 — registry sealed окон, dedup и
+provenance, audit coverage/target support, protocol/global folds/holdout contracts на
+fixtures. Затем применить к реально накопленным окнам и принять отдельное решение о
+research readiness/нужном sampling. Multi-window registry пока не реализован. Policy/MPC,
+net evaluation и full execution calibration остаются следующими самостоятельными gates.
+[Документ D44](../docs/ml-foundation.md).

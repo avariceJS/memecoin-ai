@@ -26,6 +26,7 @@ Memory Bank — канонический, пригодный для чтения
 | D41: prospective HTTP, connect timeout и censored QA | [qualified-http-corpus.md](../docs/qualified-http-corpus.md) |
 | Cold diagnosis, календарные окна и execution uncertainty D42 | [cold-connection-corpus.md](../docs/cold-connection-corpus.md) |
 | Активное 48h расписание, управление и реальные execution observations D43 | [calendar-execution.md](../docs/calendar-execution.md) |
+| Optional ML/training, causal bundles, encoders, checkpoint/resume и M4 benchmarks D44 | [ml-foundation.md](../docs/ml-foundation.md) |
 | Как проверять edge и выпускать новую модель | [evaluation.md](evaluation.md) |
 | В каком порядке работать | [roadmap.md](roadmap.md) |
 | Что уже существует и что дальше | [state.md](state.md) |

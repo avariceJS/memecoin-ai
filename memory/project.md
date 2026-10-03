@@ -54,3 +54,13 @@
 | Критерии значимого экономического улучшения | Формализовать до выбора победителей |
 
 Обратимые исследовательские допущения можно оформлять явно, но пользовательские финансовые ограничения нельзя объявлять установленными без их определения. Фактический технический этап и достигнутые gates — в state.md; финансовые параметры и research specification остаются открытыми.
+
+
+## Уточнение авторизации 2026-10-03 — независимый ML foundation
+
+D44 реализует optional ML/training и первую сменную temporal architecture отдельно
+от работающего frozen D43. Пользователь разрешил engineering smoke/integration runs на
+synthetic/имеющихся данных. Это не признание corpus достаточным и не market-result claim.
+Обучаемые heads пока conditional return-before-network-costs/statuses, не trading policy.
+Техническая готовность trainer/checkpoint/inference не снимает corpus/execution/evaluation
+gates. D43 не изменять/не переустанавливать. [Итог D44](../docs/ml-foundation.md).

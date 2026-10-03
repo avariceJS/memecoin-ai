@@ -206,3 +206,19 @@ windows, per-window seals/outcomes. Report snapshot отдельно от жив
 Observed execution — sidecar raw/QA, не изменение CausalBook/features/targets. Только
 getSignatureStatuses добавлен в read-only RPC allowlist; старые bundles требуют свои
 source-pinned packages. Секретов в plist/source snapshots нет.
+
+
+## D44: optional ML foundation рядом с collector
+
+`src/memecoin_ml` изолирован от stdlib `memecoin_ai`; torch нужен только optional
+окружению. Frozen D43 package/runtime/interpreter не менялись. Data interface → unique-
+frame train scaler → bounded history tensor25channels +pre-action scenario4channels →
+swappable encoder → ordered0.1/0.5/0.9 return quantiles +3 conditional status logits.
+Linear/empirical comparators; MLP/GRU/TCN/Transformer — кандидаты. GRU16/context8/2174
+parameters — первый runnable temporal brain fragment, не окончательная архитектура.
+Policy/MPC/portfolio/risk promotion и own execution model этим модулем не подменяются.
+AdamW, masks/finite guards/clipping, validation checkpoint selection, safe weights-only
+load, source/dataset/config binding, optimizer/RNG epoch resume и label-free Predictor.
+CPU default, actual MPS forward/backward/parity проверены; distributed/streaming не
+реализованы,256MiB eager tensor guard/partition. Большой research mode закрыт отдельно.
+[Runbook/границы/результат](../docs/ml-foundation.md).
