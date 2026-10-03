@@ -37,9 +37,10 @@ worktree отсутствует, не добавлять symlink к основн
 
 Phase 1 shell есть в `apps/control-center/web`: validated snapshot client и navy
 навигация на реальной проекции. Model binding остаётся UNVERIFIED, configured policy
-`composer-2.5[fast=false]` не менялась. Следующий шаг — P2.1 календарь D43: шесть
-окон, 180/174/135, actual start неизвестен, protected 4–5 без метрик. Затем D48 grid,
-Overview/Sources, Research, Models, System, quality. Core interface deficiency →
+`composer-2.5[fast=false]` не менялась. Календарь D43 и сетка D48 уже на /calendar: 180/174/135, protected без метрик,
+336 design-ячеек, collector не активирован. Следующий шаг — P3.1 Overview:
+центральная recorded-композиция, правый статус, нижние виджеты. Затем Sources,
+Research, Models, System, quality. Core interface deficiency →
 proposal, никакого core patch.
 
 Запуск/проверки: ../README.md. План: docs/control-center/04-phases.md.

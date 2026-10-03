@@ -19,6 +19,7 @@ import {
   TIME_ZONE_LABELS,
   type CalendarTimeZone,
 } from "./timeZone";
+import { CalendarCorpusSections } from "../corpus";
 import type { z } from "zod";
 
 type Window = z.infer<typeof windowSchema>;
@@ -360,6 +361,8 @@ export function CalendarPage() {
           </tbody>
         </table>
       </section>
+
+      <CalendarCorpusSections snapshot={snapshotResponse.data} />
     </>
   );
 }

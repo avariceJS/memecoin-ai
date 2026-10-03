@@ -72,3 +72,9 @@ Native model preflight/web implementation намеренно остаются ne
 - Protected 4–5 в DOM без счётчиков. Pending остаётся «ожидание».
 - Vitest 16 PASS. Visual verification PASS после уточнения, что полный кадр сдваивал capture.
 - Boundary PASS.
+
+## 2026-10-03 — P2.2 corpus и сетка D48
+
+- На /calendar: revision 000000, 174/1392/362, 122 отдельно от all-start 1440.
+- Сетка 336: 224 DESIGN «не активировано», 112 PROTECTED без чисел, admitted 0.
+- Collector явно не активирован. Vitest 18 PASS. Шрифт ячеек поднят до 12px.

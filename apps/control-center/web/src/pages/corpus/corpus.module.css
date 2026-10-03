@@ -1,0 +1,217 @@
+.bottomRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: var(--cc-gap);
+  margin-top: var(--cc-gap);
+}
+
+@media (max-width: 1100px) {
+  .bottomRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.summaryPanel {
+  composes: panel from "../shared.module.css";
+}
+
+.gridPanel {
+  composes: panel from "../shared.module.css";
+}
+
+.badgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--cc-text-muted);
+  line-height: 1.45;
+}
+
+.noteStrong {
+  color: var(--cc-warning);
+  font-weight: 600;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .metricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.metric {
+  background: var(--cc-panel-raised);
+  border: 1px solid var(--cc-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.metric dt {
+  margin: 0;
+  font-size: 11px;
+  color: var(--cc-text-muted);
+}
+
+.metric dd {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--cc-text);
+}
+
+.metricSub {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--cc-text-muted);
+}
+
+.samplingStrip {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--cc-border);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .samplingStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.samplingItem span {
+  display: block;
+  color: var(--cc-text-muted);
+  font-size: 11px;
+}
+
+.samplingItem strong {
+  display: block;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+  color: var(--cc-cyan);
+}
+
+.offsetList {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.offsetChip {
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--cc-border);
+  background: var(--cc-panel-raised);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--cc-text-muted);
+}
+
+.planGrid {
+  display: grid;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  gap: 3px;
+  margin-top: 8px;
+}
+
+.planCellDev {
+  min-height: 44px;
+  border: 1px solid var(--cc-border);
+  border-radius: 4px;
+  background: #0a1520;
+  padding: 4px 2px;
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--cc-text-muted);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.planCellDevLabel {
+  color: var(--cc-blue);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.planCellReserved {
+  min-height: 44px;
+  border: 1px dashed var(--cc-border);
+  border-radius: 4px;
+  background: transparent;
+  padding: 4px 2px;
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--cc-text-muted);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+.planCellReserved:focus-visible {
+  outline: 2px solid var(--cc-warning);
+  outline-offset: 1px;
+}
+
+.protectedTag {
+  color: var(--cc-warning);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--cc-text-muted);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendSwatchDev,
+.legendSwatchReserved {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.legendSwatchDev {
+  border: 1px solid var(--cc-border);
+  background: #0a1520;
+}
+
+.legendSwatchReserved {
+  border: 1px dashed var(--cc-border);
+}
