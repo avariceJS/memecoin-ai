@@ -118,3 +118,10 @@ unknown costs/inclusion/own impact; net_pnl null. Обучение/RL/paper/live
 # Начальная неудача требует собственного source-pinned пакета:
 PYTHONPATH=work/alchemy-v2-initial-wheel .venv/bin/python tools/alchemy_pilot.py verify work/alchemy-pilot-v2-01 --segment 0
 ```
+
+
+D41 фактически начат: первый cold connect timeout закрыл кампанию без retries и без
+новых snapshots; offline QA полностью censored. Это отдельный availability gate,
+не изменение WSS decision и не повод объявлять source production-ready.
+[Результат D41](qualified-http-corpus.md),
+[evidence](evidence/qualified-http-corpus-2026-10-03.json).

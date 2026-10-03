@@ -66,3 +66,14 @@ Drift — сигнал для анализа, ограничения актив�
 ## Ограничения вывода
 
 Даже несколько качественных периодов не гарантируют будущий edge. Ошибка исполнения, смена рынка и неполнота данных остаются рисками. Если надёжного сигнала нет, пересмотреть данные, сегмент или гипотезу; не усложнять бесконечно модель. Реальные деньги не разрешены этим планом.
+
+
+## Engineering evidence D40-v2/D41
+
+Transport сравнение не является ML evaluation: matched10s arms разделяют одну feature
+сетку, но sequential polls могут читать разные banks. Adaptive — отдельная sampling
+policy; снижение requests оценивать вместе с quality и полным standalone payload.
+В D40-v2 критерий отрицательный. В D41 connect timeout не дал ни одной зрелой метки;
+3 masked rows и24 censored scenarios не увеличивают пригодный размер выборки.
+Воспроизведение доказывает integrity pipeline, не market coverage/edge. Ссылки и
+provenance: [D40-v2](../docs/alchemy-pilot-v2.md), [D41](../docs/qualified-http-corpus.md).

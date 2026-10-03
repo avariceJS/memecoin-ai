@@ -126,3 +126,13 @@ MoE только после гипотезы о стабильных режим�
 ## Минимальная запись будущего запуска
 
 ID и дата; связанная гипотеза; версия кода; data manifest и coverage; точные временные границы; target horizon и purging; конфигурация; seeds; аппаратная среда; версия execution model; ограничения; все primary/secondary metrics; uncertainty; стрессы; ограничения результата; решение продолжить/отклонить/собрать данные. Тяжёлые артефакты вне Git, конфигурации и отчёты в Git.
+
+
+## Инженерный результат D40-v2/D41 (2026-10-03)
+
+Frozen matched-cadence controls и symmetric stress отделили WSS overhead от cadence:
+adaptive resource criterion не выполнен. WSS optional/off; детали и ограничения —
+[отчёт D40-v2](../docs/alchemy-pilot-v2.md). Следующий prospective D41 закрыт на первом
+connect timeout, все derived labels censored. Никакое новое обучение/исследование edge
+не проведено. Следующая работа — availability observability и календарные окна,
+затем execution uncertainty, согласно [D41](../docs/qualified-http-corpus.md).

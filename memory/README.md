@@ -22,6 +22,8 @@ Memory Bank — канонический, пригодный для чтения
 | Новый AmmConfig creator fee share и snapshot-only профиль | [creator-fee-share.md](../docs/creator-fee-share.md) |
 | Доступность RPC, persistent TLS и target coverage | [persistent-source.md](../docs/persistent-source.md) |
 | Alchemy HTTP/WSS, handoff, gaps и отрицательный v1 результат | [alchemy-pilot.md](../docs/alchemy-pilot.md) |
+| Matched cadence, coalescing и решение WSS off | [alchemy-pilot-v2.md](../docs/alchemy-pilot-v2.md) |
+| D41: prospective HTTP, connect timeout и censored QA | [qualified-http-corpus.md](../docs/qualified-http-corpus.md) |
 | Как проверять edge и выпускать новую модель | [evaluation.md](evaluation.md) |
 | В каком порядке работать | [roadmap.md](roadmap.md) |
 | Что уже существует и что дальше | [state.md](state.md) |

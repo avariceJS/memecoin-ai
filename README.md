@@ -34,12 +34,18 @@ export MEMECOIN_RPC_URL=https://api.mainnet-beta.solana.com
 
 URL может содержать credential и не сохраняется в отчётах. `.env` не загружается автоматически. Probe не подписывает и не отправляет транзакции и не квалифицирует источник как торговый dataset.
 
-## Alchemy transport pilot (D40)
+## Alchemy transport pilot и prospective corpus (D40-v2/D41)
 
-Bounded HTTP/WSS проверка и решение: [отчёт](docs/alchemy-pilot.md),
-[evidence](docs/evidence/alchemy-pilot-2026-10-03.json). Основной collector не заменён.
-Offline: `.venv/bin/python tools/alchemy_pilot.py verify work/alchemy-pilot-01 --segment 0`.
-Только отдельный pilot runner явно читает `.env.local`; credentials не входят в artifacts.
+Matched-cadence сравнение: [отчёт](docs/alchemy-pilot-v2.md),
+[evidence](docs/evidence/alchemy-pilot-v2-2026-10-03.json). WSS optional/off: выигрыш
+HTTP calls не компенсировал payload overhead. Alchemy HTTP выбран для bounded сбора
+через прежний collector; следующий [D41](docs/qualified-http-corpus.md) остановлен на
+первом connect timeout, без retries. Production availability и ML readiness не доказаны.
+
+Offline команды и pinned environments — в отчётах. Старый [D40-v1](docs/alchemy-pilot.md)
+требует `work/alchemy-wheel-01/bin/python`, поскольку source snapshot immutable.
+Только специальные pilot/corpus runners явно читают `.env.local`; credentials не
+входят в artifacts.
 
 ## Высокоуровневое устройство
 

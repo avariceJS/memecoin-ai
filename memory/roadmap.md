@@ -154,11 +154,17 @@ Coverage QA теперь считает complete scenario decisions и chronolog
 в разных календарных окнах при той же фиксированной когорте/guards, затем execution
 uncertainty/selection coverage. Нельзя начинать ML только потому, что пройден один cutoff.
 
-## D40: следующий приоритет — проверка гибрида Alchemy
+## D40-v2 завершён; D41 выявил cold-connection gate
 
-2026-10-03 пользователь согласовал bounded Alchemy HTTP+WSS пилот в новой сессии Astra.
-Перед увеличением масштаба проверить строгий HTTP baseline и сравнить его с гибридом
-на том же провайдере/когорте; доказать stream handoff, gap handling, restart и реальный
-выигрыш coverage/нагрузки. Основной collector D39 сохраняется до отдельного решения по
-результатам. Критерии D40 — memory/data-and-execution.md; пилот не проведён. Календарное
-покрытие и execution QA остаются целью, ускорение transport само по себе не ведёт к ML.
+Matched cadence/coalescing и symmetric stress проверены, WSS resource criterion
+не выполнен; optional diagnostic/off. Следующий bounded corpus D41 перешёл на
+Alchemy HTTP5 через прежний collector, но остановлен на первом connect timeout.
+Новые snapshots0, offline targets/quality/support полностью censored. История sealed,
+повторов нет. Документы: [D40-v2](../docs/alchemy-pilot-v2.md),
+[D41](../docs/qualified-http-corpus.md).
+
+Следующий этап — детализация DNS/TCP/TLS phase evidence, затем новый preregistered
+ограниченный сбор при новых основаниях/в другом календарном окне. Закрытую кампанию
+не возобновлять, не повышать timeout и не перебрать провайдеров до success. WSS не
+возвращать без конкретной resource/change-discovery гипотезы. Календарное coverage,
+market selection и execution uncertainty QA остаются gates перед ML/RL/paper/live.

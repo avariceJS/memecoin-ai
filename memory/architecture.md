@@ -184,5 +184,10 @@ measurement. Economic adapter, raw Capture, CausalBook и target semantics об�
 очереди, подтверждает subscriptions, принимает только strict HTTP snapshots через прежний
 CausalBook и targets. Между raw WSS и pool state нет merger. Offline replay использует
 тот же reducer, source snapshots и manifest; independent report сверяет receipt metadata.
-Это отдельный pilot, основной D39 collector не заменён: v1 quality criterion провален.
-Следующий v2 — matched cadence/coalescing, не переписывание CPMM/ML/runtime модели.
+В D40-v2 добавлены absolute CadenceGrid и per-account ContentTriggers, replay решений
+читать/пропустить; matched10s и symmetric stress проверены. Payload criterion провален:
+WSS остаётся optional/off, snapshot authority — HTTP. Для bounded D41 выбран Alchemy
+HTTP5 persistent TLS через прежний prospective collector; public D39 — reference/control.
+Первый D41 connect timeout закрыл кампанию; production availability не доказана.
+CPMM/ML/runtime модели не переписывались. Итоги: docs/alchemy-pilot-v2.md и
+docs/qualified-http-corpus.md.

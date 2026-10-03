@@ -390,3 +390,14 @@ Initial startup EOF сохранён, один preregistered serial-ack follow-u
 cadence/common features и content coalescing проверены; criterion не выполнен из-за
 payload overhead. WSS оставлен optional/off; Alchemy HTTP5 выбран для нового bounded
 corpus D41 (180 max, stop first error) поверх прежних decoder/collector/targets.
+
+
+## 2026-10-03 — D41 закрыт на первом cold connect timeout
+
+Первый запрос15,0718s, HTTP=null, snapshots0; retries/второго сегмента нет. История и
+closure сохранены. Existing targets/quality/support воспроизведены dev/wheel:3 masked
+rows,24 censored scenarios,0 mature/nonoverlap. CLI stop guard теперь блокирует также
+crash до записи closure; пять synthetic tests. 377 tests/check/smoke/build прошли.
+WSS optional/off, Alchemy HTTP strict correctness не равна квалификации длительной
+availability. Далее cold-connection observability и новые календарные окна по новому
+плану; текущую закрытую кампанию не возобновлять. ML/RL/paper/live не запускались.

@@ -2,38 +2,33 @@
 
 Обновлено: **2026-10-03**, Europe/Moscow.
 
-**D40 завершён (2026-10-03): hybrid v1 не принят, основной collector D39 сохранён.**
-Alchemy MCP и отдельные runtime HTTP/WSS доступны. HTTP preflight: mainnet genesis +6
-strict snapshots. Два 120 s параллельных сегмента: Alchemy HTTP-only144 snapshots,
-hybrid72, прежний public collector144; все 360 accepted. Итого с preflight366 strict
-account checkpoints. Два разных процесса, два forced reconnect,1158 raw WSS messages.
-Неожиданных collection failures0. Единственный local preflight reporting KeyError
-сохранён и исправлен offline; исходный бюджет 7 RPC не расширен.
-
-HTTP calls hybrid −50%, но usable feature fraction80% против95,83% (83,33% на той же
-scheduled сетке), received payload экономия лишь 0,66%. Критерий D40 не выполнен.
-Общий config многократно уведомляет одинаковое value; interaction5s scheduler/min interval
-даёт фактические ~10s hybrid polls. Выигрыш calls не приписывать только WSS.
-Lossless stream/history не доказаны; gaps/late availability не исправляются задним числом.
-
-364 tests, lint/format/mypy, setup/smoke/build; exact dev/installed-wheel reproduction
-двух paired segments и controls, независимая проверка1158 raw receipts, прежний D39
-перепроверен pinned wheel. CPMM/features/targets и synthetic-only gate не менялись.
-[Итоговый документ](../docs/alchemy-pilot.md),
-[evidence](../docs/evidence/alchemy-pilot-2026-10-03.json).
-
-**D40-v2 завершён:** matched10s и common feature grid подтверждены, content coalescing
-подавил198 unchanged hints, 421 Alchemy snapshots/144 controls в двух успешных120s окнах.
-Initial v2 получил startup EOF после4 ack (cause unknown, original preserved); единственный
-новый preregistered serial-ack вариант v2b прошёл steady/symmetric stress и dev/wheel QA.
-Adaptive HTTP−31,94%, quality−4,17п.п., но payload+28,49% кHTTP5: criterion false.
-372 tests. [Отчёт](../docs/alchemy-pilot-v2.md),
+**D40-v2 завершён; WSS оставлен опциональной диагностикой, выключен по умолчанию.**
+Исправлены absolute scheduler/content coalescing. Matched10s ticks и общая feature grid
+проверены; 421 strict Alchemy snapshots/144 public controls, два120s steady/stress окна,
+1274 WSS messages. Coalescing подавил198 unchanged hints без удаления raw. Adaptive
+HTTP−31,94%, usable−4,17п.п., payload+28,49% кHTTP5: criterion false. Initial v2 startup
+EOF после4 ack сохранён; один preregistered serial-ack follow-up прошёл. Причина EOF
+не установлена. [Отчёт](../docs/alchemy-pilot-v2.md),
 [evidence](../docs/evidence/alchemy-pilot-v2-2026-10-03.json).
 
-**Решение:** WSS optional diagnostic, off by default. Для новых bounded prospective
-campaigns выбран Alchemy HTTP5 persistent TLS через прежний collector, без fallback.
-Следующий D41 уже спланирован:2×30×5s/max180 HTTP, stop-at-first-failure; потом existing
-execution targets/quality/nonoverlap QA. Сбор D41 пока не проведён; ML gates прежние.
+**D41 начат и закрыт на первом отказе:** Alchemy HTTP5 persistent TLS через прежний
+collector, WSS off, план2×30×5s/max180 requests. Фактически1 попытка, connect timeout
+15,0718s, HTTP=null, snapshots0. Повторов/второго сегмента нет. Offline/dev/wheel QA:
+3 masked rows,24 censored scenarios,0 mature/nonoverlap. Это unresolved cold-connection
+availability, не выявленная ошибка credentials/account coherence. Missing access не
+установлен. [Итог D41](../docs/qualified-http-corpus.md),
+[evidence](../docs/evidence/qualified-http-corpus-2026-10-03.json).
+
+**Решение и следующий шаг:** WSS не включать в основной сбор; Alchemy HTTP пригоден
+для наблюдённой strict snapshot области, но длительная доступность не квалифицирована.
+Следующий этап — диагностическая детализация DNS/TCP/TLS без скрытых retries, затем
+новый frozen bounded plan в другом окне/при новых основаниях. Закрытый D41 не resume.
+Public D39 остаётся reference/control, hidden fallback нет. Не переходить к ML.
+
+377 tests, lint/format/mypy, smoke/build; D40v2 и D41 точно воспроизведены dev/wheel.
+CPMM/features/targets, profile2/legacy boundaries и synthetic-only gate не менялись.
+История D40-v1 (366 strict snapshots, отрицательный результат и scheduler confound)
+сохранена в [первом отчёте](../docs/alchemy-pilot.md); D40-v2 заменяет его следующий шаг.
 
 **Текущий результат D39:** найден и проверен bounded вариант согласованного источника:
 canonical public mainnet `https://api.mainnet.solana.com`, explicit verified TLS keepalive
@@ -54,9 +49,8 @@ Execution-conditioned targets: 3864 scenarios, 345 distinct mature decisions,
 
 346 tests, lint/format/mypy, smoke/build и dev/installed-wheel verification прошли.
 Memory и previous raw/source snapshots сохранены. Контракт: [persistent source](../docs/persistent-source.md);
-[evidence](../docs/evidence/persistent-source-2026-10-02.json). Приоритет следующего этапа
-уточнён D40: проверить гибридный сбор для расширения календарного покрытия; execution QA
-и решение о dataset sufficiency остаются необходимыми. Public RPC не объявлен production source.
+[evidence](../docs/evidence/persistent-source-2026-10-02.json). Последующий transport выбор уточнён D40-v2/D41 выше; execution QA
+и dataset sufficiency остаются необходимыми. Public RPC не объявлен production source.
 
 ## Стадия и авторизация
 
@@ -93,7 +87,7 @@ ReferenceReplay намеренно synthetic-only, one-quote, one-pool-per-base 
 
 ## Открытые решения
 
-Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D40: [decisions](decisions.md).
+Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D41: [decisions](decisions.md).
 
 ## Результат bounded data-аудита
 

@@ -487,3 +487,24 @@ Calls−50% не компенсируют ухудшение quality: criterion 
 Основной D39 collector остаётся; v2 требует отдельного frozen matched-cadence плана.
 [Контракт/ограничения](../docs/alchemy-pilot.md),
 [evidence](../docs/evidence/alchemy-pilot-2026-10-03.json). Training/edge false.
+
+
+### D40-v2 и D41: окончательная роль транспорта
+
+D40-v2 исправил scheduler/content coalescing и подтвердил matched10s/common feature
+cadence, сохранив separate steady/stress. 421 Alchemy strict snapshots,144 public,
+1274 WSS messages; initial EOF и единственный serial-ack follow-up сохранены отдельно.
+Adaptive экономит31,94% HTTP, usable хуже4,17п.п., payload выше28,49% HTTP5: criterion
+false. WSS diagnostic/off; никаких склеенных WSS pool states или lossless history.
+[Контракт/результат](../docs/alchemy-pilot-v2.md),
+[evidence](../docs/evidence/alchemy-pilot-v2-2026-10-03.json).
+
+Для D41 явно выбран Alchemy HTTP5 persistent TLS с прежним prospective pipeline,
+finalized/profile2 и fixed cohort. План180 max остановлен на первой connect ошибке
+15,0718s; HTTP ответа/новых snapshots нет. DNS/TCP/TLS подфаза неизвестна. Closed bundle
+не resume, retries0. Existing targets/quality/support дали3 masked rows/24 censored
+scenarios/0 mature. Raw references не становятся новыми online data. Строгая snapshot
+корректность Alchemy доказана только на D40; availability нового окна не квалифицирована.
+[Итог D41](../docs/qualified-http-corpus.md),
+[evidence](../docs/evidence/qualified-http-corpus-2026-10-03.json). Guards/CPMM/features/
+targets неизменны; далее cold-connection observability, потом новый bounded plan.

@@ -561,7 +561,7 @@ Primary criterion провален. Config дал 170 notifications одного
 нет matched10s HTTP control. Альтернатива: простой более редкий HTTP; следующий D40-v2
 сначала scheduler/coalescing и новый frozen matched-cadence steady/stress plan.
 364 tests; [отчёт](../docs/alchemy-pilot.md),
-[evidence](../docs/evidence/alchemy-pilot-2026-10-03.json). V2 не проведён; ML gates прежние.
+[evidence](../docs/evidence/alchemy-pilot-2026-10-03.json). На момент v1 V2 не был проведён; актуальный результат ниже. ML gates прежние.
 
 
 ### D40-v2: разделить transport, cadence и fault stress
@@ -594,3 +594,14 @@ public collector остаётся reference, fallback нет. Первый failu
 Затем неизменённые execution targets/quality/support, всё offline+wheel. Не расширять
 протокол или ML gates. Причина: source/scheduler уже проверены, следующий bottleneck —
 календарное coverage и execution uncertainty. План configs/qualified-http-corpus-v1.json.
+
+
+Результат D41: первый cold connect timeout15,0718s до HTTP; snapshots0, retries0,
+кампания закрыта. Dev/wheel QA:3 masked rows/24 censored scenarios, mature0. Выбор
+Alchemy HTTP не отменяет availability gate: пока квалифицированы только полученные
+strict checkpoints. WSS остаётся off, запусков сверх stop budget не было. Приоритет
+следующего этапа — DNS/TCP/TLS phase observability и новый ограниченный календарный
+сбор при новых основаниях; не повторять закрытый D41. Ослаблять coherence/protocol
+checks, увеличивать timeout ради success или начинать ML нельзя. Слабость: одна
+connect ошибка не определяет upstream cause и не оценивает долгосрочную reliability.
+[Итог](../docs/qualified-http-corpus.md), [evidence](../docs/evidence/qualified-http-corpus-2026-10-03.json).
