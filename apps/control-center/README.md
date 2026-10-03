@@ -47,7 +47,15 @@ HTTP API не раздаёт repository/static files, не имеет PUT/POST/c
 [готовый prompt](../../docs/control-center/GROK-PROMPT.md).
 
 
-## CC-01 — Coordinator workflow (без нового frontend)
+## Web v1
+
+Ветка `control-center/observatory-handoff` содержит read-only оболочку по published
+projection. Это не торговая консоль и не merge в main. Live/paper/replay остаются
+недоступными. Model binding исполнителей в task card не подтверждён и записан как
+UNVERIFIED. На Node 24.5.0 `npm ci` предупреждает, что часть jsdom-зависимостей хочет
+Node 24.15 или новее; тесты при этом проходят. Production bundle около 515 kB.
+
+## CC-01 — Coordinator workflow
 
 Human progress: [memory/STATUS.md](memory/STATUS.md). Native team, модели, settings и recovery:
 [Autonomous workflow](../../docs/control-center/AUTONOMOUS-WORKFLOW.md).

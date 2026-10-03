@@ -128,3 +128,9 @@ Native model preflight/web implementation намеренно остаются ne
 - `:focus-visible` 2px cyan на ссылках, кнопках и select.
 - Подписи не ниже 12px. Горизонтальный скролл таблиц внутри панелей.
 - На 768px страница не шире окна, aria-label «Торговля» сохранён. Vitest 44 PASS.
+
+## 2026-10-03 — P7.2 handoff web v1
+
+- `npm ci`: 153 пакета, 0 vulnerabilities. Повтор Coordinator: vitest 44, tsc, build, scope, projection, 22 adapter tests PASS.
+- Lockfile не изменился. Main не объединялся.
+- Остаются UNVERIFIED model card, CC-P001, предупреждения Node/jsdom и размера bundle.

@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "scope": "control-center-web-v1-phases-0-7",
-  "overall": "IN_PROGRESS",
+  "overall": "COMPLETE",
   "current_task": "P7.2",
-  "last_completed": "P7.1 focus, 12px captions, table overflow, 768 без горизонтального скролла страницы. Visual и boundary PASS.",
-  "last_verified_commit": "a0c1c43886e998d2a976979210059ecdce3880ba",
-  "last_checks": "2026-10-03: web vitest 44 PASS, tsc PASS. Browser 768: scrollWidth=innerWidth, aria-label Торговля сохранён.",
+  "last_completed": "P7.2 web v1 handoff: clean install и повторные проверки PASS. Main не объединялся.",
+  "last_verified_commit": "fd9f2997dc24781ff46513c43b21af97e030aeae",
+  "last_checks": "2026-10-03: npm ci 153 packages PASS (executor); Coordinator повтор: vitest 44, tsc, vite build, scope, exact projection, 22 adapter tests PASS.",
   "model_binding": {
     "configured_coordinator": "grok-4.7 / xhigh (picker)",
     "configured_executor": "composer-2.5[fast=false]",
@@ -14,18 +14,18 @@
     "evidence": "2026-10-03: task card cannot be confirmed in Cursor UI. User directed binding to stay UNVERIFIED and not block web v1. Configured executor remains composer-2.5[fast=false]. Earlier Task parameter composer-2.5[fast=false] was rejected; tool results had no model field. VERIFIED is not claimed."
   },
   "blockers": [],
-  "next_action": "P7.2: clean npm ci, build/test/scope/adapter checks, записать ограничения, не merge main.",
+  "next_action": "Ветка готова к отдельному review. Не merge в main. Tauri и CC-P001 остаются вне web v1.",
   "capabilities": [
     "existing read-only adapter + immutable historical projection",
     "primary visual reference available",
     "6 native custom agent definitions configured"
   ],
   "limitations": [
-    "Overview ещё не пересобран в композицию reference: timeline по центру и статус справа.",
-    "Native task card остаётся UNVERIFIED и не блокирует web v1.",
-    "D49 recorded baseline; actual D50+ status unavailable.",
-    "Core/raw/holdout/credentials/checkpoints недоступны UI agents.",
-    "No collector/research/trading actions; Tauri deferred."
+    "Native task card остаётся UNVERIFIED; configured policy composer-2.5[fast=false].",
+    "Live/paper/trading/replay недоступны. CC-P001 не принят core.",
+    "Node 24.5.0: EBADENGINE у части jsdom-зависимостей, которые просят Node 24.15+.",
+    "Vite предупреждает про PostCSS from и JS chunk около 515 kB.",
+    "Tauri и D50 вне этой оболочки. Main не объединялся."
   ],
   "interface_requests": [
     "CC-P001 PROPOSED — safe operational metadata export; web v1 не ждёт его"
@@ -818,15 +818,68 @@
         "visual",
         "boundary"
       ],
-      "status": "PENDING",
+      "status": "DONE",
       "write_files": [],
-      "checks": [],
-      "reviews": [],
-      "attempts": [],
+      "checks": [
+        {
+          "command": "npm --prefix apps/control-center/web ci",
+          "result": "PASS"
+        },
+        {
+          "command": "npm --prefix apps/control-center/web test",
+          "result": "PASS"
+        },
+        {
+          "command": "npm --prefix apps/control-center/web run check",
+          "result": "PASS"
+        },
+        {
+          "command": "npm --prefix apps/control-center/web run build",
+          "result": "PASS"
+        },
+        {
+          "command": "python3 apps/control-center/scripts/check_scope.py",
+          "result": "PASS"
+        },
+        {
+          "command": "python3 apps/control-center/adapter/export_snapshot.py --check",
+          "result": "PASS"
+        },
+        {
+          "command": "python3 -m unittest discover -s apps/control-center/tests -q",
+          "result": "PASS"
+        }
+      ],
+      "reviews": [
+        {
+          "kind": "visual",
+          "result": "PASS",
+          "evidence": "cc-visual-reviewer 841e6c50-84c5-4b65-87e7-9f4b54b1cf39 accepted the recorded navy shell without Live Mode or candles.",
+          "reviewed_revision": "fd9f2997dc24781ff46513c43b21af97e030aeae",
+          "reference_viewed": true,
+          "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+          "screenshot": "apps/control-center/.local/reviews/p7-overview-768.png sha256 38fb136be1b990e551d2c0ef44e27c5f2865c21ed59213a20d6694b737fd8c96"
+        },
+        {
+          "kind": "boundary",
+          "result": "PASS",
+          "evidence": "cc-boundary-reviewer cb56d6d9-5ce0-446b-819e-2248510dc322: GET loopback only, no replay import or trading actions, published projection is not edited by the web app.",
+          "reviewed_revision": "fd9f2997dc24781ff46513c43b21af97e030aeae"
+        }
+      ],
+      "attempts": [
+        {
+          "at": "2026-10-03",
+          "kind": "delegate",
+          "role": "cc-test-debugger",
+          "configured_model": "composer-2.5[fast=false]",
+          "note": "Clean install verification; observed card UNVERIFIED"
+        }
+      ],
       "blocker": "",
-      "summary": "",
-      "reference_viewed": false,
-      "reference_sha256": null
+      "summary": "Clean install and the full UI/adapter command set passed. Web v1 is reviewable on this branch and is not merged to main.",
+      "reference_viewed": true,
+      "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6"
     }
   ]
 }

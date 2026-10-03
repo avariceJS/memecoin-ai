@@ -37,8 +37,8 @@ worktree отсутствует, не добавлять symlink к основн
 
 Phase 1 shell есть в `apps/control-center/web`: validated snapshot client и navy
 навигация на реальной проекции. Model binding остаётся UNVERIFIED, configured policy
-`composer-2.5[fast=false]` не менялась. Экраны recorded snapshot собраны, фокус и узкая ширина проверены. Следующий шаг —
-P7.2: чистая установка, полный прогон команд и handoff web v1 без merge в main. Core interface deficiency →
+`composer-2.5[fast=false]` не менялась. Web v1 на ветке `control-center/observatory-handoff` готова к отдельному review.
+Main не объединялся. Live/paper/replay остаются недоступными. Model binding UNVERIFIED. Core interface deficiency →
 proposal, никакого core patch.
 
 Запуск/проверки: ../README.md. План: docs/control-center/04-phases.md.

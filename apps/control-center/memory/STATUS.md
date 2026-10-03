@@ -2,15 +2,15 @@
 
 Generated from WORK_STATE.json; не редактировать вручную.
 
-- Overall: **IN_PROGRESS** — web v1, 14/15 tasks; Tauri вне scope.
+- Overall: **COMPLETE** — web v1, 15/15 tasks; Tauri вне scope.
 - Current phase: **7**
 - Current task: **P7.2 — Clean install/E2E, docs, web-v1 acceptance**
-- Last completed: P7.1 focus, 12px captions, table overflow, 768 без горизонтального скролла страницы. Visual и boundary PASS.
-- Last verified commit: `a0c1c43886e998d2a976979210059ecdce3880ba`; latest фактически: `git log -1 --oneline`.
-- Checks: 2026-10-03: web vitest 44 PASS, tsc PASS. Browser 768: scrollWidth=innerWidth, aria-label Торговля сохранён.
+- Last completed: P7.2 web v1 handoff: clean install и повторные проверки PASS. Main не объединялся.
+- Last verified commit: `fd9f2997dc24781ff46513c43b21af97e030aeae`; latest фактически: `git log -1 --oneline`.
+- Checks: 2026-10-03: npm ci 153 packages PASS (executor); Coordinator повтор: vitest 44, tsc, vite build, scope, exact projection, 22 adapter tests PASS.
 - Model binding: UNVERIFIED (config ≠ runtime).
 - Blockers: нет глобального blocker
-- Next action: **P7.2: clean npm ci, build/test/scope/adapter checks, записать ограничения, не merge main.**
+- Next action: **Ветка готова к отдельному review. Не merge в main. Tauri и CC-P001 остаются вне web v1.**
 
 | Task | Role | State |
 |---|---|---|
@@ -28,15 +28,15 @@ Generated from WORK_STATE.json; не редактировать вручную.
 | P6.1 System и capability placeholders | ui-builder | DONE |
 | P6.2 Replay/future proposals и boundary tests | adapter-builder | DONE |
 | P7.1 Responsive, a11y, perf и final visual review | test-debugger | DONE |
-| P7.2 Clean install/E2E, docs, web-v1 acceptance | coordinator | PENDING |
+| P7.2 Clean install/E2E, docs, web-v1 acceptance | coordinator | DONE |
 
 ## Ограничения
 
-- Overview ещё не пересобран в композицию reference: timeline по центру и статус справа.
-- Native task card остаётся UNVERIFIED и не блокирует web v1.
-- D49 recorded baseline; actual D50+ status unavailable.
-- Core/raw/holdout/credentials/checkpoints недоступны UI agents.
-- No collector/research/trading actions; Tauri deferred.
+- Native task card остаётся UNVERIFIED; configured policy composer-2.5[fast=false].
+- Live/paper/trading/replay недоступны. CC-P001 не принят core.
+- Node 24.5.0: EBADENGINE у части jsdom-зависимостей, которые просят Node 24.15+.
+- Vite предупреждает про PostCSS from и JS chunk около 515 kB.
+- Tauri и D50 вне этой оболочки. Main не объединялся.
 
 Interface requests: CC-P001 PROPOSED — safe operational metadata export; web v1 не ждёт его
 
