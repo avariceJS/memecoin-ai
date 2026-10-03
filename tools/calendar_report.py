@@ -27,6 +27,17 @@ def iso(ns):
     return datetime.fromtimestamp(ns / 1e9, tz=UTC).isoformat()
 
 
+def calendar_adherence(first_ns, second_ns, minimum_seconds):
+    delta = second_ns - first_ns
+    required = minimum_seconds * 10**9
+    return dict(
+        met=delta >= required,
+        actual_separation_ns=delta,
+        required_separation_ns=required,
+        shortfall_ns=max(0, required - delta),
+    )
+
+
 def report(root, diagnostic):
     sealed(root)
     sealed(diagnostic)
@@ -97,12 +108,15 @@ def report(root, diagnostic):
         if len(windows) > 1
         else None
     )
-    if (
-        separation is not None
-        and separation
-        < read(root / "plan.json")["plan"]["corpus"]["minimum_start_separation_seconds"]
-    ):
-        raise ValidationError("calendar separation violated")
+    adherence = (
+        calendar_adherence(
+            windows[0]["plan"]["created_ns"],
+            windows[1]["plan"]["created_ns"],
+            read(root / "plan.json")["plan"]["corpus"]["minimum_start_separation_seconds"],
+        )
+        if len(windows) > 1
+        else dict(met=False, reason="second window absent")
+    )
     return dict(
         stage="D42",
         seed=None,
@@ -111,6 +125,7 @@ def report(root, diagnostic):
         diagnostic_decision=read(diagnostic / "decision.json"),
         windows=windows,
         start_separation_seconds=separation,
+        calendar_plan_adherence=adherence,
         accepted_corpus_snapshots=sum(w["accepted"] for w in windows),
         summed_observed_segment_span_seconds=sum(
             w["quality"]["summed_segment_span_seconds"] for w in windows

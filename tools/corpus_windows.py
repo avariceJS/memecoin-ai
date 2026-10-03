@@ -15,6 +15,14 @@ from memecoin_ai.prospective import create_campaign, hashes, read, resume_campai
 from memecoin_ai.sources import Capture, ReadOnlyRPC
 
 
+def window_due_ns(stage_start, first_created, index, separation_seconds):
+    if index == 0:
+        return stage_start
+    if first_created is None:
+        raise ValueError("first campaign creation time required before another window")
+    return first_created + index * separation_seconds * 10**9
+
+
 def collect(root):
     require_clean_stage_boundary(root)
     plan = read(root / "plan.json")
@@ -87,12 +95,15 @@ def main():
         for p in read(Path("configs/qualified-http-corpus-v1.json"))["references"]
     ]
     outcomes = []
+    first_created = None
     for index in range(plan["corpus"]["windows"]):
-        due = start + index * plan["corpus"]["minimum_start_separation_seconds"] * 10**9
+        due = window_due_ns(
+            start, first_created, index, plan["corpus"]["minimum_start_separation_seconds"]
+        )
         while time.time_ns() < due:
             time.sleep(min(30, (due - time.time_ns()) / 1e9))
         window = root / f"window-{index}"
-        create_campaign(
+        campaign_plan = create_campaign(
             window,
             refs,
             source_alias="calendar-" + stage["selected"],
@@ -102,6 +113,8 @@ def main():
             rounds=30,
             interval_seconds=5,
         )
+        if index == 0:
+            first_created = campaign_plan["created_ns"]
         write(window / "stage-plan.json", stage)
         write(window / "stage-provenance.json", dict(code_commit=stage["code_commit"], seed=None))
         print(
