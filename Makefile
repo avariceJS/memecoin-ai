@@ -9,7 +9,7 @@ setup:
 check:
 	$(VENV)/ruff check src tests tools
 	$(VENV)/ruff format --check src tests tools
-	$(VENV)/mypy src
+	$(VENV)/mypy src/memecoin_ai
 	$(VENV)/pytest -q
 
 test:
@@ -20,3 +20,16 @@ smoke:
 
 build:
 	$(VENV)/python -m build
+
+# Optional ML environment: Python 3.13, isolated from the frozen D43 collector.
+MLVENV := work/ml-venv/bin
+.PHONY: ml-setup ml-check
+ml-setup:
+	$(PYTHON) -m venv work/ml-venv
+	$(MLVENV)/python -m pip install -r requirements-dev.lock -r requirements-ml.lock -e .
+
+ml-check:
+	$(MLVENV)/ruff check src/memecoin_ml tests/ml tools/ml.py tools/ml_smoke.py
+	$(MLVENV)/ruff format --check src/memecoin_ml tests/ml tools/ml.py tools/ml_smoke.py
+	$(MLVENV)/mypy --python-version 3.13 src/memecoin_ml
+	$(MLVENV)/pytest tests/ml -q
