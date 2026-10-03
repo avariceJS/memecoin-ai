@@ -508,3 +508,34 @@ scenarios/0 mature. Raw references не становятся новыми online
 [Итог D41](../docs/qualified-http-corpus.md),
 [evidence](../docs/evidence/qualified-http-corpus-2026-10-03.json). Guards/CPMM/features/
 targets неизменны; далее cold-connection observability, потом новый bounded plan.
+
+
+### D42: bounded operational mode и execution uncertainty
+
+Диагностика отдельно наблюдает прежние DNS/TCP/TLS функции, не меняет их аргументы,
+TLS trust или RPC guards. План ограничил4 connections/8 requests, раунды разнесены60s.
+Все probes прошли; причина прежнего D41 failure неизвестна. Выбор Alchemy по frozen
+правилу при равном результате с public не доказывает превосходства provider или SLA.
+Mode: persistent verified TLS в сегменте, новый процесс/соединение между сегментами,
+no retries внутри failed окна; WSS off, fallback нет. Новые prospective окна имеют
+отдельные планы/cutoffs и реальные receipt times; промежутки не backfill.
+
+Offline tools/execution_uncertainty.py проверяет original targets до подсчёта сценариев.
+Сетка extra roundtrip cost0/5/10/25/50/100bps — assumptions в input-asset units, не
+измеренный native tariff. Censored/unfilled отдельно, никаких zero-fills, сумм atomic
+units разных tokens или overlapping hypothetical PnL. Delay0/5s paired только внутри
+одинаковых decision/pool/direction/size/partition. Это QA неопределённости, не новая
+feature, policy или profitability result; net_pnl/inclusion/network costs unknown.
+[Контракт и результат](../docs/cold-connection-corpus.md).
+
+Результат двух окон D42: 360 accepted/348 usable, 268 distinct mature decisions,
+135 engineering evaluation, 12 chronological nonoverlap windows. Фактические
+calendar bounds/разрывы/источники/config/code/seed/QA — в
+[evidence](../docs/evidence/cold-connection-corpus-2026-10-03.json). Все network calls
+прошли; прежние failed artifacts неизменны. Per-window cutoffs — engineering QA,
+не единый global train/test split и не final holdout. Следующий приоритет — окна в
+разные часы/дни и отдельное наблюдаемое execution-cost evidence; ML gates прежние.
+
+Strict calendar created_ns criterion текущего D42 false:599,994084s (недобор5,916ms),
+при actual segment starts600,037526s. Offline audit сохранил нарушение, future anchor
+исправлен; raw/times/план не менялись, дополнительных network requests не было.

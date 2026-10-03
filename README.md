@@ -47,6 +47,11 @@ Offline команды и pinned environments — в отчётах. Стары�
 Только специальные pilot/corpus runners явно читают `.env.local`; credentials не
 входят в artifacts.
 
+D42 завершил [cold diagnosis и два prospective окна](docs/cold-connection-corpus.md)
+с [evidence](docs/evidence/cold-connection-corpus-2026-10-03.json). Выбран bounded
+Alchemy HTTP persistent TLS; transport tuning закрыт, далее calendar coverage и
+execution uncertainty. Offline воспроизведение: `tools/calendar_report.py`.
+
 ## Высокоуровневое устройство
 
 ```text

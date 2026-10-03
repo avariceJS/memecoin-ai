@@ -168,3 +168,14 @@ Alchemy HTTP5 через прежний collector, но остановлен н�
 не возобновлять, не повышать timeout и не перебрать провайдеров до success. WSS не
 возвращать без конкретной resource/change-discovery гипотезы. Календарное coverage,
 market selection и execution uncertainty QA остаются gates перед ML/RL/paper/live.
+
+
+## D42 завершён: дальнейший приоритет — данные и исполнение
+
+Cold diagnosis не воспроизвела timeout. Выбран bounded Alchemy HTTP persistent TLS;
+два разнесённых prospective окна собраны и проверены, WSS off. Transport tuning
+закрыт без production SLA. [Итог](../docs/cold-connection-corpus.md).
+Далее заранее заданные окна в разные часы/дни (те же guards и конечный budget),
+затем read-only наблюдения network fees/receipt-to-chain timing и границ inclusion.
+Нельзя считать чужие успешные сделки калибровкой admission собственной стратегии.
+Не менять cohort по conditional profits, не начинать ML по нескольким минутам данных.

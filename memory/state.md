@@ -2,6 +2,28 @@
 
 Обновлено: **2026-10-03**, Europe/Moscow.
 
+**D42 завершён с сохранённым отклонением календарного guard.** Все 4 cold connections
+и 8 strict checkpoints прошли. DNS/TCP/TLS наблюдались без изменения транспорта;
+причина прежнего D41 timeout остаётся неизвестной. По frozen правилу выбран Alchemy
+HTTP persistent TLS внутри сегмента, новый процесс на его границе; WSS выключен.
+Два prospective окна: 360 accepted snapshots, 348 usable rows, 268 mature decisions
+(135 engineering evaluation), 12 chronological nonoverlap windows. Это минуты одной
+сессии, не разные рыночные режимы.
+
+Создания планов разнесены на 599,994084 s вместо минимум 600 s: недобор 5,916 ms из-за
+ошибки anchor runner/first campaign. Фактические старты сегментов разнесены на
+600,037526 s, но strict creation-boundary criterion оставлен false. Исправлен только
+будущий scheduler; исходные times не изменены, повторного сбора нет.
+Offline/dev/installed-wheel reproduction и 386 tests/check/smoke/build прошли.
+[Итог D42](../docs/cold-connection-corpus.md),
+[evidence](../docs/evidence/cold-connection-corpus-2026-10-03.json).
+
+**Текущий приоритет:** transport tuning закрыт; накапливать новые заранее заданные окна
+в разные часы/дни с прежними guards, затем read-only execution-cost/availability evidence.
+Offline sensitivity0/5/10/25/50/100bps и paired delay0/5s реализованы; это assumptions,
+не calibrated costs/inclusion. Conditional failures/censoring не zero-fill; net_pnl=null.
+Нет ML/RL/paper/live, подписи, оплаты или расширения protocol scope. SLA не объявлен.
+
 **D40-v2 завершён; WSS оставлен опциональной диагностикой, выключен по умолчанию.**
 Исправлены absolute scheduler/content coalescing. Matched10s ticks и общая feature grid
 проверены; 421 strict Alchemy snapshots/144 public controls, два120s steady/stress окна,
@@ -19,11 +41,8 @@ availability, не выявленная ошибка credentials/account coheren
 установлен. [Итог D41](../docs/qualified-http-corpus.md),
 [evidence](../docs/evidence/qualified-http-corpus-2026-10-03.json).
 
-**Решение и следующий шаг:** WSS не включать в основной сбор; Alchemy HTTP пригоден
-для наблюдённой strict snapshot области, но длительная доступность не квалифицирована.
-Следующий этап — диагностическая детализация DNS/TCP/TLS без скрытых retries, затем
-новый frozen bounded plan в другом окне/при новых основаниях. Закрытый D41 не resume.
-Public D39 остаётся reference/control, hidden fallback нет. Не переходить к ML.
+После D41 был назначен cold-connection audit; он выполнен в D42 выше. Закрытый
+D41 не возобновлялся. Public D39 остаётся reference/control, hidden fallback нет.
 
 377 tests, lint/format/mypy, smoke/build; D40v2 и D41 точно воспроизведены dev/wheel.
 CPMM/features/targets, profile2/legacy boundaries и synthetic-only gate не менялись.
@@ -77,7 +96,7 @@ Memory Bank принят как source of truth. Пользователь раз
 
 ## Что проверено
 
-Локально на Python 3.13: 364 автоматических теста, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
+Локально на Python 3.13: 386 автоматических теста, Ruff lint/format, strict mypy, полный CLI smoke с повторным ingest/export и двумя побитно одинаковыми replay results, сборка sdist/wheel. Synthetic fixture имеет отрицательный net-outcome, cash сохраняет капитал. Эти тесты проверяют бухгалтерию и временную семантику, не рыночную прибыльность.
 
 ## Чего нет и чего нельзя утверждать
 
@@ -87,7 +106,7 @@ ReferenceReplay намеренно synthetic-only, one-quote, one-pool-per-base 
 
 ## Открытые решения
 
-Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D41: [decisions](decisions.md).
+Backbone, размер, temporal format, scanner/K, cross-token/graph, targets/horizons/frequency, sizing, MPC/RL, источники, капитал, primary currency и реальные risk/promotion thresholds остаются открытыми. Числа `configs/synthetic.toml` — инженерный fixture, не утверждённые финансовые параметры. Актуальный реестр D01–D42: [decisions](decisions.md).
 
 ## Результат bounded data-аудита
 

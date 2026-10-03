@@ -401,3 +401,21 @@ crash до записи closure; пять synthetic tests. 377 tests/check/smoke
 WSS optional/off, Alchemy HTTP strict correctness не равна квалификации длительной
 availability. Далее cold-connection observability и новые календарные окна по новому
 плану; текущую закрытую кампанию не возобновлять. ML/RL/paper/live не запускались.
+
+
+## 2026-10-03 — D42: завершение transport tuning и два календарных окна
+
+- Frozen diagnosis4 connections/8 strict checkpoints, все успешны. DNS/TCP/TLS
+  observer не менял trust/deadlines/RPC; причина D41 timeout остаётся unknown.
+- Alchemy HTTP persistent TLS выбран по заранее заданному правилу. Два prospective
+  окна с creation separation 599,994084s: 360 accepted, 348 usable, 268 mature (135 evaluation),
+  12 nonoverlap windows. WSS off, без fallback, retries или изменений CPMM/targets.
+- Offline conditional cost/delay uncertainty с explicit assumptions; censored/unfilled
+  отдельно, no calibrated admission/costs/net PnL. 386 tests/check/smoke/build и exact
+  dev/installed-wheel reproduction. D40/D41 проверены, прежние bytes неизменны.
+- Далее календарное coverage разных часов/дней и read-only execution evidence, без ML.
+  Документ docs/cold-connection-corpus.md, evidence рядом в docs/evidence/.
+
+- Strict calendar audit выявил недобор5,916ms между created_ns планов; actual segment
+  starts разнесены600,037526s. Ошибка anchor исправлена только для будущих запусков,
+  критерий текущего run оставлен false; данные не переписывались и не пересобирались.

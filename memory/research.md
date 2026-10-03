@@ -136,3 +136,10 @@ adaptive resource criterion не выполнен. WSS optional/off; детал�
 connect timeout, все derived labels censored. Никакое новое обучение/исследование edge
 не проведено. Следующая работа — availability observability и календарные окна,
 затем execution uncertainty, согласно [D41](../docs/qualified-http-corpus.md).
+
+
+D42 выполнил bounded cold diagnosis, два заранее разнесённых prospective окна и
+conditional execution uncertainty audit; E01–E14 по-прежнему не проведены. Assumed
+cost grid не является выбором реалистичного тарифа по profitable результату. Результат
+не меняет ML gates; дальнейшая работа — calendar/market coverage и execution evidence.
+[Отчёт](../docs/cold-connection-corpus.md).

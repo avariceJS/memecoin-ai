@@ -77,3 +77,11 @@ policy; снижение requests оценивать вместе с quality и 
 3 masked rows и24 censored scenarios не увеличивают пригодный размер выборки.
 Воспроизведение доказывает integrity pipeline, не market coverage/edge. Ссылки и
 provenance: [D40-v2](../docs/alchemy-pilot-v2.md), [D41](../docs/qualified-http-corpus.md).
+
+
+D42 conditional uncertainty использует integer break-even comparison для additional
+roundtrip cost assumptions в input-asset bps. Delay0/5s paired только на том же
+sample/pool/direction/size/partition, censored/unfilled не входят в численный return.
+Не превращать conditional negative outcomes фиксированной когорты в отрицание edge
+всего рынка; суммы scenario PnL не являются portfolio PnL. Два per-window engineering
+cutoff не задают global chronological train/test split. [Результат](../docs/cold-connection-corpus.md).

@@ -191,3 +191,10 @@ HTTP5 persistent TLS через прежний prospective collector; public D39
 Первый D41 connect timeout закрыл кампанию; production availability не доказана.
 CPMM/ML/runtime модели не переписывались. Итоги: docs/alchemy-pilot-v2.md и
 docs/qualified-http-corpus.md.
+
+
+D42 добавляет только offline/операционные tools: cold_connection.py наблюдает прежние
+DNS/TCP/TLS calls в отдельных bounded процессах; corpus_windows.py использует existing
+prospective pipeline; execution_uncertainty.py и calendar_report.py проверяют immutable
+targets и агрегируют QA. Runtime modules/CPMM/features/targets не менялись. Два окна
+с отдельными cutoffs не становятся global ML split. WSS остаётся off.

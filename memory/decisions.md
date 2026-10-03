@@ -614,5 +614,12 @@ Alchemy/public/public/Alchemy,8/8 strict snapshots, warm reuse4/4. Ошибок 
 D41 timeout не воспроизведён, upstream причина неизвестна. По заранее заданному tie
 правилу выбран Alchemy HTTP persistent TLS внутри сегмента, новые процессы на границах,
 без WSS/fallback. Это bounded operational choice, не SLA. Дальнейший transport tuning
-не приоритет; два prospective окна с разнесёнными стартами≥600s и uncertainty audit.
-Сбор этих окон пока не проведён. Контракт docs/cold-connection-corpus.md.
+не приоритет; запланированы два prospective окна с разнесением≥600s и uncertainty audit.
+Оба окна выполнены: 360 accepted/348 usable, 268 mature/135 evaluation,
+12 nonoverlap windows. Offline/wheel exact, network failures0. Calendar created_ns≥600s criterion false:599,994084s, shortfall5,916ms;
+actual segment starts600,037526s.
+исправлен будущий anchor, старые timestamps неизменны. Дополнительное
+conditional cost/delay evidence не калибрует admission/costs и не доказывает edge.
+Transport gate закрыт в bounded области; дальше разные часы/дни и execution evidence,
+не новый transport tuning. Контракт docs/cold-connection-corpus.md;
+evidence docs/evidence/cold-connection-corpus-2026-10-03.json.
