@@ -539,3 +539,21 @@ fresh завершённый wheel verified. Append-only evidence: docs/evidence
   +separate final activation decision. Следующий D50 закрывает эти blockers.
 - D43/F01/holdout не менялись;training0;actualF01windows0. Doc/evidence:
   docs/f01-collector-qualification.md;docs/evidence/f01-collector-qualification-2026-10-03.json.
+
+
+## 2026-10-03 — D50 core operational envelope, activation закрыт
+
+- Plan0be583f,implementationbee897e,integrity8d072ac. Main core отдельно от UIworktree.
+  Frozen packagesD43–D49/F01/D48 неизменны.
+- memecoin_operational: immutable runtime snapshot,4child phases,210s/600s отreservation,
+  process-group kill,parent-death EOF,per-RPC guards,disk/clock/STOP,budget/receipt gates.
+- Exact bounded-attempt root/180RPC и calendar root/60480RPC; reviewedbilling evidence
+  обязателен. Никаких issuing receipts, установокlaunchd,source-root creation.
+-15new/496base/517combined tests,ruff/mypy/smoke/build; final180fake integration,raw/dossier
+  wheel reproduction. Всего540fake со preliminary. RealRPC/researchtraining0.
+- Исправлены post-child deadline race и отсчёт whole deadline отlaunch вместоreservation;
+  новыеpins вместо переписывания staged artifacts, failedlogs сохранены.
+- Browser unavailable; MCP27 660CU/USD0 не подтверждает Free/cap/mapping. Full live не
+  проведён. СледующийD51 — budget proof,boundedlive,host conditions,отдельное activation.
+- Doc/evidence: docs/f01-operational-runtime.md;
+  docs/evidence/f01-operational-runtime-2026-10-03.json.

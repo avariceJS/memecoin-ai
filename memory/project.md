@@ -80,3 +80,8 @@ D49 qualification (2026-10-03) не активировала новый collecto
 checkpoints подтверждён, но account monetary cap/plan и production service envelope
 не подтверждены. Paid budget0, D48 calendar/F01 gates неизменны. Следующий D50 — закрыть
 эти operational blockers до отдельного решения. [Итог](../docs/f01-collector-qualification.md).
+
+D50 (2026-10-03) закрыл engineering supervisor/runtime gaps через отдельный пакет,
+сохранив научные и source bindings. Это не разрешение расходов/collector или доказанный
+84day uptime. Actual no-charge/account mapping и full live qualification остаются
+D51, затем отдельное activation решение. [D50](../docs/f01-operational-runtime.md).

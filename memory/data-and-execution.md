@@ -654,3 +654,21 @@ New collector qualification engine прошёл180fake window→D48 admission/re
 interpreter/credential fingerprint/evidence, но не даёт permission. Production supervisor
 210s/600s,space/budget preflights и host uptime остаются D50 gates. D43/F01 не менялись.
 [Результат и evidence](../docs/f01-collector-qualification.md).
+
+
+### D50: frozen operational envelope и ограничение claims
+
+Новый subprocess supervisor не меняет CPMM/features/targets/source availability.
+210s segment/600s whole window от reservation; parent death прекращает worker через
+lease EOF, deadline/STOP/tamper/low disk/clock guard закрывает окно без retry. Frozen
+D49 scheduler conservatively расходует180 при crash;8failed/no catchup сохраняются.
+Disk2GiB+512MiB/512MiB window envelope не является provider/filesystem reservation.
+
+Live допускается только отдельным pinned receipt с actual reviewed no-charge/account/
+credential evidence. Bounded180RPC receipt нельзя использовать во втором каталоге;
+calendar receipt привязан к source root/336scheduled windows. Никакого live receipt
+или source/service activation D50 нет: MCP не показывает тариф/cap,mapping неизвестен,
+UI недоступен. Full live qualification не проведена.180final fake subprocess calls
+прошлиD48 admission и точное raw/wheel replay;0actualF01windows,holdout не раскрыт.
+OSsleep/reboot/84dayuptime не квалифицированы; failure semantics провереныfixtures.
+[Документ/evidence](../docs/f01-operational-runtime.md).

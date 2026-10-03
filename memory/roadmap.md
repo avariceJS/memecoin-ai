@@ -235,3 +235,13 @@ D50: read-only billing identity/budget,supervisor210s/600s,disk/runtime guards,h
 restart semantics; bounded full180RPC live окно после no-charge proof. Затем отдельное
 итоговое решение о запуске frozen D48. Нет автоматического переноса дат/backfill или
 изменения D43/F01. [D49](../docs/f01-collector-qualification.md).
+
+
+## D50 engineering envelope завершён → D51 live/activation evidence
+
+Supervisor210s/600s,crash/death/disk/clock/runtime и separate receipt boundary реализованы,
+15new/517combined tests и exact fixture/wheel reproduction. New source/service не включён.
+Account-specific Free/no-charge/credential mapping отсутствует,UI недоступен,full180RPC
+live не проведён. D51 должен получить это evidence, отдельно квалифицировать одно180RPC
+окно и host awake/login условия; затем отдельное итоговое решение оcalendaractivation.
+Без доступа не выдумывать approval,не повторятьtransporttuning/не менятьF01. [D50](../docs/f01-operational-runtime.md).

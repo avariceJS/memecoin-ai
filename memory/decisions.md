@@ -764,3 +764,23 @@ D43/F01/holdout изменений или настоящего training. Candida
 Следующий D50 закрывает operational blockers; только затем отдельное activation decision.
 [Документ](../docs/f01-collector-qualification.md),
 [evidence](../docs/evidence/f01-collector-qualification-2026-10-03.json).
+
+
+### D50: operational envelope отдельно от реальной activation
+
+2026-10-03 пользователь принял D49 и поручил продолжить core roadmap. Engineering
+runtime реализован новым memecoin_operational без изменения frozen D43–D49 sources.
+Приняты210s/segment и600s от durable reservation, process-group kill/orphan lease,
+per-RPC runtime/credential/budget/disk/clock fences; исходные due-only/no retry/8failed
+и F01/D48 остаются. Disk floor2GiB+512MiB — stop guard, не обещание reserved capacity.
+
+Решение по evidence: engineering qualified, calendar activation BLOCKED.15new/517combined
+тестов, полный180fake raw subprocess pipeline и wheel reproduction прошли. Receipt
+requires explicit decision+pins+substantive billing review; USD0 не Free proof. Scope
+bounded привязан к одному root/180RPC,calendar — к exact D48 root/60480RPC. Новых approvals0.
+
+Actual account no-charge/mapping неизвестен; browser отсутствует. Full live qualification
+не проведена (marketRPC0). Source/service не создан/не установлен. Следующий D51 закрывает
+эти внешние/live/host условия, затем отдельное activation решение. Current bundle final
+не переписывать; при code changes новый pin. Doc/evidence: [D50](../docs/f01-operational-runtime.md),
+[JSON](../docs/evidence/f01-operational-runtime-2026-10-03.json).

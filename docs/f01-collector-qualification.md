@@ -181,3 +181,8 @@ full180RPC qualification window только после подтверждени
 binding. Если календарь успеет начаться, missed остаются missing; никаких сдвигов T или
 ретроспективного заполнения. При необходимости нового calendar — новый versioned proposal
 и сохранение старого. D43 не переустанавливать, protected data не открывать, обучение не начинать.
+
+
+D50 engineering follow-up завершён: supervisor/disk/runtime binding реализованы и
+проверены15new tests+full synthetic subprocess pipeline. Account/live/host blockers
+остаются; activation закрыт. D49 artifacts не переписаны. [D50](f01-operational-runtime.md).

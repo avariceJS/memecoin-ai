@@ -3,6 +3,34 @@
 Обновлено: **2026-10-03**, Europe/Moscow.
 
 
+**D50: engineering runtime envelope завершён; activation остаётся BLOCKED.**
+Core main; отдельная control-center ветка не менялась в рамкахD50. Новый memecoin_operational
+сохраняет source hashes D43–D49 и F01/D48 rules. Реальные subprocess210s/segment,
+600s от durable reservation, process-group kill, orphan lease EOF, per-RPC code/budget/
+credential/STOP/disk/clock guards; due-only/no retry/8failed semantics прежние.
+
+Итоговый staged bundle `work/collector-d50/runtime-candidate-final`, SHA
+`a06f1d69ff8fb1c0f8647fc5622c3e2d8c1811e697d40eb8be15deb1663da880`.
+Plist проверен, service не установлен. Receipt не выпущен; закрытый service invocation
+не создал source root. Runtime-пакет пригоден для следующей bounded квалификации,
+не evidence awake uptime84days. Disk guard2GiB+512MiB — stop floor, не FS reservation.
+
+15new/496base/517combined tests,ruff/mypy/smoke/build; final180fakeRPC через4процесса→D48
+admission→raw/dossier reproduction; installed wheel exact. Всего540fake calls
+заD50 с preliminary и final, marketRPC0, researchtraining0. Исправлены post-child
+и reservation-origin deadline границы; prior artifacts сохранены, final pin новый.
+MCP usage27 660CU/USD0 по-прежнему не даёт plan/hard cap/mapping; browser недоступен.
+**Full180RPC live не проведён**, account budget review отсутствует. Actual F01 windows0,
+D43/holdout не открывались/не менялись, source root не создан; D49 candidate валиден.
+
+**Следующий D51:** substantive account no-charge/mapping evidence, отдельный bounded
+receipt и один180RPC live qualification; условия host awake/login/disk monitoring;
+после evidence — отдельное итоговое calendar activation decision. Не возвращаться к
+transport tuning, не сдвигатьT/backfill и не начинать настоящее F01 обучение.
+[Итог D50](../docs/f01-operational-runtime.md),
+[evidence](../docs/evidence/f01-operational-runtime-2026-10-03.json).
+
+
 **D49 завершён как qualification; verdict NOT READY FOR ACTIVATION.**
 Реальный Alchemy runtime HTTP:6/6 strict finalized/profile2 checkpoints3pools, Clock age
 9,95–10,77s, nominal120CU. MCP usage27 540→27 660CU/$0,00; plan tier/hard monetary cap и
