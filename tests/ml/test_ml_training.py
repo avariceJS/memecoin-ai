@@ -121,3 +121,26 @@ def test_test_labels_cannot_change_selected_weights(tmp_path: Path) -> None:
         stream.write(b"corruption")
     with pytest.raises(ValueError, match="checksum"):
         Predictor(tmp_path / "a")
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires actual Apple MPS")
+@pytest.mark.parametrize("kind", KINDS)
+def test_actual_mps_matches_cpu_forward_and_gradients(kind: str) -> None:
+    from memecoin_ml.training import device_for
+
+    torch.manual_seed(19)
+    torch.use_deterministic_algorithms(False)
+    cpu = Brain(ModelConfig(kind)).eval()
+    mps = Brain(ModelConfig(kind)).to(device_for("mps")).eval()
+    mps.load_state_dict(cpu.state_dict())
+    x = torch.randn(3, 8, INPUTS)
+    lengths = torch.tensor([1, 4, 8])
+    action = torch.tensor([[0, 0.001, 0, 20], [1, 0.001, 5, 20], [0, 0.0001, 0, 20]])
+    q, logits = cpu(x, lengths, action)
+    qm, lm = mps(x.to("mps"), lengths.to("mps"), action.to("mps"))
+    torch.testing.assert_close(q, qm.cpu(), rtol=1e-3, atol=1e-5)
+    torch.testing.assert_close(logits, lm.cpu(), rtol=1e-3, atol=1e-5)
+    (q.square().mean() + logits.square().mean()).backward()
+    (qm.square().mean() + lm.square().mean()).backward()
+    for left, right in zip(cpu.parameters(), mps.parameters(), strict=True):
+        torch.testing.assert_close(left.grad, right.grad.cpu(), rtol=2e-3, atol=3e-5)
