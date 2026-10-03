@@ -109,8 +109,8 @@ read-only execution-cost/timing evidence. Чужие successful transactions н�
 этим audit; полноценный research specification и ML readiness ещё не достигнуты.
 
 ```sh
-.venv/bin/python tools/calendar_report.py work/calendar-corpus-01
+# После D43 source allowlist изменён; D42 воспроизводится его pinned package.
 PYTHONPATH=work/d42-wheel .venv/bin/python tools/calendar_report.py work/calendar-corpus-01
-.venv/bin/python tools/execution_uncertainty.py verify work/calendar-corpus-01/window-0 work/calendar-corpus-01/window-0-targets work/calendar-uncertainty-00
+PYTHONPATH=work/d42-wheel .venv/bin/python tools/execution_uncertainty.py verify work/calendar-corpus-01/window-0 work/calendar-corpus-01/window-0-targets work/calendar-uncertainty-00
 # Аналогично window-1 и work/calendar-uncertainty-01.
 ```

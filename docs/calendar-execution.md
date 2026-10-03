@@ -30,7 +30,7 @@ Null tx/status сохраняются как missing/censored; не повтор
 strategy roundtrip: tips, rent, pool/transfer fees и FX не включать неявно. Compute units
 не являются задержкой исполнения; decomposition base/priority здесь не оценивается.
 
-Первое observed confirmed и первое observed finalized — границы наших наблюдений,
+Первое observed ≥confirmed и первое observed finalized — границы наших наблюдений,
 не точные chain transition times. Если с первого poll finalized, transition left-censored;
 без finalized — right-censored; null не означает failure/drop. BlockTime — оценка chain
 времени в секундах; receipt−blockTime не submission→inclusion latency. Чужие on-chain
