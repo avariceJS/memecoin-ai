@@ -1,8 +1,8 @@
 import type { RouteObject } from "react-router";
 import { AppShell } from "./shell/AppShell";
 import { OverviewPage } from "./pages/OverviewPage";
+import { CalendarPage } from "./pages/calendar/CalendarPage";
 import {
-  CalendarPage,
   ModelsPage,
   ReplayPage,
   ResearchPage,

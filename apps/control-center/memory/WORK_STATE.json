@@ -2,10 +2,10 @@
   "schema_version": 1,
   "scope": "control-center-web-v1-phases-0-7",
   "overall": "IN_PROGRESS",
-  "current_task": "P2.1",
-  "last_completed": "P1.1 shell и P1.2 validated client. Visual и boundary PASS. Binding UNVERIFIED.",
-  "last_verified_commit": "5bf1700",
-  "last_checks": "2026-10-03: web vitest 11 PASS, tsc PASS, vite build PASS. Browser 127.0.0.1:5173 показал recorded KPI и trading reason. Python suite перед commit.",
+  "current_task": "P2.2",
+  "last_completed": "P2.1 D43 calendar: 180/174/135, protected без метрик, UTC/МСК. Visual и boundary PASS.",
+  "last_verified_commit": "3c9017acd9a751a4e63ec9fe04fcfcd182a450e9",
+  "last_checks": "2026-10-03: web vitest 16 PASS, tsc PASS. Browser /calendar: protected rows без counts, MSK 07:53→10:53, detail panel x=1112 при ширине 1672.",
   "model_binding": {
     "configured_coordinator": "grok-4.7 / xhigh (picker)",
     "configured_executor": "composer-2.5[fast=false]",
@@ -14,14 +14,14 @@
     "evidence": "2026-10-03: task card cannot be confirmed in Cursor UI. User directed binding to stay UNVERIFIED and not block web v1. Configured executor remains composer-2.5[fast=false]. Earlier Task parameter composer-2.5[fast=false] was rejected; tool results had no model field. VERIFIED is not claimed."
   },
   "blockers": [],
-  "next_action": "P2.1: D43 timeline и детали окна 0 (180/174/135), protected 4–5 без метрик.",
+  "next_action": "P2.2: D48 design grid 336/112 protected и corpus summary, без вида работающего collector.",
   "capabilities": [
     "existing read-only adapter + immutable historical projection",
     "primary visual reference available",
     "6 native custom agent definitions configured"
   ],
   "limitations": [
-    "Календарь, corpus grid, research и модели ещё не собраны в отдельные экраны.",
+    "D48 grid, research и модели ещё не собраны в отдельные экраны.",
     "Native task card остаётся UNVERIFIED и не блокирует web v1.",
     "D49 recorded baseline; actual D50+ status unavailable.",
     "Core/raw/holdout/credentials/checkpoints недоступны UI agents.",
@@ -261,15 +261,51 @@
         "visual",
         "boundary"
       ],
-      "status": "PENDING",
-      "write_files": [],
-      "checks": [],
-      "reviews": [],
-      "attempts": [],
+      "status": "DONE",
+      "write_files": [
+        "apps/control-center/web/src/pages/calendar",
+        "apps/control-center/web/src/routes.tsx"
+      ],
+      "checks": [
+        {
+          "command": "npm --prefix apps/control-center/web test",
+          "result": "PASS"
+        },
+        {
+          "command": "npm --prefix apps/control-center/web run check",
+          "result": "PASS"
+        }
+      ],
+      "reviews": [
+        {
+          "kind": "visual",
+          "result": "PASS",
+          "evidence": "First full-frame capture duplicated the left pane. Verification b6022003-e47b-45fe-bc53-d94fe65a7f78 PASS on detail crop and layout rect x=1112 y=191 w=542 h=494 at 1672px. Table type raised to 13px.",
+          "reviewed_revision": "3c9017acd9a751a4e63ec9fe04fcfcd182a450e9+calendar",
+          "reference_viewed": true,
+          "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+          "screenshot": "apps/control-center/.local/reviews/p2-calendar-detail.png sha256 565b990d619b60ff3348d09182c41642ca92d8e4ac6a5ab36cf159076ec0ebb7"
+        },
+        {
+          "kind": "boundary",
+          "result": "PASS",
+          "evidence": "cc-boundary-reviewer 6827b054-696a-4d87-905b-1961b879a8c3: protected DOM has no counts, pending is not missed, actual start is separate from first receipt, mixed fail is test-only.",
+          "reviewed_revision": "3c9017acd9a751a4e63ec9fe04fcfcd182a450e9+calendar"
+        }
+      ],
+      "attempts": [
+        {
+          "at": "2026-10-03",
+          "kind": "delegate",
+          "role": "cc-ui-builder",
+          "configured_model": "composer-2.5[fast=false]",
+          "note": "Task slug composer-2.5; open primary PNG; observed card UNVERIFIED"
+        }
+      ],
       "blocker": "",
-      "summary": "",
-      "reference_viewed": false,
-      "reference_sha256": null
+      "summary": "D43 timeline и таблица. Окно 0: 180/174/135, старт не опубликован. Protected 4–5 без метрик. UTC/МСК. Visual PASS после verification crop.",
+      "reference_viewed": true,
+      "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6"
     },
     {
       "id": "P2.2",

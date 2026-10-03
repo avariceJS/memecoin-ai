@@ -65,3 +65,10 @@ Native model preflight/web implementation намеренно остаются ne
 - Обзор показывает recorded KPI 6 / 0/114 / 135 / 15 и source cards. Trading route
   показывает `NO_APPROVED_TRADING_CONTRACT`.
 - Visual review и boundary review PASS. Model binding по-прежнему UNVERIFIED.
+
+## 2026-10-03 — P2.1 календарь D43
+
+- `/calendar`: 6 окон, UTC/МСК, окно 0 показывает 180/174/135 и «старт не опубликован».
+- Protected 4–5 в DOM без счётчиков. Pending остаётся «ожидание».
+- Vitest 16 PASS. Visual verification PASS после уточнения, что полный кадр сдваивал capture.
+- Boundary PASS.

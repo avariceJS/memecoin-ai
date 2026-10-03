@@ -2,15 +2,15 @@
 
 Generated from WORK_STATE.json; не редактировать вручную.
 
-- Overall: **IN_PROGRESS** — web v1, 4/15 tasks; Tauri вне scope.
+- Overall: **IN_PROGRESS** — web v1, 5/15 tasks; Tauri вне scope.
 - Current phase: **2**
-- Current task: **P2.1 — D43 calendar и window details**
-- Last completed: P1.1 shell и P1.2 validated client. Visual и boundary PASS. Binding UNVERIFIED.
-- Last verified commit: `5bf1700`; latest фактически: `git log -1 --oneline`.
-- Checks: 2026-10-03: web vitest 11 PASS, tsc PASS, vite build PASS. Browser 127.0.0.1:5173 показал recorded KPI и trading reason. Python suite перед commit.
+- Current task: **P2.2 — D48 design grid и corpus summary**
+- Last completed: P2.1 D43 calendar: 180/174/135, protected без метрик, UTC/МСК. Visual и boundary PASS.
+- Last verified commit: `3c9017acd9a751a4e63ec9fe04fcfcd182a450e9`; latest фактически: `git log -1 --oneline`.
+- Checks: 2026-10-03: web vitest 16 PASS, tsc PASS. Browser /calendar: protected rows без counts, MSK 07:53→10:53, detail panel x=1112 при ширине 1672.
 - Model binding: UNVERIFIED (config ≠ runtime).
 - Blockers: нет глобального blocker
-- Next action: **P2.1: D43 timeline и детали окна 0 (180/174/135), protected 4–5 без метрик.**
+- Next action: **P2.2: D48 design grid 336/112 protected и corpus summary, без вида работающего collector.**
 
 | Task | Role | State |
 |---|---|---|
@@ -18,7 +18,7 @@ Generated from WORK_STATE.json; не редактировать вручную.
 | P0.2 DTO audit и toolchain pins | artifact-analyst | DONE |
 | P1.1 Vite shell, design tokens, navigation | ui-builder | DONE |
 | P1.2 Validated providers и state components | adapter-builder | DONE |
-| P2.1 D43 calendar и window details | ui-builder | PENDING |
+| P2.1 D43 calendar и window details | ui-builder | DONE |
 | P2.2 D48 design grid и corpus summary | ui-builder | PENDING |
 | P3.1 Overview и evidence hierarchy | ui-builder | PENDING |
 | P3.2 Sources / Pools qualification | ui-builder | PENDING |
@@ -32,7 +32,7 @@ Generated from WORK_STATE.json; не редактировать вручную.
 
 ## Ограничения
 
-- Календарь, corpus grid, research и модели ещё не собраны в отдельные экраны.
+- D48 grid, research и модели ещё не собраны в отдельные экраны.
 - Native task card остаётся UNVERIFIED и не блокирует web v1.
 - D49 recorded baseline; actual D50+ status unavailable.
 - Core/raw/holdout/credentials/checkpoints недоступны UI agents.
