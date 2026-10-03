@@ -5,8 +5,10 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { Outlet, RouterProvider, createMemoryRouter } from "react-router";
 import { parseSnapshot } from "../../api/parse";
-import type { Capability } from "../../api";
+import type { Capability, Snapshot } from "../../api";
 import { ResearchPage } from "./ResearchPage";
+
+type ResearchData = Extract<Snapshot["research"], { availability: "AVAILABLE" }>["data"];
 
 const fixturePath = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -20,19 +22,56 @@ const snapshotResponse = {
   data: parseSnapshot(JSON.parse(readFileSync(fixturePath, "utf8")) as Record<string, unknown>),
 };
 
-function renderResearch() {
-  const capabilities = snapshotResponse.data.capabilities as Capability[];
+function getBaseResearchData(): ResearchData {
+  const pane = snapshotResponse.data.research;
+  if (pane.availability !== "AVAILABLE") {
+    throw new Error("published fixture must expose AVAILABLE research pane");
+  }
+  return structuredClone(pane.data);
+}
+
+function renderResearchWithSnapshot(
+  response: typeof snapshotResponse = snapshotResponse,
+) {
+  const capabilities = response.data.capabilities as Capability[];
   const router = createMemoryRouter(
     [
       {
         path: "/research",
-        element: <Outlet context={{ snapshotResponse, capabilities }} />,
+        element: <Outlet context={{ snapshotResponse: response, capabilities }} />,
         children: [{ index: true, element: <ResearchPage /> }],
       },
     ],
     { initialEntries: ["/research"] },
   );
   return render(<RouterProvider router={router} />);
+}
+
+function renderResearch() {
+  return renderResearchWithSnapshot();
+}
+
+function renderSyntheticResearch(data: ResearchData) {
+  const pane = snapshotResponse.data.research;
+  if (pane.availability !== "AVAILABLE") {
+    throw new Error("published fixture must expose AVAILABLE research pane");
+  }
+  return renderResearchWithSnapshot({
+    ...snapshotResponse,
+    snapshotId: "synthetic-research-adversarial",
+    data: {
+      ...snapshotResponse.data,
+      research: { ...pane, data },
+    },
+  });
+}
+
+function assertNoPermissionReadinessLanguage() {
+  const body = document.body.textContent ?? "";
+  expect(body.toLowerCase()).not.toMatch(/permission granted/);
+  expect(body).not.toMatch(/разрешено/i);
+  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  expect(body).not.toMatch(/%\s*ready|percent ready|готовность.*%/i);
 }
 
 describe("ResearchPage", () => {
@@ -76,5 +115,88 @@ describe("ResearchPage", () => {
     expect(body).not.toMatch(/разрешено/i);
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     expect(body).not.toMatch(/%\s*ready|percent ready|готовность.*%/i);
+  });
+});
+
+describe("ResearchPage adversarial synthetic fixtures", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("fetch should not run"))),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps LOCKED when blockers are 0 but checks are positive", () => {
+    renderSyntheticResearch({
+      ...getBaseResearchData(),
+      numericBlockers: 0,
+      numericChecks: 42,
+    });
+
+    expect(screen.getAllByText("LOCKED").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Numeric checks (recorded)").closest("article")).toHaveTextContent("42");
+    expect(screen.getByText("Numeric blockers (recorded)").closest("article")).toHaveTextContent("0");
+    assertNoPermissionReadinessLanguage();
+  });
+
+  it("shows holdout releases 0 with non-exposure / non-proof disclaimers", () => {
+    renderSyntheticResearch({
+      ...getBaseResearchData(),
+      recordedHoldoutReleases: 0,
+    });
+
+    const protocolSection = screen.getByLabelText("Study id").closest("section");
+    expect(protocolSection?.textContent).toMatch(/не global exposures/);
+    expect(protocolSection?.textContent).toMatch(/не proof globally unseen/);
+    expect(
+      screen.getByText("Recorded holdout releases", { exact: false }).closest("div")?.querySelector("dd"),
+    ).toHaveTextContent("0");
+  });
+
+  it("keeps engineering and recorded fits as separate fields when values match", () => {
+    renderSyntheticResearch({
+      ...getBaseResearchData(),
+      engineeringFits: 88,
+      recordedResearchFits: 88,
+      fitBudget: 120,
+    });
+
+    expect(screen.getByText("Recorded research fits / fit budget").closest("article")).toHaveTextContent(
+      "88/120",
+    );
+    expect(screen.getByText("Engineering fits (отдельно)").closest("article")).toHaveTextContent("88");
+    expect(screen.getByText("Recorded research fits", { selector: "dt" })).toBeInTheDocument();
+    expect(screen.getByText("Engineering fits", { selector: "dt" })).toBeInTheDocument();
+  });
+
+  it("renders unknown specId verbatim without GRU substitution", () => {
+    const specId = "opaque-spec-UNKNOWN-7";
+    renderSyntheticResearch({
+      ...getBaseResearchData(),
+      specId,
+    });
+
+    expect(screen.getByLabelText("Study id")).toHaveTextContent(specId);
+    expect(document.body.textContent ?? "").not.toMatch(/\bGRU\b/i);
+  });
+
+  it("does not leak cast-only label/target/holdoutMetric keys into DOM", () => {
+    const poisoned = {
+      ...getBaseResearchData(),
+      label: "ADVERSARIAL_LABEL_PAYLOAD",
+      target: "ADVERSARIAL_TARGET_PAYLOAD",
+      holdoutMetric: "ADVERSARIAL_HOLDOUT_METRIC",
+    } as ResearchData;
+
+    renderSyntheticResearch(poisoned);
+
+    const body = document.body.textContent ?? "";
+    expect(body).not.toContain("ADVERSARIAL_LABEL_PAYLOAD");
+    expect(body).not.toContain("ADVERSARIAL_TARGET_PAYLOAD");
+    expect(body).not.toContain("ADVERSARIAL_HOLDOUT_METRIC");
   });
 });

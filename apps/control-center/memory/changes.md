@@ -97,3 +97,10 @@ Native model preflight/web implementation намеренно остаются ne
 - `/research`: 0/114 отдельно от 135 engineering, checks 113, blockers 111 без процента.
 - Releases 0 подписаны как не global exposures. Admission LOCKED. Ledger UNAVAILABLE и CC-P001.
 - Vitest 25 PASS. KPI min-height 112px.
+
+## 2026-10-03 — P4.2 adversarial research fixtures
+
+- Пять synthetic cases поверх published snapshot, файл проекции не менялся.
+- blockers 0 при checks 42 остаётся LOCKED. Releases 0 не названы exposures.
+- Совпадающие 88/88 не сливаются. Чужой specId без GRU. label/target/holdoutMetric не в DOM.
+- Vitest 30 PASS. Boundary PASS.

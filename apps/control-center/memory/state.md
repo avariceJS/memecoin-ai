@@ -37,9 +37,9 @@ worktree отсутствует, не добавлять symlink к основн
 
 Phase 1 shell есть в `apps/control-center/web`: validated snapshot client и navy
 навигация на реальной проекции. Model binding остаётся UNVERIFIED, configured policy
-`composer-2.5[fast=false]` не менялась. `/research` показывает 0/114 отдельно от 135 engineering и не выдаёт permission.
-Overview, sources и календарь уже на recorded snapshot. Следующий шаг — P4.2
-adversarial fixtures research view, затем Models, System, quality. Core interface deficiency →
+`composer-2.5[fast=false]` не менялась. `/research` показывает 0/114 отдельно от 135 engineering. Adversarial fixtures
+подтверждают, что numeric pass не снимает LOCKED. Следующий шаг — P5.1
+Models / runs / benchmarks, затем System и quality. Core interface deficiency →
 proposal, никакого core patch.
 
 Запуск/проверки: ../README.md. План: docs/control-center/04-phases.md.
