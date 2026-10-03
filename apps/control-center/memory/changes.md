@@ -35,3 +35,17 @@
 
 CC-01 code `38765863d54e54115e4beca72a0012fd050a4b3e`; final review/evidence сохранены отдельным docs commit.
 Native model preflight/web implementation намеренно остаются next tasks Grok.
+
+## 2026-10-03 — Phase 0 audit, модель карточки не закрыта
+
+- HEAD на старте `c6e81aa`, дерево чистое. 22 unittest PASS, exact projection,
+  scope/workflow PASS. Primary PNG открыт, SHA совпал.
+- Явный Task parameter `composer-2.5[fast=false]` отклонён до spawn. Два native
+  вызова без override (analyst ce83fa1b, boundary 267c182b) вернули работу без
+  поля model. P0.1 поэтому не DONE. YAML агентов не менялся. Fast/inherit не
+  подставлялись.
+- Карта DTO сверена с published JSON. Поправка к первому пересказу: `actualStartNs`
+  есть и равен null; pending-окна содержат ключи; 122 — `allScenariosObservedDecisions`,
+  не all-start 1440.
+- Exact pins записаны в toolchain-pins.md. `web/` не создавался, npm install не
+  запускался. Core/root memory/D50 не трогались.

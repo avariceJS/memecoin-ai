@@ -46,6 +46,16 @@ model syntax `composer-2.5[fast=false]`, model fallback и task-card verificatio
   fallback. Исправить definition/config в scope по documented supported syntax, если можно;
   иначе оставить model verification unresolved, выполнять независимый onboarding/review
   Coordinator. Когда дальше нужна delegation — внешний settings blocker с точным действием.
+
+Наблюдение 2026-10-03, ещё не VERIFIED. Официальная страница subagents по-прежнему задаёт
+standard variant как `composer-2.5[fast=false]` и `composer-2.5[]`. YAML шести агентов
+не менялся. Параметр Task tool `composer-2.5[fast=false]` отклонён до запуска: allowlist
+сессии содержит `composer-2.5-fast` и не содержит standard slug. Два вызова без override
+(`cc-artifact-analyst` ce83fa1b-0fff-49ba-8c51-9c2089a46e5f, `cc-boundary-reviewer`
+267c182b-2d2b-4e0f-bb1e-cc9aec31f2cd) вернули результат без поля model/variant; jsonl
+transcript тоже его не содержит. Self-report не принимается. Пользователь один раз читает
+native task card. Fast tier и inherit не подставлять. Пока observed executor не равен
+`composer-2.5[fast=false]`, P0.1 нельзя закрыть и P1 не стартует.
 - Grok-subagent только explicit escalation сложного architecture/UX/integration review,
   reason/model записать; не менять стандартную policy всех agents. Не покупать quota,
   не включать on-demand/Max автоматически. Настроенный tier не обещает нулевую стоимость.

@@ -116,8 +116,9 @@ Dark desktop-first, спокойные нейтральные поверхнос
 | Desktop later | Tauri2 least-capability shell | После web acceptance и отдельного security review |
 
 Это UI tooling choices, не запрет обновлять minor dependencies с review. Не ставить всё
-сразу. Exact npm versions/lock ещё **не созданы**: Grok фиксирует проверенную совместимую
-матрицу вPhase0. Не `npm install` в repo root, не менять core locks/Makefile/CI.
+сразу. Exact-матрица Phase 0 — [toolchain-pins.md](toolchain-pins.md). `web/` и
+`package-lock.json` ещё не созданы: их пишет Phase 1. Не `npm install` в repo root,
+не менять core locks/Makefile/CI.
 
 Проверены официальные документы2026-10-03:
 [Vite](https://vite.dev/guide/) описывает React/TS templates и Node20.19+/22.12+;

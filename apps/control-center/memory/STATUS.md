@@ -2,20 +2,20 @@
 
 Generated from WORK_STATE.json; не редактировать вручную.
 
-- Overall: **IN_PROGRESS** — web v1, 0/15 tasks; Tauri вне scope.
+- Overall: **BLOCKED_NEEDS_USER** — web v1, 1/15 tasks; Tauri вне scope.
 - Current phase: **0**
 - Current task: **P0.1 — Native model preflight**
-- Last completed: CC-01 подготовка завершена; visual contract, native team и offline conformance готовы; web tasks PENDING
-- Last verified commit: `38765863d54e54115e4beca72a0012fd050a4b3e`; latest фактически: `git log -1 --oneline`.
-- Checks: 22 scoped unittest PASS; projection exact; scope/state/reference conformance PASS; Ruff/format PASS (CC-01). Native Cursor execution NOT_RUN.
+- Last completed: P0.2 toolchain pins записаны; карта DTO и boundary review приняты. P0.1 не закрыт: model card не наблюдалась.
+- Last verified commit: `c6e81aa937d2c5f497a64ab57bd710de0b5dd734`; latest фактически: `git log -1 --oneline`.
+- Checks: 2026-10-03 перед docs commit: 22 unittest PASS; projection exact; scope PASS. Model card UNVERIFIED.
 - Model binding: UNVERIFIED (config ≠ runtime).
-- Blockers: нет глобального blocker
-- Next action: **Прочитать onboarding; проверить branch/scope; native read-only cc-artifact-analyst preflight и Composer task card, затем P0.2.**
+- Blockers: Прочитать native task card субагента ce83fa1b-0fff-49ba-8c51-9c2089a46e5f и сообщить показанную модель/variant. Токены не присылать. Пока observed executor не composer-2.5[fast=false], P0.1 не DONE и P1 не стартует.
+- Next action: **Пользователь один раз сообщает модель с task card ce83fa1b. Если это Composer 2.5 standard, Coordinator записывает VERIFIED и начинает P1.1. Иначе не подменять fast/inherit.**
 
 | Task | Role | State |
 |---|---|---|
-| P0.1 Native model preflight | coordinator | PENDING |
-| P0.2 DTO audit и toolchain pins | artifact-analyst | PENDING |
+| P0.1 Native model preflight | coordinator | BLOCKED_EXTERNAL |
+| P0.2 DTO audit и toolchain pins | artifact-analyst | DONE |
 | P1.1 Vite shell, design tokens, navigation | ui-builder | PENDING |
 | P1.2 Validated providers и state components | adapter-builder | PENDING |
 | P2.1 D43 calendar и window details | ui-builder | PENDING |
@@ -32,8 +32,8 @@ Generated from WORK_STATE.json; не редактировать вручную.
 
 ## Ограничения
 
-- Frontend ещё отсутствует; CC-01 не реализует screens.
-- Cursor model/account/native execution ещё не проверены в Cursor chat.
+- Frontend и web/ ещё отсутствуют; pins записаны, lockfile не создан.
+- Native task card model не видна в tool result; P0.1 BLOCKED_EXTERNAL.
 - D49 recorded baseline; actual D50+ status unavailable.
 - Core/raw/holdout/credentials/checkpoints недоступны UI agents.
 - No collector/research/trading actions; Tauri deferred.

@@ -70,3 +70,13 @@ Native delegation/context isolation; account/approval/tool limits явно не 
 Scope guard проверяет working tree **и index** от base, без rename detection: staged core
 change нельзя спрятать отменой только working copy. Shared JSON — single writer protocol,
 не distributed scheduler и не immutable evidence ledger core.
+
+## CC-009 — exact UI pins без сдвига major
+
+Принято 2026-10-03. Registry latest в этот день: React 19.3.0, Vite 8.3.2,
+TypeScript 7.0.2, React Router latest 8.4.0, TanStack Table latest 9.2.4.
+Оставляем Router 7.18.4 и Table 8.21.3, потому что CC-003 уже выбрал эти major.
+Query 5.104.1, Zod 4.6.5, Vitest 5.0.3 (peer Vite 8). Полный список —
+`docs/control-center/toolchain-pins.md`. Lockfile появится только вместе с `web/`.
+Причина: совместимая матрица до scaffold, без root install и без web3/RPC пакетов.
+Boundary review матрицы PASS до установки. Эксперимент установки не проведён.

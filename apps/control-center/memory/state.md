@@ -35,11 +35,13 @@ worktree отсутствует, не добавлять symlink к основн
 
 ## Следующий шаг Grok
 
-Сначала весь обязательный curated onboarding, затем Git/scope/tests. ВыполнитьPhase0
-(toolchain/dependency pins/context audit), Phase1 создать web/React+TS+Vite и первый полезный
-read-only shell на настоящем API. Потом Calendar/Corpus, Overview/Sources, Research,
-Models/Benchmarks, System/capability boundaries, quality. Не ждать live interface, чтобы
-делать доступные screens. Core interface deficiency → proposal, никакого core patch.
+Phase 0 частично закрыт 2026-10-03: карта published DTO и exact pins есть
+(`docs/control-center/toolchain-pins.md`). P0.1 не DONE, пока native task card не
+покажет `composer-2.5[fast=false]`. До этого P1 / `web/` не начинать. После
+подтверждения карточки — Phase 1 shell на настоящем API, затем Calendar/Corpus,
+Overview/Sources, Research, Models/Benchmarks, System/capability boundaries, quality.
+Не ждать live interface для независимых экранов. Core interface deficiency →
+proposal, никакого core patch.
 
 Запуск/проверки: ../README.md. План: docs/control-center/04-phases.md.
 После каждого крупного phase обновлять эту память и коротко сообщать результат.

@@ -1,28 +1,30 @@
 {
   "schema_version": 1,
   "scope": "control-center-web-v1-phases-0-7",
-  "overall": "IN_PROGRESS",
+  "overall": "BLOCKED_NEEDS_USER",
   "current_task": "P0.1",
-  "last_completed": "CC-01 подготовка завершена; visual contract, native team и offline conformance готовы; web tasks PENDING",
-  "last_verified_commit": "38765863d54e54115e4beca72a0012fd050a4b3e",
-  "last_checks": "22 scoped unittest PASS; projection exact; scope/state/reference conformance PASS; Ruff/format PASS (CC-01). Native Cursor execution NOT_RUN.",
+  "last_completed": "P0.2 toolchain pins записаны; карта DTO и boundary review приняты. P0.1 не закрыт: model card не наблюдалась.",
+  "last_verified_commit": "c6e81aa937d2c5f497a64ab57bd710de0b5dd734",
+  "last_checks": "2026-10-03 перед docs commit: 22 unittest PASS; projection exact; scope PASS. Model card UNVERIFIED.",
   "model_binding": {
     "configured_coordinator": "grok-4.7 / xhigh (picker)",
     "configured_executor": "composer-2.5[fast=false]",
     "observed_executor": null,
     "status": "UNVERIFIED",
-    "evidence": null
+    "evidence": "2026-10-03: Task parameter composer-2.5[fast=false] rejected before spawn. Allowlist included composer-2.5-fast, not standard. Spawns without override: cc-artifact-analyst ce83fa1b-0fff-49ba-8c51-9c2089a46e5f and cc-boundary-reviewer 267c182b-2d2b-4e0f-bb1e-cc9aec31f2cd. Tool results and jsonl have no model/variant. YAML unchanged. Fast and inherit were not substituted."
   },
-  "blockers": [],
-  "next_action": "Прочитать onboarding; проверить branch/scope; native read-only cc-artifact-analyst preflight и Composer task card, затем P0.2.",
+  "blockers": [
+    "Прочитать native task card субагента ce83fa1b-0fff-49ba-8c51-9c2089a46e5f и сообщить показанную модель/variant. Токены не присылать. Пока observed executor не composer-2.5[fast=false], P0.1 не DONE и P1 не стартует."
+  ],
+  "next_action": "Пользователь один раз сообщает модель с task card ce83fa1b. Если это Composer 2.5 standard, Coordinator записывает VERIFIED и начинает P1.1. Иначе не подменять fast/inherit.",
   "capabilities": [
     "existing read-only adapter + immutable historical projection",
     "primary visual reference available",
     "6 native custom agent definitions configured"
   ],
   "limitations": [
-    "Frontend ещё отсутствует; CC-01 не реализует screens.",
-    "Cursor model/account/native execution ещё не проверены в Cursor chat.",
+    "Frontend и web/ ещё отсутствуют; pins записаны, lockfile не создан.",
+    "Native task card model не видна в tool result; P0.1 BLOCKED_EXTERNAL.",
     "D49 recorded baseline; actual D50+ status unavailable.",
     "Core/raw/holdout/credentials/checkpoints недоступны UI agents.",
     "No collector/research/trading actions; Tauri deferred."
@@ -40,15 +42,46 @@
       "required_reviews": [
         "boundary"
       ],
-      "status": "PENDING",
+      "status": "BLOCKED_EXTERNAL",
       "write_files": [],
-      "checks": [],
-      "reviews": [],
-      "attempts": [],
-      "blocker": "",
-      "summary": "",
-      "reference_viewed": false,
-      "reference_sha256": null
+      "checks": [
+        {
+          "command": "python3 apps/control-center/adapter/export_snapshot.py --check",
+          "result": "PASS"
+        },
+        {
+          "command": "python3 apps/control-center/scripts/check_scope.py",
+          "result": "PASS"
+        }
+      ],
+      "reviews": [
+        {
+          "kind": "boundary",
+          "result": "PASS",
+          "evidence": "cc-boundary-reviewer 267c182b-2d2b-4e0f-bb1e-cc9aec31f2cd confirmed protected field set, null semantics and no second source of truth. Coordinator re-read published JSON. Report memory/reports/P0.1-dto-audit.md. Model card still absent, so this review does not close P0.1.",
+          "reviewed_revision": "c6e81aa937d2c5f497a64ab57bd710de0b5dd734"
+        }
+      ],
+      "attempts": [
+        {
+          "at": "2026-10-03",
+          "kind": "delegate",
+          "role": "cc-artifact-analyst",
+          "configured_model": "composer-2.5[fast=false]",
+          "note": "readonly published DTO preflight; write lease empty; model card ещё не наблюдалась"
+        },
+        {
+          "at": "2026-10-03",
+          "kind": "delegate",
+          "role": "cc-boundary-reviewer",
+          "configured_model": "composer-2.5[fast=false]",
+          "note": "readonly boundary PASS; tool result still had no model field"
+        }
+      ],
+      "blocker": "Прочитать native task card субагента ce83fa1b-0fff-49ba-8c51-9c2089a46e5f и сообщить показанную модель/variant. Токены не присылать. Пока observed executor не composer-2.5[fast=false], P0.1 не DONE и P1 не стартует.",
+      "summary": "Карта observatory-v1 сверена: window0 180/174/135, actualStartNs null, protected 4–5 metadata-only, corpus 174/1392/362 и allScenariosObservedDecisions 122 (не all-start 1440), fits 0/114 и engineering 135, sampling 336/224/112/0, runs 15, benchmarks 40. Boundary PASS. Model card отсутствует в tool result, задача не DONE.",
+      "reference_viewed": true,
+      "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6"
     },
     {
       "id": "P0.2",
@@ -59,13 +92,41 @@
       "required_reviews": [
         "boundary"
       ],
-      "status": "PENDING",
+      "status": "DONE",
       "write_files": [],
-      "checks": [],
-      "reviews": [],
-      "attempts": [],
+      "checks": [
+        {
+          "command": "python3 -m unittest discover -s apps/control-center/tests -v",
+          "result": "PASS"
+        },
+        {
+          "command": "python3 apps/control-center/adapter/export_snapshot.py --check",
+          "result": "PASS"
+        },
+        {
+          "command": "python3 apps/control-center/scripts/check_scope.py",
+          "result": "PASS"
+        }
+      ],
+      "reviews": [
+        {
+          "kind": "boundary",
+          "result": "PASS",
+          "evidence": "cc-boundary-reviewer 267c182b-2d2b-4e0f-bb1e-cc9aec31f2cd: proposed UI packages contain no web3, RPC SDK, wallet or core Python. Pins match docs/control-center/toolchain-pins.md.",
+          "reviewed_revision": "c6e81aa937d2c5f497a64ab57bd710de0b5dd734"
+        }
+      ],
+      "attempts": [
+        {
+          "at": "2026-10-03",
+          "kind": "coordinator",
+          "role": "coordinator",
+          "configured_model": "grok-4.7 / xhigh (picker)",
+          "note": "registry pins chosen by Coordinator; install not run"
+        }
+      ],
       "blocker": "",
-      "summary": "",
+      "summary": "Exact pins: React 19.3.0, Router 7.18.4 (не 8.4.0), Vite 8.3.2, TypeScript 7.0.2, Query 5.104.1, Zod 4.6.5, Vitest 5.0.3. Table остаётся 8.21.3, не 9.2.4. Lockfile не создан. См. docs/control-center/toolchain-pins.md.",
       "reference_viewed": false,
       "reference_sha256": null
     },
