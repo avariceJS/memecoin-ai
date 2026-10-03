@@ -35,13 +35,12 @@ worktree отсутствует, не добавлять symlink к основн
 
 ## Следующий шаг Grok
 
-Phase 0 закрыт 2026-10-03: карта published DTO и exact pins есть
-(`docs/control-center/toolchain-pins.md`). Model binding остаётся UNVERIFIED:
-карточку через UI подтвердить нельзя, configured policy `composer-2.5[fast=false]`
-не менялась. Это не блокирует web v1. Следующий шаг — Phase 1 shell на настоящем API,
-затем Calendar/Corpus, Overview/Sources, Research, Models/Benchmarks,
-System/capability boundaries, quality. Не ждать live interface для независимых экранов.
-Core interface deficiency → proposal, никакого core patch.
+Phase 1 shell есть в `apps/control-center/web`: validated snapshot client и navy
+навигация на реальной проекции. Model binding остаётся UNVERIFIED, configured policy
+`composer-2.5[fast=false]` не менялась. Следующий шаг — P2.1 календарь D43: шесть
+окон, 180/174/135, actual start неизвестен, protected 4–5 без метрик. Затем D48 grid,
+Overview/Sources, Research, Models, System, quality. Core interface deficiency →
+proposal, никакого core patch.
 
 Запуск/проверки: ../README.md. План: docs/control-center/04-phases.md.
 После каждого крупного phase обновлять эту память и коротко сообщать результат.

@@ -57,3 +57,11 @@ Native model preflight/web implementation намеренно остаются ne
 - P0.1 снят с BLOCKED_EXTERNAL: карта DTO и boundary review уже были PASS.
 - Workflow больше не требует VERIFIED, чтобы закрыть P0.1. Ложный VERIFIED без
   observed id по-прежнему отвергается.
+
+## 2026-10-03 — Phase 1 shell
+
+- `web/` на exact pins: React 19.3.0, Router 7.18.4, Vite 8.3.2, Zod 4.6.5.
+- Клиент только GET `127.0.0.1:8787`. 11 vitest PASS, tsc PASS, production build PASS.
+- Обзор показывает recorded KPI 6 / 0/114 / 135 / 15 и source cards. Trading route
+  показывает `NO_APPROVED_TRADING_CONTRACT`.
+- Visual review и boundary review PASS. Model binding по-прежнему UNVERIFIED.
