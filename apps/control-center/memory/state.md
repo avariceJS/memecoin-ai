@@ -35,13 +35,13 @@ worktree отсутствует, не добавлять symlink к основн
 
 ## Следующий шаг Grok
 
-Phase 0 частично закрыт 2026-10-03: карта published DTO и exact pins есть
-(`docs/control-center/toolchain-pins.md`). P0.1 не DONE, пока native task card не
-покажет `composer-2.5[fast=false]`. До этого P1 / `web/` не начинать. После
-подтверждения карточки — Phase 1 shell на настоящем API, затем Calendar/Corpus,
-Overview/Sources, Research, Models/Benchmarks, System/capability boundaries, quality.
-Не ждать live interface для независимых экранов. Core interface deficiency →
-proposal, никакого core patch.
+Phase 0 закрыт 2026-10-03: карта published DTO и exact pins есть
+(`docs/control-center/toolchain-pins.md`). Model binding остаётся UNVERIFIED:
+карточку через UI подтвердить нельзя, configured policy `composer-2.5[fast=false]`
+не менялась. Это не блокирует web v1. Следующий шаг — Phase 1 shell на настоящем API,
+затем Calendar/Corpus, Overview/Sources, Research, Models/Benchmarks,
+System/capability boundaries, quality. Не ждать live interface для независимых экранов.
+Core interface deficiency → proposal, никакого core patch.
 
 Запуск/проверки: ../README.md. План: docs/control-center/04-phases.md.
 После каждого крупного phase обновлять эту память и коротко сообщать результат.

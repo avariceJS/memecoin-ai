@@ -49,3 +49,11 @@ Native model preflight/web implementation намеренно остаются ne
   не all-start 1440.
 - Exact pins записаны в toolchain-pins.md. `web/` не создавался, npm install не
   запускался. Core/root memory/D50 не трогались.
+
+## 2026-10-03 — карточка модели не блокирует Phase 1
+
+- Пользователь не смог подтвердить фактическую модель subagent через UI.
+- Binding оставлен UNVERIFIED, configured policy `composer-2.5[fast=false]` не сменена.
+- P0.1 снят с BLOCKED_EXTERNAL: карта DTO и boundary review уже были PASS.
+- Workflow больше не требует VERIFIED, чтобы закрыть P0.1. Ложный VERIFIED без
+  observed id по-прежнему отвергается.

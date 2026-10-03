@@ -80,3 +80,12 @@ Query 5.104.1, Zod 4.6.5, Vitest 5.0.3 (peer Vite 8). Полный список 
 `docs/control-center/toolchain-pins.md`. Lockfile появится только вместе с `web/`.
 Причина: совместимая матрица до scaffold, без root install и без web3/RPC пакетов.
 Boundary review матрицы PASS до установки. Эксперимент установки не проведён.
+
+## CC-010 — непроверенная карточка модели не останавливает web v1
+
+Принято 2026-10-03 по прямому указанию пользователя. Native task card фактически
+использованной модели через UI подтвердить нельзя. `model_binding.status` остаётся
+`UNVERIFIED`, `observed_executor` пустой. Configured executor по-прежнему
+`composer-2.5[fast=false]`; YAML агентов не переписывать на fast или inherit.
+`VERIFIED` допустим только вместе с observed id и evidence. P0.1 закрывается по
+DTO/boundary, не по карточке. Web v1 phases 1–7 продолжаются.

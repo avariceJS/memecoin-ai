@@ -124,13 +124,14 @@ def validate(state):
                     )
     binding = state["model_binding"]
     require(binding["configured_executor"] == "composer-2.5[fast=false]", "Executor policy drift")
-    if tasks["P0.1"]["status"] == "DONE":
+    require(binding["status"] in {"UNVERIFIED", "VERIFIED"}, "Model binding status")
+    if binding["status"] == "VERIFIED":
         require(
-            binding["status"] == "VERIFIED"
-            and binding["observed_executor"] == "composer-2.5[fast=false]"
-            and binding["evidence"],
+            binding["observed_executor"] == "composer-2.5[fast=false]" and binding["evidence"],
             "Native model execution not verified",
         )
+    else:
+        require(not binding["observed_executor"], "Unverified binding has observed executor")
     if state["overall"] == "COMPLETE":
         require(all(t["status"] == "DONE" for t in tasks.values()), "Premature COMPLETE")
     if state["overall"] == "BLOCKED_NEEDS_USER":

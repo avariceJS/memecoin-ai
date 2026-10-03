@@ -2,19 +2,19 @@
 
 Generated from WORK_STATE.json; не редактировать вручную.
 
-- Overall: **BLOCKED_NEEDS_USER** — web v1, 1/15 tasks; Tauri вне scope.
-- Current phase: **0**
-- Current task: **P0.1 — Native model preflight**
-- Last completed: P0.2 toolchain pins записаны; карта DTO и boundary review приняты. P0.1 не закрыт: model card не наблюдалась.
+- Overall: **IN_PROGRESS** — web v1, 2/15 tasks; Tauri вне scope.
+- Current phase: **1**
+- Current task: **P1.1 — Vite shell, design tokens, navigation**
+- Last completed: P0.1 DTO/boundary закрыты без карточки модели; P0.2 pins записаны. Binding UNVERIFIED.
 - Last verified commit: `c6e81aa937d2c5f497a64ab57bd710de0b5dd734`; latest фактически: `git log -1 --oneline`.
-- Checks: 2026-10-03 перед docs commit: 22 unittest PASS; projection exact; scope PASS. Model card UNVERIFIED.
+- Checks: 2026-10-03: workflow gate позволяет UNVERIFIED при закрытом P0.1; configured executor не изменён.
 - Model binding: UNVERIFIED (config ≠ runtime).
-- Blockers: Прочитать native task card субагента ce83fa1b-0fff-49ba-8c51-9c2089a46e5f и сообщить показанную модель/variant. Токены не присылать. Пока observed executor не composer-2.5[fast=false], P0.1 не DONE и P1 не стартует.
-- Next action: **Пользователь один раз сообщает модель с task card ce83fa1b. Если это Composer 2.5 standard, Coordinator записывает VERIFIED и начинает P1.1. Иначе не подменять fast/inherit.**
+- Blockers: нет глобального blocker
+- Next action: **P1.1: scaffold web/ с exact pins, затем shell/tokens/nav на реальном snapshot.**
 
 | Task | Role | State |
 |---|---|---|
-| P0.1 Native model preflight | coordinator | BLOCKED_EXTERNAL |
+| P0.1 Native model preflight | coordinator | DONE |
 | P0.2 DTO audit и toolchain pins | artifact-analyst | DONE |
 | P1.1 Vite shell, design tokens, navigation | ui-builder | PENDING |
 | P1.2 Validated providers и state components | adapter-builder | PENDING |
@@ -33,7 +33,7 @@ Generated from WORK_STATE.json; не редактировать вручную.
 ## Ограничения
 
 - Frontend и web/ ещё отсутствуют; pins записаны, lockfile не создан.
-- Native task card model не видна в tool result; P0.1 BLOCKED_EXTERNAL.
+- Native task card остаётся UNVERIFIED и не блокирует web v1.
 - D49 recorded baseline; actual D50+ status unavailable.
 - Core/raw/holdout/credentials/checkpoints недоступны UI agents.
 - No collector/research/trading actions; Tauri deferred.

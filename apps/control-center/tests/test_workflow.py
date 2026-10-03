@@ -73,12 +73,14 @@ class WorkflowTests(unittest.TestCase):
 
     def test_model_config_is_not_observed_runtime(self):
         self.done(0)
-        with self.assertRaisesRegex(ValueError, "execution not verified"):
-            workflow.validate(self.state)
+        workflow.validate(self.state)
         self.bind()
         workflow.validate(self.state)
         self.state["model_binding"]["observed_executor"] = "inherit"
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, "execution not verified"):
+            workflow.validate(self.state)
+        self.state["model_binding"]["status"] = "UNVERIFIED"
+        with self.assertRaisesRegex(ValueError, "Unverified binding"):
             workflow.validate(self.state)
 
     def test_dependency_and_cycle(self):
