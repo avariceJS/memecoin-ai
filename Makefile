@@ -9,7 +9,7 @@ setup:
 check:
 	$(VENV)/ruff check src tests tools
 	$(VENV)/ruff format --check src tests tools
-	$(VENV)/mypy src/memecoin_ai src/memecoin_registry
+	$(VENV)/mypy src/memecoin_ai src/memecoin_registry src/memecoin_research
 	$(VENV)/pytest -q
 
 test:
