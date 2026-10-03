@@ -12,17 +12,30 @@ def git(*args):
     return subprocess.check_output(["git", "-C", str(ROOT), *args])
 
 
+AGENT_NAMES = (
+    "artifact-analyst",
+    "ui-builder",
+    "adapter-builder",
+    "test-debugger",
+    "visual-reviewer",
+    "boundary-reviewer",
+)
+AGENT_PATHS = {f".cursor/agents/cc-{name}.md" for name in AGENT_NAMES}
+
+
 def allowed(path):
     return (
         path.startswith(("apps/control-center/", "docs/control-center/"))
         or path == ".cursor/rules/control-center.mdc"
+        or path in AGENT_PATHS
     )
 
 
 def main():
     if git("branch", "--show-current").decode().strip() != BRANCH:
         raise SystemExit("Wrong branch: do not switch/modify other worktrees automatically.")
-    changed = git("diff", "--name-only", "-z", BASE).split(b"\0")
+    changed = git("diff", "--no-renames", "--name-only", "-z", BASE).split(b"\0")
+    changed += git("diff", "--cached", "--no-renames", "--name-only", "-z", BASE).split(b"\0")
     changed += git("ls-files", "--others", "--exclude-standard", "-z").split(b"\0")
     refused = [p.decode() for p in changed if p and not allowed(p.decode())]
     if refused:

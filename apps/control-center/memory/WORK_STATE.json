@@ -1,0 +1,359 @@
+{
+  "schema_version": 1,
+  "scope": "control-center-web-v1-phases-0-7",
+  "overall": "IN_PROGRESS",
+  "current_task": "P0.1",
+  "last_completed": "CC-01: visual/team preparation; web implementation ещё не начата",
+  "last_verified_commit": "131b2ce",
+  "last_checks": "22 scoped unittest PASS; projection exact; scope/state/reference conformance PASS; Ruff/format PASS (CC-01). Native Cursor execution NOT_RUN.",
+  "model_binding": {
+    "configured_coordinator": "grok-4.7 / xhigh (picker)",
+    "configured_executor": "composer-2.5[fast=false]",
+    "observed_executor": null,
+    "status": "UNVERIFIED",
+    "evidence": null
+  },
+  "blockers": [],
+  "next_action": "Прочитать onboarding; проверить branch/scope; native read-only cc-artifact-analyst preflight и Composer task card, затем P0.2.",
+  "capabilities": [
+    "existing read-only adapter + immutable historical projection",
+    "primary visual reference available",
+    "6 native custom agent definitions configured"
+  ],
+  "limitations": [
+    "Frontend ещё отсутствует; CC-01 не реализует screens.",
+    "Cursor model/account/native execution ещё не проверены в Cursor chat.",
+    "D49 recorded baseline; actual D50+ status unavailable.",
+    "Core/raw/holdout/credentials/checkpoints недоступны UI agents.",
+    "No collector/research/trading actions; Tauri deferred."
+  ],
+  "interface_requests": [
+    "CC-P001 PROPOSED — safe operational metadata export; web v1 не ждёт его"
+  ],
+  "tasks": [
+    {
+      "id": "P0.1",
+      "phase": 0,
+      "title": "Native model preflight",
+      "role": "coordinator",
+      "depends_on": [],
+      "required_reviews": [
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null
+    },
+    {
+      "id": "P0.2",
+      "phase": 0,
+      "title": "DTO audit и toolchain pins",
+      "role": "artifact-analyst",
+      "depends_on": [],
+      "required_reviews": [
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null
+    },
+    {
+      "id": "P1.1",
+      "phase": 1,
+      "title": "Vite shell, design tokens, navigation",
+      "role": "ui-builder",
+      "depends_on": [
+        "P0.1",
+        "P0.2"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null
+    },
+    {
+      "id": "P1.2",
+      "phase": 1,
+      "title": "Validated providers и state components",
+      "role": "adapter-builder",
+      "depends_on": [
+        "P0.1",
+        "P0.2"
+      ],
+      "required_reviews": [
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null
+    },
+    {
+      "id": "P2.1",
+      "phase": 2,
+      "title": "D43 calendar и window details",
+      "role": "ui-builder",
+      "depends_on": [
+        "P1.1",
+        "P1.2"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null
+    },
+    {
+      "id": "P2.2",
+      "phase": 2,
+      "title": "D48 design grid и corpus summary",
+      "role": "ui-builder",
+      "depends_on": [
+        "P2.1"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null
+    },
+    {
+      "id": "P3.1",
+      "phase": 3,
+      "title": "Overview и evidence hierarchy",
+      "role": "ui-builder",
+      "depends_on": [
+        "P2.2"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null
+    },
+    {
+      "id": "P3.2",
+      "phase": 3,
+      "title": "Sources / Pools qualification",
+      "role": "ui-builder",
+      "depends_on": [
+        "P3.1"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null
+    },
+    {
+      "id": "P4.1",
+      "phase": 4,
+      "title": "Research spec, gates и counters",
+      "role": "ui-builder",
+      "depends_on": [
+        "P3.2"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null
+    },
+    {
+      "id": "P4.2",
+      "phase": 4,
+      "title": "Research adversarial state tests",
+      "role": "test-debugger",
+      "depends_on": [
+        "P4.1"
+      ],
+      "required_reviews": [
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null
+    },
+    {
+      "id": "P5.1",
+      "phase": 5,
+      "title": "Models / runs / benchmarks",
+      "role": "ui-builder",
+      "depends_on": [
+        "P4.2"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null
+    },
+    {
+      "id": "P6.1",
+      "phase": 6,
+      "title": "System и capability placeholders",
+      "role": "ui-builder",
+      "depends_on": [
+        "P5.1"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null
+    },
+    {
+      "id": "P6.2",
+      "phase": 6,
+      "title": "Replay/future proposals и boundary tests",
+      "role": "adapter-builder",
+      "depends_on": [
+        "P6.1"
+      ],
+      "required_reviews": [
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null
+    },
+    {
+      "id": "P7.1",
+      "phase": 7,
+      "title": "Responsive, a11y, perf и final visual review",
+      "role": "test-debugger",
+      "depends_on": [
+        "P6.2"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null
+    },
+    {
+      "id": "P7.2",
+      "phase": 7,
+      "title": "Clean install/E2E, docs, web-v1 acceptance",
+      "role": "coordinator",
+      "depends_on": [
+        "P7.1"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null
+    }
+  ]
+}

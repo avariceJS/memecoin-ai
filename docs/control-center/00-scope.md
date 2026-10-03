@@ -30,3 +30,13 @@ worktree и продолжает D50+; не переключать его вет
 Исторический пример пользователя Window#1/134mature/executionFAIL — UX сценарий, не
 установленный факт. В pinned D43 evidence есть window0:180snapshots/174usable/135mature,
 window1 pending на recorded time. Сейчас его фактическое состояние UI не знает.
+
+## CC-01 — visual/team follow-up, 2026-10-03
+
+Поверх принятого CC-00: primary visual contract, native Cursor team, durable execution
+state, autonomous/recovery prompts и bounded conformance. Adapter/data map/core не
+переделывать; большой frontend остаётся Grok. Scope явно расширен только на шесть
+`.cursor/agents/cc-*.md`, перечисленных в UI AGENTS и exact allowlist scope guard.
+Основание: пользователь разрешил минимальное project-level расширение для custom agents;
+официальный Cursor contract использует `.cursor/agents/`. Это не разрешение другим paths,
+permissions.json/hooks/global settings. Core/root memory и источники projection неизменны.

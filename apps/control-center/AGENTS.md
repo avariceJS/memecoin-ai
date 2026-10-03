@@ -4,7 +4,7 @@
 основной core chat продолжает D50+, а ты **не выполняешь D50 и не меняешь core**.
 Язык общения, документов и Memory Bank — русский. Работай автономно внутри scope.
 
-## До любых изменений
+## До любых изменений — Coordinator (для bounded subagent исключение ниже)
 
 1. Прочитать root AGENTS.md, этот файл, `docs/control-center/ONBOARDING.md`.
 2. Прочитать `apps/control-center/memory/{state,project,decisions,changes}.md`.
@@ -18,6 +18,10 @@
 - `apps/control-center/**` — UI, read-only adapter, UI contracts/tests и отдельная память.
 - `docs/control-center/**` — архитектура, onboarding, proposals, acceptance/evidence.
 - `.cursor/rules/control-center.mdc` — правило этого UI workstream.
+- Только шесть `.cursor/agents/cc-{artifact-analyst,ui-builder,adapter-builder,
+  test-debugger,visual-reviewer,boundary-reviewer}.md` — native Control Center subagents.
+  Это явное минимальное расширение scope CC-01 по запросу пользователя; остальные
+  `.cursor/**`, global settings/permissions/hooks остаются вне write scope.
 
 Все прочие paths read-only: root AGENTS/README/Makefile/pyproject/locks, `src/**`, `tests/**`,
 `tools/**`, `configs/**`, `memory/**`, existing `docs/**` вне docs/control-center,
@@ -65,3 +69,21 @@ Git config/hooks, не перемещать/удалять worktrees. `git add` 
 фазы коротко: готово/проверки/ограничения/следующий шаг. Продолжать следующие разрешённые
 UI фазы без постоянных вопросов. Недостающий core contract → proposal, затем продолжать
 независимые UI задачи; запрет не обходить. Не объявлять market edge по engineering data.
+
+## CC-01: Coordinator и delegated tasks
+
+До работы также прочитать `docs/control-center/AUTONOMOUS-WORKFLOW.md`,
+`AGENT-TEAM.md`, `DESIGN-SYSTEM.md` и UI `memory/WORK_STATE.json` / `STATUS.md`.
+Coordinator Grok 4.7 Extra High — единственный writer task state, shared lockfile и Git.
+Рядовые bounded задачи делегировать именованным Composer 2.5 subagents, без nested spawn.
+Subagents читают этот AGENTS и общий AGENT-TEAM protocol, затем только task-specific context.
+Не требовать от каждого исполнителя перечитывать весь core onboarding Coordinator.
+Каждый visual builder/reviewer сам открывает primary PNG до visual работы; текст и hash
+не заменяют просмотра. Передать reference emphasis в brief. Отсутствует image/tool —
+не придумывать содержимое, продолжать независимые задачи, visual gate остаётся незакрытым.
+После tests/review/state/commit немедленно следующая задача; phase report не вопрос.
+Stop только COMPLETE согласованной web v1 или реальный внешний BLOCKED_NEEDS_USER.
+Compilation/test/style failures исправлять автономно. Missing future core interface →
+formal proposal + UNAVAILABLE/LOCKED, затем независимая работа. Tauri/D50 вне этого loop.
+Native model assignment не гарантирует account availability: первая task card должна
+подтвердить Composer standard, иначе применить model policy из AUTONOMOUS-WORKFLOW.

@@ -1,59 +1,35 @@
-Ты — Grok 4.7, работаешь в режиме Extra High как senior frontend/product engineer
-Memecoin AI Control Center. Общение и документация — на русском. Убедись, что Extra High
-выбран в Cursor; не утверждай, что prompt сам переключил настройку модели.
+# Готовые prompts (контекст хранится в repo)
 
-Рабочая директория:
-/Users/root1/.codex/worktrees/ec89/memecoin-ai
-Ветка: control-center/observatory-handoff.
-Это отдельный isolated worktree. Основной core chat самостоятельно продолжает D50+.
-Твоя задача — автономно реализовать полезную Read-only Observatory по подготовленному
-плану. НЕ продолжай D50, НЕ меняй ML/data/research/execution architecture.
+В Cursor: local Agent, **Grok 4.7 / Extra High**. Prompt сам модель не переключает.
 
-СТРОГО: не начинай код, установку dependencies или запуск приложения до чтения:
-1. Корневой AGENTS.md и apps/control-center/AGENTS.md.
-2. docs/control-center/ONBOARDING.md и всех его обязательных reading-list пунктов.
-3. apps/control-center/memory/README.md, state.md, project.md, decisions.md, changes.md.
-4. docs/control-center/00-scope.md, 01-architecture.md, 02-data-map.md,
-   03-contracts.md, 04-phases.md, 05-security-workflow.md, 06-review.md.
-5. apps/control-center/contracts/types.ts, source-pins.json, published bundle/manifest,
-   adapter/tests/scope guard; core документы из curated onboarding — только read-only.
+## INITIAL START — FINAL GROK COORDINATOR PROMPT
 
-Затем проверь pwd, git status, git worktree list, последние commits; запусти scope guard,
-9 adapter tests и exact projection check из README. Не предполагай чистое дерево. Не
-создавай новый worktree, не переключай main и не откатывай чужие изменения. При неверном
-контексте не продолжай работу в основном checkout.
+Ты Coordinator Control Center, Grok 4.7 Extra High. Работай в текущем
+`/Users/root1/.codex/worktrees/ec89/memecoin-ai`, branch `control-center/observatory-handoff`.
+**Не начинай реализацию до чтения** root/UI AGENTS, `docs/control-center/ONBOARDING.md`,
+UI Memory Bank и `WORK_STATE.json`, затем `AUTONOMOUS-WORKFLOW.md`, `AGENT-TEAM.md`,
+`DESIGN-SYSTEM.md`, `04-phases.md` в docs/control-center. Сам открой primary PNG.
+Проверь Git/scope/conformance и actual native model binding. Войди в autonomous loop:
+следующая ready task → bounded Composer 2.5 subagents → integrate/test/fix → visual и
+boundary review → UI state/docs → logical commit → немедленно следующая задача.
+Каждый visual subagent сам открывает reference. Не обходи rules, не меняй core/D43/F01/
+root Memory Bank, не читай raw/holdout/credentials. Missing core API → formal proposal,
+UNAVAILABLE/LOCKED и продолжение независимых tasks. No main merge, no D50, no Tauri сейчас.
+Краткий отчёт после major phase, без «продолжить?». Stop только COMPLETE web v1 или
+BLOCKED_NEEDS_USER по documented policy; обычные failures исправляй автономно.
 
-После чтения кратко сообщи проверенный scope/status и начни Phase0/Phase1. Работай
-автономно в разрешённых UI фазах, не останавливаясь после плана. Реализуй запускаемое
-приложение на настоящих опубликованных artifacts, не только wireframes. Frontend пока
-не создан; безопасный read-only adapter уже есть. Stack и phased acceptance описаны
-в документах. Exact UI dependency versions/lock выбери и зафиксируй в Phase0.
+## RESUME
 
-Менять можно только:
-- apps/control-center/**;
-- docs/control-center/**;
-- .cursor/rules/control-center.mdc.
-Все прочие paths — read-only, включая src/**, tools/**, tests/**, configs/**, memory/**,
-existing core docs, root build/lock files. Не импортируй core Python/CLI в backend.
-Не читай work/raw/holdout/credentials/checkpoints ни в этом, ни в основном worktree.
-Не подключай runtime artifacts через symlink. Runtime UI читает только approved published
-projection; не создавай arbitrary filesystem browser, shell executor или RPC proxy.
+Продолжи как Grok Coordinator по `docs/control-center/AUTONOMOUS-WORKFLOW.md`.
+Сначала root/UI AGENTS → UI Memory Bank → WORK_STATE/STATUS → onboarding/design →
+Git status/log/scope. До чтения не меняй files. Проверь dirty changes и interrupted leases,
+actual model binding; не повторяй уже verified tasks. Затем NEXT ACTION и autonomous loop
+до COMPLETE web v1 либо настоящего BLOCKED_NEEDS_USER. Core read-only, main не merge.
 
-Никаких RPC/trading/signing/payments, collector controls/STOP/launchctl, training,
-admission/release bypass, изменения risk/execution semantics или fake emergency stop.
-Нет backend contract — честные UNAVAILABLE/LOCKED и formal proposal в
- docs/control-center/proposals/, а не самостоятельная правка core. CC-P001 пока PROPOSED.
-Продолжай независимые UI задачи, если для одной функции отсутствует core interface.
+## BLOCKER RESOLVED
 
-Каждый экран различает REAL EVIDENCE, DEMO, SYNTHETIC INPUT, ENGINEERING, PROTECTED,
-UNAVAILABLE и дату знания. ServedAt не означает свежий рынок; smoke не research result,
-числовая readiness не permission. Holdout метрики не должны попадать даже в response/cache.
-Не показывай current model, balance, positions, global exposure0 или live health без
-авторитетного источника. Closing GUI не останавливает core background services.
-
-Делай logical commits после relevant tests, обновляй отдельный Control Center Memory Bank
-после каждой крупной фазы и перед завершением/compaction. Core Memory Bank не редактируй.
-Не обходи rules/guards ради прохождения tests. Перед commit — scope guard и diff review.
-Можно push только dedicated branch без force. Не merge/rebase/push main и не меняй
-shared Git config/hooks. В конце каждой большой фазы дай короткий отчёт: готово,
-проверки, ограничения, следующий шаг. Начни с обязательного чтения сейчас.
+Продолжи Coordinator workflow из repo: сначала AGENTS, UI Memory Bank, WORK_STATE и
+AUTONOMOUS-WORKFLOW. Проверь фактическое устранение recorded blocker; мои слова не
+заменяют test/model/contract evidence. Если устранён — обнови state, восстанови очередь
+и продолжай автономно; иначе укажи точную оставшуюся причину и делай независимые tasks.
+Scope прежний: core/holdout read restrictions, no main merge, только Control Center web v1.

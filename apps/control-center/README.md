@@ -36,3 +36,13 @@ HTTP API не раздаёт repository/static files, не имеет PUT/POST/c
 
 План Grok: [фазы](../../docs/control-center/04-phases.md),
 [готовый prompt](../../docs/control-center/GROK-PROMPT.md).
+
+
+## CC-01 — Coordinator workflow (без нового frontend)
+
+Human progress: [memory/STATUS.md](memory/STATUS.md). Native team, модели, settings и recovery:
+[Autonomous workflow](../../docs/control-center/AUTONOMOUS-WORKFLOW.md).
+Primary visual contract: [DESIGN-SYSTEM](../../docs/control-center/DESIGN-SYSTEM.md).
+Перед coding/commit также `python3 apps/control-center/scripts/workflow.py --check`.
+После обновления WORK_STATE: `python3 apps/control-center/scripts/workflow.py --render`.
+Эти developer scripts не вызываются runtime API и не управляют core/services.

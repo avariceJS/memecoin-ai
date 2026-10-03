@@ -15,6 +15,15 @@
 | `memory/project.md`, `memory/decisions.md` внутри apps/control-center | Product scope, принятые UI решения | Не смешивать с root Memory Bank |
 | UI `memory/changes.md`, `README.md` | История и reproducible commands | Старые failures не удалять |
 
+## 1a. CC-01 — обязательное дополнение Coordinator
+
+Сразу после UI Memory Bank прочитать UI `memory/WORK_STATE.json` и `STATUS.md`, затем
+`AUTONOMOUS-WORKFLOW.md`, `AGENT-TEAM.md`, `DESIGN-SYSTEM.md`; самому открыть
+`references/dashboard-concept-v1.png`. Это правила task recovery/delegation и visual contract,
+не новые core semantics. State фиксирует конфигурацию модели отдельно от actual execution.
+Curated core reading ниже нужен Coordinator; bounded subagent получает короткий reading
+list из AGENT-TEAM и explicit safe files, не всю историю core.
+
 ## 2. Архитектура и безопасные contracts
 
 Читать последовательно `docs/control-center/00-scope.md`, `01-architecture.md`,
@@ -72,6 +81,7 @@ git status --short --branch
 git worktree list
 git log -5 --oneline
 python3 apps/control-center/scripts/check_scope.py
+python3 apps/control-center/scripts/workflow.py --check
 python3 -m unittest discover -s apps/control-center/tests -v
 python3 apps/control-center/adapter/export_snapshot.py --check
 ```
@@ -82,6 +92,6 @@ Expected directory `/Users/root1/.codex/worktrees/ec89/memecoin-ai`, branch
 новые UI commits после handoff; читать latest UI memory, сохранять чужие изменения.
 
 После чтения кратко сообщить: branch, understood scope, actual verification, первые задачи.
-Затем автономно Phase0/Phase1. Большой backend/GUI здесь за тебя не сделан: создатьweb/,
+Затем autonomous loop из WORK_STATE: Phase0/Phase1 и следующие ready задачи. Большой backend/GUI здесь за тебя не сделан: создатьweb/,
 выбранную tooling matrix, useful Observatory. Прогресс записывать вUI Memory Bank.
 Готовый стартовый prompt: [GROK-PROMPT.md](GROK-PROMPT.md).

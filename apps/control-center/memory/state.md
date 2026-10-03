@@ -1,6 +1,7 @@
 # UI workstream status
 
-Обновлено2026-10-03, Europe/Moscow. CC-00 architectural handoff завершён.
+Обновлено2026-10-03, Europe/Moscow. CC-00 принят; CC-01 visual/team follow-up подготовлен.
+Текущая очередь реализации — WORK_STATE.json; краткий обзор — STATUS.md.
 Core baseline `6a7e079` (D49), UI plan `f28e5fd`, adapter/guards `06893f3`.
 Branch `control-center/observatory-handoff`; тот же managed worktree
 `/Users/root1/.codex/worktrees/ec89/memecoin-ai`. Main развивается в другом core-чате.
@@ -42,3 +43,31 @@ Models/Benchmarks, System/capability boundaries, quality. Не ждать live i
 
 Запуск/проверки: ../README.md. План: docs/control-center/04-phases.md.
 После каждого крупного phase обновлять эту память и коротко сообщать результат.
+
+
+## CC-01 — visual contract и Coordinator (2026-10-03)
+
+Primary PNG предоставлен пользователем, открыт, hash pinned в DESIGN-SYSTEM; описание
+композиции/типографики/states/charts/a11y и обязательный independent visual gate готовы.
+Добавлены 6 native `.cursor/agents/cc-*.md`, explicit Composer2.5 standard binding;
+Coordinator — Grok4.7 Extra High picker. Cursor3.22.12 arm64 установлен, native docs и
+локальные признаки сверены. Account entitlement/actual model task card ещё UNVERIFIED;
+CLI отсутствует, launcher auto-install не запускался. Native smoke — первая задача P0.1.
+
+AGENT-TEAM/AUTONOMOUS-WORKFLOW: bounded briefs, ≤3000char summaries, disjoint leases,
+Coordinator-only state/Git/lockfile, no nested/cloud agents, ordinary fixes автономно,
+три recovery prompts и loop до web-v1 COMPLETE/внешнего BLOCKED_NEEDS_USER.
+WORK_STATE содержит 15 незавершённых web tasks, не притворяется готовым GUI.
+Scope расширен явно только на6named definitions, не permissions/hooks/global settings.
+
+22 unittest PASS (9adapter+13workflow/guard); scope/exact projection/Ruff/format PASS.
+Independent review нашёл и устранил index/rename bypass в старом guard; проверено fixtures
+в disposable Git repo внутри ignored `.local/`, основной Git config не менялся.
+Lint first pass E501/F401, затем I001 исправлены; runtime/provider failures отсутствовали.
+Новые scripts только development, adapter/runtime/data map/source pins не менялись.
+Core/root Memory Bank не изменены; D50 не начат. Web implementation не проведена.
+
+- Final review correction CC-01: canonical/ancestor lease overlap checks и shared-directory
+  denial; missing PNG не мешает state recovery, explicit `--visual` fail-closed.
+  Два regression tests добавлены; итог22tests PASS. Исторические review receipts не
+  доказывают наличие картинки в новом session, каждый visual agent обязан открыть её снова.

@@ -5,6 +5,43 @@
 коротким отчётом. Core D50+ может идти параллельно; ожидание core interface не блокирует
 доступные UI задачи. Все запреты `apps/control-center/AGENTS.md` действуют в каждой фазе.
 
+## CC-01 — делегируемая очередь поверх существующих фаз
+
+Scope и порядок фаз сохранены. DESIGN-SYSTEM — обязательный visual contract, primary PNG
+открывает каждый visual executor/reviewer лично. Data semantics и запреты каждой фазы ниже
+не меняются. WORK_STATE.json — текущий task status; таблица ниже — acceptance mapping.
+
+| Task | Executor | Bounded scope / результат | Acceptance / tests / review |
+|---|---|---|---|
+| P0.1 | Coordinator + artifact-analyst | native readonly preflight на types/projection; no edits executor | actual task card Composer standard, компактный mapping, scope; boundary review |
+| P0.2 | artifact-analyst + Coordinator | DTO fields/null/protected audit; Coordinator выбирает compatible exact dependency pins | existing adapter suite, reproduction; scoped toolchain facts, boundary |
+| P1.1 | ui-builder | shell/routing/design tokens/nav, compact source cards | build/type/unit; primary sidebar/header/grid; visual + boundary |
+| P1.2 | adapter-builder | validation/query/providers/status components | unknown schema, error/null/ns/no demo fallback; boundary |
+| P2.1 | ui-builder | D43 timeline/window details | exact recorded counts, keyboard, protected absence; visual + boundary |
+| P2.2 | ui-builder | D48 design grid/corpus summary | 336 planned design cells, missing semantics; visual + boundary |
+| P3.1 | ui-builder | Overview recorded evidence composition | central timeline/right status/lower widgets; visual + boundary |
+| P3.2 | ui-builder | historical Sources / Pools | units/provenance/no inferred health; visual + boundary |
+| P4.1 | ui-builder | Research spec/gates/counters | fits vs engineering, locked admission, no global exposure invention; visual + boundary |
+| P4.2 | test-debugger | adversarial research view fixtures | numeric pass never grants permission, no label payload; boundary |
+| P5.1 | ui-builder | Models/runs/benchmark charts + dense table | shape comparability/qualification/nulls/generic model kind; visual + boundary |
+| P6.1 | ui-builder | System own API status + future surfaces | no fake online, locked predictions/paper/live; visual + boundary |
+| P6.2 | adapter-builder | unavailable replay + formal requests/tests | no raw replay/import/actions; boundary |
+| P7.1 | test-debugger + reviewers | scoped responsive/a11y/performance fixes | actual screenshots/reference, keyboard/zoom/contrast; visual + boundary |
+| P7.2 | Coordinator + test-debugger | clean install/E2E, documentation/review handoff | all web commands/checks, recorded limitations, final visual + boundary, no main merge |
+
+Каждая task использует data sources/запреты/DoD соответствующей фазы ниже. Coordinator
+перед delegation сужает write lease до конкретных файлов; при необходимости делит task
+на подзадачи, сохраняя dependencies и acceptance. Shared lock/state/Git — только Coordinator.
+Не создавать отдельные tasks для unavailable backend implementation; locked honest surface
+с proposal считается выполненной UI функцией. P0.2 может идти независимо от model account
+verification P0.1. P1.1/P1.2 параллельны только после shared DTO agreement и disjoint leases.
+Visual gates: implementation → targeted tests → independent comparison с PNG + actual
+screenshots → fixes → verification. Без просмотра картинки/реального render gate pending.
+После task: tests/review → state/Memory → commit → NEXT; после phase короткий отчёт,
+**не** запрос «продолжить?». Остановка по AUTONOMOUS-WORKFLOW, не по количеству фаз за turn.
+Tauri phase8 не входит в COMPLETE web v1. Полноценный raw Replay также ждёт core proposal,
+поэтому честная unavailable replay surface выполняет нынешний scope.
+
 ## Phase 0 — onboarding и contract audit (первый день)
 
 **Цель:** восстановить контекст и доказать, что работа остаётся в dedicated ветке.

@@ -19,3 +19,10 @@
 детали features — тематические UI docs. Tests/results должны иметь commit/config/data
 reference и actual result. Не заменять failure history; не считать screenshots доказательством
 source integrity. Core snapshot baseline указан явно; не объявлять D50+ статус без export.
+
+
+CC-01 durable execution: [WORK_STATE.json](WORK_STATE.json) — task queue/leases/checks,
+[STATUS.md](STATUS.md) — короткая generated сводка. Workflow не второй market source of truth.
+Coordinator-only writer; `python3 apps/control-center/scripts/workflow.py --render` обновляет
+STATUS из JSON; `--check` проверяет consistency. Compact review receipts — `reports/`.
+Recovery/start prompts: docs/control-center/GROK-PROMPT.md; protocol: AUTONOMOUS-WORKFLOW.

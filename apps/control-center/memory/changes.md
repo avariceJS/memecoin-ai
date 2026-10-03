@@ -15,3 +15,20 @@
   локальной переменной; test исправлен. RuffE731 в exporter lambda исправлен вdef.
   Это UI fixture/style ошибки, не provider/runtime/core failure; расширения сети не было.
 - Frontend оставлен Grok. NextPhase0/1; CC-P001 awaiting core review, не блокирует UIv1.
+
+
+## 2026-10-03 — CC-01 visual/team follow-up
+
+- Добавлены PRIMARY PNG+DESIGN-SYSTEM, native agent definitions (6exact paths), team/loop/
+  model policy/recovery docs, prompts, bounded task mapping в прежних phases0–7.
+- UI WORK_STATE/STATUS, validator/render script,13workflow/guard tests; adapter9 tests
+  сохранены. No frontend implementation, no core/root Memory changes, no D50.
+- Read-only independent Codex review обнаружил guard index/rename bypass; исправлен,
+  regression fixtures PASS. Это не native Composer/Cursor run; он ещё P0.1 UNVERIFIED.
+- Failure history: первый scoped lint E501/F401, после форматирования I001; исправлены,
+  final Ruff/format PASS. Tests22PASS, projection exact и state/scope conformance PASS.
+
+- Final review correction CC-01: canonical/ancestor lease overlap checks и shared-directory
+  denial; missing PNG не мешает state recovery, explicit `--visual` fail-closed.
+  Два regression tests добавлены; итог22tests PASS. Исторические review receipts не
+  доказывают наличие картинки в новом session, каждый visual agent обязан открыть её снова.

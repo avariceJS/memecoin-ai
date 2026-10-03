@@ -43,3 +43,30 @@ proposal ≠ принятое core решение. Это сохраняет в�
 
 PROPOSED, core acceptance отсутствует. См. docs/control-center/proposals. Не реализовывать
 его в core из UI branch; можно продолжать все recorded evidence phases независимо.
+
+
+## CC-006 — primary visual fidelity без ложной semantics
+
+Принято2026-10-03. User PNG primary; каждый visual worker сам открывает изображение,
+review сравнивает реальные screenshots. DESIGN-SYSTEM задаёт плотную navy composition,
+status truth/accessible fallbacks. Trading art не data source. Token values — начальные
+UI решения, не вымышленные «точные измерения» картинки. Нет semantic changes core.
+
+## CC-007 — native local team + repo execution state
+
+Принято. 6CC custom agents: artifact analyst, UI+visualization builder, adapter builder,
+test-debugger, visual-reviewer, boundary-reviewer. Coordinator owns docs/state/Git и
+сложные решения. Explicit `composer-2.5[fast=false]` по official docs, no cheap-model guess,
+no silent inherit; actual task card verification P0.1 pending. Grok4.7/xhigh coordinator.
+Scope extension — только6named `.cursor/agents` files; scoped guard допускает exact names.
+Не менять global Cursor settings, permissions, hooks, root rules/core memory.
+
+## CC-008 — bounded autonomy/recovery, не вечный daemon
+
+Принято. WORK_STATE + generated STATUS + checks/review receipts; phases0–7 web-v1 loop,
+ordinary errors чинятся без approval, missing interface → proposal и независимая работа.
+Native delegation/context isolation; account/approval/tool limits явно не гарантированы.
+Не SDK/cloud/cron/newchat automation. Model/runtime conformance отдельно от offline fixtures.
+Scope guard проверяет working tree **и index** от base, без rename detection: staged core
+change нельзя спрятать отменой только working copy. Shared JSON — single writer protocol,
+не distributed scheduler и не immutable evidence ledger core.

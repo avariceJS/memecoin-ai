@@ -6,10 +6,16 @@ alwaysApply: true
 В этом isolated worktree действует UI task scope. До изменений прочитай
 `apps/control-center/AGENTS.md`, `docs/control-center/ONBOARDING.md` и UI Memory Bank.
 Реализация разрешена только в `apps/control-center/**`, `docs/control-center/**` и этом
-файле. Core (`src`, `tools`, `tests`, `configs`, `memory`, existing docs) read-only.
+файле, плюс шесть именованных `.cursor/agents/cc-*.md` из UI AGENTS (не wildcard scope). Core (`src`, `tools`, `tests`, `configs`, `memory`, existing docs) read-only.
 Нельзя читать work/raw/holdout/credentials ни здесь, ни в основном worktree.
 Нельзя продолжать D50, запускать collector/training/RPC/trading или менять admission.
 Рабочая branch: `control-center/observatory-handoff`; не merge/push main.
 Перед commit запускай `python3 apps/control-center/scripts/check_scope.py`.
 Для отсутствующего core interface создай proposal. Подробные правила в UI AGENTS.
 Это rule данного task/worktree, не универсальная инструкция будущему core агенту.
+
+Coordinator до coding читает AUTONOMOUS-WORKFLOW.md, AGENT-TEAM.md, DESIGN-SYSTEM.md
+в docs/control-center и UI memory/WORK_STATE.json. Выполнять autonomous loop до COMPLETE
+web v1 или BLOCKED_NEEDS_USER. После phase не спрашивать «продолжить?». Native subagents
+Composer 2.5 standard; каждый visual subagent сам открывает primary reference PNG.
+State/Git/lockfile пишет только Coordinator. Никаких cloud agents/новых worktrees/auto chat.
