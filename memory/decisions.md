@@ -641,3 +641,13 @@ Execution12 RPC/6 tx, observed fees15 001–154 999 lamports; все6 timing
 полностью завершённым. Следующий шаг — inventory после новых due окон и решение о
 недостающей universe/timing выборке; никакой текущей ML readiness.
 Контракт docs/calendar-execution.md, конфигурация configs/calendar-execution-v1.json.
+
+### D44: независимый ML foundation без market-result claims
+
+2026-10-03 пользователь явно разрешил dataset/training/model/evaluation/scaling основу
+и smoke/integration обучение на имеющихся данных. Это уточняет прежний запрет ML:
+инженерные training runs разрешены; настоящий ML результат/edge на малом corpus нет.
+D43 не менять/переустанавливать. Отдельный optional пакет/окружение, frozen experiments,
+causal sequences, grouped maturity purge, train-only scaler, сменные backbone и
+conditional heads, checkpoint/resume/inference, CPU/MPS benchmarks. Нет dogmatic TCN,
+размера или частоты; нет RL/trading/paper/live. Контракт docs/ml-foundation.md.
