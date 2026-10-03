@@ -119,8 +119,11 @@ Observed model binding UNVERIFIED, не blocker. Это частично зам�
 
 ## CC-014 — минимальные frontend additions, 3D отложить
 
-Принято как рекомендация CC02, установка ещё не проведена. Lucide static icons, local Inter,
-нужные Radix Dialog/Tooltip, Playwright dev harness; CSS/SVG для нынешних небольших datasets.
-Exact pins/production bytes проверит CC02.0. Recharts/Table из прежней roadmap не обязательны;
-Motion/ECharts только при доказанной потребности. Three/R3F не решает hierarchy/overflow,
-в CC02 не добавлять. Optional небольшой decorative SVG после Overview acceptance.
+Принято как рекомендация CC02. Lucide, local Inter и Radix ещё не ставятся: они нужны
+shell-задаче. Recharts/Table из прежней roadmap не обязательны. Motion/ECharts только при
+доказанной потребности. Three/R3F не решает hierarchy/overflow, в CC02 не добавлять.
+Optional небольшой decorative SVG после Overview acceptance.
+
+2026-10-04, CC02.0: установлены только `@playwright/test` 1.63.0 и `@types/node` 24.19.1.
+Production bundle не изменился, 514.84 kB. Harness фиксирует дефекты v1 и не является
+visual acceptance.

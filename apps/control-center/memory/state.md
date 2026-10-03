@@ -28,10 +28,10 @@ Core/main D50+ развивается независимо; здесь его н
 
 ## Текущая очередь / следующий шаг
 
-`WORK_STATE.json` schema 2 и generated `STATUS.md`: **CC02 IN_PROGRESS, implementation
-ещё не начата**, задачи CC02.0–8 PENDING. Этот audit fork не реализует redesign.
-Grok начинает CC02.0 browser harness → CC02.1 shell → CC02.2 Overview; остальные visual pages
-только после принятия Overview. Не пересоздавать app, adapter, Memory или worktree.
+`WORK_STATE.json` schema 2: **CC02.0 DONE**, текущая задача **CC02.1 shell**.
+Harness измеряет web v1 и требует сотни побегов текста на календаре плюс горизонтальный
+overflow обзора. Нулевой отчёт здесь был бы ложным green. Это не visual acceptance.
+Дальше shell, затем Overview как эталон. Не пересоздавать app, adapter или worktree.
 
 Coordinator Grok 4.7 Extra High; сложный UI и visual reviewer — Grok 4.7 High;
 routine analyst/adapter/tests/boundary — Composer 2.5 standard. Native definitions настроены;

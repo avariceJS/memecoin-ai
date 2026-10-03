@@ -2,20 +2,20 @@
 
 Generated from WORK_STATE.json; не редактировать вручную.
 
-- Overall: **IN_PROGRESS** — CC02 visual reconstruction, 0/9 tasks; Tauri вне scope.
-- Current phase: **0**
-- Current task: **CC02.0 — Baseline и browser gate harness**
-- Last completed: Web v1 engineering foundation готов; visual acceptance REJECTED. CC02 audit/handoff подготовлен; redesign ещё не выполнен.
-- Last verified commit: `9f47abf9e473ef4f46c6238d805c917490aa9b21`; latest фактически: `git log -1 --oneline`.
-- Checks: CC02 audit: target + 10 user PNG reviewed; 44 Vitest PASS; tsc/build PASS (existing warnings); 37 scoped Python PASS; Ruff/format, exact projection, scope PASS. Browser redesign acceptance NOT_RUN. Workflow/reference conformance PASS; see cc02/audit-evidence.json.
+- Overall: **IN_PROGRESS** — CC02 visual reconstruction, 1/9 tasks; Tauri вне scope.
+- Current phase: **1**
+- Current task: **CC02.1 — App shell и design primitives**
+- Last completed: CC02.0: Playwright harness измеряет дефекты web v1 и не принимает их. Visual redesign не начат.
+- Last verified commit: `53ef5a33100b94de88bff4f8c0dabbba3e73bda7`; latest фактически: `git log -1 --oneline`.
+- Checks: 2026-10-04 CC02.0: npm run e2e PASS (calendar escape 786, overview overflow 50px, NOT_A_VISUAL_PASS); e2e:check PASS; vitest 44 PASS; production build PASS, JS остался 514.84 kB. Boundary review PASS. Visual acceptance страниц NOT_RUN.
 - Model binding: UNVERIFIED (config ≠ runtime; nonblocking).
 - User acceptance: REJECTED_V1; CC02_NOT_REVIEWED.
 - Blockers: нет глобального blocker
-- Next action: **Grok: прочитать CC02 audit/plan/acceptance, baseline и target; начать CC02.0 browser harness, затем shell first. Не переписывать adapter/core.**
+- Next action: **CC02.1: shell и design primitives. Grok High ui-builder открывает target и before PNG. Страницы ещё не принимать.**
 
 | Task | Role | State |
 |---|---|---|
-| CC02.0 Baseline и browser gate harness | coordinator | PENDING |
+| CC02.0 Baseline и browser gate harness | coordinator | DONE |
 | CC02.1 App shell и design primitives | ui-builder | PENDING |
 | CC02.2 Overview — visual gold standard | ui-builder | PENDING |
 | CC02.3 Calendar / corpus reconstruction | ui-builder | PENDING |
@@ -28,7 +28,7 @@ Generated from WORK_STATE.json; не редактировать вручную.
 ## Ограничения
 
 - User rejected web v1 visuals; historical PASS superseded, before preserved.
-- No browser E2E/layout harness currently in package.json; required in CC02.0.
+- Browser harness характеризует overflow v1; это не visual acceptance страниц.
 - Current recorded data limited; no live/control/new backend scope.
 - Actual model binding UNVERIFIED is nonblocking.
 

@@ -161,3 +161,16 @@ Native model preflight/web implementation намеренно остаются ne
   требование future captures до первой реализации и размер final reviewer response.
 
 CC02 audit/guard commit `9f47abf9e473ef4f46c6238d805c917490aa9b21`; последующая запись закрепляет только evidence/state.
+
+## 2026-10-04 — CC02.0 browser harness
+
+- Добавлен dev-only Playwright 1.63.0 и `@types/node` 24.19.1. Новых API и production bytes нет:
+  JS bundle остался 514.84 kB.
+- Harness на 1600×1000 измерил известный v1: календарь 786 побегов текста D48 и 1256 наложений;
+  обзор 50px горизонтального overflow. На 1024×768 календарь тоже 786. Тест требует эти пороги.
+- Отчёт помечен NOT_A_VISUAL_PASS. Скролл таблиц не считается побегом карточки. Shell counts на этих
+  страницах были 0: дефект принадлежит страницам.
+- Первый прогон оставил `npm run dev`, потому что завершался npm, а не Vite. Запуск переведён на
+  прямой `vite.js`, процесс после теста останавливается.
+- Boundary review PASS, agent `f8059a95-ef49-4dbd-9e94-1dd588e4059b`. Vitest 44 PASS. Модель
+  reviewer в tool result не указана, binding UNVERIFIED.

@@ -68,5 +68,14 @@ Primary visual contract: [DESIGN-SYSTEM](../../docs/control-center/DESIGN-SYSTEM
 
 Web v1 функционально сохраняется, визуально отклонён. [Independent audit](../../docs/control-center/cc02/AUDIT.md)
 и [screenshot acceptance](../../docs/control-center/cc02/VISUAL-ACCEPTANCE.md) обязательны перед redesign.
-Новые frontend libraries и browser harness в audit не установлены. Сначала shell, затем Overview
-как эталон; старые visual PASS не переносятся. Current queue — memory/WORK_STATE.json.
+Browser harness CC02.0: `@playwright/test` 1.63.0 и `@types/node` 24.19.1 — devDependencies.
+Production bundle не вырос (JS 514.84 kB). Harness измеряет дефекты v1 и не принимает их.
+
+```sh
+npx --prefix apps/control-center/web playwright install chromium
+npm --prefix apps/control-center/web run e2e
+npm --prefix apps/control-center/web run e2e:check
+```
+
+Сначала shell, затем Overview как эталон; старые visual PASS не переносятся.
+Current queue — memory/WORK_STATE.json.

@@ -40,7 +40,14 @@
 | @tanstack/react-table | 8.21.3 | Phase 2/3, если native table недостаточен. Не 9.2.4 |
 | recharts | 3.10.1 | графики отчётов, не свечи |
 | @tanstack/react-virtual | 3.14.13 | только после измеренного bottleneck |
-| @playwright/test | 1.63.0 | Phase 7 E2E |
-| @axe-core/playwright | 4.13.0 | Phase 7 a11y |
+| @playwright/test | 1.63.0 | CC02.0 browser harness, только devDependency |
+| @types/node | 24.19.1 | типы Node 24 для `tsc` harness, не runtime |
+| @axe-core/playwright | 4.13.0 | ещё не ставить; a11y остаётся на CC02.8 |
 
 Optional peer Vite (sass, less, terser, babel compiler) не ставить.
+
+## CC02.0 — установлено 2026-10-04
+
+`@playwright/test@1.63.0` и `@types/node@24.19.1` стоят exact devDependencies.
+`npm run build` оставил прежний JS 514.84 kB / gzip 153.15 kB и CSS 35.99 kB:
+Playwright в production bundle не входит. Lucide, Inter и Radix ещё не ставились.
