@@ -240,6 +240,8 @@ def service_template(bundle: Path, output: Path, receipt: Path) -> None:
         },
         ProcessType="Background",
         AbandonProcessGroup=False,
+        StandardOutPath=str((output.parent / "service.stdout.log").resolve()),
+        StandardErrorPath=str((output.parent / "service.stderr.log").resolve()),
     )
     with output.open("xb") as f:
         plistlib.dump(data, f)

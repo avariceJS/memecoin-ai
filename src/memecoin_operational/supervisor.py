@@ -114,7 +114,17 @@ def window(
         raise GateError("reservation_changed")
     if c["mode"] == "prospective" and live_guard is None:
         raise GateError("live_guard_required")
-    watch = Watch(600)
+    elapsed = (
+        (time.time_ns() - reservation["started_ns"]) / NS if c["mode"] == "prospective" else 0.0
+    )
+    if not 0 <= elapsed < 600:
+        raise GateError("reservation_deadline_or_clock")
+    watch = Watch(600 - elapsed)
+    deadline_ns = (
+        reservation["started_ns"] + 600 * NS
+        if c["mode"] == "prospective"
+        else int((watch.w0 + 600) * NS)
+    )
     logical = reservation["started_ns"]
     outcomes = []
 
@@ -136,7 +146,7 @@ def window(
                 bundle_sha=pin,
                 parent_pid=os.getpid(),
                 logical_ns=logical,
-                host_deadline_ns=int((watch.w0 + 600) * NS),
+                host_deadline_ns=deadline_ns,
                 receipt=str(receipt) if receipt else None,
                 receipt_pin=receipt_pin,
                 scope=scope,

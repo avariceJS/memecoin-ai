@@ -381,3 +381,34 @@ def test_calendar_attempt_due_identity_before_rpc(tmp_path, monkeypatch):
     path.write_text(json.dumps(res))
     with pytest.raises(GateError, match="binding_changed"):
         c.check_attempt(tmp_path, cfg, {}, root, "calendar")
+
+
+def test_whole_deadline_starts_at_reservation_not_worker_launch(tmp_path, monkeypatch):
+    import memecoin_operational.supervisor as s
+
+    monkeypatch.setattr(
+        s, "check_bundle", lambda *_: dict(mode="prospective", free_floor=0, window_bytes=10000)
+    )
+    monkeypatch.setattr(s, "disk_guard", lambda *a, **k: None)
+    start = 1000 * 10**9
+    monkeypatch.setattr(s.time, "time_ns", lambda: start + 200 * 10**9)
+    res = dict(index=0, started_ns=start, reserved_rpc=180)
+    write(tmp_path / "reservation.json", res)
+    caps = []
+
+    def fake(command, log, seconds, guard):
+        job = read(Path(command[-1]))
+        assert job["host_deadline_ns"] == start + 600 * 10**9
+        caps.append(seconds)
+        write(
+            tmp_path / (job["phase"] + "-result.json"),
+            dict(status="completed", finished_ns=start + 200 * 10**9),
+        )
+        return dict(exit_code=0, category="completed")
+
+    monkeypatch.setattr(s, "child", fake)
+    result = s.window(tmp_path, "pin", tmp_path, res, live_guard=lambda: None)
+    assert result["status"] == "completed" and 399 < caps[0] <= 400
+    monkeypatch.setattr(s.time, "time_ns", lambda: start + 601 * 10**9)
+    with pytest.raises(GateError, match="reservation_deadline"):
+        s.window(tmp_path, "pin", tmp_path, res, live_guard=lambda: None)

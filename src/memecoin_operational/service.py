@@ -8,10 +8,10 @@ import time
 from pathlib import Path
 
 from memecoin_collector.qualification import endpoint
-from memecoin_collector.scheduler import run_due
+from memecoin_collector.scheduler import durable, run_due
 from memecoin_sampling.contract import load
 
-from .contract import GateError, authorize, check_bundle, no_symlink
+from .contract import GateError, Row, authorize, check_bundle, no_symlink
 from .supervisor import window
 
 
@@ -46,21 +46,31 @@ def main() -> None:
                 for path in directory.iterdir():
                     no_symlink(path)
         binding, _ = load(args.bundle / "proposal")
+
+        def collect(path: Path, reservation: Row) -> Row:
+            try:
+                return window(
+                    args.bundle,
+                    args.bundle_sha,
+                    path,
+                    reservation,
+                    live_guard=gate,
+                    receipt=args.receipt,
+                    receipt_pin=args.receipt_sha,
+                    scope="calendar",
+                )
+            except Exception as exc:
+                result = dict(
+                    status="failed",
+                    reason=str(exc) if isinstance(exc, GateError) else "supervisor_integrity",
+                    error_type=type(exc).__name__,
+                )
+                durable(path / "supervisor-error.json", result)
+                print(json.dumps(result), flush=True)
+                return result
+
         rows = run_due(
-            Path(c["source_root"]),
-            binding,
-            c["proposal_sha"],
-            now=time.time_ns,
-            runner=lambda path, res: window(
-                args.bundle,
-                args.bundle_sha,
-                path,
-                res,
-                live_guard=gate,
-                receipt=args.receipt,
-                receipt_pin=args.receipt_sha,
-                scope="calendar",
-            ),
+            Path(c["source_root"]), binding, c["proposal_sha"], now=time.time_ns, runner=collect
         )
         print(
             json.dumps(
