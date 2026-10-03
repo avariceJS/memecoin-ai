@@ -166,3 +166,8 @@ Source/data mutation regression проверен до reservation. Новый wh
 в новый каталог и прошёл полное совпадение sources и exact scoring/bootstrap reproduction.
 [Финальное evidence/addendum](evidence/f01-runner-integrity-2026-10-03.json) ссылается на
 неизменное исходное evidence. Research/admission/release/RPC по-прежнему0.
+
+
+Обновление D48: sampling/source proposal, sealed development adapter и dossier теперь
+реализованы отдельно; D47 sources/F01-v1 не менялись. Actual corpus/activation/admission
+пока отсутствуют. [Текущее состояние D48](f01-sampling.md).

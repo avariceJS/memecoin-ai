@@ -3,6 +3,34 @@
 Обновлено: **2026-10-03**, Europe/Moscow.
 
 
+**D48 завершён: future sampling/source contract, sealed adapter и readiness dossier.**
+Новый stdlib `memecoin_sampling` сохраняет D43–D47 sources/F01-v1. Immutable proposal
+`work/sampling-d48/proposal`:T2026-10-07 00:00UTC, development до2026-12-02, reserved
+holdout до2026-12-30.336 окон по4×5min/день,224development/112holdout, ceiling60480RPC.
+Это **не activation/разрешённый расход**: новый source root/service не создан, network0.
+
+Пустой actual registry/dossier:0admitted windows,111blockers из113numeric checks,
+collection/research/release false. Existing D45 development174decisions не переименован
+в новый corpus. Adapter сохраняет raw+converted objects, whole-window temporal/semantic
+checks, append-only revisions, fixed planned denominator и unknown-start lower bounds.
+Bound source paths/holdout индексы отклоняются до raw reads; synthetic data_kind закрывает
+prospective gate. Source timestamps/targets/CPMM не меняются.
+
+20new/465base+2optional skips/486combined tests,ruff/mypy/smoke/build, exact installed-wheel
+raw/dossier reproduction. Full raw synthetic fixture180fake calls,real RPC0,training0;
+предыдущий успешный180fake и failed artifacts сохранены. Capacity shape fixture224copies:
+38976decisions,188MB JSON,peak RSS744MB/load+validate+partition1.424s; не fit budget/power.
+D45/D46 bindings verified; D43 paths не открывались аудитами, runtime не менялся,
+operational inventory не обновлялся. [Итог D48](../docs/f01-sampling.md),
+[evidence](../docs/evidence/f01-sampling-2026-10-03.json).
+
+**Следующий D49:** bounded collector/activation qualification для concrete proposal:
+source freshness/coherence, provider quota/monetary/storage/runtime feasibility,
+immutable activation binding и due-only/failure-stop/restart conformance. Затем отдельное
+явное решение о запуске конкретного бюджета, без изменения D43/inherited holdout.
+Не auto launch из наличия plan; не F01 training. При опоздании activation новый binding,
+не backfill и не изменение старых dates. Rare-class support/actual compute остаются gates.
+
 **D47 завершён: runner/ledger/scoring foundation frozen F01.**
 Отдельный `memecoin_runner` сохраняет D43–D46 sources/bindings. Полный fold/selection/
 refit graph, CPU trainer, immutable trial/exposure chain, provenance-bound validation,
@@ -19,7 +47,7 @@ score/bootstrap reproduction прошли. Evidence хранит ledger heads и
 открывались audit-hook проверками; D43 runtime не менялся, operational status не обновлён.
 [Итог D47](../docs/f01-runner.md), [финальное evidence](../docs/evidence/f01-runner-integrity-2026-10-03.json).
 
-**Следующий независимый D48:** future sampling/source binding и qualified sealed
+**На момент D47 следующим был D48 (теперь выполнен выше):** future sampling/source binding и qualified sealed
 prospective development adapter/readiness dossier для F01. Не менять D43/D45 и не
 читать inherited holdout. Для actual admission всё ещё нужны достаточный corpus,
 linked substantive reviews и RAM/compute feasibility. Receipt hashes проверяют bytes,

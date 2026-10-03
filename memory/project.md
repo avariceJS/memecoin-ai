@@ -70,3 +70,8 @@ D47 подготовил admission-aware F01 runner/ledger/scoring на fixtures
 data. Это техническая готовность вычислительной процедуры, не достаточность corpus
 или разрешение исследования. Separate future sampling/ingestion qualification и
 reviewed admission остаются обязательными; [D47](../docs/f01-runner.md).
+
+
+D48 материализует будущий F01 sampling contract и sealed development ingestion/readiness
+без collector activation и без признания corpus достаточным. Пороговые checks не
+заменяют source/coverage/dependence reviews; [D48](../docs/f01-sampling.md).

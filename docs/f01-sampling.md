@@ -125,3 +125,46 @@ persistent HTTP. Unit multi-window fixtures mock только raw validation/con
 `tools/f01_data_capacity.py SEALED_D45_DEVELOPMENT NEW_OUTPUT` создаёт явно synthetic
 shape fixture224copies с отдельными Python objects;120s child deadline,≤180rows template.
 Только load/validate/partition feasibility, без fit/torch/holdout и без statistical evidence.
+
+## Фактический результат D48 — 2026-10-03
+
+Планb970996, реализация84482bd. [Evidence](evidence/f01-sampling-2026-10-03.json).
+Созданы immutable `work/sampling-d48/proposal`, пустой `registry` и `dossier`.
+T=**2026-10-07 00:00UTC**, development end=2026-12-02 00:00UTC, holdout end=2026-12-30
+00:00UTC. Будущий source root `work/f01-prospective-source-01` не создан/не активирован.
+Реальных F01 окон0,113numeric checks/111blockers; это baseline отсутствия corpus,
+не мера «близости к readiness». Все collection/research/release permissions false.
+
+20 новых tests,465base+2optional skips,486combined;ruff/strict mypy/smoke/build прошли.
+Проверены multi-window/out-of-order admission, immutable revisions, stale/conflicting
+objects, partial publication recovery, source path/symlink guards, holdout before read,
+rehashed temporal/grid/source/complete-state faults, fixed denominator и synthetic gate.
+Full raw fixture180fake transport calls прошёл существующий decoder/features/targets
+без mocking converter; source/data_kind/disclosure явно synthetic. Ещё180fake calls
+предварительного успешного fixture сохранены отдельно. Real RPC0,training0.
+
+Installed wheel точно воспроизвёл оба dossier (пустой actual proposal и synthetic source),
+а также raw conversion кроме документированного filesystem conversion path. Old D45
+registry/D46 protocol verified offline. D45 real development174decisions использовался
+только как инженерный template, не импортирован в будущий F01. Audit hooks запрещали
+D43 opens/network при smoke/proposal/reproduction; старые D43–D47 sources/F01 spec прежние.
+D43 operational inventory не обновлялся; pending counts остаются last published.
+
+Capacity fixture224copies real development shape:38 976decisions/311 808scenarios,
+188 343 649bytes JSON. Отдельный процесс на этом Mac24GiB/Python3.13.6 выполнил
+load+validate+partition за1,424s, peak RSS743 538 688bytes. Это измерение одной synthetic
+формы, не upper bound будущей памяти, SLA, training600s feasibility или statistical power.
+Actual fit compute и corpus support остаются gates будущего admission.
+
+Сохранённые сбои разработки: недетерминированный порядок blockers при JSON reload;
+неверное ожидание test про1ns; fixture client defaults mismatch (до запросов);
+конфликт pytest module basename. Причины исправлены; guards/научные thresholds не
+ослаблялись, failed logs/source directories не удалялись. Remote CI не проверен.
+
+**Решение:** принять D48 как offline sampling/ingestion/readiness foundation. Новый
+collector не установлен и не запущен. **Следующий D49** — bounded collector/activation
+qualification для этого конкретного proposal: freshness/coherence фиксированной source
+когорты, quota/monetary/storage/runtime feasibility, exact activation/runtime binding,
+due-only/no-retry/failure-budget и безопасная operational отчётность. После такой
+квалификации отдельно фиксируется запуск в пределах конкретного разрешённого бюджета.
+D43/inherited holdout не менять; настоящее F01 обучение по-прежнему не допущено.

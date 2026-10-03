@@ -623,3 +623,20 @@ D45 corpus не превращается в sufficient research corpus. D47 real
 только уже sealed revision000000 development copy; никаких D43 raw/holdout reads
 или network calls. D45/D46 bindings verified offline; прежние sources неизменны.
 Неизвестные own execution costs/admission остаются unknown. [D47](../docs/f01-runner.md).
+
+
+### D48: отдельный будущий source/sampling contract
+
+Proposal T2026-10-07UTC→development2026-12-02→holdout2026-12-30.336окон UTC00:30/06:30/
+12:30/18:30;2segments×30rounds×5s×3pools=180RPC/window,ceiling60480. Alchemy finalized,
+persistent/profile2,existing F01 cohort/targets. No WSS/new execution RPC/retries/backfill.
+Lateness900s,wall600s,8failed-window stop. Новый collector/источник не активирован;
+quota/cost/source freshness и runtime activation остаются D49. D43 неизменён.
+
+memecoin_sampling сохраняет source bytes, converter artifacts и append revisions;
+reservation/time/semantics/complete180snapshots/grid/identity checks. Raw→features/
+targets/converter replay exact, кроме location-only provenance path. Holdout224–335
+не читается, source paths фиксированы при binding; symlink/подмена window path запрещены.
+Actual registry пуст, D45 данные остаются engineering. Source timestamps не сдвигаются
+ради F01; synthetic shape fixtures с изменёнными times явно маркированы и не admitted
+как prospective. Denominator/failed unknowns сохраняются. [D48](../docs/f01-sampling.md).

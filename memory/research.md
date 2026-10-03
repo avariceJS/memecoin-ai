@@ -206,3 +206,13 @@ Frozen F01-v1 не изменён. Реализованы runner всей select
 Research/admission/holdout release0. Следующий D48 — future source/sampling binding,
 sealed development adapter и readiness dossier; не auto collection/training.
 [Итог/evidence](../docs/f01-runner.md).
+
+
+## D48: sampling design материализован, F01 не начат
+
+Неизменный F01-v1 получил future proposal и qualified sealed development adapter.
+4×5min UTC-stratified windows/day задают ограниченный estimand fixed cohort;84days
+и60480RPC ceiling не гарантируют support/power. Activation/source/quota feasibility
+отдельно до сети. Никакого настоящего corpus или training в D48 нет;20new tests и
+180final fake raw calls — conformance. Actual empty dossier111blockers; scope/semantic/
+dependence/formal reviews по-прежнему отсутствуют. [Итог/evidence](../docs/f01-sampling.md).

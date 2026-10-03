@@ -171,3 +171,16 @@ D47 final integrity review добавил worker boundary code/data/membership c
 18conformance tests,466combined, повторные engineering scoring hashes равны прежним.
 Финальное evidence: [addendum](../docs/evidence/f01-runner-integrity-2026-10-03.json);
 старые outputs/evidence не перезаписывались.
+
+
+## D48: sealed revision → exact F01 folds/readiness dossier
+
+D47 runner plan материализуется с immutable dataset/revision/sampling/source binding;
+его наличие не admission. Membership/role support сохраняют whole-decision purge и
+embargo. Coverage denominator включает все заранее planned windows роли; календарные
+роли должны закрыться по времени. Failed/missed/pending windows не удаляются; actual
+starts unknown, поэтому lower bound usable fraction conservatively uses180 additional
+starts/unknown window. Это достаточное условие прежнего90% floor, не estimated actual
+fraction. Synthetic-only gate/отдельные reviews остаются закрыты. Holdout labels/stats
+до release не оцениваются.20new/486combined tests, raw+dossier wheel reproduction.
+Capacity fixture38 976decisions не sample size для статистики. [D48](../docs/f01-sampling.md).

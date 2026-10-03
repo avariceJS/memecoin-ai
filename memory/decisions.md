@@ -727,3 +727,22 @@ D47 integrity addendum bbcd0e8: repeated source/data verification на worker bo
 Повтор54engineering fits не меняет научный protocol; score hashes прежние.18new/466combined
 tests и final wheel reproduction; original evidence сохранено, addendum
 docs/evidence/f01-runner-integrity-2026-10-03.json. Admission по-прежнему отсутствует.
+
+
+### D48: offline future sampling/ingestion foundation
+
+2026-10-03. По поручению пользователя реализован отдельный memecoin_sampling, не
+изменяющий D43–D47. Планb970996,code84482bd. Frozen proposal T2026-10-07UTC,84days,
+4×5min/day,336окон/60480RPC ceiling. Дизайн ограничивает observed UTC-window scope,
+не объявляет continuous market coverage. Monetary quota/activation не разрешаются
+появлением proposal; collector не установлен. Даты F01-v1/метрики не ослаблены.
+
+Принято: bound source root и holdout index guard до чтения; raw+converted immutable
+objects; full source replay; per-role denominator всех planned windows. Unknown failed/
+missing starts учитываются верхним180 ceiling и conservative usable lower bound, не
+выдуманной точной fraction. Records сохраняют нарушения failure-stop, readiness false.
+Synthetic data_kind не становится prospective.20new/486combined tests, exact wheel
+reproduction; actual registry0windows,training/RPC/release0. Capacity fixture лишь data
+path feasibility. Следующий D49 — source/quota/runtime/activation qualification перед
+отдельным решением о новом collector. Документ docs/f01-sampling.md; evidence
+docs/evidence/f01-sampling-2026-10-03.json.

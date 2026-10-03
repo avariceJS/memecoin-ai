@@ -506,3 +506,20 @@ membership digests.18new/466combined tests; новые54smoke fits воспро�
 hashes. Суммарно135 bounded smoke fits, research0. При parallel build был установлен
 старый wheel; source SHA mismatch обнаружен до reproduction, log/install сохранены,
 fresh завершённый wheel verified. Append-only evidence: docs/evidence/f01-runner-integrity-2026-10-03.json.
+
+
+## 2026-10-03 — D48: sampling/source contract и sealed corpus adapter
+
+- Планb970996/code84482bd, отдельный stdlib memecoin_sampling. Future proposal84days/
+  336windows/60480RPC ceiling материализован, collector не запущен и бюджет не активирован.
+- Immutable raw+converted objects/revisions, bound paths/holdout guard before read,
+  complete source replay, fixed planned coverage denominator, unknown-start lower bounds.
+- D47-compatible runner plan/dossier, actual registry0windows,111numeric blockers;
+  source/scope/reviews/admission отсутствуют, training/RPC/holdout releases0.
+-20new/465base/486combined tests,ruff/mypy/smoke/build, full synthetic raw180calls и
+  exact wheel reproduction. Capacity fixture224copies:188MB JSON,peak RSS744MB,1.424s
+  load/validation/partition, не compute/power guarantee. D45 real template не future corpus.
+- Исправлены blockers ordering, test1ns assumption, fixture RPC defaults и pytest filename
+  collision; failed logs/outputs сохранены. D43 не открывался/не изменялся; old bindings
+  подтверждены. Следующий D49 — source/quota/runtime/activation qualification.
+- Отчёт docs/f01-sampling.md, evidence docs/evidence/f01-sampling-2026-10-03.json.
