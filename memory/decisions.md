@@ -681,3 +681,13 @@ combined, exact wheel audit/export, repeat no_change. Diagnostic count floors с
 Следующий D46: research specification/readiness dossier; пока не проведён. Routine
 status через D45: старый D43 inventory раскрывает label reports и не подходит для
 защиты holdout. Контракт/evidence: docs/corpus-registry.md и docs/evidence/corpus-registry-2026-10-03.json.
+
+### D46: frozen F01 specification и раздельные readiness gates
+
+2026-10-03 пользователь разрешил определить research criteria/model-selection protocol
+до накопления достаточного corpus. F01 ограничен conditional forecast skill fixed cohort,
+не net-edge: forecast semantic qualification отдельно от full economic calibration.
+D43/D45/holdout4–5 не менять и не раскрывать. Их finite corpus недостаточен для F01;
+новый будущий84day binding только проектируется, сеть/collector не запускаются.
+Frozen rules: configs/research-f01-v1.json; мотивировка docs/research-readiness.md.
+Никаких post-hoc cutoff/seed/metric changes. Research launch/release остаются закрыты.
