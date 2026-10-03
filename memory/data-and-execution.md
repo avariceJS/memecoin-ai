@@ -672,3 +672,20 @@ UI недоступен. Full live qualification не проведена.180fina
 прошлиD48 admission и точное raw/wheel replay;0actualF01windows,holdout не раскрыт.
 OSsleep/reboot/84dayuptime не квалифицированы; failure semantics провереныfixtures.
 [Документ/evidence](../docs/f01-operational-runtime.md).
+
+## D51 — 2026-10-04: подготовлен single-attempt launcher, live блокирован
+
+`tools/f01_live_qualification.py` использует unchanged D50 sealed runtime. Preflight
+не пишет reservation: substantive scoped receipt, exact root, credential, validity600s,
+STOP/disk/protected-path checks обязательны. Exclusive claim + durable180reservation
+до worker; crash/duplicate/concurrent launch не создают второй budget. Full raw/feature/
+target reproduction остаётся обязательной после live; новый source/actual registry
+не создаётся thin launcher. Guard failures и exception logs не содержат credentials.
+
+Реального180RPC окна пока нет: MCP27940CU/USD0 и masked app metadata не подтверждают
+account Free/no-charge и exact billing mapping. Browser недоступен; запрос owner facts
+ожидает ответа. Runtime credential совпадает с bundle fingerprint, но это другая проверка.
+Host currently battery40%,free134,77GB; power settings не менялись. Awake/login/power
+условия нужны отдельно перед calendar activation. No-charge/host/live не заменять
+offline tests. D43/holdout untouched; рынокRPC0,reservation0,receipts0,training0.
+[D51](../docs/f01-live-qualification.md), [evidence](../docs/evidence/f01-live-qualification-2026-10-04.json).

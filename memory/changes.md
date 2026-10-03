@@ -557,3 +557,16 @@ fresh завершённый wheel verified. Append-only evidence: docs/evidence
   проведён. СледующийD51 — budget proof,boundedlive,host conditions,отдельное activation.
 - Doc/evidence: docs/f01-operational-runtime.md;
   docs/evidence/f01-operational-runtime-2026-10-03.json.
+
+## 2026-10-04 — D51 single-attempt подготовлен; stage открыт из-за account evidence
+
+- План97c2d26,launcher4ed893b; D50 sealed bundle и credential fingerprint проверены.
+  Thin launcher с exclusive claim/durable180reservation/no-retry; receipt не генерируется.
+-10new tests,506base/2optional skips,Ruff/format/mypy/smoke прошли; src/configs unchanged.
+- MCP27940CU/USD0,app memcoin-ai/Solana mainnet; no-charge/exact billing mapping неизвестны.
+  Browser[]; один запрос несекретного owner confirmation без ответа. LiveRPC/reservations0.
+- Host134,77GB free,battery40%,GUI501; power/D43 не менялись. Нет source root/service/receipt.
+- D51 остаётся OPEN/BLOCKED,activation NOT READY; следующий шаг внутриD51 — account proof,
+  один180RPC live и raw replay, затем отдельное activation решение. F01/holdout untouched.
+- Doc/evidence: docs/f01-live-qualification.md;
+  docs/evidence/f01-live-qualification-2026-10-04.json.

@@ -245,3 +245,13 @@ Account-specific Free/no-charge/credential mapping отсутствует,UI н�
 live не проведён. D51 должен получить это evidence, отдельно квалифицировать одно180RPC
 окно и host awake/login условия; затем отдельное итоговое решение оcalendaractivation.
 Без доступа не выдумывать approval,не повторятьtransporttuning/не менятьF01. [D50](../docs/f01-operational-runtime.md).
+
+## D51 открыт: не переходить к activation без недостающего evidence
+
+2026-10-04. Bounded launcher и host read-only assessment подготовлены;506base/10new tests,
+check/smoke successful. D50 runtime неизменён. Provider/owner account Free/no-paid-overage
+и exact runtime mapping отсутствуют; MCP27940CU/USD0 недостаточно, browser[]. Запрос
+несекретных facts задан, ответа нет. Live180RPC не проведён, source/service не включён.
+Продолжение того жеD51: substantive billing review→single bounded receipt→live180RPC→
+raw replay/verdict→отдельное calendar activation решение и host operating conditions.
+Не делать новую инфраструктурную стадию вместо устранения blocker. [D51](../docs/f01-live-qualification.md).

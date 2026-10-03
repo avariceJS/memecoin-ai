@@ -1,6 +1,34 @@
 # Текущий статус
 
-Обновлено: **2026-10-03**, Europe/Moscow.
+Обновлено: **2026-10-04**, Europe/Moscow.
+
+**D51 открыт / BLOCKED на account evidence; activation NOT READY.** Пользователь принял
+D50. План97c2d26 и thin launcher4ed893b подготовлены, unchanged D50 bundle проверен;
+локальный credential fingerprint совпал.10новых тестов,506base/2optional skips,
+Ruff/format/mypy/smoke прошли. `src/` и `configs/` относительно3887f97 не изменены.
+
+MCP usage27940CU/USD0 (dataThrough2026-10-03T22:00UTC), app memcoin-ai/nsvflslm1kqtntvz
+с Solana mainnet. Тариф/automatic paid overage/exact runtime→billing mapping всё ещё
+не подтверждены; browser discovery[]. Один запрос несекретного подтверждения владельца
+отправлен, ответ пока не получен. Нельзя заменить его USD0 или тестовым receipt.
+Рыночных RPC0, reservation0, receipts0; full180RPC live и его reproduction не проведены.
+
+Host snapshot:134,77GB свободно, Battery Power40%, GUI UID501; новый service отсутствует.
+Ни battery snapshot, ни47days uptime не доказывают непрерывную доступность84days.
+Launcher закрыт до substantive review, exact root и validity600s; exclusive claim,
+crash/no retry, concurrent launch/path guards проверены offline. Check без receipt:
+`separate_decision_required`, source/attempt root не созданы. D43/holdout не читались
+и не менялись, actual F01 windows0, research training0. UI worktree независим и не менялся.
+
+**Дальше остаётся D51:** получить account Free/no-paid-overage + exact mapping +3600CU
+allocation, выпустить один reviewed bounded receipt для `work/collector-d51/attempts/live-01`,
+провести180RPC по frozen runtime и offline reproduction; затем отдельное calendar
+activation decision с host awake/power/login условиями. Не повторять transport tuning,
+не сдвигатьT2026-10-07/backfill. D51 не объявлен завершённым из-за внешнего blocker.
+[Документ D51](../docs/f01-live-qualification.md),
+[evidence](../docs/evidence/f01-live-qualification-2026-10-04.json).
+
+### Принятый D50: предыдущее состояние
 
 
 **D50: engineering runtime envelope завершён; activation остаётся BLOCKED.**
