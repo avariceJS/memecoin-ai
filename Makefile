@@ -9,7 +9,7 @@ setup:
 check:
 	$(VENV)/ruff check src tests tools
 	$(VENV)/ruff format --check src tests tools
-	$(VENV)/mypy src/memecoin_ai src/memecoin_registry src/memecoin_research
+	$(VENV)/mypy src/memecoin_ai src/memecoin_registry src/memecoin_research src/memecoin_runner/contracts.py src/memecoin_runner/ledger.py src/memecoin_runner/scoring.py
 	$(VENV)/pytest -q
 
 test:
@@ -33,3 +33,8 @@ ml-check:
 	$(MLVENV)/ruff format --check src/memecoin_ml tests/ml tools/ml.py tools/ml_smoke.py
 	$(MLVENV)/mypy --python-version 3.13 src/memecoin_ml
 	$(MLVENV)/pytest tests/ml -q
+
+.PHONY: runner-check
+runner-check:
+	$(MLVENV)/mypy --python-version 3.13 src/memecoin_runner
+	$(MLVENV)/pytest tests/runner -q
