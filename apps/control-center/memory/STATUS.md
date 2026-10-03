@@ -5,8 +5,8 @@ Generated from WORK_STATE.json; не редактировать вручную.
 - Overall: **IN_PROGRESS** — web v1, 0/15 tasks; Tauri вне scope.
 - Current phase: **0**
 - Current task: **P0.1 — Native model preflight**
-- Last completed: CC-01: visual/team preparation; web implementation ещё не начата
-- Last verified commit: `131b2ce`; latest фактически: `git log -1 --oneline`.
+- Last completed: CC-01 подготовка завершена; visual contract, native team и offline conformance готовы; web tasks PENDING
+- Last verified commit: `38765863d54e54115e4beca72a0012fd050a4b3e`; latest фактически: `git log -1 --oneline`.
 - Checks: 22 scoped unittest PASS; projection exact; scope/state/reference conformance PASS; Ruff/format PASS (CC-01). Native Cursor execution NOT_RUN.
 - Model binding: UNVERIFIED (config ≠ runtime).
 - Blockers: нет глобального blocker

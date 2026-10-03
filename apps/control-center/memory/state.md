@@ -71,3 +71,6 @@ Core/root Memory Bank не изменены; D50 не начат. Web implementa
   denial; missing PNG не мешает state recovery, explicit `--visual` fail-closed.
   Два regression tests добавлены; итог22tests PASS. Исторические review receipts не
   доказывают наличие картинки в новом session, каждый visual agent обязан открыть её снова.
+
+CC-01 implementation commit `38765863d54e54115e4beca72a0012fd050a4b3e`; итоговый review/evidence:
+`reports/CC-01-review.md`, `docs/control-center/autonomy-evidence.json`.

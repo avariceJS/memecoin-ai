@@ -3,8 +3,8 @@
   "scope": "control-center-web-v1-phases-0-7",
   "overall": "IN_PROGRESS",
   "current_task": "P0.1",
-  "last_completed": "CC-01: visual/team preparation; web implementation ещё не начата",
-  "last_verified_commit": "131b2ce",
+  "last_completed": "CC-01 подготовка завершена; visual contract, native team и offline conformance готовы; web tasks PENDING",
+  "last_verified_commit": "38765863d54e54115e4beca72a0012fd050a4b3e",
   "last_checks": "22 scoped unittest PASS; projection exact; scope/state/reference conformance PASS; Ruff/format PASS (CC-01). Native Cursor execution NOT_RUN.",
   "model_binding": {
     "configured_coordinator": "grok-4.7 / xhigh (picker)",

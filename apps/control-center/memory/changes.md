@@ -32,3 +32,6 @@
   denial; missing PNG не мешает state recovery, explicit `--visual` fail-closed.
   Два regression tests добавлены; итог22tests PASS. Исторические review receipts не
   доказывают наличие картинки в новом session, каждый visual agent обязан открыть её снова.
+
+CC-01 code `38765863d54e54115e4beca72a0012fd050a4b3e`; final review/evidence сохранены отдельным docs commit.
+Native model preflight/web implementation намеренно остаются next tasks Grok.
