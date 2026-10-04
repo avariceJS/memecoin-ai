@@ -1,5 +1,20 @@
 # Данные и достоверное исполнение
 
+## B06 — PumpSwap interpretation boundaries, 2026-10-04
+
+Новыйmemecoin_pumpswap проверяет CPI tree/parent/program/account roles, integer checked
+transfers и aggregate transaction vault delta.4B05transactions/5calls сходятся поmovement,
+но полностьюqualified0:8непрочитанныхbytes сверхpinnedIDL, baseToken-2022 иremainingaccounts.
+Неизвестно, изменение только вконце или внутриlayout; parsedfields диагностические.
+Buy_exact_quote_in fielduserquote101 при фактических102+1+1=104. External quote transferfees
+не включаютLP/network/rent/router costs. Это не execution adapter, USD dataset или training.
+
+Indexed Alchemy1RPC остановлен-32015 из-за missing maxSupportedTransactionVersion=0;
+100CU reserved, pages0/retry0. Client fix есть, liveverificationнет. Journal rawseal→cursor,
+pagebudget/revision/order/restart/anchor semantics покаfixturesonly. CurrentB04collector
+и protected sources unchanged. Следующийprotocol/mint-extension qualification вместо
+игнорированияunknownfields. [B06](../docs/brain-pumpswap-events.md).
+
 ## B05 — отдельная raw transaction evidence lane, 2026-10-04
 
 GT остаётся discovery/history/cross-check, не принятый единственный primary широкого рынка.

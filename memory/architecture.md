@@ -1,5 +1,14 @@
 # Архитектурное направление
 
+## B06 — отдельный PumpSwap evidence interpreter, 2026-10-04
+
+memecoin_pumpswap не venueexecutionadapter: ABI inspection, CPI tree, integertransfer/vault
+reconciliation, boundedindexedclient/rangejournal/offlinereplay. PublicIDL drift/unknown
+Token-2022 profiles quarantined, training permission никогда не выдаётся автоматически.
+Journal покаfixturesqualified; weeklysupervisor и livecost/coverage не доказаны. B04
+frozenruntime безизменений. NextB07 — deployedprofile+correctedindexedprobe.
+[Границы](../docs/brain-pumpswap-events.md).
+
 ## B05 — направление source architecture, 2026-10-04
 
 GT discovery/history/cross-check + независимая raw finalized transaction lane с verified

@@ -1,6 +1,42 @@
 # Текущий статус
 
-## B05 — текущий статус, 2026-10-04
+## B06 — текущий статус, 2026-10-04
+
+**PumpSwap production admission отклонён; foundation проверен, indexed live inconclusive.**
+Plan eafed8e, acquisition7b4448b, fix/replayd6bb9f2. В4sealed B05tx найдено5PumpSwap calls;
+integer transfers сходятся с vault pre/post balances во всех4tx. Но pinned official IDL
+cb188ce… не исчерпывает payload:8unconsumed bytes у каждогоevent; всеbaseToken-2022,
+remaining accounts не qualified. Buy_exact_quote_in event field101 против raw user104.
+Причина schema/semantics drift неизвестна; все4tx quarantined, training_eligible=false.
+Существующий CPMM/features/targets/runtime неизменны. Новыхfits0, champion прежний.
+
+Новый indexed Alchemy probe:1RPC/100nominalCU reservation из440, ответ-32015 из-за нашей
+ошибки: пропущен maxSupportedTransactionVersion=0. STOP/no retry соблюдён, страниц0;
+не объявлять provider outage/noFree/cost saving. Параметр исправлен и fixture-tested,
+live не повторён. Новый запуск требует отдельного plan/root/budget, исходный STOPнеудалять.
+Owner no-PAYG/card attestation+samecredential; freshMCP8520CU/USD0 не planverification.
+
+Новыйmemecoin_pumpswap: ABI/trace/transfer audit, durable bounded range ledger (raw seal
+доcursor, restart budget, ordering/revision/nonprogress rejection, anchor≠complete).
+Журнал проверен толькоfixtures; real indexed happy path/weekly supervision не qualified.
+23newtests;588base/6skips,614combined; check/smoke/build/wheel exact. B04/D50verified;
+D43/F01/holdout не открывались. Raw/evidence work/brain-b06 внеGit.
+
+B04 на09:43:07UTC:STOPнет,debit248/12000,338forecasts/304scored/6censored/28pending.
+Job/budget/expiry2026-10-07T00:30:23.405597Z неизменны. Sealed09:42:05 snapshot15364bars,
+185revisions/126keys,4receipt-hour buckets одного дня. Shadow primary published_only290
+scored,macro empirical0,006229/GRU0,007902/linear0,014785,3blocks/CIнет. Ещё12mature outcomes
+вычисленыoffline(aggregate302), не online. Старыйhelper ставит recovery scored_ns=cutoff;
+actual conservative review availability отдельно вshadow-review.json, не backdated.
+
+**Следующий B07:** deployed PumpSwap ABI/mint-extension/remaining-fee profile qualification
+и отдельный corrected bounded indexed probe. Только после семантики+cost/coverage —
+source-local supervisor/небольшой многодневныйcollector, затем admitted corpus/training.
+Не увеличивать модель/universe и не объявлять weekly unattended готовым.
+[Отчёт](../docs/brain-pumpswap-events.md),
+[evidence](../docs/evidence/brain-pumpswap-events-2026-10-04.json).
+
+## B05 — предыдущий срез, 2026-10-04
 
 **Source architecture переоценена; новый primary collector не активирован.** Пользователь
 поставил надёжный самостоятельный data/training loop выше очередного model experiment.

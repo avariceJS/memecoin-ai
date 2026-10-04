@@ -1,5 +1,21 @@
 # Реестр архитектурных решений
 
+## B06 — fail-closed protocol qualification вместо prefix-only admission, 2026-10-04
+
+B05 принят; автономное движение к unattended Brain подтверждено. PumpSwap выбран по9/12
+owners, без model complexity. Engineering23tests/recorded/wheel прошёл. Real4tx/5calls:
+transfers/vault deltas consistent, но all events8unconsumedbytes, Token-2022/remainingroles
+неqualified, одинeventquote101vsactual104. Решение: raw movement diagnostics допустимы,
+production/training admission REJECTED. Не игнорировать неизвестныйsuffix и не считать
+pinnedpublicIDL доказательством deployedABI. GT остаётся bootstrap/cross-check; B04 прежний.
+
+Indexed probe остановлен после1RPC/100CU(-32015,нашmissingversionparam), no retry поplan.
+Исправление offline не превращает failed qualification вPASS. Availability/costfullpages
+UNKNOWN; no source upgrade/paid service. СледующийB07 — реальныйprotocol profile и один
+corrected bounded indexedprobe подnewbinding. F01/D43/holdout неизменны.
+[Отчёт](../docs/brain-pumpswap-events.md),
+[evidence](../docs/evidence/brain-pumpswap-events-2026-10-04.json).
+
 ## B05 — разделить роли источников до масштабирования, 2026-10-04
 
 B04 принят; пользователь приоритизировал unattended data/candidate/shadow loop. Это меняет

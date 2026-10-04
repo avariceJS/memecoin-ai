@@ -1,5 +1,16 @@
 # История изменений решений
 
+## 2026-10-04 — B06: PumpSwap reconciliation и остановленный indexed probe
+
+23tests/614combinedPASS, wheel exact. Новыйdecoder/rawmovementaudit иdurable rangejournal.
+4tx/5calls transferreconciliation PASS, protocoladmissionREJECTED:unknown8bytes,
+Token-2022/remainingaccounts, eventquote101vsactual104.1AlchemyRPC/100CUfailed-32015
+из-за missingversionparam;STOP,no retry,fixoffline. B04продолжаетdebit248/12000безизменений.
+15364bars/290publishedshadow+12offlinerecovery; championпрежний,newfits0. Temporalnote
+оlegacyrecovery timestamp записан явно. NextB07protocolprofile+correctedboundedingestion.
+[Документ](../docs/brain-pumpswap-events.md),
+[evidence](../docs/evidence/brain-pumpswap-events-2026-10-04.json).
+
 ## 2026-10-04 — B05: source architecture и raw evidence foundation
 
 Новый приоритет пользователя — длительная автономность Brain. Frozen planfba806a;

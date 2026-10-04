@@ -1,5 +1,14 @@
 # Реестр исследовательских экспериментов
 
+## B06 — actual ABI прежде raw-to-training, 2026-10-04
+
+Newfits0,modelcomplexity0. Independent computation по4B05captures выявила5PumpSwapcalls,
+согласованные integer transfers/vault deltas, но publicIDL payload size mismatch иToken-2022
+support gap. Всеquarantined. Именаполей event не являются истиной без согласования с
+instruction/transfer trace и deployedprofile. Indexed benchmark не проведён:1RPCfailedиз-за
+нашейversionconfig, исправлен толькоoffline. СледующийB07 — semantic profile+corrected
+bounded indexed probe; до этого не подключатьrawкtraining. [B06](../docs/brain-pumpswap-events.md).
+
 ## B05 — data-source qualification перед новым model challenge, 2026-10-04
 
 Приоритет пользователя: приближать unattended широкий corpus/training/shadow loop. Поэтому

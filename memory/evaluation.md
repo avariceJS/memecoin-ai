@@ -1,5 +1,21 @@
 # Оценка модели и управление версиями
 
+## B06 — raw semantics и published-only shadow, 2026-10-04
+
+23newtests,588base/6skips,614combined; recorded/wheel exact, noRPC/no fits replay.
+Real4tx/5calls movementreconciled, protocolqualified0. Это не подтверждение исполнения.
+Liveindexedpages0:clientconfig-32015, no cost/coverage result, no retry. B04notmodified.
+Snapshot09:42:05:15364bars,185revisions/126keys.324forecasts:290publishedscored+6censored,
+28pending;12изpending дополнительноcomputedoffline,302aggregate/16stillpending.
+Основноеmacroсравнениеpublished_only empirical0,006229/GRU0,007902/linear0,014785,
+3hourblocks/CIнет; champion прежний. Handoff304scored относитсякпозднему времени.
+
+Уточнение старогоhelper: recovery scored_ns равенlogicalsnapshotcutoff, не фактическому
+моменту offline publication. Не выдавать это поле за actual online availability. B06
+shadow-review.json фиксирует новое conservative actualreviewtime; frozenартефакты не
+переписаны,12recoveryнеonlineevidence. Следующее recoverytooling обязано разделить
+as-of cutoff иactualscoring/publication time. [B06](../docs/brain-pumpswap-events.md).
+
 ## B05 — исходные clocks и очередной descriptive shadow срез, 2026-10-04
 
 Snapshot09:14UTC:15323bars,128revision observations/98keys,4receipt-hour buckets одного дня.

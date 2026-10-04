@@ -15,8 +15,9 @@ B05 уточнил приоритет: двигаться к длительно�
 разнообразному corpus, bounded retraining и честному future shadow с изоляцией плохих
 источников/пулов. До масштабирования выбрана разделённая source architecture; GT сохраняется
 как discovery/history/cross-check, raw transactions — candidate primary после venuequal.
-B04 job без изменений; следующийB06 — PumpSwap decoder+экономичный raw ingestion,
-linear-winsor challenge отложен. [B05](../docs/brain-source-architecture.md).
+B04 job без изменений; B06 реализовал raw interpreter, но production admission закрыт
+из-за ABI/Token-2022 drift. СледующийB07 — deployed protocol profile и corrected bounded
+indexed probe; linear-winsor challenge отложен. [B06](../docs/brain-pumpswap-events.md). [B05](../docs/brain-source-architecture.md).
 Цель ближайших дней — содержательная модель и цикл её улучшения, не обещание edge.
 Реальные деньги, исполнение сделок, paid upgrades, RL/paper bot не разрешены.
 
