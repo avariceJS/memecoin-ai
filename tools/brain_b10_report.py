@@ -13,7 +13,8 @@ from pathlib import Path
 
 from brain_b08_reproduce import reproduce
 
-from memecoin_continuous.store import audit, stats
+from memecoin_brain.shadow import evaluate_prediction
+from memecoin_continuous.store import audit, stats, view
 from memecoin_ml.data import read, sha
 from memecoin_paper.audit import snapshot
 from memecoin_paper.engine import advance, initial
@@ -73,6 +74,8 @@ def main(output):
     gaps = [(b["at_ns"] - a["at_ns"]) / 1e9 for a, b in zip(samples, samples[1:], strict=False)]
     b09_start = read(OLD / "migration.json")["created_ns"]
     scores, censoring = {}, Counter()
+    rows, _ = view(index, cut)
+    reproduced_outcomes = 0
     for lane in (output / "candidate-shadows").iterdir():
         for p in (lane / "shadow/predictions").glob("*.json"):
             pred = read(p)
@@ -84,6 +87,10 @@ def main(output):
             if not o or o["status"] != "scored" or o["scored_ns"] > cut:
                 continue
             assert pred["predicted_ns"] < o["target_available_ns"] <= o["scored_ns"]
+            expected = evaluate_prediction(pred, rows, now_ns=o["scored_ns"])
+            if o != dict(prediction_sha=sha(p), **expected):
+                raise ValueError("matured_outcome_reproduction")
+            reproduced_outcomes += 1
             key = str((pred["model_sha"], pred["horizon"]))
             g = scores.setdefault(key, dict(n=0, loss_sums={}))
             g["n"] += 1
@@ -111,6 +118,12 @@ def main(output):
     ]
     incidents = [dict(file=p.name, **read(p)) for p in sorted(PAPER.glob("incident-*.json"))]
     training = [read(p / "reservation.json") for p in sorted((PAPER / "training").iterdir())]
+    completed = [
+        json.loads(line)
+        for line in (PAPER / "paper.stdout.log").read_text().splitlines()
+        if line.startswith("{")
+    ]
+    durations = sorted(r["elapsed_seconds"] for r in completed if r.get("category") == "completed")
     result = dict(
         stage="B10",
         cutoff_ns=cut,
@@ -138,9 +151,18 @@ def main(output):
         post_recovery_behavior={k: dict(v) for k, v in behavior.items()},
         b09_onward_paired_scores=scores,
         b09_onward_forecast_statuses=dict(censoring),
+        matured_outcomes_reproduced=reproduced_outcomes,
         scoring_note="B09+B10 actual observations; descriptive, paired within bundle; no selection",
         operational=health,
         paper_incidents=incidents,
+        completed_workers=len(durations),
+        worker_seconds=dict(
+            p50=durations[len(durations) // 2],
+            p95=durations[min(len(durations) - 1, int(len(durations) * 0.95))],
+            max=max(durations),
+        )
+        if durations
+        else None,
         training_reservations=training,
         new_fits=0 if all(r["started_ns"] < migration["created_ns"] for r in training) else None,
         soak=dict(
