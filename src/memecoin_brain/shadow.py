@@ -92,7 +92,14 @@ def evaluate_prediction(prediction: Row, rows: list[Row], *, now_ns: int) -> Row
     )
 
 
-def tick(root: Path, rows: list[Row], provenance: Row, model: Path | None) -> Row:
+def tick(
+    root: Path,
+    rows: list[Row],
+    provenance: Row,
+    model: Path | None,
+    *,
+    prediction_pools: set[str] | None = None,
+) -> Row:
     predictions = root / "shadow/predictions"
     outcomes = root / "shadow/outcomes"
     predictions.mkdir(exist_ok=True)
@@ -117,7 +124,8 @@ def tick(root: Path, rows: list[Row], provenance: Row, model: Path | None) -> Ro
         samples = [
             s
             for s in samples
-            if not all((predictions / (digest([s["id"], h]) + ".json")).exists() for h in HORIZONS)
+            if (prediction_pools is None or s["pool"] in prediction_pools)
+            and not all((predictions / (digest([s["id"], h]) + ".json")).exists() for h in HORIZONS)
         ]
         if samples:
             qs = predict(model, bundle, samples)

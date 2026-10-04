@@ -50,3 +50,13 @@ sealed dataset: те же2folds×3sizes×4fits=24, hard600s, без измене
 выбора lucky seed/horizon. Robust normalization — отдельный следующий experiment,
 не смешивать с качеством/объёмом данных в B03. Календарные часы/дни накапливает bounded
 job; не объявлять их полученными заранее. Trading/paper/live/RL запрещены.
+
+Recorded refinement до GET: полный B02 raw inventory выявил два конфликтующих пула,
+HUQ… и5gep…, а не только HUQ. Первый offline qualifier ожидал ровно1 и остановился
+до создания fixture root/сети. Seed берётся из всех установленных unresolved schema
+failures; два пула quarantined, denominator12 и global stop при4 не меняются.
+
+Training gate уточнён до activation: B01 model уже старше6h. Новый runtime не запускает
+refresh во время live qualification; нужен отдельный immutable qualified.json после
+двух успешных due cycles. Затем прежний6h/max12cycle protocol работает на расширенном
+corpus. Никаких новых backbone/targets; initial service fit учитывается отдельно отcurves.
