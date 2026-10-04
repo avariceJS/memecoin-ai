@@ -1066,3 +1066,15 @@ owner allocation относилась к одной попытке. D52 — от
 для frozen D48 (60480RPC/1209600CU,host awake/power/login иmonitoring). Не требуется
 повтор bounded окна/transport tuning; no-backfill/T/F01/D43/holdout прежние.
 [Итог](../docs/f01-live-qualification.md), [evidence](../docs/evidence/f01-live-result-2026-10-04.json).
+
+## B13 — прямой приоритет автономного operator product, 2026-10-04
+
+Пользователь поручил убрать Codex из ежедневного operational loop на5дней: полноценные
+UI actions, durable AUTO collect/snapshot/train/future-exam, bounded recovery и machine-readable
+life journal. Это заменяет прежнее ожидание следующего ручного B-stage/суток как prerequisite
+разработки, но не отменяет quality/causal gates, immutable evidence и исходные expiries.
+Новый отдельный≤7day product rollout разрешён этим поручением, successor source только
+после исходногоB09expiry, paid0. Automatic candidate/future-exam разрешены; promotion
+оставлен отдельным scientific review, без автоматического выбора по короткомуPnL.
+Recipe и operating protocol доfits — [B13](../docs/brain-autonomous-operator.md).
+НовыйB12STOP index_membership_corruption расследуется; ниSTOP, ниweights/expiry не переписывать.
