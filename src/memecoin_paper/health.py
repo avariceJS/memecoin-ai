@@ -27,6 +27,8 @@ def operational(root, now=None):
         if train_stop
         else "expired"
         if expired
+        else "frozen_exam_no_training"
+        if c.get("frozen_exam_models")
         else "budget_exhausted"
         if len(runs) >= c.get("training_max_runs", 3)
         else "waiting_daily_gate"

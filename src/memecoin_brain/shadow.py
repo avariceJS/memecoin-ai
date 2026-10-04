@@ -99,6 +99,7 @@ def tick(
     model: Path | None,
     *,
     prediction_pools: set[str] | None = None,
+    prediction_start_ns: int = 0,
 ) -> Row:
     predictions = root / "shadow/predictions"
     outcomes = root / "shadow/outcomes"
@@ -125,6 +126,8 @@ def tick(
             s
             for s in samples
             if (prediction_pools is None or s["pool"] in prediction_pools)
+            and s["event_close_s"] * NS >= prediction_start_ns
+            and s["actual_available_ns"] >= prediction_start_ns
             and not all((predictions / (digest([s["id"], h]) + ".json")).exists() for h in HORIZONS)
         ]
         if samples:

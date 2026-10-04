@@ -50,8 +50,11 @@ def candidate_tick(root, rows, prov, healthy):
     from memecoin_brain.shadow import tick
 
     c = read(root / "config.json")
-    candidates = models(root)
-    active_models = candidates[-1:]
+    if c.get("frozen_exam_models"):
+        active_models = exam_models(c)
+    else:
+        candidates = models(root)
+        active_models = candidates[-1:]
     if c.get("champion_model_path"):
         active_models = [Path(c["champion_model_path"]), *active_models]
     if not active_models or not rows:
@@ -64,7 +67,35 @@ def candidate_tick(root, rows, prov, healthy):
         (lane / "shadow").mkdir(parents=True, exist_ok=True)
         selected[lane] = model
     for lane in sorted((root / "candidate-shadows").glob("*")):
-        tick(lane, recent, prov, selected.get(lane) if healthy else None, prediction_pools=healthy)
+        tick(
+            lane,
+            recent,
+            prov,
+            selected.get(lane) if healthy else None,
+            prediction_pools=healthy,
+            prediction_start_ns=c.get("exam_start_ns", 0),
+        )
+
+
+def exam_models(c):
+    refs = c["frozen_exam_models"]
+    if not 1 <= len(refs) <= 3 or c.get("training_max_runs") != 0:
+        raise ValueError("frozen_exam_bound")
+    if c.get("exam_start_ns") != c["activation_ns"]:
+        raise ValueError("frozen_exam_start")
+    result = []
+    for ref in refs:
+        model = Path(ref["path"])
+        verify(model)
+        card = read(model / "model-card.json")
+        if sha(model / "manifest.json") != ref["sha"]:
+            raise ValueError("frozen_exam_model_changed")
+        if not card["training_as_of_ns"] <= card["finished_ns"] < c["exam_start_ns"]:
+            raise ValueError("frozen_exam_training_boundary")
+        if ref["sha"] in [r["sha"] for r in refs[: len(result)]]:
+            raise ValueError("frozen_exam_duplicate")
+        result.append(model)
+    return result
 
 
 def paper(root):
@@ -286,6 +317,8 @@ def paper(root):
         real_execution_enabled=False,
         source_requests_added=0,
         corpus_bars=extra.get("source_health", {}).get("bars", len(rows)),
+        model_labels={r["sha"]: r["label"] for r in c.get("frozen_exam_models", [])},
+        frozen_exam=bool(c.get("frozen_exam_models")),
         **extra,
     )
     atomic(root / "dashboard.json", public)
