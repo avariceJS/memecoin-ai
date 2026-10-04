@@ -11,7 +11,8 @@ import uuid
 from pathlib import Path
 
 from memecoin_ml.data import read, sha
-from memecoin_operational.supervisor import child
+from memecoin_operational.contract import GateError
+from memecoin_operational.supervisor import Watch, child
 from memecoin_registry.contracts import seal, verify
 from memecoin_runner.ledger import publish
 
@@ -107,7 +108,9 @@ def main():
 
         serve(root, c["port"])
         return
-    if (root / "STOP").exists():
+    if phase not in ("paper", "train"):
+        raise ValueError("paper_phase")
+    if (root / "STOP").exists() or (phase == "train" and (root / "TRAIN_STOP").exists()):
         return
     if time.time_ns() >= c["expires_ns"]:
         atomic(
@@ -130,17 +133,31 @@ def main():
             "from pathlib import Path;from memecoin_paper.service import worker;"
             "worker(Path(sys.argv[1]),sys.argv[2])"
         )
-        result = child(
-            [sys.executable, "-I", "-B", "-c", script, str(runtime), str(root), phase],
-            root / (phase + "-worker.log"),
-            900 if phase == "train" else 120,
-            lambda: guard(root),
-        )
+        seconds = 600 if phase == "train" else 120
+        watch = Watch(seconds)
+
+        def active_guard():
+            guard(root)
+            if (root / "STOP").exists():
+                raise GateError("stop_requested")
+            if time.time_ns() >= c["expires_ns"] or watch.remaining() <= 0:
+                raise GateError("paper_rollout_or_worker_deadline")
+
+        try:
+            result = child(
+                [sys.executable, "-I", "-B", "-c", script, str(runtime), str(root), phase],
+                root / (phase + "-worker-" + str(time.time_ns()) + ".log"),
+                seconds,
+                active_guard,
+            )
+        except Exception as exc:
+            result = dict(exit_code=-1, category="supervisor_" + type(exc).__name__)
         if result["exit_code"] != 0:
             p = root / ("incident-" + phase + "-" + str(time.time_ns()) + ".json")
             publish(p, result)
-            if phase == "paper" and not (root / "STOP").exists():
-                publish(root / "STOP", dict(reason="paper_worker_failure", incident=p.name))
+            stop = root / ("STOP" if phase == "paper" else "TRAIN_STOP")
+            if not stop.exists():
+                publish(stop, dict(reason=phase + "_worker_failure", incident=p.name))
             atomic(
                 root / (phase + "-health.json"),
                 dict(at_ns=time.time_ns(), status="failed", **result),

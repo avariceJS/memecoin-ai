@@ -228,7 +228,7 @@ def training(root):
         dict(
             started_ns=now,
             matured=matured,
-            max_seconds=900,
+            max_seconds=600,
             max_fits=4,
             new_matured=new_matured,
             paper_ledger_events_available=len(list((root / "ledger").glob("event-*.json"))),

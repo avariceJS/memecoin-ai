@@ -11,7 +11,7 @@ from memecoin_registry.contracts import verify
 from memecoin_runner.ledger import publish
 
 BASE = Path(__file__).resolve().parents[1]
-ROOT = BASE / "work/brain-b07/paper01"
+ROOT = BASE / "work/brain-b07/paper02"
 SOURCE = BASE / "work/brain-b04/prospective01"
 PIN = "f248c0305d81f684db7954d1c914c335c01c2ab0f9312d10ecc593ab6d2d183e"
 
@@ -41,7 +41,7 @@ def main():
             real_execution_enabled=False,
             training_max_runs=3,
             paper_worker_timeout_s=120,
-            training_worker_timeout_s=900,
+            training_worker_timeout_s=600,
             plan_sha=sha(BASE / "docs/brain-paper-loop.md"),
         ),
     )
@@ -57,7 +57,7 @@ def main():
             costs="uncalibrated 50bps slippage + 25bps fee per side",
         ),
     )
-    print(stage(ROOT, BASE / "work/brain-b07/runtime01"))
+    print(stage(ROOT, BASE / "work/brain-b07/runtime02"))
 
 
 if __name__ == "__main__":

@@ -50,3 +50,14 @@ UI: обнаруженная отдельная control-center ветка — re
 После activation завершить actual live observation→prediction→decision→pending→fill→exit
 и replay, насколько позволяет рынок (cash не подменять artificial buy). Опубликовать Git,
 Memory и адрес открываемого UI; честно отделить работающие части от pending outcomes.
+
+## Поправка перед повторной activation
+
+Первая попытка paper01: paper worker успешно выполнил один tick; training не начался:
+существующий D50 child ограничен600s и отклонил900s (`invalid_child_deadline`).
+Обнаружен также контракт exclusive log: каждому запуску нужен уникальный log. Новые
+B07 jobs остановлены, incident/root/runtime01 сохраняются. Новый paper02/runtime02
+с timeout600s (ужесточение первоначальных≤900s), unique logs и отдельным TRAIN_STOP;
+ошибка обучения не останавливает paper. Первый failure прекращает свой lane, без retry
+loop. Runtime regression tests проверяют повторный запуск и budget. Правила торговли
+не изменены, data source B04 не изменён.
