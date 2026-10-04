@@ -129,6 +129,12 @@ def run(dataset: Path, output: Path) -> dict:
         seeds=[7, 19],
         epochs=10,
         max_fits=24,
+        trial_ids=[
+            f"{e['name']}/{kind}-{seed}"
+            for e in experiments
+            for kind in ("linear", "gru")
+            for seed in (7, 19)
+        ],
         execution_model="none; observed price log returns",
         F01=False,
         folds=[{k: v for k, v in e.items() if k != "parts"} for e in experiments],
