@@ -5,7 +5,7 @@ export default defineConfig({
   testMatch: "**/*.pw.ts",
   testIgnore: process.env.CC_MATRIX
     ? []
-    : ["**/shell-matrix.pw.ts", "**/overview-matrix.pw.ts", "**/calendar-matrix.pw.ts", "**/research-matrix.pw.ts", "**/models-matrix.pw.ts"],
+    : ["**/shell-matrix.pw.ts", "**/overview-matrix.pw.ts", "**/calendar-matrix.pw.ts", "**/research-matrix.pw.ts", "**/models-matrix.pw.ts", "**/sources-matrix.pw.ts"],
   fullyParallel: false,
   workers: 1,
   retries: 0,

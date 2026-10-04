@@ -1,10 +1,10 @@
 import { useOutletContext } from "react-router";
-import { QualificationBadge, UnavailableState, provenanceBadgeKind } from "../../components/status";
+import { UnavailableState, provenanceBadgeKind } from "../../components/status";
 import type { ShellOutletContext } from "../../shell/AppShell";
 import { getSourceQualificationView } from "../overview/selectors";
-import { LatencyProbeTable } from "./LatencyProbeTable";
 import { PoolsCopyPanel } from "./PoolsCopyPanel";
-import { SourceStampsTable } from "./SourceStampsTable";
+import { ProbeChart } from "./ProbeChart";
+import { SourceTopology } from "./SourceTopology";
 import { SourcesStatusAside } from "./SourcesStatusAside";
 import styles from "./sources.module.css";
 
@@ -13,7 +13,6 @@ export function SourcesPage() {
   const snapshot = snapshotResponse.data;
   const qualification = getSourceQualificationView(snapshot);
   const pane = snapshot.sourceQualification;
-  const stampCount = Object.keys(snapshot.sources).length;
 
   if (!qualification || pane.availability !== "AVAILABLE") {
     return (
@@ -27,62 +26,23 @@ export function SourcesPage() {
     );
   }
 
-  const provenanceLabel = provenanceBadgeKind(pane.provenance);
+  const provenance = provenanceBadgeKind(pane.provenance);
 
   return (
-    <>
-      <header className={styles.pageHeader}>
-        <div>
-          <h2 className={styles.pageTitle}>Sources / Pools</h2>
-          <p className={styles.policyNote}>
-            {snapshot.sourcePolicy} · recorded evidence only · текущий operational status
-            неизвестен.
-          </p>
-        </div>
-        <div className={styles.badgeRow}>
-          <QualificationBadge kind={provenanceLabel} />
-          <QualificationBadge kind="LOCKED" />
-        </div>
-      </header>
-
-      <div className={styles.kpiRow}>
-        <article className={styles.kpi}>
-          <p className={styles.kpiLabel}>Source stamps</p>
-          <p className={styles.kpiValue}>{stampCount}</p>
-        </article>
-        <article className={styles.kpi}>
-          <p className={styles.kpiLabel}>Probe acceptance (recorded)</p>
-          <p className={styles.kpiValue}>
-            {qualification.accepted}/{qualification.requests}
-          </p>
-          <p className={styles.kpiSub}>
-            {qualification.accepted}/{qualification.requests} не означает текущий RPC health
-          </p>
-        </article>
-        <article className={styles.kpi}>
-          <p className={styles.kpiLabel}>Recorded tests</p>
-          <p className={styles.kpiValue}>
-            {qualification.recordedBaseTestsPassed}/{qualification.recordedCombinedTestsPassed}
-          </p>
-          <p className={styles.kpiSub}>зафиксированная стадия в snapshot</p>
-        </article>
-        <article className={styles.kpi}>
-          <p className={styles.kpiLabel}>Pool IDs</p>
-          <p className={styles.kpiValue}>{qualification.pools.length}</p>
-        </article>
+    <div className={styles.page}>
+      <div className={styles.mainColumn}>
+        <SourceTopology
+          snapshot={snapshot}
+          qualification={qualification}
+          sourceIds={pane.sourceIds}
+          provenance={provenance}
+        />
+        <SourcesStatusAside qualification={qualification} provenance={provenance} />
       </div>
-
-      <div className={styles.mainGrid}>
-        <div className={styles.leftStack}>
-          <SourceStampsTable snapshot={snapshot} />
-          <LatencyProbeTable qualification={qualification} />
-        </div>
-        <SourcesStatusAside qualification={qualification} provenanceLabel={provenanceLabel} />
+      <div className={styles.sideColumn}>
+        <ProbeChart qualification={qualification} provenance={provenance} />
+        <PoolsCopyPanel qualification={qualification} provenance={provenance} />
       </div>
-
-      <div className={styles.bottomGrid}>
-        <PoolsCopyPanel qualification={qualification} />
-      </div>
-    </>
+    </div>
   );
 }

@@ -2,10 +2,10 @@
   "schema_version": 2,
   "scope": "control-center-cc02-visual-reconstruction",
   "overall": "IN_PROGRESS",
-  "current_task": "CC02.6",
-  "last_completed": "CC02.5: модели приняты, среднее 4.2. Несовпадение не получает шкалу.",
-  "last_verified_commit": "b7c6614ed7db26edfd0c4b46215b597c5dfaadaf",
-  "last_checks": "2026-10-04 CC02.5: vitest 56 PASS; e2e characterization PASS; visual_gate receipt PASS. Models overlap 0. Model binding UNVERIFIED.",
+  "current_task": "CC02.7",
+  "last_completed": "CC02.6: источники приняты, среднее 4.2. Схема записанная, не живой поток.",
+  "last_verified_commit": "f90e8ec28c5af7e55755935c34dcffd00b9fb124",
+  "last_checks": "2026-10-04 CC02.6: vitest 60 PASS; e2e characterization PASS; visual_gate receipt PASS. Sources overlap 0. Model binding UNVERIFIED.",
   "model_binding": {
     "configured_coordinator": "grok-4.7 / xhigh (picker)",
     "configured_executor": "composer-2.5[fast=false]",
@@ -15,7 +15,7 @@
     "configured_visual_executor": "grok-4.7 (documented default high; runtime UNVERIFIED)"
   },
   "blockers": [],
-  "next_action": "CC02.6: топология источников. Статичная схема, без живой связности. Модели не переписывать.",
+  "next_action": "CC02.7: система и закрытые маршруты. Матрица возможностей, без пустого холста. Источники не переписывать.",
   "capabilities": [
     "existing read-only adapter + immutable historical projection",
     "primary visual reference available",
@@ -482,17 +482,68 @@
         "visual",
         "boundary"
       ],
-      "status": "PENDING",
+      "status": "DONE",
       "write_files": [],
-      "checks": [],
-      "reviews": [],
-      "attempts": [],
+      "checks": [
+        {
+          "command": "npm --prefix apps/control-center/web test",
+          "result": "PASS"
+        },
+        {
+          "command": "npm --prefix apps/control-center/web run e2e",
+          "result": "PASS"
+        },
+        {
+          "command": "python3 apps/control-center/scripts/visual_gate.py --receipt docs/control-center/references/cc02-final/CC02.6/review.json --task CC02.6",
+          "result": "PASS"
+        }
+      ],
+      "reviews": [
+        {
+          "kind": "boundary",
+          "result": "PASS",
+          "evidence": "cc-boundary-reviewer 6eeeec85-4df9-4afc-9e69-f749ca4552cd: схема записанная, 6 замеров не RPC health, сырой код блокеров только после раскрытия.",
+          "reviewed_revision": "f90e8ec"
+        },
+        {
+          "kind": "visual",
+          "result": "PASS",
+          "evidence": "cc-visual-reviewer a480444f-4190-4a80-b78a-51d0f649dcb3 second pass mean 4.2. Receipt docs/control-center/references/cc02-final/CC02.6/review.json.",
+          "reviewed_revision": "f90e8ec28c5af7e55755935c34dcffd00b9fb124",
+          "reference_viewed": true,
+          "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+          "screenshot": "docs/control-center/references/cc02-final/CC02.6/second/sources-1600.png"
+        }
+      ],
+      "attempts": [
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-ui-builder",
+          "configured_model": "grok-4.7-xhigh",
+          "note": "Sources topology. Models and lockfile stay put. Agent c23cdb5c-9f90-415f-bbff-44e2ace27560. Launch requested grok-4.7-xhigh. UNVERIFIED."
+        },
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-visual-reviewer",
+          "configured_model": "grok-4.7-xhigh",
+          "note": "First 4.0 NEEDS_FIX, second 4.2 PASS. Agent a480444f-4190-4a80-b78a-51d0f649dcb3. Launch requested grok-4.7-xhigh. UNVERIFIED."
+        },
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-boundary-reviewer",
+          "configured_model": "composer-2.5",
+          "note": "PASS agent 6eeeec85-4df9-4afc-9e69-f749ca4552cd."
+        }
+      ],
       "blocker": "",
-      "summary": "",
-      "reference_viewed": false,
-      "reference_sha256": null,
-      "visual_receipt": null,
-      "accepted_web_sha256": null
+      "summary": "Источники: записанная схема, шесть замеров и публичные pool id. Вторая критика 4.2. 6/6 чуть громче вердикта.",
+      "reference_viewed": true,
+      "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+      "visual_receipt": "docs/control-center/references/cc02-final/CC02.6/review.json",
+      "accepted_web_sha256": "21b8ab4bdfaedee3f92442eca4153069c75d2fad6159255f1592bc28b8d91756"
     },
     {
       "id": "CC02.7",

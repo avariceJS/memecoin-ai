@@ -1,79 +1,66 @@
+import { useId, useState } from "react";
 import { QualificationBadge, type ProvenanceBadgeKind } from "../../components/status";
 import type { SourceQualificationView } from "../overview/selectors";
-import { formatClockAgeRangeSeconds } from "./format";
 import styles from "./sources.module.css";
+import { blockerLabel } from "./viewModel";
 
 type SourcesStatusAsideProps = {
   qualification: SourceQualificationView;
-  provenanceLabel: ProvenanceBadgeKind;
+  provenance: ProvenanceBadgeKind;
 };
 
-export function SourcesStatusAside({ qualification, provenanceLabel }: SourcesStatusAsideProps) {
-  const {
-    recordedVerdict,
-    requests,
-    accepted,
-    blockers,
-    clockAgeRangeSeconds,
-    qualification: qualLabel,
-    recordedBaseTestsPassed,
-    recordedCombinedTestsPassed,
-    sourceName,
-    commitment,
-  } = qualification;
+export function SourcesStatusAside({ qualification, provenance }: SourcesStatusAsideProps) {
+  const titleId = useId();
+  const panelId = useId();
+  const [open, setOpen] = useState(false);
+  const { blockers } = qualification;
 
   return (
-    <aside className={styles.statusStack} aria-labelledby="sources-status-heading">
-      <section className={styles.verdictPanel}>
-        <h2 id="sources-status-heading" className={styles.verdictTitle}>
-          Recorded qualification
+    <section className={styles.panel} data-cc-region="source-blockers" aria-labelledby={titleId}>
+      <div className={styles.panelHead}>
+        <h2 id={titleId} className={styles.panelTitle}>
+          Блокеры
         </h2>
-        <p className={styles.verdictCode}>{recordedVerdict}</p>
-        <p className={styles.metaLine}>
-          <QualificationBadge kind={provenanceLabel} /> ·{" "}
-          <span className={styles.metaStrong}>{qualLabel}</span>
-        </p>
-        <p className={styles.metaLine}>
-          Источник probe: <span className={styles.metaStrong}>{sourceName}</span>
-        </p>
-        <p className={styles.metaLine}>
-          Commitment <span className={styles.metaStrong}>{commitment}</span>
-        </p>
-        <p className={styles.probeNote}>
-          Запросы probe {accepted}/{requests} — зафиксированный прогон D49, не индикатор
-          текущего здоровья сети или RPC.
-        </p>
-      </section>
-
-      <section className={styles.panel} aria-labelledby="sources-blockers-heading">
-        <h3 id="sources-blockers-heading" className={styles.factTitle}>
-          Blockers
-        </h3>
+        <QualificationBadge kind={provenance} />
+      </div>
+      <p className={styles.summary}>Записано кодов: {blockers.length}.</p>
+      {blockers.length === 0 ? (
+        <p className={styles.summary}>Записанных блокеров нет.</p>
+      ) : (
         <ul className={styles.blockerList}>
-          {blockers.map((blocker) => (
-            <li key={blocker}>{blocker}</li>
+          {blockers.map((code) => (
+            <li key={code} className={styles.blockerItem}>
+              {blockerLabel(code)}
+            </li>
           ))}
         </ul>
-      </section>
-
-      <section className={styles.panel} aria-labelledby="sources-clock-heading">
-        <h3 id="sources-clock-heading" className={styles.factTitle}>
-          Clock-age range
-        </h3>
-        <p className={styles.clockRange}>{formatClockAgeRangeSeconds(clockAgeRangeSeconds)}</p>
-        <p className={styles.p95Note}>p95 не опубликован — в snapshot только диапазон clock-age.</p>
-      </section>
-
-      <section className={styles.panel} aria-labelledby="sources-tests-heading">
-        <h3 id="sources-tests-heading" className={styles.factTitle}>
-          Recorded tests stage
-        </h3>
-        <p className={styles.metaLine}>
-          Base <span className={styles.metaStrong}>{recordedBaseTestsPassed}</span> / combined{" "}
-          <span className={styles.metaStrong}>{recordedCombinedTestsPassed}</span>
-        </p>
-        <p className={styles.p95Note}>Стадия зафиксирована в snapshot, не live CI.</p>
-      </section>
-    </aside>
+      )}
+      {blockers.length > 0 ? (
+        <div className={styles.disclosure}>
+          <button
+            type="button"
+            className={styles.textButton}
+            aria-expanded={open}
+            aria-controls={open ? panelId : undefined}
+            onClick={() => setOpen((current) => !current)}
+          >
+            Сырой код
+          </button>
+          {open ? (
+            <ul
+              id={panelId}
+              className={styles.codeScroll}
+              data-cc-scroll="source-blocker-codes"
+              tabIndex={0}
+              aria-label="Сырые коды блокеров"
+            >
+              {blockers.map((code) => (
+                <li key={code}>{code}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
   );
 }

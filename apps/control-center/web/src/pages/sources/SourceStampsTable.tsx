@@ -15,37 +15,25 @@ export function SourceStampsTable({ snapshot }: SourceStampsTableProps) {
   const rows = Object.entries(snapshot.sources).sort(([a], [b]) => a.localeCompare(b));
 
   return (
-    <section className={styles.panel} aria-labelledby="source-stamps-heading">
-      <h2 id="source-stamps-heading" className={styles.panelTitle}>
-        Source stamps · provenance
-      </h2>
-      <p className={styles.panelHint}>
-        PINNED_BYTES и evidenceDate — зафиксированная проекция, не live feed.
-      </p>
-      <div className={styles.tableWrap}>
-        <table className={styles.dataTable}>
-          <thead>
-            <tr>
-              <th scope="col">ID</th>
-              <th scope="col">evidenceDate</th>
-              <th scope="col">integrity</th>
-              <th scope="col">recordedAtNs</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(([id, stamp]) => (
-              <tr key={id}>
-                <td className={styles.stampId}>{id}</td>
-                <td>{stamp.evidenceDate}</td>
-                <td>{stamp.integrity}</td>
-                <td className={stamp.recordedAtNs ? styles.mono : styles.muted}>
-                  {formatRecordedAt(stamp.recordedAtNs)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <ul className={styles.stampList}>
+      {rows.map(([id, stamp]) => (
+        <li key={id} className={styles.stampCard}>
+          <div className={styles.stampHead}>
+            <span className={styles.stampId}>{id}</span>
+            <span>{stamp.evidenceDate}</span>
+            <span>{stamp.integrity}</span>
+          </div>
+          <div
+            className={styles.idScroll}
+            data-cc-scroll="stamp-hash"
+            tabIndex={0}
+            aria-label={`Хеш ${id}`}
+          >
+            {stamp.sha256}
+          </div>
+          <p className={styles.stampTime}>{formatRecordedAt(stamp.recordedAtNs)}</p>
+        </li>
+      ))}
+    </ul>
   );
 }
