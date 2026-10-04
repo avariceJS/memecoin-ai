@@ -69,3 +69,32 @@ Promotion требует отдельного исследовательског
 подтвердил `grok-4.7-xhigh`. Два инженерных worker: control/UI/jobs/tests и WAL/acquisition
 plumbing/tests. Dataset/model-selection/prospective decisions и итоговый review — Codex.
 Результаты implementation/acceptance будут добавлены после проверок; сейчас не проведены.
+
+## Инциденты во время интеграции (исходные записи сохранены)
+
+2026-10-04 19:41UTC: B12 paper STOP `worker_failed`, traceback
+`index_membership_corruption`. Реальный raw/index audit94,116bars exact; regression
+воспроизводит ложное нарушение при concurrent commit между SELECT. Новый WAL read snapshot
+сохраняет все checksum/membership guards. B12-recovered01 на8793 сохраняет63tick prefix,
+state_sha`bc36ca4f2f6289e740c1b77cfbae098c67252e186d0705f2d39569cb5f6d6ed3`,
+2pending,0positions,0exits, modelrefs/start/expiry без изменений. Старый STOP не удалён.
+
+2026-10-04 20:32UTC: B09 audit supervisor достиг600s, category`source_stop_or_deadline`,
+exit-9, incident1791145945693553000. Это НЕ исходный expiry и не допускает обычного Resume.
+Исходный STOP sha`b6b5968fce4377324a89b6671b694b2a1ee806d51be6039593e70f500194674b`.
+Read-only backup и независимый full raw audit:95,204bars/1,865validcaptures exact,
+fingerprint`cc8f1a2a303aae8d3018aac04093feb63045bd9f9a494b181fb323385c1e0ad7`.
+На backup EXPLAIN показал512scan по264,529versions; индекс`versions(pin,open_s)` заменяет
+scan на поиск по pin. Тот же audit_batch512 после индекса занял2.235s; full raw audit8.051s.
+Evidence: `work/brain-b13/audit-performance01/result.json`. Не увеличивать deadline.
+Допускается отдельная техническая source repair revision с exact state/counters/cursors,
+прежними max_requests/expiry/quarantine и новой runtime binding. Это не новая квота и не
+удаление STOP. Paper source migration требует exact ledger replay и прежних clocks/models.
+Активация repair на момент этой записи ещё не проведена.
+
+### Штатное завершение future exam
+
+Operator не запускает новый150s paper child в последние180s до immutable expiry.
+Это явный drain с возможным right-censoring последних outcomes, не продление срока
+и не искусственный STOP. Unknown STOP остаётся fail-closed. Старые frozen B10/B12
+runtimes и их expiry не переписываются.

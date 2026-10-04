@@ -1,5 +1,24 @@
 # Данные и достоверное исполнение
 
+## 2026-10-05 — B13 store/recovery и ограниченный successor
+
+B12 обнаружил false membership-corruption при concurrent SQLite commit между SELECT.
+Все связанные проверки теперь читают один BEGIN DEFERRED snapshot; genuine corruption
+guards сохранены. B09 audit достиг600s и STOP; добавлен индекс versions(pin,open_s),
+без ослабления raw verification/deadline. Technical repair создаёт новые roots/pins,
+сохраняет прежние counters/cursors/quarantine/budget/expiry и точный paper ledger prefix.
+Старые STOP/incident roots не редактируются. Копировать sealed .lock тоже обязательно.
+
+Активный источник: work/brain-b13/source-repaired01, прежний expiry2026-10-07
+12:23:51UTC и25000GET/background4000. После квалифицированного штатного expiry
+operator может создать новый audited successor: ≤30000 дополнительных GET,
+background≤6000,6hot/120s,cold1800s,spacing12s,http20s, прежний~90day history floor.
+Это отдельный бюджет с явным prior counter, а не обнуление старой истории.
+Early/unknown STOP и raw audit mismatch не дают auto takeover. GT остаётся единственным
+провайдером; corpus24markets/92calendar days не равен широкому market corpus2025–2026.
+Профиль/фаза меняет bulk priority только собственного successor; borrowed source frozen.
+[Актуальные roots/сервисы](state.md), [протокол](../docs/brain-autonomous-operator.md).
+
 ## B12 — один исторический snapshot, новый реальный future exam, 2026-10-04
 
 Curriculum использует только sealed GT B11 archive и first-observed availability. Никаких

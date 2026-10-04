@@ -1,5 +1,17 @@
 # Цель и границы проекта
 
+## 2026-10-05 — автономный Brain Development product
+
+Приоритет пользователя — самостоятельное управление paper Brain из локального Control
+Center без ежедневного редактирования кода. COLLECT → immutable snapshot → bounded
+supervised refit → immutable candidate → отдельный future exam → matured supervised
+corpus. Это независимый exploratory track, не F01 и не online RL. Реальные деньги,
+подписи, платные подключения и автоматическое снятие quarantine не разрешены.
+Архитектура остаётся разделённой на source/store/dataset/trainer/registry/paper/evaluation/UI.
+Single-machine operator и фазы ресурсов не вводят distributed SQLite. Для будущих двух
+Mac допустимы sealed shards/bundles. [Протокол B13](../docs/brain-autonomous-operator.md),
+[актуальный статус](state.md), [operator manual](../docs/brain-operator-manual.md).
+
 ## B12 — первый curriculum-кандидат на настоящем будущем рынке, 2026-10-04
 
 Проверена польза прошлого при одинаковых моделях/compute/evaluation:47дней истории дали

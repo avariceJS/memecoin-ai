@@ -1,5 +1,21 @@
 # Реестр исследовательских экспериментов
 
+## 2026-10-05 — B13 preregistered autonomous refit
+
+Рецепт зарегистрирован commit86929cb до новых fits: прежние 12 features/context8,
+linear + GRU16, seeds7/19,1000steps,64batch; pool/day balance выбран для diversity.
+На snapshot cut, округлённом до5min: train end=cut−6h, val end=cut−3h, test end=cut.
+Whole-decision maturity строго до границы fold, actual receipts не позже cut.
+Caps48k/6k/6k — deterministic pool/day selection; archive сохраняется целиком.
+Validation выбирает backbone до раскрытия descriptive test. Последовательные rolling
+tests могут повторно использовать историю и не становятся независимым confirmatory
+экспериментом. Future paper не меняет frozen weights, PnL не является training label.
+Максимум6 reservations, включая failures, минимум24h и100newmatured между циклами.
+Новый реальный snapshot:24train markets/92UTCdays,48k retained; val451,test352,
+в test нет unseen рынков. Это изменение состава/разбиений, не matched ablation B12.
+GRU выбран validation, но descriptive test не лучше empirical. Promotion отсутствует.
+[Протокол](../docs/brain-autonomous-operator.md), [результат](../docs/brain-b13-acceptance.md).
+
 ## B12 — выполнено matched curriculum сравнение, 2026-10-04
 
 Sealed B11 dataset, plan68946a5, trainer057d19a;36fits=3arms×3fractions×2families×2seeds.

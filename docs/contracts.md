@@ -169,3 +169,17 @@ are never backdated. There is no proof of complete intermediate writes or histor
 recovery from accountSubscribe. The v1 load/quality criterion failed; existing primary
 collector remains unchanged. See [D40 report](alchemy-pilot.md) for measured scope,
 source-pinned reproduction, queue/frame bounds, restart semantics and limitations.
+
+## B13: локальный operator control plane
+
+`memecoin_operator` добавляет localhost UI/API и durable команды поверх независимого
+Brain Development track. Scientific contracts описаны в
+[brain-autonomous-operator.md](brain-autonomous-operator.md); действия пользователя — в
+[brain-operator-manual.md](brain-operator-manual.md). Это не изменение frozen F01,
+canonical raw PumpSwap, execution/signing или synthetic-only reference replay.
+
+Команда хранится до side effects; request id идемпотентен. Неуспешные training reservations
+расходуют allowance. Published dataset/model имеют immutable manifest/hash. Stop intent
+и подтверждённое выключение различаются; неуспешный Stop all блокирует Resume до ACK.
+Неизвестные integrity errors не снимаются автоматически. Новые source/runtime revisions
+не изменяют исходные STOP, expiry, incidents, sealed artifacts и paper cash/PnL.

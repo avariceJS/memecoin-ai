@@ -1,5 +1,20 @@
 # Оценка модели и управление версиями
 
+## 2026-10-05 — автономные candidates и будущие exams B13
+
+Каждый completed/sealed candidate получает отдельный future exam с реальным activation,
+не backdated observation. Immutable hashes связывают dataset, recipe, code и model.
+AUTO может создавать candidates и future exams; автоматическая promotion запрещена.
+Champion остаётся empirical. Смена champion требует следующего research review,
+нового prospective evidence и отдельной авторизации, а не кнопки «лучший test».
+WAIT/ENTER/HOLD/EXIT — представление существующей fixed15min price-proxy policy;
+ENTER intent отдельно от fill, HOLD включает pending/existing exposure. Это не learned
+exit/MPC. Каждая virtual book независима, $1000 на книгу; суммы не общий портфель.
+Slippage50bps + fee25bps/side — assumptions, не calibrated execution. Малое число
+созревших forecast outcomes и CASH без сделок допустимы; edge не установлен.
+История STOP, gaps, failed runs и negative PnL сохраняется при техническом recovery.
+[Протокол B13](../docs/brain-autonomous-operator.md), [evidence](../docs/brain-b13-acceptance.md).
+
 ## B12 — положительный descriptive result с существенными ограничениями, 2026-10-04
 
 Все arms имеют одинаковые validation/test membership, модели/seeds/compute; source receipt

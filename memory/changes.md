@@ -1,5 +1,13 @@
 # История изменений решений
 
+## 2026-10-04 — B13 в работе: operator и два operational incidents
+
+Принят автономный7daypaperproduct безautoPromotion, recipeдоfits commit86929cb.
+Параллельные CursorGrokXHigh, ownership/receipts внеGit. B12 восстановлен отдельной
+revision послеSQLite-readrace; исходныйSTOP/expiry/modelrefs сохранены. B09 audit600s
+остановилsource; fullrawexact95,204bars, pinindexнаbackup audit512=2.235s. Repair ещё
+неактивирован; финальныеUI/E2E/ML acceptance впереди. [Статус](state.md).
+
 ## 2026-10-04 — B12: matched curriculum, новый frozen GRU и live exam
 
 Зафиксированы общиеval/test и1000updates;36fits за183.66s,0providerqueries. Trainrecent

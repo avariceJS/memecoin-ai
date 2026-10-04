@@ -52,6 +52,13 @@ Memory Bank — канонический, пригодный для чтения
 | Что менялось по сравнению с прежней концепцией | [changes.md](changes.md) |
 | На что опиралось обсуждение | [references.md](references.md) |
 
+## Автономный оператор B13
+
+- [Текущий machine/runtime статус](state.md) — читать первым.
+- [Operator manual](../docs/brain-operator-manual.md) — кнопки, bounds, STOP и restart.
+- [Протокол/архитектура](../docs/brain-autonomous-operator.md).
+- [Acceptance/evidence](../docs/brain-b13-acceptance.md), [история и отчёты](../docs/brain-operator-evidence.md).
+
 ## Типы утверждений
 
 - **Принято:** пользователь принял принцип или процесс как базу. Это может быть изменено новой аргументацией и решением.

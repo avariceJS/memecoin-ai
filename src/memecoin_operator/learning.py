@@ -181,6 +181,16 @@ def train(snapshot, output, progress):
         bounds=bounds,
         source_identity=identity(),
         operator_learning_sha=sha(Path(__file__)),
+        training_code={
+            name: sha(Path(__file__).parent.parent / name)
+            for name in (
+                "memecoin_curriculum/training.py",
+                "memecoin_curriculum/design.py",
+                "memecoin_curriculum/archive.py",
+                "memecoin_operator/learning.py",
+            )
+        },
+        torch_version=str(torch.__version__),
         trial_ids=[f"{k}-{s}" for k in RECIPE["kinds"] for s in RECIPE["seeds"]],
     )
     publish(output / "binding.json", binding)

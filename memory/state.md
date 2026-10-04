@@ -1,5 +1,40 @@
 # Текущий статус
 
+## B13 — финальная приёмка, 2026-10-05
+
+Текущий оператор: `work/brain-b13/operator04`, http://127.0.0.1:8792.
+Реальный UI путь Collect → Snapshot →4fits→immutable candidate→future paper выполнен.
+Dataset job_4ed49dcc84dfb59d:24train markets/92days/48000decisions; val451/test352,
+unseen_test_pools=[]; dataset SHA356a202be87a81c3753fe9141948be3a3f5d982c6190c821e7d7efbe86fd2191.
+Candidate job_fe34d70ab6cea0bc, SHA c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76.
+GRU выбран validation до test; descriptive test хуже empirical. Promotion НЕ выполняется.
+Future exam job_b7edd93ea86173f9: activation2026-10-04 21:13:36UTC, expiry24h.
+Реальные5/15min outcomes созрели; пока WAIT/CASH, не искусственные trades.
+
+Активные repaired services: source-repaired01 b09r1.source/audit (original25000/4000,
+expiry2026-10-07 12:23:51UTC); B10 b10-repaired02 b10r2.paper/train/UI8796;
+B12 b12-repaired02 b12r2.paper/UI8795 (expiry2026-10-05 18:28:50UTC unchanged).
+Original B09 STOP20:32UTC audit600s, B12 STOP19:41UTC WAL read race и неудачный
+B10-repaired01 STOP missing sealed model/ledger/.lock сохранены. Fullraw exact95204bars,
+repair сохраняет budgets/cursors/quarantine; copied paper ledger prefixes exact.
+Старые8790/8791/8793/8794 — архивные консоли, не активные paper workers.
+
+AUTO bound:6reservations включаяfailures, ≥24h+100newmatured, срок продукта
+2026-10-11 20:31:13UTC. После original source expiry — отдельный qualified successor
+≤30000additional GET/background6000. SingleproviderGT и фиксированный24market cohort
+остаются ограничениями. Policy fixed15min, не learned exit/MPC; virtualbooks независимы.
+Не читать/менять protectedF01/D43/holdout. D43 LaunchAgent сохранён.
+
+Проверки: make setup/check/smoke/build прошли;853base tests/10optional skips,
+40optional ML tests прошли. Финальные focused checks и pinned deployment/E2E ещё
+закрываются — итог искать в docs/evidence/brain-operator-acceptance-2026-10-05.json.
+Последний checkpoint: devserver02 после безопасного restart, реальный UI AUTO/Pause/
+Resume/Stop acceptance запущен. Не создавать новый root и не сбрасывать SQLite/reservations.
+Все Cursor workers реально grok-4.7-xhigh,10sessions; receipts в work/brain-b13/delegation.
+[Протокол](../docs/brain-autonomous-operator.md), [приёмка](../docs/brain-b13-acceptance.md),
+[инструкция](../docs/brain-operator-manual.md). Следующий Codex: сначала эту секцию,
+final evidence и operator report/ledger; прежние статусы ниже — история до B13 repair.
+
 ## B12 — curriculum сравнен, frozen candidate уже получает future paper, 2026-10-04
 
 **B09 source/audit и B10 paper/train/UI сохранены.** Дополнительно работает независимый

@@ -1078,3 +1078,14 @@ life journal. Это заменяет прежнее ожидание следу
 оставлен отдельным scientific review, без автоматического выбора по короткомуPnL.
 Recipe и operating protocol доfits — [B13](../docs/brain-autonomous-operator.md).
 НовыйB12STOP index_membership_corruption расследуется; ниSTOP, ниweights/expiry не переписывать.
+
+### B13 — техническое восстановление после audit deadline
+
+2026-10-04. Новый B09 STOP доexpiry: audit600s. Backup/raw exact95,204bars;
+queryplan доказывает отсутствие pinindex и512полных проходов. На независимой копии тот же
+batch512 с индексом занял2.235s. Разрешена техническая repair revision в новом root,
+с точным переносом provider state/ledger lineage, без reset budget/expiry/quarantine.
+Исходный STOP сохраняется; successor с новым budget по-прежнему только после исходногоexpiry.
+Paper migrations только exact prefix/cash/pending/model/start/expiry. Это operational
+repair в рамках текущего поручения, не пересмотр scientific gates.
+[Инциденты и evidence](../docs/brain-autonomous-operator.md).
