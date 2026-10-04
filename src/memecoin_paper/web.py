@@ -10,7 +10,7 @@ HTML = r"""<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="view
 </style><main><header><div><div class="eyebrow">MEMECOIN AI / BRAIN DEVELOPMENT</div><h1>Живой Brain</h1><span class="muted">Рынок → прогноз → решение → виртуальный результат → обучение</span></div><div><span class="pill"><span class="dot"></span>Только виртуальные деньги</span><div id="connection" class="muted">Подключение…</div></div></header>
 <div class="banner">Paper / price proxy · Цена GeckoTerminal, свеча 5 минут. Slippage 50 bps + fee 25 bps на сторону — допущение, не измеренное исполнение. Paper PnL не доказывает edge.</div>
 <div class="stats"><div class="stat"><small>Свежие рынки / наблюдаемые</small><span class="value" id="markets">—</span></div><div class="stat"><small>Позиции / ожидают входа</small><span class="value" id="positions">—</span></div><div class="stat"><small>Закрытые виртуальные сделки</small><span class="value" id="trades">—</span></div><div class="stat"><small>Бары в локальном corpus</small><span class="value" id="corpus">—</span></div></div>
-<div id="source-health" class="banner" hidden></div><h2>Модели и виртуальные портфели</h2><p>У каждой версии независимые $1 000. Вход $100, максимум 3 позиции. Сигнал: q50 &gt; 1,6% в simple return, q10 ≥ −25% log return. Вход на следующей новой доступной закрытой свече; выход по времени через 15 минут от свечи входа.</p><div class="books" id="books"><div class="empty">Ожидаем первые прогнозы после активации. История решений не дорисовывается.</div></div>
+<div id="operations" class="banner" hidden></div><div id="source-health" class="banner" hidden></div><h2>Модели и виртуальные портфели</h2><p>У каждой версии независимые $1 000. Вход $100, максимум 3 позиции. Сигнал: q50 &gt; 1,6% в simple return, q10 ≥ −25% log return. Вход на следующей новой доступной закрытой свече; выход по времени через 15 минут от свечи входа.</p><div class="books" id="books"><div class="empty">Ожидаем первые прогнозы после активации. История решений не дорисовывается.</div></div>
 <h2>Что Brain наблюдает</h2><div class="panel" id="market"></div>
 <div class="split"><section><h2>Последние решения</h2><div class="panel" id="signals"></div></section><section><h2>Виртуальные входы и выходы</h2><div class="panel" id="executions"></div></section></div>
 <div class="split"><section><h2>День за днём: реализованный результат</h2><div class="panel" id="daily"></div></section><section><h2>Новые outcomes: paired forecast loss</h2><div class="panel" id="forecast"></div></section></div>
@@ -20,7 +20,8 @@ HTML = r"""<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="view
 const $=id=>document.getElementById(id), esc=s=>String(s??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])), short=s=>String(s).slice(0,9), usd=n=>Number(n).toLocaleString('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}), when=n=>new Date(n/1e6).toLocaleString('ru-RU'), day=n=>new Date(n*864e5).toISOString().slice(0,10);
 const reason={enter_next_observed_close:'Вошёл бы → ждёт новую свечу',median_below_cost_buffer:'Остаться в cash: прогноз ниже затрат',predicted_tail_risk:'Отказ: риск хвоста',already_exposed:'Позиция / заявка уже есть',position_limit:'Лимит трёх позиций',cash_limit:'Лимит средств',stale_or_quarantined:'Нет свежих допустимых данных',source_paused:'Источник остановлен',late_prediction_no_backfill:'Прогноз устарел'};
 function table(headers,rows){return rows.length?'<table><thead><tr>'+headers.map(x=>'<th>'+esc(x)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(x=>'<td>'+x+'</td>').join('')+'</tr>').join('')+'</tbody></table>':'<div class="empty">Пока нет наблюдений. Нулевой результат не подменяет отсутствие данных.</div>'}
-function draw(d){let now=Date.now()*1e6, lag=(now-d.generated_ns)/1e9;const fresh=o=>o.quality==='active'&&now/1e9-o.close_s<=300&&now/1e9>=o.close_s;const active=d.source_ok&&now<d.expires_ns&&lag<120;
+function draw(d){let now=Date.now()*1e6, lag=(now-d.generated_ns)/1e9;const fresh=o=>o.quality==='active'&&now/1e9-o.close_s<=300&&now/1e9>=o.close_s;const active=d.source_ok&&now<d.expires_ns&&lag<120&&(!d.operations||(d.operations.paper.healthy&&d.operations.source.healthy));
+if(d.operations){let o=d.operations;$('operations').hidden=false;$('operations').textContent='Текущая проверка · paper '+(o.paper.stopped?'STOP':o.paper.healthy?'работает':o.paper.supervisor_status)+' · source '+(o.source.healthy?'работает':o.source.stopped?'STOP':'пауза / heartbeat')+' · training '+o.training.state+' · не раньше '+when(o.training.not_before_ns)+' и 100 новых mature samples · '+o.training.reservations+'/'+o.training.max_runs+' reservations';}
 $('connection').textContent=(active?'Обновляется':'Пауза / устаревший снимок')+' · '+when(d.generated_ns)+' · '+Math.round(lag)+' с';$('connection').className=active?'good':'warn';
 $('markets').textContent=d.market.filter(fresh).length+' / '+(d.source_health?.admitted_pools??d.market.length);$('positions').textContent=d.books.reduce((s,b)=>s+b.positions.length,0)+' / '+d.books.reduce((s,b)=>s+b.pending.length,0);$('trades').textContent=d.books.reduce((s,b)=>s+b.trades,0);$('corpus').textContent=d.corpus_bars.toLocaleString('ru-RU');
 if(d.source_health){$('source-health').hidden=false;const h=d.source_health;$('source-health').textContent='Источник · '+h.observed_pools+'/'+h.admitted_pools+' рынков с данными · '+h.bars+' candles · '+h.attempts+'/'+h.max_requests+' GET · '+h.captures+' raw captures · '+(h.hot_pools?.length?'hot fresh '+d.market.filter(o=>h.hot_pools.includes(o.pool)&&fresh(o)).length+'/'+h.hot_pools.length+' · cadence '+h.hot_interval_s+'s · ':'')+(h.cooldown_ns>now?'COOLDOWN до '+when(h.cooldown_ns):(active?'сбор доступен':'источник на паузе / heartbeat устарел'))}
@@ -56,7 +57,18 @@ def handler(root, port):
                 data, kind = HTML.encode(), "text/html; charset=utf-8"
             elif self.path == "/api/snapshot" and (root / "dashboard.json").exists():
                 raw = json.loads((root / "dashboard.json").read_text())
+                if (root / "config.json").exists():
+                    from .health import operational
+
+                    raw["operations"] = operational(root)
                 data, kind = json.dumps(raw, allow_nan=False).encode(), "application/json"
+            elif self.path == "/api/health" and (root / "config.json").exists():
+                from .health import operational
+
+                data, kind = (
+                    json.dumps(operational(root), allow_nan=False).encode(),
+                    "application/json",
+                )
             else:
                 self.send_error(404)
                 return

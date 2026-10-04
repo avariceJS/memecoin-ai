@@ -61,3 +61,20 @@ def test_parent_exception_produces_durable_incident_and_stops_paper(tmp_path, mo
         json.loads(next(tmp_path.glob("incident-*.json")).read_text())["category"]
         == "supervisor_OSError"
     )
+
+
+def test_startup_guard_failure_is_durable_and_safe(tmp_path, monkeypatch):
+    setup(tmp_path, monkeypatch, "paper")
+
+    def broken(_):
+        raise ValueError("private-endpoint-token")
+
+    monkeypatch.setattr(runtime, "guard", broken)
+    runtime.main()
+    runtime.main()
+    assert (tmp_path / "STOP").exists()
+    incidents = list(tmp_path.glob("incident-*.json"))
+    assert len(incidents) == 1
+    text = incidents[0].read_text()
+    assert "private-endpoint-token" not in text
+    assert json.loads(text)["detail"]["stage"] == "startup"

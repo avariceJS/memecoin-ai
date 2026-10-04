@@ -75,3 +75,45 @@ def test_open_position_cash_and_prefix_survive_new_source(tmp_path):
     after = replay(root)
     assert after["counts"] == dict(decision=1, entry=1, exit=1)
     assert replay(old) == before  # original history never mutated
+
+
+def test_repeat_migration_preserves_shadow_soak_training_and_retry_budget(tmp_path):
+    from memecoin_continuous.soak import record
+    from memecoin_ml.data import read, sha
+
+    old = tmp_path / "old"
+    old.mkdir()
+    source = tmp_path / "source"
+    source.mkdir()
+    champion = tmp_path / "champion"
+    champion.mkdir()
+    publish(champion / "manifest.json", {})
+    (old / "training").mkdir()
+    shadow = old / "candidate-shadows" / sha(champion / "manifest.json") / "shadow"
+    shadow.mkdir(parents=True)
+    publish(shadow / "fixture.json", dict(immutable=True))
+    (old / "recovery").mkdir()
+    publish(old / "recovery/attempt-000000.json", dict(reserved_ns=1))
+    publish(old / "config.json", dict(source=str(source), training_max_runs=4))
+    publish(source / "config.json", dict(expires_ns=9999, training_max_runs=8))
+    publish(old / "migration.json", dict(fixture=True))
+    publish(old / "STOP", dict(reason="retained"))
+    record(old, dict(at_ns=100, source_ok=True, fresh_hot=4, source_attempts=10, corpus_bars=100))
+    with Ledger(old / "ledger", dict(fixture=True)):
+        pass
+    root = tmp_path / "new"
+    before = replay(old)
+    migrate(old, root, source, "pin", champion, service_prefix="test.b10.")
+    assert replay(root) == before
+    assert read(root / "config.json")["training_max_runs"] == 4
+    assert read(root / "config.json")["service_prefix"] == "test.b10."
+    assert read(root / "migration.json")["parent_stop_sha"] == sha(old / "STOP")
+    assert (
+        root / "candidate-shadows" / shadow.parent.name / "shadow/fixture.json"
+    ).read_bytes() == (shadow / "fixture.json").read_bytes()
+    assert (root / "recovery/attempt-000000.json").exists()
+    result = record(
+        root, dict(at_ns=200, source_ok=True, fresh_hot=4, source_attempts=11, corpus_bars=101)
+    )
+    assert result[0]["samples"] == 2
+    assert (old / "STOP").exists()

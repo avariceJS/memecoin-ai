@@ -15,11 +15,25 @@ from .runtime import atomic
 
 
 def models(root):
-    return [
-        p / "model"
-        for p in sorted((root / "training").glob("*"))
-        if (p / "model/manifest.json").exists()
-    ]
+    result = []
+    for p in sorted((root / "training").glob("*")):
+        if not (p / "manifest.json").exists() or not (p / "result.json").exists():
+            continue
+        reservation = read(p / "reservation.json") if (p / "reservation.json").exists() else {}
+        if reservation.get("candidate_publication") == 2:
+            ready = root / "candidate-ready" / (p.name + ".json")
+            if not ready.exists():
+                continue
+            if read(ready)["run_manifest_sha"] != sha(p / "manifest.json"):
+                raise ValueError("candidate_ready_binding")
+        outcome = read(p / "result.json")
+        if outcome["status"] != "completed":
+            continue
+        verify(p)
+        if sha(p / "model/manifest.json") != outcome["model_sha"]:
+            raise ValueError("candidate_result_binding")
+        result.append(p / "model")
+    return result
 
 
 def source_rows(c, cutoff, training=False):
@@ -320,6 +334,7 @@ def training(root):
         run / "reservation.json",
         dict(
             started_ns=now,
+            candidate_publication=2,
             matured=matured,
             max_seconds=600,
             max_fits=4,
@@ -348,6 +363,11 @@ def training(root):
             ),
         )
         seal(run)
+        (root / "candidate-ready").mkdir(exist_ok=True)
+        publish(
+            root / "candidate-ready" / (run.name + ".json"),
+            dict(run_manifest_sha=sha(run / "manifest.json"), published_ns=time.time_ns()),
+        )
     except Exception as exc:
         if not (run / "result.json").exists():
             publish(

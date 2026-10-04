@@ -82,33 +82,47 @@ def stage(root, bundle):
 
 
 def guard(root):
-    ref = read(root / "deployment.json")
+    from .supervision import checked
+
+    ref = checked("paper_deployment", lambda: read(root / "deployment.json"))
     bundle = Path(ref["bundle"])
-    if sha(bundle / "manifest.json") != ref["pin"]:
-        raise ValueError("runtime_pin")
-    verify(bundle)
-    b = read(bundle / "binding.json")
-    if b["config_sha"] != sha(root / "config.json") or b["python_sha"] != sha(
-        Path(sys.executable).resolve()
-    ):
-        raise ValueError("runtime_binding")
-    c = read(root / "config.json")
+
+    def paper_binding():
+        if sha(bundle / "manifest.json") != ref["pin"]:
+            raise ValueError("runtime_pin")
+        verify(bundle)
+        b = read(bundle / "binding.json")
+        if (
+            b["root"] != str(root.resolve())
+            or b["config_sha"] != sha(root / "config.json")
+            or b["python_sha"] != sha(Path(sys.executable).resolve())
+        ):
+            raise ValueError("runtime_binding")
+        return read(root / "config.json")
+
+    c = checked("paper_inventory_binding", paper_binding)
     if c.get("source_backend") == "continuous":
         from memecoin_continuous.runtime import guard_source
 
-        guard_source(Path(c["source"]), c["source_runtime_pin"])
+        checked(
+            "source_inventory_binding",
+            lambda: guard_source(Path(c["source"]), c["source_runtime_pin"]),
+        )
     else:
         from memecoin_brain_quality.runtime import verify_runtime
 
-        verify_runtime(Path(c["source"]), c["source_runtime_pin"])
+        checked(
+            "source_inventory_binding",
+            lambda: verify_runtime(Path(c["source"]), c["source_runtime_pin"]),
+        )
     return c
 
 
 def main():
     root = Path(sys.argv[1])
     phase = sys.argv[2]
-    c = guard(root)
     if phase == "ui":
+        c = guard(root)
         from .web import serve
 
         serve(root, c["port"])
@@ -117,18 +131,53 @@ def main():
         raise ValueError("paper_phase")
     if (root / "STOP").exists() or (phase == "train" and (root / "TRAIN_STOP").exists()):
         return
+    from .supervision import (
+        GuardFailure,
+        checked,
+        complete,
+        incidents,
+        ready,
+        reserve,
+        safe_error,
+        stop,
+    )
+
+    try:
+        c = guard(root)
+        checked("disk", lambda: disk_check(root))
+    except Exception as exc:
+        detail = exc.detail if isinstance(exc, GuardFailure) else safe_error(exc, "startup")
+        result = dict(exit_code=-1, category="startup_guard_failure", detail=detail)
+        incident = incidents(root, phase, result)
+        stop(root, phase, incident)
+        atomic(
+            root / (phase + "-health.json"), dict(at_ns=time.time_ns(), status="failed", **result)
+        )
+        return
     if time.time_ns() >= c["expires_ns"]:
         atomic(
             root / "health.json",
             dict(at_ns=time.time_ns(), status="expired", reason="rollout_expired"),
         )
         return
-    if shutil.disk_usage(root).free < 2 * 1024**3:
-        raise ValueError("disk_floor")
     with (root / ("." + phase + ".lock")).open("a") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
+            return
+        try:
+            if phase == "paper" and not ready(root, time.time_ns()):
+                return
+        except Exception as exc:
+            result = dict(
+                exit_code=-1, category="recovery_audit_failed", detail=safe_error(exc, "replay")
+            )
+            incident = incidents(root, phase, result)
+            stop(root, phase, incident)
+            atomic(
+                root / (phase + "-health.json"),
+                dict(at_ns=time.time_ns(), status="failed", **result),
+            )
             return
         runtime = Path(read(root / "deployment.json")["bundle"]) / "runtime"
         script = (
@@ -141,8 +190,14 @@ def main():
         seconds = 600 if phase == "train" else 120
         watch = Watch(seconds)
 
+        guard_detail = {}
+
         def active_guard():
-            guard(root)
+            try:
+                guard(root)
+            except GuardFailure as exc:
+                guard_detail.update(exc.detail)
+                raise
             if (root / "STOP").exists():
                 raise GateError("stop_requested")
             if time.time_ns() >= c["expires_ns"] or watch.remaining() <= 0:
@@ -156,15 +211,30 @@ def main():
                 active_guard,
             )
         except Exception as exc:
-            result = dict(exit_code=-1, category="supervisor_" + type(exc).__name__)
-        if result["exit_code"] != 0:
-            p = root / ("incident-" + phase + "-" + str(time.time_ns()) + ".json")
-            publish(p, result)
-            stop = root / ("STOP" if phase == "paper" else "TRAIN_STOP")
-            if not stop.exists():
-                publish(stop, dict(reason=phase + "_worker_failure", incident=p.name))
-            atomic(
-                root / (phase + "-health.json"),
-                dict(at_ns=time.time_ns(), status="failed", **result),
+            result = dict(
+                exit_code=-1,
+                category="supervisor_" + type(exc).__name__,
+                detail=exc.detail
+                if isinstance(exc, GuardFailure)
+                else safe_error(exc, "child_launch"),
             )
+        if guard_detail:
+            result["detail"] = guard_detail
+        now = time.time_ns()
+        if result["exit_code"] != 0:
+            incident = incidents(root, phase, result)
+            recovering = reserve(root, phase, result, incident, now)
+            if not recovering:
+                stop(root, phase, incident)
+            status = "recovery_cooldown" if recovering else "failed"
+        else:
+            if phase == "paper":
+                complete(root, now)
+            status = "completed"
+        atomic(root / (phase + "-health.json"), dict(at_ns=now, status=status, **result))
         print(json.dumps(dict(phase=phase, **result)), flush=True)
+
+
+def disk_check(root):
+    if shutil.disk_usage(root).free < 2 * 1024**3:
+        raise ValueError("disk_floor")
