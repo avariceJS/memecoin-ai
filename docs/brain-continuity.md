@@ -57,3 +57,27 @@ Control Center: прежние портфели/сделки, новые рын�
 quota/cache; отдельноеповедениекандидатов (решения, входы, realized/MTM) иpaired futureloss.
 Первые новыеfits иполныесутки не симулировать радиотчёта. Следующийшаг определяется
 фактическимиcoverage/failures/поведениеммоделей, не backbone complexity.
+
+## Наблюдённое ограничение и поправка до activation
+
+Первые три discovery pages успешны; четвёртая получила HTTP429 без Retry-After.
+Через6s тотжеответ получил B04, который штатно поставил STOP. Это не доказательство
+ошибки credentials или отсутствияfreeплана. Точная причина срабатывания ниже опубликованных
+30/min неизвестна. Сохраняются оба receipt и старый STOP; повторных discovery GET нет.
+Universe24 собран из трёх успешных страниц. B07 продолжает UI/accounting, но входыpaused.
+
+Новыйsource наследует оба429 и15mincooldown, 2из3rateevents/24h. Доcooldown новыхGET0.
+Дляrecovery выбран5/min (12s spacing), а не обещанныйпровайдероммаксимум. Третий429/24h
+закроетновыйsource; этотбюджетнеобнуляетсяприrestart. Проверкапослеcooldown≤32GET,
+каждыйподdurable reservation; приSTOPнемедленноостановиться. Сначалаqualifiedlive12+новые
+рынки; историяиспользуетоставшеесявремя. Paidподключениянеразрешены иневыполняются.
+
+Тест IO также выявилduplicateключ `pools` вhealth report; исправлено наobserved_pools
+доlivequalification. Paper ledger/политика имодели не менялись. Capture bodies/index и
+переносстарыхсделок проверяются independently; DB — derivedcache, raw остаётсяистиной.
+Часовойbounded audit до512raw captures вращаетсяпоleast-recently-verified, дополнительно
+проверяетversion/first membership. Полнаяraw/indexсверкаобязательнапередactivation.
+
+Activation gate перед post-cooldown GET: все24pool dispositions доступны (включая
+наследованнуюquarantine); ≥6fresh pools и≥4новыхpool сvalid decodedbars наqualification
+cutoff, raw/indexexact, migrationfixtureexact. Этоoperational minimumдляdemo, неMLreadiness.

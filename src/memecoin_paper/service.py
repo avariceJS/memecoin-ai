@@ -22,29 +22,46 @@ def models(root):
     ]
 
 
+def source_rows(c, cutoff, training=False):
+    if c.get("source_backend") == "continuous":
+        from memecoin_continuous.store import view
+
+        return view(
+            Path(c["source"]), cutoff, since=cutoff // 10**9 - (7 if training else 2) * 86400
+        )
+    return safe_corpus(Path(c["source"]), cutoff)
+
+
 def candidate_tick(root, rows, prov, healthy):
-    candidates = models(root)
-    if not candidates or not healthy:
-        return
     from memecoin_brain.shadow import tick
 
-    # Last 24h is ample context and pending-outcome support; no source download.
+    c = read(root / "config.json")
+    candidates = models(root)
+    active_models = candidates[-1:]
+    if c.get("champion_model_path"):
+        active_models = [Path(c["champion_model_path"]), *active_models]
+    if not active_models or not rows:
+        return
     last = max(r["open_s"] for r in rows)
     recent = [r for r in rows if r["open_s"] >= last - 86400]
-    lane = root / "candidate-shadows" / sha(candidates[-1] / "manifest.json")
-    (lane / "shadow").mkdir(parents=True, exist_ok=True)
-    for old in sorted((root / "candidate-shadows").glob("*")):
-        if old != lane:
-            tick(old, recent, prov, None)
-    tick(lane, recent, prov, candidates[-1], prediction_pools=healthy)
+    selected = {}
+    for model in active_models:
+        lane = root / "candidate-shadows" / sha(model / "manifest.json")
+        (lane / "shadow").mkdir(parents=True, exist_ok=True)
+        selected[lane] = model
+    for lane in sorted((root / "candidate-shadows").glob("*")):
+        tick(lane, recent, prov, selected.get(lane) if healthy else None, prediction_pools=healthy)
 
 
 def paper(root):
     c = read(root / "config.json")
     source = Path(c["source"])
     cut = time.time_ns()
-    rows, prov = safe_corpus(source, cut)
-    quality, _ = states(source)
+    rows, prov = source_rows(c, cut)
+    if c.get("source_backend") == "continuous":
+        quality = read(source / "health.json")["pools"]
+    else:
+        quality, _ = states(source)
     active = {p for p, q in quality.items() if q["status"] == "active"}
     source_ok = not (source / "STOP").exists() and cut < read(source / "config.json")["expires_ns"]
     candidate_tick(root, rows, prov, active if source_ok else set())
@@ -88,7 +105,17 @@ def paper(root):
                 )
             )
     binding = dict(config_sha=sha(root / "config.json"), scope="virtual_only_B07")
+    migration = None
+    if c.get("migration_sha"):
+        if sha(root / "migration.json") != c["migration_sha"]:
+            raise ValueError("paper_migration_pin")
+        migration = read(root / "migration.json")
+        binding = migration["ledger_binding"]
     with Ledger(root / "ledger", binding) as ledger:
+        if migration:
+            prefix = ledger.events[: migration["prefix_events"]]
+            if not prefix or prefix[-1]["sha256"] != migration["prefix_head"]:
+                raise ValueError("paper_migration_prefix")
         state = initial()
         all_records = []
         last_tick = None
@@ -107,6 +134,7 @@ def paper(root):
             market=market,
             predictions=predictions,
             source_ok=source_ok,
+            deployment_config_sha=sha(root / "config.json"),
         )
         due = any(b["pending"] for b in state["books"].values())
         if (
@@ -163,6 +191,31 @@ def paper(root):
             info.append(read(p / "result.json"))
         elif (p / "reservation.json").exists():
             info.append(dict(status="reserved_or_running", **read(p / "reservation.json")))
+    behavior = {}
+    for record in all_records:
+        k = record["book"]
+        b = behavior.setdefault(k, dict(decisions=0, entries=0, exits=0, reasons={}))
+        field = {"decision": "decisions", "entry": "entries", "exit": "exits"}.get(record["kind"])
+        if field:
+            b[field] += 1
+        if record["kind"] == "decision":
+            reason = record["reason"]
+            b["reasons"][reason] = b["reasons"].get(reason, 0) + 1
+    extra = {}
+    if c.get("source_backend") == "continuous":
+        from memecoin_continuous.store import stats
+
+        h = read(source / "health.json")
+        extra = dict(
+            source_health=dict(
+                **stats(source),
+                attempts=h["attempts"],
+                cooldown_ns=h["cooldown_ns"],
+                max_requests=read(source / "config.json")["max_requests"],
+                admitted_pools=len(quality),
+            ),
+            model_behavior=behavior,
+        )
     public = dict(
         schema="brain-paper-v1",
         generated_ns=now,
@@ -182,7 +235,8 @@ def paper(root):
         paper_live_authorized=True,
         real_execution_enabled=False,
         source_requests_added=0,
-        corpus_bars=len(rows),
+        corpus_bars=extra.get("source_health", {}).get("bars", len(rows)),
+        **extra,
     )
     atomic(root / "dashboard.json", public)
     atomic(
@@ -201,13 +255,16 @@ def training(root):
     c = read(root / "config.json")
     runs = sorted((root / "training").glob("*"))
     now = time.time_ns()
-    if len(runs) >= 3:
+    if len(runs) >= c.get("training_max_runs", 3):
         return
     if runs and now - read(runs[-1] / "reservation.json")["started_ns"] < 86400 * 10**9:
         return
-    rows, prov = safe_corpus(Path(c["source"]), now)
+    rows, prov = source_rows(c, now, training=True)
     latest = max(r["open_s"] for r in rows)
     rows = [r for r in rows if r["open_s"] >= latest - 7 * 86400]
+    if c.get("training_bar_cap") and len(rows) > c["training_bar_cap"]:
+        floor = sorted(r["open_s"] for r in rows)[-c["training_bar_cap"]]
+        rows = [r for r in rows if r["open_s"] >= floor]
     bundle = build(rows, prov)
     matured = sum(
         all(t["log_return"] is not None and t["available_ns"] <= now for t in s["targets"])

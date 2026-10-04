@@ -90,7 +90,7 @@ def main():
         ROOT / "seed.json",
         dict(
             parent=str(OLD),
-            captures=len(captures),
+            seed_capture_count=len(captures),
             seconds=time.monotonic() - start,
             quality=quality,
             model="B07 unchanged",

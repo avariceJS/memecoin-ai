@@ -62,7 +62,7 @@ def stage(root, bundle):
             phase,
         ]
         value = dict(
-            Label="ai.memecoin.brain.b07." + phase,
+            Label=c.get("service_prefix", "ai.memecoin.brain.b07.") + phase,
             ProgramArguments=args,
             RunAtLoad=True,
             WorkingDirectory=str(root.resolve()),
@@ -75,7 +75,7 @@ def stage(root, bundle):
             value["StartInterval"] = interval
         else:
             value["KeepAlive"] = True
-        path = launch / ("ai.memecoin.brain.b07." + phase + ".plist")
+        path = launch / (c.get("service_prefix", "ai.memecoin.brain.b07.") + phase + ".plist")
         with path.open("xb") as f:
             plistlib.dump(value, f)
     return dict(pin=pin, expires_ns=c["expires_ns"])
@@ -93,9 +93,14 @@ def guard(root):
     ):
         raise ValueError("runtime_binding")
     c = read(root / "config.json")
-    from memecoin_brain_quality.runtime import verify_runtime
+    if c.get("source_backend") == "continuous":
+        from memecoin_continuous.runtime import guard_source
 
-    verify_runtime(Path(c["source"]), c["source_runtime_pin"])
+        guard_source(Path(c["source"]), c["source_runtime_pin"])
+    else:
+        from memecoin_brain_quality.runtime import verify_runtime
+
+        verify_runtime(Path(c["source"]), c["source_runtime_pin"])
     return c
 
 

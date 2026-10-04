@@ -20,6 +20,7 @@ def connect(path):
     create table if not exists versions(pool text, open_s integer, available integer,
       pin text, payload text, checksum text, primary key(pool,open_s,pin));
     create index if not exists version_time on versions(available);
+    create index if not exists version_open on versions(open_s,available);
     create table if not exists firsts(pool text, open_s integer, available integer,
       pin text, payload text, checksum text, primary key(pool,open_s));
     create index if not exists first_time on firsts(open_s,available);
@@ -90,6 +91,21 @@ def view(root, cutoff, *, since=0):
             "order by pool,open_s",
             (cutoff, since),
         ).fetchall()
+        expected = db.execute(
+            "select count(*) from (select pool,open_s from versions "
+            "where available<=? and open_s>=? group by pool,open_s)",
+            (cutoff, since),
+        ).fetchone()[0]
+        if expected != len(values):
+            raise ValueError("index_membership_corruption")
+        mismatch = db.execute(
+            "select count(*) from firsts f left join versions v on f.pool=v.pool "
+            "and f.open_s=v.open_s and f.pin=v.pin where f.available<=? and f.open_s>=? "
+            "and (v.pin is null or f.payload!=v.payload)",
+            (cutoff, since),
+        ).fetchone()[0]
+        if mismatch:
+            raise ValueError("index_version_binding_corruption")
         rows = []
         for payload, checksum in values:
             row = json.loads(payload)
@@ -127,7 +143,7 @@ def stats(root):
             bars=db.execute("select count(*) from firsts").fetchone()[0],
             captures=db.execute("select count(*) from captures").fetchone()[0],
             versions=db.execute("select count(*) from versions").fetchone()[0],
-            pools=db.execute("select count(distinct pool) from firsts").fetchone()[0],
+            observed_pools=db.execute("select count(distinct pool) from firsts").fetchone()[0],
         )
 
 
@@ -148,3 +164,41 @@ def audit(root, cutoff):
     if rows != cached:
         raise ValueError("index_full_raw_mismatch")
     return dict(exact=True, bars=len(rows), fingerprint=digest(rows), captures=len(caps))
+
+
+def audit_batch(root, now, limit=512):
+    """Bounded rotating raw verification; no network or first-observed mutation."""
+    db = connect(root / "index.sqlite")
+    try:
+        db.execute("create table if not exists audited(pin text primary key, at_ns integer)")
+        todo = db.execute(
+            """select c.pin,c.path,c.record from captures c left join audited a
+                           on c.pin=a.pin order by coalesce(a.at_ns,0),c.available limit ?""",
+            (limit,),
+        ).fetchall()
+        for pin, path, raw in todo:
+            cap = Path(path)
+            verify(cap)
+            record = json.loads(raw)
+            expected = bars(cap, record["pool"]) if record["status"] == "valid" else []
+            got = []
+            for payload, checksum in db.execute(
+                "select payload,checksum from versions where pin=? order by open_s", (pin,)
+            ):
+                row = json.loads(payload)
+                if digest(row) != checksum:
+                    raise ValueError("index_version_corruption")
+                got.append(row)
+            if expected != got:
+                raise ValueError("index_raw_versions_mismatch")
+            with db:
+                db.execute("insert or replace into audited values(?,?)", (pin, now))
+        missing = db.execute("""select count(*) from (select pool,open_s,min(available) av
+                             from versions group by pool,open_s) v left join firsts f
+                             on v.pool=f.pool and v.open_s=f.open_s
+                             where f.pool is null or f.available!=v.av""").fetchone()[0]
+        if missing:
+            raise ValueError("index_first_membership_corruption")
+        return dict(verified=len(todo), at_ns=now, first_membership=True)
+    finally:
+        db.close()

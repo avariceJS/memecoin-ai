@@ -23,7 +23,7 @@ NS = 10**9
 
 
 def seed_state(root):
-    return dict(
+    value = dict(
         last_ns=0,
         cooldown_ns=0,
         failures=0,
@@ -44,6 +44,24 @@ def seed_state(root):
             for p in read(root / "universe.json")["pools"]
         },
     )
+
+    if (root / "seed.json").exists():
+        previous = read(root / "seed.json")["quality"]
+        for pool, old in previous.items():
+            q = value["pools"][pool]
+            q.update(
+                streak=old["streak"],
+                probes=old["probes"],
+                probe_day=read(root / "config.json")["created_ns"] // (86400 * NS),
+            )
+            if old["status"] != "active":
+                q["next_ns"] = old["next_probe_ns"]
+        with connect(root / "index.sqlite") as db:
+            for pool, earliest in db.execute("select pool,min(open_s) from firsts group by pool"):
+                value["pools"][pool]["cursor"] = earliest - 1
+    if (root / "provider-seed.json").exists():
+        value.update(read(root / "provider-seed.json"))
+    return value
 
 
 def state(root):
@@ -146,17 +164,21 @@ def outcome(s, job, receipt, rows, status, now, floor):
 
 def fetch(root, job, s, ledger):
     c = read(root / "config.json")
-    delay = s["last_ns"] / NS + 4 - time.time()
-    if delay > 6:
+    delay = s["last_ns"] / NS + c.get("request_spacing_s", 12) - time.time()
+    if delay > c.get("request_spacing_s", 12) + 2:
         raise ValueError("source_clock_regression")
     if delay > 0:
         time.sleep(delay)
     now = time.time_ns()
+    if now < s["cooldown_ns"]:
+        raise ValueError("provider_cooldown")
     if (root / "STOP").exists() or now >= c["expires_ns"]:
         raise ValueError("source_stop_or_expiry")
     if s["attempts"] >= c["max_requests"]:
         raise ValueError("request_budget")
-    if shutil.disk_usage(root).free < 4 * 1024**3 or s["bytes"] + 2 * 1024**2 > 8 * 1024**3:
+    index_bytes = sum(p.stat().st_size for p in root.glob("index.sqlite*"))
+    charged = s["bytes"] + index_bytes + s["attempts"] * 40960
+    if shutil.disk_usage(root).free < 4 * 1024**3 or charged + 2 * 1024**2 > 8 * 1024**3:
         raise ValueError("storage_budget")
     target = root / "requests" / f"{s['attempts']:06d}"
     if job["lane"] == "discovery":
@@ -217,6 +239,8 @@ def fetch(root, job, s, ledger):
         ssl.SSLError,
         http.client.HTTPException,
     ) as exc:
+        if isinstance(exc, urllib.error.HTTPError):
+            (target / "error-response.bin").write_bytes(exc.read(2 * 1024**2 + 1))
         receipt = dict(
             http_status=getattr(exc, "code", None),
             error_type=type(exc).__name__,
@@ -229,7 +253,11 @@ def fetch(root, job, s, ledger):
         publish(target / "failure.json", receipt)
         seal(target)
         rows = []
-        status = "transport"
+        status = (
+            "missing_pool"
+            if receipt["http_status"] in (404, 410) and job.get("pool")
+            else "transport"
+        )
         print(json.dumps(receipt), flush=True)
     s["bytes"] -= 2 * 1024**2 + 65536
     s["bytes"] += sum(p.stat().st_size for p in target.iterdir() if p.is_file())
