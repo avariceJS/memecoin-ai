@@ -36,6 +36,11 @@ def migrate(old, root, source, pin, champion, *, service_prefix=None):
             for name in ("soak", "recovery", "candidate-ready"):
                 if (old / name).exists():
                     shutil.copytree(old / name, root / name)
+            if (old / "TRAIN_STOP").exists():
+                shutil.copyfile(old / "TRAIN_STOP", root / "TRAIN_STOP")
+                incident = read(old / "TRAIN_STOP").get("incident")
+                if incident and Path(incident).name == incident and (old / incident).is_file():
+                    shutil.copyfile(old / incident, root / incident)
             if (old / "soak.sqlite").exists():
                 import sqlite3
 

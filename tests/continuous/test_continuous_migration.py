@@ -98,6 +98,8 @@ def test_repeat_migration_preserves_shadow_soak_training_and_retry_budget(tmp_pa
     publish(source / "config.json", dict(expires_ns=9999, training_max_runs=8))
     publish(old / "migration.json", dict(fixture=True))
     publish(old / "STOP", dict(reason="retained"))
+    publish(old / "TRAIN_STOP", dict(reason="training_failure", incident="incident-train.json"))
+    publish(old / "incident-train.json", dict(category="fixture"))
     record(old, dict(at_ns=100, source_ok=True, fresh_hot=4, source_attempts=10, corpus_bars=100))
     with Ledger(old / "ledger", dict(fixture=True)):
         pass
@@ -117,3 +119,5 @@ def test_repeat_migration_preserves_shadow_soak_training_and_retry_budget(tmp_pa
     )
     assert result[0]["samples"] == 2
     assert (old / "STOP").exists()
+    assert (root / "TRAIN_STOP").read_bytes() == (old / "TRAIN_STOP").read_bytes()
+    assert (root / "incident-train.json").read_bytes() == (old / "incident-train.json").read_bytes()

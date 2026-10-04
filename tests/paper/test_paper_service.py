@@ -115,6 +115,9 @@ def test_daily_training_counts_new_maturity_not_growing_rolling_window(tmp_path,
     assert reservation["new_matured"] == 100 and reservation["matured"] == 120
     assert not reservation["paper_pnl_used_as_training_truth"]
     assert reservation["max_seconds"] == 600
+    assert service.models(root) == [root / "training/000001/model"]
+    service.training(root)  # Same future fixture time cannot trigger a duplicate daily fit.
+    assert len(calls) == 1
 
 
 def test_daily_training_waits_for_maturity_threshold(tmp_path, monkeypatch):

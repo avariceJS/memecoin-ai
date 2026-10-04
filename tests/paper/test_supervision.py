@@ -127,3 +127,33 @@ def test_new_candidate_waits_for_atomic_publication_after_full_seal(tmp_path):
         tmp_path / "candidate-ready/000000.json", dict(run_manifest_sha=sha(p / "manifest.json"))
     )
     assert models(tmp_path) == [p / "model"]
+
+
+def test_real_child_sigkill_after_commit_has_exact_recovery(tmp_path):
+    import sys
+
+    from memecoin_operational.supervisor import child
+
+    script = """
+import os, signal, sys
+from pathlib import Path
+from memecoin_paper.engine import advance, initial
+from memecoin_registry.contracts import digest
+from memecoin_runner.ledger import Ledger
+tick = dict(at_ns=100, activation_ns=0, market=[], predictions=[], source_ok=True)
+state, records = advance(initial(), tick)
+with Ledger(Path(sys.argv[1]) / "ledger", dict(fixture=True)) as ledger:
+    ledger.append("tick", tick=tick,
+                  result_sha=digest(dict(state=state, records=records)))
+os.kill(os.getpid(), signal.SIGKILL)
+"""
+    result = child(
+        [sys.executable, "-c", script, str(tmp_path)], tmp_path / "fixture.log", 10, lambda: None
+    )
+    assert result["category"] == "worker_failed" and result["exit_code"] == -9
+    before = replay(tmp_path)
+    assert before["ticks"] == 1
+    incident = s.incidents(tmp_path, "paper", result)
+    assert s.reserve(tmp_path, "paper", result, incident, 0)
+    assert s.ready(tmp_path, 60 * 10**9)
+    assert replay(tmp_path) == before
