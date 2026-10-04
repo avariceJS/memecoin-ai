@@ -6,7 +6,8 @@ import pytest
 from memecoin_ai.sources import ReadOnlyRPC, TransportSourceError
 from memecoin_brain_sources.events import capacity, health_action, ingest, view
 from memecoin_brain_sources.probe import run
-from memecoin_ml.data import read, write
+from memecoin_brain_sources.replay import reproduce
+from memecoin_ml.data import read, sha, write
 from memecoin_runner.ledger import Ledger
 
 
@@ -98,7 +99,7 @@ def test_raw_probe_fully_bounded_and_not_trade_dataset(tmp_path):
                 blockTime=10,
                 version=0,
                 meta=dict(err=None),
-                transaction=dict(signatures=["s2"]),
+                transaction=dict(signatures=["s2"], message=dict(accountKeys=["pool"])),
             )
         return json.dumps(dict(jsonrpc="2.0", id=1, result=value)).encode()
 
@@ -108,6 +109,9 @@ def test_raw_probe_fully_bounded_and_not_trade_dataset(tmp_path):
     assert result["pages"]["pool"]["history_complete"] is False
     assert not result["training_eligible"] and not result["decoder_qualified"]
     assert result["event_view"]["events"][0]["semantic_kind"] == "account_reference"
+    assert reproduce(tmp_path, sha(tmp_path / "manifest.json"))["exact"]
+    with pytest.raises(ValueError, match="external_pin_mismatch"):
+        reproduce(tmp_path, "wrong")
     with pytest.raises(FileExistsError):
         run(tmp_path, client, pacing=0)
 
@@ -132,3 +136,34 @@ def test_capacity_exposes_polling_bottleneck():
     c = capacity(300)
     assert c["serial_gecko_cycle_seconds"] == 3600
     assert c["total_CU_per_30days"] == 622080000
+
+
+def test_causal_admission_rejects_future_receipt_and_unknown_health(tmp_path):
+    with Ledger(tmp_path / "ledger", dict(scope="fixture")) as ledger:
+        e = evidence()
+        e["available_ns"] = time.time_ns() + 10**12
+        with pytest.raises(ValueError, match="evidence_scope_or_time"):
+            ingest(ledger, e)
+        assert not ledger.events
+
+
+def test_nonprogressing_pagination_stops_without_hydration(tmp_path):
+    write(tmp_path / "binding.json", dict(universe=["pool"], cohort=["pool"]))
+    calls = []
+
+    def transport(endpoint, body, timeout, limit):
+        method = json.loads(body)["method"]
+        calls.append(method)
+        value = (
+            dict(context=dict(slot=100), value=[dict(owner="program")])
+            if method == "getMultipleAccounts"
+            else [dict(signature="same", slot=90, err=None)]
+        )
+        return json.dumps(dict(jsonrpc="2.0", id=1, result=value)).encode()
+
+    client = ReadOnlyRPC("https://fixture.invalid/private", "fixture", transport=transport)
+    with pytest.raises(ValueError, match="cursor_no_progress"):
+        run(tmp_path, client, pacing=0)
+    assert len(calls) == 3 and "getTransaction" not in calls
+    assert read(tmp_path / "STOP")["no_retry"]
+    assert all((p / "manifest.json").exists() for p in (tmp_path / "attempts").iterdir())
