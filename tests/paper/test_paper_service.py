@@ -181,3 +181,15 @@ def test_continuous_hot_only_predictions_and_dead_heartbeat(tmp_path, monkeypatc
     service.paper(root)
     assert calls[-1] == set()
     assert json.loads((root / "dashboard.json").read_text())["source_ok"] is False
+    # A provider STOP arising during inference must be seen before committing a decision.
+    put(source / "health.json", dict(health, at_ns=510 * 10**9))
+    monkeypatch.setattr(service.time, "time_ns", lambda: 520 * 10**9)
+
+    def stop_during_inference(r, rows, prov, active):
+        calls.append(active)
+        put(source / "STOP", dict(reason="fixture_provider_stop"))
+
+    monkeypatch.setattr(service, "candidate_tick", stop_during_inference)
+    service.paper(root)
+    assert calls[-1] == {"hot"}
+    assert json.loads((root / "dashboard.json").read_text())["source_ok"] is False
