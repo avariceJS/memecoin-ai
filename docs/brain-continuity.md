@@ -81,3 +81,14 @@ Universe24 собран из трёх успешных страниц. B07 пр�
 Activation gate перед post-cooldown GET: все24pool dispositions доступны (включая
 наследованнуюquarantine); ≥6fresh pools и≥4новыхpool сvalid decodedbars наqualification
 cutoff, raw/indexexact, migrationfixtureexact. Этоoperational minimumдляdemo, неMLreadiness.
+
+### Первая проверка и завершение того же бюджета
+
+На 24 attempts: 23 HTTP success, один URLError без HTTP status; не новый 429.
+Полная raw/index сверка exact: 18 595 bars, 24 observed pools. На первом cutoff
+последние свечи вышли за gate свежести 300 s: activation отклонена, результат
+`qualification.json` сохранён. Четвёртый worker не послал GET во время cooldown.
+После штатного cooldown используются только оставшиеся восемь GET исходного
+лимита 32, с теми же gate/скоростью/бюджетами; второй результат сохраняется отдельно
+в `qualification-v2.json`. Это повторная проверка operational recovery, не новый trial
+качества модели. При отрицательном результате дальнейших qualification GET нет.

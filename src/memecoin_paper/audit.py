@@ -57,6 +57,8 @@ def snapshot(source, output):
         head = ledger.head
         for name in ("config.json", "deployment.json", "activation.json"):
             shutil.copyfile(source / name, output / name)
+        if (source / "migration.json").exists():
+            shutil.copyfile(source / "migration.json", output / "migration.json")
         publish(output / "external-head.json", dict(ledger_head=head))
     report = replay(output, head)
     publish(output / "result.json", report)
