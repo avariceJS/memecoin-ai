@@ -10,7 +10,7 @@ from memecoin_ml.data import read, sha
 from memecoin_registry.contracts import digest, seal, verify
 from memecoin_runner.ledger import Ledger, publish
 
-from .engine import advance, initial, summary
+from .engine import advance, summary
 from .runtime import atomic
 
 
@@ -64,7 +64,18 @@ def paper(root):
         quality, _ = states(source)
     active = {p for p, q in quality.items() if q["status"] == "active"}
     source_ok = not (source / "STOP").exists() and cut < read(source / "config.json")["expires_ns"]
-    candidate_tick(root, rows, prov, active if source_ok else set())
+    prediction_active = active
+    source_config = read(source / "config.json")
+    if c.get("source_backend") == "continuous":
+        source_health = read(source / "health.json")
+        source_ok = (
+            source_ok
+            and 0 <= cut - source_health["at_ns"] <= 180 * 10**9
+            and cut >= source_health["cooldown_ns"]
+        )
+        if source_config.get("hot_pools"):
+            prediction_active = active & set(source_config["hot_pools"])
+    candidate_tick(root, rows, prov, prediction_active if source_ok else set())
     latest = {}
     for r in rows:
         if r["pool"] not in latest or r["open_s"] > latest[r["pool"]]["open_s"]:
@@ -77,6 +88,7 @@ def paper(root):
             available_ns=r["available_ns"],
             capture_sha=r["capture_sha"],
             quality="active" if p in active else "quarantined",
+            role="hot" if p in source_config.get("hot_pools", active) else "background",
         )
         for p, r in sorted(latest.items())
     ]
@@ -116,16 +128,10 @@ def paper(root):
             prefix = ledger.events[: migration["prefix_events"]]
             if not prefix or prefix[-1]["sha256"] != migration["prefix_head"]:
                 raise ValueError("paper_migration_prefix")
-        state = initial()
-        all_records = []
-        last_tick = None
-        for e in ledger.audit():
-            t = e["payload"]["tick"]
-            state, records = advance(state, t)
-            if digest(dict(state=state, records=records)) != e["payload"]["result_sha"]:
-                raise ValueError("paper_replay_mismatch")
-            all_records.extend(records)
-            last_tick = t
+        from .projection import restore, save
+
+        state, all_records, last_records = restore(root, ledger.events)
+        last_tick = ledger.events[-1]["payload"]["tick"] if ledger.events else None
         ids = set(state["seen"])
         predictions = [p for p in predictions if p["id"] not in ids]
         tick = dict(
@@ -147,6 +153,8 @@ def paper(root):
             state, records = advance(state, tick)
             ledger.append("tick", tick=tick, result_sha=digest(dict(state=state, records=records)))
             all_records.extend(records)
+            last_records = records
+        save(root, ledger.events, state, all_records, last_records)
         books = summary(state, market, now)
         head = ledger.head
     daily = {}
@@ -213,8 +221,27 @@ def paper(root):
                 cooldown_ns=h["cooldown_ns"],
                 max_requests=read(source / "config.json")["max_requests"],
                 admitted_pools=len(quality),
+                heartbeat_ns=h["at_ns"],
+                hot_pools=source_config.get("hot_pools", []),
+                hot_interval_s=source_config.get("hot_interval_s"),
             ),
             model_behavior=behavior,
+        )
+    if source_config.get("hot_pools"):
+        from memecoin_continuous.soak import record
+
+        extra["soak"] = record(
+            root,
+            dict(
+                at_ns=now,
+                source_ok=source_ok,
+                fresh_hot=sum(
+                    o["pool"] in prediction_active and 0 <= now / 10**9 - o["close_s"] <= 300
+                    for o in market
+                ),
+                source_attempts=h["attempts"],
+                corpus_bars=extra["source_health"]["bars"],
+            ),
         )
     public = dict(
         schema="brain-paper-v1",

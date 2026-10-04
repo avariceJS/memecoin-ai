@@ -127,3 +127,57 @@ def test_daily_training_waits_full_day_despite_many_new_samples(tmp_path, monkey
     root, calls = training_fixture(tmp_path, monkeypatch, 120, elapsed=86399)
     service.training(root)
     assert not calls and not (root / "training/000001").exists()
+
+
+def test_continuous_hot_only_predictions_and_dead_heartbeat(tmp_path, monkeypatch):
+    from memecoin_continuous import store
+
+    root, source = tmp_path / "paper", tmp_path / "source"
+    (root / "training").mkdir(parents=True)
+    put(
+        root / "config.json",
+        dict(
+            source=str(source),
+            source_backend="continuous",
+            activation_ns=0,
+            expires_ns=9000 * 10**9,
+            champion_model_sha="fixture",
+        ),
+    )
+    put(
+        source / "config.json",
+        dict(expires_ns=9000 * 10**9, hot_pools=["hot"], max_requests=10, hot_interval_s=120),
+    )
+    health = dict(
+        at_ns=320 * 10**9,
+        cooldown_ns=0,
+        attempts=1,
+        pools={p: dict(status="active") for p in ["hot", "cold"]},
+    )
+    put(source / "health.json", health)
+    rows = [
+        dict(
+            pool=p,
+            open_s=0,
+            ohlcv=[1, 1, 1, 1, 10],
+            available_ns=305 * 10**9,
+            capture_sha="fixture",
+        )
+        for p in ["hot", "cold"]
+    ]
+    monkeypatch.setattr(service, "source_rows", lambda *args: (rows, {}))
+    monkeypatch.setattr(store, "stats", lambda _: dict(bars=2, captures=1, observed_pools=2))
+    calls = []
+    monkeypatch.setattr(
+        service, "candidate_tick", lambda r, rows, prov, active: calls.append(active)
+    )
+    monkeypatch.setattr(service.time, "time_ns", lambda: 320 * 10**9)
+    service.paper(root)
+    assert calls[-1] == {"hot"}
+    public = json.loads((root / "dashboard.json").read_text())
+    assert public["source_ok"] and len(public["market"]) == 2
+    assert {o["role"] for o in public["market"]} == {"hot", "background"}
+    monkeypatch.setattr(service.time, "time_ns", lambda: 501 * 10**9)
+    service.paper(root)
+    assert calls[-1] == set()
+    assert json.loads((root / "dashboard.json").read_text())["source_ok"] is False
