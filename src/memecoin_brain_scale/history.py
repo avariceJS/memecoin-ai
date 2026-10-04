@@ -8,9 +8,9 @@ import math
 import time
 from pathlib import Path
 
-from memecoin_brain.data import corpus
 from memecoin_brain.service import cooldown
 from memecoin_brain.source import BAR, NS, SourceFailure, bars, host_guard, ohlcv
+from memecoin_brain_scale.audit import safe_corpus as corpus
 from memecoin_ml.data import read, sha, write
 from memecoin_registry.contracts import seal, verify
 

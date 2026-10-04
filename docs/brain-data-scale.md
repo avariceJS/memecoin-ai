@@ -74,3 +74,19 @@ cooperative565s, одна попытка; исходный ceiling24GET сохр
 anchor и aggregate24GET прежние, debit1; новый child≤600s и общий wall≤исходных30min.
 Это явное уточнение local stop protocol на установленных evidence, не сброс quota и
 не обход provider отказа. Любой новый failure закрывает continuation окончательно.
+
+Operational amendment до нового prospective deployment: B01 capture000087 содержит
+конфликтующие OHLCV на одном timestamp (разный open); весь ответ quarantined, исходные
+bytes/receipt сохраняются. Frozen B01 corpus повторно валидирует этот poison capture и
+ломает последующие циклы. B02 safe_corpus исключает только целиком проверенные market
+schema failures; manifest/hash/clock corruption остаётся fatal. Новый ответ в live worker
+по-прежнему обязан пройти исходный strict bars parser, иначе cycle failed. Это не
+разрешение выбирать произвольный duplicate и не ослабление source validator.
+
+Разрешён versioned handoff только Brain: остановить старый job под lock, сохранить его
+STOP/error history, перенести immutable captures/models/shadow с исходными временами и
+hashes в work/brain-b02/prospective01. Учесть все прежние attempts и historical debit1,
+сохранить исходные expiry2026-10-07T00:30:23.405597Z, ceiling12000,training tickets/max12.
+Новый pin/job ai.memecoin.brain.b02, prior failure debit1; первый новый failed cycle
+достигает stop budget2. Старый runtime не править. Это исправление доказанного persistent
+corpus failure, не автоматический restart/failure-budget reset. Дополнительные расходы0.
