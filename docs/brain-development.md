@@ -48,3 +48,38 @@ CPMM не расширяется поддержкой market-data bars друг�
 Цель на ближайшие дни — первая содержательная exploratory Brain v1 с расширенным
 corpus и будущими shadow observations. Срок не гарантирует качество или edge; число
 необходимых режимов/токенов устанавливается evidence, не F01 календарём.
+
+## Source и refinement до первого обучения
+
+Выбран keyless GeckoTerminal API: наблюдаемая USD цена base token,5min OHLCV,
+`include_empty_intervals=false`, закрытые bars. API beta/cached1min, rate approximately
+10requests/minute: [официальная OpenAPI](https://api.geckoterminal.com/docs/v2/swagger.json),
+[public API](https://www.geckoterminal.com/dex-api). Реальные receipt times сохраняются;
+cache/confirmed feed не объявляется Solana finalized checkpoint. Поддержка market-data
+PumpSwap/других DEX не означает execution adapter этих протоколов.
+
+Discovery4pages дал12пулов (round-robin4/4/4 в age buckets<1d/1–7d/≥7d), известные SOL/
+USDC/USDT base и fixed F01 pools исключены; liquidity при discovery≥$10000, один pool
+на base mint. Это стартовый B01 scope, не universal/admissibility порог стратегии.
+Nullable liquidity исключается с причиной, не считается нулём. Первый parser failure
+сохранён, metadata повторно разобраны offline без дополнительных запросов.
+
+Исторический probe остановлен наHTTP429:4пула,3484полученных закрытых rows,3482unique
+first-observed bars после duplicate/revision audit. Данные остальных8pools pending,
+не считаются отсутствующими на рынке. Новые provider requests отложены минимум900s
+и на Retry-After, если он больше. Дальнейшая частота ограничена≥12s/request вместо7s
+первого backfill; это снижение нагрузки в ответ на429, не обход лимита. Failed request
+учитывается первым из2consecutive failed acquisition cycles. No immediate retry.
+
+Стартовое retrospective60/20/20:1791train/595validation/1050test decisions,18purged;
+числа не power claim. Линейный и GRU candidates — ensemble обоих seeds7/19, не выбор
+удачного seed. Validation pool-macro pinball; simplicity tie≤1%, priority empirical,
+linear,GRU. Unused execution-class heads D44 не обучаются и не выдаются за fill probabilities.
+Data contract имеет собственные12bar features и25input channels; CPMM schema не подменён.
+Historical event-lag channel не называется receipt age. Исторические actual availability
+остаются временем загрузки, chronological diagnostic использует отдельную event-time ось.
+
+Runtime collection worker имеет hard240s,training worker hard600s (строже планового900s),
+per-fit cooperative195s/ledger reservation200s, threads1. Parent-death lease и process
+group deadline переиспользуют D50 supervisor. Один due cycle, crash не повторяется;
+service независим от D43. После72h network/training прекращаются, automatic renewal нет.
