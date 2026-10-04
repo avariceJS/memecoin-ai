@@ -94,6 +94,14 @@ def paper(root):
     ]
     predictions = []
     now = time.time_ns()
+    source_ok = source_ok and not (source / "STOP").exists() and now < source_config["expires_ns"]
+    if c.get("source_backend") == "continuous":
+        current_health = read(source / "health.json")
+        source_ok = (
+            source_ok
+            and 0 <= now - current_health["at_ns"] <= 180 * 10**9
+            and now >= current_health["cooldown_ns"]
+        )
     parents = [source, *sorted((root / "candidate-shadows").glob("*"))]
     for parent in parents:
         for path in (parent / "shadow/predictions").glob("*.json"):
