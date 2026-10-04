@@ -5233,7 +5233,8 @@
       "shadow_report_exact": true,
       "snapshot_sha": "1f8bdf0c227341d974813d683d999595b117ac8879fe8197ce61c5d7f884b983"
     },
-    "wheel_all_package_sources_match": true
+    "wheel_all_package_sources_match": true,
+    "SVG_formatting": "Matplotlib trailing whitespace removed; figure values/rendering unchanged."
   },
   "artifacts": [
     {
@@ -5473,13 +5474,13 @@
     },
     {
       "path": "docs/evidence/brain-b02-learning-curves.svg",
-      "sha256": "a8ff8c59caed1bd6f8cde013804ba2f66f3a0bd3b2842cdd27e47672c696fe88",
-      "bytes": 89247
+      "sha256": "d3c7ec425b0a01b879ca33ae29372f7da06af049865df1831d82918f9016b997",
+      "bytes": 87813
     },
     {
       "path": "docs/evidence/brain-b02-coverage.svg",
-      "sha256": "188953def2e3f38bf6964228dbf96f6c5767fa23e6c7ea03a34933646323b4be",
-      "bytes": 85285
+      "sha256": "b72da57831c61fc40f6722d306b146a5b44ef747a40c4c9cf3f3ac03a4ba1308",
+      "bytes": 83660
     }
   ],
   "next": "B03: qualify per-pool quarantine with retained fixed-universe denominator; fresh bounded reviewed activation within remaining original envelope, then missing history/time diversity and train-only robust feature normalization ablation. No model enlargement/promotion from this snapshot.",

@@ -82,6 +82,9 @@ def main():
     fig.tight_layout()
     fig.savefig(folder / "brain-b02-coverage.svg")
     fig.savefig(BASE / "work/brain-b02/coverage.png", dpi=150)
+    for name in ("brain-b02-coverage.svg", "brain-b02-learning-curves.svg"):
+        path = folder / name
+        path.write_text("\n".join(line.rstrip() for line in path.read_text().splitlines()) + "\n")
     print("matplotlib", matplotlib.__version__)
 
 
