@@ -11,7 +11,7 @@ Generated from WORK_STATE.json; не редактировать вручную.
 - Model binding: UNVERIFIED (config ≠ runtime; nonblocking).
 - User acceptance: REJECTED_V1; CC02_NOT_REVIEWED.
 - Blockers: нет глобального blocker
-- Next action: **CC02.8: интеграция. Удалить мёртвое представление, снять все маршруты, не переписывать принятые страницы.**
+- Next action: **CC02.8 RUNNING: убраны мёртвые placeholder-страницы. Дальше матрица всех маршрутов и final checks. Принятые страницы не переписывать.**
 
 | Task | Role | State |
 |---|---|---|
@@ -23,7 +23,7 @@ Generated from WORK_STATE.json; не редактировать вручную.
 | CC02.5 Models / matched benchmarks | ui-builder | DONE |
 | CC02.6 Sources evidence topology | ui-builder | DONE |
 | CC02.7 System / locked surfaces | ui-builder | DONE |
-| CC02.8 Integration и final visual acceptance | coordinator | PENDING |
+| CC02.8 Integration и final visual acceptance | coordinator | RUNNING |
 
 ## Ограничения
 

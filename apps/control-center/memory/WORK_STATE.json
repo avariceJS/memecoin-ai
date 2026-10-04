@@ -15,7 +15,7 @@
     "configured_visual_executor": "grok-4.7 (documented default high; runtime UNVERIFIED)"
   },
   "blockers": [],
-  "next_action": "CC02.8: интеграция. Удалить мёртвое представление, снять все маршруты, не переписывать принятые страницы.",
+  "next_action": "CC02.8 RUNNING: убраны мёртвые placeholder-страницы. Дальше матрица всех маршрутов и final checks. Принятые страницы не переписывать.",
   "capabilities": [
     "existing read-only adapter + immutable historical projection",
     "primary visual reference available",
@@ -636,11 +636,21 @@
         "visual",
         "boundary"
       ],
-      "status": "PENDING",
-      "write_files": [],
+      "status": "RUNNING",
+      "write_files": [
+        "apps/control-center/web/src/pages/PlaceholderPages.tsx"
+      ],
       "checks": [],
       "reviews": [],
-      "attempts": [],
+      "attempts": [
+        {
+          "at": "2026-10-04",
+          "kind": "edit",
+          "role": "coordinator",
+          "configured_model": "grok-4.7-xhigh",
+          "note": "Removed unused placeholder pages. Integrated matrix and final checks are still open. UNVERIFIED."
+        }
+      ],
       "blocker": "",
       "summary": "",
       "reference_viewed": false,
