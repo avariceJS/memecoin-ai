@@ -2,10 +2,10 @@
   "schema_version": 2,
   "scope": "control-center-cc02-visual-reconstruction",
   "overall": "IN_PROGRESS",
-  "current_task": "CC02.7",
-  "last_completed": "CC02.6: источники приняты, среднее 4.2. Схема записанная, не живой поток.",
-  "last_verified_commit": "f90e8ec28c5af7e55755935c34dcffd00b9fb124",
-  "last_checks": "2026-10-04 CC02.6: vitest 60 PASS; e2e characterization PASS; visual_gate receipt PASS. Sources overlap 0. Model binding UNVERIFIED.",
+  "current_task": "CC02.8",
+  "last_completed": "CC02.7: система принята, среднее 4.2. Adapter не равен состоянию core.",
+  "last_verified_commit": "3a43cbf0d41338171b2b4ce015bc86f0c4541e41",
+  "last_checks": "2026-10-04 CC02.7: vitest 64 PASS; e2e characterization PASS; visual_gate receipt PASS. System overlap 0. Model binding UNVERIFIED.",
   "model_binding": {
     "configured_coordinator": "grok-4.7 / xhigh (picker)",
     "configured_executor": "composer-2.5[fast=false]",
@@ -15,7 +15,7 @@
     "configured_visual_executor": "grok-4.7 (documented default high; runtime UNVERIFIED)"
   },
   "blockers": [],
-  "next_action": "CC02.7: система и закрытые маршруты. Матрица возможностей, без пустого холста. Источники не переписывать.",
+  "next_action": "CC02.8: интеграция. Удалить мёртвое представление, снять все маршруты, не переписывать принятые страницы.",
   "capabilities": [
     "existing read-only adapter + immutable historical projection",
     "primary visual reference available",
@@ -557,17 +557,68 @@
         "visual",
         "boundary"
       ],
-      "status": "PENDING",
+      "status": "DONE",
       "write_files": [],
-      "checks": [],
-      "reviews": [],
-      "attempts": [],
+      "checks": [
+        {
+          "command": "npm --prefix apps/control-center/web test",
+          "result": "PASS"
+        },
+        {
+          "command": "npm --prefix apps/control-center/web run e2e",
+          "result": "PASS"
+        },
+        {
+          "command": "python3 apps/control-center/scripts/visual_gate.py --receipt docs/control-center/references/cc02-final/CC02.7/review.json --task CC02.7",
+          "result": "PASS"
+        }
+      ],
+      "reviews": [
+        {
+          "kind": "boundary",
+          "result": "PASS",
+          "evidence": "cc-boundary-reviewer c2d35304-f8f6-4c1f-a8c7-eeeb465a59ba: adapter не снимает UNAVAILABLE с core, Replay и Trading без действий и чужих счётчиков.",
+          "reviewed_revision": "3a43cbf"
+        },
+        {
+          "kind": "visual",
+          "result": "PASS",
+          "evidence": "cc-visual-reviewer d808f1ec-2244-4979-bfe4-7fd894137595 second pass mean 4.2. Receipt docs/control-center/references/cc02-final/CC02.7/review.json.",
+          "reviewed_revision": "3a43cbf",
+          "reference_viewed": true,
+          "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+          "screenshot": "docs/control-center/references/cc02-final/CC02.7/second/system-1600.png"
+        }
+      ],
+      "attempts": [
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-ui-builder",
+          "configured_model": "grok-4.7-xhigh",
+          "note": "System matrix and locked Replay/Trading. Sources and lockfile stay put. Agent d93ba857-95c5-4a39-a719-bc4a3a1a59db. Launch requested grok-4.7-xhigh. UNVERIFIED."
+        },
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-visual-reviewer",
+          "configured_model": "grok-4.7-xhigh",
+          "note": "First 3.8 NEEDS_FIX, second 4.2 PASS. Agent d808f1ec-2244-4979-bfe4-7fd894137595. Launch requested grok-4.7-xhigh. UNVERIFIED."
+        },
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-boundary-reviewer",
+          "configured_model": "composer-2.5",
+          "note": "PASS agent c2d35304-f8f6-4c1f-a8c7-eeeb465a59ba. Unused SystemPage remains in PlaceholderPages."
+        }
+      ],
       "blocker": "",
-      "summary": "",
-      "reference_viewed": false,
-      "reference_sha256": null,
-      "visual_receipt": null,
-      "accepted_web_sha256": null
+      "summary": "Система: матрица возможностей в основной области. Adapter не снимает UNAVAILABLE с core. Вторая критика 4.2. Replay и Trading — короткие закрытые экраны.",
+      "reference_viewed": true,
+      "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+      "visual_receipt": "docs/control-center/references/cc02-final/CC02.7/review.json",
+      "accepted_web_sha256": "c73e2087ea606ba6734f5a92301f8b5743c9ae3496c211b3a0c67b3ae0f59435"
     },
     {
       "id": "CC02.8",

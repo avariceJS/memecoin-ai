@@ -1,6 +1,7 @@
 import { useOutletContext } from "react-router";
-import { UnavailableState } from "../components/status";
+import { provenanceBadgeKind, QualificationBadge, UnavailableState } from "../components/status";
 import type { ShellOutletContext } from "../shell/AppShell";
+import locked from "./replay/replay.module.css";
 import {
   calendarWindowCount,
   engineeringFits,
@@ -79,15 +80,35 @@ export function SystemPage() {
 
 export function TradingPage() {
   const { snapshotResponse } = useOutletContext<ShellOutletContext>();
-  const reason =
-    snapshotResponse.data.trading.availability !== "AVAILABLE"
-      ? snapshotResponse.data.trading.reasonCode
-      : "NO_APPROVED_TRADING_CONTRACT";
+  const trading = snapshotResponse.data.trading;
+  const closed = trading.availability !== "AVAILABLE";
+  const reason = closed ? trading.reasonCode : "NO_APPROVED_TRADING_CONTRACT";
+  const provenance = closed ? null : provenanceBadgeKind(trading.provenance);
 
   return (
-    <>
-      <SimpleSection heading="Торговля" />
-      <UnavailableState reasonCode={reason} />
-    </>
+    <section
+      className={locked.closedCard}
+      data-tone={closed ? "unavailable" : "locked"}
+      aria-labelledby="trading-closed-title"
+    >
+      <div className={locked.closedHead}>
+        <h2 id="trading-closed-title" className={locked.closedTitle}>
+          Торговля
+        </h2>
+        <QualificationBadge kind={closed ? "UNAVAILABLE" : "LOCKED"} />
+        {provenance ? <QualificationBadge kind={provenance} /> : null}
+      </div>
+      <p className={locked.closedSummary}>
+        Экран закрыт. Баланс, заявки и аварийные действия здесь не открываются.
+      </p>
+      <div
+        className={locked.codeScroll}
+        data-cc-scroll="trading-reason"
+        tabIndex={0}
+        aria-label="Код торгового контракта"
+      >
+        {reason}
+      </div>
+    </section>
   );
 }

@@ -1,5 +1,8 @@
 import type { Snapshot } from "../../api";
+import { provenanceBadgeKind, QualificationBadge } from "../../components/status";
+import { CodeLine } from "./CodeLine";
 import styles from "./system.module.css";
+import { recordedStageCaption } from "./viewModel";
 
 type RecordedCoreTestsPanelProps = {
   qualificationPane: Snapshot["sourceQualification"];
@@ -9,11 +12,15 @@ export function RecordedCoreTestsPanel({ qualificationPane }: RecordedCoreTestsP
   if (qualificationPane.availability !== "AVAILABLE") {
     return (
       <section className={styles.panel} aria-labelledby="recorded-core-tests-heading">
-        <h3 id="recorded-core-tests-heading" className={styles.panelTitle}>
-          Recorded core tests
-        </h3>
+        <div className={styles.panelHead}>
+          <h3 id="recorded-core-tests-heading" className={styles.panelTitle}>
+            Записанные тесты
+          </h3>
+          <QualificationBadge kind="UNAVAILABLE" />
+        </div>
         <p className={styles.caption}>
-          sourceQualification недоступен — recorded stage tests не опубликованы.
+          sourceQualification недоступен. Записанный этап не опубликован и не является текущим
+          процессом.
         </p>
       </section>
     );
@@ -24,21 +31,17 @@ export function RecordedCoreTestsPanel({ qualificationPane }: RecordedCoreTestsP
 
   return (
     <section className={styles.panel} aria-labelledby="recorded-core-tests-heading">
-      <h3 id="recorded-core-tests-heading" className={styles.panelTitle}>
-        Recorded core tests
-      </h3>
-      <p className={styles.recordedRow}>
-        Base / combined:{" "}
-        <span className={styles.recordedStrong}>
-          {recordedBaseTestsPassed}/{recordedCombinedTestsPassed}
-        </span>
-        {" · "}
-        verdict <span className={styles.recordedStrong}>{recordedVerdict}</span>
+      <div className={styles.panelHead}>
+        <h3 id="recorded-core-tests-heading" className={styles.panelTitle}>
+          Записанные тесты
+        </h3>
+        <QualificationBadge kind={provenanceBadgeKind(qualificationPane.provenance)} />
+      </div>
+      <p className={styles.metric}>
+        {recordedBaseTestsPassed}/{recordedCombinedTestsPassed}
       </p>
-      <p className={styles.caption}>
-        Recorded stage из sourceQualification — зафиксированный прогон, не текущий процесс и не
-        live health check.
-      </p>
+      <p className={styles.caption}>{recordedStageCaption(qualificationPane.qualification)}</p>
+      <CodeLine scrollId="recorded-verdict" label="Вердикт записанного прогона" value={recordedVerdict} />
     </section>
   );
 }

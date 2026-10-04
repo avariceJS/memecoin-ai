@@ -5,11 +5,10 @@ export function DesignRoleGrid() {
   return (
     <section className={styles.panel} aria-labelledby="design-roles-heading">
       <h3 id="design-roles-heading" className={styles.panelTitle}>
-        Роли узлов (статическая схема)
+        Роли узлов
       </h3>
       <p className={styles.caption}>
-        Карточки ниже — DESIGN reference из Phase 6, не две связанные live-машины и не topology
-        discovery.
+        Статическая схема. Не связанные live-машины и не обнаружение topology.
       </p>
       <ul className={styles.designGrid}>
         {DESIGN_ROLE_NODES.map((node) => (
