@@ -48,3 +48,13 @@ trending universe не делает такого списка. Не заменя
 reproduction snapshot и поддержанных labels, runtime hash equality до/после; make check/smoke.
 Сохранить evidence, Memory Bank и Git. Два Mac, distributed orchestration и новые backbone
 пока не нужны. Следующий этап определяется audit и фактическим archival result.
+
+### Уточнение после реального capacity failure, до training/RPC
+
+Первый read-only snapshot `textbook01` остановился на `B01_dataset_capacity` (>40000samples).
+Raw SQLite backup сохранён и sealed со STOP; повторной загрузки сети нет. Archive revision2
+использует тот же immutable backup, shards≤4096 decision origins с overlap14past/3future,
+чтобы features всех8context frames и targets совпадали с прежним build. Все shards сохраняются;
+материализация для существующего trainer ограничена новым явным envelope≤100000decisions.
+Это не снятие gate B01 и не изменение frozen B10. Для миллионов examples далее нужен
+streaming trainer; не выдавать текущий in-memory trainer за уже масштабированный.
