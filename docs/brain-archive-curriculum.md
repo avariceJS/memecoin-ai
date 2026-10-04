@@ -58,3 +58,11 @@ Raw SQLite backup сохранён и sealed со STOP; повторной за�
 материализация для существующего trainer ограничена новым явным envelope≤100000decisions.
 Это не снятие gate B01 и не изменение frozen B10. Для миллионов examples далее нужен
 streaming trainer; не выдавать текущий in-memory trainer за уже масштабированный.
+
+### Исправление preflight до первого RPC
+
+`archive-probe01` не сделал RPC: локальный alias с заглавной B отвергнут конструктором.
+Обработчик parent failure имел duplicate `category` keyword; также исправлен. Первый root
+sealed со STOP, debit0. Разрешена одна исправленная revision02: та же заранее выбранная
+cohort и совокупные5RPC/440CU, новый120s только для ещё не начатой сетевой проверки.
+Это исправление локального preflight, не повтор после provider отказа или смена выборки.

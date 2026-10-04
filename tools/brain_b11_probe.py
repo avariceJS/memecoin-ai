@@ -12,7 +12,7 @@ from memecoin_registry.contracts import seal
 from memecoin_runner.ledger import publish
 
 BASE = Path(__file__).resolve().parents[1]
-ROOT = BASE / "work/brain-b11/archive-probe01"
+ROOT = BASE / "work/brain-b11/archive-probe02"
 
 
 def worker():
@@ -28,7 +28,7 @@ def worker():
     if identity(url) != binding["credential_sha"] or time.time_ns() >= binding["expires_ns"]:
         raise ValueError("credential_or_expiry")
     client = IndexedRPC(
-        url, "B11-alchemy-archive", timeout=10, max_bytes=8 * 1024**2, keep_alive=True
+        url, "b11-alchemy-archive", timeout=10, max_bytes=8 * 1024**2, keep_alive=True
     )
     (ROOT / "attempts").mkdir()
     used, calls, first, pages = 0, 0, None, []
@@ -177,6 +177,8 @@ def main():
             owner_attestation_sha=sha(owner),
             owner_no_paid_not_independent_verification=True,
             previous_allocation_reused=False,
+            preflight_parent="archive-probe01",
+            parent_rpc_attempts=0,
             mcp_usage=dict(
                 cu=4480, usd=0, dataThrough="2026-10-04T17:06:00Z", not_charge_delta=True
             ),
@@ -189,14 +191,17 @@ def main():
 
     result = child(
         [sys.executable, "-B", str(Path(__file__).resolve()), "worker"],
-        ROOT.parent / "archive-probe01.log",
+        ROOT.parent / "archive-probe02.log",
         120,
         lambda: None,
     )
-    publish(ROOT.parent / "archive-probe01-process.json", result)
+    publish(ROOT.parent / "archive-probe02-process.json", result)
     if not (ROOT / "manifest.json").exists():
         if not (ROOT / "STOP").exists():
-            publish(ROOT / "STOP", dict(category="subprocess_failure", **result))
+            publish(
+                ROOT / "STOP",
+                dict(result, category="subprocess_failure", child_category=result["category"]),
+            )
         seal(ROOT)
     print(json.dumps(result))
 
