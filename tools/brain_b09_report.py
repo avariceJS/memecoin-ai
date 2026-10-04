@@ -69,13 +69,20 @@ def main(output):
     ]
     samples = [read(p) for p in sorted((SOURCE / "qualification-samples").glob("*.json"))]
     mature = defaultdict(int)
+    scores = {}
     for lane in (PAPER / "candidate-shadows").iterdir():
         for p in (lane / "shadow/outcomes").glob("*.json"):
             pred = read(lane / "shadow/predictions" / p.name)
             outcome = read(p)
-            if pred["predicted_ns"] >= migration["created_ns"] and outcome["status"] == "scored":
+            if pred["predicted_ns"] >= migration["created_ns"] and outcome["status"] == "scored"
+                and outcome["scored_ns"] <= cut:
                 assert pred["predicted_ns"] < outcome["target_available_ns"] <= outcome["scored_ns"]
                 mature[str((pred["model_sha"], pred["horizon"]))] += 1
+                key = str((pred["model_sha"], pred["horizon"]))
+                group = scores.setdefault(key, dict(n=0, loss_sums={}))
+                group["n"] += 1
+                for name, metrics in outcome["candidate_metrics"].items():
+                    group["loss_sums"][name] = group["loss_sums"].get(name, 0) + metrics["pinball"]
     result = dict(
         stage="B09",
         report_cutoff_ns=cut,
@@ -99,6 +106,7 @@ def main(output):
         migration=migration,
         post_migration_behavior={k: dict(v) for k, v in behavior.items()},
         post_migration_matured_forecasts=dict(mature),
+        post_migration_paired_scores=scores,
         current_dashboard=read(PAPER / "dashboard.json"),
         projection_benchmark=read(SOURCE.parent / "projection-benchmark/result.json"),
         tests=dict(
