@@ -202,6 +202,7 @@ def paired_summary(records: list[dict], *, draws: int = 200) -> dict:
 def shadow_snapshot(primary: Path, output: Path, rows: list, as_of_ns: int) -> dict:
     output.mkdir(exist_ok=False)
     records, inventory, pending = [], [], 0
+    recovered = 0
     statuses = Counter()
     models = {}
     for path in sorted((primary / "shadow/predictions").glob("*.json")):
@@ -233,16 +234,26 @@ def shadow_snapshot(primary: Path, output: Path, rows: list, as_of_ns: int) -> d
         op = primary / "shadow/outcomes" / path.name
         o = read(op) if op.exists() else None
         stamp = o.get("scored_ns", o.get("observed_ns")) if o else None
+        lane = "published"
         if stamp is None or stamp > as_of_ns:
             pending += 1
-        else:
+            value = evaluate_prediction(p, rows, now_ns=as_of_ns)
+            if value is not None and value["status"] == "scored":
+                # Newly computed outcome, actual offline scoring time, never backdated publication.
+                o = dict(prediction_sha=sha(path), **value)
+                stamp = as_of_ns
+                lane = "recovery_scoring"
+                recovered += 1
+                item["recovery_outcome"] = o
+        if stamp is not None and stamp <= as_of_ns:
             if o["prediction_sha"] != sha(path):
                 raise ValueError("shadow_prediction_sha")
             available = [r for r in rows if r["available_ns"] <= stamp]
             expected = evaluate_prediction(p, available, now_ns=stamp)
             if o != dict(prediction_sha=sha(path), **expected):
                 raise ValueError("shadow_raw_outcome_reproduction")
-            item.update(outcome=o, outcome_sha=sha(op))
+            if lane == "published":
+                item.update(outcome=o, outcome_sha=sha(op))
             statuses[o["status"]] += 1
             if o["status"] == "scored":
                 if sorted(o["candidate_metrics"]) != ["empirical", "gru", "linear"]:
@@ -252,6 +263,7 @@ def shadow_snapshot(primary: Path, output: Path, rows: list, as_of_ns: int) -> d
                         pool=p["pool"],
                         horizon=p["horizon"],
                         model=p["model_sha"],
+                        scoring_lane=lane,
                         block=p["event_close_s"] // 3600,
                         losses={k: v["pinball"] for k, v in o["candidate_metrics"].items()},
                     )
@@ -261,8 +273,14 @@ def shadow_snapshot(primary: Path, output: Path, rows: list, as_of_ns: int) -> d
         as_of_ns=as_of_ns,
         predictions=len(inventory),
         pending=pending,
+        recovered_mature_outcomes=recovered,
+        pending_after_offline_recovery=pending - recovered,
         statuses=dict(statuses),
         overall=paired_summary(records),
+        published_only=paired_summary([r for r in records if r["scoring_lane"] == "published"]),
+        recovery_only=paired_summary(
+            [r for r in records if r["scoring_lane"] == "recovery_scoring"]
+        ),
         by_horizon={
             str(h): paired_summary([r for r in records if r["horizon"] == h]) for h in (1, 3)
         },

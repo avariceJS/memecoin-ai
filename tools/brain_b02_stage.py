@@ -22,7 +22,15 @@ HISTORY = BASE / "work/brain-b02/history01"
 
 def main():
     with (OLD / ".lock").open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        deadline = time.monotonic() + 180
+        while True:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("B01_handoff_lock_busy") from None
+                time.sleep(1)
         assert not NEW.exists()
         assert sha(OLD / "universe.json") == read(HISTORY / "plan.json")["primary_universe_sha"]
         rows, provenance = safe_corpus(OLD, time.time_ns())
@@ -85,7 +93,10 @@ def main():
                 paid_budget_usd=0,
                 prior_consecutive_acquisition_failures=1,
                 import_sha=sha(NEW / "import.json"),
-                reason="Reviewed conflicting raw capture quarantine; keep original budget/expiry; user authorized B02 data quality and prospective continuation",
+                reason=(
+                    "Reviewed raw conflict quarantine; original budget/expiry; "
+                    "user authorized B02 quality and prospective continuation"
+                ),
                 F01=False,
                 D43_changes=False,
                 approved_ns=time.time_ns(),

@@ -131,3 +131,72 @@ def test_bootstrap_groups_time_across_pools_and_requires_support():
     rs[-1]["losses"].pop("gru")
     with pytest.raises(ValueError, match="unpaired_candidates"):
         paired_summary(rs)
+
+
+def test_curve_folds_have_nested_train_fixed_evaluation_and_maturity_purge():
+    from memecoin_brain_scale.curves import folds
+
+    samples = [
+        dict(
+            id=str(i),
+            pool="fixture",
+            event_close_s=i * 300,
+            maturity_s=(i + 3) * 300,
+            targets=[dict(log_return=0.1)],
+        )
+        for i in range(200)
+    ]
+    designs = folds(dict(samples=samples))
+    for start in (0, 3):
+        trio = designs[start : start + 3]
+        assert len({e["membership"]["evaluation"] for e in trio}) == 1
+        assert len({e["membership"]["validation"] for e in trio}) == 1
+        ids = [{s["id"] for s in e["parts"]["train"]} for e in trio]
+        assert ids[0] < ids[1] < ids[2]
+        for e in trio:
+            for role, boundary in zip(
+                ("train", "validation", "evaluation"), e["cutoffs"][1:], strict=True
+            ):
+                assert all(s["maturity_s"] < boundary for s in e["parts"][role])
+
+
+def test_shadow_pending_is_not_zero_loss_and_offline_recovery_waits_for_maturity(tmp_path):
+    from memecoin_brain_scale.audit import shadow_snapshot
+    from memecoin_ml.data import sha
+    from memecoin_registry.contracts import seal
+
+    model = tmp_path / "models/000000"
+    model.mkdir(parents=True)
+    write(model / "model-card.json", dict(training_as_of_ns=100 * NS, finished_ns=200 * NS))
+    seal(model)
+    predictions = tmp_path / "shadow/predictions"
+    predictions.mkdir(parents=True)
+    p = dict(
+        pool="fixture",
+        model_path=str(model),
+        model_sha=sha(model / "manifest.json"),
+        predicted_ns=350 * NS,
+        input_available_ns=310 * NS,
+        event_close_s=300,
+        horizon=1,
+        origin_close=10,
+        q=[-0.1, 0, 0.1],
+        q_by_candidate={n: [-0.1, 0, 0.1] for n in ("empirical", "linear", "gru")},
+    )
+    write(predictions / "prediction.json", p)
+    rows = [
+        dict(
+            pool="fixture",
+            open_s=300,
+            available_ns=620 * NS,
+            ohlcv=[10, 12, 9, 11, 1],
+            capture_sha="fixture",
+        )
+    ]
+    first = shadow_snapshot(tmp_path, tmp_path / "before", rows, 610 * NS)
+    assert first["overall"]["variants"] == 0 and first["pending"] == 1
+    later = shadow_snapshot(tmp_path, tmp_path / "later", rows, 700 * NS)
+    assert later["recovered_mature_outcomes"] == 1
+    assert later["published_only"]["variants"] == 0
+    assert later["overall"]["variants"] == 1
+    assert not (tmp_path / "shadow/outcomes").exists()

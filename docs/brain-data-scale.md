@@ -90,3 +90,17 @@ hashes в work/brain-b02/prospective01. Учесть все прежние attem
 Новый pin/job ai.memecoin.brain.b02, prior failure debit1; первый новый failed cycle
 достигает stop budget2. Старый runtime не править. Это исправление доказанного persistent
 corpus failure, не автоматический restart/failure-budget reset. Дополнительные расходы0.
+
+Live qualification нового B02 runtime не прошла: первый GET HTTP200 снова содержит
+duplicate_bar_in_response (тот же первый pool); request сохранён, source validator не
+ослаблен. Offline проверка runtime binding/host/corpus прошла. Новый cycle failed при
+prior debit1 достигает stop budget2: prospective01 остановлен, LaunchAgent B02 не
+установлен. Старый Brain job остановлен при handoff. Дополнительных GET больше нет;
+history02 preflight завершился до root/GET, continuation не выполнена. Общее B02
+приращение2GET (одна historical page + один prospective response). Это ограничивает
+результат B02, не повод создавать третий collector или сбрасывать quota.
+
+Допустимо offline досчитать mature outcomes существующих predictions по уже полученным
+валидным raw. Такие derived outcomes имеют фактическое время данного offline расчёта и
+маркер recovery_scoring, не заменяют исходные online records. Reports разделяют
+published и recovered membership; новые network observations не создаются.
