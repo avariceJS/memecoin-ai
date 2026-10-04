@@ -1,5 +1,18 @@
 # Оценка модели и управление версиями
 
+## B08 — operational gate и воспроизводимость, 2026-10-04
+
+Frozen gate:24 dispositions,≥6fresh наcutoff,≥4new pools withbars, exact raw/index,
+migration fixtures. Первая оценка0fresh, вторая5fresh, обе negative;32GET budget exhausted.
+Все12 новых pools observed; этот успех не компенсирует провал freshness. Activation не было.
+
+Новыйindex точно воспроизвёл B07 as-of:516market/131forecast joins,43ticks,393decisions,
+3exits,6books. Installedwheel exact; totaloldGRU net−2.345041 USD — B07 accumulated history,
+не новый эксперимент/edge. Новый UI содержит permodel decision/entry/exit counters; ещё
+не deployed. Сравнение по полным новым суткам и measured weeklyuptime не проведены.
+616base/642combinedML tests PASS; benchmark single local raw1.488s/index0.191s, не SLA.
+[Sealed evidence](../docs/evidence/brain-continuity-2026-10-04.json).
+
 ## B07 — проверять виртуальный цикл отдельно от edge, 2026-10-04
 
 20paper tests: causal future fill, no intrabar hindsight, fee/cash invariants, bounded

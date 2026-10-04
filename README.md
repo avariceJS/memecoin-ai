@@ -4,6 +4,12 @@
 
 ## Живой Brain: виртуальный paper/shadow
 
+**Статус после B08:** Control Center и B07 accounting доступны, но B04 source остановлен
+после HTTP429, новые paper-входы приостановлены. Новый24-market source не прошёл freshness
+gate (5из6), недельный rollout не активирован. Готов incremental raw/index foundation;
+следующийB09 — восстановление feed. [Итог/evidence](docs/brain-continuity.md).
+Описание B07 ниже относится к его первоначальной activation.
+
 B07 запустил локальный [Live Control Center](http://127.0.0.1:8790): наблюдения рынка,
 прогнозы empirical/linear/GRU, виртуальные позиции/результаты и daily candidate training.
 Это отдельный GT price-proxy loop, без реальных денег и без доказанного edge.

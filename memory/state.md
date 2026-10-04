@@ -1,5 +1,50 @@
 # Текущий статус
 
+## B08 — источник не прошёл weekly activation, 2026-10-04
+
+**B08 activation отклонена.** Новый source не запущен как LaunchAgent; cutover не выполнен.
+B04 получил HTTP429 во время B08 discovery и штатно поставил STOP. Старые B07 paper/train/UI
+jobs сохранены, Control Center http://127.0.0.1:8790 доступен, но source остановлен и новые
+входы paused. Это не работающий непрерывный рыночный цикл. Старые STOP не стирать.
+
+Новый `work/brain-b08/source01`: 24 admitted/observed pools, 21 active quality + 3 inherited
+quarantine, 18 600 first-observed bars (+3 085 к seed), 464 indexed captures/58 843 versions.
+Версии включают повторные значения: реально изменённых pool×candle 232, включая B04.
+Максимальный span одного pool 14.68 days; цель до90 days не достигнута. История текущего
+discovered universe не снимает survivorship/sampling bias и не получает прошлую online availability.
+
+Три discovery success, четвёртый GET429; B04 отдельный429 через6s. Новый source наследовал
+оба rate events и полный15min cooldown, снизил pacing до5/min. Затем32GET:29 live success,
+2 history success,1 history URLError безHTTP status (низкоуровневая причина неизвестна),
+новых429 нет. Первый freshness gate 0/6, финальный5/6 при24 dispositions/12new observed.
+Оба результата сохранены, требования не снижены. Бюджет qualification исчерпан, source STOP
+`qualification_freshness_gate_failed`; новых запросов после verdict0. ВсегоB08 36publicGET,
+paid/RPC/newfits0. Это отказ текущего сочетания feed/cadence, не доказательство невозможности GT.
+
+Инкрементальный SQLite first-observed index воспроизводится из immutable raw; full audit exact,
+локальный single-run fullscan1.488s / index0.191s. As-of старого paper snapshot точный:516rawjoins,
+131forecastjoins,43ticks,393decisions,3closedtrades,0open/pending,6books. СтарыйGRU total net
+−$2.345041 при assumed costs; это накопленная B07 история, не результат B08 и не edge.
+Installed-wheel replay exact. Реальный migration НЕ выполнен; cash/openposition/restart
+migration проверен fixtures. Champion прежний, одна перенесённая в плане training версия,
+новыхfits0. D43/F01/holdout не открывались/не менялись.
+
+Проверки:616 base PASS/6optional skips,642 combinedML PASS,28 focused PASS,check/smoke/build.
+Новый UI отдельно проверен на8791 с реальным B07 dashboard: noJS errors/overflow1440 и390px;
+в продуктовый frozenB07 UI этот код не установлен. Source runtime pin
+`8dad09e5985d71c8348d517ca1440c2061ad14639805c486f12f5c466e1ca1f5`, staged expiry
+2026-10-11T11:32:39.985204Z не означает разрешённый rollout. Бюджет75000GET/7days/8GiB —
+предел подготовленной конфигурации, не потраченная quota и не измеренный недельный uptime.
+
+**Следующий B09:** восстановить полезный live paper feed: раздельные live-priority и history
+бюджеты/cadence, небольшой active set с проверкой свежести на нескольких полных циклах,
+старые рынки сохранять в denominator. Нужен новый явный bounded plan, не повтор B08 или
+обнуление rate events. Raw PumpSwap/versioned semantics и альтернативный source cross-check
+развивать параллельно; новые модели не приоритет. До week/month нужны устойчивый feed,
+операционный soak и масштабирование полного journal/ledger replay.
+[Итог B08](../docs/brain-continuity.md), [evidence](../docs/evidence/brain-continuity-2026-10-04.json).
+Разделы ниже — предыдущие срезы; утверждение B07 о работающем B04 заменено этим статусом.
+
 ## B07 — живой virtual paper/shadow Brain, 2026-10-04
 
 Пользователь явно разрешил paper и сменил приоритет на быстрый наблюдаемый product loop.

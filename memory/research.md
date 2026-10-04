@@ -1,5 +1,16 @@
 # Реестр исследовательских экспериментов
 
+## B08 — новые данные без новых fit/promotion, 2026-10-04
+
+Corpus expanded12→24 admitted pools и15 515→18 600 first bars, discovery bias сохраняется.
+Это engineering/source qualification; новыхfits0, F01/holdout не использованы. Prepared
+trainer остаётся D44/D47, ≥24h+100new matured samples,4fits≤600s, target7days и capacity
+suffix≈28k bars с включением всехpools на boundary. Max8runs относится только к НЕ
+активированному B08; работающий frozen B07 по-прежнему max3. Champion не меняется.
+Сначала восстановление live feed/B09, потом честные следующие сутки/outcomes и paired
+model behavior; не выбирать новый backbone по трём старым paper trades.
+[Итог](../docs/brain-continuity.md).
+
 ## B07 — первый живой paper baseline и регулярные candidates, 2026-10-04
 
 Новый strategic priority — наблюдаемый decision/outcome/training loop, без снятия temporal

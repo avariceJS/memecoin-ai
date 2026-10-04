@@ -10,10 +10,13 @@ from memecoin_registry.contracts import verify
 from memecoin_runner.ledger import Ledger
 
 
-def reproduce(snapshot):
+def reproduce(snapshot, index_root=None):
     verify(snapshot)
     c = read(snapshot / "config.json")
     source = Path(c["source"])
+    indexed = index_root or source
+    if index_root is not None and Path(read(indexed / "seed.json")["parent"]) != source:
+        raise ValueError("index_parent_mismatch")
     deployment = read(snapshot / "deployment.json")
     bundle = Path(deployment["bundle"])
     verify(bundle)
@@ -23,13 +26,15 @@ def reproduce(snapshot):
     with Ledger(snapshot / "ledger", read(snapshot / "ledger/binding.json")) as ledger:
         events = ledger.audit(read(snapshot / "external-head.json")["ledger_head"])
     cutoff = events[-1]["payload"]["tick"]["at_ns"]
-    index_audit = audit(source, cutoff)
-    rows, _ = view(source, cutoff)
-    migration = read(snapshot / "migration.json")
-    if sha(snapshot / "migration.json") != c["migration_sha"]:
-        raise ValueError("migration_pin")
-    if events[migration["prefix_events"] - 1]["sha256"] != migration["prefix_head"]:
-        raise ValueError("migration_prefix")
+    index_audit = audit(indexed, cutoff)
+    rows, _ = view(indexed, cutoff)
+    migration = None
+    if c.get("migration_sha"):
+        migration = read(snapshot / "migration.json")
+        if sha(snapshot / "migration.json") != c["migration_sha"]:
+            raise ValueError("migration_pin")
+        if events[migration["prefix_events"] - 1]["sha256"] != migration["prefix_head"]:
+            raise ValueError("migration_prefix")
     observations = {(r["pool"], r["open_s"] + 300, r["capture_sha"]): r for r in rows}
     prediction_files = {}
     parents = [source, *sorted((paper / "candidate-shadows").glob("*"))]
@@ -78,8 +83,8 @@ def reproduce(snapshot):
     return dict(
         raw_market_joins=markets,
         index_audit=index_audit,
-        carried_ticks=migration["prefix_events"],
-        new_ticks=len(events) - migration["prefix_events"],
+        carried_ticks=migration["prefix_events"] if migration else len(events),
+        new_ticks=len(events) - migration["prefix_events"] if migration else 0,
         published_forecast_joins=predictions,
         model_pins=sorted(model_pins),
         exact_replay=True,
@@ -92,5 +97,6 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("snapshot", type=Path)
+    parser.add_argument("--source-index", type=Path)
     args = parser.parse_args()
-    print(json.dumps(reproduce(args.snapshot), indent=2))
+    print(json.dumps(reproduce(args.snapshot, args.source_index), indent=2))

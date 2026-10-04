@@ -1,5 +1,16 @@
 # История изменений решений
 
+## 2026-10-04 — B08: incremental corpus, отрицательный live gate
+
+Добавлен memecoin_continuous, frozen source supervisor, safe raw/index import, SQLite versions,
+full/raw rotating audit, bounded live/history scheduler и paper migration adapter. 24 pools,
+18 600 bars;31/32 post-cooldown GET successful. Два429 (discovery/B04) сохранены; B04 STOP,
+B07 UI/accounting продолжаются с paused entries. Frozen activation gate5<6; новый source
+STOP, cutover не выполнен. Новых fits0, champion прежний. 642ML tests и wheel replay exact.
+Новый UI исправляет mobile overflow и показывает source/behavior, но не установлен в frozenB07.
+СледующийB09 — восстановление feed и проверка cadence/soak; не model complexity.
+[Evidence](../docs/evidence/brain-continuity-2026-10-04.json).
+
 ## 2026-10-04 — B07: разрешён и запущен живой virtual paper Brain
 
 Новое поручение заменило paper-запрет: приоритет — наблюдаемый product loop, полезное

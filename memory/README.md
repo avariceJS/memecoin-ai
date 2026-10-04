@@ -10,6 +10,7 @@ Memory Bank — канонический, пригодный для чтения
 
 | Вопрос новой сессии | Канонический документ |
 |---|---|
+| B08: incremental corpus, provider outage, отклонённая weekly activation | [brain-continuity.md](../docs/brain-continuity.md) |
 | Зачем строим и чего не обещаем | [project.md](project.md) |
 | Как устроены компоненты и их границы | [architecture.md](architecture.md) |
 | Что принято, почему и когда пересмотреть | [decisions.md](decisions.md) |

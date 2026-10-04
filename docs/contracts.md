@@ -1,5 +1,13 @@
 # Implemented contracts and validity domain
 
+## B08 continuity capability — не deployed weekly service
+
+Source root B08 содержит отрицательный qualification gate и STOP; запуск plists/cutover
+не разрешён этим результатом. B04 STOP не снимать. Работающий B07 UI/accounting показывает
+паузу источника. Derived SQLite не заменяет raw provenance; migration tests не означают
+реальную migration. Новые costs/features/targets/ML winner в B08 не вводились.
+[Актуальный итог и ограничения](brain-continuity.md).
+
 ## B07: отдельный виртуальный paper контракт
 
 Новая явная авторизация пользователя разрешает live paper/shadow, но не реальные сделки.

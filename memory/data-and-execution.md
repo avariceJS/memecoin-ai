@@ -1,5 +1,20 @@
 # Данные и достоверное исполнение
 
+## B08 — отдельный derived store и source outage, 2026-10-04
+
+Immutable captures сохраняют actual received/available_ns при import/recovery. SQLite хранит
+first-observed candles и все later versions; никакая revision не переписывает исходную цену.
+Membership/payload checksum/capture pins + rotating raw audit≤512/hour и full audit проверяют
+index; raw внеGit — source of truth. Старый B04 raw нужен для rebuild, его не удалять.
+24 observed pools не равны24fresh: финально5fresh,3quarantine. 232 revised pool×candles на
+combined B04+B08, не58 843 revisions. История target90days фактически maxspan14.68days;
+доступная короткая страница завершает bounded pagination, не доказывает полную историю.
+
+B08 source не активирован:429 inheritance/cooldown/5perminute,32attempt stop, freshness gatefailed.
+B04 stopped, новые B07 entries paused; сохранённая бухгалтерия не теряет историю. Параметры
+CPMM/targets/features/paperfill не менялись, calibrated execution по-прежнему отсутствует.
+[План и receipt evidence](../docs/brain-continuity.md).
+
 ## B07 — отдельный live price-proxy paper lane, 2026-10-04
 
 Новая явная авторизация: виртуальные trades допустимы. Raw PumpSwap quarantine B06

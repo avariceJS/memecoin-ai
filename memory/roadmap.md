@@ -1,5 +1,19 @@
 # Roadmap с критериями перехода
 
+## После B08 — B09: сначала вернуть непрерывный paper feed
+
+B08 дал incremental corpus и transport/freshness evidence, но отказал weeklyactivation5<6.
+B07 UI/accounting сохранены; B04 STOP, новых live entries нет. Новый B09 plan должен
+разделить частое обновление небольшого active market set и cold/history expansion,
+сохранить24 denominator/statuses и provider error history, измерить freshness duty cycle
+на нескольких полных циклах доcutover. Не повторять B08 поверх STOP и не снижать его gate.
+
+Следом day-scale soak, fault isolation/restart и bounded ledger/index load benchmark;
+параллельно raw PumpSwap semantics/cross-source prices. Когда feed устойчив — ежедневные
+matured training refresh и paired future behavioral comparison. Week/month требует actual
+uptime/диска/производительности, не одного увеличения expiry. Модель не главный bottleneck.
+[Результат B08](../docs/brain-continuity.md).
+
 ## После B07 — живой product loop и B08 multi-day data continuity
 
 Новое поручение пользователя заменило прежний порядок: paper/shadow vertical разрешена

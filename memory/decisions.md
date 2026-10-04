@@ -1,5 +1,23 @@
 # Реестр архитектурных решений
 
+## B08 — index принят, расширенный rollout отклонён, 2026-10-04
+
+Принят engineering foundation: immutable raw + SQLite derived first-observed/version index,
+durable reservations, per-pool quarantine, global cooldown/STOP, frozen source supervisor,
+точная миграция paper prefix и отдельные поведенческие показатели кандидатов. Fixtures и
+offline reproduction прошли. Менять старые paper trades/cash/policy/models не разрешено.
+
+**Activation отклонена по frozen gate:**32 qualificationGET использованы, итог5fresh/24 вместо≥6;
+вторая проверка в оставшихся8GET не заменила первую0fresh. Это operational criterion, не ML
+trial. Первые429 сохранились в provider budget; новый STOP и оба qualification artifacts
+не удалять. Staged plists не загружены, migration/cutover не выполнялся. B04 STOP сохраняется.
+
+B09 направить на feed continuity с отдельной cadence для live и history; не требовать
+полного raw PumpSwap qualification как prerequisite восстановления paper. Не увеличивать
+universe ещё раз до проверки нескольких полных freshness циклов и устойчивости scheduling.
+Недельная/месячная автономность не доказана; full journal/ledger replay требует load/soak.
+[План, amendments и отрицательный результат](../docs/brain-continuity.md).
+
 ## B07 — product loop сейчас, strict research и execution отдельно, 2026-10-04
 
 Статус: принято по новому прямому поручению. Следующий шаг B06 protocol qualification

@@ -1,5 +1,17 @@
 # Архитектурное направление
 
+## B08 — подготовленный continuity слой, 2026-10-04
+
+memecoin_continuous: append-only raw → transactional derived SQLite firsts/versions →
+одинаковые causal rows для paper/training. Отдельный frozen source child≤240s/8requests,
+rotating audit≤512, provider-wide cooldown/error budget и local pool quarantine. Paper adapter
+сохраняет старый binding/prefix/cash/positions, добавляет configSHA в будущие ticks и model
+behavior projection. Полный ledger replay пока растёт с историей: week/month load не qualified.
+
+Этот runtime staged, НЕ activated из-за freshness gate. B07 frozen runtime/source binding
+не менялись, B04 STOP означает paused fresh entries. Не читать architecture capability как
+текущий deployed topology. [Итог/границы](../docs/brain-continuity.md).
+
 ## B07 — работающая exploratory paper вертикаль, 2026-10-04
 
 Frozen B04 source → first-observed causal GT bars → D44/D47 Brain predictions → отдельный
