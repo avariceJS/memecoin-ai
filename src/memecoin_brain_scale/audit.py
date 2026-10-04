@@ -199,7 +199,14 @@ def paired_summary(records: list[dict], *, draws: int = 200) -> dict:
     return result
 
 
-def shadow_snapshot(primary: Path, output: Path, rows: list, as_of_ns: int) -> dict:
+def shadow_snapshot(
+    primary: Path,
+    output: Path,
+    rows: list,
+    as_of_ns: int,
+    *,
+    imported_model_roots: tuple[Path, ...] = (),
+) -> dict:
     output.mkdir(exist_ok=False)
     records, inventory, pending = [], [], 0
     recovered = 0
@@ -212,6 +219,14 @@ def shadow_snapshot(primary: Path, output: Path, rows: list, as_of_ns: int) -> d
         if p["model_sha"] not in models:
             model = Path(p["model_path"])
             allowed = [(primary / "models").resolve()]
+            if imported_model_roots:
+                activation = read(primary / "activation.json")
+                if sha(primary / "import.json") != activation["import_sha"]:
+                    raise ValueError("import_binding_changed")
+                declared = read(primary / "import.json").get("model_roots", [])
+                if [str(p.resolve()) for p in imported_model_roots] != declared:
+                    raise ValueError("undeclared_imported_models")
+                allowed.extend(imported_model_roots)
             if (primary / "import.json").exists():
                 activation = read(primary / "activation.json")
                 if sha(primary / "import.json") != activation["import_sha"]:
