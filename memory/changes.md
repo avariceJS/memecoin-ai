@@ -1,5 +1,17 @@
 # История изменений решений
 
+## 2026-10-04 — B05: source architecture и raw evidence foundation
+
+Новый приоритет пользователя — длительная автономность Brain. Frozen planfba806a;
+isolated Alchemy13RPC/500CU прошёл, raw replay/wheel exact. GT роль discovery/history/
+cross-check, raw on-chain primary candidate только после venuequalification. Два stale
+pools согласуются с последнимиreferences; inactivity/GT lag не доказаны.9/12PumpSwap owners.
+Добавлены append-only causal evidence/health policy/capacity audit,8tests;591combinedPASS.
+B04 не менялся, пережил один transport cycle failure;3hourlyprobes без release, schema
+conflict локализован. Snapshot15323bars/220scored, champion прежний, newfits0. СледующийB06 —
+PumpSwap decoder+economical bounded ingestion. [Итог](../docs/brain-source-architecture.md),
+[evidence](../docs/evidence/brain-source-architecture-2026-10-04.json).
+
 ## 2026-10-04 — B04 availability audit, normalization и collector-only activation
 
 Зафиксированplan2d057b7. Выполненraw tail/duplicate audit;16developmentfits59,09s,

@@ -1,5 +1,16 @@
 # Реестр исследовательских экспериментов
 
+## B05 — data-source qualification перед новым model challenge, 2026-10-04
+
+Приоритет пользователя: приближать unattended широкий corpus/training/shadow loop. Поэтому
+linear-winsor challenger отложен, не научно отклонён; новыхfits0, model selection0. Два stale
+GT pools согласуются с bounded on-chain last references, lag не доказан.9/12owners PumpSwap
+делают verified event decoder лучшим следующим B06, не более сложный backbone. Raw tx пока
+training_eligible=false. Исследовать indexed/filtered ingestion cost+coverage после decoder;
+vendor и universe size не догма. Старые B03/B04 learning curves неизменны.
+Brain track independent of F01, но causal/chronological/matured shadow gates сохраняются.
+[Документ](../docs/brain-source-architecture.md).
+
 ## B04: train-only winsorization ablation, 2026-10-04
 
 Plan2d057b7 доfits. Sealed B03dataset/folds100%, empirical/linear/GRU, seeds7/19,

@@ -1,5 +1,23 @@
 # Данные и достоверное исполнение
 
+## B05 — отдельная raw transaction evidence lane, 2026-10-04
+
+GT остаётся discovery/history/cross-check, не принятый единственный primary широкого рынка.
+B04 без изменений; B05 isolated Alchemy finalized13RPC/500nominalCU дал owners12pools,
+9PumpSwap,160boundedreferences/4rawtx. Account metadata dataSlice0 не coherent checkpoint;
+accountKeys references/Buy-Sell log labels не audited swaps. Existing Raydium CPMM adapter
+не поддерживает PumpSwap/Orca/CLMM/Meteora автоматически. Full pages→incomplete history;
+minContextSlot не historical floor, getTransactionnull не нулевая активность.
+
+Append-only source-scoped evidence ledger сохраняет immutable raw+actual availability,
+null hydration/revisions/as-of; training_eligible=false. Recovery не создаёт прошлую online
+доступность. Затраты13RPC/500nominalCU — не provider billing delta. Source-local health
+policy реализована, continuous ingestion/backpressure/circuit breakers ещё не deployed.
+При100/300pools нужна экономичная selective/indexed/streamed transaction lane и venue decoder.
+Helius gRPC docs48h replay/Mainnet paid plans — documentation, не подтверждение нашего доступа.
+[Исследование и capacity assumptions](../docs/brain-source-architecture.md),
+[evidence](../docs/evidence/brain-source-architecture-2026-10-04.json).
+
 ## B04: collection health отдельно от fresh forecast support, 2026-10-04
 
 Collector-only B04 activated после двух cycles с полнымdenominator12:7fresh,2valid-stale,

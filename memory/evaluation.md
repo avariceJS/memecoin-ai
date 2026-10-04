@@ -1,5 +1,18 @@
 # Оценка модели и управление версиями
 
+## B05 — исходные clocks и очередной descriptive shadow срез, 2026-10-04
+
+Snapshot09:14UTC:15323bars,128revision observations/98keys,4receipt-hour buckets одного дня.
+Paired oldmodel000000:220scored/6censored/28pending,3hourblocks, macro pinball empirical
+0,006990/GRU0,008152/linear0,015251, CIнет. Raw→mature outcomes exact; новыхfits/promotion0.
+Handoff234scored позднее snapshot, не подменяет frozen comparison. Unseen deaths/current
+ranking/liquidity bias не сняты. B05 source probe — targeted diagnostic, не representative
+sample или latency benchmark; Chhu событие появилось во время sequential probe.
+Wheel replay inventory/pages/transactions/ledger view exact; source and wheel noRPC/no fits.
+565base/6optional skips,591combined, check/smoke/build. D43/F01/holdout untouched.
+[Результаты](../docs/brain-source-architecture.md),
+[evidence](../docs/evidence/brain-source-architecture-2026-10-04.json).
+
 ## B04: preprocessing selection по validation, 2026-10-04
 
 Два full-train folds B03, exact membership/targets иmatchedcontrolweights. Percentiles

@@ -11,6 +11,12 @@ holdout остаются закрытыми по прежним правилам
 после нового availability review; automatic training выключен, B03 остаётся REJECTED/STOP.
 Champion empirical сохранён; linear-winsor — кандидат отдельного будущего shadow опыта.
 Прежний expiry/12000publicGET/paid0 не продлён; [статус](../docs/brain-availability-normalization.md).
+B05 уточнил приоритет: двигаться к длительному самостоятельному сбору широкого рынка,
+разнообразному corpus, bounded retraining и честному future shadow с изоляцией плохих
+источников/пулов. До масштабирования выбрана разделённая source architecture; GT сохраняется
+как discovery/history/cross-check, raw transactions — candidate primary после venuequal.
+B04 job без изменений; следующийB06 — PumpSwap decoder+экономичный raw ingestion,
+linear-winsor challenge отложен. [B05](../docs/brain-source-architecture.md).
 Цель ближайших дней — содержательная модель и цикл её улучшения, не обещание edge.
 Реальные деньги, исполнение сделок, paid upgrades, RL/paper bot не разрешены.
 

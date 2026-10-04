@@ -1,6 +1,42 @@
 # Текущий статус
 
-## B04 — текущий статус, 2026-10-04
+## B05 — текущий статус, 2026-10-04
+
+**Source architecture переоценена; новый primary collector не активирован.** Пользователь
+поставил надёжный самостоятельный data/training loop выше очередного model experiment.
+GeckoTerminal — discovery/history/cross-check; finalized raw transaction lane — кандидат
+основного будущего потока после venue decoding/coverage qualification. B04 collector-only
+работает без изменения runtime, budget или expiry; linear-winsor future challenge отложен.
+
+Planfba806a, raw0c9af4b, launcher3f3dbdb, replay08fbced. Один Alchemy probe:13RPC/500nominalCU,
+12,34s, failures0/retries0, USD0 по owner attestation+unchanged mapping, не provider proof.
+Новая отдельная B05 allocation, не reuseD51.9/12owners PumpSwap;4×40references и4hydratedtx.
+Все pages насыщены; history_complete=false, decoded_trades0/training_eligible=false.
+Два stale pools имеют последние references внутри последних GT bars: lag GT не доказан,
+редкая активность совместима с evidence. Для100/300pools naive hydration/polling не годится:
+условные1tx/min дают207/622M CU за30days; это сценарий, не measured billing.
+
+Sealed09:14UTC snapshot15323bars/12pools,128revisions/98keys,4receipt-hour buckets одного дня.
+Shadow220scored/6censored/28pending,3hour blocks, macro pinball empirical0,006990/GRU0,008152/
+linear0,015251, CIнет. Новыхfits0, champion прежний. Никакого edge/quality claim.
+Handoff09:18:53UTC B04:debit203/12000,268forecasts/234scored/6censored/28pending,STOPнет.
+ОдинURLError cycle восстановился на следующем due, subtypeunknown. Первые3hourlyprobes:
+HUQduplicate_bar_in_response;5gep/FXgvalid-stale;3quarantines сохраняются, probes1/3, release0.
+Original expiry2026-10-07T00:30:23.405597Z; job не продлён. Это bounded, не вечный сервис.
+
+Новый evidence ledger: causal admission, duplicate/revision/as-of/null→hydration; bounded
+raw acquisition и offline replay. Source-local health policy пока не deployed supervisor.
+8newtests,565base/6optional skips,591combined; check/smoke/build, installed-wheel exact replay.
+Frozen B04/D50 verified; D43/F01/holdout не открывались. Raw work/brain-b05 вне Git.
+
+**Следующий B06:** verified PumpSwap event decoder на recorded+fixtures, затем economical
+bounded indexed/transaction ingestion с gaps/budget/local failure accounting; лишь после
+qualification масштабировать universe и подключать новый corpus к D44/D47 training.
+Helius mainnet access/no-paid не установлен, subscriptions нет; WSS tuning не переоткрывать.
+[Итог](../docs/brain-source-architecture.md),
+[evidence](../docs/evidence/brain-source-architecture-2026-10-04.json).
+
+## B04 — предыдущий срез, collector остаётся активным
 
 **Collector-only активирован; automatic training отключён.** Новый контракт отделяет
 запись observations/missingness от достаточности fresh universe для модели. B03 остаётся

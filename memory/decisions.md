@@ -1,5 +1,30 @@
 # Реестр архитектурных решений
 
+## B05 — разделить роли источников до масштабирования, 2026-10-04
+
+B04 принят; пользователь приоритизировал unattended data/candidate/shadow loop. Это меняет
+следующий шаг с linear-winsor challenge на source architecture. Принято: GT сохраняет
+discovery/bootstrap/bar cross-check; кандидат primary — independently decoded finalized raw
+transactions. Не объявлять Alchemy primary лишь по доступности API и не заменять B04 сейчас.
+
+Один заранее ограниченный probe13RPC/500CU/USD0 прошёл без retries; owner inventory9/12PumpSwap,
+160references/4hydrated. Старые bars двух stale pools согласуются с последнимиreferences,
+поэтому GT lag не установлен. Schema/revisions и bandwidth/quota остаются самостоятельными
+причинами не строить единственный market-wide source на GT. Наивный Alchemy per-event HTTP
+тоже не масштабируется в30M при предположении1tx/min/pool. Изучить indexed/filtered ingestion,
+не подписываться на paid service и не возвращаться к D40 transport tuning.
+
+Новый evidence-only contract не допускает account references в training, revisionsне
+перезаписываются, recovery availability не backdated. Health function не равно production
+multilane supervisor. B04 frozen stops/expiry не ослаблены; первыеlivehourlyprobes не выпустили
+три pools, локальный schema conflict не остановил остальные. Champion empirical unchanged;
+learning curves B03/B04 не переинтерпретировать по новой одной shadow точке.
+
+B06 — PumpSwap decoder и bounded economical ingestion qualification; затем qualified corpus,
+chronological training и future paired comparisons. User goal — длительная автономность,
+но B05 не объявляет её достигнутой. [Документ](../docs/brain-source-architecture.md),
+[evidence](../docs/evidence/brain-source-architecture-2026-10-04.json).
+
 ## B04 — новый collector-only контракт и bounded preprocessing experiment, 2026-10-04
 
 B03 принят пользователем. Plan2d057b7 заранее разделил source availability logging и

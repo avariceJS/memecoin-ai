@@ -1,5 +1,15 @@
 # Архитектурное направление
 
+## B05 — направление source architecture, 2026-10-04
+
+GT discovery/history/cross-check + независимая raw finalized transaction lane с verified
+venue decoders → causal qualified corpus → D44/D47 bounded candidate training → paired
+future shadow → отдельноеpromotionрешение. Это целевая схема, не уже deployed product.
+B04 frozen collector остаётся прежним, новый memecoin_brain_sources пока evidence-only:
+ledger/replay/bounded probe/health policy. Реальные9/12PumpSwap owners определили B06decoder;
+CPMM/features/targets не меняются ради источника. Полный unattended supervisor и economical
+market-wide ingestion ещё bottlenecks. [Обоснование](../docs/brain-source-architecture.md).
+
 ## Реализованный reference контур
 
 Точная карта кода и команды находятся в [README](../README.md); ограничения в [contracts](../docs/contracts.md). Реализованы события/хранилище/observations, dual-clock synthetic replay, ledger/risk/target conversion, sampling и supervised contracts, experiment recorder и read-only RPC. Это инфраструктурная проверка архитектуры. Ниже остаётся направление будущей рыночной системы; наличие раздела не означает, что соответствующая модель уже реализована.
