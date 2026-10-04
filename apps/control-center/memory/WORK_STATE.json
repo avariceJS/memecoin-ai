@@ -2,10 +2,10 @@
   "schema_version": 2,
   "scope": "control-center-cc02-visual-reconstruction",
   "overall": "IN_PROGRESS",
-  "current_task": "CC02.3",
-  "last_completed": "CC02.2: Overview принят как эталон, среднее 4.2. Остальные страницы ещё v1.",
-  "last_verified_commit": "c4a28edf90d1dabc510f83ac561a60e93f738281",
-  "last_checks": "2026-10-04 CC02.2: vitest 50 PASS; e2e characterization PASS; visual_gate receipt PASS. Overview 1600 overflow/escape/overlap 0. Calendar D48 escapes remain. Model binding UNVERIFIED.",
+  "current_task": "CC02.4",
+  "last_completed": "CC02.3: календарь принят, среднее 4.2. D48 — матрица без текста в ячейках.",
+  "last_verified_commit": "f846c0e6ff1c60429af32f25438fcdede0f58551",
+  "last_checks": "2026-10-04 CC02.3: vitest 51 PASS; e2e characterization PASS; visual_gate receipt PASS. Calendar escape 0. Model binding UNVERIFIED.",
   "model_binding": {
     "configured_coordinator": "grok-4.7 / xhigh (picker)",
     "configured_executor": "composer-2.5[fast=false]",
@@ -15,7 +15,7 @@
     "configured_visual_executor": "grok-4.7 (documented default high; runtime UNVERIFIED)"
   },
   "blockers": [],
-  "next_action": "CC02.3: календарь и корпус. Сетка D48 без 336 подписей в ячейках. Overview не переписывать.",
+  "next_action": "CC02.4: визуализация research gate. 0/114 отдельно от 135. Календарь не переписывать.",
   "capabilities": [
     "existing read-only adapter + immutable historical projection",
     "primary visual reference available",
@@ -257,17 +257,68 @@
         "visual",
         "boundary"
       ],
-      "status": "PENDING",
+      "status": "DONE",
       "write_files": [],
-      "checks": [],
-      "reviews": [],
-      "attempts": [],
+      "checks": [
+        {
+          "command": "npm --prefix apps/control-center/web test",
+          "result": "PASS"
+        },
+        {
+          "command": "npm --prefix apps/control-center/web run e2e",
+          "result": "PASS"
+        },
+        {
+          "command": "python3 apps/control-center/scripts/visual_gate.py --receipt docs/control-center/references/cc02-final/CC02.3/review.json --task CC02.3",
+          "result": "PASS"
+        }
+      ],
+      "reviews": [
+        {
+          "kind": "boundary",
+          "result": "PASS",
+          "evidence": "cc-boundary-reviewer 346a8304-3b78-4c2a-ac7a-d063d9695f28: D48 dates are arithmetic, mismatch is an error, protected cells have no metrics, pending is not missed, duration needs both timestamps.",
+          "reviewed_revision": "f846c0e"
+        },
+        {
+          "kind": "visual",
+          "result": "PASS",
+          "evidence": "cc-visual-reviewer 638a9f59-10ed-4dd9-ab0c-381893d011f9 second pass mean 4.2. Receipt docs/control-center/references/cc02-final/CC02.3/review.json.",
+          "reviewed_revision": "f846c0e6ff1c60429af32f25438fcdede0f58551",
+          "reference_viewed": true,
+          "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+          "screenshot": "docs/control-center/references/cc02-final/CC02.3/second/calendar-1600.png"
+        }
+      ],
+      "attempts": [
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-ui-builder",
+          "configured_model": "grok-4.7",
+          "note": "Calendar and D48 matrix. Overview and lockfile stay put. Task slug grok-4.7 is rejected; this launch inherits the session. UNVERIFIED."
+        },
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-boundary-reviewer",
+          "configured_model": "composer-2.5",
+          "note": "PASS agent 346a8304-3b78-4c2a-ac7a-d063d9695f28."
+        },
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-visual-reviewer",
+          "configured_model": "grok-4.7",
+          "note": "First 2.5 NEEDS_FIX, second 4.2 PASS. Agent 638a9f59-10ed-4dd9-ab0c-381893d011f9. Slug grok-4.7 rejected; session inherit. UNVERIFIED."
+        }
+      ],
       "blocker": "",
-      "summary": "",
-      "reference_viewed": false,
-      "reference_sha256": null,
-      "visual_receipt": null,
-      "accepted_web_sha256": null
+      "summary": "Календарь: сетка D48 28px первая на странице, без слов в ячейках. D43 — маркеры. Вторая критика 4.2. Декабрь и reserved за прокруткой.",
+      "reference_viewed": true,
+      "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+      "visual_receipt": "docs/control-center/references/cc02-final/CC02.3/review.json",
+      "accepted_web_sha256": "2ba2a48cd05d147e7e8e506a33b10ef2a160310872931d88c67ec7f4596a4375"
     },
     {
       "id": "CC02.4",

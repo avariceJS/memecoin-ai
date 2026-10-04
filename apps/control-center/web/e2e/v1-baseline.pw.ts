@@ -110,8 +110,9 @@ function reportFor(
   };
 }
 
-// Calendar still characterizes the rejected D48 grid. Overview page overflow was a v1
-// defect; CC02.2 is expected to keep it at or under 1px. Do not hide calendar escapes.
+// Overview stays within 1px of horizontal overflow. The D48 grid no longer repeats
+// DESIGN in every cell, so calendar text escape is expected to be zero. Do not hide
+// a new escape with overflow:hidden.
 test("v1 layout harness воспроизводит overflow и не красит его в green", async ({ page }) => {
   const webSha = digest();
   const seen: string[] = [];
@@ -166,7 +167,7 @@ test("v1 layout harness воспроизводит overflow и не красит
 
   await page.setViewportSize({ width: 1024, height: 768 });
   await openRoute(page, "/calendar");
-  await expect(page.getByText("DESIGN", { exact: true })).toHaveCount(224);
+  await expect(page.getByText("DESIGN", { exact: true })).toHaveCount(0);
   const narrow = await page.evaluate(measureDom);
   const narrowShot = await page.screenshot({
     fullPage: false,
@@ -179,11 +180,11 @@ test("v1 layout harness воспроизводит overflow и не красит
   expect(narrow.shell_counts.overflow_px).toBeLessThanOrEqual(1);
   expect(narrow.shell_counts.card_escape_count).toBe(0);
   expect(narrow.inspected_regions).toContain("d48-grid");
-  expect(narrow.card_escape_count).toBeGreaterThanOrEqual(400);
+  expect(narrow.card_escape_count).toBe(0);
 
   const wide = summary.find((item) => item.route === "/calendar" && item.viewport[0] === 1600);
   const overview = summary.find((item) => item.route === "/" && item.viewport[0] === 1600);
-  expect(wide?.card_escape_count).toBeGreaterThanOrEqual(400);
+  expect(wide?.card_escape_count).toBe(0);
   expect(overview?.page_overflow_px).toBeLessThanOrEqual(1);
 
   writeFileSync(
@@ -191,7 +192,7 @@ test("v1 layout harness воспроизводит overflow и не красит
     JSON.stringify(
       {
         acceptance: "NOT_A_VISUAL_PASS",
-        note: "Положительные counts — известный дефект web v1. Не обновлять их в ноль правкой CSS внутри CC02.0.",
+        note: "Счётчики измеряет браузер. Overview и календарь больше не обязаны быть сломанными. Положительный count на другой странице — её дефект, не зелёный baseline.",
         web_sha256: webSha,
         rows: [
           ...summary,

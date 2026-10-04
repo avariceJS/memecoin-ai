@@ -1,3 +1,8 @@
+.page {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .pageHeader {
   display: flex;
   flex-wrap: wrap;
@@ -47,6 +52,7 @@
   grid-template-columns: minmax(0, 1.6fr) minmax(240px, 1fr);
   gap: var(--cc-gap);
   margin-bottom: var(--cc-gap);
+  min-width: 0;
 }
 
 @media (max-width: 1100px) {
@@ -60,6 +66,8 @@
   border: 1px solid var(--cc-border);
   border-radius: var(--cc-radius);
   padding: 14px 16px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .panelTitle {
@@ -71,101 +79,145 @@
 
 .timelineWrap {
   composes: panel;
-  min-height: 280px;
+}
+
+.question {
+  margin: -2px 0 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--cc-text-muted);
+}
+
+.plot {
+  padding: 8px 8px 10px;
+  border-radius: 6px;
+  background: #0c1622;
+  border: 1px solid var(--cc-border);
+  min-width: 0;
 }
 
 .axis {
-  position: relative;
-  margin: 8px 0 12px;
-  padding-top: 18px;
-  border-top: 1px solid var(--cc-border);
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
   font-size: 12px;
   color: var(--cc-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
-.axisTick {
+.axis span:nth-child(2) {
+  text-align: center;
+}
+
+.axis span:last-child {
+  text-align: right;
+}
+
+.markerLane {
+  position: relative;
+  height: 78px;
+  margin-top: 6px;
+}
+
+.axisLine {
   position: absolute;
-  top: 0;
-  transform: translateX(-50%);
-  white-space: nowrap;
+  left: 8%;
+  right: 8%;
+  top: 39px;
+  height: 1px;
+  background: var(--cc-border);
 }
 
-.laneList {
+.duration {
+  position: absolute;
+  top: 38px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--cc-green);
+  pointer-events: none;
+}
+
+.marker {
+  position: absolute;
+  top: 18px;
+  width: 32px;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-
-.laneBtn {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
-  gap: 10px;
   align-items: center;
-  width: 100%;
-  text-align: left;
-  border: 1px solid var(--cc-border);
-  border-radius: 6px;
-  background: var(--cc-panel-raised);
-  color: var(--cc-text);
-  padding: 8px 10px;
-  font-size: 12px;
+  gap: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--cc-text-muted);
+  padding: 0;
   cursor: pointer;
 }
 
-.laneBtn[aria-selected="true"] {
-  border-color: var(--cc-cyan);
-  box-shadow: 0 0 0 1px var(--cc-cyan);
+.marker[aria-pressed="true"] .capSlot {
+  color: var(--cc-text);
+  font-weight: 650;
 }
 
-.laneProtected {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  border: 1px dashed var(--cc-border);
-  border-radius: 6px;
-  padding: 8px 10px;
+.capSlot {
+  height: 14px;
+  line-height: 14px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dot,
+.legendDot {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+}
+
+.dot {
+  box-shadow: 0 0 0 3px #0c1622;
+}
+
+.marker[aria-pressed="true"] .dot {
+  box-shadow: 0 0 0 3px #0c1622, 0 0 0 5px var(--cc-cyan);
+}
+
+.dotOk {
+  background: var(--cc-green);
+}
+
+.dotWait {
+  background: var(--cc-blue);
+}
+
+.dotBad {
+  background: var(--cc-failure);
+}
+
+.dotProtected {
+  width: 9px;
+  height: 9px;
+  background: transparent;
+  border: 1.5px solid #b7a6de;
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+.markerLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
   font-size: 12px;
   color: var(--cc-text-muted);
 }
 
-.laneIndex {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--cc-cyan);
-}
-
-.laneTrack {
-  position: relative;
-  height: 10px;
-  background: #0a1520;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.laneFill {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border-radius: 4px;
-  opacity: 0.85;
-}
-
-.fillOk {
-  background: var(--cc-green);
-}
-
-.fillWait {
-  background: var(--cc-blue);
-}
-
-.fillBad {
-  background: var(--cc-failure);
-}
-
-.fillProtected {
-  background: var(--cc-text-muted);
-  opacity: 0.35;
+.markerLegend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .statusOk {
@@ -178,16 +230,6 @@
 
 .statusBad {
   color: var(--cc-failure);
-}
-
-.protectedChip {
-  border: 0;
-  background: transparent;
-  color: var(--cc-warning);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: default;
-  padding: 0;
 }
 
 .detailPanel {

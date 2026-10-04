@@ -28,9 +28,9 @@ Core/main D50+ развивается независимо; здесь его н
 
 ## Текущая очередь / следующий шаг
 
-`WORK_STATE.json` schema 2: **CC02.0–CC02.2 DONE**, текущая задача **CC02.3 календарь**.
-Overview принят как эталон: третья критика среднее 4.2, на 1600 переполнение и наложения нулевые.
-Harness по-прежнему требует сотни побегов текста D48. Остальные страницы ещё v1.
+`WORK_STATE.json` schema 2: **CC02.0–CC02.3 DONE**, текущая задача **CC02.4 research**.
+Календарь принят: вторая критика среднее 4.2. Сетка D48 первая, ячейки 28px, без слов внутри.
+Декабрь и reserved остаются в прокрутке матрицы. Дальше визуализация research gate.
 
 Coordinator Grok 4.7 Extra High; сложный UI и visual reviewer — Grok 4.7 High;
 routine analyst/adapter/tests/boundary — Composer 2.5 standard. Native definitions настроены;

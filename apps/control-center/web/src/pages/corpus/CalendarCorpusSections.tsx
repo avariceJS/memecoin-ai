@@ -25,8 +25,8 @@ export function CalendarCorpusSections({ snapshot }: Props) {
 
   return (
     <div className={styles.bottomRow} data-testid="calendar-corpus-sections">
-      <CorpusSummaryPanel corpus={corpus} research={research} />
       <D48PlanGrid sampling={research.data.sampling} />
+      <CorpusSummaryPanel corpus={corpus} research={research} />
     </div>
   );
 }

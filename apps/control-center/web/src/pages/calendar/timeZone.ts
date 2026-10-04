@@ -26,3 +26,13 @@ export function formatEpochNs(ns: string, zone: CalendarTimeZone): string {
 export function plannedAtMs(iso: string): number {
   return new Date(iso).getTime();
 }
+
+export function formatAxisTick(ms: number, zone: CalendarTimeZone): string {
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: zone,
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(ms));
+}

@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 import { RouterProvider, createMemoryRouter } from "react-router";
 import { parseSnapshot, parseSnapshotResponse } from "../../api/parse";
 import { appRoutes } from "../../routes";
-import { buildPlanCellKinds } from "../corpus/D48PlanGrid";
+import { buildPlanCellKinds, D48PlanGrid } from "../corpus/D48PlanGrid";
+import { deriveD48Plan } from "../corpus/d48Plan";
 import { WindowDetail } from "./CalendarPage";
 import type { DevelopmentWindow } from "./labels";
 
@@ -85,7 +86,7 @@ describe("CalendarPage fixture", () => {
     expect(screen.queryByText("missed")).not.toBeInTheDocument();
   });
 
-  it("protected rows omit metric payload in DOM", () => {
+  it("protected markers omit metric payload", () => {
     renderCalendar();
     const row4 = screen.getByTestId("protected-row-4");
     const row5 = screen.getByTestId("protected-row-5");
@@ -93,9 +94,13 @@ describe("CalendarPage fixture", () => {
     for (const token of forbidden) {
       expect(row4.textContent).not.toContain(token);
       expect(row5.textContent).not.toContain(token);
+      expect(row4.getAttribute("aria-label")).not.toContain(token);
+      expect(row5.getAttribute("aria-label")).not.toContain(token);
     }
-    expect(row4.textContent).toContain("d43:4");
-    expect(row5.textContent).toContain("доступ закрыт");
+    expect(row4).toHaveAccessibleName(/d43:4/);
+    expect(row4).toHaveAccessibleName(/доступ закрыт/);
+    expect(row5).toHaveAccessibleName(/доступ закрыт/);
+    expect(document.querySelector("[data-duration='true']")).toBeNull();
   });
 
   it("parses corpus and D48 sampling counts from published fixture", () => {
@@ -125,26 +130,65 @@ describe("CalendarPage fixture", () => {
     expect(research.qualification).toBe("FROZEN_DESIGN_NOT_ADMISSION");
     expect(research.data.admission).toBe("LOCKED");
     expect(buildPlanCellKinds(s)).toHaveLength(336);
+    const plan = deriveD48Plan(s);
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) return;
+    expect(plan.days).toBe(84);
+    expect(plan.strata).toEqual(["00:30", "06:30", "12:30", "18:30"]);
+    expect(plan.developmentDays).toBe(56);
+    expect(plan.reservedDays).toBe(28);
+    expect(plan.cells[0]).toMatchObject({ iso: "2026-10-07", kind: "development" });
+    expect(plan.cells[56 * 4]).toMatchObject({ iso: "2026-12-02", kind: "reserved" });
+    expect(plan.cells[83 * 4]?.iso).toBe("2026-12-29");
   });
 
-  it("renders D48 grid with protected cells free of corpus metric tokens", () => {
+  it("renders D48 as day by stratum cells without repeated labels", () => {
     renderCalendar();
     expect(screen.getByTestId("calendar-corpus-sections")).toBeInTheDocument();
-    expect(screen.getByTestId("d48-plan-grid").children).toHaveLength(336);
+    expect(document.querySelector("[data-cc-scroll='d48-day-strata']")).toBeTruthy();
+    const cells = screen.getAllByTestId(/^d48-cell-/);
+    expect(cells).toHaveLength(336);
     const reserved = screen.getAllByTestId(/d48-cell-reserved-/);
     expect(reserved).toHaveLength(112);
-    const forbidden = ["174", "1392", "336"];
-    for (const cell of reserved) {
+    const forbidden = ["174", "1392", "336", "DESIGN", "PROTECTED"];
+    for (const cell of cells) {
+      expect(cell.textContent?.trim()).toBe("");
       for (const token of forbidden) {
         expect(cell.textContent).not.toContain(token);
       }
-      expect(cell.textContent).toContain("доступ закрыт");
     }
+    for (const cell of reserved) {
+      expect(cell.getAttribute("aria-label")).toContain("доступ закрыт");
+      expect(cell.getAttribute("aria-label")).not.toContain("174");
+    }
+    const tabbable = cells.filter((cell) => cell.tabIndex === 0);
+    expect(tabbable).toHaveLength(1);
+    expect(reserved.every((cell) => cell.tabIndex === -1)).toBe(true);
+    fireEvent.keyDown(tabbable[0]!, { key: "ArrowRight" });
+    const after = screen.getAllByTestId(/^d48-cell-/).filter((cell) => cell.tabIndex === 0);
+    expect(after).toHaveLength(1);
+    expect(after[0]).not.toBe(tabbable[0]);
     expect(screen.getByText(/336 запланировано/)).toBeInTheDocument();
+    expect(screen.queryAllByText("DESIGN")).toHaveLength(0);
     const summary = screen.getByLabelText("Sampling plan counts");
     expect(summary.textContent).toContain("336");
     expect(summary.textContent).toContain("224");
     expect(summary.textContent).toContain("112");
+  });
+
+  it("refuses an inconsistent D48 plan instead of drawing a grid", () => {
+    const research = snapshotResponse.data.research;
+    if (research.availability !== "AVAILABLE") throw new Error("research unavailable");
+    render(
+      <D48PlanGrid
+        sampling={{
+          ...research.data.sampling,
+          plannedWindows: 10,
+        }}
+      />,
+    );
+    expect(screen.getByText("D48_PLAN_INCONSISTENT")).toBeInTheDocument();
+    expect(screen.queryByTestId("d48-plan-grid")).not.toBeInTheDocument();
   });
 
   it("keyboard selection of window 0 shows first receipt and unpublished start", () => {
@@ -157,6 +201,12 @@ describe("CalendarPage fixture", () => {
     expect(screen.getByText("старт не опубликован")).toBeInTheDocument();
     expect(w0.firstReceiptAt).toBeTruthy();
     expect(screen.getByText(/07:54:16/)).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("protected-row-4"));
+    const detail = screen.getByRole("complementary", { name: "Детали окна" });
+    expect(detail.textContent).toContain("доступ закрыт");
+    expect(detail.textContent).not.toContain("174");
+    expect(detail.textContent).not.toContain("старт не опубликован");
+    expect(detail.textContent).not.toContain("07:54:16");
   });
 });
 

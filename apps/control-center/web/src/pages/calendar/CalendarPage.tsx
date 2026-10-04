@@ -13,6 +13,7 @@ import {
   type DevelopmentWindow,
 } from "./labels";
 import {
+  formatAxisTick,
   formatEpochNs,
   formatIsoInstant,
   plannedAtMs,
@@ -24,9 +25,33 @@ import type { z } from "zod";
 
 type Window = z.infer<typeof windowSchema>;
 
-function lanePosition(plannedAt: string, minMs: number, spanMs: number): number {
+function fractionOf(ms: number, minMs: number, spanMs: number): number {
   if (spanMs <= 0) return 0;
-  return ((plannedAtMs(plannedAt) - minMs) / spanMs) * 100;
+  return Math.min(1, Math.max(0, (ms - minMs) / spanMs));
+}
+
+function markerLeft(fraction: number): string {
+  return `calc(8% + ${fraction * 84}%)`;
+}
+
+function publishedDuration(
+  window: Window,
+  minMs: number,
+  spanMs: number,
+): { left: string; width: string } | null {
+  if (window.access !== "DEVELOPMENT" || !window.actualStartNs || !window.finishedNs) {
+    return null;
+  }
+  const startMs = Number(BigInt(window.actualStartNs) / 1_000_000n);
+  const endMs = Number(BigInt(window.finishedNs) / 1_000_000n);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return null;
+  const start = fractionOf(startMs, minMs, spanMs);
+  const end = fractionOf(endMs, minMs, spanMs);
+  if (end - start <= 0) return null;
+  return {
+    left: markerLeft(start),
+    width: `${(end - start) * 84}%`,
+  };
 }
 
 export function WindowDetail({
@@ -129,11 +154,20 @@ function toneClass(tone: "ok" | "wait" | "bad"): string {
   return styles.statusBad;
 }
 
-function fillClass(tone: "ok" | "wait" | "bad" | "protected"): string {
-  if (tone === "ok") return styles.fillOk;
-  if (tone === "wait") return styles.fillWait;
-  if (tone === "bad") return styles.fillBad;
-  return styles.fillProtected;
+function markerName(window: Window): string {
+  if (window.access === "PROTECTED") {
+    return `#${window.index} ${window.id}, доступ закрыт`;
+  }
+  const start = window.actualStartNs ? "старт опубликован" : "старт не опубликован";
+  return `#${window.index} ${window.id}, ${statusLabel(window.recordedStatus)}, ${start}`;
+}
+
+function dotClass(window: Window): string {
+  if (window.access === "PROTECTED") return styles.dotProtected;
+  const tone = statusTone(window.recordedStatus);
+  if (tone === "ok") return styles.dotOk;
+  if (tone === "wait") return styles.dotWait;
+  return styles.dotBad;
 }
 
 export function CalendarPage() {
@@ -155,11 +189,12 @@ export function CalendarPage() {
     return { minMs, spanMs: Math.max(maxMs - minMs, 1) };
   }, [windows]);
 
-  const selectedDev = useMemo(() => {
-    const w = windows.find((win) => win.index === selectedIndex);
-    if (!w || w.access !== "DEVELOPMENT") return null;
-    return w;
-  }, [windows, selectedIndex]);
+  const selected = useMemo(
+    () => windows.find((win) => win.index === selectedIndex) ?? null,
+    [windows, selectedIndex],
+  );
+  const selectedDev = selected && selected.access === "DEVELOPMENT" ? selected : null;
+  const selectedProtected = selected && selected.access === "PROTECTED" ? selected : null;
 
   if (calendarPane.availability !== "AVAILABLE") {
     return (
@@ -169,8 +204,12 @@ export function CalendarPage() {
 
   const holdout = calendarPane.data;
 
+  const axisStart = timeSpan.minMs;
+  const axisMid = timeSpan.minMs + timeSpan.spanMs / 2;
+  const axisEnd = timeSpan.minMs + timeSpan.spanMs;
+
   return (
-    <>
+    <div className={styles.page}>
       <header className={styles.pageHeader}>
         <div className={styles.badgeRow}>
           <QualificationBadge kind="REAL EVIDENCE" />
@@ -201,92 +240,81 @@ export function CalendarPage() {
         </div>
       </header>
 
+      <CalendarCorpusSections snapshot={snapshotResponse.data} />
+
       <div className={styles.mainGrid}>
         <section className={styles.timelineWrap} aria-labelledby="timeline-heading">
           <h2 id="timeline-heading" className={styles.panelTitle}>
-            D43 timeline ({TIME_ZONE_LABELS[zone]})
+            D43 · маркеры ({TIME_ZONE_LABELS[zone]})
           </h2>
-          <div className={styles.axis} aria-hidden="true">
-            {[0, 0.5, 1].map((t) => {
-              const ms = timeSpan.minMs + timeSpan.spanMs * t;
-              const label = new Intl.DateTimeFormat("ru-RU", {
-                timeZone: zone,
-                dateStyle: "short",
-                timeStyle: "short",
-              }).format(new Date(ms));
-              return (
-                <span
-                  key={t}
-                  className={styles.axisTick}
-                  style={{ left: `${t * 100}%` }}
-                >
-                  {label}
-                </span>
-              );
-            })}
-          </div>
-          <div className={styles.laneList}>
-            {windows.map((w) => {
-              const pos = lanePosition(w.plannedAt, timeSpan.minMs, timeSpan.spanMs);
-              if (w.access === "PROTECTED") {
-                return (
-                  <div
-                    key={w.id}
-                    className={styles.laneProtected}
-                    data-testid={`protected-row-${w.index}`}
-                  >
-                    <span className={styles.laneIndex}>#{w.index}</span>
-                    <div>
-                      <div className={styles.mono}>{w.id}</div>
-                      <div>{formatIsoInstant(w.plannedAt, zone)}</div>
-                      <div>access: PROTECTED</div>
-                      <div className={styles.laneTrack} aria-hidden="true">
-                        <span
-                          className={`${styles.laneFill} ${fillClass("protected")}`}
-                          style={{ left: `${Math.min(pos, 98)}%`, width: "8%" }}
-                        />
-                      </div>
-                    </div>
-                    <span
-                      className={styles.protectedChip}
-                      tabIndex={0}
-                      role="status"
-                    >
-                      доступ закрыт
-                    </span>
-                  </div>
+          <p className={styles.question}>
+            Маркеры по plannedAt. Полоса длительности — только если опубликованы старт и
+            завершение.
+          </p>
+          <div className={styles.plot}>
+            <div className={styles.axis} aria-hidden="true">
+              <span>{formatAxisTick(axisStart, zone)}</span>
+              <span>{formatAxisTick(axisMid, zone)}</span>
+              <span>{formatAxisTick(axisEnd, zone)}</span>
+            </div>
+            <div className={styles.markerLane} role="group" aria-label="Маркеры D43 по plannedAt">
+              <div className={styles.axisLine} />
+              {windows.map((w) => {
+                const duration = publishedDuration(w, timeSpan.minMs, timeSpan.spanMs);
+                return duration ? (
+                  <span
+                    key={`${w.id}-duration`}
+                    className={styles.duration}
+                    data-duration="true"
+                    style={{ left: duration.left, width: duration.width }}
+                  />
+                ) : null;
+              })}
+              {windows.map((w) => {
+                const left = markerLeft(
+                  fractionOf(plannedAtMs(w.plannedAt), timeSpan.minMs, timeSpan.spanMs),
                 );
-              }
-
-              const tone = statusTone(w.recordedStatus);
-              return (
-                <button
-                  key={w.id}
-                  type="button"
-                  className={styles.laneBtn}
-                  aria-selected={selectedIndex === w.index}
-                  onClick={() => setSelectedIndex(w.index)}
-                >
-                  <span className={styles.laneIndex}>#{w.index}</span>
-                  <div>
-                    <div className={styles.mono}>{w.id}</div>
-                    <div>{formatIsoInstant(w.plannedAt, zone)}</div>
-                    <div className={styles.laneTrack} aria-hidden="true">
-                      <span
-                        className={`${styles.laneFill} ${fillClass(tone)}`}
-                        style={{ left: `${Math.min(pos, 98)}%`, width: "8%" }}
-                      />
-                    </div>
-                  </div>
-                  <span className={toneClass(tone)}>{statusLabel(w.recordedStatus)}</span>
-                </button>
-              );
-            })}
+                const above = w.index % 2 === 1;
+                return (
+                  <button
+                    key={w.id}
+                    type="button"
+                    className={styles.marker}
+                    style={{ left }}
+                    aria-pressed={selectedIndex === w.index}
+                    aria-label={markerName(w)}
+                    data-testid={
+                      w.access === "PROTECTED" ? `protected-row-${w.index}` : `d43-marker-${w.index}`
+                    }
+                    onClick={() => setSelectedIndex(w.index)}
+                  >
+                    <span className={styles.capSlot}>{above ? `#${w.index}` : ""}</span>
+                    <span className={`${styles.dot} ${dotClass(w)}`} />
+                    <span className={styles.capSlot}>{above ? "" : `#${w.index}`}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <ul className={styles.markerLegend}>
+              <li>
+                <span className={`${styles.legendDot} ${styles.dotOk}`} /> завершено
+              </li>
+              <li>
+                <span className={`${styles.legendDot} ${styles.dotWait}`} /> ожидание
+              </li>
+              <li>
+                <span className={`${styles.legendDot} ${styles.dotBad}`} /> ошибка
+              </li>
+              <li>
+                <span className={`${styles.legendDot} ${styles.dotProtected}`} /> доступ закрыт
+              </li>
+            </ul>
           </div>
         </section>
 
         <aside
           className={styles.detailPanel}
+          data-cc-region="window-details"
           aria-labelledby="detail-heading"
           role="complementary"
         >
@@ -295,10 +323,27 @@ export function CalendarPage() {
           </h2>
           {selectedDev ? (
             <WindowDetail window={selectedDev} zone={zone} />
+          ) : selectedProtected ? (
+            <dl className={styles.detailDl}>
+              <div className={styles.detailRow}>
+                <dt>Окно</dt>
+                <dd>
+                  #{selectedProtected.index} ·{" "}
+                  <span className={styles.mono}>{selectedProtected.id}</span>
+                </dd>
+              </div>
+              <div className={styles.detailRow}>
+                <dt>План (plannedAt)</dt>
+                <dd>{formatIsoInstant(selectedProtected.plannedAt, zone)}</dd>
+              </div>
+              <div className={styles.detailRow}>
+                <dt>Доступ</dt>
+                <dd>доступ закрыт</dd>
+              </div>
+            </dl>
           ) : (
             <p className={styles.detailEmpty}>
-              Выберите development-окно в timeline или таблице. Protected-окна не
-              раскрывают метрики.
+              Выберите окно на оси. Protected-окна не раскрывают метрики.
             </p>
           )}
         </aside>
@@ -331,9 +376,7 @@ export function CalendarPage() {
                     <td>{formatIsoInstant(w.plannedAt, zone)}</td>
                     <td>PROTECTED</td>
                     <td colSpan={4}>
-                      <span role="status" tabIndex={0}>
-                        доступ закрыт
-                      </span>
+                      <span role="status">доступ закрыт</span>
                     </td>
                   </tr>
                 );
@@ -361,8 +404,6 @@ export function CalendarPage() {
           </tbody>
         </table>
       </section>
-
-      <CalendarCorpusSections snapshot={snapshotResponse.data} />
-    </>
+    </div>
   );
 }

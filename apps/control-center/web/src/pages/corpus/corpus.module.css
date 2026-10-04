@@ -1,22 +1,35 @@
 .bottomRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: var(--cc-gap);
   margin-top: var(--cc-gap);
+  min-width: 0;
+  max-width: 100%;
 }
 
-@media (max-width: 1100px) {
-  .bottomRow {
-    grid-template-columns: 1fr;
-  }
+.summaryStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  min-width: 0;
+  padding: 10px 12px;
+  background: var(--cc-panel);
+  border: 1px solid var(--cc-border);
+  border-radius: var(--cc-radius);
 }
 
-.summaryPanel {
-  composes: panel from "../shared.module.css";
+.stripTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .gridPanel {
   composes: panel from "../shared.module.css";
+  min-width: 0;
+  max-width: 100%;
 }
 
 .badgeRow {
@@ -127,69 +140,114 @@
   color: var(--cc-text-muted);
 }
 
-.planGrid {
+.matrixScroll {
+  margin-top: 10px;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.matrixScroll:focus-visible {
+  outline: 2px solid var(--cc-cyan);
+  outline-offset: 2px;
+}
+
+.matrix {
   display: grid;
-  grid-template-columns: repeat(24, minmax(0, 1fr));
-  gap: 3px;
-  margin-top: 8px;
+  gap: 2px;
+  width: 100%;
+  align-items: stretch;
 }
 
-.planCellDev {
-  min-height: 44px;
-  border: 1px solid var(--cc-border);
-  border-radius: 4px;
-  background: #0a1520;
-  padding: 4px 2px;
+.gridRow {
+  display: contents;
+}
+
+.corner {
+  min-height: 14px;
+}
+
+.monthLabel {
   font-size: 12px;
-  line-height: 1.2;
-  color: var(--cc-text-muted);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.planCellDevLabel {
-  color: var(--cc-blue);
   font-weight: 600;
-  font-size: 12px;
-  letter-spacing: 0.02em;
+  color: var(--cc-text);
+  white-space: nowrap;
+  padding: 0 8px 2px 0;
 }
 
-.planCellReserved {
-  min-height: 44px;
-  border: 1px dashed var(--cc-border);
-  border-radius: 4px;
-  background: transparent;
-  padding: 4px 2px;
+.weekLabel {
   font-size: 12px;
-  line-height: 1.2;
-  color: var(--cc-text-muted);
-  text-align: center;
+  color: var(--cc-text-quiet);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 0 2px;
+}
+
+.stratumLabel {
+  position: sticky;
+  left: 0;
+  z-index: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  cursor: default;
+  padding-right: 8px;
+  background: var(--cc-panel);
+  color: var(--cc-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
-.planCellReserved:focus-visible {
-  outline: 2px solid var(--cc-warning);
+.cell {
+  display: block;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  box-sizing: border-box;
+  padding: 0;
+}
+
+.cell:focus-visible {
+  outline: 2px solid var(--cc-cyan);
   outline-offset: 1px;
+  z-index: 2;
 }
 
-.protectedTag {
-  color: var(--cc-warning);
-  font-weight: 600;
-  font-size: 12px;
+.cellDev {
+  background: var(--cc-teal);
+  border: 1px solid #1c6f62;
+  border-radius: 2px;
+}
+
+.cellReserved {
+  border: 1px dashed #b7a6de;
+  border-radius: 999px;
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 2px,
+    rgba(183, 166, 222, 0.85) 2px,
+    rgba(183, 166, 222, 0.85) 3px
+  );
+}
+
+.cellWeek {
+  box-shadow: inset 1px 0 0 rgba(169, 190, 211, 0.45);
+}
+
+.cellBoundary {
+  box-shadow: inset 2px 0 0 #b7a6de;
 }
 
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 10px;
+  gap: 14px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
   font-size: 12px;
   color: var(--cc-text-muted);
 }
@@ -200,18 +258,28 @@
   gap: 6px;
 }
 
-.legendSwatchDev,
-.legendSwatchReserved {
+.swatchDev,
+.swatchReserved {
   width: 14px;
   height: 14px;
-  border-radius: 3px;
+  box-sizing: border-box;
+  flex: 0 0 auto;
 }
 
-.legendSwatchDev {
-  border: 1px solid var(--cc-border);
-  background: #0a1520;
+.swatchDev {
+  background: var(--cc-teal);
+  border: 1px solid #1c6f62;
+  border-radius: 2px;
 }
 
-.legendSwatchReserved {
-  border: 1px dashed var(--cc-border);
+.swatchReserved {
+  border: 1px dashed #b7a6de;
+  border-radius: 999px;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 2px,
+    rgba(183, 166, 222, 0.85) 2px,
+    rgba(183, 166, 222, 0.85) 3px
+  );
 }
