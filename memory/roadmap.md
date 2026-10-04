@@ -255,3 +255,14 @@ check/smoke successful. D50 runtime неизменён. Provider/owner account F
 Продолжение того жеD51: substantive billing review→single bounded receipt→live180RPC→
 raw replay/verdict→отдельное calendar activation решение и host operating conditions.
 Не делать новую инфраструктурную стадию вместо устранения blocker. [D51](../docs/f01-live-qualification.md).
+
+## D51 завершён → D52 operational calendar activation decision
+
+2026-10-04 owner attestation принят для одной3600CU allocation. Реальный frozen runtime
+прошёл180/180RPC,299,34s,174usable/6warmup; raw и installed wheel reports exact.
+Никакой второй попытки или transport tuning не нужно. MCPusage nonmonotonic, billing
+delta не metric;3600CU nominal,paid0. Actual F01 source/service не активированы.
+D52: отдельныйcalendarreceipt/allocation60480RPC/1209600CU,условия питания/awake/login/
+monitoring и итоговое решение о deployment staged D50 service. HostAC snapshot не84daySLA.
+T2026-10-07/F01/D43/holdout не менять; research остаётся за readiness будущего corpus.
+[D51](../docs/f01-live-qualification.md), [evidence](../docs/evidence/f01-live-result-2026-10-04.json).

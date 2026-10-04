@@ -673,7 +673,7 @@ UI недоступен. Full live qualification не проведена.180fina
 OSsleep/reboot/84dayuptime не квалифицированы; failure semantics провереныfixtures.
 [Документ/evidence](../docs/f01-operational-runtime.md).
 
-## D51 — 2026-10-04: подготовлен single-attempt launcher, live блокирован
+## D51 — 2026-10-04: история до owner attestation
 
 `tools/f01_live_qualification.py` использует unchanged D50 sealed runtime. Preflight
 не пишет reservation: substantive scoped receipt, exact root, credential, validity600s,
@@ -689,3 +689,24 @@ Host currently battery40%,free134,77GB; power settings не менялись. Aw
 условия нужны отдельно перед calendar activation. No-charge/host/live не заменять
 offline tests. D43/holdout untouched; рынокRPC0,reservation0,receipts0,training0.
 [D51](../docs/f01-live-qualification.md), [evidence](../docs/evidence/f01-live-qualification-2026-10-04.json).
+
+### D51 после owner attestation: bounded live PASS
+
+Владелец подтвердил по Dashboard текущий account/app/runtime mapping, no PAYG/paid
+overage/no card,28.1K/30M usage и allocation3600CU. Substantive owner review принят,
+не independent provider verification. Один receipt,180RPC, unchanged D50 runtime;
+реальный сбор03:02–03:07 Europe/Moscow завершился за299,34s,segments148,77/149,00s.
+180advanced coherent snapshots,60/pool;174usable features/6warmup. Latency p50/p9587/136ms,
+Clock age at feature max14,363s при45s guard. Нет errors/retries/новых source profiles.
+
+Raw4,75MB, source seal3a4fd46aaa1cc4cb7daf8c91d08a838aa7295cff277305660b9582aeab48d5d9;
+exact online/offline replay и installed wheel reports byte-identical,raw unchanged.
+1440conditional variants/180decisions,137mature,70engineering evaluation; labels до
+network costs, не net execution calibration. Actual F01 admission/windows0 иtraining0.
+MCPusage27660→19320 при свежемdataThrough: nonmonotonic, provider CU charge неизвестен;
+3600CU — frozen nominal estimate180×20, не measured billing. Paid budget0 сохраняется.
+
+Host после окнаAC/29%charging,service отсутствует; power/D43/holdout не менялись.
+D51 завершён, но calendar activation не выдана. СледующийD52 — отдельнаяcalendarallocation,
+receipt/host operating conditions и итоговое решение; no transport tuning/T shifts/backfill.
+[Final evidence](../docs/evidence/f01-live-result-2026-10-04.json).

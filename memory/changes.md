@@ -570,3 +570,19 @@ fresh завершённый wheel verified. Append-only evidence: docs/evidence
   один180RPC live и raw replay, затем отдельное activation решение. F01/holdout untouched.
 - Doc/evidence: docs/f01-live-qualification.md;
   docs/evidence/f01-live-qualification-2026-10-04.json.
+
+## 2026-10-04 — D51 owner review и единственный live PASS
+
+- После прямого owner attestation по Dashboard принят scoped review/receipt180RPC/3600CU;
+  no paid overage/PAYG/card,app/runtime mapping. Это не independent provider verification.
+  Commit7e9ae2b; preregistered plan и D50 bundle unchanged.
+-180/180advanced checkpoints,174usable/6warmup;299,34s,segments148,77/149,00s;errors/retries0.
+  Latency p50/p9587/136ms. Raw4,75MB, Clock at feature max14,363s.
+- Offline tool18e6c6b: exact raw/features/targets replay и byte-identical installed wheel
+  reports; frozen sources/configs не менялись.506tests/2skips,Ruff/mypy/smoke successful.
+- MCPusage27660→19320CU nonmonotonic; нельзя считать точным расходом,3600CU nominal.
+  История lintB905 report tool сохранена; live не затронут. Actual F01 admission0/training0.
+- D51 завершён; source/service/calendarreceipt0,D43/holdout untouched. СледующийD52 —
+  operational calendar activation decision/отдельнаяallocation/hostconditions,не transport.
+- Итог/evidence: docs/f01-live-qualification.md;
+  docs/evidence/f01-live-result-2026-10-04.json. Prior blocked evidence сохранено.

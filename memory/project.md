@@ -85,3 +85,9 @@ D50 (2026-10-03) закрыл engineering supervisor/runtime gaps через о�
 сохранив научные и source bindings. Это не разрешение расходов/collector или доказанный
 84day uptime. Actual no-charge/account mapping и full live qualification остаются
 D51, затем отдельное activation решение. [D50](../docs/f01-operational-runtime.md).
+
+D51 (2026-10-04) завершил bounded live qualification после owner attestation:180/180
+strict checkpoints,299,34s,exact offline/wheel reproduction. Это engineering source
+evidence,не ML результат и не calendar activation. СледующийD52 — отдельное operational
+решение по unchanged D48/host/allocation; source/service пока отсутствуют.
+[D51](../docs/f01-live-qualification.md).

@@ -1,5 +1,10 @@
 # D51: bounded live qualification и условия эксплуатации
 
+**Итог после owner attestation: BOUNDED LIVE PASS; calendar не активирован.**
+Единственная попытка180RPC завершена, raw и independent wheel replay совпали.
+[Итоговое evidence](evidence/f01-live-result-2026-10-04.json).
+Предыдущий blocked report сохранён отдельно, ниже — история допуска и полный результат.
+
 ## План до прогона — 2026-10-04
 
 D50 принят пользователем. Работа в core `main`; UI worktree, D43, reserved holdout,
@@ -156,3 +161,86 @@ owner allocation и локальном upper bound180attempts; shared provider q
 не резервируется. Current host battery19%/estimated1h33, free134,51GB — достаточно
 наблюдаемого headroom для bounded600s, но не подтверждает долгосрочную доступность.
 Power/runtime/D43 не менялись. Прежний stop budget и все pass criteria сохраняются.
+
+## Итог единственной live попытки
+
+D51 bounded qualification завершён: **PASS** по preregistered критериям. Реальный Alchemy
+HTTP, finalized/profile2, persistent transport, unchanged D50 bundle.180RPC,2segments,
+по60checkpoints каждого из3frozen pools; все180 `advanced`. Ошибок/ретраев/новых попыток0.
+Reservation2026-10-04T00:02:04.529397Z, завершение00:07:03.719975Z; это03:02–03:07 Europe/Moscow.
+Seed отсутствует, sampling rules/CPMM/features/targets не менялись. Весь runtime в пределах
+600s; segment durations148,77/149,00s в пределах210s. Supervisor299,17s, внешний launcher299,34s.
+
+| Метрика | Измерено в одном bounded окне |
+|---|---|
+| Successful coherent snapshots |180/180, по60на pool |
+| Features |180starts,174usable;6history_warmup (3pools×2segments) |
+| RPC latency p50 / p95 / max |87,3 /136,0 /819,0ms |
+| Clock age при receipt p50 / p95 / max |10,229 /11,351 /12,362s |
+| Clock age при feature publication max |14,363s, frozen guard45s |
+| Receipt age при feature publication max |2,372s, frozen guard25s |
+| Интервал availability одного pool p50 / p95 / max |5,000 /5,075 /5,599s |
+| Raw response bytes / все attempt artifacts |655440 /4749254bytes |
+| Offline checkout / installed wheel |Побайтово одинаковые reports, raw unchanged |
+
+Latency измерена request-start→receipt, publication overhead отдельно: p950,001112s.
+Интервалы считаются по фактической availability, включая переход между сегментами;
+история/targets через boundary не склеиваются. Это coherent bank state одного HTTP
+checkpoint, не atomic cross-pool state и не доказательство наблюдения intervening trades.
+
+Existing execution export:1440variants для180decisions,137mature decisions,70engineering
+evaluation decisions;994conditional_roundtrip,24entry_unfilled,26exit_unfilled,396censored.
+Варианты и overlapping labels зависимы. Это conditional snapshot reset **до сетевых
+издержек**, не фактические fills, не net PnL и не calibration inclusion. Разбиения времени
+сохранены в campaign/segment plans; campaign calibration cutoff00:04:34.705813Z.
+Actual F01 admission0, research training0; bounded окно находится вне будущего календаря
+и не используется для снятия readiness или model selection.
+
+### Воспроизведение и неизменяемость
+
+Raw: `work/collector-d51/attempts/live-01`, seal SHA
+`3a4fd46aaa1cc4cb7daf8c91d08a838aa7295cff277305660b9582aeab48d5d9`.
+Проверены full inventory и seal до/после анализа. `verify_campaign` воспроизвёл online
+features/targets из raw, `verify_execution_targets` — conditional execution export.
+`tools/f01_d51_report.py` (18e6c6b) запрещает network и читает только фиксированный D51
+attempt; создаёт новый report sibling без изменения source. История времен не исправлялась.
+
+Команды из core (outputs уже существуют; при повторе использовать новые `report-*` имена):
+
+```sh
+.venv/bin/python -B tools/f01_d51_report.py work/collector-d51/report-live-01
+PYTHONPATH=work/collector-d50/installed-wheel .venv/bin/python -B -S tools/f01_d51_report.py work/collector-d51/report-wheel-01
+```
+
+Отчёты byte-identical; wheel defa13258280021b7479b67ddc65148d1d7d915610d7314f71f1565a693a3d3e
+из D50, source/runtime pin тот же.506tests passed/2optional skips, Ruff/format/mypy и
+make smoke успешны. Source packages и configs не изменены; только offline analysis tool
+и docs/evidence. Первоначальный lintB905 в новом report tool исправлен equal-length
+zip slices, история сохранена в `report-lint-history.json`; live runtime это не затронуло.
+
+### Budget, ограничения и решение
+
+Owner attestation принята для bounded180RPC, paid budget0. Local reservation полностью
+израсходована одной завершённой попыткой; frozen estimate180×20=3600CU. Это **nominal CU**,
+не независимо измеренный provider charge. MCP before27660→after19320CU, обаUSD0, freshness
+23:59→00:07UTC: повторный `account_usage_nonmonotonic`, причина не установлена. Нельзя
+превращать такую дельту в billing reconciliation или доказательство отрицательного расхода.
+Account-level usage и другие collectors могут иметь собственную активность; raw сохранены.
+
+После прогона host AC Power29% charging, свободно около134,5GB. Переключение питания
+наблюдалось, D51 не менял power settings. Awake/login/network84days не доказаны одним
+пятиминутным прогоном. OS sleep/reboot/live failure injection не выполнялись из-за D43;
+соответствующие guard/failure semantics остаются D50 fixture evidence. Новый service
+не установлен (`launchctl` exit113), actual source root отсутствует. D43/holdout untouched.
+
+**Решение:** принять qualification источника и frozen bounded runtime; D51 завершён.
+Calendar activation пока **не разрешена и не выполнена**. Не нужны новый transport tuning,
+смена протокола или повтор этого окна. Оставшиеся условия operational: отдельная calendar
+allocation/review (ceiling60480RPC/1209600CU), стабильное питание/awake/login и monitoring,
+конкретное итоговое решение о запуске. Owner attestation данного шага выделила3600CU
+для одной попытки, не является calendar receipt. Staged D50 service остаётся без deployment.
+
+Следующий **D52 — operational calendar activation decision** для unchanged D48 proposal.
+Если решение разрешает запуск, сначала exact calendar receipt/review validity и operating
+conditions, затем existing staged service; no backfill/сдвигT2026-10-07. D43/F01 rules и
+reserved holdout сохраняются, readiness для research оценивается только по будущему corpus.

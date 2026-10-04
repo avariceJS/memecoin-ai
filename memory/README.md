@@ -33,7 +33,7 @@ Memory Bank — канонический, пригодный для чтения
 | D48 future sampling/source binding, sealed adapter и readiness dossier | [f01-sampling.md](../docs/f01-sampling.md) |
 | D49 source/budget/scheduler qualification и закрытый activation gate | [f01-collector-qualification.md](../docs/f01-collector-qualification.md) |
 | D50 subprocess supervisor, frozen runtime, budget receipts и staged service | [f01-operational-runtime.md](../docs/f01-operational-runtime.md) |
-| D51 bounded launcher, account access blocker и host operating conditions | [f01-live-qualification.md](../docs/f01-live-qualification.md) |
+| D51 owner review,180RPC live PASS, offline replay и calendar operating conditions | [f01-live-qualification.md](../docs/f01-live-qualification.md) |
 | Как проверять edge и выпускать новую модель | [evaluation.md](evaluation.md) |
 | В каком порядке работать | [roadmap.md](roadmap.md) |
 | Что уже существует и что дальше | [state.md](state.md) |

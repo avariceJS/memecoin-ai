@@ -2,31 +2,33 @@
 
 Обновлено: **2026-10-04**, Europe/Moscow.
 
-**D51 открыт / BLOCKED на account evidence; activation NOT READY.** Пользователь принял
-D50. План97c2d26 и thin launcher4ed893b подготовлены, unchanged D50 bundle проверен;
-локальный credential fingerprint совпал.10новых тестов,506base/2optional skips,
-Ruff/format/mypy/smoke прошли. `src/` и `configs/` относительно3887f97 не изменены.
+**D51 завершён: BOUNDED LIVE PASS; calendar не активирован.** После owner attestation
+по Dashboard выполнен substantive review и один scoped receipt на180RPC/3600CU.
+Это owner evidence, не independent provider verification; текущий endpoint совпал с
+frozen credential fingerprint. Attestation/review commit7e9ae2b, analysis18e6c6b.
 
-MCP usage27940CU/USD0 (dataThrough2026-10-03T22:00UTC), app memcoin-ai/nsvflslm1kqtntvz
-с Solana mainnet. Тариф/automatic paid overage/exact runtime→billing mapping всё ещё
-не подтверждены; browser discovery[]. Один запрос несекретного подтверждения владельца
-отправлен, ответ пока не получен. Нельзя заменить его USD0 или тестовым receipt.
-Рыночных RPC0, reservation0, receipts0; full180RPC live и его reproduction не проведены.
+Реальный Alchemy finalized/profile2:180/180advanced coherent snapshots,3pools×60;
+174usable features/6warmup. Окно2026-10-04T00:02:04–00:07:03UTC,299,34s; segments148,77/
+149,00s, никаких ошибок/retries. RPC latency p50/p9587/136ms, Clock age at feature max14,36s
+при frozen45s. Raw4,75MB, immutable source seal3a4fd46aaa1cc4cb7daf8c91d08a838aa7295cff277305660b9582aeab48d5d9.
+Offline raw/features/targets + installed D50 wheel дали byte-identical reports.
+506tests/2optional skips,Ruff/format/mypy/smoke прошли. Src/configs/bundle pin unchanged.
 
-Host snapshot:134,77GB свободно, Battery Power40%, GUI UID501; новый service отсутствует.
-Ни battery snapshot, ни47days uptime не доказывают непрерывную доступность84days.
-Launcher закрыт до substantive review, exact root и validity600s; exclusive claim,
-crash/no retry, concurrent launch/path guards проверены offline. Check без receipt:
-`separate_decision_required`, source/attempt root не созданы. D43/holdout не читались
-и не менялись, actual F01 windows0, research training0. UI worktree независим и не менялся.
+Номинально3600CU по180локальным attempts; реальный provider charge не выведен из MCP:
+usage27660→19320CU при более свежемdataThrough (`account_usage_nonmonotonic`). Paid0,
+PAYG/upgrades0. Owner confirmed no paid overage/no card и30M allowance. Этот review
+не заменяет отдельную calendar allocation. Host после окна AC Power29% charging;
+это не84day uptime proof. Power/D43/holdout не менялись, reserved raw не открывались.
+Actual F01 source root отсутствует,service не установлен,windows/admission/training0.
 
-**Дальше остаётся D51:** получить account Free/no-paid-overage + exact mapping +3600CU
-allocation, выпустить один reviewed bounded receipt для `work/collector-d51/attempts/live-01`,
-провести180RPC по frozen runtime и offline reproduction; затем отдельное calendar
-activation decision с host awake/power/login условиями. Не повторять transport tuning,
-не сдвигатьT2026-10-07/backfill. D51 не объявлен завершённым из-за внешнего blocker.
-[Документ D51](../docs/f01-live-qualification.md),
-[evidence](../docs/evidence/f01-live-qualification-2026-10-04.json).
+**Следующий D52:** operational calendar activation decision для unchanged D48. Нужны
+отдельный calendar receipt/allocation60480RPC/1209600CU, host awake/power/login/monitoring
+условия и итоговое разрешение запуска; затем existing staged service. Не повторять
+transport tuning/live qualification, не сдвигатьT2026-10-07/backfill, не снимать ML gate.
+[Итог D51](../docs/f01-live-qualification.md),
+[final evidence](../docs/evidence/f01-live-result-2026-10-04.json),
+[owner attestation](../docs/evidence/f01-d51-owner-attestation-2026-10-04.json).
+Предыдущий blocked snapshot сохранён в [prior evidence](../docs/evidence/f01-live-qualification-2026-10-04.json).
 
 ### Принятый D50: предыдущее состояние
 

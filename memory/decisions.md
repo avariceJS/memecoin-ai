@@ -803,3 +803,22 @@ Host battery40%,free134,77GB,GUI501 — наблюдение, не uptime guaran
 отдельна от bounded180RPC: нужны awake/power/login условия, exact runtime/receipt и итоговое
 решение. D43/holdout не менять; calendarT и no-backfill остаются. [Документ](../docs/f01-live-qualification.md),
 [evidence](../docs/evidence/f01-live-qualification-2026-10-04.json).
+
+### D51 завершён после owner attestation; calendar decision остаётся отдельным
+
+2026-10-04. Прямое подтверждение владельца Alchemy Dashboard сняло blocker bounded
+no-charge/account mapping согласно preregistered97c2d26. Evidence7e9ae2b честно маркирует
+owner attestation, local account alias не provider ID; no PAYG/card/paid overage,
+30M allowance и3600CU allocation. Принят только один reviewed180RPC receipt.
+
+Результат:180/180advanced strict finalized/profile2,3pools×60,174usable/6warmup,299,34s;
+raw/checkpoint/features/targets exact replay, independent installed wheel reports
+byte-identical.506tests/2skips,check/smoke. Принять bounded runtime/source qualification;
+D51 завершён. Предыдущий blocked snapshot9f616a7 не переписан, финальное evidence отдельно.
+
+MCPusage не монотонен27660→19320CU; не использовать его дельту как measured billing.
+Локально180attempts,nominal3600CU; paid0. Calendar receipt/activation не выдавались:
+owner allocation относилась к одной попытке. D52 — отдельное operational решение
+для frozen D48 (60480RPC/1209600CU,host awake/power/login иmonitoring). Не требуется
+повтор bounded окна/transport tuning; no-backfill/T/F01/D43/holdout прежние.
+[Итог](../docs/f01-live-qualification.md), [evidence](../docs/evidence/f01-live-result-2026-10-04.json).

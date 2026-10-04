@@ -184,3 +184,11 @@ starts/unknown window. Это достаточное условие прежне
 fraction. Synthetic-only gate/отдельные reviews остаются закрыты. Holdout labels/stats
 до release не оцениваются.20new/486combined tests, raw+dossier wheel reproduction.
 Capacity fixture38 976decisions не sample size для статистики. [D48](../docs/f01-sampling.md).
+
+## D51: qualification источника не снимает research readiness
+
+Один реальный engineering window180snapshots прошёл preregistered source/runtime criteria
+и exact raw/wheel replay после owner budget attestation.137mature decisions и1440variants
+не достаточный независимый ML sample size; conditional snapshot targets не включают
+калиброванные network costs/inclusion. Окно вне future F01 source, actualadmission0,
+training/release0. Source PASS не research launch. [Evidence](../docs/evidence/f01-live-result-2026-10-04.json).
