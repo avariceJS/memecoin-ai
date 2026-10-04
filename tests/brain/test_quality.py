@@ -242,3 +242,49 @@ def test_history_future_page_stops_globally(tmp_path):
         run(r, output, fetch=lambda r, p, **kw: capture(r, p))
     assert read(r / "STOP")["reason"] == "historical_page_after_cursor"
     assert len(list((r / "requests").iterdir())) == 1
+
+
+def test_two_global_transport_failures_consume_due_cycles_without_local_quarantine(
+    tmp_path, monkeypatch
+):
+    from memecoin_brain_quality import service
+
+    r = root(tmp_path)
+    clock_ns = [time.time_ns()]
+    monkeypatch.setattr(service.time, "time_ns", lambda: clock_ns[0])
+    monkeypatch.setattr(service, "verify_runtime", lambda *a: None)
+    monkeypatch.setattr(service, "guard", lambda *a: None)
+    calls = []
+
+    def failed_phase(*args):
+        request = r / "requests" / f"{len(calls):06d}"
+        request.mkdir()
+        write(request / "failure.json", dict(http_status=None, received_ns=clock_ns[0]))
+        calls.append(request)
+        return dict(category="worker_failed", exit_code=1)
+
+    monkeypatch.setattr(service, "run_phase", failed_phase)
+    assert service.tick(r, "fixture")["status"] == "failed"
+    assert not (r / "STOP").exists()
+    assert service.tick(r, "fixture")["status"] == "already_reserved"
+    assert len(calls) == 1
+    clock_ns[0] += 300 * NS
+    assert service.tick(r, "fixture")["status"] == "failed"
+    assert len(calls) == 2 and not blocked(r)
+    assert read(r / "STOP")["reason"] == "two_consecutive_global_failures"
+
+
+def test_no_get_completed_cycle_cannot_clear_inherited_failure_debt(tmp_path, monkeypatch):
+    from memecoin_brain_quality import service
+
+    r = root(tmp_path)
+    for name, result in [("0000", "failed"), ("0001", "completed")]:
+        cycle = r / "cycles" / name
+        cycle.mkdir()
+        write(cycle / "result.json", dict(status=result))
+        write(cycle / "collection.json", dict(attempted=0))
+    monkeypatch.setattr(service, "verify_runtime", lambda *a: None)
+    monkeypatch.setattr(service, "guard", lambda *a: None)
+    monkeypatch.setattr(service, "run_phase", lambda *a: pytest.fail("debt must stop first"))
+    assert service.tick(r, "fixture")["status"] == "stopped"
+    assert read(r / "STOP")["reason"] == "two_consecutive_acquisition_failures"

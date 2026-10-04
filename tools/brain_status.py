@@ -40,7 +40,14 @@ def status():
         if outcome["status"] == "scored":
             for name, metrics in outcome["candidate_metrics"].items():
                 losses.setdefault(name, []).append(metrics["pinball"])
+    quality = None
+    if (ROOT / "quality-seed.json").exists():
+        from memecoin_brain_quality.policy import states
+
+        pools, head = states(ROOT)
+        quality = dict(pools=pools, ledger_head=head)
     return dict(
+        quality=quality,
         track="brain_development",
         observed_ns=time.time_ns(),
         root=str(ROOT),
@@ -73,9 +80,13 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path)
     parser.add_argument("--root", type=Path, default=ROOT)
     args = parser.parse_args()
-    allowed = [ROOT.resolve(), (ROOT.parents[1] / "brain-b02/prospective01").resolve()]
+    allowed = [
+        ROOT.resolve(),
+        (ROOT.parents[1] / "brain-b02/prospective01").resolve(),
+        (ROOT.parents[1] / "brain-b03/prospective01").resolve(),
+    ]
     if args.root.resolve() not in allowed:
-        parser.error("Only B01/B02 Brain roots are supported")
+        parser.error("Only B01/B02/B03 Brain roots are supported")
     ROOT = args.root.resolve()
     result = status()
     if args.output:
