@@ -1,43 +1,39 @@
 import type { Snapshot } from "../../api";
 import styles from "./models.module.css";
 
-type ModelsData = Extract<
-  Snapshot["models"],
-  { availability: "AVAILABLE" }
->["data"];
+type ModelsData = Extract<Snapshot["models"], { availability: "AVAILABLE" }>["data"];
 
-type Props = {
+type ModelsStatusAsideProps = {
   data: ModelsData;
 };
 
-export function ModelsStatusAside({ data }: Props) {
+export function ModelsStatusAside({ data }: ModelsStatusAsideProps) {
+  const scopes = [...new Set(data.runs.map((run) => run.scope))];
   return (
-    <aside className={styles.aside} aria-labelledby="models-aside-heading">
-      <h2 id="models-aside-heading" className={styles.asideTitle}>
-        Recorded model state
-      </h2>
-      <ul className={styles.asideList}>
-        <li>
-          <span className={styles.asideLabel}>activeModel</span>
-          <span>{data.activeModel === null ? "не выбрана" : String(data.activeModel)}</span>
-        </li>
-        <li>
-          <span className={styles.asideLabel}>marketBackboneSelected</span>
-          <span>{data.marketBackboneSelected ? "true" : "false"}</span>
-        </li>
-        <li>
-          <span className={styles.asideLabel}>runs</span>
-          <span>{data.runs.length}</span>
-        </li>
-        <li>
-          <span className={styles.asideLabel}>benchmarks</span>
-          <span>{data.benchmarks.length}</span>
-        </li>
-      </ul>
-      <p className={styles.panelHint} style={{ marginTop: 12 }}>
-        Нет production backbone, cash model или GRU по умолчанию. Выбор победителя по этим
-        runs недоступен.
-      </p>
-    </aside>
+    <div className={styles.stateBlock}>
+      <h3 className={styles.detailTitle}>Записанное состояние</h3>
+      <dl className={styles.stateGrid}>
+        <div>
+          <dt>Активная модель</dt>
+          <dd>{data.activeModel === null ? "не выбрана" : String(data.activeModel)}</dd>
+        </div>
+        <div>
+          <dt>Рыночный backbone</dt>
+          <dd>{data.marketBackboneSelected ? "выбран" : "не выбран"}</dd>
+        </div>
+        <div>
+          <dt>Scope прогонов</dt>
+          <dd>{scopes.length > 0 ? scopes.join(", ") : "нет"}</dd>
+        </div>
+        <div>
+          <dt>Веса и checkpoints</dt>
+          <dd>нет</dd>
+        </div>
+        <div>
+          <dt>Торговый runtime</dt>
+          <dd>нет</dd>
+        </div>
+      </dl>
+    </div>
   );
 }

@@ -2,10 +2,10 @@
   "schema_version": 2,
   "scope": "control-center-cc02-visual-reconstruction",
   "overall": "IN_PROGRESS",
-  "current_task": "CC02.5",
-  "last_completed": "CC02.4: research принят, среднее 4.2. Стадии не складываются в готовность.",
-  "last_verified_commit": "317c2f1c1559f555e492b1033f1237f47be714ce",
-  "last_checks": "2026-10-04 CC02.4: vitest 54 PASS; e2e characterization PASS; visual_gate receipt PASS. Research overflow/overlap 0. Model binding UNVERIFIED.",
+  "current_task": "CC02.6",
+  "last_completed": "CC02.5: модели приняты, среднее 4.2. Несовпадение не получает шкалу.",
+  "last_verified_commit": "b7c6614ed7db26edfd0c4b46215b597c5dfaadaf",
+  "last_checks": "2026-10-04 CC02.5: vitest 56 PASS; e2e characterization PASS; visual_gate receipt PASS. Models overlap 0. Model binding UNVERIFIED.",
   "model_binding": {
     "configured_coordinator": "grok-4.7 / xhigh (picker)",
     "configured_executor": "composer-2.5[fast=false]",
@@ -15,7 +15,7 @@
     "configured_visual_executor": "grok-4.7 (documented default high; runtime UNVERIFIED)"
   },
   "blockers": [],
-  "next_action": "CC02.5: модели и сопоставимые замеры. Один batch и один status. Календарь и research не переписывать.",
+  "next_action": "CC02.6: топология источников. Статичная схема, без живой связности. Модели не переписывать.",
   "capabilities": [
     "existing read-only adapter + immutable historical projection",
     "primary visual reference available",
@@ -407,17 +407,68 @@
         "visual",
         "boundary"
       ],
-      "status": "PENDING",
+      "status": "DONE",
       "write_files": [],
-      "checks": [],
-      "reviews": [],
-      "attempts": [],
+      "checks": [
+        {
+          "command": "npm --prefix apps/control-center/web test",
+          "result": "PASS"
+        },
+        {
+          "command": "npm --prefix apps/control-center/web run e2e",
+          "result": "PASS"
+        },
+        {
+          "command": "python3 apps/control-center/scripts/visual_gate.py --receipt docs/control-center/references/cc02-final/CC02.5/review.json --task CC02.5",
+          "result": "PASS"
+        }
+      ],
+      "reviews": [
+        {
+          "kind": "boundary",
+          "result": "PASS",
+          "evidence": "cc-boundary-reviewer 20bbe2f5-a86a-4de5-9ba5-f3f9798ba909: CPU/MPS и архитектуры сравнимы только на совпавших осях, null не даёт победителя, params не качество рынка.",
+          "reviewed_revision": "b7c6614"
+        },
+        {
+          "kind": "visual",
+          "result": "PASS",
+          "evidence": "cc-visual-reviewer b5c9cab4-6ac5-4dfd-88eb-69b7aeb1ddcf second pass mean 4.2. Receipt docs/control-center/references/cc02-final/CC02.5/review.json.",
+          "reviewed_revision": "b7c6614ed7db26edfd0c4b46215b597c5dfaadaf",
+          "reference_viewed": true,
+          "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+          "screenshot": "docs/control-center/references/cc02-final/CC02.5/second/models-1600.png"
+        }
+      ],
+      "attempts": [
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-ui-builder",
+          "configured_model": "grok-4.7-xhigh",
+          "note": "Models comparison. Research and lockfile stay put. Agent d6b233fa-d321-49e6-b010-f661f5878471. Launch requested grok-4.7-xhigh. UNVERIFIED."
+        },
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-visual-reviewer",
+          "configured_model": "grok-4.7-xhigh",
+          "note": "First 3.4 NEEDS_FIX, second 4.2 PASS. Agent b5c9cab4-6ac5-4dfd-88eb-69b7aeb1ddcf. Launch requested grok-4.7-xhigh. UNVERIFIED."
+        },
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-boundary-reviewer",
+          "configured_model": "composer-2.5",
+          "note": "PASS agent 20bbe2f5-a86a-4de5-9ba5-f3f9798ba909."
+        }
+      ],
       "blocker": "",
-      "summary": "",
-      "reference_viewed": false,
-      "reference_sha256": null,
-      "visual_receipt": null,
-      "accepted_web_sha256": null
+      "summary": "Модели: сводка архитектур и две сопоставимые шкалы. Несовпадение не получает победителя. Вторая критика 4.2. Полный список замеров ниже фолда.",
+      "reference_viewed": true,
+      "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+      "visual_receipt": "docs/control-center/references/cc02-final/CC02.5/review.json",
+      "accepted_web_sha256": "5fd1d205aac62b24758c0f0a66f656680569edd04b6152222c62954589b7b84d"
     },
     {
       "id": "CC02.6",

@@ -1,7 +1,9 @@
 export { ModelsPage } from "./ModelsPage";
-export { formatTimingMs } from "./format";
+export { formatCount, formatTimingMs, shapeKey } from "./format";
 export {
+  comparisonError,
   filterBenchmarks,
+  groupMinimum,
+  rowsForAxis,
   timingsComparable,
-  minMeasuredInference,
 } from "./benchmarkFilters";
