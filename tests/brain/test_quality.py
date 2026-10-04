@@ -185,3 +185,60 @@ def test_controller_auth_or_rate_error_stops_globally(tmp_path, monkeypatch, cod
     monkeypatch.setattr(service, "run_phase", phase)
     assert service.tick(r, "fixture")["status"] == "failed"
     assert read(r / "STOP")["reason"] == "global_provider_auth_or_rate"
+
+
+def test_history_isolates_schema_failure_then_keeps_healthy_prefix(tmp_path):
+    from memecoin_brain_quality.history import run
+
+    r = root(tmp_path)
+    output = r / "history"
+    output.mkdir()
+    bar = time.time_ns() // (300 * NS) * 300 - 300
+    write(
+        output / "binding.json",
+        dict(tasks=[dict(pool=p, cursor=bar + 300, floor=bar, needed=True) for p in POOLS[:2]]),
+    )
+    calls = []
+
+    def fetch(r, p, **kw):
+        calls.append(kw["before"])
+        return capture(r, p, conflict=p == POOLS[0])
+
+    result = run(r, output, fetch=fetch)
+    assert calls == [bar + 299, bar + 299]
+    assert [t["status"] for t in result["completed"]] == ["schema_quarantine", "floor_reached"]
+    assert blocked(r) == {POOLS[0]} and not (r / "STOP").exists()
+
+
+def test_history_inclusive_boundary_without_progress_terminates(tmp_path):
+    from memecoin_brain_quality.history import run
+
+    r = root(tmp_path)
+    output = r / "history"
+    output.mkdir()
+    bar = time.time_ns() // (300 * NS) * 300 - 300
+    write(
+        output / "binding.json",
+        dict(tasks=[dict(pool=POOLS[0], cursor=bar, floor=bar - 300, needed=True)]),
+    )
+    result = run(r, output, fetch=lambda r, p, **kw: capture(r, p))
+    assert len(result["captures"]) == 1
+    assert result["completed"][0]["status"] == "provider_no_older_rows"
+    assert not result["pending"] and not (r / "STOP").exists()
+
+
+def test_history_future_page_stops_globally(tmp_path):
+    from memecoin_brain_quality.history import run
+
+    r = root(tmp_path)
+    output = r / "history"
+    output.mkdir()
+    bar = time.time_ns() // (300 * NS) * 300 - 300
+    write(
+        output / "binding.json",
+        dict(tasks=[dict(pool=POOLS[0], cursor=bar - 300, floor=bar - 600, needed=True)]),
+    )
+    with pytest.raises(SourceFailure, match="historical_page_after_cursor"):
+        run(r, output, fetch=lambda r, p, **kw: capture(r, p))
+    assert read(r / "STOP")["reason"] == "historical_page_after_cursor"
+    assert len(list((r / "requests").iterdir())) == 1
