@@ -1,5 +1,18 @@
 # Архитектурное направление
 
+## B11 — sealed учебный архив и фазы без монолита, 2026-10-04
+
+`memecoin_curriculum.archive`: namespace coverage catalogue, revision/funnel audit, shards
+с14past/3future overlap и совместимый adapter≤100kdecisions. Все используемые frames/targets
+совпадают с legacy per-pool build; данные61kbars доступны без повторного acquisition.
+Shards не равны streaming trainer: материализация пока ограничена. Auxiliary supervision
+отдельным immutable stream, старый model/runtime contract неизменен.
+
+Целевая orchestration policy: heavy collect → snapshot barrier → train → freeze/paper;
+hot acquisition и champion независимы, один shared provider limiter. Phase controller и
+распределение между двумя Mac пока не реализованы/не нужны. Существующие B09/B10 bundles
+не изменены. [B11](../docs/brain-archive-curriculum.md).
+
 ## B10 — paper supervisor, recovery и publication boundary, 2026-10-04
 
 Source B09 отделён от сменяемой paper revision B10. Durable ledger и existing shadow/model

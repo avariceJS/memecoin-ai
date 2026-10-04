@@ -1,5 +1,18 @@
 # Цель и границы проекта
 
+## B11 — учебный архив важнее увеличения модели, 2026-10-04
+
+Новый продуктовый приоритет — collect → immutable snapshot → train → frozen candidate →
+future paper → зрелые outcomes. Сохранять независимые source/storage/trainer/paper/UI;
+тяжёлые кампании запускать фазами, lightweight hot/paper могут продолжаться. B11 принял
+эту политику, но не переустанавливал B09/B10 и не установил phase scheduler. Quota оценивать
+по новой полезной информации, не по способности растянуть free plan. Два Mac пока преждевременны.
+
+Главный обнаруженный bottleneck: full local archive61kbars даёт всего4pools в naive train.
+Нужны cohort diversity, curriculum и decoder qualification для2025, а не новый backbone.
+Подготовлены35shards/auxiliary targets; новыхfits/доказанного улучшения нет. Текущий paper
+сохраняет собственную ценность prospective exam. [Стратегия B11](../docs/brain-archive-curriculum.md).
+
 ## B10 — сохранение живого продукта включает восстановление отказов, 2026-10-04
 
 Реальная эксплуатация остановила B09 paper при работающем collector. Приоритет B10 —
@@ -12,7 +25,7 @@
 ## B09 — работающий product loop снова приоритетен, 2026-10-04
 
 Paper восстановлен через отдельный hot acquisition priority:6liquid markets/120s,24 total
-universe, backgroundhistory/cold независимо по cadence пододним provider budget. Существующий
+universe, backgroundhistory/cold независимо по cadence пододним provider budget.
 На сдаче B09 runtime был активен на 72h; B10 сохраняет source, заменив отказавший paper. Цель week/month остаётся,
 но фактически проверены несколько циклов, не сутки. GT пока единственный live source;
 canonicalmulti-source требует отдельного semantic admission/cross-check.

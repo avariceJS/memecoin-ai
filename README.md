@@ -4,13 +4,18 @@
 
 ## Живой Brain: виртуальный paper/shadow
 
-**Статус после B10:** работают B09 collector/audit и отдельный B10 paper/train/UI.
+**Статус после B11:** работают B09 collector/audit и отдельный B10 paper/train/UI.
 [Control Center](http://127.0.0.1:8790): 24 рынка, hot6/120s, виртуальные портфели,
 актуальные health и ожидание daily training. После реального supervisor failure сохранён
 старый STOP и точно перенесён ledger; source не переустанавливался. Срок прежний:
 2026-10-07 15:23 МСК. Unknown guard failures остаются fatal; недельный uptime не доказан.
 [Результат, evidence и ограничения](docs/brain-operational-recovery.md).
 Описание B07 ниже — исходная activation; текущий runbook в B10.
+
+B11 сохранил эти jobs и подготовил учебный архив:61 233bars/35shards, selection/revision
+audit и auxiliary targets. Выбран phased collect/train/paper; phase scheduler ещё не
+установлен. Новых fits0, следующий прежний daily refresh не раньше2026-10-05 13:41:54МСК.
+[Новая стратегия,2025qualification и evidence](docs/brain-archive-curriculum.md).
 
 
 B07 запустил локальный [Live Control Center](http://127.0.0.1:8790): наблюдения рынка,

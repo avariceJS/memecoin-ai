@@ -1,5 +1,22 @@
 # Roadmap с критериями перехода
 
+## После B11 — B12: полезный широкий corpus и curriculum, без остановки paper
+
+Новый выбор пользователя заменяет прежнее узкое «ещё один source/soak этап»: цель — большой
+учебный архив, честный data-value experiment и наблюдаемые future candidate decisions.
+B11 подготовил sharded61kbar corpus, открыл2025transaction access, выявил train4pool bias.
+
+Сразу можно готовить shared absolute folds, balanced replay и streaming mini-batches для
+большего corpus. Перед fit — immutable snapshot/config/steps и matched recent/full/balanced
+arms, без backbone sweep. Следующая historical campaign должна добирать полезные возрастные
+cohort/ranges без redownload; нынешний trending не представляет умершие токены. Raw PumpSwap
+semantics и historical birth cohorts дают путь к canonical2025, но не блокируют GT paper.
+
+Одновременно сохранить B09/B10 до первого scheduled refresh не раньше2026-10-05 13:41:54МСК
+(+maturity/hourly scheduler). После суточного review — operational revision с фазовыми
+heavy budgets; weekly criteria ниже не отменены, expiry2026-10-07 15:23МСК не продлён.
+Phase scheduler пока не установлен. [B11](../docs/brain-archive-curriculum.md).
+
 ## После B10 — B11: реальные сутки, scheduled refresh и независимый source admission
 
 B09 source продолжает исходный bounded rollout; B10 paper восстановлен после неизвестного

@@ -1,5 +1,21 @@
 # Реестр архитектурных решений
 
+## B11 — archive-first и фазовый приоритет heavy work, 2026-10-04
+
+Статус: стратегия принята; sharded dataset/funnel/auxiliary labels и bounded archival
+qualification реализованы; phase scheduler/bulk activation/новый ML experiment НЕ запущены.
+Не менять B09/B10 перед первым daily refresh. CPU текущих4fits не bottleneck; fullarchive
+sampling концентрирует train на4pools. Сравнивать recent/full/pool-day-balanced на общих
+chronological eval dates, не сравнивать разные60/20/20 splits как model quality.
+
+GT остаётся bootstrap/price-proxy lane; Alchemy2025transactions теперь фактически доступны,
+но probe unsupportedCLMM/Orca не даёт economic admission. Исторический universe/dead tokens
+требуют birth cohorts. Quota не растягивать искусственно; raw bulk масштабировать по useful
+decoded coverage, не по числу payloads. История versions/actual availability неизменна.
+Archive adapter100k — отдельная capacity, B01/frozenruntime gates не ослаблены. Auxiliary
+bar-path targets отдельны от execution truth и существующих heads. Новыхfits/promotion0.
+[План, amendments, результат и следующий опыт](../docs/brain-archive-curriculum.md).
+
 ## B10 — восстановить paper отдельной revision, ограничить recovery, 2026-10-04
 
 Статус: реализовано и активировано в прежнем 72h envelope. Выбор по evidence: paper STOP

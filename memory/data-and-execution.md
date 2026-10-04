@@ -1,5 +1,22 @@
 # Данные и достоверное исполнение
 
+## B11 — архивные данные не создают прошлую онлайн-доступность, 2026-10-04
+
+Full GT snapshot61 233bars/50event days/1receipt day;611revised keys,40changed close keys,
+first-observed view и raw versions сохранены. Coverage catalogue не трактует gaps как
+no-trades/dead tokens. Discovery нынешних24pools — survivor-biased, не historical universe.
+
+Alchemy bounded2025probe400tx/5RPC/440nominalCU доказал доступность старых transaction
+records и standard core equality, но не economic decode/price/account-history. Cohort —
+RaydiumCLMM/Orca, training_eligible=false. PumpSwap B06 gate unchanged. Helius не опрашивался;
+MCPusage не проверяет runtime/no-paid/account rights. Стоимость0$ — owner-attested envelope,
+не измеренный invoice. Official account archive paid-only, его не использовали.
+
+Auxiliary targets — future close-path variance/downside и observed USD volume, с missing
+future masks/actual availability. Не являются intrabar liquidity/flow/fill/net opportunity.
+Historical buy/sell/decimals/transfer fees требуют qualified raw decode; нынешнюю liquidity
+не переносить в прошлое. [Evidence и source contracts](../docs/brain-archive-curriculum.md).
+
 ## B10 — outage не создаёт прошлое исполнение, 2026-10-04
 
 Paper B09 остановился, source продолжил raw acquisition. Перенос в B10 сохраняет actual

@@ -72,8 +72,11 @@ def test_future_receipt_duplicate_and_archive_overflow_rejected():
 
 
 def test_rolling_view_keeps_all_pools_at_cap_boundary():
-    data = rows(15000)
-    cut = 15000 * 300 * 10**9
+    base = [r for r in rows(2030) if r["pool"] == "a"]
+    data = [dict(r, pool=str(p)) for p in range(17) for r in base]
+    cut = 2030 * 300 * 10**9
     selected = rolling(data, cut)
     assert all(r["open_s"] >= cut // 10**9 - 7 * 86400 for r in selected)
-    assert {r["pool"] for r in selected} == {"a", "b"}
+    assert 28000 < len(selected) < 28017  # Never split pools sharing the floor timestamp.
+    floor = min(r["open_s"] for r in selected)
+    assert {r["pool"] for r in selected if r["open_s"] == floor} == {str(p) for p in range(17)}

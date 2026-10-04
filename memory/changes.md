@@ -1,5 +1,17 @@
 # История изменений решений
 
+## 2026-10-04 — B11: archive-first стратегия, учебные shards и реальная2025qualification
+
+По новому продуктовому приоритету выбран phased heavy collect/train/paper при независимых
+сервисах. B09/B10 bundles/config не менялись.61 233GTbars упёрлись в старый40kdecisionlimit;
+failed snapshot сохранён,35shards/100kadapter устранили локальную capacity для audit.
+Выявлены naive train4pools и611revisions/40close changes;28krollingcap сейчас не binding.
+Созданы119088mature auxiliary labels, legacy/offline replay exact, новыхfits0.
+Alchemy400rawtx2025/5RPC/440nominalCU, corecrosscheck exact, economic admissionfalse.
+Zero-RPCpreflightfailure сохранён отдельно.644base/670MLPASS,check/smoke/build.
+СледующийB12 — cohort/curriculum/streaming и review ежедневного refresh, не новый backbone.
+[Полный результат и evidence](../docs/brain-archive-curriculum.md).
+
 ## 2026-10-04 — B10: operational incident, exact recovery и безопасная публикация кандидатов
 
 В эксплуатации B09 paper остановлен supervisor (−9/unknown guard), source продолжил работу.

@@ -1,5 +1,45 @@
 # Текущий статус
 
+## B11 — архив и фазовый учебный цикл, 2026-10-04
+
+**Активны прежние B09 source/audit + B10 paper/train/UI, hashes/config не менялись.**
+Выбран archive-first с фазовым приоритетом heavy collect/train/paper; phase scheduler пока
+не установлен. F01/D43/reserved holdout untouched. Реальные средства/signing/paid запрещены.
+Control Center: http://127.0.0.1:8790. Expiry прежний:2026-10-07 15:23МСК.
+
+Создан sealed `work/brain-b11/textbook02`:61 233bars/24pools/50historical event days, один
+receipt day,35shards;59 837context decisions/59 404complete labels. Raw audit1318captures exact;
+legacy per-pool build всех decisions/features и119 088mature auxiliary labels воспроизведён.
+Действующий rolling7d содержит15 287bars:28kcap сейчас НЕ binding. Наивный full-history split
+даёт28 191train examples лишь4pools против6005/5pools rolling: bottleneck — выборка/diversity,
+а не размер backbone.611revised candle keys/40close changes сохранены first-observed.
+Новый archive adapter≤100kdecisions, streaming trainer ещё не реализован; live код не менялся.
+
+Alchemy qualification действительно вернула400full transactions за2025:5RPC/440nominalCU,
+standard core cross-check exact. Это неподдержанные Raydium CLMM/Orca transaction records,
+**не admitted swaps/candles/годовой corpus**. PumpSwap quarantine остаётся. Новых GT/Helius
+requests0; no-paid основание — прежняя owner attestation+credential match, не provider bill.
+Failed `textbook01`(capacity) и `archive-probe01`(preflight0RPC) sealed/STOP сохранены.
+
+Cutoff17:27:37UTC: оба live service healthy,906source attempts,61 249bars в dashboard,
+6сохранённых transport timeout/cooldown без нового fatalSTOP;400soak samples,span4.684h,
+observed4.378h,≥1fresh89.75%,≥4fresh70.50%,старый maxgap1189.70s не скрыт. Суток ещё нет.
+Новыхfits0/promotion0. Первый daily candidate не раньше **2026-10-05 13:41:54МСК** плюс
+100new matured/hourscheduler; это прежний recipe, НЕ новый fullarchive/aux-head experiment.
+
+Проверки644basePASS/6skips,670combinedMLPASS,check/smoke/build; offline reproduction exact.
+[Итог/стратегия B11](../docs/brain-archive-curriculum.md),
+[corpus](../docs/evidence/brain-archive-curriculum-2026-10-04.json),
+[reproduction](../docs/evidence/brain-archive-reproduction-2026-10-04.json),
+[health/failures/checks](../docs/evidence/brain-archive-qualification-2026-10-04.json).
+
+**Следующий B12:** curriculum/streaming loader и полезная широкая historical campaign;
+rolling vs full vs pool-day balanced train при общих absolute validation/test и прежних
+features/models. До fits зафиксировать конкретный snapshot/steps/budgets; auxiliary heads
+позже отдельной ablation. Разработка не ждёт суток, live runtime пока сохраняем для первого
+daily review. Broad2025/dead-token claims требуют historical birth cohorts+decoder semantics.
+Недельная activation не принята. Разделы B10 и ниже — исторические срезы.
+
 ## B10 — paper восстановлен после реального отказа supervisor, 2026-10-04
 
 Активны **неизменный source/audit B09** и новая **paper/train/UI revision B10**.
@@ -48,7 +88,7 @@ Cutoff14:05:31UTC: 10 новых ticks/108 decisions (все cash), новых t
 Полный отчёт с зафиксированным cutoff и offline reproduction:
 [B10](../docs/brain-operational-recovery.md), [evidence](../docs/evidence/brain-operational-recovery-2026-10-04.json).
 
-**Следующий B11:** сохранить действующий runtime; наблюдать реальные сутки и первый scheduled
+**На сдаче B10 предлагался следующий B11** (новый выбор см. выше): сохранить действующий runtime; наблюдать реальные сутки и первый scheduled
 refresh с будущими paired decisions. Параллельно квалифицировать независимую source lane,
 не смешивая unsupported raw PumpSwap с GT candles. Weekly activation пока нет: неизвестный
 operational failure не объяснён, резервного source нет, суток/планового retraining ещё не было.

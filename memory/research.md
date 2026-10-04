@@ -1,5 +1,19 @@
 # Реестр исследовательских экспериментов
 
+## B11 — data curriculum до новых model/feature fits, 2026-10-04
+
+Новыхfits0. Полный archive не равен полезной выборке: naive train4pools, rollingtrain5pools.
+Прежние rolling7d/cap28k отделены от archive;28k сейчас не достигнут. Sharded corpus и
+119 088mature auxiliary horizon labels готовы offline, heads пока не подключены.
+
+Следующий exploratory опыт: recent/full/pool-day-balanced train, общие absolute eval dates,
+whole-decision maturity purge, nested deterministic25/50/100% learning curves, train-only
+transforms, прежние12features/quantiles и empirical/linear/GRU16,seeds7/19. Конкретный snapshot,
+step/walltime budget связывать до fits; данный B11 specification не выполненный trial.
+Auxiliary heads/longer features — последующая отдельная ablation, не общий пакет улучшений.
+Future candidate сравнивать также по действиям/cash/rejections/cost sensitivity, без promotion
+по luckyPnL. F01 остаётся независим. [B11 specification](../docs/brain-archive-curriculum.md).
+
 ## B10 — эксплуатационная устойчивость прежде нового model experiment, 2026-10-04
 
 Новых fits/параметров/selection нет. После отказа B09 восстановлен B10 paper с прежними

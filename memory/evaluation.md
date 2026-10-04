@@ -1,5 +1,17 @@
 # Оценка модели и управление версиями
 
+## B11 — измерять воронку данных и сравнивать на общей будущей выборке, 2026-10-04
+
+Full vs rolling таблица B11 — coverage audit, НЕ paired model evaluation:60/20/20 boundaries
+различны. Эффективная концентрация fullarchive5.26pools при24номинальных;119088horizon labels
+не независимые episodes. Historical event days50, receipt days1; день-блок bootstrap пока
+не превращать в evidence устойчивого future improvement.611revisions сохранены, future
+availability не задним числом. Offline legacy reproduction59 837decisions/auxiliary exact.
+
+B09/B10 soak на17:27:37UTC:span4.684h,observed4.378h,400samples,onefresh89.75%/fourfresh70.50%,
+oldgap1189.70s. Daily refresh ещё ожидается, новых fits/trial winner0. Runtime unchanged;
+archive proof400rawtx2025 не training admission. [B11 evidence](../docs/brain-archive-curriculum.md).
+
 ## B10 — crash recovery и реальные gaps вместо заявленного uptime, 2026-10-04
 
 Исходный supervisor_guard −9 не имеет достаточной диагностики для установления root cause.
