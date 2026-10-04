@@ -33,6 +33,7 @@ def test_full_budget_fixture_and_standard_overlap(tmp_path):
             value = tx("p1", 2)
         else:
             pool, cfg = req["params"]
+            assert cfg["maxSupportedTransactionVersion"] == 0
             second = "paginationToken" in cfg
             value = dict(
                 transactions=[tx(pool + ("2" if second else "1"), 1 if second else 2)],

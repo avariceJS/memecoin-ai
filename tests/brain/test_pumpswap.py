@@ -198,3 +198,18 @@ def test_router_cpi_parent_is_scoped_and_multiple_pools_remain_separate():
     r = decode(tx)
     assert r["status"] == "reconciled_candidate"
     assert r["swaps"][0]["path"] == [0, 0]
+
+
+def test_two_swaps_in_one_transaction_reconcile_aggregate_vault_deltas():
+    tx, _ = fixture()
+    tx["transaction"]["message"]["instructions"].append(
+        copy.deepcopy(tx["transaction"]["message"]["instructions"][0])
+    )
+    group = copy.deepcopy(tx["meta"]["innerInstructions"][0])
+    group["index"] = 1
+    tx["meta"]["innerInstructions"].append(group)
+    tx["meta"]["postTokenBalances"][0]["uiTokenAmount"]["amount"] = "800"
+    tx["meta"]["postTokenBalances"][1]["uiTokenAmount"]["amount"] = "1102"
+    r = decode(tx)
+    assert r["status"] == "reconciled_candidate" and len(r["swaps"]) == 2
+    assert r["swaps"][0]["path"] != r["swaps"][1]["path"]

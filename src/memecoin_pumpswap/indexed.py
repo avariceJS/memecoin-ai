@@ -78,6 +78,7 @@ def run(root, client, *, pacing=1):
                 for _ in range(2):
                     cfg = dict(
                         transactionDetails="full",
+                        maxSupportedTransactionVersion=0,
                         commitment="finalized",
                         encoding="jsonParsed",
                         sortOrder="desc",
