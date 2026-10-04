@@ -1,5 +1,16 @@
 # Архитектурное направление
 
+## B10 — paper supervisor, recovery и publication boundary, 2026-10-04
+
+Source B09 отделён от сменяемой paper revision B10. Durable ledger и existing shadow/model
+namespaces пережили отказ; runtime остаётся frozen. Guard diagnostics не выводят arbitrary
+exception text. Только external worker signals получают ограниченный restart после full
+replay; corruption/unknown guard не скрываются. Recovery allowance и TRAIN_STOP переживают
+migration. UI health читается отдельно от исторического dashboard, gaps остаются измеримыми.
+Training run становится доступным inference после whole-run seal и отдельного ready marker,
+поэтому частично завершённое обучение не получает future exposures. Source multi-provider
+failover всё ещё не реализован. [B10](../docs/brain-operational-recovery.md).
+
 ## B09 — deployed hot lane и bounded background, 2026-10-04
 
 Один provider budgetcoordinator, разные hot/cold/history deadlines; никакогопараллельного

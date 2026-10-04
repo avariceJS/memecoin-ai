@@ -1,5 +1,18 @@
 # Данные и достоверное исполнение
 
+## B10 — outage не создаёт прошлое исполнение, 2026-10-04
+
+Paper B09 остановился, source продолжил raw acquisition. Перенос в B10 сохраняет actual
+received/available_ns, ledger и модельные namespaces. Свечи, полученные во время простоя,
+могут участвовать в последующем matured scoring/training; прошлые decisions/trades не
+дорисовываются. Гэп soak сохранён. Prices и fills остаются B07 GT price proxy, не calibrated
+execution. Source B09 и его quota/cursors/error history не сброшены.
+
+Recovery SIGKILL/SIGTERM допустим только после exact ledger/projection audit и в пределах
+двух попыток; guard-induced kill не маскируется как внешнее завершение. Unknown/integrity
+STOP сохраняется. Multi-source index пока нет: отдельный future raw lane обязан пройти
+semantic/provenance qualification. [B10](../docs/brain-operational-recovery.md).
+
 ## B09 — раздельная cadence без ослабления availability, 2026-10-04
 
 Hot6 из immutable24B08pools (active,topliquidity),120s; остальные cold1800s и history ≤1/min

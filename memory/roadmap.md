@@ -1,5 +1,26 @@
 # Roadmap с критериями перехода
 
+## После B10 — B11: реальные сутки, scheduled refresh и независимый source admission
+
+B09 source продолжает исходный bounded rollout; B10 paper восстановлен после неизвестного
+guard failure. Не переустанавливать работающие jobs ради очередного исследования. Сначала
+проверить actual gaps/worker errors/censoring/рост storage и первый допустимый daily refresh
+(не раньше 2026-10-05 13:41 МСК плюс maturity). Partial fits не кандидаты; champion прежний.
+
+Недельное расширение пока не принято. Предлагаемый operational review: полные ≥24h после
+B10 recovery, отсутствие необъяснённых fatal failures, observed coverage≥95% календарного
+интервала, freshness ≥1hot в≥80% и≥4hot в≥60% срезов с проверкой отдельных часов,
+успешный scheduled refresh и последующая causal exposure кандидата, resource/quota projection
+с запасом. Это prospective operating criteria Brain, не изменение F01/D43 или B09 qualification.
+Не считать текущий короткий slice прохождением этих критериев.
+
+Параллельно наиболее полезна изолированная независимая source lane: versioned PumpSwap
+semantics/price cross-check и coverage, затем отдельное решение о hot failover. Общие GT
+candles не подменять неподдержанными reserves/events. Автоматическое source переключение
+требует собственных freshness/coherence/recovery evidence. Обновление expiry и allocation
+оформить отдельным решением после review; текущие bounds не продлевать молча.
+[B10](../docs/brain-operational-recovery.md).
+
 ## После B09 — B10: day-scale soak и source redundancy
 
 Paper восстановлен;B09source/paper/train/UI работают 72h bounded. Не заменять runtime ради

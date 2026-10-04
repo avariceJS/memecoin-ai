@@ -1,5 +1,10 @@
 # B09 — paper восстановлен, hot lane отделён от background
 
+Обновление B10: исходный source/audit B09 продолжает работу, но B09 paper получил STOP.
+Он заменён отдельной B10 revision с exact ledger migration; старые STOP/runtime сохранены.
+[Актуальный статус, диагностика и evidence](brain-operational-recovery.md).
+Ниже исходный итог B09 на его собственном cutoff.
+
 ## Решение и фактический результат, 2026-10-04
 
 **Активирован bounded rollout на 72 часа**, до 2026-10-07T12:23:51.922091+00:00.

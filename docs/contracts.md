@@ -1,5 +1,16 @@
 # Implemented contracts and validity domain
 
+## B10 — восстановление paper внутри прежних bounds, 2026-10-04
+
+B09 source/audit не менялся. B09 paper STOP сохранён; отдельный B10 exact migration не
+обнуляет ledger/cash/model namespaces/training budget/soak. Причина старого supervisor_guard
+не установлена. Automatic paper recovery только внешний SIGKILL/SIGTERM при worker_failed,
+≤2 за migration lineage и cooldown60s с full replay/projection audit. Unknown guard,
+integrity/deadline и training failures остаются STOP; старый неизвестный отказ этот retry
+механизм не обходит. Новые candidates допускаются после completed sealed run и отдельного
+atomic ready marker. Source budgets/expiry и F01/D43/holdout прежние. Weekly activation нет.
+[Текущий runbook](brain-operational-recovery.md). Ниже исторические этапы.
+
 ## B09 — активный bounded hot-paper runtime, 2026-10-04
 
 B09source qualification пройдена; approval связан сconfig/runtime/report hashes.72h/25kGET,

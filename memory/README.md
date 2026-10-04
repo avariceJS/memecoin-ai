@@ -10,6 +10,7 @@ Memory Bank — канонический, пригодный для чтения
 
 | Вопрос новой сессии | Канонический документ |
 |---|---|
+| B10: operational incident, exact recovery, daily candidate publication | [brain-operational-recovery.md](../docs/brain-operational-recovery.md) |
 | B09: hot/background cadence, restored paper, 72h rollout и soak | [brain-hot-lane.md](../docs/brain-hot-lane.md) |
 | B08: incremental corpus, provider outage, отклонённая weekly activation | [brain-continuity.md](../docs/brain-continuity.md) |
 | Зачем строим и чего не обещаем | [project.md](project.md) |

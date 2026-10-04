@@ -1,5 +1,14 @@
 # История изменений решений
 
+## 2026-10-04 — B10: operational incident, exact recovery и безопасная публикация кандидатов
+
+В эксплуатации B09 paper остановлен supervisor (−9/unknown guard), source продолжил работу.
+Сохранены STOP/incident; exact migration 85 ticks в отдельный B10 paper, source не менялся.
+Добавлены safe guard diagnostics, bounded signal recovery с replay, независимый live health
+в UI и atomic candidate admission после completed sealed training. 640 base/666 ML PASS,
+52 focused; реальные provider timeout проходят прежний cooldown. Новых fits/promotion нет.
+Короткий recovery soak не является суточным uptime. [B10](../docs/brain-operational-recovery.md).
+
 ## 2026-10-04 — B09: hot/background scheduler и paper continuity
 
 После B08 отказа frozen новый plan безизменениястарых STOP. Hot6/120s, cold/historybackground,

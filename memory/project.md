@@ -1,10 +1,19 @@
 # Цель и границы проекта
 
+## B10 — сохранение живого продукта включает восстановление отказов, 2026-10-04
+
+Реальная эксплуатация остановила B09 paper при работающем collector. Приоритет B10 —
+восстановить продукт с точной бухгалтерией и диагностикой, без переустановки source.
+Активны B09 source + B10 paper; недельная автономность остаётся целью, а не достигнутым
+свойством. Unknown integrity/guard failure не лечить бесконечными restart. Новый источник
+должен пройти отдельный semantic admission, новые модели — честные будущие observations.
+[Актуальный статус](state.md), [B10](../docs/brain-operational-recovery.md).
+
 ## B09 — работающий product loop снова приоритетен, 2026-10-04
 
 Paper восстановлен через отдельный hot acquisition priority:6liquid markets/120s,24 total
 universe, backgroundhistory/cold независимо по cadence пододним provider budget. Существующий
-B09 runtime активен на 72h, не переустанавливать ради model research. Цель week/month остаётся,
+На сдаче B09 runtime был активен на 72h; B10 сохраняет source, заменив отказавший paper. Цель week/month остаётся,
 но фактически проверены несколько циклов, не сутки. GT пока единственный live source;
 canonicalmulti-source требует отдельного semantic admission/cross-check.
 [Текущий статус](state.md), [решение/ограничения](../docs/brain-hot-lane.md).

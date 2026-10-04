@@ -4,11 +4,13 @@
 
 ## Живой Brain: виртуальный paper/shadow
 
-**Статус после B09:** paper восстановлен; [Control Center](http://127.0.0.1:8790) показывает
-24 рынка, hot6/120s, виртуальные портфели и observedsoak. Source/paper/train/UI активны до
-2026-10-07T12:23:51.922091+00:00. History/cold получают отдельные backgroundslots. Несколькоциклов проверены;
-сутки/неделя uptime ещё не доказаны. [Итог/evidence](docs/brain-hot-lane.md).
-Описание B07 ниже — исходная activation; текущийrunbook вB09.
+**Статус после B10:** работают B09 collector/audit и отдельный B10 paper/train/UI.
+[Control Center](http://127.0.0.1:8790): 24 рынка, hot6/120s, виртуальные портфели,
+актуальные health и ожидание daily training. После реального supervisor failure сохранён
+старый STOP и точно перенесён ledger; source не переустанавливался. Срок прежний:
+2026-10-07 15:23 МСК. Unknown guard failures остаются fatal; недельный uptime не доказан.
+[Результат, evidence и ограничения](docs/brain-operational-recovery.md).
+Описание B07 ниже — исходная activation; текущий runbook в B10.
 
 
 B07 запустил локальный [Live Control Center](http://127.0.0.1:8790): наблюдения рынка,

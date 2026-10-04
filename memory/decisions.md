@@ -1,5 +1,27 @@
 # Реестр архитектурных решений
 
+## B10 — восстановить paper отдельной revision, ограничить recovery, 2026-10-04
+
+Статус: реализовано и активировано в прежнем 72h envelope. Выбор по evidence: paper STOP
+`supervisor_guard` при здоровом source срочнее ещё одного source/model experiment.
+Причина внутри guard не установлена; это ограничение сохраняется в postmortem.
+B09 source/audit не менять. Старый STOP не снимать: exact migration в B10 с сохранением
+cash, ledger prefix, shadow/model namespaces, training allowance, incidents lineage и soak.
+
+Разрешён automatic recovery только внешнего SIGKILL/SIGTERM paper при category worker_failed:
+≤2 за migration lineage, cooldown60s, полный audit перед продолжением. Неизвестная ошибка,
+clock/deadline и corruption остаются fatal; training не перезапускать после partial run.
+Диагностика stage/type/errno не раскрывает произвольный exception text. UI health вычислять
+при запросе, отдельно от последнего успешного trading snapshot. Candidate publication
+атомарна после sealing целого training run; partial weights не попадают в live comparison.
+
+Не выбирать fallback только по наличию endpoint: GT USD bars, on-chain reserves и PumpSwap
+raw events не взаимозаменяемы. B10 не объявляет source redundancy выполненной. Backbone,
+champion, thresholds и costs не менялись. Возврат к weekly activation — после реального
+суточного operational evidence и первого допустимого refresh, с отдельным budget/source
+решением; неизвестный повторный guard failure блокирует расширение.
+[План и результат](../docs/brain-operational-recovery.md).
+
 ## B09 — разделить deadlines; принять 72h bounded activation, 2026-10-04
 
 Статус: принято по положительному заранее зафиксированному multi-cycle gate. Originalplan

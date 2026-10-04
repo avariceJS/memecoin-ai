@@ -1,8 +1,64 @@
 # Текущий статус
 
+## B10 — paper восстановлен после реального отказа supervisor, 2026-10-04
+
+Активны **неизменный source/audit B09** и новая **paper/train/UI revision B10**.
+[Control Center](http://127.0.0.1:8790). Roots: `work/brain-b09/source01`,
+`work/brain-b10/paper01`; bundles `work/brain-b09/source-runtime01` и
+`work/brain-b10/paper-runtime01`. Labels `ai.memecoin.brain.b09.{source,audit}`,
+`ai.memecoin.brain.b10.{paper,train,ui}`. B09 paper/train/UI fenced, исходные файлы сохранены.
+Expiry прежний **2026-10-07T12:23:51.922091Z** (15:23 МСК), GET budget 25000,
+background 4000, USD0. Source activation/config/runtime/seed hashes не менялись.
+
+13:35:45 UTC B09 paper получил `supervisor_guard`, exit −9 после 7,61s. Worker log пуст;
+конкретная причина guard неизвестна. Не называть это установленным provider failure,
+OOM или устранённой corruption. Две серии по 300 read-only guard проверок прошли;
+полный ledger replay exact. Старый STOP/incident сохранены, `work/brain-b10/incident-evidence`
+sealed. Отдельный source transport timeout `URLError/TimeoutError` прошёл cooldown и recovery.
+
+B10 перенёс 85 ticks / 765 decisions / 5 exits / 6 books, без cash reset и изменения позиций.
+На переносе open/pending=0. Prefix head `c72cc8d9b8929fff58f39f9173aaa5f3fabfef55e9e3a854ed8f8147c86d96f2`.
+Новые ticks идут с фактическим временем, простой около 20 минут остаётся gap в soak.
+Исходный source pin `f4e722ed1a27f702a7a303f33e56548eb50c5ba442524028021cf53db98d59e5`;
+B10 paper pin `a15df723ce8dc2413bdda20eee13a9e62544f873125a4fccb9130c03d27bc67c` (code 9b3a9c4).
+
+Safe guard diagnostics теперь сохраняют stage/type/errno/allowlisted reason, включая startup.
+Paper recovery: только внешний SIGKILL/SIGTERM при `worker_failed`, максимум две reservation
+за цепочку migration, cooldown60s, полный ledger/projection audit перед продолжением.
+Unknown guard/integrity/deadline → STOP; training failures → TRAIN_STOP без повторов.
+Исходный неизвестный сбой B09 **не** подпадает под automatic recovery. Его восстановление —
+явная проверенная revision B10. Последующее усиление migration переносит TRAIN_STOP;
+исходный B09 TRAIN_STOP отсутствовал, поэтому новая runtime installation для этого не нужна.
+
+Модели/policy/features/targets не менялись. Новый training candidate допускается только после
+completed result, полного sealed run и атомарной публикации отдельного ready marker.
+Первый следующий fit не раньше **2026-10-05 13:41:54 МСК** и ≥100 новых mature samples;
+hourly scheduler, максимум4 runs с учётом перенесённого B07, 4 fits/run≤600s. Новых fits0,
+champion empirical прежний. UI показывает актуальные paper/source health и training gate
+независимо от старого dashboard. Внешних provider probes B10 не добавлял.
+
+Проверки: 640 base PASS/6 optional skips, 666 combined ML PASS, 52 focused; check/smoke/build,
+реальный SIGKILL fixture после ledger commit, exact recovery, safe logging, retry exhaustion,
+partial candidate exclusion, repeated migration, desktop/mobile без JS errors/overflow.
+Cutoff14:05:31UTC: 10 новых ticks/108 decisions (все cash), новых trades0; 29 808 bars/24 pools,
+62 captures во время paper STOP. Raw/index exact; 1764 raw joins/291 forecast joins,
+272 matured outcomes независимо воспроизведены. Evidence manifest
+`f9acebb864d7f2218a737a9eb855c461772479f1e07fd0aab92ecf6e5db19b89`;
+дополнительные 30/30 healthy paper/source samples за 290,26s. Сутки не измерены.
+Полный отчёт с зафиксированным cutoff и offline reproduction:
+[B10](../docs/brain-operational-recovery.md), [evidence](../docs/evidence/brain-operational-recovery-2026-10-04.json).
+
+**Следующий B11:** сохранить действующий runtime; наблюдать реальные сутки и первый scheduled
+refresh с будущими paired decisions. Параллельно квалифицировать независимую source lane,
+не смешивая unsupported raw PumpSwap с GT candles. Weekly activation пока нет: неизвестный
+operational failure не объяснён, резервного source нет, суток/планового retraining ещё не было.
+F01/D43/holdout untouched; реальные средства/signing/платные подключения запрещены.
+Ниже исторические срезы, а не текущие указания перезапустить старые jobs.
+
 ## B09 — paper восстановлен, активен ограниченный rollout на 72 часа, 2026-10-04
 
-**Source, paper, trainer и UI B09 работают.** [Control Center](http://127.0.0.1:8790).
+**Исторический срез сдачи B09: source, paper, trainer и UI работали.**
+В B10 source сохранён, остановившийся paper заменён отдельной revision (см. выше). [Control Center](http://127.0.0.1:8790).
 Roots: `work/brain-b09/source01` и `work/brain-b09/paper01`.
 Expiry: **2026-10-07T12:23:51.922091Z** (15:23 МСК). Реальные деньги, signing и paid
 не использовались; F01/D43/reserved holdout не открывались и не менялись. Старые B04/B08
@@ -41,7 +97,8 @@ Synthetic864ticks/31 104decisions: full1,800s/checkpoint0,065s exact — не me
 Soak хранит actual timestamps/gaps; сон Mac не превращается в online availability.
 649combinedML/623base PASS,6optional skips,35focused;check/smoke/build и desktop/mobile UI.
 
-**Следующий B10:** не переустанавливать этот runtime ради research. Собрать сутки soak,
+**План следующего B10 на момент сдачи B09 (заменён фактическим B10 выше):**
+не переустанавливать runtime ради research. Собрать сутки soak,
 проверить первый плановый fit, coverage/censoring и paired future behavior. Параллельно
 готовить независимый hot-price cross-check/versioned PumpSwap admission. Главные ограничения:
 single-provider freshness, небольшой календарный опыт и ещё не измеренный рост source journal

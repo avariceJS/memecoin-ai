@@ -1,5 +1,18 @@
 # Оценка модели и управление версиями
 
+## B10 — crash recovery и реальные gaps вместо заявленного uptime, 2026-10-04
+
+Исходный supervisor_guard −9 не имеет достаточной диагностики для установления root cause.
+300+300 успешных read-only guard проверок не доказывают устранение причины. Full replay
+85 исходных ticks exact; новый root продолжает ledger с теми же cash/positions/policy.
+SIGKILL после commit проверен отдельным настоящим subprocess fixture; это engineering
+failure injection, не намеренное завершение работающего Brain и не доказательство week uptime.
+
+Отчёт разделяет carried и новые B10 decisions, а paired scores B09+B10 агрегирует только
+по опубликованным predictions с реально созревшими outcomes. Простой не заполняется
+online availability. Никакого selection/promotion по короткому slice. Training готовность
+проверена fixtures, первый настоящий daily refresh ещё ожидается. [B10](../docs/brain-operational-recovery.md).
+
 ## B09 — temporal duty-cycle gate и observed soak, 2026-10-04
 
 До GET:20minwindow+180swarmup,≥90samples/span≥900s,≥1fresh80%,≥4fresh60%,каждый hot≥3new

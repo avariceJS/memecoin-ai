@@ -1,5 +1,15 @@
 # Реестр исследовательских экспериментов
 
+## B10 — эксплуатационная устойчивость прежде нового model experiment, 2026-10-04
+
+Новых fits/параметров/selection нет. После отказа B09 восстановлен B10 paper с прежними
+weights и доступными matured outcomes; F01/D43/holdout не затронуты. Защищена публикация
+нового кандидата: completed run и отдельный atomic ready marker после sealing; незавершённый
+fit не получает future exposures. Сутки+100new mature samples и прежний fit budget не меняются.
+Следующий реальный refresh не раньше 2026-10-05 13:41:54 МСК; будущие paired decisions,
+forecast loss и paper behavior оценивать раздельно, без автоматического promotion.
+[B10](../docs/brain-operational-recovery.md).
+
 ## B09 — живой feed без нового model-selection, 2026-10-04
 
 Новых fits0 в stage; champion empirical прежний. Daily4fits/run≥24h+100newmature, максимум
