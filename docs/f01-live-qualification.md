@@ -38,7 +38,7 @@ Calendar activation требует отдельного итогового ре�
 не сдвигать; missed окна не backfill. ML/research training, holdout release, торговля,
 подпись/платежи/upgrades запрещены. Этот план не меняет научные критерии F01.
 
-## Фактический статус
+## Состояние до owner attestation (сохранённая история)
 
 **D51 OPEN/BLOCKED; proposal NOT READY FOR ACTIVATION.** План97c2d26,
 launcher4ed893b. [Evidence](evidence/f01-live-qualification-2026-10-04.json).
@@ -133,3 +133,26 @@ Offline: `verify_campaign` воспроизводит каждый segment че�
 conditional pre-network targets за net execution или ML edge. Actual F01 registry
 остаётся пустым. Только после этого — итоговый verdict и отдельное activation decision.
 **D51 не закрыт и не переименован в D52.**
+
+## Допуск единственной попытки — 2026-10-04, до результата
+
+Владелец подтвердил в чате по Dashboard принадлежность приложения и существующего
+локального endpoint своему текущему аккаунту, отсутствие PAYG/платного перерасхода
+и карты, usage около28.1K/30M и доступность3600CU. Явно разрешил продолжитьD51.
+[Exact owner attestation](evidence/f01-d51-owner-attestation-2026-10-04.json) сохраняет
+происхождение; это **не independent provider verification**. Free классифицирован по
+сообщённому режиму30M/no-PAYG; numeric provider account ID не известен, review использует
+явно обозначенный local alias аккаунта владельца, а не выдаёт app ID за account ID.
+
+Substantive review принят для одной bounded попытки. Local immutable review/receipt:
+`work/collector-d51/review-owner-01/`; validity1hour от review, max180RPC/3600CU, paid0,
+exact `attempts/live-01`, прежние bundle/proposal/credential pins. Calendar scope не
+разрешён. Это конкретное решение по owner evidence, не approval из MCP USD0.
+
+Новый MCP usage-before-live27660CU/USD0 при dataThrough23:59UTC ниже прежнего27940CU:
+`account_usage_nonmonotonic`. Причина provider/admin aggregation не установлена;
+summary не используется как точный расход/квитанция нашего окна. Budget основан на
+owner allocation и локальном upper bound180attempts; shared provider quota атомарно
+не резервируется. Current host battery19%/estimated1h33, free134,51GB — достаточно
+наблюдаемого headroom для bounded600s, но не подтверждает долгосрочную доступность.
+Power/runtime/D43 не менялись. Прежний stop budget и все pass criteria сохраняются.
