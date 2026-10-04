@@ -1,5 +1,51 @@
 # Текущий статус
 
+## B02 — текущий статус, 2026-10-04
+
+**Аналитика завершена; data expansion частично, Brain collectors ОСТАНОВЛЕНЫ.**
+F01 не блокирует Brain. История +505 unique bars, merged4 853/12pools, полный target
+coverage6/12; ещё6пулов недобраны. Current-ranked bias сохраняется, largest pool62%rows,
+train обоих chronological folds пока только1старый pool. 68revision observations/55keys.
+
+24real neural fits:2folds×3nested train sizes×linear/GRU×seeds7/19. Fixed validation/
+evaluation и maturity purge, train-only scaler; hard600s, completed18,94s. На полном
+train GRU ensemble лучше empirical исторически0,92%/4,53%, но CI включает0 и seed7 хуже
+в обоих folds. Shadow128mature outcomes (96published+32offline recovery),16pending:
+empirical/GRU/linear macro pinball0.005228/0.006428/0.014142. Это1UTC-hour block, не
+устойчивое преимущество. Champion/backbone не менялись. Max evaluation feature z-score784
+относительно train1pool — аргумент за data diversity/normalization audit, не рост модели.
+
+**Почему остановлен сбор:** public OHLCV capture000087 содержит конфликтующие bars
+одногоtimestamp (разныйopen). Frozen B01 corpus ломал последующие циклы из-за повторной
+валидации этого raw. Подготовлен versioned B02 runtime с whole-capture quarantine:
+старые schema failures исключаются с provenance, новые ответы всё ещё strict; hashes
+fatal. Старый job остановлен при handoff. Первый live GET нового candidate снова вернул
+duplicate_bar_in_response; failed cycle+inherited debit1→STOP2, без retry. B02 всего2GET,
+общий сB01/probe103,paid/Alchemy/QuickNode/trades0. History continuation preflight не
+создал root и не сделалGET. Stop budgets и raw сохранены, третий collector не создан.
+
+Ни `ai.memecoin.brain.dev01`, ни `ai.memecoin.brain.b02` сейчас не loaded. Старый plist
+перенесён в `work/brain-b02/retired-b01.plist`, новый не установлен. **Фоновый Brain сбор
+не продолжается.** Оба STOP остаются. B02 root `work/brain-b02/prospective01`, failed
+frozen runtime pin e95f7d5e…; original expiry2026-10-07T00:30:23.405597Z/ceiling12000
+сохранены, не продлены. D43/F01/holdout не менялись/не читались, D50 bundle verified.
+
+Артефакты: `work/brain-b02/snapshot01` (cutoff2026-10-04T01:49:04Z), `curves02`,
+`reproduction01`; прошлые failures/history01/curves01 сохранены. 533base/4optional skips,
+557combined tests,9newtests,ruff/format/mypy/smoke/build. Installed wheel: dataset/folds/
+weights→predictions/metrics/bootstrap/shadow exact, reproduction fits/network0.
+Read-only status: `.venv/bin/python -B tools/brain_status.py --root work/brain-b02/prospective01`.
+
+**Следующий B03:** fixture/recorded qualification per-pool quarantine с неизменным universe
+denominator; global provider failure-stop сохранить. Затем конкретное versioned activation
+решение в оставшемся original envelope, недостающий history/новые часы/дни. После diversity
+— отдельная train-only robust normalization ablation при прежних моделях/targets.
+Не удалять STOP и не включать failed candidate. F01 не prerequisite.
+[Итог и графики](../docs/brain-data-scale.md),
+[evidence](../docs/evidence/brain-data-scale-2026-10-04.json).
+
+## Предыдущий B01 — исторический срез, сейчас заменён B02
+
 ## Текущий приоритет B01 — Brain Development, 2026-10-04
 
 По прямому указанию пользователя F01 больше не блокирует развитие мозга. Открыт

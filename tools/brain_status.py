@@ -71,7 +71,12 @@ def status():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--root", type=Path, default=ROOT)
     args = parser.parse_args()
+    allowed = [ROOT.resolve(), (ROOT.parents[1] / "brain-b02/prospective01").resolve()]
+    if args.root.resolve() not in allowed:
+        parser.error("Only B01/B02 Brain roots are supported")
+    ROOT = args.root.resolve()
     result = status()
     if args.output:
         write(args.output, result)

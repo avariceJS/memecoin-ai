@@ -104,3 +104,156 @@ history02 preflight завершился до root/GET, continuation не вып
 валидным raw. Такие derived outcomes имеют фактическое время данного offline расчёта и
 маркер recovery_scoring, не заменяют исходные online records. Reports разделяют
 published и recovered membership; новые network observations не создаются.
+
+
+## Итог B02
+
+**Аналитическая часть завершена; расширение данных выполнено частично, Brain collectors
+остановлены.** F01 не блокировал работу. Ограничение возникло в public OHLCV source:
+повторяющийся конфликт двух bars одного timestamp. Установленные stop budgets соблюдены;
+следующий collector не запускался. D43/F01/holdout не читались и не менялись.
+
+### Coverage и sampling bias
+
+Получено 505 новых уникальных historical bars одной успешной страницей; этот pool
+теперь покрыт до nominal creation. В объединённом snapshot **4 853 bars, 12 pools**
+против 4 348 bars без B02 history. Шесть пулов полностью покрывают запрошенный интервал
+до 10 суток/возраста пула; шесть пока имеют неполное покрытие. Последовательность внутри
+имеющегося диапазона без gaps не доказывает полноту отсутствующего prefix или отсутствие
+торговли. Actual retrieval times сохранены; 12 event-days одного пула не равны 12 дням
+нашего prospective наблюдения.
+
+![Покрытие истории](evidence/brain-b02-coverage.svg)
+
+| Pool prefix | Age bucket при admission | Bars | Coverage целевого интервала |
+|---|---:|---:|---:|
+| `HUQ2YZbV…` | 0 | 101 | 100.0% |
+| `ChhuEYyL…` | 1 | 308 | 100.0% |
+| `DA4pM4xS…` | 2 | 3011 | 100.0% |
+| `5gepFzo9…` | 0 | 115 | 100.0% |
+| `CyJwKnLi…` | 1 | 612 | 100.0% |
+| `6R4r93V5…` | 2 | 107 | 3.6% |
+| `BeS6PZpn…` | 0 | 64 | 100.0% |
+| `FXgVoNND…` | 1 | 107 | 23.6% |
+| `2AXXcN6o…` | 2 | 107 | 3.6% |
+| `58hou24r…` | 0 | 107 | 55.6% |
+| `8E1Zcg4V…` | 1 | 107 | 23.6% |
+| `54Vp27uL…` | 2 | 107 | 3.6% |
+
+Age buckets: 0 — <1 суток, 1 — 1–7 суток, 2 — ≥7 суток на исходном admission.
+Rows по возрасту: 387 / 1 134 / 3 332. Доля крупнейшего пула уменьшилась с 69,3% до
+62,0%, но **train обоих curve folds всё ещё содержит только один старый pool**.
+Evaluation первого fold содержит 2 пула, второго — 12. Это существенный temporal/universe
+shift, а не репрезентативная universe-wide learning curve. Current-ranked admission,
+liquidity filter, survivorship и неизвестные deaths/unseen pools ограничивают выводы.
+
+Revision audit: 68 observations по 55 unique pool/time keys; это повторные наблюдения
+изменений относительно first version, не 68 независимых исправлений. Close изменился
+в 4 observations, max absolute log-close revision ≈1.043e-6. Однако конфликтующий ответ
+содержит разные open при одном timestamp: он целиком quarantined, даже при совпадающем
+close. Raw и original receipt не переписаны; hash corruption по-прежнему fatal.
+
+### Learning curves
+
+24 реальных neural fits, 10 epochs, CPU/1 thread, seeds 7/19; весь supervised worker
+18,94 s. Ещё 48 fixture fits — два engineering прогона полного runner, не research
+попытки. Первый curve preflight упал до ledger session/fit из-за отсутствия trial_ids;
+его каталог и лог сохранены. Исправленная попытка не выбирала другую сетку параметров.
+
+Числа ниже — evaluation pool-macro pinball, меньше лучше. Validation/evaluation IDs
+не меняются при 25/50/100% train внутри fold. «Purged» в machine report также включает
+строки вне данного fold evaluation end; это не только boundary purge. Последовательные
+folds перекрываются и не являются независимыми повторениями.
+
+![Learning curves](evidence/brain-b02-learning-curves.svg)
+
+| Fold | Train fraction | Train decisions | Empirical | Linear ensemble | GRU ensemble |
+|---|---:|---:|---:|---:|---:|
+| 1 | 25% | 359 | 0.062602 | 0.697190 | 0.084347 |
+| 1 | 50% | 717 | 0.063017 | 0.177165 | 0.074398 |
+| 1 | 100% | 1434 | 0.062835 | 0.057616 | 0.062254 |
+| 2 | 25% | 503 | 0.020037 | 0.127771 | 0.066305 |
+| 2 | 50% | 1005 | 0.020268 | 0.052756 | 0.023154 |
+| 2 | 100% | 2009 | 0.020329 | 0.026042 | 0.019408 |
+
+На полном train GRU ensemble лучше empirical на 0,92% / 4,53%, но exploratory hourly
+bootstrap CI improvement: **[-33,0%; +26,9%] / [-9,0%; +11,0%]** — оба включают ноль.
+Seed 7 хуже empirical в обоих folds; seed 19 лучше. Linear выиграл только первый fold.
+Fixed epochs означает, что больше данных также даёт больше optimizer steps; нельзя
+приписать весь эффект исключительно diversity. Выбор champion/архитектуры не менялся.
+
+Диагностика features: во втором fold evaluation lower_wick достигает **784 train-standard
+deviations**, log_high_low — 295. В первом fold соответственно 115 и 73. Это наблюдаемая
+extrapolation относительно одного обучающего пула; она не доказывает причину всей ошибки,
+но даёт более обоснованное направление, чем увеличение модели. Нужны diversity train,
+аудит экстремальных candles и отдельная train-only robust normalization ablation.
+
+### Paired matured shadow
+
+144 исходных predictions выданы 2026-10-04 01:02:27–01:33:17 UTC. Срез анализа:
+01:49:04 UTC. Из 128 созревших outcomes **96 опубликованы исходным runtime**, ещё **32
+досчитаны offline по уже записанным валидным raw**. Эти 32 имеют actual scoring timestamp
+среза и marker recovery_scoring; не заменяют online publication и не создают прошлую
+доступность. 16 predictions остаются без maturity/support. Все три candidates сравниваются
+на одинаковых строках; published/recovered группы дополнительно показаны отдельно в JSON.
+
+| Horizon | Mature variants | Empirical | Linear | GRU |
+|---|---:|---:|---:|---:|
+| 5 min | 71 | 0.004354 | 0.019483 | 0.006589 |
+| 15 min | 57 | 0.006306 | 0.007456 | 0.006204 |
+| Все | 128 | 0.005228 | 0.014142 | 0.006428 |
+
+GRU хуже baseline примерно на 23% в совокупности, хотя его 15min loss немного меньше.
+В published-only группе он также хуже. Имеется всего **один UTC-hour block**, поэтому
+CI не выдаётся и устойчивость не установлена. Нельзя выбирать horizon/seed/backbone по
+удачному частному срезу. Эти shadow forecasts принадлежат B01 model version000000,
+а не заново обученным curve candidates: curve weights в runtime не публиковались.
+
+### Operational outcome и воспроизведение
+
+Всего B02 сделал **2 новых public GET**: historical HTTP200 и failed-schema prospective
+HTTP200. Вместе с B01 — 103 attempts/probe. Новых Alchemy/QuickNode RPC, оплаты и orders0.
+Ни 429, ни auth failure не обходились. Protocol amendments, preflight failures и receipts
+сохранены. Исходный B01 job остановлен при versioned handoff, его plist сохранён в
+`work/brain-b02/retired-b01.plist` и убран из автозапуска. B02 live qualification failed;
+`prospective01/STOP` фиксирует две ошибки с inherited debit. Новый LaunchAgent **не
+установлен**; оба jobs отсутствуют в launchctl. **Фонового Brain сбора сейчас нет.**
+
+Новый runtime candidate pin:
+`e95f7d5eed6c35454e1a2cbe378b38f85b0d5de7352f2a7661f95aa4afbfd8a6`.
+Он остаётся evidence неуспешной qualification, не active production. Frozen B01 source,
+config, expiry и данные не редактировались; STOP — явная operational запись. Новый
+root сохранил их bounds, импортировал requests/models/shadow byte-for-byte с provenance.
+Позднейшие offline audit изменения не переписывали frozen bundle.
+
+533 base tests / 4 optional skips; **557 combined tests**, Ruff/format, прежний strict
+mypy, synthetic smoke, build/install wheel. 9 новых tests включают конфликт/whole-capture
+quarantine, checksum fail-closed, earliest receipt, paired temporal bootstrap, nested
+folds/maturity и полный fixture curve runner. Из installed wheel точно воспроизведены
+raw→dataset, fold memberships, ensemble predictions всех шести сравнений, метрики/
+bootstrap и shadow report; дополнительных fits/network0. [Evidence](evidence/brain-data-scale-2026-10-04.json).
+
+```sh
+# Read-only текущий остановленный Brain:
+.venv/bin/python -B tools/brain_status.py --root work/brain-b02/prospective01
+# Нужен новый output path, никаких сетевых запросов или обучения:
+work/ml-venv/bin/python -I -B tools/brain_b02_reproduce.py --installed-path work/brain-b02/installed-wheel01 --output work/brain-b02/reproduction-NEW
+```
+
+### Решение и следующий B03
+
+Стабильное превосходство learned models **не установлено**. Не увеличивать backbone,
+не менять champion и не представлять exploratory improvement как edge/F01 результат.
+
+B03 сначала должен квалифицировать **per-pool quarantine**: один некорректный ответ не
+должен незаметно исключать token из universe или блокировать данные остальных пулов.
+Сохранять fixed-universe denominator, failure/missing coverage и quarantine provenance;
+global provider/auth/rate failures по-прежнему закрывают источник. Испытать scheduler,
+recovery и admission на fixtures/recorded malformed response, затем отдельное concrete
+activation decision новой версии в оставшемся исходном quota/expiry envelope. Не удалять
+STOP старых attempts и не объявлять квалифицированным нынешний failed candidate.
+
+После этого — недостающие history prefixes шести пулов, новые часы/дни и train diversity;
+затем отдельное сравнение current scaling против train-only robust normalization при
+неизменных features/targets/backbone. Volatility-conditioned targets — другая будущая
+ablation, не одновременная смена цели ради улучшения метрики. F01 остаётся независимым.

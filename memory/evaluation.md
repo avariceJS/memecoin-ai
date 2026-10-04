@@ -1,5 +1,21 @@
 # Оценка модели и управление версиями
 
+## B02: maturation, paired curves и отсутствие устойчивого победителя
+
+2026-10-04. Global folds50/65/80% и70/85/100% unique event times; nestedtrain25/50/100%,
+whole-horizon purge, frozenvalidation/evaluation внутриfold,train-only scaler. Original
+curve preflight KeyError trial_ids случился доsession/fit; исправлен, outputs сохранены.
+24real fits и48fixturefits раздельно. Empirical/linear/GRU,seed7/19ensemble; seed selectionнет.
+Pool-macro pinball,paired1hbootstrap200resamples/seed20261004,CIтолько≥8blocks; не
+confirmatory/multiplicity-corrected. ИсторическоеfullGRU CIвключает0,seed7хужеbaseline.
+
+Snapshot144shadowpredictions,128mature=96published+32recovery_scoring,16безsupport.
+Recovery вычислен01:49:04UTC по реально ранее записанным raw; actual scoring time не
+backdated, online records не заменялись. Только1UTC-hour block→CIне выдаётся. Все3модели
+на однойmembership; horizon/model/pool/hour и published/recovery раздельно. GRUсовокупно
+хужеbaseline,15min частичныйвыигрыш не причина выбиратьhorizon/model. Curveweights
+не публиковались; shadow относится кB01model000000. [Отчёт](../docs/brain-data-scale.md).
+
 ## B01: exploratory versus confirmatory, 2026-10-04
 
 Brain Development не gated by F01. Его исторические split/validation/test диагностические,

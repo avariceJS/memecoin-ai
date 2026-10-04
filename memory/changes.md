@@ -1,5 +1,20 @@
 # История изменений решений
 
+## 2026-10-04 — B02 partial backfill, learning curves и source-quality stop
+
+План8038099; +505historical bars,coverage/revision/sampling audit,24real fits,
+2folds×3sizes,paired mature shadow128(96published+32offline),557tests иexactwheel replay.
+Learning curves улучшаются сtrain, но single-pooltrain/seedvariance/CI/shadow не доказывают
+устойчивого learnedwin. Новыеbackbones/targets/championневыбирались. Артефакты/графики в
+[отчёте](../docs/brain-data-scale.md), [evidence](../docs/evidence/brain-data-scale-2026-10-04.json).
+
+Failuresсохранены: unsupported1800s supervisor(доroot/GET), inclusivepagination(1HTTP200),
+conflictingduplicate B01capture000087, historycontinuationpreflight0GET, B02newruntime
+1HTTP200сduplicate, curvebindingtrial_idsдоfit. Boundsуточнялисьявно,непереписываяruns.
+B01остановленприверсионированномhandoff; B02failedqualification,STOP2,новыйjobнеустановлен.
+Старыйplistархивирован, обаjobsunloaded. ФоновогосбораBrainсейчаснет. F01/D43неизменны,
+paid/trades0. СледующийB03—qualityisolation,новоеboundedactivationрешение,затемdata/features.
+
 ## 2026-10-04 — B01 Brain Development независимо от F01
 
 Новое прямое поручение заменило smoke-only ограничение для независимого Brain track.

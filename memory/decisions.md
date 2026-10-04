@@ -1,5 +1,27 @@
 # Реестр архитектурных решений
 
+## B02 — data scaling и остановленный Brain source, 2026-10-04
+
+**Решение:** learned superiority не установлено; сохранять empirical champion и
+существующие backbones. 24fixed-protocol fits показали улучшение learned loss при росте
+train, но оба train состоят из1pool; CI включает0, seeds расходятся, shadow хужеbaseline.
+Причина следующего data/features experiment — imbalance и extreme evaluation z-scores,
+а не недостаточный размер модели. B02 exploratory, не F01/net-E01 результат.
+
+History probe HTTP200 включал boundary bar; offline diagnosis позволила принять его
+без повторногоGET. Continuation plan сdebit1 не выполнился: preflight обнаружил
+conflicting duplicate вB01 raw. Явное operational amendment разрешило новый Brain
+candidate сwhole-capture quarantine и прежними quota/expiry, не правку frozen B01.
+Его первый новый ответ тоже conflict; inherited failure debit1+failedcycle=STOP2.
+Принять остановку обоих jobs, failed candidate не активировать. Raw/история сохранены.
+
+Следующий B03: per-pool quarantine квалифицировать отдельно, учитывать больной pool
+вcoverage/denominator, не подменять universe здоровой выборкой. Global provider/auth/rate
+errors по-прежнему стопают source. Никаких automatic retries/reset старогоbudget.
+После новой reviewed versioned activation — coverage и normalization ablation; без
+нового backbone/promotion. [Отчёт](../docs/brain-data-scale.md),
+[evidence](../docs/evidence/brain-data-scale-2026-10-04.json).
+
 ## B01 Brain Development — отдельное решение пользователя, 2026-10-04
 
 **Статус: реализован и bounded runtime активирован.** F01 больше не блокирует развитие

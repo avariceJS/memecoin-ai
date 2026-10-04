@@ -1,5 +1,19 @@
 # Roadmap с критериями перехода
 
+## После B02 — B03 quality isolation, не scaling backbone
+
+2026-10-04: learning curves/audit завершены, history/time expansion частично; обаBrain
+jobs остановлены на повторномsource OHLCV conflict. Сначала per-pool quarantine наfixtures
+иrecorded evidence: retainuniverse/denominator, отдельно unknown/missing/failed, global
+providerquota/authstop. Затем concrete reviewed activation новойверсии воставшемся
+original72h/12000GET envelope, безудаления STOP/старойистории. Продолжитьhistory6pools
+иразныечасы/дни. F01/D43/holdout независимы и неизменны.
+
+После улучшенияcoverage — learning curves повторять на versioned dataset и будущих
+shadowblocks, отдельно train-only robust normalization ablation. Согласованного learned
+выигрыша пока нет; неувеличивать сеть и невыбиратьseed/horizon поодному snapshot.
+[Итог B02 и графики](../docs/brain-data-scale.md).
+
 ## Приоритет после D51: независимый Brain track, 2026-10-04
 
 По новому поручению F01 не является критическим путём развития мозга. B01 уже собрал

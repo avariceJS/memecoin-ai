@@ -1,5 +1,20 @@
 # Реестр исследовательских экспериментов
 
+## B02 выполненный exploratory data experiment, 2026-10-04
+
+Frozen plan8038099, curve implementation8601019:2chronological folds, nested25/50/100%
+train times, одинаковые validation/evaluation IDs на каждой кривой,4neural fits/точку,
+seeds7/19,10epochs,CPU1. 24real fits18,94s. History enlarged+505bars, но train по-прежнему
+1старыйpool, evaluation2/12pools. Две folds перекрываются; epochsfixed, optimizer steps
+растут сdata. Нельзя приписывать весь slope исключительно sampling diversity.
+
+GRU ensemble full-train empirical-relative improvement0,92%/4,53%; block-bootstrap CI
+[-33,0%;26,9%]/[-9,0%;11,0%],seed7хуже в обоих folds. Shadow aggregateGRUхуже~23% на128
+matured variants/1hourblock. Никакого architecture selection/promote. Следующая model
+ablation только после data quality/diversity: train-only robust feature normalization,
+при прежнемtarget/backbone. Volatility-conditioned targets — отдельный будущий опыт.
+[Learning curves и отчёт](../docs/brain-data-scale.md).
+
 ## B01: независимое model-development обучение разрешено, 2026-10-04
 
 Новое прямое указание пользователя отделяет Brain Development от frozen F01. Historical

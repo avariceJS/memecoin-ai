@@ -1,5 +1,23 @@
 # Данные и достоверное исполнение
 
+## B02: реальные source ограничения и partial coverage, 2026-10-04
+
+Добавлено505first-observed historical bars; merged4 853/12pools.6полностью покрыты до
+10day/creation anchor,6недобраны(3старых≈3,65%,два1–7d≈23,6%,одинyoung≈55,6%).
+Row concentration62% одногоpool,age-balanced universe не balanced dataset. First receipt
+merge acrossroots, raw/availabletimestamps immutable; calendarcoverage не onlinecoverage.
+68revision observations/55keys; close изменился4раза, но invalid duplicate open водном
+raw показывает отдельную проблемуsemantics. Conflicting response целиком quarantine,
+неfirst/last-wins внутри ambiguous response. Hash/clock integrity остаются fail-closed.
+
+B01 failed capture000087 poisoning воспроизводится offline. Новый scoped B02 candidate
+исключает старые malformed captures сprovenance, но его первый новый HTTP200 снова
+содержалduplicate. Stopbudget2 достигнут; обаBrainjobs остановлены, runtimeнеактивен.
+B02добавил2GET, aggregate103, no paid/Alchemy/QuickNode. Нельзя обходить STOP повтором
+тогожеroot или невидимымисключениемpool. B03 должен квалифицироватьper-pool quarantine
+сcoverage denominators иglobalfailurestop до нового activation decision. D43/F01/CPMM
+features/targets/protocol boundaries не менялись. [Evidence](../docs/brain-data-scale.md).
+
 ## B01: отдельный price-bar corpus, 2026-10-04
 
 Keyless public GeckoTerminal REST,Solana5min USD OHLCV base token,12pools/age4-4-4.
