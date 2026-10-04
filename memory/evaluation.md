@@ -1,5 +1,20 @@
 # Оценка модели и управление версиями
 
+## B12 — положительный descriptive result с существенными ограничениями, 2026-10-04
+
+Все arms имеют одинаковые validation/test membership, модели/seeds/compute; source receipt
+as-of и whole-decision maturity проверены. Selection в immutable ledger раньше test read.
+Test retrospective(Oct3–4),2UTCdays/6027decisions,19из24pools unseen в train; не F01.
+Paired day-bootstrap500draws/seed7, <5days →CI null; fixtures проверяют common resampling.
+GRU full/balanced pinball лучшеrecent5.81%/7.51%; selectedfull противselectedrecent5.34%.
+В balanced q90 coverage73.55% противfull81.23%(target90%): лучший meanloss не лучшийtail.
+
+Exact rescoring и повторная inference всех12054variants для6ensembles100% безновыхfits.
+Futureexam начатпослеfreeze:72forecasts/16mature outcomes на18:36:40UTC,18paired inputgroups,
+4mature pairedgroups.108cashdecisions,0trades не доказывают tradingquality. Replay/source
+joins/outcomes exact. Браузера нет; API/JSrender smoke не заменяет visual review.
+[Training и live evidence](../docs/brain-curriculum-comparison.md).
+
 ## B11 — измерять воронку данных и сравнивать на общей будущей выборке, 2026-10-04
 
 Full vs rolling таблица B11 — coverage audit, НЕ paired model evaluation:60/20/20 boundaries

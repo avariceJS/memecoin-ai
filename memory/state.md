@@ -1,5 +1,50 @@
 # Текущий статус
 
+## B12 — curriculum сравнен, frozen candidate уже получает future paper, 2026-10-04
+
+**B09 source/audit и B10 paper/train/UI сохранены.** Дополнительно работает независимый
+B12 frozen exam: `work/brain-b12/paper01`, bundle `work/brain-b12/paper-runtime01`,
+labels `ai.memecoin.brain.b12.{paper,ui}`, [UI8791](http://127.0.0.1:8791).
+Основной [B10 UI8790](http://127.0.0.1:8790) не заменён. В B12 training job НЕ загружен,
+max_runs0; веса recent/full/balanced и старого champion неизменны до конца exam.
+B12 activation2026-10-04 21:29МСК, expiry **2026-10-05 21:28МСК** (24h).
+B09/B10 expiry по-прежнему2026-10-07 15:23МСК; первый B10daily refresh не раньше
+2026-10-05 13:41:54МСК плюс100new mature/hourly scheduler. Его allowance не изменён.
+
+36matched fits за183.66s на sealed B11 данных, provider queries0. Общий train end
+2026-10-01 22:15UTC, validation end2026-10-03 07:45UTC, test end2026-10-04 17:15UTC.
+Recent train6005decisions/5pools/5UTCdays; full иbalanced50414/5pools/47days. Balanced
+иерархически уравнивает pools/days; это НЕ новые рынки. Test6027decisions/24pools/2days,
+19pools отсутствуют в train. Один и тот же test, features и1000SGDupdates для всех arms.
+
+GRU test pool-macro pinball recent0.0290466/full0.0273579/balanced0.0268664: снижение
+ошибки5.81%/7.51%. Curves немонотонны, CI null при2days, tail calibration плохая.
+**До test выбран full GRU** по validation1%tie; champion empirical НЕ promoted.
+Full GRU против recent-selected empirical: test loss ниже5.34%, exploratory only.
+Модели100%: recent `c9c40ce4…1803f`, full `7fcca7df…d4bf0`, balanced `ccab396a…c5408`.
+B12 runtime pin `72cfa4af21c81a4b20f010e8b35f8cc6ae08d1e698da273841db8220c316ae83`.
+
+Live cutoff18:36:40UTC:72forecasts,18paired observation groups,16scored outcomes/4paired
+mature groups,56pending. 12новых experimental books,108decisions—allcash(median below cost
+buffer),trades0. First prediction18:30:33UTC, после activation/eventclose/receipt gates.
+Exact replay7ticks/168raw joins/36published forecast joins и16outcomes; raw audit1544captures,
+73459bars exact. Source/B10/B12 healthy, B10training reservations1, source всего7transport
+failures (последний17:43UTC, до B12); их история сохранена. Новых source queries B12 нет.
+
+650basePASS/7skips,677combinedMLPASS +4focusedPASS последующих scoring/exam guards;
+check/smoke/build и повторные6ensemble predictions exact. Browser unavailable, UI API/JS
+render smoke выполнен, visual review не заявлять. F01/D43/holdout untouched; no real money.
+[Итог B12](../docs/brain-curriculum-comparison.md),
+[training evidence](../docs/evidence/brain-curriculum-comparison-2026-10-04.json),
+[future exam/replay](../docs/evidence/brain-curriculum-exam-2026-10-04.json).
+
+**Следующий B13:** сохранить оба paper loops; оценить matured paired behavior и первый
+B10scheduled refresh; расширить именно train market/cohort diversity. Новое frozen refit/
+future-exam правило нужно до включения young/recent outcomes: уже прочитанный test не
+становится новым independent evidence. Raw2025decoder/birth cohorts полезны для широкого
+учебника, ещё год тех же5pools недостаточен. Backbone/auxiliary heads пока не менять.
+Ни week uptime, ни edge, ни calibrated execution не установлены. Ниже исторические срезы.
+
 ## B11 — архив и фазовый учебный цикл, 2026-10-04
 
 **Активны прежние B09 source/audit + B10 paper/train/UI, hashes/config не менялись.**

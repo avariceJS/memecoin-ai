@@ -1,5 +1,18 @@
 # Архитектурное направление
 
+## B12 — независимые research trainer и frozen future exam, 2026-10-04
+
+`memecoin_curriculum.design/training/scoring`: общие chronological folds, label-independent
+nested membership, hierarchical sampler, cached existing tensors,36reserved boundedfits,
+train-onlyscalers, immutable selection-before-test и календарная uncertainty. Модели
+совместимы с прежним Brain inference. Новый backbone не добавлен; materialization≤100k.
+
+Paper service получил optional frozen_exam_models:≤3SHA-bound curricula + старыйchampion,
+training_max_runs0, model/activation boundary. Новый optionalprediction_start_ns закрывает
+старыеcloses/receipts. Только B12bundle активирован; B09/B10frozen code/config не менялись.
+Отдельныеpaper/UI jobs читаюттотже sourceбеззапросов; runtimebound24h,worker≤120s,
+существующийfailclosed supervisor. No phasecontroller/distributednode. [B12](../docs/brain-curriculum-comparison.md).
+
 ## B11 — sealed учебный архив и фазы без монолита, 2026-10-04
 
 `memecoin_curriculum.archive`: namespace coverage catalogue, revision/funnel audit, shards

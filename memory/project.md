@@ -1,5 +1,16 @@
 # Цель и границы проекта
 
+## B12 — первый curriculum-кандидат на настоящем будущем рынке, 2026-10-04
+
+Проверена польза прошлого при одинаковых моделях/compute/evaluation:47дней истории дали
+меньший test loss GRU, чем5дней, но train по-прежнему5рынков. Balanced меняет веса, а не
+cardinality. Поэтому цель хорошего «учебника» теперь конкретна: новые train cohorts и честный
+future exam, а не расширение истории нескольких survivors. Новые features/targets отложены.
+
+Full GRU выбран до test, заморожен и оценивается вместе с recent/balanced/старым champion
+в отдельном24h B12 paper. B09/B10 и их daily learning loop не заменены. Это exploratory
+качество прогноза; доходность не доказана. [B12](../docs/brain-curriculum-comparison.md).
+
 ## B11 — учебный архив важнее увеличения модели, 2026-10-04
 
 Новый продуктовый приоритет — collect → immutable snapshot → train → frozen candidate →

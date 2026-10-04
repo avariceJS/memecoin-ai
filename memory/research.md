@@ -1,5 +1,19 @@
 # Реестр исследовательских экспериментов
 
+## B12 — выполнено matched curriculum сравнение, 2026-10-04
+
+Sealed B11 dataset, plan68946a5, trainer057d19a;36fits=3arms×3fractions×2families×2seeds.
+Seeds7/19,width16/context8,1000updates×64decisions,10validation checkpoints;CPU1thread.
+Recent6005/5pools/5days;full/balanced50414/5pools/47days. Полная support≠уникальные draw:
+full~36250,balanced~33580, всеfitsувидели5pools/47days. Общий test6027/24pools/2days.
+GRU macro pinball0.0290466→0.0273579(full)/0.0268664(balanced), relative5.81%/7.51%.
+Full/balanced лучшеrecent и наseen, иunseen, но size/age effects отдельно не идентифицированы.
+
+Full GRU выбран по validation до test(1%tie cbalanced); test не применялся дляперевыбора.
+25%GRU subsets местами лучше100%, поэтому доказательства монотонного scaling нет.
+В B12future exam все3arms100%и старый champion frozen; новыеoutcomes только послеmaturity.
+Не refit на раскрытомtest без нового protocol и отдельно future evidence. [B12](../docs/brain-curriculum-comparison.md).
+
 ## B11 — data curriculum до новых model/feature fits, 2026-10-04
 
 Новыхfits0. Полный archive не равен полезной выборке: naive train4pools, rollingtrain5pools.

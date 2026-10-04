@@ -1,5 +1,19 @@
 # Данные и достоверное исполнение
 
+## B12 — один исторический snapshot, новый реальный future exam, 2026-10-04
+
+Curriculum использует только sealed GT B11 archive и first-observed availability. Никаких
+новыхGT/Alchemy/Helius requests, raw2025не admitted. Train доOct1 22:15UTC, commontestOct3–4;
+новые19testpools не перенесены в train. Full/balanced training5pools/47days,не24markets.
+Weights hierarchy меняет mass,не историческую доступность/составрынков.
+
+B12paper independent books с прежнимиB07costs и future fills; B10cash/history неизменны.
+Eventclose и inputreceipt обязаны быть после B12activation; model finishedдоactivation,
+SHA refsпроверяются; никаких weightsupdatesпосреди exam. Новыйexpiry24h не продлеваетB09source.
+Новыеoutcomes проверены по actualavailable и rawcapture pins; recovery не дорисовывает
+прошлые decisions. Livepriceproxy не qualifiedexecution, forecastgain не paperedge.
+[Итог](../docs/brain-curriculum-comparison.md).
+
 ## B11 — архивные данные не создают прошлую онлайн-доступность, 2026-10-04
 
 Full GT snapshot61 233bars/50event days/1receipt day;611revised keys,40changed close keys,

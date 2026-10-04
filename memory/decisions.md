@@ -1,5 +1,22 @@
 # Реестр архитектурных решений
 
+## B12 — matched curriculum и отдельный frozen paper exam, 2026-10-04
+
+Статус:36fits выполнены, модели sealed, B12paper/UI активированы до2026-10-05 21:28МСК.
+B09/B10source/trainer/paper не менять и не расходовать их training reservations вручную.
+Новый root фиксирует3curriculum bundles + старый champion, без retraining/promotion,
+новые closes/receipts только послеactivation; отдельные одинаковые virtual books.
+
+До fits: общие absolute val/test, 25/50/100nested fractions; balanced=equalpool→equalday→
+equaldecision.1000updates×64draws у всех36fits вместо несопоставимых по compute10epochs.
+Это явное pre-fit уточнение B11, не post-test tuning. Baseline inverse-CDF единый во всех arms.
+Validation-only1%tie выбрал full GRU; лучший test balanced не заменяет выбор после раскрытия.
+Curves немонотонны;2testdays не поддерживают CI. Новыхfeatures/backbone/targets нет.
+
+Главный bottleneck — cross-market train support(5из24), затем tails/source freshness.
+Historical2025расширять по useful cohort coverage и qualified semantics, не по rawrow count.
+[Frozen plan и результат](../docs/brain-curriculum-comparison.md).
+
 ## B11 — archive-first и фазовый приоритет heavy work, 2026-10-04
 
 Статус: стратегия принята; sharded dataset/funnel/auxiliary labels и bounded archival

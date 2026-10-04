@@ -4,7 +4,12 @@
 
 ## Живой Brain: виртуальный paper/shadow
 
-**Статус после B11:** работают B09 collector/audit и отдельный B10 paper/train/UI.
+B12 добавил отдельный [frozen curriculum exam](http://127.0.0.1:8791) до2026-10-05 21:28МСК:
+recent/full/balanced и прежний champion на одинаковом будущем feed. Full GRU выбран доtest;
+новые модели уже публикуют прогнозы. ОсновнойB10не заменён, championне promoted.
+[Сравнение выборок, ограничения и evidence](docs/brain-curriculum-comparison.md).
+
+**Основной контур после B12:** работают B09 collector/audit и отдельный B10 paper/train/UI.
 [Control Center](http://127.0.0.1:8790): 24 рынка, hot6/120s, виртуальные портфели,
 актуальные health и ожидание daily training. После реального supervisor failure сохранён
 старый STOP и точно перенесён ledger; source не переустанавливался. Срок прежний:

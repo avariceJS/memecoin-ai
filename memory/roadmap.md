@@ -1,5 +1,19 @@
 # Roadmap с критериями перехода
 
+## После B12 — B13: новые train cohorts и future behavior, а не новый backbone
+
+Full GRU frozen candidate уже в отдельномB12paper exam до2026-10-05 21:28МСК; B09/B10
+работают по прежнимbounds. Сначала сохранить его будущие pairedforecasts/decisions/outcomes
+и первый B10daily refresh(не раньше2026-10-05 13:41:54МСК+maturity/hourly scheduler).
+Не заменять B12weights новымdailycandidate. Week/monthactivation ещё не принята.
+
+Следующий data experiment должен увеличивать реальнуюmarket diversity:5trainpools против
+24test,тогдакак47днейвместо5 уже дали descriptivegain. Более длинный архивтехже5pools не
+решаетэта проблему. Квалифицированные market/age cohorts, historicalbirth/dead-token coverage,
+raw decoder semantics и отдельное правилоrefit/future exam важнее backbone/auxiliaryheads.
+Разрешено продолжатьподготовку безожиданиясуток; новоеfitting/selection правилофиксировать
+доscores, не объявлятьповторноиспользованныйtest независимым. [B12](../docs/brain-curriculum-comparison.md).
+
 ## После B11 — B12: полезный широкий corpus и curriculum, без остановки paper
 
 Новый выбор пользователя заменяет прежнее узкое «ещё один source/soak этап»: цель — большой

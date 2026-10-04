@@ -10,6 +10,7 @@ Memory Bank — канонический, пригодный для чтения
 
 | Вопрос новой сессии | Канонический документ |
 |---|---|
+| B12: matched curriculum, frozen models и отдельный future paper exam | [brain-curriculum-comparison.md](../docs/brain-curriculum-comparison.md) |
 | B11: archive-first, phase policy, curriculum audit и2025raw qualification | [brain-archive-curriculum.md](../docs/brain-archive-curriculum.md) |
 | B10: operational incident, exact recovery, daily candidate publication | [brain-operational-recovery.md](../docs/brain-operational-recovery.md) |
 | B09: hot/background cadence, restored paper, 72h rollout и soak | [brain-hot-lane.md](../docs/brain-hot-lane.md) |

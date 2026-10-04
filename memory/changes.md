@@ -1,5 +1,15 @@
 # История изменений решений
 
+## 2026-10-04 — B12: matched curriculum, новый frozen GRU и live exam
+
+Зафиксированы общиеval/test и1000updates;36fits за183.66s,0providerqueries. Trainrecent
+6005/5markets/5days;full/balanced50414/5markets/47days. GRU testloss улучшен5.81%/7.51%,
+curvesнемонотонны,CIнеоправданпри2days,tailcalibrationплохая. FullGRU выбранпоval доtest.
+Запущенотдельный24hB12paper/UI8791, all3curricula+старыйchampion, no training/promotion.
+B09/B10сохранены;72realforecasts/16scoredoutcomes/108cashdecisions,0trades наcutoff.
+Raw/replay/inferenceexact;650base/677MLPASS+4focused,smoke/build; browserunavailable,
+API/JSrenderпроверены. [B12](../docs/brain-curriculum-comparison.md).
+
 ## 2026-10-04 — B11: archive-first стратегия, учебные shards и реальная2025qualification
 
 По новому продуктовому приоритету выбран phased heavy collect/train/paper при независимых
