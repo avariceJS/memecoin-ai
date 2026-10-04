@@ -1,5 +1,5 @@
 import { useOutletContext } from "react-router";
-import { QualificationBadge, UnavailableState } from "../../components/status";
+import { QualificationBadge, UnavailableState, provenanceBadgeKind } from "../../components/status";
 import type { ShellOutletContext } from "../../shell/AppShell";
 import { getSourceQualificationView } from "../overview/selectors";
 import { LatencyProbeTable } from "./LatencyProbeTable";
@@ -7,14 +7,6 @@ import { PoolsCopyPanel } from "./PoolsCopyPanel";
 import { SourceStampsTable } from "./SourceStampsTable";
 import { SourcesStatusAside } from "./SourcesStatusAside";
 import styles from "./sources.module.css";
-
-function provenanceBadge(
-  provenance: string | null,
-): "REAL EVIDENCE" | "ENGINEERING" | "SYNTHETIC INPUT" {
-  if (provenance === "REAL_EVIDENCE") return "REAL EVIDENCE";
-  if (provenance === "DEMO") return "SYNTHETIC INPUT";
-  return "ENGINEERING";
-}
 
 export function SourcesPage() {
   const { snapshotResponse } = useOutletContext<ShellOutletContext>();
@@ -35,7 +27,7 @@ export function SourcesPage() {
     );
   }
 
-  const provenanceLabel = provenanceBadge(pane.provenance);
+  const provenanceLabel = provenanceBadgeKind(pane.provenance);
 
   return (
     <>

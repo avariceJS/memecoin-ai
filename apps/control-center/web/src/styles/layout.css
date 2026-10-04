@@ -12,17 +12,13 @@
   --cc-failure: #ff7d8b;
   --cc-green: #54d99b;
   --cc-blue: #51b5ff;
-  --cc-header-h: 72px;
-  --cc-sidebar-w: 212px;
+  --cc-hover: #1b2d40;
+  --cc-text-quiet: #8aa0b5;
+  --cc-header-h: 68px;
+  --cc-sidebar-w: 220px;
   --cc-main-pad: 18px;
   --cc-gap: 16px;
   --cc-radius: 8px;
-}
-
-@media (max-width: 1280px) {
-  :root {
-    --cc-sidebar-w: 184px;
-  }
 }
 
 @media (max-width: 768px) {

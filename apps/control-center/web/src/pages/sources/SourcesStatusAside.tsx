@@ -1,11 +1,11 @@
-import { QualificationBadge } from "../../components/status";
+import { QualificationBadge, type ProvenanceBadgeKind } from "../../components/status";
 import type { SourceQualificationView } from "../overview/selectors";
 import { formatClockAgeRangeSeconds } from "./format";
 import styles from "./sources.module.css";
 
 type SourcesStatusAsideProps = {
   qualification: SourceQualificationView;
-  provenanceLabel: "REAL EVIDENCE" | "ENGINEERING" | "SYNTHETIC INPUT";
+  provenanceLabel: ProvenanceBadgeKind;
 };
 
 export function SourcesStatusAside({ qualification, provenanceLabel }: SourcesStatusAsideProps) {

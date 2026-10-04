@@ -51,3 +51,9 @@ Optional peer Vite (sass, less, terser, babel compiler) не ставить.
 `@playwright/test@1.63.0` и `@types/node@24.19.1` стоят exact devDependencies.
 `npm run build` оставил прежний JS 514.84 kB / gzip 153.15 kB и CSS 35.99 kB:
 Playwright в production bundle не входит. Lucide, Inter и Radix ещё не ставились.
+
+## CC02.1 — установлено 2026-10-04
+
+`lucide-react@1.51.0`, `@fontsource-variable/inter@5.3.0`, `@radix-ui/react-tooltip@1.2.16`.
+После оболочки production JS 575.21 kB / gzip 175.09 kB, CSS 40.53 kB / gzip 7.38 kB,
+плюс локальные WOFF2 Inter. Dialog ещё не ставился.

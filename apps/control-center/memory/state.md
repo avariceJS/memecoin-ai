@@ -28,10 +28,10 @@ Core/main D50+ развивается независимо; здесь его н
 
 ## Текущая очередь / следующий шаг
 
-`WORK_STATE.json` schema 2: **CC02.0 DONE**, текущая задача **CC02.1 shell**.
-Harness измеряет web v1 и требует сотни побегов текста на календаре плюс горизонтальный
-overflow обзора. Нулевой отчёт здесь был бы ложным green. Это не visual acceptance.
-Дальше shell, затем Overview как эталон. Не пересоздавать app, adapter или worktree.
+`WORK_STATE.json` schema 2: **CC02.0 и CC02.1 DONE**, текущая задача **CC02.2 Overview**.
+Оболочка принята отдельно от страниц: вторая критика среднее 4.7, shell layout counts 0.
+Harness по-прежнему требует сотни побегов текста D48 и горизонтальный overflow обзора.
+Это не приёмка тел страниц. Дальше Overview как эталон. Не пересоздавать app, adapter или worktree.
 
 Coordinator Grok 4.7 Extra High; сложный UI и visual reviewer — Grok 4.7 High;
 routine analyst/adapter/tests/boundary — Composer 2.5 standard. Native definitions настроены;

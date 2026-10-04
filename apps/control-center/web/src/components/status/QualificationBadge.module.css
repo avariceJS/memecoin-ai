@@ -44,3 +44,12 @@
   background: #121820;
   border-color: #384858;
 }
+
+.demo {
+  color: var(--cc-warning);
+  background: rgb(242 193 92 / 12%);
+  border-color: var(--cc-warning);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}

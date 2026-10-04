@@ -1,9 +1,9 @@
 .rail {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  bottom: 0;
-  width: var(--cc-sidebar-w);
+  height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
   background: var(--cc-sidebar);
   border-right: 1px solid var(--cc-border);
   display: flex;
@@ -13,63 +13,116 @@
 }
 
 .brand {
-  padding: 16px 14px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  min-height: var(--cc-header-h);
+  padding: 0 14px;
   border-bottom: 1px solid var(--cc-border);
+}
+
+.mark {
+  display: block;
+  flex: none;
+  color: var(--cc-cyan);
+}
+
+.brandText {
+  min-width: 0;
 }
 
 .brandTitle {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
+  line-height: 1.3;
   color: var(--cc-text);
-  letter-spacing: 0.02em;
 }
 
 .brandSub {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   font-size: 12px;
-  color: var(--cc-text-muted);
+  line-height: 1.4;
+  color: var(--cc-text-quiet);
 }
 
 .nav {
   flex: 1;
-  padding: 12px 8px;
+  min-width: 0;
+  padding: 10px 8px 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 12px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .groupLabel {
-  margin: 12px 8px 4px;
+  margin: 0 8px 4px;
   font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--cc-text-muted);
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--cc-text-quiet);
 }
 
 .link {
+  position: relative;
   display: flex;
   align-items: center;
+  gap: 10px;
   min-height: 44px;
+  min-width: 0;
   padding: 0 12px;
   border-radius: 6px;
   color: var(--cc-text-muted);
   text-decoration: none;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
+  line-height: 1.3;
   border-left: 3px solid transparent;
   transition: background 120ms ease, color 120ms ease;
 }
 
+.iconWrap {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.lock {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  width: 11px;
+  height: 11px;
+  padding: 1px;
+  box-sizing: content-box;
+  color: var(--cc-text-quiet);
+  background: var(--cc-sidebar);
+  border-radius: 50%;
+}
+
 .link:hover {
-  background: var(--cc-panel-raised);
+  background: var(--cc-hover);
   color: var(--cc-text);
 }
 
 .link:focus-visible {
-  outline: 2px solid var(--cc-cyan);
-  outline-offset: 2px;
-  background: var(--cc-panel-raised);
+  background: var(--cc-hover);
   color: var(--cc-text);
 }
 
@@ -79,59 +132,54 @@
   border-left-color: var(--cc-cyan);
 }
 
+.linkActive:hover,
+.linkActive:focus-visible {
+  color: var(--cc-cyan);
+}
+
 .linkLocked {
-  opacity: 0.85;
+  color: var(--cc-text-quiet);
 }
 
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--cc-text-muted);
-  margin-right: 10px;
-  flex-shrink: 0;
-}
-
-.linkActive .dot {
-  background: var(--cc-cyan);
-}
-
-.labelFull {
+.label {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.tooltip {
+  z-index: 40;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--cc-panel-raised);
+  border: 1px solid var(--cc-border);
+  color: var(--cc-text);
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 4px 20px rgb(0 0 0 / 18%);
+}
+
 @media (max-width: 768px) {
-  .brandSub,
-  .groupLabel,
-  .labelFull {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-  }
-
   .brand {
-    padding: 12px 8px;
+    justify-content: center;
+    padding: 12px 4px;
+    gap: 0;
   }
 
-  .brandTitle {
-    font-size: 12px;
-    text-align: center;
+  .brandText,
+  .groupLabel,
+  .label {
+    display: none;
   }
 
   .link {
     justify-content: center;
-    padding: 0 4px;
-  }
-
-  .dot {
-    margin-right: 0;
-  }
-
-  .link[aria-label] {
+    padding: 0;
     min-width: 44px;
+  }
+
+  .nav {
+    padding: 8px 4px 12px;
   }
 }

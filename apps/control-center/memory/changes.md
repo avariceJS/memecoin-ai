@@ -174,3 +174,15 @@ CC02 audit/guard commit `9f47abf9e473ef4f46c6238d805c917490aa9b21`; послед
   прямой `vite.js`, процесс после теста останавливается.
 - Boundary review PASS, agent `f8059a95-ef49-4dbd-9e94-1dd588e4059b`. Vitest 44 PASS. Модель
   reviewer в tool result не указана, binding UNVERIFIED.
+
+## 2026-10-04 — CC02.1 shell
+
+- Рельс 220px: группы Свидетельства / Исследование / Система / Дальше, разные outline-иконки,
+  свой знак, одна шапка со статусом записи. Дублирующий баннер RECORDED EVIDENCE снят.
+- DEMO больше не рисуется как SYNTHETIC INPUT. Inter и Lucide локальные. Production JS вырос
+  с 514.84 до 575.21 kB, CSS до 40.53 kB, плюс файлы Inter.
+- Первая критика 4.3: выровнена линия бренда и шапки, сняты лишние рамки статуса, у Replay замок.
+  На 768 подписи рельса скрыты без наложения текста. Вторая критика 4.7.
+- Мелочи оставлены: повтор имён групп, тихая «Обновить», шапка выше бренда на 768.
+- Receipt `docs/control-center/references/cc02-final/CC02.1/review.json`, visual_gate PASS.
+  Vitest 48, characterization e2e PASS. Binding UNVERIFIED. Страницы не приняты.

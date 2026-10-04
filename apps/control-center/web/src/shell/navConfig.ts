@@ -1,17 +1,39 @@
+import {
+  CalendarRange,
+  Cpu,
+  Database,
+  FlaskConical,
+  History,
+  LayoutDashboard,
+  Lock,
+  Server,
+  type LucideIcon,
+} from "lucide-react";
+
+export type NavGroupId = "evidence" | "research" | "system" | "future";
+
 export type NavItem = {
   to: string;
   label: string;
-  shortLabel?: string;
-  group: "primary" | "locked";
+  group: NavGroupId;
+  icon: LucideIcon;
+  locked?: boolean;
 };
 
+export const navGroups: { id: NavGroupId; label: string }[] = [
+  { id: "evidence", label: "Свидетельства" },
+  { id: "research", label: "Исследование" },
+  { id: "system", label: "Система" },
+  { id: "future", label: "Дальше" },
+];
+
 export const navItems: NavItem[] = [
-  { to: "/", label: "Обзор", group: "primary" },
-  { to: "/calendar", label: "Календарь", group: "primary" },
-  { to: "/research", label: "Исследование", group: "primary" },
-  { to: "/models", label: "Модели", group: "primary" },
-  { to: "/sources", label: "Источники", group: "primary" },
-  { to: "/system", label: "Система", group: "primary" },
-  { to: "/replay", label: "Replay", group: "locked" },
-  { to: "/trading", label: "Торговля", group: "locked" },
+  { to: "/", label: "Обзор", group: "evidence", icon: LayoutDashboard },
+  { to: "/calendar", label: "Календарь", group: "evidence", icon: CalendarRange },
+  { to: "/sources", label: "Источники", group: "evidence", icon: Database },
+  { to: "/research", label: "Исследование", group: "research", icon: FlaskConical },
+  { to: "/models", label: "Модели", group: "research", icon: Cpu },
+  { to: "/system", label: "Система", group: "system", icon: Server },
+  { to: "/replay", label: "Replay", group: "future", icon: History, locked: true },
+  { to: "/trading", label: "Торговля", group: "future", icon: Lock, locked: true },
 ];

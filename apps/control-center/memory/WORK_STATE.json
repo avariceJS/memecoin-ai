@@ -2,10 +2,10 @@
   "schema_version": 2,
   "scope": "control-center-cc02-visual-reconstruction",
   "overall": "IN_PROGRESS",
-  "current_task": "CC02.1",
-  "last_completed": "CC02.0: Playwright harness измеряет дефекты web v1 и не принимает их. Visual redesign не начат.",
-  "last_verified_commit": "53ef5a33100b94de88bff4f8c0dabbba3e73bda7",
-  "last_checks": "2026-10-04 CC02.0: npm run e2e PASS (calendar escape 786, overview overflow 50px, NOT_A_VISUAL_PASS); e2e:check PASS; vitest 44 PASS; production build PASS, JS остался 514.84 kB. Boundary review PASS. Visual acceptance страниц NOT_RUN.",
+  "current_task": "CC02.2",
+  "last_completed": "CC02.1: оболочка принята по shell rubric, среднее 4.7. Тела страниц ещё v1.",
+  "last_verified_commit": "a1251b6f692c049849d868d3609fe6e0ae37beea",
+  "last_checks": "2026-10-04 CC02.1: vitest 48 PASS; e2e characterization PASS; visual_gate receipt PASS; build JS 575.21 kB plus local Inter. Shell layout counts 0. Page defects remain. Model binding UNVERIFIED.",
   "model_binding": {
     "configured_coordinator": "grok-4.7 / xhigh (picker)",
     "configured_executor": "composer-2.5[fast=false]",
@@ -15,7 +15,7 @@
     "configured_visual_executor": "grok-4.7 (documented default high; runtime UNVERIFIED)"
   },
   "blockers": [],
-  "next_action": "CC02.1: shell и design primitives. Grok High ui-builder открывает target и before PNG. Страницы ещё не принимать.",
+  "next_action": "CC02.2: эталонный Overview. Сначала target и before PNG, затем композиция корпуса, не latency-герой. Остальные страницы не начинать.",
   "capabilities": [
     "existing read-only adapter + immutable historical projection",
     "primary visual reference available",
@@ -103,17 +103,72 @@
         "visual",
         "boundary"
       ],
-      "status": "PENDING",
+      "status": "DONE",
       "write_files": [],
-      "checks": [],
-      "reviews": [],
-      "attempts": [],
+      "checks": [
+        {
+          "command": "npm --prefix apps/control-center/web test",
+          "result": "PASS"
+        },
+        {
+          "command": "npm --prefix apps/control-center/web run e2e",
+          "result": "PASS"
+        },
+        {
+          "command": "npm --prefix apps/control-center/web run build",
+          "result": "PASS"
+        },
+        {
+          "command": "python3 apps/control-center/scripts/visual_gate.py --receipt docs/control-center/references/cc02-final/CC02.1/review.json --task CC02.1",
+          "result": "PASS"
+        }
+      ],
+      "reviews": [
+        {
+          "kind": "boundary",
+          "result": "PASS",
+          "evidence": "cc-boundary-reviewer ff78fdf7-95df-4643-be6a-86ce60e2b6f7: refresh is existing refetch only, DEMO is not SYNTHETIC, local font/icons, core health stays unavailable.",
+          "reviewed_revision": "a1251b6f692c049849d868d3609fe6e0ae37beea"
+        },
+        {
+          "kind": "visual",
+          "result": "PASS",
+          "evidence": "cc-visual-reviewer a109bff5-8abf-49c5-a1cb-e6f38c43a053 second pass mean 4.7. Receipt docs/control-center/references/cc02-final/CC02.1/review.json.",
+          "reviewed_revision": "a1251b6f692c049849d868d3609fe6e0ae37beea",
+          "reference_viewed": true,
+          "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+          "screenshot": "docs/control-center/references/cc02-final/CC02.1/after/cc021-overview-1600x1000-viewport.png"
+        }
+      ],
+      "attempts": [
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-ui-builder",
+          "configured_model": "grok-4.7",
+          "note": "Task tool rejected slug grok-4.7. Relaunch inherits the parent session. Allowed Grok slug on the tool is grok-4.7-xhigh. UNVERIFIED, not a blocker."
+        },
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-boundary-reviewer",
+          "configured_model": "composer-2.5",
+          "note": "PASS agent ff78fdf7-95df-4643-be6a-86ce60e2b6f7. Tool result had no model field. Error retry aligned to both queries after the review."
+        },
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-visual-reviewer",
+          "configured_model": "grok-4.7",
+          "note": "First pass mean 4.3, second pass mean 4.7 after hairline, badge frame and Replay lock. Agent a109bff5-8abf-49c5-a1cb-e6f38c43a053. Slug grok-4.7 rejected; session inherit. UNVERIFIED."
+        }
+      ],
       "blocker": "",
-      "summary": "",
-      "reference_viewed": false,
-      "reference_sha256": null,
-      "visual_receipt": null,
-      "accepted_web_sha256": null
+      "summary": "Оболочка: рельс 220px, группы, разные иконки, одна шапка со статусом записи. Вторая критика 4.7. Мелочи: повтор имён групп, тихая кнопка «Обновить», перенос шапки на 768. Страницы не приняты.",
+      "reference_viewed": true,
+      "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+      "visual_receipt": "docs/control-center/references/cc02-final/CC02.1/review.json",
+      "accepted_web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537"
     },
     {
       "id": "CC02.2",

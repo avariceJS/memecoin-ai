@@ -1,18 +1,10 @@
 import { useOutletContext } from "react-router";
-import { QualificationBadge, UnavailableState } from "../../components/status";
+import { QualificationBadge, UnavailableState, provenanceBadgeKind } from "../../components/status";
 import type { ShellOutletContext } from "../../shell/AppShell";
 import { ProtocolBudgetPanel } from "./ProtocolBudgetPanel";
 import { ResearchAdmissionAside } from "./ResearchAdmissionAside";
 import { ResearchKpiRow } from "./ResearchKpiRow";
 import styles from "./research.module.css";
-
-function provenanceBadge(
-  provenance: string | null,
-): "REAL EVIDENCE" | "ENGINEERING" | "SYNTHETIC INPUT" {
-  if (provenance === "REAL_EVIDENCE") return "REAL EVIDENCE";
-  if (provenance === "DEMO") return "SYNTHETIC INPUT";
-  return "ENGINEERING";
-}
 
 export function ResearchPage() {
   const { snapshotResponse } = useOutletContext<ShellOutletContext>();
@@ -25,7 +17,7 @@ export function ResearchPage() {
   }
 
   const data = pane.data;
-  const provenanceLabel = provenanceBadge(pane.provenance);
+  const provenanceLabel = provenanceBadgeKind(pane.provenance);
 
   return (
     <>

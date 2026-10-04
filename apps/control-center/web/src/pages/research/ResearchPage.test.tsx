@@ -96,6 +96,9 @@ describe("ResearchPage", () => {
     expect(screen.getAllByText("113").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("111").length).toBeGreaterThanOrEqual(1);
 
+    expect(screen.getAllByText("REAL EVIDENCE").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("SYNTHETIC INPUT")).not.toBeInTheDocument();
+    expect(screen.queryByText("DEMO — вымышленные данные")).not.toBeInTheDocument();
     expect(screen.getAllByText("LOCKED").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("PROTECTED")).toBeInTheDocument();
     expect(screen.getByText("NOT_CERTIFIED")).toBeInTheDocument();
@@ -198,5 +201,23 @@ describe("ResearchPage adversarial synthetic fixtures", () => {
     expect(body).not.toContain("ADVERSARIAL_LABEL_PAYLOAD");
     expect(body).not.toContain("ADVERSARIAL_TARGET_PAYLOAD");
     expect(body).not.toContain("ADVERSARIAL_HOLDOUT_METRIC");
+  });
+
+  it("maps DEMO provenance to the demo badge, not synthetic input", () => {
+    const pane = snapshotResponse.data.research;
+    if (pane.availability !== "AVAILABLE") {
+      throw new Error("published fixture must expose AVAILABLE research pane");
+    }
+    renderResearchWithSnapshot({
+      ...snapshotResponse,
+      data: {
+        ...snapshotResponse.data,
+        research: { ...pane, provenance: "DEMO" },
+      },
+    });
+
+    expect(screen.getByText("DEMO — вымышленные данные")).toBeInTheDocument();
+    expect(screen.queryByText("SYNTHETIC INPUT")).not.toBeInTheDocument();
+    expect(screen.queryByText("REAL EVIDENCE")).not.toBeInTheDocument();
   });
 });

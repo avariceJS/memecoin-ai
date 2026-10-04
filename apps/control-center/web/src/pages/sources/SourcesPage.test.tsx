@@ -21,13 +21,13 @@ const snapshotResponse = {
   data: parseSnapshot(JSON.parse(readFileSync(fixturePath, "utf8")) as Record<string, unknown>),
 };
 
-function renderSources() {
-  const capabilities = snapshotResponse.data.capabilities as Capability[];
+function renderSources(response: typeof snapshotResponse = snapshotResponse) {
+  const capabilities = response.data.capabilities as Capability[];
   const router = createMemoryRouter(
     [
       {
         path: "/sources",
-        element: <Outlet context={{ snapshotResponse, capabilities }} />,
+        element: <Outlet context={{ snapshotResponse: response, capabilities }} />,
         children: [{ index: true, element: <SourcesPage /> }],
       },
     ],
@@ -64,6 +64,9 @@ describe("SourcesPage", () => {
     expect(screen.getByText(/481\/502/)).toBeInTheDocument();
     expect(screen.getByText(/9\.950–10\.768/)).toBeInTheDocument();
     expect(screen.queryByText(/system online/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText("REAL EVIDENCE").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("SYNTHETIC INPUT")).not.toBeInTheDocument();
+    expect(screen.queryByText("DEMO — вымышленные данные")).not.toBeInTheDocument();
 
     const qual = snapshotResponse.data.sourceQualification;
     if (qual.availability !== "AVAILABLE") throw new Error("expected qualification");
@@ -97,5 +100,19 @@ describe("SourcesPage", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /Копировать pool id/i })[0]!);
     expect(await screen.findByText("Не скопировано")).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("maps DEMO provenance to the demo badge, not synthetic input", () => {
+    const data = structuredClone(snapshotResponse.data);
+    const pane = data.sourceQualification;
+    if (pane.availability !== "AVAILABLE") {
+      throw new Error("published fixture must expose AVAILABLE source qualification");
+    }
+    pane.provenance = "DEMO";
+    renderSources({ ...snapshotResponse, data });
+
+    expect(screen.getAllByText("DEMO — вымышленные данные").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("SYNTHETIC INPUT")).not.toBeInTheDocument();
+    expect(screen.queryByText("REAL EVIDENCE")).not.toBeInTheDocument();
   });
 });
