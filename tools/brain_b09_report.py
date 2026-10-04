@@ -92,7 +92,7 @@ def main(output):
         source_audit=raw_audit,
         source_index_sha=sha(index / "index.sqlite"),
         source_failures=failures,
-        source_attempts_at_snapshot=len(list((SOURCE / "requests").iterdir())),
+        source_attempts_at_report=len(list((SOURCE / "requests").iterdir())),
         paper_pin=read(PAPER / "deployment.json")["pin"],
         paper_snapshot=replay,
         reproduction=reproduced,
@@ -113,7 +113,12 @@ def main(output):
         real_execution=False,
         paid_usd=0,
         F01_D43_holdout_untouched=True,
-        new_fits=0,
+        new_fits=sum(
+            read(p / "result.json").get("new_fits", 0)
+            for p in (PAPER / "training").iterdir()
+            if (p / "result.json").exists()
+            and read(p / "reservation.json")["started_ns"] >= migration["created_ns"]
+        ),
         weekly_uptime_measured=False,
         edge_established=False,
     )
