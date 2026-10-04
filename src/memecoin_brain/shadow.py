@@ -63,6 +63,22 @@ def evaluate_prediction(prediction: Row, rows: list[Row], *, now_ns: int) -> Row
         )
         / 3
     )
+    candidates = {}
+    for name, values in prediction.get("q_by_candidate", dict(selected=q)).items():
+        if (
+            len(values) != 3
+            or values != sorted(values)
+            or any(not math.isfinite(v) for v in values)
+        ):
+            raise ValueError("invalid_shadow_quantiles")
+        candidates[name] = dict(
+            pinball=sum(
+                max(level * (y - p), (level - 1) * (y - p))
+                for level, p in zip((0.1, 0.5, 0.9), values, strict=True)
+            )
+            / 3,
+            coverage=[y <= p for p in values],
+        )
     return dict(
         status="scored",
         log_return=y,
@@ -72,6 +88,7 @@ def evaluate_prediction(prediction: Row, rows: list[Row], *, now_ns: int) -> Row
         scored_ns=now_ns,
         source_captures=[r["capture_sha"] for r in needed],
         target_is_price_not_execution=True,
+        candidate_metrics=candidates,
     )
 
 
@@ -90,7 +107,7 @@ def tick(root: Path, rows: list[Row], provenance: Row, model: Path | None) -> Ro
             completed += 1
     issued = 0
     if model is not None:
-        from .model import predict
+        from .model import ensemble_predict, predict
 
         verify(model)
         card = read(model / "model-card.json")
@@ -104,6 +121,13 @@ def tick(root: Path, rows: list[Row], provenance: Row, model: Path | None) -> Ro
         ]
         if samples:
             qs = predict(model, bundle, samples)
+            paired = {
+                "empirical": [
+                    card["baseline"][str(t["horizon"])] for s in samples for t in s["targets"]
+                ]
+            }
+            for kind in ("linear", "gru"):
+                paired[kind] = ensemble_predict(model, kind, bundle, samples)
             by_key = {(r["pool"], r["open_s"]): r for r in rows}
             for i, s in enumerate(samples):
                 for j, h in enumerate(HORIZONS):
@@ -127,6 +151,10 @@ def tick(root: Path, rows: list[Row], provenance: Row, model: Path | None) -> Ro
                             model_sha=sha(model / "manifest.json"),
                             model_path=str(model.resolve()),
                             q=qs[i * len(HORIZONS) + j],
+                            q_by_candidate={
+                                name: values[i * len(HORIZONS) + j]
+                                for name, values in paired.items()
+                            },
                             origin_close=origin["ohlcv"][3],
                             input_available_ns=s["actual_available_ns"],
                             history=s["history"],

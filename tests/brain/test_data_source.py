@@ -190,3 +190,21 @@ def test_null_discovery_metadata_is_explicit_exclusion(tmp_path):
     seal(p)
     result = select_universe([p], now_ns=1800000000 * NS)
     assert len(result["pools"]) == 1 and result["exclusions"]["missing_liquidity_or_creation"] == 1
+
+
+def test_request_charged_before_failure_and_payload_not_logged(tmp_path, monkeypatch, capsys):
+    import urllib.error
+
+    root = tmp_path / "root"
+    initialize(root)
+
+    def fail(*a, **kw):
+        assert (root / "requests/000000/request.json").exists()
+        raise urllib.error.URLError("fixture-sensitive-payload")
+
+    monkeypatch.setattr("urllib.request.urlopen", fail)
+    with pytest.raises(SourceFailure):
+        fetch(root, "/networks/solana/pools", dict(page=1), lane="discovery")
+    assert (root / "requests/000000/failure.json").exists()
+    assert (root / "requests/000000/manifest.json").exists()
+    assert "fixture-sensitive-payload" not in capsys.readouterr().out

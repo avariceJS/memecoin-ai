@@ -22,6 +22,13 @@ def stage(root: Path, bundle: Path, plist: Path) -> None:
         raise ValueError("Brain_root_only")
     if (root / "deployment.json").exists():
         raise ValueError("deployment_exists")
+    activation = read(root / "activation.json")
+    if (
+        activation.get("decision") != "approved"
+        or activation.get("scope") != "brain_development_72h"
+        or activation.get("paid_budget_usd") != 0
+    ):
+        raise ValueError("Brain_activation_required")
     bundle.mkdir(parents=True, exist_ok=False)
     src = Path(__file__).parent.parent
     sources = {}
@@ -35,6 +42,8 @@ def stage(root: Path, bundle: Path, plist: Path) -> None:
         root=str(root),
         config_sha=sha(root / "config.json"),
         universe_sha=sha(root / "universe.json"),
+        activation_sha=sha(root / "activation.json"),
+        external_debit_sha=sha(root / "external-request-debit.json"),
         sources=sources,
         python=str(Path(sys.executable).resolve()),
         python_sha=sha(Path(sys.executable).resolve()),
@@ -94,6 +103,8 @@ def verify_runtime(root: Path, pin: str | None = None) -> None:
         c["root"] != str(root.resolve())
         or sha(root / "config.json") != c["config_sha"]
         or sha(root / "universe.json") != c["universe_sha"]
+        or sha(root / "activation.json") != c["activation_sha"]
+        or sha(root / "external-request-debit.json") != c["external_debit_sha"]
         or sha(Path(sys.executable).resolve()) != c["python_sha"]
     ):
         raise ValueError("Brain_binding_changed")

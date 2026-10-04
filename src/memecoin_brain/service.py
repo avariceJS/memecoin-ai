@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 from memecoin_ml.data import read, sha
-from memecoin_operational.supervisor import child
+from memecoin_operational.supervisor import Watch, child
 from memecoin_operational.worker import lease_watchdog
 from memecoin_registry.contracts import seal
 from memecoin_runner.ledger import publish
@@ -103,8 +103,8 @@ def command(root: Path, output: Path, phase: str, seconds: int) -> list[str]:
     script = (
         "import os,sys,time; sys.path.insert(0,sys.argv.pop(1)); "
         'os.environ["MEMECOIN_BRAIN_DEADLINE_NS"]=str(time.time_ns()+int(sys.argv.pop(1))*10**9); '
-        "from memecoin_brain.service import worker; from pathlib import Path; "
-        "worker(Path(sys.argv[1]),Path(sys.argv[2]),sys.argv[3])"
+        "from memecoin_brain.service import safe_worker; from pathlib import Path; "
+        "safe_worker(Path(sys.argv[1]),Path(sys.argv[2]),sys.argv[3])"
     )
     return [
         sys.executable,
@@ -120,6 +120,25 @@ def command(root: Path, output: Path, phase: str, seconds: int) -> list[str]:
     ]
 
 
+def safe_worker(root: Path, output: Path, phase: str) -> None:
+    try:
+        worker(root, output, phase)
+    except Exception as exc:
+        print(
+            json.dumps(
+                dict(
+                    status="failed",
+                    category=str(exc)
+                    if isinstance(exc, SourceFailure)
+                    else "Brain_worker_integrity",
+                    error_type=type(exc).__name__,
+                )
+            ),
+            flush=True,
+        )
+        raise SystemExit(1) from None
+
+
 def guard(root: Path) -> None:
     c = read(root / "config.json")
     if (
@@ -128,6 +147,23 @@ def guard(root: Path) -> None:
         or shutil.disk_usage(root).free < c["free_floor_bytes"]
     ):
         raise SourceFailure("stop_expiry_or_disk")
+
+
+def run_phase(root: Path, output: Path, phase: str, seconds: int) -> dict:
+    watch = Watch(seconds)
+
+    def fenced():
+        guard(root)
+        if watch.remaining() <= 0:
+            raise SourceFailure("phase_deadline")
+
+    result = child(command(root, output, phase, seconds), output / "worker.log", seconds, fenced)
+    try:
+        fenced()
+        verify_runtime(root)
+    except Exception as exc:
+        result.update(category="post_phase_guard", exit_code=1, error_type=type(exc).__name__)
+    return result
 
 
 def tick(root: Path, pin: str) -> dict:
@@ -170,9 +206,7 @@ def tick(root: Path, pin: str) -> dict:
         publish(
             output / "reservation.json", dict(due_s=due, started_ns=time.time_ns(), max_requests=12)
         )
-        result = child(
-            command(root, output, "collect", 240), output / "worker.log", 240, lambda: guard(root)
-        )
+        result = run_phase(root, output, "collect", 240)
         successful = result["category"] == "completed" and result["exit_code"] == 0
         publish(
             output / "result.json",
@@ -203,9 +237,7 @@ def tick(root: Path, pin: str) -> dict:
                 ticket / "reservation.json",
                 dict(started_ns=time.time_ns(), fits=4, max_seconds=600),
             )
-            trained = child(
-                command(root, ticket, "train", 600), ticket / "worker.log", 600, lambda: guard(root)
-            )
+            trained = run_phase(root, ticket, "train", 600)
             publish(
                 ticket / "result.json",
                 dict(

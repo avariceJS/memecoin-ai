@@ -75,3 +75,21 @@ def test_concurrent_controller_rejected(tmp_path, monkeypatch):
         fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
         with pytest.raises(BlockingIOError):
             service.tick(root, "pin")
+
+
+def test_runtime_binding_rejects_config_tamper(tmp_path):
+    from memecoin_brain.runtime import stage, verify_runtime
+
+    root = tmp_path / "brain-b01/dev01"
+    initialize(root)
+    write(root / "universe.json", dict(pools=[]))
+    write(
+        root / "activation.json",
+        dict(decision="approved", scope="brain_development_72h", paid_budget_usd=0),
+    )
+    write(root / "external-request-debit.json", dict(requests=0))
+    stage(root, tmp_path / "bundle", tmp_path / "service.plist")
+    verify_runtime(root)
+    (root / "config.json").write_text("{}")
+    with pytest.raises(ValueError, match="binding"):
+        verify_runtime(root)

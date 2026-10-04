@@ -101,7 +101,12 @@ def fetch(root: Path, path: str, params: Row, *, lane: str) -> Path:
     prior = sorted((root / "requests").iterdir())
     if [p.name for p in prior] != [f"{i:06d}" for i in range(len(prior))]:
         raise SourceFailure("request_sequence")
-    if len(prior) >= c["max_requests"]:
+    debit = (
+        read(root / "external-request-debit.json")["requests"]
+        if (root / "external-request-debit.json").exists()
+        else 0
+    )
+    if type(debit) is not int or debit < 0 or len(prior) + debit >= c["max_requests"]:
         raise SourceFailure("request_budget")
     for attempt in reversed(prior):
         if (attempt / "failure.json").exists():
@@ -162,6 +167,10 @@ def fetch(root: Path, path: str, params: Row, *, lane: str) -> Path:
             value = exc.headers.get("Retry-After", "0")
             if value.isdigit():
                 retry_after = int(value)
+            try:
+                (output / "error-response.bin").write_bytes(exc.read(c["max_response_bytes"] + 1))
+            except Exception:
+                pass  # The HTTP status/error receipt survives even an unreadable error body.
         row = dict(
             status="failed",
             category=str(exc) if isinstance(exc, SourceFailure) else "public_http_failure",
