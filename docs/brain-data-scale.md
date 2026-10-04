@@ -64,3 +64,13 @@ heterogeneity, не увеличивать сеть. Не обещать нак�
 Refinement до первого GET: D50 supervisor отверг1800s как invalid_child_deadline;
 acquisition root/requests ещё не созданы. Используется более строгий hard600s и
 cooperative565s, одна попытка; исходный ceiling24GET сохраняется. Это не retry сети.
+
+Уточнение pagination после offline evidence, до новых GET: первый ответ HTTP200
+содержит506валидных bars, ровно1на cursor,0после, earliest точно creation floor.
+Ошибка `pagination_not_strictly_before` была ошибочным предположением клиента, не
+невалидным OHLCV/429. History01 остаётся sealed/failed, повтор этой страницы запрещён.
+Разрешена ровно одна continuation revision с parent SHA: принять уже полученную
+страницу offline, исключить законченный pool, следующий before=cursor−1. Все12pools,
+anchor и aggregate24GET прежние, debit1; новый child≤600s и общий wall≤исходных30min.
+Это явное уточнение local stop protocol на установленных evidence, не сброс quota и
+не обход provider отказа. Любой новый failure закрывает continuation окончательно.

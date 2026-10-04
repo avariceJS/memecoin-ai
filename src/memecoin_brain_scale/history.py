@@ -12,7 +12,7 @@ from memecoin_brain.data import corpus
 from memecoin_brain.service import cooldown
 from memecoin_brain.source import BAR, NS, SourceFailure, bars, host_guard, ohlcv
 from memecoin_ml.data import read, sha, write
-from memecoin_registry.contracts import seal
+from memecoin_registry.contracts import seal, verify
 
 
 def budget_bound(primary: Path, now_ns: int, extra: int = 24) -> dict:
@@ -34,13 +34,36 @@ def idle_slot(primary: Path, now_ns: int) -> bool:
     return result.exists() and read(result)["status"] == "completed"
 
 
-def prepare(primary: Path, output: Path) -> dict:
+def prepare(primary: Path, output: Path, parent: Path | None = None) -> dict:
     host_guard(primary)
     now = time.time_ns()
     budget = budget_bound(primary, now)
     rows, _ = corpus(primary, now)
     universe = read(primary / "universe.json")
     anchor = now // (BAR * NS) * BAR
+    debit = 0
+    parent_ref = None
+    if parent is not None:
+        verify(parent)
+        prior = read(parent / "plan.json")
+        failure = read(parent / "failure.json")
+        if failure["category"] != "pagination_not_strictly_before" or prior.get("parent"):
+            raise SourceFailure("continuation_not_qualified")
+        # One reviewed protocol correction; no retry of an unsuccessful provider request.
+        requests = sorted((parent / "requests").iterdir())
+        if len(requests) != 1 or not (requests[0] / "receipt.json").exists():
+            raise SourceFailure("continuation_requires_single_successful_page")
+        task = next(t for t in prior["tasks"] if t["needed"])
+        got = bars(requests[0], task["pool"])
+        if (
+            not got
+            or max(r["open_s"] for r in got) != task["cursor"]
+            or min(r["open_s"] for r in got) > task["floor"]
+        ):
+            raise SourceFailure("continuation_boundary_diagnosis")
+        rows += got
+        debit, anchor = 1, prior["anchor_s"]
+        parent_ref = dict(path=str(parent.resolve()), manifest_sha=sha(parent / "manifest.json"))
     tasks = []
     for u in universe["pools"]:
         pool_rows = [r for r in rows if r["pool"] == u["pool"]]
@@ -53,7 +76,7 @@ def prepare(primary: Path, output: Path) -> dict:
     c.update(
         created_ns=now,
         expires_ns=min(now + 600 * NS, c["expires_ns"]),
-        max_requests=24,
+        max_requests=24 - debit,
         min_request_interval_seconds=12,
         storage_limit_bytes=256 * 1024**2,
     )
@@ -66,7 +89,9 @@ def prepare(primary: Path, output: Path) -> dict:
         anchor_s=anchor,
         tasks=tasks,
         budget=budget,
-        max_requests=24,
+        max_requests=24 - debit,
+        parent=parent_ref,
+        prior_attempts=debit,
         no_retry=True,
         F01=False,
     )
@@ -74,8 +99,8 @@ def prepare(primary: Path, output: Path) -> dict:
     return plan
 
 
-def acquire(primary: Path, output: Path) -> dict:
-    plan = prepare(primary, output)
+def acquire(primary: Path, output: Path, parent: Path | None = None) -> dict:
+    plan = prepare(primary, output, parent)
     write(output / "claim.json", dict(started_ns=time.time_ns(), attempts=24))
     pending = [dict(t) for t in plan["tasks"] if t["needed"]]
     completed, captures = [], []
@@ -83,7 +108,9 @@ def acquire(primary: Path, output: Path) -> dict:
     status = "completed"
     active = None
     try:
-        while pending and len(captures) < 24 and time.monotonic() < deadline:
+        while (
+            pending and len(captures) < plan.get("max_requests", 24) and time.monotonic() < deadline
+        ):
             host_guard(primary)
             host_guard(output)
             if time.time_ns() < cooldown(primary):
@@ -109,7 +136,7 @@ def acquire(primary: Path, output: Path) -> dict:
                 task = pending.pop(0)
                 active = task
                 try:
-                    cap = ohlcv(output, task["pool"], lane="historical", before=task["cursor"])
+                    cap = ohlcv(output, task["pool"], lane="historical", before=task["cursor"] - 1)
                     rs = bars(cap, task["pool"])
                     if any(r["open_s"] >= task["cursor"] for r in rs):
                         raise SourceFailure("pagination_not_strictly_before")
@@ -169,10 +196,11 @@ if __name__ == "__main__":
     parser.add_argument("primary", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("--worker", action="store_true")
+    parser.add_argument("--parent", type=Path)
     args = parser.parse_args()
     if args.worker:
         lease_watchdog(int(os.environ["MEMECOIN_LEASE_FD"]))
-        print(json.dumps(acquire(args.primary, args.output)))
+        print(json.dumps(acquire(args.primary, args.output, args.parent)))
     else:
         watch = Watch(600)
 
@@ -180,16 +208,19 @@ if __name__ == "__main__":
             if watch.remaining() <= 0:
                 raise SourceFailure("history_wall_budget")
 
+        command = [
+            sys.executable,
+            "-B",
+            "-m",
+            "memecoin_brain_scale.history",
+            str(args.primary),
+            str(args.output),
+            "--worker",
+        ]
+        if args.parent:
+            command.extend(["--parent", str(args.parent)])
         result = child(
-            [
-                sys.executable,
-                "-B",
-                "-m",
-                "memecoin_brain_scale.history",
-                str(args.primary),
-                str(args.output),
-                "--worker",
-            ],
+            command,
             args.output.with_suffix(".log"),
             600,
             guard,
