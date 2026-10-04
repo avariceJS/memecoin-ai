@@ -57,3 +57,24 @@ soak status на72h должен измерять реальные часы, gap
 hot interval изменён на120s (3hotGET/min). Это оставляет48s после earliest next start,
 достаточно одного bounded background request. Global5/min, guard35s и maxhotgap180s
 не меняются; все дальнейшие thresholds прежние. Источник не опрашивался до этой поправки.
+
+## Engineering готовность во время qualification
+
+Source bundle зафиксирован отдельно от последующей paper revision:7b2fe1d,
+pin `f4e722ed1a27f702a7a303f33e56548eb50c5ba442524028021cf53db98d59e5`.
+Runtime не переписывается во время измерения. Первоначальный lookup официального FAQ
+GeckoTerminal теперь перенаправляет на https://docs.coingecko.com/ ; старое упоминание
+30/min не используется как гарантия. В B09 действует собственный измеряемый bound5/min.
+
+Paper checkpoint привязан к prefix head и result_sha immutable transition ledger.
+При несовпадении state/checksum исполнение останавливается; без cache полный replay
+восстанавливает точное состояние. Проверка полной цепочки ledger не отключена, независимый
+полный replay остаётся audit oracle. Engine/policy/costs не изменены. Cash-only synthetic
+workload72h-shaped:864ticks/31 104decisions/10 368unique predictions; полныйreplay1.800s,
+checkpoint0.065s, exact. Это capacity fixture, не календарный uptime или performance модели.
+
+Soak samples хранят actual times, hot freshness и sourceheartbeat. Сон/простой машины
+виден какgap; covered time ограничивается≤90s между samples и не заполняет пропущенные
+часы. В UI observed/span hours раздельно. При source heartbeat>180s новые predictions
+paused; только hot pools допускаются к новым paper signals, остальные24 остаются в
+market projection/corpus. Existing positions не закрываются искусственно, engine прежний.
