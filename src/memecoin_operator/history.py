@@ -1621,6 +1621,14 @@ def _providers(ctx: _Ctx, events: list[dict[str, Any]]) -> dict[str, Any]:
     stopped = None
     stop_reason = None
     source = _bound_dir(ctx, ctx.config.get("source_root"), "source") if ctx.config else None
+    if (ctx.root / "successor-ready.json").exists():
+        from .acquisition import current_source
+
+        try:
+            source = _bound_dir(ctx, str(current_source(ctx.root)), "current_source")
+        except (OSError, ValueError):
+            source = None
+            ctx.warnings.append("current_source_unverified")
     if source is not None:
         health = _health_file(ctx, source, "health.json", "source_health")
         stop_path = _within(source, Path("STOP"))
@@ -1678,7 +1686,10 @@ def _providers(ctx: _Ctx, events: list[dict[str, Any]]) -> dict[str, Any]:
         if previous in {"stopped", "unhealthy"} and current == "healthy":
             recovery.append({"ns": point["ns"], "from": previous, "to": "healthy"})
         previous = current
+    from .source_history import snapshot as source_lineage
+
     return {
+        "lineage": source_lineage(ctx.root, ctx.cutoff),
         "consecutive_failures": failures,
         "health_at_ns": at_ns,
         "attempts": attempts,

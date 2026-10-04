@@ -1,5 +1,14 @@
 # История изменений решений
 
+## 2026-10-05 — B13 autonomous paper operator принят
+
+Реальные UI collect/snapshot/train/candidate/futureexam и AUTO/Pause/Stop/restart/Resume
+выполнены. Pinned LaunchAgent8792 оставлен AUTO,6reservations/7days, no promotion.
+Train24markets/92days, GRUvalidationselected но descriptive test не лучшеempirical.
+B09/B10/B12 technical repairs сохраняют исходные STOP/budgets/ledger/expiry.
+853base tests +40ML; финальная интеграция208tests. [Приёмка](../docs/brain-b13-acceptance.md),
+[операторская инструкция](../docs/brain-operator-manual.md). F01/D43/holdout untouched.
+
 ## 2026-10-04 — B13 в работе: operator и два operational incidents
 
 Принят автономный7daypaperproduct безautoPromotion, recipeдоfits commit86929cb.

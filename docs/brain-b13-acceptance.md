@@ -1,8 +1,11 @@
-# Черновик приёмки B13
+# Приёмка автономного paper оператора B13
 
-Это отчёт по файлам на явный cutoff, не решение о приёмке продукта. Edge, promotion,
-подтверждение F01 и калиброванное исполнение не установлены. Наблюдаемые часы — присутствие
-по heartbeat, не uptime.
+**Ограниченный autonomous paper vertical slice принят и оставлен в AUTO.**
+Закреплённый LaunchAgent8792, фактические UI Collect/Snapshot/Train/Paper и
+AUTO/Pause/Resume/Stop/restart/Resume проверены. Immutable models, старые STOP,
+config/activation pins и training reservations сохранены. Реальных денег нет.
+Итог: [machine acceptance](evidence/brain-operator-acceptance-2026-10-05.json).
+Ниже — более ранний подробный исследовательский срез, его cutoff сохранён.
 
 Cutoff отчёта: `2026-10-04 21:41:39.863307 UTC`, `cutoff_ns=1791150099863307000`.
 Машинный снимок: `work/brain-b13/operator-report03.json` и
@@ -178,9 +181,37 @@ Pending горизонты не заполнены нулевым loss. 24 гр�
 скриншоты `browser-fixture-*` проверяют UI на синтетике. Они не являются будущим
 экзаменом, книгой `job_b7edd93ea86173f9` и не доказывают сделки.
 
-## Что этот черновик не закрывает
+## Финальная интеграция, 2026-10-05
 
-Развёртывание LaunchAgent, полный `make check` / e2e и коммиты остаются за родителем.
-Список прежних пробелов: `work/brain-b13/delegation/evidence-final-review.md`.
-Пункт про слепой `exam/shadow` закрыт срезом `operator-report03`: отчёт читает
-`candidate-shadows` и legacy shadow. Остальные пункты того списка этот черновик не закрывает.
+Runtime pin16f1500f49f9cd48f097fdd2ca9936a76da38089c7694b43beece6a6db7f548a,
+rootoperator04, `ai.memecoin.brain.operator`, после login macOS. Production bundle
+байт-в-байт совпадает с текущими Python sources; config/runtime hashes проверены.
+Реальный browser E2E before/after: `work/brain-b13/delegation/parent-final-*-acceptance.json`.
+Desktop1440/1100 и390 без overflow,6virtualbooks выбираются отдельно; source/code fixtures
+не подменяют рыночные данные. FullStop service failure/retry проверен fixtures, actual
+Stop/restart/Resume — на операторе; старые prospective источники не прерывались этим E2E.
+
+make setup/check:853passed/10optional skips; отдельно40MLpassed; финальные operator
+checks208passed/3optional skips; history/lineage18passed. Ruff/mypy/smoke/build прошли.
+Final report `work/brain-b13/operator-report-final01.json`:116predictions,84scored,
+32pending на его cutoff;58групп — bookkeeping grouping, не доказанная статистическая
+независимость. Долгий uptime, edge и promotion не установлены.
+
+Интеграция5aa933c после prereg86929cb; финальные evidence/handoff отдельным commit.
+Делегирование: реальные Cursor CLI grok-4.7-xhigh,10sessions; receipts в
+[evidence](evidence/brain-operator-delegation-2026-10-05.json), сырые логи внеGit.
+[Операторская инструкция](brain-operator-manual.md). Исходные incidents перечислены выше
+и не переписаны. Ограничения: fixed24market cohort, singleprovider,~90day archive,
+fixed15min price proxy,≤6reservations/7days, без автоматического champion promotion.
+
+Два AUTO-цикла и recover дополнительно проверены:3passed на synthetic archive,
+реальные control/snapshot/raw audit/exam publication, явно stubbed learning; реальные
+4fits и future runtime проверены отдельно выше. Manual Paper по той же модели разрешён
+как новый отдельный future exam (≤8open); AUTO сам его не дублирует.
+
+Ограничение growth gate: live coverage считает зрелые context rows, publication —
+пригодные dataset decisions после fold purge. Это близкие, но не тождественные счётчики
+(в fixture740 против734). Поэтому100 — operational coverage proxy, не доказательство
+ровно100новых training decisions. Жёсткий24h reservation gate, immutable snapshot,
+no-repeat dataset и dataset eligibility остаются. Следующий Codex должен унифицировать
+этот denominator до расширения rollout; не использовать proxy как ML sample-size evidence.

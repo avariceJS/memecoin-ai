@@ -25,12 +25,19 @@ AUTO bound:6reservations включаяfailures, ≥24h+100newmatured, срок 
 остаются ограничениями. Policy fixed15min, не learned exit/MPC; virtualbooks независимы.
 Не читать/менять protectedF01/D43/holdout. D43 LaunchAgent сохранён.
 
-Проверки: make setup/check/smoke/build прошли;853base tests/10optional skips,
-40optional ML tests прошли. Финальные focused checks и pinned deployment/E2E ещё
-закрываются — итог искать в docs/evidence/brain-operator-acceptance-2026-10-05.json.
-Последний checkpoint: devserver02 после безопасного restart, реальный UI AUTO/Pause/
-Resume/Stop acceptance запущен. Не создавать новый root и не сбрасывать SQLite/reservations.
-Все Cursor workers реально grok-4.7-xhigh,10sessions; receipts в work/brain-b13/delegation.
+**Приёмка завершена, AUTO включён.** Pinned runtime `work/brain-b13/operator-runtime04`,
+LaunchAgent ai.memecoin.brain.operator, pin16f1500f49f9cd48f097fdd2ca9936a76da38089c7694b43beece6a6db7f548a.
+Real UI AUTO/Pause/Resume/Stop → restart → Resume прошёл; модель, dataset, exam и1/6
+reservation сохранены. Source/config/activation/старый B12 STOP pins неизменны.
+make setup/check/smoke/build passed;853base/10optionalskips,40ML; finaloperator208/3skips,
+history18passed. Итог docs/evidence/brain-operator-acceptance-2026-10-05.json.
+History work/brain-b13/operator-report-final01.json;116predictions/84scored/32pending
+наcutoff, реальные5/15min outcomes, no trades в новом exam. Не считать58bookkeepinggroups
+статистически независимыми. Пятидневный uptime ещё не измерен.
+Commit5aa933c + финальный evidence/handoff commit. Grok receipts сохранены; новые задачи
+не запускать из-за исчерпания квоты. Следующий Codex: source/runtime health, gaps/incidents,
+reservations/candidates, paired matured forecast losses и policy ledger; не переобучать
+по test/PnL и не сбрасывать quotas/STOP. Старые статусы ниже — исторические срезы.
 [Протокол](../docs/brain-autonomous-operator.md), [приёмка](../docs/brain-b13-acceptance.md),
 [инструкция](../docs/brain-operator-manual.md). Следующий Codex: сначала эту секцию,
 final evidence и operator report/ledger; прежние статусы ниже — история до B13 repair.
@@ -1301,3 +1308,11 @@ origin/env, Helius не подставляется в public campaign. Raw, requ
 failures, plans, source/hashes, engineering cutoff и conditional execution model — в
 D37 evidence. Новый quality artifact work/coherence-quality-01 воспроизведён offline
 и из work/coherence-wheel-01; D36 history проверена work/prospective-wheel-01.
+
+### B13 final audit note
+
+AUTO2cycles/recover synthetic integration3passed (learningstub, реальный domain snapshot/
+exam), actual4fits/futureexam отдельно. Growth100 сравнивает livecontext rows с dataset
+послеfoldpurge; это operationalproxy, не точный счётчик новыхtrainingdecisions (fixture740/734).
+24h/6reservations/immutable dataset gates остаются; denominator унифицировать следующим
+Codex до расширенияrollout. ManualPaper повторно допустим отдельнымexam, AUTOне дублирует.
