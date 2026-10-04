@@ -1,5 +1,25 @@
 # Реестр архитектурных решений
 
+## B04 — новый collector-only контракт и bounded preprocessing experiment, 2026-10-04
+
+B03 принят пользователем. Plan2d057b7 заранее разделил source availability logging и
+fresh-universe/model qualification. B03 gate≥9 не снижен и решениеREJECTED не изменено.
+Новый scope допускает запись всех12dispositions при valid support и прежних failure/
+quota/quality guards; stale activity остаётсяunknown. Training запрещён в новомruntime,
+старый model000000 shadow сохраняет actual availability/≤300s gate.6cycles без event
+progress→STOP. Original12000/expiry сохранены, probe counters/due унаследованы.
+
+Два cycles прошли:9valid/7fresh/2stale/3skipped каждый, failures0. Отдельный substantive
+review exact root/runtime/plist/cycle seals разрешил `ai.memecoin.brain.b04`. Наactivation
+153GET общегоdebit, paid0; qualified collector не являетсяresearch/promotion допуском.
+
+16fits,8controlweights exactB03. Train q01/q99clip+z помог linear validation4,33%/0,96%,
+но ухудшилGRU8,67%/2,83%. Заранее заданный validation criterion допускает толькоlinear
+к отдельному будущему shadow challenge; no promotion. Empirical champion сохранён,
+raw extreme bars не удаляются как неудобные. B05 — prospective coverage и этот challenger,
+не более сложныйbackbone. [Документ](../docs/brain-availability-normalization.md),
+[evidence](../docs/evidence/brain-availability-normalization-2026-10-04.json).
+
 ## B03 — pool isolation квалифицирован, continuous activation отклонена, 2026-10-04
 
 B02 принят пользователем, продолжен B03. Plan12583b0 и runtime5c0cf67 ввели только known

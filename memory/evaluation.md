@@ -1,5 +1,20 @@
 # Оценка модели и управление версиями
 
+## B04: preprocessing selection по validation, 2026-10-04
+
+Два full-train folds B03, exact membership/targets иmatchedcontrolweights. Percentiles
+зафиксированы до16fits; transform не видит futurefeatures/labels. Linear merits future
+shadow поvalidation(+4,33%/+0,96%), GRUнепроходит(−8,67%/−2,83%). Ниpromotion, ни выбора
+удачногоseed/horizon. Evaluationalreadyexposed:linear improvement9,56%/5,65%, paired1h
+CI[4,28%;18,29%]/[1,41%;15,09%], exploratory/no multiplicity correction.
+
+Shadow snapshotдоactivation198forecasts,171scored/6censored/21pending, recovery0;
+все3старыхкандидата наоднихfutureobservations. Empirical/GRU/linear macro pinball
+0,007418/0,008643/0,015252, дваhourclusters→CIнет. B04weights не участвовали.
+Wheel transform/weights→scores/bootstrap и raw→shadow exact, replaytraining0.
+Operational activationcollector-only неMLreadiness; training branchотсутствует.
+[Evidence](../docs/evidence/brain-availability-normalization-2026-10-04.json).
+
 ## B03: воспроизводимые exploratory curves и mature shadow, 2026-10-04
 
 24fits, fixed B02 procedure на новом sealed dataset. Global chronological cutoffs,

@@ -7,9 +7,10 @@
 track F01 readiness и прежнее smoke-only ограничение больше не блокеры. Использовать
 D44/D47 stack с собственным честным bar-data contract; confirmatory F01/его reserved
 holdout остаются закрытыми по прежним правилам. Brain-v1-dev обучен; B03 расширил corpus
-до 15237 bars и train diversity до 4 pools. Continuous activation отклонена: fresh8/12
-и7/12 при frozen≥9, jobs не работают. B03 root STOP, champion empirical сохранён.
-Прежний expiry/12000publicGET/paid0 не продлён; [статус и ограничения](../docs/brain-pool-quality.md).
+до 15237 bars и train diversity до 4 pools. B04 активировал отдельный collector-only job
+после нового availability review; automatic training выключен, B03 остаётся REJECTED/STOP.
+Champion empirical сохранён; linear-winsor — кандидат отдельного будущего shadow опыта.
+Прежний expiry/12000publicGET/paid0 не продлён; [статус](../docs/brain-availability-normalization.md).
 Цель ближайших дней — содержательная модель и цикл её улучшения, не обещание edge.
 Реальные деньги, исполнение сделок, paid upgrades, RL/paper bot не разрешены.
 

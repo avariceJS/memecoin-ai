@@ -1,6 +1,49 @@
 # Текущий статус
 
-## B03 — текущий статус, 2026-10-04
+## B04 — текущий статус, 2026-10-04
+
+**Collector-only активирован; automatic training отключён.** Новый контракт отделяет
+запись observations/missingness от достаточности fresh universe для модели. B03 остаётся
+REJECTED/STOP, старые jobs не включались. Новый `ai.memecoin.brain.b04` loaded, root
+`/Users/root1/Desktop/memecoin-ai/work/brain-b04/prospective01`, frozen pin
+`f248c0305d81f684db7954d1c914c335c01c2ab0f9312d10ecc593ab6d2d183e`.
+
+Два qualification cycles по9GET/99,54s и99,14s, каждый:7fresh/2valid-stale/3quarantine
+skips, denominator12, event time продвинулся у7пулов. Ошибок provider/schema0, probes0.
+Probe budgets/next_due унаследованы без reset. До второй фазы early-due assertion
+остановилась доGET/резервирования; история сохранена, фактически market cycles2.
+На activation18новых GET, общий153/12000/paid0. Original expiry2026-10-07T00:30:23.405597Z
+не продлён. 5min due-only, ≥12s/GET,240s/cycle, global q≥4/auth/rate/2transport/integrity
+stops; дополнительно6cycles без event progress→STOP. Awake/login/network необходимы,
+power settings не менялись. Дальнейшие GET/status проверять read-only, не считать153
+текущим live counter навсегда. Handoff08:53:37UTC: первый автономныйcycle107,34s completed,
+STOPнет, debit162,212forecasts/178scored/6censored/28pending; `status-handoff-02.json`. Training branch отсутствует; B04weights не deployed.
+
+Audit: duplicate captures различаются толькоopen. Extreme lower_wick с|z|1425,58 есть
+вraw (low≈0,00004928 приopen/close≈0,17), независимого подтверждениянет. Не удалялся.
+16development fits59,09s: train-only q01/q99winsorization перед прежнимz, unchanged
+B03dataset/fullfolds/seeds7/19/10epochs.8controlweights tensor-exact B03. Linear validation
++4,33%/+0,96%→кандидат отдельногоfuture shadow; GRU−8,67%/−2,83%→отклонить этот clipping.
+Empirical всё ещё лучше linear, champion не меняется. Exposed evaluation не confirmatory.
+
+Sealed snapshot08:47:30.797927UTC доactivation:15287bars/12pools,98revisions/79keys,
+calendarfull11/12. Shadow198forecasts:171scored/6censored/21pending,2hourblocks, CIнет;
+empirical/GRU/linear macro pinball0,007418/0,008643/0,015252. Это старыйmodel000000.
+После activation новые observations сохраняются отдельно от этого cutoff.
+10newtests,557base/6optional skips,583combined,check/smoke/build; installed-wheel transform/
+predictions/scoring/bootstrap и raw→mature shadow exact, replayfits/network0.
+D43/F01/holdout не читались/не менялись; frozen D50/B03 verified.
+
+**Следующий B05:** наблюдать frozen collector, coverage/revisions/stops в новых часах/днях;
+заранее ограничить paired future shadow linear-winsor challenger с cutoff до новых
+observations. Не менять champion/GRUbackbone по exposed тесту. Исходный budget/expiry
+не обновлять молча. Read-only:
+`.venv/bin/python -B tools/brain_status.py --root work/brain-b04/prospective01`.
+Остановка — создать `work/brain-b04/prospective01/STOP`; не удалять дляretry.
+[Отчёт и график](../docs/brain-availability-normalization.md),
+[evidence](../docs/evidence/brain-availability-normalization-2026-10-04.json).
+
+## B03 — предыдущий исторический срез, заменён B04
 
 **Data/engineering этап завершён; continuous activation отклонена.** Per-pool quarantine
 квалифицирован на fixtures, recorded replay и двух live cycles. Fresh support 8/12 и 7/12

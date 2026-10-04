@@ -1,5 +1,18 @@
 # История изменений решений
 
+## 2026-10-04 — B04 availability audit, normalization и collector-only activation
+
+Зафиксированplan2d057b7. Выполненraw tail/duplicate audit;16developmentfits59,09s,
+controls tensor-exactB03,linear-winsor допускается кfuturechallenge,GRUвариантотклонён.
+Новыйcollector-onlyruntime сохраняет oldSTOPs/qualityprobe state/budget, trainingoff,
+full12denominator,6cycle no-progressstop. Дваlivecycles18GET,153globaldebit; reviewed
+activation иLaunchAgentai.memecoin.brain.b04 installed. B03REJECTEDнепересмотрен.
+
+Snapshot15287bars/171scoredshadow, championempiricalнеизменен.10newtests,
+557base/6skips,583combined,check/smoke/build,exactwheelreplay. MemoryBank/evidence/plot
+обновлены; D43/F01/holdout нетронуты. СледующийB05 — prospectivecoverage и заранее
+зафиксированный future shadow linear-winsor challenger, безsilentrenewalbudgets.
+
 ## 2026-10-04 — B03 pool quarantine, завершённые prefixes и отрицательная activation
 
 Добавлен независимый memecoin_brain_quality с durable pool quarantine/probes, denominator,

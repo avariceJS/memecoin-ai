@@ -37,6 +37,7 @@ Memory Bank — канонический, пригодный для чтения
 | B01: независимый Brain Development, history, supervised training и continuous shadow | [brain-development.md](../docs/brain-development.md) |
 | B02: data coverage, learning curves, matured shadow и остановленный Brain source | [brain-data-scale.md](../docs/brain-data-scale.md) |
 | B03: pool quarantine, расширенная история, learning curves и отрицательная activation | [brain-pool-quality.md](../docs/brain-pool-quality.md) |
+| B04: source availability, normalization ablation и активный collector-only job | [brain-availability-normalization.md](../docs/brain-availability-normalization.md) |
 | Как проверять edge и выпускать новую модель | [evaluation.md](evaluation.md) |
 | В каком порядке работать | [roadmap.md](roadmap.md) |
 | Что уже существует и что дальше | [state.md](state.md) |

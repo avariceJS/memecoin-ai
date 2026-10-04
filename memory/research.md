@@ -1,5 +1,19 @@
 # Реестр исследовательских экспериментов
 
+## B04: train-only winsorization ablation, 2026-10-04
+
+Plan2d057b7 доfits. Sealed B03dataset/folds100%, empirical/linear/GRU, seeds7/19,
+width16/context8/10epochs/CPU1. Дваarms:identity иq01/q99clipping непрерывныхfeatures
+до прежнегоz; boundedfraction/zero_volume неclipped, missing/targets неизменны.
+16developmentfits59,09s/hard600s,8контрольныхweights tensor-exactB03. Transformfit
+толькоunique trainframes; отдельныйSHA вcheckpoints; learned thresholds безretuning.
+
+Validationlinear improvement4,33%/0,96%, GRU−8,67%/−2,83%. Frozen criterion:mean≥1%,
+ни одинfold хуже>1%. Толькоlinear заслуживает отдельного будущегоshadow; empirical
+всё ещё лучшеlinear. Evaluationalreadyexposed иbootstrapexploratory, неF01. Model000000
+иchampionнеизменны. NextB05 — новыйpairedfuture challenger experiment приcontinuous
+сборе; GRUclipping и усложнениеbackbone не оправданы. [Отчёт](../docs/brain-availability-normalization.md).
+
 ## B03: learning curves на расширенной истории, 2026-10-04
 
 Preregistered12583b0, runtime5c0cf67, offline tools32b36e5. Sealed dataset14326decisions,

@@ -1,5 +1,22 @@
 # Данные и достоверное исполнение
 
+## B04: collection health отдельно от fresh forecast support, 2026-10-04
+
+Collector-only B04 activated после двух cycles с полнымdenominator12:7fresh,2valid-stale,
+3quarantine skips каждый. Raw/actual availability и whole-response exclusion неизменны;
+unknown inactivity не превращается в нулевые returns. Новыйroot импортирует request
+counter135 и quality probe state безreset; наactivation153GET/12000, originalexpiry.
+Training отсутствует; прежний shadow допускает только свежие causal inputs. 6cycles
+без event-time progress→STOP, остальные source/quality guards B03 сохранены.
+
+Триduplicate responses отличаются толькоopen; независимого исправлениянет. Extreme
+wick candle low≈0,00004928 приopen/close≈0,17 подтверждается толькооднимrawcapture,
+не on-chain evidence. Ниraw, ниfeatures/targets не переписаны; ablation применяет
+отдельный сохранённый train-only transform с SHA в каждом fit, не исправление свечей.
+Snapshot08:47:30UTC:15287bars,98revisions/79keys, calendarfull11/12, триreceiptчаса
+одного дня. Послеactivation backgroundcollection идёт отдельно от этогоcutoff.
+[Отчёт](../docs/brain-availability-normalization.md).
+
 ## B03: расширенный corpus и отклонённая activation, 2026-10-04
 
 32 новых public GET в original envelope, общий debit135/12000/paid0. Исторические
