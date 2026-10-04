@@ -1,6 +1,26 @@
 # Цель и границы проекта
 
-## Текущая авторизация — Brain Development, 2026-10-04
+## Новый приоритет B07 — живой виртуальный product loop, 2026-10-04
+
+Прямое указание пользователя заменяет прежний запрет paper: разрешены непрерывные
+виртуальные решения/позиции/результаты, видимый Control Center и параллельное supervised
+переобучение. Research perfection и F01 не блокируют раннюю честную exploratory вертикаль.
+Реальные деньги, подпись/отправка транзакций, кошельки и paid upgrades по-прежнему запрещены.
+Агрегированные price-bar labels и виртуальная бухгалтерия не являются execution truth.
+
+Приоритет скорости: разумно использовать доступные free limits для полезной history/live
+информации, без мультиаккаунтов, повторной загрузки уже сохранённой истории и обещаний
+«сильной нейросети» от одного расхода quota. Market-data и execution layers независимы;
+Axiom не обязательная зависимость. Canonical local history/raw architecture сохраняется,
+но B06 raw PumpSwap admission не prerequisite для отдельного GT price-proxy paper lane.
+
+B07 запускает отдельные виртуальные portfolios empirical/linear/GRU и daily candidates
+на существующем B04 data feed. Champion empirical не заменён. Это bounded rollout до
+2026-10-07T00:30:23.405597Z, не обещание weekly unattended. Длительность следующего source
+rollout, расширение universe и полезная history — следующий B08. [B07](../docs/brain-paper-loop.md).
+Разделы B01–B06 ниже — история до нового разрешения; их прежний paper-запрет заменён.
+
+## Авторизация B01–B06 — предыдущий контекст, 2026-10-04
 
 Пользователь отдельно открыл historical backfill, расширение universe, continuous corpus,
 регулярное supervised training и shadow evaluation. Для этого независимого exploratory
@@ -19,7 +39,8 @@ B04 job без изменений; B06 реализовал raw interpreter, н�
 из-за ABI/Token-2022 drift. СледующийB07 — deployed protocol profile и corrected bounded
 indexed probe; linear-winsor challenge отложен. [B06](../docs/brain-pumpswap-events.md). [B05](../docs/brain-source-architecture.md).
 Цель ближайших дней — содержательная модель и цикл её улучшения, не обещание edge.
-Реальные деньги, исполнение сделок, paid upgrades, RL/paper bot не разрешены.
+На момент B06 paper bot не был разрешён; это ограничение заменено B07. Реальные деньги,
+подпись/отправка сделок, paid upgrades и RL по-прежнему не разрешены.
 
 ## Цель
 
@@ -46,7 +67,7 @@ indexed probe; linear-winsor challenge отложен. [B06](../docs/brain-pumps
 
 ## Что не входит в текущий этап
 
-- Production live/paper bot и неограниченный платный collector. Bounded continuous Brain collection и регулярное supervised training разрешены отдельным решением B01. Reference data/replay/research компоненты разрешены и реализуются; их фактический статус — в `state.md`.
+- Production real-money bot и неограниченный платный collector. Bounded virtual paper разрешён B07. Bounded continuous Brain collection и регулярное supervised training разрешены отдельным решением B01. Reference data/replay/research компоненты разрешены и реализуются; их фактический статус — в `state.md`.
 - Реальная торговля, отправка транзакций, создание или подключение кошелька.
 - Оплата провайдера/подписок/облачного GPU и развёртывание. Публикация завершённых коммитов в указанном GitHub origin/main разрешена.
 - Обучение LLM или торговля через LLM.

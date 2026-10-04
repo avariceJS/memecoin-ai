@@ -1,5 +1,20 @@
 # Архитектурное направление
 
+## B07 — работающая exploratory paper вертикаль, 2026-10-04
+
+Frozen B04 source → first-observed causal GT bars → D44/D47 Brain predictions → отдельный
+memecoin_paper decision/accounting engine → immutable transition ledger → actual future
+price outcomes → daily policy/forecast evaluation. Параллельно отдельный bounded daily
+trainer → sealed candidate bundle → новый future challenge; champion не заменяется.
+
+Три изолированных LaunchAgents: paper30s, train eligibility3600s/dailyfits, read-only UI8790.
+Frozen source/model/runtime hashes, source expiry/STOP, lock+worker lease/deadline,
+600s training/120s paper, no retry afterlane failure. Paper01 incident сохранён, paper02
+активирован. Рабочая панель публикует whitelist dashboard.json; отдельная UI worktree
+recorded observatory не merge/reset. Это временный bar proxy, не PumpSwap executionadapter.
+Приостановка Mac означает наблюдательный gap; источник истекает2026-10-07, неweeklySLA.
+[B07](../docs/brain-paper-loop.md).
+
 ## B06 — отдельный PumpSwap evidence interpreter, 2026-10-04
 
 memecoin_pumpswap не venueexecutionadapter: ABI inspection, CPI tree, integertransfer/vault

@@ -1,5 +1,24 @@
 # История изменений решений
 
+## 2026-10-04 — B07: разрешён и запущен живой virtual paper Brain
+
+Новое поручение заменило paper-запрет: приоритет — наблюдаемый product loop, полезное
+использование free quota и независимые data/execution layers. Новый memecoin_paper и
+Control Center на loopback8790 активны поверх неизменённого B04. F01/D43/holdout untouched.
+Добавлены causal price-proxy fills, Decimal accounting, immutable ledger/replay, три
+виртуальных портфеля на версию модели и daily candidate worker. Первый training:
+четыре fits / 59.87 s / 10 605 matured samples; champion empirical не заменён.
+
+Живой slice: 183 решения → два входа → два выхода; GRU net −$4.780619, остальные cash.
+66 matured forecasts, promotion нет. Это pipeline evidence, не edge. Первая activation
+остановлена из-за local deadline mismatch; исходные incident/root/runtime сохранены.
+Corrected paper02: 27 invocations без ошибок; source expiry 7 октября не продлён.
+20 новых tests, 608 base / 634 combined PASS; check/smoke/build, raw joins и wheel replay
+exact. Desktop UI проверен; mobile overflow остаётся ограничением. Старую UI-ветку
+не меняли. B08 — multi-day source continuity, incremental local store, полезная history
+и полные сутки future evaluation. [Итог](../docs/brain-paper-loop.md),
+[evidence](../docs/evidence/brain-paper-loop-2026-10-04.json).
+
 ## 2026-10-04 — B06: PumpSwap reconciliation и остановленный indexed probe
 
 23tests/614combinedPASS, wheel exact. Новыйdecoder/rawmovementaudit иdurable rangejournal.

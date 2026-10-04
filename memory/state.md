@@ -1,6 +1,48 @@
 # Текущий статус
 
-## B06 — текущий статус, 2026-10-04
+## B07 — живой virtual paper/shadow Brain, 2026-10-04
+
+Пользователь явно разрешил paper и сменил приоритет на быстрый наблюдаемый product loop.
+Реальные деньги/signing/paid запрещены; F01/D43/holdout неизменны. B06 raw quarantine
+не снят, но не блокирует отдельный GT price-proxy paper. AGENTS/Memory отражают новое
+разрешение. Free quota использовать по полезности данных, не ради месяцев ожидания.
+
+**Paper, daily-training и read-only Control Center активны:** http://127.0.0.1:8790.
+Root `work/brain-b07/paper02`, frozen runtime02 pin:
+`ed32c47382e1cc9d0d4fe087ad448e27366fdfce86c0ea8587483484778b0b7c`.
+Source — прежний B04: job/config/budget/expiry не менялись. Rollout до
+2026-10-07T00:30:23.405597Z. D50 bundle и B04 проверены, protected data не открывались.
+Это bounded virtual demo, не weekly unattended или калиброванное исполнение.
+
+Итоговый slice 10:41:44–11:01:23 UTC: 17 ledger ticks, 183 решения, два входа/выхода,
+шесть портфелей (три кандидата × две версии), открытых/pending на cutoff нет. Старый GRU:
+две виртуальные сделки, net −$4.780619 после assumed costs; остальные выбрали cash.
+Это evidence работающего pipeline, не edge. Snapshot `work/brain-b07/replay-final`,
+manifest c9dd2266…; независимые 204 raw joins / 61 forecast joins / два model pins и
+installed-wheel replay всех закрытий exact. 66 matured forecasts по четырём группам
+version × horizon; winner/promotion по этой малой выборке не выбирался.
+
+Первый training: четыре fits, 59.87 s, 10 605 matured samples. Новый bundle dab00e17…
+выбрал GRU внутри development; champion 9ea4a6bd… empirical НЕ заменён. Следующий run
+не раньше 24 h и ≥100 новых mature samples, максимум три runs. Paper PnL не execution
+truth. Второй календарный fit пока не наступил. Исходные paper01/runtime01 сохранены
+с supervisor incident и STOP; исправлены deadline ≤600 s и unique logs. Paper02:
+27 workers без ошибок, mean 14.00 s / max 19.48 s; actual start intervals 41.09–50.17 s
+при Launchd StartInterval 30 s. STOP/TRAIN_STOP отсутствуют.
+
+20 paper tests; 608 base / 6 optional skips; 634 combined ML PASS, check/smoke/build.
+Desktop UI без JS errors/overflow; на mobile 390 px есть horizontal overflow. Отдельная
+UI worktree ce8505a чистая, не merge/reset. B04 продолжает сбор: 15 476 bars на UI-срезе,
+дополнительных provider GET для B07 нет.
+[Итоговый evidence](../docs/evidence/brain-paper-loop-2026-10-04.json),
+[wheel/UI verification](../docs/evidence/brain-paper-loop-verification-2026-10-04.json).
+
+**Следующий B08:** до expiry 7 октября подготовить многодневную source/runtime revision,
+incremental canonical local store, полезное расширение history/universe и полные будущие
+сутки для сравнения моделей/политики. PumpSwap ABI/indexed lane улучшать параллельно.
+[План, рабочий контур и управление](../docs/brain-paper-loop.md).
+
+## B06 — предыдущий срез, 2026-10-04
 
 **PumpSwap production admission отклонён; foundation проверен, indexed live inconclusive.**
 Plan eafed8e, acquisition7b4448b, fix/replayd6bb9f2. В4sealed B05tx найдено5PumpSwap calls;

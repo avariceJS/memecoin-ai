@@ -1,5 +1,27 @@
 # Реестр архитектурных решений
 
+## B07 — product loop сейчас, strict research и execution отдельно, 2026-10-04
+
+Статус: принято по новому прямому поручению. Следующий шаг B06 protocol qualification
+отложен как gate раннего paper. Честно маркированный GT bar-price proxy разрешён для
+виртуальной торговли, не для калиброванного execution или F01. Frozen plan9f7bbeb,
+engine41eee13, supervisor correction5b77fc3. Не изменять CPMM/features/targets/D43/holdout.
+
+Отдельный memecoin_paper: фактическое время decision, только последующая закрытая свеча
+для fill, Decimal accounting, fixed costs/time exit/limits, immutable ledger и replay.
+Empirical champion может оставаться в cash. Новая модель получает отдельные futurebooks;
+promotion не автоматический. Paper PnL — evaluation политики, не supervised execution label.
+Daily refresh использует matured market returns D44/D47, семидневное rolling окно,
+четыре fits/run, не более трёх runs в первом rollout. F01 остаётся отдельным закрытым треком.
+
+Первая activation выявила local supervisor deadline mismatch: training не начался,
+B07 остановлен; исходные root/runtime/logs сохранены. Исправленная версия ограничена600s
+на training вместо≤900s и120s на paper; unique invocation logs, failure stops раздельные.
+B04 runtime/budget/expiry не менялись. Новый rollout paper02/runtime02 живой, UI loopback8790.
+Источник пока12pools/5min; дальнейшая скорость определяется полезным data diversity,
+операционным сроком и честным сравнением, не экономией бесплатной квоты ради ожидания.
+[План/результат](../docs/brain-paper-loop.md).
+
 ## B06 — fail-closed protocol qualification вместо prefix-only admission, 2026-10-04
 
 B05 принят; автономное движение к unattended Brain подтверждено. PumpSwap выбран по9/12

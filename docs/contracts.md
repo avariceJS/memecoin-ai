@@ -1,5 +1,14 @@
 # Implemented contracts and validity domain
 
+## B07: отдельный виртуальный paper контракт
+
+Новая явная авторизация пользователя разрешает live paper/shadow, но не реальные сделки.
+`memecoin_paper` использует causal GT price bars, последующую доступную цену, Decimal
+accounting и immutable ledger; costs являются неподтверждённым assumption. Это отдельный
+exploratory product loop, не расширение synthetic reference replay gate или venue support.
+CPMM/F01/D43/holdout неизменны. [Полные правила и ограничения](brain-paper-loop.md).
+
+
 ## Time and observations
 
 All normalized clocks are integer UTC nanoseconds. This is an encoding, not a claim of nanosecond source accuracy. `event_ns` orders market changes; `available_ns` gates observations; `received_ns` is receipt evidence. `observed`, `assumed` with a named assumption, and `unknown` are distinct. Historical block time must never be substituted for receipt time.

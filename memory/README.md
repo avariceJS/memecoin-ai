@@ -40,6 +40,7 @@ Memory Bank — канонический, пригодный для чтения
 | B04: source availability, normalization ablation и активный collector-only job | [brain-availability-normalization.md](../docs/brain-availability-normalization.md) |
 | B05: source architecture, Alchemy raw evidence, capacity и bounded reliability audit | [brain-source-architecture.md](../docs/brain-source-architecture.md) |
 | B06: PumpSwap trace reconciliation, ABI drift, range journal и indexed STOP | [brain-pumpswap-events.md](../docs/brain-pumpswap-events.md) |
+| B07: live virtual paper loop, candidate refresh и Control Center | [brain-paper-loop.md](../docs/brain-paper-loop.md) |
 | Как проверять edge и выпускать новую модель | [evaluation.md](evaluation.md) |
 | В каком порядке работать | [roadmap.md](roadmap.md) |
 | Что уже существует и что дальше | [state.md](state.md) |

@@ -1,5 +1,25 @@
 # Roadmap с критериями перехода
 
+## После B07 — живой product loop и B08 multi-day data continuity
+
+Новое поручение пользователя заменило прежний порядок: paper/shadow vertical разрешена
+сейчас. B07 запущен на B04 price-bar feed с empirical champion и challenger portfolios,
+параллельным daily retraining и визуальным Control Center. Raw PumpSwap semantics остаются
+важны, но не блокируют exploratory paper. F01/D43/holdout отдельно и без изменений.
+
+**B08 — следующий шаг:** доexpiry7октября подготовить новую source/runtime revision на
+несколько дней/неделю с сохранением request/quality/history accounting, полезным расширением
+history/universe и read-only source health. Нужен incremental canonical local index:
+нынешний full raw scan каждого paper tick не рассчитан на сотни pools/недели. Не молча продлевать B04. Полные новые сутки
+дадут данные для paired model/policy comparisons, calibration и data/features/targets
+ablation; autochampion по lucky snapshot запрещён. Multi-provider ingestion выбирать по
+полезным данным на запрос, без искусственной экономии freequota и без paid upgrades.
+PumpSwap deployedABI/Token2022/indexed coverage улучшать параллельно product loop.
+
+Доrealexecution: independent venue semantics/cost/capacity/inclusion calibration, risk/
+failurehandling и отдельная явная авторизация денег/signing. Paper не снимает эти gates.
+Разделы roadmap ниже сохраняют историю ранее согласованных этапов.
+
 ## После B02 — B03 quality isolation, не scaling backbone
 
 2026-10-04: learning curves/audit завершены, history/time expansion частично; обаBrain

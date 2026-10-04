@@ -1,5 +1,20 @@
 # Оценка модели и управление версиями
 
+## B07 — проверять виртуальный цикл отдельно от edge, 2026-10-04
+
+20paper tests: causal future fill, no intrabar hindsight, fee/cash invariants, bounded
+exposure, stale/quarantine/source pause, TTL, duplicate/restart, immutable ledger/head,
+read-only localhost API, повторный launch и supervisor failures. Реальные live решения
+и закрытия фиксируются отдельно от fixtures; offline reproduction сверяет все transitions
+по внешнему head pin. Synthetic reference execution gate не снимался.
+
+Paired forecasting сравнивается на тех же matured future observations с разделением
+horizon и model version. Policy возвращает cash/entry/pending/time exit; калибровки реального
+исполнения нет. Daily realizedPnL, отдельноMTM/stale и fees/stress; разная датаактивации
+моделей не смешивается в superiorityclaim. Day-over-day данные появляются только после
+фактического времени, не дорисовываются из backfill. Автопromotion нет; F01 untouched.
+[Live report](../docs/brain-paper-loop.md).
+
 ## B06 — raw semantics и published-only shadow, 2026-10-04
 
 23newtests,588base/6skips,614combined; recorded/wheel exact, noRPC/no fits replay.

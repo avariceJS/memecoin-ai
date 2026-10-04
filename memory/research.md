@@ -1,5 +1,25 @@
 # Реестр исследовательских экспериментов
 
+## B07 — первый живой paper baseline и регулярные candidates, 2026-10-04
+
+Новый strategic priority — наблюдаемый decision/outcome/training loop, без снятия temporal
+integrity. Frozen policy не оптимизирована на paper PnL. Три кандидата каждого immutable
+bundle принимают решения на одинаковых observations, с одинаковыми cash/cost/position
+ограничениями. Дневные portfolio metrics дополняют paired forecast losses 5/15min;
+это exploratory engineering/model development, не confirmatory F01 и не доказанный edge.
+
+Первый automatic refresh завершён:10605 mature decisions,4fits(linear/GRU×seed7/19),
+59.87s, source-as-of cutoff доfit; seven-day rolling corpus, chronological60/20/20+
+purge/train-onlyscaler. Development selection GRU; champion empirical НЕ заменён.
+Новый modeldab00e17… оценивается только на последующих прогнозах/сделках. Далее≥24h
+и≥100новыхmature samples, max3runs доsourceexpiry; исходная baseline9ea4a6bd… неизменна.
+Paper PnL не target тренировочного loss: новые market outcomes послеmaturity попадают
+в следующий dataset; ledger outcomes используются для отдельнойpolicy evaluation.
+
+СледующийB08: многодневный source/data plan, полезная history/universe coverage и
+сравнения по полным дням/режимам. Не наращивать backbone и не выбиратьwinner по одному
+положительномуportfolio. [B07](../docs/brain-paper-loop.md).
+
 ## B06 — actual ABI прежде raw-to-training, 2026-10-04
 
 Newfits0,modelcomplexity0. Independent computation по4B05captures выявила5PumpSwapcalls,

@@ -2,6 +2,15 @@
 
 Рабочий локальный фундамент ML trading research для Solana memecoins. **Реальный edge не установлен.** Reference replay остаётся synthetic-only. Отдельный Raydium CPMM adapter проверяет экономические переходы и swap quotes на реальных транзакциях; полная модель исполнения ещё не квалифицирована.
 
+## Живой Brain: виртуальный paper/shadow
+
+B07 запустил локальный [Live Control Center](http://127.0.0.1:8790): наблюдения рынка,
+прогнозы empirical/linear/GRU, виртуальные позиции/результаты и daily candidate training.
+Это отдельный GT price-proxy loop, без реальных денег и без доказанного edge.
+Первый rollout ограничен сроком B04 до2026-10-07T00:30:23Z.
+[Работающий контур, правила и управление](docs/brain-paper-loop.md).
+
+
 ## Быстрый запуск
 
 Python 3.11+; runtime использует стандартную библиотеку. Команды выполняются из корня репозитория.

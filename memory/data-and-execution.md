@@ -1,5 +1,24 @@
 # Данные и достоверное исполнение
 
+## B07 — отдельный live price-proxy paper lane, 2026-10-04
+
+Новая явная авторизация: виртуальные trades допустимы. Raw PumpSwap quarantine B06
+сохраняется. B04 GT12pools/5min — временный exploratory источник paper; raw/availability
+и first-observed revisions неизменны. Source STOP/expiry, pool quarantine и lag>300s
+закрывают новые входы. Поздний recovery не создаёт прошлые решения/fills.
+
+Paper ledger хранит model/prediction/capture hashes, actual decision/entry/exit times,
+price refs и все transition inputs. Вход только по свече, закрывшейся и доступной после
+decision; TTL10min. Long-only $100notional+$0.25entryfee, 50bps adverse fill; exit по
+свече≥entryclose+15min, те же fees/slippage. Не моделируются intrabar stops, transaction
+inclusion, price impact/capacity, token tax, rent, network/priority fees и failed execution.
+MTM отдельно отrealized; stale positions не ликвидируются вымышленно. Stress100/200bps
+сохранён как assumption sensitivity, не калибровка. Prediction15min относится к origin
+свечи, а trade15min — к более позднему fill: это намеренно разные forecast/policy metrics.
+
+Проекция UI не имеет доступа к raw/credentials/weights/holdout и не запускает торговлю.
+Data и execution adapter разделены; Axiom API не prerequisite. [Контракт](../docs/brain-paper-loop.md).
+
 ## B06 — PumpSwap interpretation boundaries, 2026-10-04
 
 Новыйmemecoin_pumpswap проверяет CPI tree/parent/program/account roles, integer checked
