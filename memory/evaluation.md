@@ -1,5 +1,18 @@
 # Оценка модели и управление версиями
 
+## B09 — temporal duty-cycle gate и observed soak, 2026-10-04
+
+До GET:20minwindow+180swarmup,≥90samples/span≥900s,≥1fresh80%,≥4fresh60%,каждый hot≥3new
+closedcandles,hotgap≤180s,success≥95%,historyprogress,raw/indexexact. ResultallPASS:
+103samples,93.20%/78.64%,4candles каждый pool,maxgap130.28s,72/73success. Final0fresh на
+отдельномсрезе не скрыт; новоеправилоизмеряет wholewindow,не заменяет B08staticgate.
+
+Realpaperprefix/cash preserved; subsequentticks/decisions/outcomes и replay — B09evidence.
+Soakspan и observedhours раздельно; gaps>90s не превращаютсяв uptime. Synthetic72h-shaped
+checkpointbenchmark не measured72h. Qualifcount73 не включает последующий rolloutbudget.
+649ML/623base tests;primarymetric источника — usable fresh coverage,неодин successfulHTTP.
+[Отчёт](../docs/brain-hot-lane.md), [evidence](../docs/evidence/brain-hot-lane-2026-10-04.json).
+
 ## B08 — operational gate и воспроизводимость, 2026-10-04
 
 Frozen gate:24 dispositions,≥6fresh наcutoff,≥4new pools withbars, exact raw/index,

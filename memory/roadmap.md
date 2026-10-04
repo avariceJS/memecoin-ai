@@ -1,5 +1,17 @@
 # Roadmap с критериями перехода
 
+## После B09 — B10: day-scale soak и source redundancy
+
+Paper восстановлен;B09source/paper/train/UI работают 72h bounded. Не заменять runtime ради
+следующей research задачи. Собрать реальныесутки soak/maturity,первыйплановый refresh и paired
+futurebehavior; reviewcoverage/censoring/errorhistory/resourcegrowth. При STOP сохранять
+incident, не обнулять budget. Обновление expiry требуетновогозафиксированногорешения.
+
+Параллельно наиболееценен independenthot-pricecross-check/versionedPumpSwapadmission;
+не смешивать unsupportedraw с GTtraining и не ждатьполной raw истории дляподдержания paper.
+Далее weeksoak/более широкий hotuniverse только после capacity/coverage evidence. Архитектуру
+модели менять по устойчивымданным,не одному paperPnL. [B09](../docs/brain-hot-lane.md).
+
 ## После B08 — B09: сначала вернуть непрерывный paper feed
 
 B08 дал incremental corpus и transport/freshness evidence, но отказал weeklyactivation5<6.

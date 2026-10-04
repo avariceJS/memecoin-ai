@@ -1,5 +1,15 @@
 # История изменений решений
 
+## 2026-10-04 — B09: hot/background scheduler и paper continuity
+
+После B08 отказа frozen новый plan безизменениястарых STOP. Hot6/120s, cold/historybackground,
+общий 5GET/min; multi-cycle gatePASS73GET/72success,один TimeoutError safelyrecovered.
+Новый source/paper/train/UI active72h, реальный migration старого ledgerexact. Добавлены
+sourcelease/activation hashes, hot-onlypredictions, sourceheartbeat, incrementalpaper
+checkpoint и immutable soak telemetry. 649MLtests PASS, независимый raw/forecastreplay.
+Первая postmigration evaluation не является edge/promotion; регулярный training ждёт 24h.
+[Evidence](../docs/evidence/brain-hot-lane-2026-10-04.json).
+
 ## 2026-10-04 — B08: incremental corpus, отрицательный live gate
 
 Добавлен memecoin_continuous, frozen source supervisor, safe raw/index import, SQLite versions,

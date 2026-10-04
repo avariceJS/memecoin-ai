@@ -1,5 +1,13 @@
 # Implemented contracts and validity domain
 
+## B09 — активный bounded hot-paper runtime, 2026-10-04
+
+B09source qualification пройдена; approval связан сconfig/runtime/report hashes.72h/25kGET,
+background≤4k,global≤5/min,paid0. Hot6 приобщемuniverse24; paperfresh300s/policy/costs прежние.
+B07ledgerprefix/cash сохранены; checkpoint не заменяетimmutableledgerиfullreplay. Новаяsource
+activation не снимаетстарыеB04/B08STOPи не открываетF01/D43/holdout. [Runbook](brain-hot-lane.md).
+РазделB08ниже — предыдущийотрицательныйрезультат,не текущийproductstatus.
+
 ## B08 continuity capability — не deployed weekly service
 
 Source root B08 содержит отрицательный qualification gate и STOP; запуск plists/cutover

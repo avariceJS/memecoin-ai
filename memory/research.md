@@ -1,5 +1,16 @@
 # Реестр исследовательских экспериментов
 
+## B09 — живой feed без нового model-selection, 2026-10-04
+
+Новых fits0 в stage; champion empirical прежний. Daily4fits/run≥24h+100newmature, максимум
+4runs включая перенесённый B07. Operational горячая cohort6 выбрана по liquidity/quality до GET,
+не по loss/PnL. Trainingrolling7days/capacitysuffix сохраняются; historical/fresh observations
+не считаются uniformrandommarket. Старые F01gates не смешивать сэтим exploratorytrack.
+
+Новые outcomes созревают в работающем B09 shadow, paperactions оцениваютсяотдельноот forecast
+loss. Новые versions получают pairedfutureobservations безавтоп romotion. Дальнейшиесутки
+иданныхрежимы важнее backbonecomplexity. [Activation evidence](../docs/brain-hot-lane.md).
+
 ## B08 — новые данные без новых fit/promotion, 2026-10-04
 
 Corpus expanded12→24 admitted pools и15 515→18 600 first bars, discovery bias сохраняется.

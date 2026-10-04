@@ -1,5 +1,54 @@
 # Текущий статус
 
+## B09 — paper восстановлен, активен ограниченный rollout на 72 часа, 2026-10-04
+
+**Source, paper, trainer и UI B09 работают.** [Control Center](http://127.0.0.1:8790).
+Roots: `work/brain-b09/source01` и `work/brain-b09/paper01`.
+Expiry: **2026-10-07T12:23:51.922091Z** (15:23 МСК). Реальные деньги, signing и paid
+не использовались; F01/D43/reserved holdout не открывались и не менялись. Старые B04/B08
+STOP сохранены; B07 writers/UI остановлены при успешном переносе, артефакты сохранены.
+
+Шесть hot pools выбраны до запросов по liquidity среди active B08. Всего в universe24.
+Hot cadence120s, cold1800s; history/cold чередуются в background не чаще1/min и только
+при запасе35s до hot deadline. Общий provider spacing12s (≤5/min). Source пока только GT;
+автоматического fallback на Alchemy/Helius нет, raw PumpSwap ещё не admitted.
+
+Qualification PASS:73GET,72success/1URLError→TimeoutError; новых429 нет. После warmup
+103среза:≥1fresh в93,20%,≥4fresh в78,64%; каждый hot дал4новые closed candles,
+max gap130,28s≤180s. Пять history GET успешны, raw/indexexact19 938bars. Были интервалы
+с0fresh; это не100%fresh uptime. Fresh300s и отрицательный B08 gate не менялись.
+После activation ещё один transport timeout вызвал автоматический cooldown30s и recovery
+без ручного вмешательства. На итоговом cutoff source/paper/TRAIN_STOP отсутствуют.
+
+Migration exact: прежние43ticks/393decisions/3closedtrades/6books, cash и model namespaces
+сохранены. После переноса —19новыхticks,162решения,2входа и2выхода. Обе linear-версии
+торговали один pool/интервал: один рыночный эпизод, не два независимых observations;
+по−$1.707708 net при assumed costs. Champion empirical не заменён; новыхfits0.
+Независимые972raw joins/185forecast joins и installed-wheel replay точные. Corpus snapshot:
+21 069bars/24observed pools. Последующие live counters меняются, смотреть UI/health.
+
+Source pin: `f4e722ed1a27f702a7a303f33e56548eb50c5ba442524028021cf53db98d59e5`.
+Paper pin: `532c4c374c635c415c5e25a9d5d03c70323e60955d1853ef17024bfcea4d726c`.
+Approval связан с config/runtime/qualification hashes; до него только25min/120GET lease.
+Rollout≤25000GET, background≤4000,72h,raw8GiB/free4GiB,paid0. Унаследованы оба прежних
+rate events; третий429/24h либо6consecutive transport failures→STOP. Бюджеты не обнулять,
+STOP не снимать. Source heartbeat>180s/cooldown/STOP блокирует новые predictions.
+
+Новые predictions только hot; остальные рынки остаются в corpus и market UI. Daily trainer:
+≥24h+100новых mature samples,4fits/run≤600s, максимум4runs включая старыйB07run.
+Checkpoint projection привязан к ledger prefix/resultSHA; полный audit/replay сохранён.
+Synthetic864ticks/31 104decisions: full1,800s/checkpoint0,065s exact — не measured72h uptime.
+Soak хранит actual timestamps/gaps; сон Mac не превращается в online availability.
+649combinedML/623base PASS,6optional skips,35focused;check/smoke/build и desktop/mobile UI.
+
+**Следующий B10:** не переустанавливать этот runtime ради research. Собрать сутки soak,
+проверить первый плановый fit, coverage/censoring и paired future behavior. Параллельно
+готовить независимый hot-price cross-check/versioned PumpSwap admission. Главные ограничения:
+single-provider freshness, небольшой календарный опыт и ещё не измеренный рост source journal
+за несколько дней. Недельный/месячный unattended режим и edge не доказаны.
+[Итог](../docs/brain-hot-lane.md), [evidence](../docs/evidence/brain-hot-lane-2026-10-04.json).
+Ниже исторические срезы; B08 paused-status заменён B09 activation.
+
 ## B08 — источник не прошёл weekly activation, 2026-10-04
 
 **B08 activation отклонена.** Новый source не запущен как LaunchAgent; cutover не выполнен.

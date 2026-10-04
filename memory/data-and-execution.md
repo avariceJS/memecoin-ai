@@ -1,5 +1,18 @@
 # Данные и достоверное исполнение
 
+## B09 — раздельная cadence без ослабления availability, 2026-10-04
+
+Hot6 из immutable24B08pools (active,topliquidity),120s; остальные cold1800s и history ≤1/min
+background, sharedspacing12s и 35s deadlineguard. Corebars5min/firstobserved unchanged;
+latehistory не создаёт прошлую online доступность. Namespace index всё ещё GT: не добавлять
+Alchemy/Helius/raw свечи в те же firsts без source/schema/canonicalization qualification.
+
+Один live TimeoutError получил 30s cooldown иуспешный recovery; rateevents из B08/B04 не
+обнулены. Qualification93.2%≥1fresh и 78.6%≥4fresh,не 100%; fresh300s gate прежний. Paper
+prediction scopehot, market/corpus24; independentrisk/costs/futurefill unchanged. Exactledger
+migration не означаетновуюторговуюисторию. Sourcehealthyheartbeat и STOP проверяютсяпосле
+inference. Старые protectedrawpipelines untouched. [B09](../docs/brain-hot-lane.md).
+
 ## B08 — отдельный derived store и source outage, 2026-10-04
 
 Immutable captures сохраняют actual received/available_ns при import/recovery. SQLite хранит

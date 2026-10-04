@@ -1,5 +1,18 @@
 # Архитектурное направление
 
+## B09 — deployed hot lane и bounded background, 2026-10-04
+
+Один provider budgetcoordinator, разные hot/cold/history deadlines; никакогопараллельного
+обхода ratelimit. Frozen source отдельноот paper/train/UI, derivedSQLite/immutable raw из B08
+сохранены. Newsourcelease short до qualification; sourceactivationbindsconfig/runtime/report.
+Healthyhotrows → прежние Brain candidates → прежний paperengine. Incrementalprojection
+проверяется по ledgerprefix/resultSHA; fullledgerchain/fulloffline engineaudit сохраняются.
+
+Hourlyrotatingrawaudit, sourceheartbeat, localpoolquarantine и separatelane failureSTOP;
+soak samples/deriveddailyprojection в UI. Это single-sourceGT architecture,не implementated
+rawfallback. Multi-source canonicalization должна сохранить source namespaces, actual
+availability, revision semantics и protocolsupport. [B09](../docs/brain-hot-lane.md).
+
 ## B08 — подготовленный continuity слой, 2026-10-04
 
 memecoin_continuous: append-only raw → transactional derived SQLite firsts/versions →

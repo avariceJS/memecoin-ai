@@ -1,5 +1,14 @@
 # Цель и границы проекта
 
+## B09 — работающий product loop снова приоритетен, 2026-10-04
+
+Paper восстановлен через отдельный hot acquisition priority:6liquid markets/120s,24 total
+universe, backgroundhistory/cold независимо по cadence пододним provider budget. Существующий
+B09 runtime активен на 72h, не переустанавливать ради model research. Цель week/month остаётся,
+но фактически проверены несколько циклов, не сутки. GT пока единственный live source;
+canonicalmulti-source требует отдельного semantic admission/cross-check.
+[Текущий статус](state.md), [решение/ограничения](../docs/brain-hot-lane.md).
+
 ## B08 — устойчивость продукта, 2026-10-04
 
 Цель пользователя — week/month unattended paper с широким рынком, corpus и честными future

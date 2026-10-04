@@ -1,5 +1,23 @@
 # Реестр архитектурных решений
 
+## B09 — разделить deadlines; принять 72h bounded activation, 2026-10-04
+
+Статус: принято по положительному заранее зафиксированному multi-cycle gate. Originalplan
+1c9dfa8; beforeGET amendment hot90→120s устраняет mathematically starved background slots.
+Source7b2fe1d frozen, paperrevision отдельна. Не ослаблены fresh300s, causal availability,
+features/targets/engine/costs; B08negative result сохранён. Изменён acquisition operational scope:
+6hot/24admitted, quality/liquidity выбор до GET, ане returns. Не расширять cohort после просадки
+радиудобного gate.73GET/72success/4newcandles накаждый hot, all criteriaPASS.
+
+Exact B07→B09migration без cashreset/изменениястарых trades. Prediction eligibility только hot;
+backgrounddata продолжает history/corpus/training. Ledger checkpoint derived, anchored к
+immutableprefix/result; при corruption failclosed, полный replayaudit не отключён. Source
+heartbeat/STOP перепроверяется и после inference перед decision. Soak не дорисовываетсон.
+
+72h/25kGET/4kbackground/paid0, source approval связан с hashes. Calendar weeklyautonomy
+не доказана; следующийэтап — daysoak, matured evaluation и source redundancy. Не выбирать
+новуюмодель по luckyPnL; champion остаётся empirical. [Результат](../docs/brain-hot-lane.md).
+
 ## B08 — index принят, расширенный rollout отклонён, 2026-10-04
 
 Принят engineering foundation: immutable raw + SQLite derived first-observed/version index,
