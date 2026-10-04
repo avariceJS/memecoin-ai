@@ -52,7 +52,7 @@ def prepare(primary: Path, output: Path) -> dict:
     c = read(primary / "config.json")
     c.update(
         created_ns=now,
-        expires_ns=min(now + 1800 * NS, c["expires_ns"]),
+        expires_ns=min(now + 600 * NS, c["expires_ns"]),
         max_requests=24,
         min_request_interval_seconds=12,
         storage_limit_bytes=256 * 1024**2,
@@ -79,7 +79,7 @@ def acquire(primary: Path, output: Path) -> dict:
     write(output / "claim.json", dict(started_ns=time.time_ns(), attempts=24))
     pending = [dict(t) for t in plan["tasks"] if t["needed"]]
     completed, captures = [], []
-    deadline = time.monotonic() + 1780
+    deadline = time.monotonic() + 565
     status = "completed"
     active = None
     try:
@@ -174,7 +174,7 @@ if __name__ == "__main__":
         lease_watchdog(int(os.environ["MEMECOIN_LEASE_FD"]))
         print(json.dumps(acquire(args.primary, args.output)))
     else:
-        watch = Watch(1800)
+        watch = Watch(600)
 
         def guard():
             if watch.remaining() <= 0:
@@ -191,7 +191,7 @@ if __name__ == "__main__":
                 "--worker",
             ],
             args.output.with_suffix(".log"),
-            1800,
+            600,
             guard,
         )
         write(args.output.with_suffix(".process.json"), result)

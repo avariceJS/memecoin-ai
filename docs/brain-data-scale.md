@@ -60,3 +60,7 @@ seeds и новым будущим временным блокам; при ко�
 установлена независимо от loss. Иначе исследовать sampling/feature scaling/target
 heterogeneity, не увеличивать сеть. Не обещать накопление суток за одну сессию;
 существующий72h job продолжает календарное покрытие в прежних bounds.
+
+Refinement до первого GET: D50 supervisor отверг1800s как invalid_child_deadline;
+acquisition root/requests ещё не созданы. Используется более строгий hard600s и
+cooperative565s, одна попытка; исходный ceiling24GET сохраняется. Это не retry сети.
