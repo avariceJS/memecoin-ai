@@ -1,5 +1,26 @@
 # Данные и достоверное исполнение
 
+## B03: расширенный corpus и отклонённая activation, 2026-10-04
+
+32 новых public GET в original envelope, общий debit135/12000/paid0. Исторические
+prefixes достигнуты у всех12пулов; 15237 unique bars, calendar coverage11/12полное,
+у8E1… два пропущенных интервала. Причина gaps не установлена; не интерполировать.
+Raw/receipts/availability immutable, first-observed merge; 84revisions/69keys, close4.
+Largest-pool fraction21%, но current-ranked/survivorship/liquidity/age-row bias остаются.
+
+Whole-response quarantine только известных schema failures, hash/clock errors fatal.
+Seed2(HUQ…/5gep…), live добавилFXg…; ни одной строки из ambiguous response не выбирать.
+Valid historical captures этих pools сохраняются; новые forecasts quarantined pools
+запрещены, существующие outcomes разрешены после maturity по valid raw. Global STOP
+при4quarantined, provider auth/rate немедленно; два transport failures подряд останавливают
+source. Recovery ≤1probe/час/≤3всего, два fresh success дляrelease; liveprobes0.
+
+Live freshness8/12→7/12 при gate≥9: B03 service НЕ установлен, STOP, refresh закрыт.
+Stale bars у58hou…/8E1… нельзя признать свидетельством inactivity. Receipt support лишь
+триUTCчаса одного дня; calendar history не online corpus. B04 должен различить source
+health/asset activity/forecast eligibility, сохраняя planned denominator и causal
+constraints. Original expiry2026-10-07T00:30:23.405597Z неизменен. [Отчёт](../docs/brain-pool-quality.md).
+
 ## B02: реальные source ограничения и partial coverage, 2026-10-04
 
 Добавлено505first-observed historical bars; merged4 853/12pools.6полностью покрыты до

@@ -1,5 +1,20 @@
 # Реестр исследовательских экспериментов
 
+## B03: learning curves на расширенной истории, 2026-10-04
+
+Preregistered12583b0, runtime5c0cf67, offline tools32b36e5. Sealed dataset14326decisions,
+четыре старых train pools, прежние две chronological folds и nested25/50/100%train.
+24 real neural fits64,01s/CPU1, seeds7/19,10epochs; никаких новых backbone/features/targets.
+Каждая кривая имеет неизменные validation/evaluation IDs; B02/B03cutoffs различаются,
+абсолютные losses между этапами не matched comparison. Fit ledger/weights сохранены.
+
+GRU full-train improvement −1,33%/+6,84%; paired exploratory CI [−24,77%;14,09%] /
+[1,02%;13,50%]. Второйfold положителен, но train-size slope не монотонен, первыйfold
+не подтверждает, seed7хуже empirical в обоих. ShadowGRUхуже20,8% на145scored variants/
+2UTC-hour blocks. Никакого promotion/edge claim; старый champion empirical сохранён.
+Max evaluation |z|1425,58 lower_wick — сначала extreme candle/source/feature audit,
+затем отдельная train-only robust-normalization ablation. [Кривые](../docs/brain-pool-quality.md).
+
 ## B02 выполненный exploratory data experiment, 2026-10-04
 
 Frozen plan8038099, curve implementation8601019:2chronological folds, nested25/50/100%

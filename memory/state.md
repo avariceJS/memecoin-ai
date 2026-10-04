@@ -1,6 +1,49 @@
 # Текущий статус
 
-## B02 — текущий статус, 2026-10-04
+## B03 — текущий статус, 2026-10-04
+
+**Data/engineering этап завершён; continuous activation отклонена.** Per-pool quarantine
+квалифицирован на fixtures, recorded replay и двух live cycles. Fresh support 8/12 и 7/12
+при заранее заданном gate ≥9. Третьей попытки нет. B03 root закрыт STOP, job не установлен,
+qualified receipt не выпущен, automatic refresh не запускался. **Фоновый Brain сбор сейчас
+не работает.** D43/F01 остаются отдельными и неизменными; это не ожидание F01 readiness.
+
+B03 добавил 32 public GET: 20 prospective + 12 historical; общий debit 135/12000, paid0.
+Expiry прежний: 2026-10-07T00:30:23.405597Z. Все шесть недостающих prefixes достигли floor.
+Corpus 4853→15237 bars/12 pools, common-window dataset 14326 decisions. Calendar coverage
+полное у 11/12, у одного отсутствуют два интервала. Largest-pool row share 62%→21%,
+train diversity 1→4 старых пула. Revision observations 84/69 keys. Receipt support —
+три UTC-часа одного дня, не непрерывный многодневный corpus; actual timestamps сохранены.
+
+Seed quarantine уточнён до сети: два conflicting pools HUQ…/5gep…. Второй live cycle
+добавил FXg… (`duplicate_bar_in_response`, capture000129); whole response исключён,
+остальные запросы продолжились. Сейчас quarantined 3/12; два других пула stale,
+причина отсутствия новых bars неизвестна. Provider failures0. Hourly recovery probes
+вживую не проводились, release пока проверен только на fixtures.
+
+24 development fits /64,01s: прежние empirical/linear/GRU, seeds7/19, две learning curves.
+Full-train GRU improvement −1,33%/+6,84% по folds; второй fold положительный, но рост
+не монотонен, первый не подтверждает, seed7 хуже baseline в обоих. Shadow170forecasts:
+145scored/6censored/19pending, два часовых блока; empirical/GRU/linear pool-macro pinball
+0,005534/0,006684/0,013963. Champion empirical и B01 model000000 не менялись. Max feature
+|z|1425,58 (`lower_wick`) требует data/feature audit, не увеличения backbone.
+
+16 новых тестов, 548 base/5 optional skips, 573 combined; check/smoke/build прошли.
+Installed-wheel dataset/folds/checkpoint predictions/metrics/bootstrap/shadow exact,
+reproduction fits/network0. Imported raw/старый STOP/D50 bundle verified; D43/holdout
+не читались. Artifacts: `work/brain-b03/{prospective01,snapshot01,curves01,reproduction01}`;
+runtime pin `0119e651fec62f642a82042a5d078cbb69ec9ca5c3dddab57c2f282ac9b6a9b4`.
+Read-only: `.venv/bin/python -B tools/brain_status.py --root work/brain-b03/prospective01`.
+
+**Следующий B04:** source availability/freshness и extreme-bar/feature audit; отдельная
+train-only robust-normalization ablation с прежними моделями/targets. Для continuous
+сбора — новый явно зафиксированный collector-only контракт, различающий source health,
+unknown inactivity и forecast eligibility при denominator12. Не объявлять B03 pass,
+не уменьшать gate задним числом и не продлевать expiry/budget молча. До отдельного
+конкретного решения новый job не запускать. [Итог и графики](../docs/brain-pool-quality.md),
+[evidence](../docs/evidence/brain-pool-quality-2026-10-04.json).
+
+## B02 — предыдущий исторический срез, заменён B03
 
 **Аналитика завершена; data expansion частично, Brain collectors ОСТАНОВЛЕНЫ.**
 F01 не блокирует Brain. История +505 unique bars, merged4 853/12pools, полный target

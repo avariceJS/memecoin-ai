@@ -1,5 +1,19 @@
 # История изменений решений
 
+## 2026-10-04 — B03 pool quarantine, завершённые prefixes и отрицательная activation
+
+Добавлен независимый memecoin_brain_quality с durable pool quarantine/probes, denominator,
+global stops, frozen runtime; shared shadow получил optional prediction-pool gate.
+16 новых tests, recorded replay и два livecycles. Seed дваconflicts, live добавил третий.
+32publicGET, общий135/12000, paid0. Fresh8/12 и7/12 не прошли≥9: rootSTOP, jobнеустановлен,
+qualifiedreceipt/refresh0, третьяпопытка0, старыеSTOP/expiry сохранены.
+
+Corpus4853→15237bars, prefixes12/12, calendarfull11/12; trainpooldiversity1→4.
+24developmentfits64,01s; fullGRU−1,33%/+6,84%, shadowхуже20,8%; championнеизменен.
+548 base/5 skips,573 combined,check/smoke/build; installed-wheel exact replay безfits/сети.
+Memory/evidence/графики обновлены. D43/F01/holdout неизменны; следующийB04 — availability
+contract/source-quality и train-only normalization audit, без ретроактивногоpassB03.
+
 ## 2026-10-04 — B02 partial backfill, learning curves и source-quality stop
 
 План8038099; +505historical bars,coverage/revision/sampling audit,24real fits,

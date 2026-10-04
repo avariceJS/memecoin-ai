@@ -1,5 +1,23 @@
 # Оценка модели и управление версиями
 
+## B03: воспроизводимые exploratory curves и mature shadow, 2026-10-04
+
+24fits, fixed B02 procedure на новом sealed dataset. Global chronological cutoffs,
+whole-horizon purge, train-only scaler, identical candidate membership, seeds7/19ensemble.
+Двеfolds перекрываются; fixedepochs не фиксирует optimizer steps. Bootstrap200/seed20261004,
+shared1hclusters, exploratory CI не multiplicity-corrected. Положительный второйfoldGRU
+не переносится на первый и не подтверждает стабильный выигрыш с объёмом данных.
+
+Shadow snapshot08:12:21.712272UTC:170forecasts,151published outcomes=145scored+6censored,
+19pending, recovery_scoring0. Все outcomes после maturity, raw replay exact. Триcandidate
+на одинаковых observations; pool-macro empirical/GRU/linear0,005534/0,006684/0,013963.
+Двачасовыхblocks→CIнет. Это прежнийB01model000000, curvecheckpoints не shadow-promoted.
+
+Installed wheel: dataset/folds/empirical quantiles/ensemble predictions/metrics/bootstrap/
+shadow exact, retraining0/network0. 573 combined tests. НиF01, ни reservedholdout не раскрыты.
+Источник не прошёл отдельный operational gate8/12→7/12fresh при≥9; assessment не заменяет
+неудачу qualification. [Документ/evidence](../docs/brain-pool-quality.md).
+
 ## B02: maturation, paired curves и отсутствие устойчивого победителя
 
 2026-10-04. Global folds50/65/80% и70/85/100% unique event times; nestedtrain25/50/100%,

@@ -1,5 +1,27 @@
 # Реестр архитектурных решений
 
+## B03 — pool isolation квалифицирован, continuous activation отклонена, 2026-10-04
+
+B02 принят пользователем, продолжен B03. Plan12583b0 и runtime5c0cf67 ввели только known
+schema quarantine целого ответа/пула, durable hourly probes ≤3 с двумя последовательными
+fresh successes для release, прежний denominator12 и global provider/integrity stops.
+Raw/first availability и старые STOP неизменны. Full inventory до GET выявил два seed
+conflicts вместо одного; этот refinement записан до сети. New live conflict FXg… стал
+третьим quarantined pool; isolation позволил закончить остальные запросы.
+
+**Решение по frozen qualification: REJECT continuous activation.** Fresh8/12 и7/12 при
+gate≥9, не устанавливать job, не выдавать qualified receipt, не запускать refresh.
+Третьего retry нет; B03 root STOP, original expiry/12000 ceiling сохранены,135 debited.
+Не пересматривать этот outcome задним числом. Новый collector-only availability contract
+может рассматриваться в B04 отдельно, с полной missingness и новым точным binding.
+
+24 development fits на 14326 decisions расширили train diversity до4пулов. Одинfold
+GRU положительный, другой нет, shadow хуже empirical; не менять champion/architecture.
+Следующий model experiment — заранее зарегистрированная robust-normalization ablation
+после extreme-bar/feature audit, не увеличение backbone. F01 не prerequisite Brain;
+D43/F01/holdout нетронуты. [Результат](../docs/brain-pool-quality.md),
+[evidence](../docs/evidence/brain-pool-quality-2026-10-04.json).
+
 ## B02 — data scaling и остановленный Brain source, 2026-10-04
 
 **Решение:** learned superiority не установлено; сохранять empirical champion и
