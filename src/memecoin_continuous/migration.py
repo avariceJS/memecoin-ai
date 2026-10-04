@@ -59,9 +59,9 @@ def migrate(old, root, source, pin, champion):
         expires_ns=read(source / "config.json")["expires_ns"],
         migration_sha=sha(root / "migration.json"),
         champion_model_path=str(champion.resolve()),
-        training_max_runs=8,
+        training_max_runs=read(source / "config.json").get("training_max_runs", 8),
         training_bar_cap=28000,
-        service_prefix="ai.memecoin.brain.b08.",
+        service_prefix=read(source / "config.json").get("service_prefix", "ai.memecoin.brain.b08."),
     )
     publish(root / "config.json", c)
     publish(

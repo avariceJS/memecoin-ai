@@ -39,7 +39,7 @@ def stage_source(root, bundle):
     pin = sha(bundle / "manifest.json")
     publish(root / "deployment.json", dict(bundle=str(bundle.resolve()), pin=pin))
     for phase, interval in [("source", 5), ("audit", 3600)]:
-        label = "ai.memecoin.brain.b08." + phase
+        label = read(root / "config.json").get("service_prefix", "ai.memecoin.brain.b08.") + phase
         script = (
             "import sys;sys.path.insert(0,sys.argv.pop(1));"
             "from memecoin_continuous.runtime import main;main()"

@@ -59,6 +59,10 @@ def seed_state(root):
         with connect(root / "index.sqlite") as db:
             for pool, earliest in db.execute("select pool,min(open_s) from firsts group by pool"):
                 value["pools"][pool]["cursor"] = earliest - 1
+    if (root / "seed.json").exists():
+        seeded = read(root / "seed.json")
+        if "scheduler_state" in seeded:
+            value["pools"] = seeded["scheduler_state"]
     if (root / "provider-seed.json").exists():
         value.update(read(root / "provider-seed.json"))
     return value
@@ -103,7 +107,9 @@ def reserve(s, job, now):
     q = s["pools"].get(job.get("pool"))
     if q:
         if job["lane"] == "prospective":
-            q["next_ns"] = now + (300 if q["status"] == "active" else 43200) * NS
+            q["next_ns"] = (
+                now + (job.get("interval_s", 300) if q["status"] == "active" else 43200) * NS
+            )
             if q["status"] != "active":
                 day = now // (86400 * NS)
                 q["probes"] = (q["probes"] if q["probe_day"] == day else 0) + 1
@@ -113,6 +119,9 @@ def reserve(s, job, now):
         else:
             q["history_pages"] += 1
             q["history_done"] = True  # failure/crash never retries this history page
+    if job.get("background"):
+        s["background_attempts"] = s.get("background_attempts", 0) + 1
+        s["background_next_ns"] = now + 60 * NS
     return s
 
 
@@ -174,6 +183,9 @@ def fetch(root, job, s, ledger):
         raise ValueError("provider_cooldown")
     if (root / "STOP").exists() or now >= c["expires_ns"]:
         raise ValueError("source_stop_or_expiry")
+    from .hot import authorization
+
+    authorization(root, c, now, s["attempts"])
     if s["attempts"] >= c["max_requests"]:
         raise ValueError("request_budget")
     index_bytes = sum(p.stat().st_size for p in root.glob("index.sqlite*"))
@@ -208,7 +220,7 @@ def fetch(root, job, s, ledger):
                 "User-Agent": "memecoin-ai-research/0.1",
             },
         )
-        with urllib.request.urlopen(req, timeout=15) as response:
+        with urllib.request.urlopen(req, timeout=c.get("http_timeout_s", 15)) as response:
             payload = response.read(2 * 1024**2 + 1)
             code = response.status
         (target / "response.bin").write_bytes(payload)
@@ -244,6 +256,7 @@ def fetch(root, job, s, ledger):
         receipt = dict(
             http_status=getattr(exc, "code", None),
             error_type=type(exc).__name__,
+            reason_type=type(getattr(exc, "reason", None)).__name__,
             received_ns=time.time_ns(),
             category="public_http_failure",
         )
@@ -300,7 +313,14 @@ def tick(root):
             for _ in range(8):
                 if (root / "STOP").exists() or time.time_ns() < s["cooldown_ns"]:
                     break
-                job = choose(s, read(root / "universe.json")["pools"], time.time_ns())
+                config = read(root / "config.json")
+                if config.get("hot_pools"):
+                    from .hot import choose as choose_hot
+
+                    start = max(time.time_ns(), s["last_ns"] + config["request_spacing_s"] * NS)
+                    job = choose_hot(s, read(root / "universe.json")["pools"], start, config)
+                else:
+                    job = choose(s, read(root / "universe.json")["pools"], time.time_ns())
                 if not job:
                     break
                 s, _ = fetch(root, job, s, ledger)

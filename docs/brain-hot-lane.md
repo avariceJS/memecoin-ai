@@ -49,3 +49,11 @@ hot/cold roles, provider cooldown, actualsource heartbeat и freshness, исто
 raw/index и paper replay, snapshot→raw/forecast joins, installedwheel и UI. Автоматический
 soak status на72h должен измерять реальные часы, gaps/coverage/worker failures; первые
 20минут не выдавать за сутки. Первые сутки требуют последующего review артефактов.
+
+### Уточнение до первого GET: слот для background
+
+Проверка worst-case расписания обнаружила, что6×12s при hot90s оставляют только18s,
+меньше35s guard для background: history могла голодать бесконечно. До acquisition
+hot interval изменён на120s (3hotGET/min). Это оставляет48s после earliest next start,
+достаточно одного bounded background request. Global5/min, guard35s и maxhotgap180s
+не меняются; все дальнейшие thresholds прежние. Источник не опрашивался до этой поправки.
