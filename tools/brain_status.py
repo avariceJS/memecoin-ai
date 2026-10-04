@@ -84,9 +84,10 @@ if __name__ == "__main__":
         ROOT.resolve(),
         (ROOT.parents[1] / "brain-b02/prospective01").resolve(),
         (ROOT.parents[1] / "brain-b03/prospective01").resolve(),
+        (ROOT.parents[1] / "brain-b04/prospective01").resolve(),
     ]
     if args.root.resolve() not in allowed:
-        parser.error("Only B01/B02/B03 Brain roots are supported")
+        parser.error("Only B01/B02/B03/B04 Brain roots are supported")
     ROOT = args.root.resolve()
     result = status()
     if args.output:
