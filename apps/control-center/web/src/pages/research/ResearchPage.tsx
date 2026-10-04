@@ -1,9 +1,8 @@
 import { useOutletContext } from "react-router";
-import { QualificationBadge, UnavailableState, provenanceBadgeKind } from "../../components/status";
+import { UnavailableState, provenanceBadgeKind } from "../../components/status";
 import type { ShellOutletContext } from "../../shell/AppShell";
-import { ProtocolBudgetPanel } from "./ProtocolBudgetPanel";
-import { ResearchAdmissionAside } from "./ResearchAdmissionAside";
-import { ResearchKpiRow } from "./ResearchKpiRow";
+import { PermissionMap } from "./PermissionMap";
+import { ResearchDetails } from "./ResearchDetails";
 import styles from "./research.module.css";
 
 export function ResearchPage() {
@@ -11,36 +10,20 @@ export function ResearchPage() {
   const pane = snapshotResponse.data.research;
 
   if (pane.availability !== "AVAILABLE") {
-    return (
-      <UnavailableState reasonCode={pane.reasonCode ?? "RESEARCH_UNAVAILABLE"} />
-    );
+    return <UnavailableState reasonCode={pane.reasonCode ?? "RESEARCH_UNAVAILABLE"} />;
   }
 
-  const data = pane.data;
-  const provenanceLabel = provenanceBadgeKind(pane.provenance);
+  const provenance = provenanceBadgeKind(pane.provenance);
 
   return (
-    <>
-      <header className={styles.pageHeader}>
-        <div>
-          <h2 className={styles.pageTitle}>Исследование (recorded)</h2>
-          <p className={styles.policyNote}>
-            Read-only консоль spec/gates/counters из published snapshot. Числовые checks не
-            заменяют admission; UI не выдаёт research permission.
-          </p>
-        </div>
-        <div className={styles.badgeRow}>
-          <QualificationBadge kind={provenanceLabel} />
-          <QualificationBadge kind="LOCKED" />
-        </div>
-      </header>
-
-      <ResearchKpiRow data={data} />
-
-      <div className={styles.mainGrid}>
-        <ProtocolBudgetPanel data={data} qualification={pane.qualification} />
-        <ResearchAdmissionAside data={data} />
-      </div>
-    </>
+    <div className={styles.page}>
+      <PermissionMap
+        data={pane.data}
+        qualification={pane.qualification}
+        snapshot={snapshotResponse.data}
+        provenance={provenance}
+      />
+      <ResearchDetails data={pane.data} provenance={provenance} />
+    </div>
   );
 }

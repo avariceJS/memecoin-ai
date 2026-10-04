@@ -2,16 +2,16 @@
 
 Generated from WORK_STATE.json; не редактировать вручную.
 
-- Overall: **IN_PROGRESS** — CC02 visual reconstruction, 4/9 tasks; Tauri вне scope.
-- Current phase: **4**
-- Current task: **CC02.4 — Research gate visualization**
-- Last completed: CC02.3: календарь принят, среднее 4.2. D48 — матрица без текста в ячейках.
-- Last verified commit: `f846c0e6ff1c60429af32f25438fcdede0f58551`; latest фактически: `git log -1 --oneline`.
-- Checks: 2026-10-04 CC02.3: vitest 51 PASS; e2e characterization PASS; visual_gate receipt PASS. Calendar escape 0. Model binding UNVERIFIED.
+- Overall: **IN_PROGRESS** — CC02 visual reconstruction, 5/9 tasks; Tauri вне scope.
+- Current phase: **5**
+- Current task: **CC02.5 — Models / matched benchmarks**
+- Last completed: CC02.4: research принят, среднее 4.2. Стадии не складываются в готовность.
+- Last verified commit: `317c2f1c1559f555e492b1033f1237f47be714ce`; latest фактически: `git log -1 --oneline`.
+- Checks: 2026-10-04 CC02.4: vitest 54 PASS; e2e characterization PASS; visual_gate receipt PASS. Research overflow/overlap 0. Model binding UNVERIFIED.
 - Model binding: UNVERIFIED (config ≠ runtime; nonblocking).
 - User acceptance: REJECTED_V1; CC02_NOT_REVIEWED.
 - Blockers: нет глобального blocker
-- Next action: **CC02.4: визуализация research gate. 0/114 отдельно от 135. Календарь не переписывать.**
+- Next action: **CC02.5: модели и сопоставимые замеры. Один batch и один status. Календарь и research не переписывать.**
 
 | Task | Role | State |
 |---|---|---|
@@ -19,7 +19,7 @@ Generated from WORK_STATE.json; не редактировать вручную.
 | CC02.1 App shell и design primitives | ui-builder | DONE |
 | CC02.2 Overview — visual gold standard | ui-builder | DONE |
 | CC02.3 Calendar / corpus reconstruction | ui-builder | DONE |
-| CC02.4 Research gate visualization | ui-builder | PENDING |
+| CC02.4 Research gate visualization | ui-builder | DONE |
 | CC02.5 Models / matched benchmarks | ui-builder | PENDING |
 | CC02.6 Sources evidence topology | ui-builder | PENDING |
 | CC02.7 System / locked surfaces | ui-builder | PENDING |

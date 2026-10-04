@@ -2,10 +2,10 @@
   "schema_version": 2,
   "scope": "control-center-cc02-visual-reconstruction",
   "overall": "IN_PROGRESS",
-  "current_task": "CC02.4",
-  "last_completed": "CC02.3: календарь принят, среднее 4.2. D48 — матрица без текста в ячейках.",
-  "last_verified_commit": "f846c0e6ff1c60429af32f25438fcdede0f58551",
-  "last_checks": "2026-10-04 CC02.3: vitest 51 PASS; e2e characterization PASS; visual_gate receipt PASS. Calendar escape 0. Model binding UNVERIFIED.",
+  "current_task": "CC02.5",
+  "last_completed": "CC02.4: research принят, среднее 4.2. Стадии не складываются в готовность.",
+  "last_verified_commit": "317c2f1c1559f555e492b1033f1237f47be714ce",
+  "last_checks": "2026-10-04 CC02.4: vitest 54 PASS; e2e characterization PASS; visual_gate receipt PASS. Research overflow/overlap 0. Model binding UNVERIFIED.",
   "model_binding": {
     "configured_coordinator": "grok-4.7 / xhigh (picker)",
     "configured_executor": "composer-2.5[fast=false]",
@@ -15,7 +15,7 @@
     "configured_visual_executor": "grok-4.7 (documented default high; runtime UNVERIFIED)"
   },
   "blockers": [],
-  "next_action": "CC02.4: визуализация research gate. 0/114 отдельно от 135. Календарь не переписывать.",
+  "next_action": "CC02.5: модели и сопоставимые замеры. Один batch и один status. Календарь и research не переписывать.",
   "capabilities": [
     "existing read-only adapter + immutable historical projection",
     "primary visual reference available",
@@ -332,17 +332,68 @@
         "visual",
         "boundary"
       ],
-      "status": "PENDING",
+      "status": "DONE",
       "write_files": [],
-      "checks": [],
-      "reviews": [],
-      "attempts": [],
+      "checks": [
+        {
+          "command": "npm --prefix apps/control-center/web test",
+          "result": "PASS"
+        },
+        {
+          "command": "npm --prefix apps/control-center/web run e2e",
+          "result": "PASS"
+        },
+        {
+          "command": "python3 apps/control-center/scripts/visual_gate.py --receipt docs/control-center/references/cc02-final/CC02.4/review.json --task CC02.4",
+          "result": "PASS"
+        }
+      ],
+      "reviews": [
+        {
+          "kind": "boundary",
+          "result": "PASS",
+          "evidence": "cc-boundary-reviewer c78ad814-631c-47c0-856d-157c70eedb1c: 0/114 отдельно от 135, admission остаётся LOCKED, runner не READY, holdout не exposures, missingReviews — список spec.",
+          "reviewed_revision": "317c2f1"
+        },
+        {
+          "kind": "visual",
+          "result": "PASS",
+          "evidence": "cc-visual-reviewer 67900027-e42a-40b4-990f-b9edf06e0b51 second pass mean 4.2. Receipt docs/control-center/references/cc02-final/CC02.4/review.json.",
+          "reviewed_revision": "317c2f1c1559f555e492b1033f1237f47be714ce",
+          "reference_viewed": true,
+          "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+          "screenshot": "docs/control-center/references/cc02-final/CC02.4/second/research-1600.png"
+        }
+      ],
+      "attempts": [
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-ui-builder",
+          "configured_model": "grok-4.7",
+          "note": "Research gate diagram. Calendar and lockfile stay put. Launch requested grok-4.7-xhigh. UNVERIFIED."
+        },
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-visual-reviewer",
+          "configured_model": "grok-4.7-xhigh",
+          "note": "First 3.9 NEEDS_FIX, second 4.2 PASS. Agent 67900027-e42a-40b4-990f-b9edf06e0b51. Launch requested grok-4.7-xhigh. UNVERIFIED."
+        },
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-boundary-reviewer",
+          "configured_model": "composer-2.5",
+          "note": "PASS agent c78ad814-631c-47c0-856d-157c70eedb1c."
+        }
+      ],
       "blocker": "",
-      "summary": "",
-      "reference_viewed": false,
-      "reference_sha256": null,
-      "visual_receipt": null,
-      "accepted_web_sha256": null
+      "summary": "Research: четыре независимые стадии, 0/114 отдельно от 135, runner неизвестен. Вторая критика 4.2. Review и план выборки у нижней кромки.",
+      "reference_viewed": true,
+      "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+      "visual_receipt": "docs/control-center/references/cc02-final/CC02.4/review.json",
+      "accepted_web_sha256": "2c5991f15574ebbd8e7f761a70c8ca3d9e354287b81bf068dc5d80d3cc2b05a8"
     },
     {
       "id": "CC02.5",

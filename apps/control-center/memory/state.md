@@ -28,9 +28,9 @@ Core/main D50+ развивается независимо; здесь его н
 
 ## Текущая очередь / следующий шаг
 
-`WORK_STATE.json` schema 2: **CC02.0–CC02.3 DONE**, текущая задача **CC02.4 research**.
-Календарь принят: вторая критика среднее 4.2. Сетка D48 первая, ячейки 28px, без слов внутри.
-Декабрь и reserved остаются в прокрутке матрицы. Дальше визуализация research gate.
+`WORK_STATE.json` schema 2: **CC02.0–CC02.4 DONE**, текущая задача **CC02.5 модели**.
+Research принят: вторая критика среднее 4.2. Стадии не складываются в готовность, 0/114 отдельно от 135.
+Review и план выборки остаются у нижней кромки кадра. Дальше сопоставимые замеры моделей.
 
 Coordinator Grok 4.7 Extra High; сложный UI и visual reviewer — Grok 4.7 High;
 routine analyst/adapter/tests/boundary — Composer 2.5 standard. Native definitions настроены;
