@@ -18,7 +18,12 @@
 backfill, расширение universe, continuous corpus, регулярное supervised training и
 shadow forecast evaluation. F01 readiness не блокирует exploratory Brain. Его результаты
 не являются confirmatory F01. Frozen F01/D43 и reserved holdout не менять/не раскрывать;
-денежные и торговые запреты сохраняются. Bounds/jobs — memory/state.md и docs/brain-development.md.
+запрет реальных денег/подписей/транзакций сохраняется.
+Новое указание2026-10-04: разрешён непрерывный venue-agnostic virtual paper/shadow engine,
+позиции/outcomes, регулярный candidate training и live read-only Control Center. Это
+приоритет над ожиданием raw PumpSwap qualification. Нет разрешения real execution, оплаты
+или upgrades. Free quota использовать для полезного evidence, не искусственно растягивать.
+Bounds/jobs — memory/state.md и docs/brain-development.md.
 
 ## Как трактовать контекст
 
