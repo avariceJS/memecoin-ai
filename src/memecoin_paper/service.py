@@ -249,6 +249,7 @@ def paper(root):
         source_ok=source_ok,
         expires_ns=c["expires_ns"],
         activation_ns=c["activation_ns"],
+        deployment_started_ns=migration["created_ns"] if migration else c["activation_ns"],
         champion_model_sha=c["champion_model_sha"],
         champion="empirical",
         mode="VIRTUAL • GT price proxy • execution not calibrated",
