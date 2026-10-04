@@ -1,109 +1,75 @@
 import { useOutletContext } from "react-router";
-import { UnavailableState } from "../components/status";
+import { Kpi } from "../components";
 import type { ShellOutletContext } from "../shell/AppShell";
 import {
   BottomFactsRow,
-  CompactSourcesPanel,
+  D43Timeline,
+  EvidenceAside,
   LatencyEvidencePanel,
-  QualificationStatusPanel,
-  admissionStatus,
+  WindowSummary,
+  d43Markers,
+  engineeringRunGroups,
   getSourceQualificationView,
 } from "./overview";
-import {
-  calendarWindowCount,
-  engineeringFits,
-  recordedFits,
-  runCount,
-} from "./snapshotFacts";
-import styles from "./shared.module.css";
+import { calendarWindowCount, engineeringFits, recordedFits, runCount } from "./snapshotFacts";
 import layout from "./overview/overview.module.css";
 
 export function OverviewPage() {
   const { snapshotResponse, capabilities } = useOutletContext<ShellOutletContext>();
   const snapshot = snapshotResponse.data;
-
   const windows = calendarWindowCount(snapshot);
   const fits = recordedFits(snapshot);
   const engFits = engineeringFits(snapshot);
   const runs = runCount(snapshot);
+  const markers = d43Markers(snapshot);
   const qualification = getSourceQualificationView(snapshot);
-  const admission = admissionStatus(snapshot);
-  const systemReason =
-    snapshot.system.availability !== "AVAILABLE" ? snapshot.system.reasonCode : null;
-
-  const available = capabilities.filter((c) => c.availability === "AVAILABLE");
-  const unavailable = capabilities.filter((c) => c.availability === "UNAVAILABLE");
+  const models = snapshot.models.availability === "AVAILABLE" ? snapshot.models.data : null;
 
   return (
-    <>
-      <div className={styles.kpiRow}>
-        <article className={styles.kpi}>
-          <p className={styles.kpiLabel}>Окна календаря</p>
-          <p className={styles.kpiValue}>{windows ?? "—"}</p>
-        </article>
-        <article className={styles.kpi}>
-          <p className={styles.kpiLabel}>Recorded fits</p>
-          <p className={styles.kpiValue}>
-            {fits ? `${fits.recorded}/${fits.budget}` : "—"}
-          </p>
-          <p className={styles.kpiSub}>только recorded budget</p>
-        </article>
-        <article className={styles.kpi}>
-          <p className={styles.kpiLabel}>Engineering fits</p>
-          <p className={styles.kpiValue}>{engFits ?? "—"}</p>
-          <p className={styles.kpiSub}>ENGINEERING, не admission</p>
-        </article>
-        <article className={styles.kpi}>
-          <p className={styles.kpiLabel}>Инженерные runs</p>
-          <p className={styles.kpiValue}>{runs ?? "—"}</p>
-        </article>
+    <div className={layout.page}>
+      <div className={layout.kpiRow} data-cc-region="overview-kpis">
+        <Kpi
+          label="Окна календаря"
+          value={windows === null ? "—" : String(windows)}
+          context={windows === null ? "календарь недоступен" : "записанные окна D43"}
+        />
+        <Kpi
+          label="Recorded fits"
+          value={fits ? `${fits.recorded}/${fits.budget}` : "—"}
+          context={fits ? "только recorded budget" : "research недоступен"}
+        />
+        <Kpi
+          label="Engineering fits"
+          value={engFits === null ? "—" : String(engFits)}
+          context="ENGINEERING, не admission"
+        />
+        <Kpi
+          label="Инженерные runs"
+          value={runs === null ? "—" : String(runs)}
+          context="инженерный прогон, не рынок"
+        />
       </div>
 
-      {qualification ? (
-        <>
-          <div className={layout.mainGrid}>
-            <LatencyEvidencePanel qualification={qualification} />
-            <QualificationStatusPanel
-              qualification={qualification}
-              systemReason={systemReason}
-              admission={admission}
-            />
-          </div>
-          <BottomFactsRow qualification={qualification} />
-        </>
-      ) : (
-        <UnavailableState
-          reasonCode={
-            snapshot.sourceQualification.availability !== "AVAILABLE"
-              ? snapshot.sourceQualification.reasonCode
-              : "SOURCE_QUALIFICATION_UNAVAILABLE"
+      <div className={layout.stage}>
+        <D43Timeline
+          markers={markers}
+          unavailableReason={
+            snapshot.calendar.availability === "AVAILABLE" ? null : snapshot.calendar.reasonCode
           }
         />
-      )}
-
-      <CompactSourcesPanel snapshot={snapshot} />
-
-      <section className={styles.capList} aria-labelledby="caps-heading">
-        <h2 id="caps-heading" className={styles.panelTitle}>
-          Capabilities
-        </h2>
-        <ul className={styles.capRows}>
-          {available.map((cap) => (
-            <li key={cap.id} className={styles.capRow}>
-              <span className={styles.capId}>{cap.id}</span>
-              <span className={`${styles.capStatus} ${styles.capAvailable}`}>AVAILABLE</span>
-            </li>
-          ))}
-          {unavailable.map((cap) => (
-            <li key={cap.id} className={styles.capRow}>
-              <span className={styles.capId}>{cap.id}</span>
-              <span className={`${styles.capStatus} ${styles.capUnavailable}`}>
-                UNAVAILABLE · {cap.reasonCode}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </>
+        <EvidenceAside snapshot={snapshot} capabilities={capabilities} />
+      </div>
+      <div className={layout.bottom}>
+        <WindowSummary
+          markers={markers}
+          runGroups={engineeringRunGroups(snapshot)}
+          runCount={runs}
+          activeModelChosen={models ? models.activeModel !== null : null}
+          marketBackboneSelected={models ? models.marketBackboneSelected : null}
+        />
+        <BottomFactsRow pools={qualification ? qualification.pools : null} />
+        <LatencyEvidencePanel qualification={qualification} />
+      </div>
+    </div>
   );
 }

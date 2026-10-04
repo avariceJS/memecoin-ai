@@ -2,10 +2,10 @@
   "schema_version": 2,
   "scope": "control-center-cc02-visual-reconstruction",
   "overall": "IN_PROGRESS",
-  "current_task": "CC02.2",
-  "last_completed": "CC02.1: оболочка принята по shell rubric, среднее 4.7. Тела страниц ещё v1.",
-  "last_verified_commit": "a1251b6f692c049849d868d3609fe6e0ae37beea",
-  "last_checks": "2026-10-04 CC02.1: vitest 48 PASS; e2e characterization PASS; visual_gate receipt PASS; build JS 575.21 kB plus local Inter. Shell layout counts 0. Page defects remain. Model binding UNVERIFIED.",
+  "current_task": "CC02.3",
+  "last_completed": "CC02.2: Overview принят как эталон, среднее 4.2. Остальные страницы ещё v1.",
+  "last_verified_commit": "c4a28edf90d1dabc510f83ac561a60e93f738281",
+  "last_checks": "2026-10-04 CC02.2: vitest 50 PASS; e2e characterization PASS; visual_gate receipt PASS. Overview 1600 overflow/escape/overlap 0. Calendar D48 escapes remain. Model binding UNVERIFIED.",
   "model_binding": {
     "configured_coordinator": "grok-4.7 / xhigh (picker)",
     "configured_executor": "composer-2.5[fast=false]",
@@ -15,7 +15,7 @@
     "configured_visual_executor": "grok-4.7 (documented default high; runtime UNVERIFIED)"
   },
   "blockers": [],
-  "next_action": "CC02.2: эталонный Overview. Сначала target и before PNG, затем композиция корпуса, не latency-герой. Остальные страницы не начинать.",
+  "next_action": "CC02.3: календарь и корпус. Сетка D48 без 336 подписей в ячейках. Overview не переписывать.",
   "capabilities": [
     "existing read-only adapter + immutable historical projection",
     "primary visual reference available",
@@ -182,17 +182,68 @@
         "visual",
         "boundary"
       ],
-      "status": "PENDING",
+      "status": "DONE",
       "write_files": [],
-      "checks": [],
-      "reviews": [],
-      "attempts": [],
+      "checks": [
+        {
+          "command": "npm --prefix apps/control-center/web test",
+          "result": "PASS"
+        },
+        {
+          "command": "npm --prefix apps/control-center/web run e2e",
+          "result": "PASS"
+        },
+        {
+          "command": "python3 apps/control-center/scripts/visual_gate.py --receipt docs/control-center/references/cc02-final/CC02.2/review.json --task CC02.2",
+          "result": "PASS"
+        }
+      ],
+      "reviews": [
+        {
+          "kind": "boundary",
+          "result": "PASS",
+          "evidence": "cc-boundary-reviewer 5c69f5cd-5a04-4620-867f-a8a0b1e69bbb: no new API, no duration without a start, 0/114 separate from 135. Corpus badge bound to provenance.",
+          "reviewed_revision": "c4a28edf90d1dabc510f83ac561a60e93f738281"
+        },
+        {
+          "kind": "visual",
+          "result": "PASS",
+          "evidence": "cc-visual-reviewer 245009e3-7c03-4a7f-bbf6-c65aa0bf8d87 third pass mean 4.2. Receipt docs/control-center/references/cc02-final/CC02.2/review.json.",
+          "reviewed_revision": "c4a28edf90d1dabc510f83ac561a60e93f738281",
+          "reference_viewed": true,
+          "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+          "screenshot": "docs/control-center/references/cc02-final/CC02.2/third/overview-1600.png"
+        }
+      ],
+      "attempts": [
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-ui-builder",
+          "configured_model": "grok-4.7",
+          "note": "Overview composition. Shell and lockfile stay with Coordinator. Task slug grok-4.7 is rejected by the tool; this launch inherits the session. UNVERIFIED."
+        },
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-boundary-reviewer",
+          "configured_model": "composer-2.5",
+          "note": "PASS agent 5c69f5cd-5a04-4620-867f-a8a0b1e69bbb. Corpus REAL EVIDENCE was hardcoded; Coordinator bound it to provenance."
+        },
+        {
+          "at": "2026-10-04",
+          "kind": "delegate",
+          "role": "cc-visual-reviewer",
+          "configured_model": "grok-4.7",
+          "note": "First 2.9 NEEDS_FIX, second 3.4 NEEDS_FIX, third 4.2 PASS. Agent 245009e3-7c03-4a7f-bbf6-c65aa0bf8d87. Slug grok-4.7 rejected; session inherit. UNVERIFIED."
+        }
+      ],
       "blocker": "",
-      "summary": "",
-      "reference_viewed": false,
-      "reference_sha256": null,
-      "visual_receipt": null,
-      "accepted_web_sha256": null
+      "summary": "Overview: четыре KPI, таймлайн D43, три плитки и нижний ряд на одном экране 1600. Третья критика 4.2. Герой ниже свечного блока эталона. Календарь не перестроен.",
+      "reference_viewed": true,
+      "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+      "visual_receipt": "docs/control-center/references/cc02-final/CC02.2/review.json",
+      "accepted_web_sha256": "2a36eeb58e8cb4701bc20730ed1b7e5d271089ab5f14c6b562f4eb93716024a1"
     },
     {
       "id": "CC02.3",

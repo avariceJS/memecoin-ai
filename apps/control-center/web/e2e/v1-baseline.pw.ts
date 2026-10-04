@@ -110,8 +110,8 @@ function reportFor(
   };
 }
 
-// Characterization rejected web v1. CC02.2 and CC02.3 replace these floors with
-// zero-defect page assertions. Do not hide the counts with overflow:hidden.
+// Calendar still characterizes the rejected D48 grid. Overview page overflow was a v1
+// defect; CC02.2 is expected to keep it at or under 1px. Do not hide calendar escapes.
 test("v1 layout harness воспроизводит overflow и не красит его в green", async ({ page }) => {
   const webSha = digest();
   const seen: string[] = [];
@@ -184,7 +184,7 @@ test("v1 layout harness воспроизводит overflow и не красит
   const wide = summary.find((item) => item.route === "/calendar" && item.viewport[0] === 1600);
   const overview = summary.find((item) => item.route === "/" && item.viewport[0] === 1600);
   expect(wide?.card_escape_count).toBeGreaterThanOrEqual(400);
-  expect(overview?.page_overflow_px).toBeGreaterThan(1);
+  expect(overview?.page_overflow_px).toBeLessThanOrEqual(1);
 
   writeFileSync(
     path.join(outDir, "summary.json"),

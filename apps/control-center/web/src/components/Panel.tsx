@@ -4,14 +4,19 @@ import styles from "./Panel.module.css";
 type PanelProps = {
   children: ReactNode;
   title?: string;
-  density?: "default" | "inline";
+  density?: "default" | "inline" | "compact";
   className?: string;
   label?: string;
 };
 
 export function Panel({ children, title, density = "default", className, label }: PanelProps) {
   const titleId = useId();
-  const classes = [styles.panel, density === "inline" ? styles.inline : "", className]
+  const classes = [
+    styles.panel,
+    density === "inline" ? styles.inline : "",
+    density === "compact" ? styles.compact : "",
+    className,
+  ]
     .filter((value) => Boolean(value))
     .join(" ");
 

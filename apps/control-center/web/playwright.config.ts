@@ -3,7 +3,7 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.pw.ts",
-  testIgnore: process.env.CC_MATRIX ? [] : ["**/shell-matrix.pw.ts"],
+  testIgnore: process.env.CC_MATRIX ? [] : ["**/shell-matrix.pw.ts", "**/overview-matrix.pw.ts"],
   fullyParallel: false,
   workers: 1,
   retries: 0,

@@ -186,3 +186,12 @@ CC02 audit/guard commit `9f47abf9e473ef4f46c6238d805c917490aa9b21`; послед
 - Мелочи оставлены: повтор имён групп, тихая «Обновить», шапка выше бренда на 768.
 - Receipt `docs/control-center/references/cc02-final/CC02.1/review.json`, visual_gate PASS.
   Vitest 48, characterization e2e PASS. Binding UNVERIFIED. Страницы не приняты.
+
+## 2026-10-04 — CC02.2 Overview
+
+- Первые два кадра NEEDS_FIX: тонкая ось, источник ниже экрана, затем пустая высота и обрезанный низ.
+- Третий кадр PASS, среднее 4.2. На 1600 видны KPI, таймлайн D43, три плитки, 6 строк, 3 pool id
+  и 6 полос latency. Overflow, escape и overlap равны 0.
+- Бейдж корпуса берётся из provenance. Коды допуска и квалификации открываются по клику.
+- На 1024 таблица окон прокручивается в своей области. Receipt visual_gate PASS. Vitest 50.
+  Герой ниже свечного блока эталона. Календарь не перестроен.

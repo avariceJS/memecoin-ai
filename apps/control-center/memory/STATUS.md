@@ -2,22 +2,22 @@
 
 Generated from WORK_STATE.json; не редактировать вручную.
 
-- Overall: **IN_PROGRESS** — CC02 visual reconstruction, 2/9 tasks; Tauri вне scope.
-- Current phase: **2**
-- Current task: **CC02.2 — Overview — visual gold standard**
-- Last completed: CC02.1: оболочка принята по shell rubric, среднее 4.7. Тела страниц ещё v1.
-- Last verified commit: `a1251b6f692c049849d868d3609fe6e0ae37beea`; latest фактически: `git log -1 --oneline`.
-- Checks: 2026-10-04 CC02.1: vitest 48 PASS; e2e characterization PASS; visual_gate receipt PASS; build JS 575.21 kB plus local Inter. Shell layout counts 0. Page defects remain. Model binding UNVERIFIED.
+- Overall: **IN_PROGRESS** — CC02 visual reconstruction, 3/9 tasks; Tauri вне scope.
+- Current phase: **3**
+- Current task: **CC02.3 — Calendar / corpus reconstruction**
+- Last completed: CC02.2: Overview принят как эталон, среднее 4.2. Остальные страницы ещё v1.
+- Last verified commit: `c4a28edf90d1dabc510f83ac561a60e93f738281`; latest фактически: `git log -1 --oneline`.
+- Checks: 2026-10-04 CC02.2: vitest 50 PASS; e2e characterization PASS; visual_gate receipt PASS. Overview 1600 overflow/escape/overlap 0. Calendar D48 escapes remain. Model binding UNVERIFIED.
 - Model binding: UNVERIFIED (config ≠ runtime; nonblocking).
 - User acceptance: REJECTED_V1; CC02_NOT_REVIEWED.
 - Blockers: нет глобального blocker
-- Next action: **CC02.2: эталонный Overview. Сначала target и before PNG, затем композиция корпуса, не latency-герой. Остальные страницы не начинать.**
+- Next action: **CC02.3: календарь и корпус. Сетка D48 без 336 подписей в ячейках. Overview не переписывать.**
 
 | Task | Role | State |
 |---|---|---|
 | CC02.0 Baseline и browser gate harness | coordinator | DONE |
 | CC02.1 App shell и design primitives | ui-builder | DONE |
-| CC02.2 Overview — visual gold standard | ui-builder | PENDING |
+| CC02.2 Overview — visual gold standard | ui-builder | DONE |
 | CC02.3 Calendar / corpus reconstruction | ui-builder | PENDING |
 | CC02.4 Research gate visualization | ui-builder | PENDING |
 | CC02.5 Models / matched benchmarks | ui-builder | PENDING |

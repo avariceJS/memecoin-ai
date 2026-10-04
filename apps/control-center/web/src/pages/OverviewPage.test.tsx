@@ -21,13 +21,14 @@ const snapshotResponse = {
   data: parseSnapshot(JSON.parse(readFileSync(fixturePath, "utf8")) as Record<string, unknown>),
 };
 
-function renderOverview() {
-  const capabilities = snapshotResponse.data.capabilities as Capability[];
+function renderOverview(data = snapshotResponse.data) {
+  const response = { ...snapshotResponse, data };
+  const capabilities = data.capabilities as Capability[];
   const router = createMemoryRouter(
     [
       {
         path: "/",
-        element: <Outlet context={{ snapshotResponse, capabilities }} />,
+        element: <Outlet context={{ snapshotResponse: response, capabilities }} />,
         children: [{ index: true, element: <OverviewPage /> }],
       },
     ],
@@ -71,6 +72,32 @@ describe("OverviewPage", () => {
 
     const bodyText = document.body.textContent ?? "";
     expect(bodyText.match(/\bp95\b/gi)?.length ?? 0).toBe(1);
+    expect(screen.getAllByText("0/114").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("135").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("15").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("6").length).toBeGreaterThan(0);
+  });
+
+  it("renders six D43 markers and does not invent a duration without a start", () => {
+    renderOverview();
+
+    for (const id of ["d43:0", "d43:1", "d43:2", "d43:3", "d43:4", "d43:5"]) {
+      const marker = screen.getByRole("button", { name: new RegExp(id) });
+      expect(marker.getAttribute("style") ?? "").not.toMatch(/width/);
+    }
+    expect(screen.getByText(/Старт не опубликован\. Длительность не строится\./)).toBeInTheDocument();
+    expect(screen.getAllByText(/Допуск к исследованию не выдан/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/system online/i)).not.toBeInTheDocument();
+  });
+
+  it("does not label a demo corpus as real evidence", () => {
+    const data = structuredClone(snapshotResponse.data);
+    if (data.corpus.availability !== "AVAILABLE") throw new Error("expected corpus");
+    data.corpus.provenance = "DEMO";
+    renderOverview(data);
+
+    expect(screen.getByText("DEMO — вымышленные данные")).toBeInTheDocument();
+    expect(screen.queryByText("REAL EVIDENCE")).not.toBeInTheDocument();
   });
 
   it("copies pool id via clipboard without network", async () => {
