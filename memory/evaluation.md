@@ -1,5 +1,25 @@
 # Оценка модели и управление версиями
 
+## B01: exploratory versus confirmatory, 2026-10-04
+
+Brain Development не gated by F01. Его исторические split/validation/test диагностические,
+с неизвестной первоначальной online availability; текущий pool ranking даёт survivorship
+bias. Initial1791/595/1050decisions не независимая выборка и не power justification.
+Empirical выбран по validation; меньшее GRU test loss не меняет это решение задним числом.
+
+Prospective shadow пишет predictions с model hash, actual inference/input timestamps и
+квантилями всех3кандидатов до будущего target; outcomes отдельные immutable записи.
+Сравнение paired на одних observations, horizons5/15min; missing future bars censor после1h.
+Первый срез48predictions/12outcomes слишком мал для заявления победы. Ни token-price
+pinball, ни shadow loss не являются net-edge, execution quality или paper PnL.
+После recurrent training прежние development test периоды перестают быть закрытыми;
+честный последующий контроль — новые ещё не наблюдавшиеся shadow outcomes.
+
+Installed wheel воспроизвёл dataset exact,4model weights tensor-exact,48predictions
+с max abs error4.10e-8 и12outcomes exact. Это проверка воспроизводимости, не доказательство
+качества модели. F01 holdout/rules/admission остались закрытыми и неизменными.
+[Отчёт](../docs/brain-development.md), [evidence](../docs/evidence/brain-development-2026-10-04.json).
+
 ## Что является успехом
 
 Воспроизводимое улучшение net-результата на новых временных периодах при одинаковых ограничениях риска и правдоподобном исполнении. Нельзя определять успех одним accuracy, одним высоким Sharpe, несколькими лучшими сделками или положительным paper PnL.

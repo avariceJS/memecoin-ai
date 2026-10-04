@@ -1,5 +1,25 @@
 # Roadmap с критериями перехода
 
+## Приоритет после D51: независимый Brain track, 2026-10-04
+
+По новому поручению F01 не является критическим путём развития мозга. B01 уже собрал
+историю, обучил реальные candidates и запустил bounded continuous collection/training/
+shadow. Это ранний exploratory проход R2/R4/R5, не прохождение economic gates R4–R8.
+Frozen F01/D43 и reserved holdout продолжают отдельную ветку с прежними правилами.
+
+**B02 — ближайшие дни:** накопить новые часы/дни в активном72h runtime; read-only status,
+coverage/revisions/censoring и failure budget audit. Завершить недостающую history
+отдельным bounded/versioned планом, расширять universe с admission times и контролем
+survivorship. На новых версиях corpus — learning curves, calibration, paired future
+shadow и обоснованные encoder/features ablations; все fits/exposures учитывать. Initial
+empirical champion не означает отказ от нейросетей; пока они не выиграли validation.
+
+Цель — содержательная Brain v1 и цикл непрерывного улучшения, без обещания качества к
+дате. Послеexpiry/failure stop не перезапускать старый цикл и не сбрасывать budget; новая
+deployment revision по evidence. Forecasting ещё не portfolio policy; execution-aware
+labels/venue support, MPC и promotion требуют собственных исследований.
+[План и текущий результат](../docs/brain-development.md).
+
 R0 завершён и принят. Пользователь отдельно разрешил архитектурный проход поперёк будущих этапов: reference-компоненты реализованы, но рыночные gates R2–R8 этим не пройдены. Календарные сроки не установлены: они зависят от источника, качества истории и benchmark.
 
 | Этап | Результат | Критерий перехода |

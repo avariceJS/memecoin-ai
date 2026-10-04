@@ -1,5 +1,31 @@
 # Реестр архитектурных решений
 
+## B01 Brain Development — отдельное решение пользователя, 2026-10-04
+
+**Статус: реализован и bounded runtime активирован.** F01 больше не блокирует развитие
+мозга; historical backfill/universe expansion/continuous corpus/supervised training/shadow
+разрешены в независимом model-development track. Прежние ограничения smoke-only заменены
+только здесь. F01/D43/holdout, trading/paid restrictions не изменены.
+
+Первый source keyless GeckoTerminal, forecast5/15min log price returns,12пулов/три возраста.
+Причина: доступная история и широкая market-data вертикаль без выдачи bar observations за
+coherent CPMM execution. Слабости: current-ranking survivorship, cached/revisable candles,
+неполный history и неизвестная historical online availability. Модель experimental:
+empirical,linear,GRU×seeds7/19, validation-only selection; initial победил empirical.
+Ни learned edge, ни superiority backbone не установлены; portfolio/MPC остаются будущими.
+
+Самостоятельное activation решение принято в рамках нового прямого разрешения:
+отдельный job72h/12000GET/paid0,≥12s/request,5min collection,≥6h retraining≤12cycles×4fits,
+hard240/600s workers,STOP/disk/clock/code guards,2consecutive failures stop. Это не
+повторное использование scoped Alchemy D51 receipt и не активация D48 calendar. Новые
+AlchemyRPC0. Frozen runtime не редактировать на месте; renew/расширение — отдельная
+versioned инженерная оценка в разрешённом track. Ветка D52 остаётся независимой.
+
+[План/результат B01](../docs/brain-development.md),
+[evidence](../docs/evidence/brain-development-2026-10-04.json). Следующий B02: расширять
+coverage, недостающий backfill и paired shadow evidence, сравнивать candidates/learning
+curves; не ждать F01 календаря и не ослаблять causal/execution constraints.
+
 Зафиксирован 2026-10-01. Текущий статус отражает последний критический review, принятый пользователем как база. Рыночные сравнения E01–E14 не проведены; инженерные проверки и реальные data-аудиты отмечены отдельно. Связанные сравнения описаны в [research.md](research.md); эволюция — в [changes.md](changes.md).
 
 ## D01 Цель и независимость от LLM

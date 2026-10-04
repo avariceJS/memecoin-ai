@@ -1,5 +1,23 @@
 # Реестр исследовательских экспериментов
 
+## B01: независимое model-development обучение разрешено, 2026-10-04
+
+Новое прямое указание пользователя отделяет Brain Development от frozen F01. Historical
+retrospective и регулярное supervised training разрешены без F01 readiness; запрещены
+смешение результатов, открытие protected holdout и заявление edge по малому корпусу.
+B01 protocol зафиксирован до fit commitbf6bd4a: empirical/linear/GRU, seeds7/19,
+5/15min log-price returns, global60/20/20 и horizon purge; train-only scaler. Реальные
+4fits проведены, empirical выбран validation pool-macro pinball0.01009019 против
+linear0.01690002/GRU0.01126939. Test используется exploratory diagnostic; повторяемые
+пересмотры будут создавать selection bias, поэтому не называть его confirmatory.
+
+Новая версия модели каждые≥6h только при новых данных,≤12cycles/72h; immutable ledger,
+model cards и checkpoints, selection до чтения test. D44 encoder/loss и D47 ledger
+переиспользованы без изменения F01 runner. 4дополнительных installed-wheel fits —
+reproduction, не новая попытка выбора модели. B01 не выполняет net-E01–E14.
+Следующий эксперимент определяется coverage/shadow/learning curves, backbone не закреплён.
+[Протокол и evidence](../docs/brain-development.md).
+
 Все эксперименты ниже имеют статус **не проведён** на 2026-10-01. Это план объективного выбора, а не результаты. Полный декартов перебор запрещать не нужно, но он не является планом: сначала небольшие контролируемые сравнения, затем подтверждение сильных кандидатов.
 
 ## Общий протокол

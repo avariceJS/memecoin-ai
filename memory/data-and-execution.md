@@ -1,5 +1,28 @@
 # Данные и достоверное исполнение
 
+## B01: отдельный price-bar corpus, 2026-10-04
+
+Keyless public GeckoTerminal REST,Solana5min USD OHLCV base token,12pools/age4-4-4.
+Universe freeze admission time/current liquidity≥$10000/unique mint; это sampling rule,
+не обязательное будущее scanner правило. Fixed F01 pools и их mint overlap исключены
+по публичным reference metadata; protected D43/holdout не читались.
+
+Historical event time, actual request/receipt/available time и source bytes раздельны.
+First-observed версии immutable; revisions лишь регистрируются, старые признаки не
+переписываются. «Closed» означает nominal bar end≤receipt; provider finality не доказана,
+API cached1min и может менять bars после interval end. Это не finalized coherent
+Solana state и не recoverable execution history. Historical loading не создаёт прошлую
+online availability. Gaps обрывают context, missing future labels censored; два горизонта
+purged целиком при пересечении global chronological границ.
+
+Свой feature contract12bar values/25channels, targets log price returns, execution_model
+none. D44 classification head не обучается; новые DEX market-data не расширяют CPMM
+protocol support/features/targets. Initial3482unique bars/4pools; следующий prospective
+срез4267bars/12pools,8revision observations. Остальные8pools не имеют полного запрошенного
+historical backfill. HTTP429 и последующий URLError сохранены; initial429 response body
+не был сохранён, failure metadata/status сохранены. Source budget12000GET/72h/paid0,
+Alchemy/QuickNode requests0 в B01. [Источник и runtime](../docs/brain-development.md).
+
 ## Временная корректность
 
 Система в момент t видит только информацию, которая реально могла быть ей доступна. Хранить event time, slot и доступный порядок событий, received time, feature available time, источник, уровень подтверждения, исправления и provenance. Не выдавать blockchain timestamp за время получения. Ретроспективное восстановление receipt time часто невозможно; такие ограничения явно отмечаются.

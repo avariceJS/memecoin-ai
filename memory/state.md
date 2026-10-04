@@ -1,5 +1,57 @@
 # Текущий статус
 
+## Текущий приоритет B01 — Brain Development, 2026-10-04
+
+По прямому указанию пользователя F01 больше не блокирует развитие мозга. Открыт
+независимый exploratory track: настоящий historical backfill → supervised training →
+prospective shadow. Прежние smoke-only ограничения ниже относятся к истории/F01,
+а не к B01. Frozen D43/F01, reserved holdout и старые src/configs не менялись.
+
+**Brain-v1-dev работает как прогнозная вертикаль, не торговая policy.** Keyless public
+GeckoTerminal: universe12новых Solana pools, age4/4/4. Initial3482unique5min bars/4pools,
+3454decisions; train1791/val595/test1050, purge18. Четыре neural fits (linear/GRU×seeds7/19)
+реально проведены; empirical baseline выиграл validation. Полного исторического покрытия
+ещё нет; остальные8пулов включены в prospective corpus. Срез второго успешного цикла:
+4267bars/12pools,48paired shadow predictions,12scored outcomes. Это маленький зависимый
+development sample, не edge/качество/generalization claim.
+
+**Отдельный LaunchAgent установлен:** `ai.memecoin.brain.dev01`, root
+`/Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01`, frozen runtime
+`work/brain-b01/runtime-dev01`, pin
+`8d49becface75853f6a8d89ada3dd44c0be18015a934d34c76c3381d17a0a23c`.
+Сбор каждые5min, sequential≥12s/GET, retraining≥6h при новых данных; CPU1thread для fit.
+До2026-10-07T00:30:23.405597Z (03:30:23МСК),≤12000GET включая probe,≤12training cycles×4fits,
+paid0. Нужны бодрствующий Mac/GUI session/network; power settings не менялись. Это
+72h bounded continuous run, не обещание круглосуточного сервиса/бесконечного renewal.
+
+Первый history429 закрыл backfill probe; выдержан≥900s cooldown. После двух успешных
+prospective cycles следующий завершился `public_http_failure/URLError`, HTTP status null,
+15,95s, no immediate retry. Точный DNS/TLS/connection subtype не установлен. История
+сохранена;2consecutive acquisition failures→STOP, правило не ослабляется. Последнее
+состояние проверять read-only `.venv/bin/python -B tools/brain_status.py` из core root:
+фоновый job продолжает жить независимо от данного снимка памяти.
+Остановка: `touch /Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01/STOP`.
+
+Проверки:525base/3optional skips,548combined с Torch,ruff/format/mypy прежних strict
+модулей,synthetic smoke/build. Из installed wheel raw→dataset exact, повторные4fits дали
+tensor-exact weights и exact selection/metrics;48predictions replay max error4.10e-8,
+12outcomes exact. Model manifest9ea4a6bd…; ledger/checkpoints/raw внеGit immutable.
+
+Дополнение к передаче: следующий плановый cycle1791076500 completed139,359s;
+сервис продолжает сбор после URLError без правки runtime. Последний сохранённый срез
+`status-handoff-02.json`:4291bars/12pools,72predictions/36scored/36pending,49reservedGET,
+19revision observations. Успешный цикл сбросил consecutive failures; прежняя история
+не удалена. Reproduction выше относится к более раннему48/12срезу.
+
+**Следующий B02:** покрытие разных часов/дней и пулов, завершение bounded history для
+недопредставленных pools отдельной versioned acquisition, coverage/revision/censor audit,
+paired future shadow и learning curves/следующие кандидаты. F01 calendarD52 — отдельная
+ветка, не prerequisite Brain. Не менять текущий frozen Brain runtime на месте, не
+превращать exploratory test в reserved holdout. [Итог](../docs/brain-development.md),
+[evidence](../docs/evidence/brain-development-2026-10-04.json).
+
+## Предыдущее состояние D51 (сохранённая история)
+
 Обновлено: **2026-10-04**, Europe/Moscow.
 
 **D51 завершён: BOUNDED LIVE PASS; calendar не активирован.** После owner attestation

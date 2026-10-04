@@ -1,5 +1,22 @@
 # История изменений решений
 
+## 2026-10-04 — B01 Brain Development независимо от F01
+
+Новое прямое поручение заменило smoke-only ограничение для независимого Brain track.
+До сбора/fit опубликован локальный plan commitbf6bd4a; implementationf97b9dc и guards424ad2d.
+Добавлен memecoin_brain без изменения старых source/configs: keyless bars/universe/raw
+capture, causal availability/revision audit, purged dataset, D44 candidates/D47 ledger,
+immutable registry/checkpoints, paired prospective predictions/outcomes, frozen72h service.
+Реальные4fits на3482historical bars; empirical validation winner. Installed-wheel4fits
+воспроизвели weights/metrics,48shadow predictions и12outcomes проверены offline.
+548combined tests,525base/3optional skips,smoke/build прошли. Запущен отдельный LaunchAgent,
+12pools; первые2cycles completed, следующий URLError без immediate retry. Ранее429
+остановил backfill probe, выдержан cooldown. Следующий плановый цикл после URLError
+успешен:4291bars/72predictions/36outcomes, frozen runtime unchanged. Ошибки/partial coverage не скрыты.
+D43/F01/holdout не менялись/не раскрывались,AlchemyRPC/paid/trades0. Следующий B02 —
+coverage и модельные итерации; D52 не блокер. [Итог](../docs/brain-development.md),
+[evidence](../docs/evidence/brain-development-2026-10-04.json).
+
 История концепции восстановлена из обсуждения при создании памяти 2026-10-01. Точные даты двух предыдущих reviews отдельно не зафиксированы; ниже используется порядок обсуждения, а не выдуманная хронология экспериментов. Экспериментов не было.
 
 ## Исходная пользовательская концепция

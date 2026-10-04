@@ -83,3 +83,106 @@ Runtime collection worker имеет hard240s,training worker hard600s (стро
 per-fit cooperative195s/ledger reservation200s, threads1. Parent-death lease и process
 group deadline переиспользуют D50 supervisor. Один due cycle, crash не повторяется;
 service независим от D43. После72h network/training прекращаются, automatic renewal нет.
+
+
+## Фактический результат B01 — 2026-10-04
+
+Это работающий Brain-v1-dev forecasting path, ещё не торговая policy и не доказанное
+преимущество. Initial4fits: linear/GRU×seeds7/19,10epochs,CPU1thread,4.922s весь worker.
+D44 encoder/loss и D47 ledger/checkpoint reuse; fixed F01 runner не запускался.
+
+| Candidate | Validation pool-macro pinball | Exploratory test pool-macro pinball |
+|---|---:|---:|
+| Empirical | 0.01009019 | 0.04061468 |
+| Linear ensemble | 0.01690002 | 0.04025514 |
+| GRU ensemble | 0.01126939 | 0.03299933 |
+
+Выбран **empirical** по заранее заданному validation правилу. Лучшее test значение GRU
+не меняет выбор задним числом. Test содержит4пула, train/validation сильно несбалансированы
+по возрасту/пулу; initial corpus не позволяет заявлять generalization. Обе learned модели
+сохранены и дают paired shadow forecasts вместе с baseline на одних input observations.
+Train cutoff actual1791074515596023000ns; finished1791075073154602000ns. Execution model
+`none; observed price log returns`, не CPMM fills/PnL.
+
+Первые два frozen prospective cycles:134.464/139.863s,24successfulGET; корпус4267first-version
+bars по12пулами,8revision observations.48predictions,12scored outcomes и36pending в срезе
+`status-final-01.json`. Descriptive pooled pinball на этих12dependent outcomes:
+empirical0.00890023,GRU0.00878604,linear0.02103840. Это одна короткая будущая выборка,
+без CI/power/победителя. Историческая глубина остальных8pools ещё pending: recent tail
+из live endpoint не завершает исходный deep backfill.
+
+Третий цикл завершился через15.953s с `public_http_failure`, `URLError`, HTTP status null,
+`no_retry=true`; subtype DNS/TLS/connect не установлен. До него history probe получил429.
+Все request reservations считаются расходом, включая ошибки. В срезе37requests total
+(включая initial external probe),34successful root captures,2failed; probe success отдельно.
+Это1consecutive acquisition failure после двух успешных циклов, stop threshold2 сохранён.
+
+«Закрытая свеча» означает лишь nominal interval end≤actual receipt. Независимое подтверждение
+provider candle finality отсутствует; cache/revisions видны в raw. First-observed snapshot
+сохраняется даже при более позднем исправлении provider. Event-time retrospective training
+не утверждает, что такой snapshot был доступен исторически. Это наблюдаемая цена,
+не атомарное состояние пула и не execution-quality label.
+
+## Воспроизведение и эксплуатация
+
+548tests с optional Torch,525base/3optional skips;ruff/format и существующий strict mypy
+на59файлах,synthetic smoke,build/install wheel. Новые Brain modules не входят в strict
+mypy target.21new tests покрывают causality/gaps/purge/scaler, budget/scope/cooldown,
+fail-closed runtime, crash/no-overlap, tamper, checkpoint и future-label perturbation.
+Из установленного wheel восстановлен initial dataset точно;4дополнительных reproduction
+fits дали tensor-exact weights и exact metrics/selection.48saved predictions воспроизведены
+с max abs error4.10e-8 (tolerance1e-5 из-за batched inference),12outcomes exact. Эти4fits
+не новые selection trials; raw/reproduction outputs не перезаписаны.
+
+Команды из `/Users/root1/Desktop/memecoin-ai`:
+
+```sh
+.venv/bin/python -B tools/brain_status.py
+work/ml-venv/bin/python -I -B tools/brain_reproduce.py --installed-path work/brain-b01/installed-wheel-01 --output work/brain-b01/reproduction-NEW
+# При необходимости остановить именно Brain:
+touch work/brain-b01/dev01/STOP
+```
+
+Reproduction требует нового output path и не выполняет network requests. Status читает
+только Brain metadata; фоновые публикации атомарны, но весь снимок не transactional.
+Raw/секреты внеGit, публичные source URLs keyless. `work/brain-b01/dev01` содержит
+requests,universe,cycles,training,models,shadow; первичный dataset отдельно
+`work/brain-b01/dataset-initial-01`. Evidence хранит hashes immutable artifacts/срезов,
+не притворяется seal постоянно растущего root.
+
+Установлен `~/Library/LaunchAgents/ai.memecoin.brain.dev01.plist`, отдельный GUI-session
+LaunchAgent. Runtime manifest pin:
+`8d49becface75853f6a8d89ada3dd44c0be18015a934d34c76c3381d17a0a23c`;
+initial model manifest:
+`9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920`.
+Expiry2026-10-07T00:30:23.405597Z (03:30:23МСК), total≤12000GET; не более12training
+cycles×4fits,≥6h и только новые данные. Job может остановиться раньше по STOP, quota,
+disk, expiry, code/clock failure либо двум consecutive acquisition failures. Training
+failure блокирует следующие automatic training attempts; data collection может продолжаться.
+Нужны awake Mac,network и GUI login. Питание/сон/системные настройки не менялись;
+послеexpiry network/training прекращаются, plist остаётся registered, auto-renewal нет.
+Runtime source/config/universe/interpreter pins проверяются; это не container isolation
+и не pin всех бинарных dependencies ОС/PyTorch. Их version сохранена в fit binding.
+
+**Решение:** продолжать независимый Brain development и его bounded runtime; не ждать
+F01 и не выпускать trading policy. Следующий **B02**: разные временные окна/пулы,
+недостающий backfill и sampling bias, revision/censor/coverage audit, новые learning curves
+и paired future shadow для model selection. Дополнительные backbones/features — после
+этой диагностики, не догматический переход на GRU. Продление/изменение deployment —
+новая versioned инженерная оценка в рамках разрешённого track, не правка frozen root.
+
+[Сводное evidence](evidence/brain-development-2026-10-04.json) содержит проверки, source,
+локальные artifact paths/hashes, первые результаты и limitations. D43/F01/holdout,
+старые CPMM features/targets/configs не менялись;AlchemyRPC0,QuickNode0,paid0,trade orders0.
+
+
+### Дополнение перед передачей
+
+Следующий плановый цикл `1791076500` завершился успешно за139.359s без изменения frozen
+runtime и без immediate retry. Срез `status-handoff-02.json`:4291bars/12pools,
+19revision observations,72paired predictions,36scored/36pending; total49reservedGET
+(46successful root captures +2failed +1external successful probe). Последовательность
+failures сброшена успешным новым циклом; ошибки сохранены. Сервис продолжает работу
+в прежних bounds. Основной reproduction выше относится к48predictions/12outcomes,
+новые24predictions/24outcomes в тот replay не включены. Эти обновлённые counts не меняют
+выбор модели или ограничение на статистические выводы. Evidence содержит оба среза.

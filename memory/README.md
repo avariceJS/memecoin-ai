@@ -34,6 +34,7 @@ Memory Bank — канонический, пригодный для чтения
 | D49 source/budget/scheduler qualification и закрытый activation gate | [f01-collector-qualification.md](../docs/f01-collector-qualification.md) |
 | D50 subprocess supervisor, frozen runtime, budget receipts и staged service | [f01-operational-runtime.md](../docs/f01-operational-runtime.md) |
 | D51 owner review,180RPC live PASS, offline replay и calendar operating conditions | [f01-live-qualification.md](../docs/f01-live-qualification.md) |
+| B01: независимый Brain Development, history, supervised training и continuous shadow | [brain-development.md](../docs/brain-development.md) |
 | Как проверять edge и выпускать новую модель | [evaluation.md](evaluation.md) |
 | В каком порядке работать | [roadmap.md](roadmap.md) |
 | Что уже существует и что дальше | [state.md](state.md) |
