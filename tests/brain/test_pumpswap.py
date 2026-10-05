@@ -213,3 +213,14 @@ def test_two_swaps_in_one_transaction_reconcile_aggregate_vault_deltas():
     r = decode(tx)
     assert r["status"] == "reconciled_candidate" and len(r["swaps"]) == 2
     assert r["swaps"][0]["path"] != r["swaps"][1]["path"]
+
+
+def test_historical_profile_requires_exact_instruction_wire_length():
+    tx, _ = fixture()
+    historical = copy.deepcopy(SCHEMA)
+    historical["instructions"]["buy"]["data_lengths"] = [25]
+    assert decode(tx, historical)["status"] == "quarantined"
+    historical["instructions"]["buy"]["data_lengths"] = [24]
+    assert decode(tx, historical)["status"] == "reconciled_candidate"
+    # Parameterized history support does not change the default B06 contract.
+    assert decode(tx)["status"] == "reconciled_candidate"

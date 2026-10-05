@@ -28,15 +28,15 @@ def encode58(value):
     return "1" * (len(value) - len(value.lstrip(b"\0"))) + out
 
 
-def event_payload(data):
+def event_payload(data, schema=SCHEMA):
     """An unknown suffix is retained and rejected, never silently discarded."""
     if data[:8] != EVENT_TAG:
         raise ValueError("event_tag")
-    name = next((k for k, v in SCHEMA["events"].items() if data[8:16] == bytes(v)), None)
+    name = next((k for k, v in schema["events"].items() if data[8:16] == bytes(v)), None)
     if name is None:
         raise ValueError("event_discriminator")
     offset, values = 16, {}
-    for key, typ in SCHEMA["fields"][name]:
+    for key, typ in schema["fields"][name]:
         size = {"u64": 8, "i64": 8, "i128": 16, "bool": 1, "pubkey": 32}.get(typ)
         if typ == "string":
             if offset + 4 > len(data):
@@ -204,7 +204,7 @@ def movement(node, roles, kind, pre, post):
     )
 
 
-def decode(tx):
+def decode(tx, schema=SCHEMA):
     result = dict(
         swaps=[],
         unknown_instructions=[],
@@ -228,7 +228,7 @@ def decode(tx):
             status="unsupported_trace",
             errors=[str(exc) if isinstance(exc, ValueError) else "trace_schema"],
         )
-    bydisc = {bytes(v["discriminator"]): k for k, v in SCHEMA["instructions"].items()}
+    bydisc = {bytes(v["discriminator"]): k for k, v in schema["instructions"].items()}
     for node in nodes:
         ix = node["ix"]
         if ix.get("programId") != PROGRAM:
@@ -243,10 +243,10 @@ def decode(tx):
                 continue
             swap = dict(path=node["path"], kind=kind, blockers=[], movement=None, event=None)
             result["swaps"].append(swap)
-            names = SCHEMA["instructions"][kind]["accounts"]
+            names = schema["instructions"][kind]["accounts"]
             accounts = ix["accounts"]
-            if len(accounts) < len(names) or len(data) not in (
-                (24,) if kind == "sell" else (24, 25)
+            if len(accounts) < len(names) or len(data) not in schema["instructions"][kind].get(
+                "data_lengths", (24,) if kind == "sell" else (24, 25)
             ):
                 raise ValueError("instruction_layout")
             if len(data) == 25 and data[24] not in (0, 1):
@@ -265,7 +265,7 @@ def decode(tx):
             evix = evnodes[0]["ix"]
             if evix["accounts"] != [roles["event_authority"]]:
                 raise ValueError("event_authority")
-            ev = event_payload(decode58(evix["data"]))
+            ev = event_payload(decode58(evix["data"]), schema)
             swap["event"] = ev
             if not ev["exact"]:
                 swap["blockers"].append("unknown_event_suffix")
