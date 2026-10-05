@@ -1,5 +1,13 @@
 # История изменений решений
 
+## 2026-10-06
+
+- Восстановлен первый реальный AUTO refit; выявлены legacy B10/B12 STOP на `.DS_Store`.
+- Offline diversity/paired inference audit; NEW лучше5m, хуже15m на общем descriptive test.
+- D43 окончательно closed по двум failed windows, не completed48h.
+- Начат отдельный market-vacuum protocol; live gates/runtime не изменены.
+
+
 ## 2026-10-05 — B13 paper incident локализован, AUTO возобновлён
 
 Paper worker падал на `.DS_Store` в `candidate-shadows`; exam STOP ошибочно блокировал

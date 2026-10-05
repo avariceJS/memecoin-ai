@@ -1,5 +1,14 @@
 # Реестр архитектурных решений
 
+## 2026-10-06 — diversity до ускорения таймера
+
+Новый приоритет пользователя: сначала forensic review, затем масштаб полезного опыта.
+Первичный audit завершён; выбран indexed program/birth-cohort historical lane с versioned
+admission, затем streaming dataset и измеряемый trigger. Прежний24h/100gate пока неизменен.
+Причина:2598новых eligible за сутки,0новых train pools; OLD/NEW результат смешанный.
+F01 не блокирует Brain; existing AUTO сохраняется. [Протокол](../docs/brain-market-vacuum.md).
+
+
 ## B12 — matched curriculum и отдельный frozen paper exam, 2026-10-04
 
 Статус:36fits выполнены, модели sealed, B12paper/UI активированы до2026-10-05 21:28МСК.

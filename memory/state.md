@@ -1,5 +1,17 @@
 # Текущий статус
 
+## 2026-10-06 — forensic review, новый data этап в работе
+
+Первый настоящий B13 AUTO refit выполнен: candidate `job_ef9cb49cef6d7157`, exam
+`job_3d405d04fd61c744`; AUTO/waiting, 2/6 reservations. OLD/NEW по-прежнему24train pools,
+48k retained,92→93days. На одинаковом NEW test GRU5m loss−3.98%,15m+5.77%; общего
+improvement нет. Eligible growth2598/15known pools/newpools0/effective9.60; сильное
+overlap. Legacy B10/B12 также STOP `.DS_Store`, их daily/future continuation не состоялась.
+D43 закрылся после completed1+failed2, последние3окна не запускались. Holdout4/5 не читался.
+[Forensic review](../docs/brain-experience-review.md), [следующий протокол](../docs/brain-market-vacuum.md).
+Работающий operator/source пока не менялись, adaptive gate ещё не включён.
+
+
 ## B13 — финальная приёмка, 2026-10-05
 
 Текущий оператор: `work/brain-b13/operator04`, http://127.0.0.1:8792.
