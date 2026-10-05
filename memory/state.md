@@ -26,6 +26,7 @@ gap debt, strict historical IDLs, global dedup/revision rejection, canonical SQL
 Campaigns завершены, новый 24/7 daemon не установлен. Exact decoder не игнорирует suffix.
 Streaming shards + memory-map minibatch cache проверены на реальном 91472-sample snapshot.
 Information-support-v1 реализован только shadow; live AUTO остаётся 24h+100matured.
+Operator deployment guard и все OLD/NEW dataset/model seals повторно проверены.
 
 Следующий сильный шаг: qualified contiguous historical ranges + quote/USD normalization
 и actual 2026 layouts; затем расширенный dataset, fixed-recipe candidate/future paper,
@@ -1378,3 +1379,11 @@ exam), actual4fits/futureexam отдельно. Growth100 сравнивает l
 послеfoldpurge; это operationalproxy, не точный счётчик новыхtrainingdecisions (fixture740/734).
 24h/6reservations/immutable dataset gates остаются; denominator унифицировать следующим
 Codex до расширенияrollout. ManualPaper повторно допустим отдельнымexam, AUTOне дублирует.
+
+### 2026-10-06 — проверки и evidence текущего этапа
+
+`make setup`, `make check` (890 passed /11 optional skips), `make smoke`, `make build` — passed.
+В отдельной ML-среде: 135 passed (brain/curriculum/vacuum/ml, включая tensor-cache parity).
+Код: `520731f` forensic, `6431b50` historical vacuum/corpus, `e2e9262` loading/shadow trigger.
+Final evidence: [brain-vacuum-2026-10-06.json](../docs/evidence/brain-vacuum-2026-10-06.json).
+Полные raw/artifacts остаются вне Git в `work/brain-review-20261006/`; production gate не менялся.

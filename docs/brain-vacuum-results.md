@@ -158,3 +158,32 @@ Memory-map измерение на Apple M4 Pro: cache для 91472 decisions с
 1000 CPU batches по 64 решения считаны за 0.0341 s после создания/прогрева cache.
 Это **только загрузка тензоров**, не forward/backward, не cold-disk benchmark и не оценка
 ускорения всего training. Peak RSS процесса 628408320 bytes. Seed draws: 7.
+
+### Роли providers и пределы масштаба
+
+| Provider | Подтверждённая роль сейчас | Ограничение |
+|---|---|---|
+| GeckoTerminal | Действующий USD OHLCV / live Brain | Fixed cohort, polling, revisions/quarantine |
+| Alchemy | Historical indexed transactions, migration discovery, fee flow | Address index coverage и protocol layouts требуют проверки |
+| Helius | Connector видит настроенный API key | Account plan/usage неизвестны; платный доступ не предполагался |
+| Public Solana RPC | Возможный read-only verification/fallback | Historical throughput и completeness в этом этапе не квалифицированы |
+
+Free quota не растягивалась искусственно: полезные campaigns запускались последовательно
+с 1s pacing. Дальнейший bulk остановлен после измерения узкого места admission, а не ради
+сохранения нескольких тысяч CU. Стоимость доставленных swap candidates составила примерно
+4.13 CU /71.7 kB (pool lane) и 7.41 CU /160.4 kB (fee lane) на событие. Это слишком разные
+профили, чтобы переносить одну скорость на целый год или обещать 1000 train markets.
+Discovery 100/500 markets уже пройден; 1000 пока не достигнут даже в этом registry snapshot
+(965). Для 100/500/1000 **train** markets остаются общими блокерами qualified bars, coverage,
+quote units и cohort admission; затем потребуются storage/compute измерения на большом корпусе.
+
+## Проверки и воспроизведение
+
+`make setup/check/smoke/build` прошли; основной набор: 890 passed /11 optional skips.
+В ML-среде: 135 passed, включая shard/tensor-cache parity. Seals OLD/NEW datasets/models,
+нового corpus/shards/cache и operator deployment guard проверены повторно.
+[Evidence с hashes](evidence/brain-vacuum-2026-10-06.json). Код: `520731f`, `6431b50`, `e2e9262`.
+Полные artifacts — `work/brain-review-20261006/`, не Git. Не заменять существующие outputs.
+Ранние acquisition workers были связаны hashes изменяемого checkout; полная immutable
+копия исходников worker добавлена с `fee-stream01`. Все raw позволяют повторить offline
+декодирование финальным кодом. Это ограничение provenance ранних запусков сохранено явно.
