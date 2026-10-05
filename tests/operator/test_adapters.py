@@ -10,6 +10,7 @@ import pytest
 
 from memecoin_continuous.store import connect, ingest
 from memecoin_ml.data import read, sha
+from memecoin_operator import adapters
 from memecoin_operator.adapters import inspect, paper_projection, public_registry, registered, run
 from memecoin_operator.learning import prepare
 from memecoin_registry.contracts import seal, verify
@@ -368,6 +369,25 @@ def test_touch_stop_still_reports_a_stopped_source(tmp_path, acquisition):
     assert view["source"]["stopped"] is True
     assert view["source"]["healthy"] is False
     assert view["source"]["stop_reason"] == "unknown_STOP"
+
+
+def test_stopped_exam_does_not_stop_healthy_source_domain(tmp_path, acquisition, monkeypatch):
+    source = bind_source(tmp_path / "source", time.time_ns() + 86400 * NS)
+    root = tmp_path / "op"
+    operator_config(root, source, time.time_ns() + 86400 * NS)
+    publish(source / "health.json", dict(at_ns=time.time_ns(), attempts=1, cooldown_ns=0))
+    real_registry = adapters.public_registry
+
+    def registry(path, kind):
+        if kind == "exams":
+            return [dict(id="failed-exam", status="stopped")]
+        return real_registry(path, kind)
+
+    monkeypatch.setattr(adapters, "public_registry", registry)
+    view = inspect(root)
+
+    assert view["limits"]["domain_stop"] is False
+    assert view["limits"]["eligible"] is True
 
 
 def test_same_dataset_cannot_train_twice(tmp_path, acquisition):

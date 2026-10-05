@@ -426,8 +426,10 @@ def inspect(root):
             expires_ns=c["expires_ns"],
             max_training_runs=c.get("max_training_runs", 6),
             min_refit_interval_s=c.get("min_refit_interval_s", 86400),
-            domain_stop=(source_view["stopped"] and not handoff)
-            or any(e["status"] == "stopped" for e in exams),
+            # A STOP belongs to its paper exam. It must remain visible and
+            # immutable, but cannot freeze source collection or future exams.
+            # A source STOP still fences the whole operator domain.
+            domain_stop=source_view["stopped"] and not handoff,
             max_open_exams=8,
             eligible=not source_view["stopped"] and not handoff and now < sc["expires_ns"],
             paid_budget_usd=0,

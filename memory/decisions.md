@@ -1089,3 +1089,16 @@ batch512 с индексом занял2.235s. Разрешена техниче
 Paper migrations только exact prefix/cash/pending/model/start/expiry. Это operational
 repair в рамках текущего поручения, не пересмотр scientific gates.
 [Инциденты и evidence](../docs/brain-autonomous-operator.md).
+
+### B13 runtime repair: filesystem noise изолируется на уровне exam
+
+2026-10-05. `candidate-shadows` перечислялся как набор директорий без проверки типа;
+macOS `.DS_Store` вызвал `NotADirectoryError`, worker exit1 и STOP только у frozen exam.
+Выбор: игнорировать не-directory/symlink entries при обходе shadow lanes; paper exam STOP
+не является source/domain STOP. Причина — независимые virtual exams должны сохранять
+ошибку и ledger, но не выключать healthy source и будущий AUTO. Source STOP остаётся
+глобальным fail-closed gate. Исправленный runtime06 закреплён отдельно; исходный exam STOP,
+activation/expiry/ledger и reservation не переписаны. Приёмка: `make check` 870 passed,
+10 optional skips; `make smoke` reproducible. Живой статус после Resume:
+AUTO/waiting, source healthy, domain_stop false; интервал 24h ещё gate. Решение ограничено
+paper-exam STOP; неизвестные source/integrity STOP по-прежнему требуют отдельного разбора.

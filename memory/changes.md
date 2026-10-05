@@ -1,5 +1,14 @@
 # История изменений решений
 
+## 2026-10-05 — B13 paper incident локализован, AUTO возобновлён
+
+Paper worker падал на `.DS_Store` в `candidate-shadows`; exam STOP ошибочно блокировал
+весь operator domain. Lane traversal теперь принимает только настоящие каталоги, exam STOP
+изолирован от source/domain gate. Runtime06 закреплён и запущен; Resume вернул AUTO/waiting,
+источник healthy, старый exam/STOP/ledger сохранены. Сейчас соблюдается штатный 24h refit
+interval. Проверки: `make check` 870 passed/10 optional skips, `make smoke` reproducible.
+Evidence: `work/brain-b13/operator04/revisions/operator-runtime06/`.
+
 ## 2026-10-05 — B13 autonomous paper operator принят
 
 Реальные UI collect/snapshot/train/candidate/futureexam и AUTO/Pause/Stop/restart/Resume

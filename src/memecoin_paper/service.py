@@ -46,6 +46,14 @@ def source_rows(c, cutoff, training=False):
     return safe_corpus(Path(c["source"]), cutoff)
 
 
+def shadow_lanes(root):
+    """Return real lane directories only; Finder metadata files are not lanes."""
+    parent = Path(root) / "candidate-shadows"
+    if not parent.is_dir() or parent.is_symlink():
+        return []
+    return sorted(path for path in parent.iterdir() if path.is_dir() and not path.is_symlink())
+
+
 def candidate_tick(root, rows, prov, healthy):
     from memecoin_brain.shadow import tick
 
@@ -66,7 +74,7 @@ def candidate_tick(root, rows, prov, healthy):
         lane = root / "candidate-shadows" / sha(model / "manifest.json")
         (lane / "shadow").mkdir(parents=True, exist_ok=True)
         selected[lane] = model
-    for lane in sorted((root / "candidate-shadows").glob("*")):
+    for lane in shadow_lanes(root):
         tick(
             lane,
             recent,
@@ -147,7 +155,7 @@ def paper(root):
             and 0 <= now - current_health["at_ns"] <= 180 * 10**9
             and now >= current_health["cooldown_ns"]
         )
-    parents = [source, *sorted((root / "candidate-shadows").glob("*"))]
+    parents = [source, *shadow_lanes(root)]
     for parent in parents:
         for path in (parent / "shadow/predictions").glob("*.json"):
             p = read(path)

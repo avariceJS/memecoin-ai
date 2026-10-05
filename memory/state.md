@@ -42,6 +42,23 @@ reservations/candidates, paired matured forecast losses и policy ledger; не �
 [инструкция](../docs/brain-operator-manual.md). Следующий Codex: сначала эту секцию,
 final evidence и operator report/ledger; прежние статусы ниже — история до B13 repair.
 
+### B13 runtime repair, 2026-10-05 11:58 МСК
+
+Причина предыдущей паузы: `candidate_tick` перечислял файлы внутри
+`candidate-shadows`; `.DS_Store` вызвал `NotADirectoryError`, paper worker exit1 и STOP
+у exam `job_b7edd93ea86173f9` в09:20:43МСК. Это был exam STOP, не source STOP и не вчерашний
+тест кнопки. STOP, exam ledger и инцидент сохранены. Код теперь фильтрует настоящие
+каталоги-lanes и не следует по symlink; STOP отдельного exam больше не блокирует весь
+operator domain, source STOP по-прежнему fail-closed.
+
+Запущен LaunchAgent на pinned `work/brain-b13/operator-runtime06`, pin
+`2620370937bf0547b222fdd591025a1e981372299e72eaf2034763c8d0d5779b`. Штатный Resume
+вернул `mode=auto`, `phase=waiting`, `domain_stop=false`; source healthy, STOP старого exam
+виден как `stopped`. Сейчас scheduler ждёт прежний 24h interval; reservations1/6 и сроки
+не менялись. `make check`:870 passed/10 optional skips; `make smoke` reproducible synthetic
+PASS. Повторные24h uptime всё ещё не измерены. Evidence переключения runtime:
+`work/brain-b13/operator04/revisions/operator-runtime06/`.
+
 ## B12 — curriculum сравнен, frozen candidate уже получает future paper, 2026-10-04
 
 **B09 source/audit и B10 paper/train/UI сохранены.** Дополнительно работает независимый

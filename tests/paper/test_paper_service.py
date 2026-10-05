@@ -9,6 +9,17 @@ from memecoin_paper.audit import replay, snapshot
 from memecoin_registry.contracts import verify
 
 
+def test_shadow_lanes_ignores_files_and_symlinks(tmp_path):
+    root = tmp_path / "paper"
+    lanes = root / "candidate-shadows"
+    (lanes / "model-a").mkdir(parents=True)
+    (lanes / ".DS_Store").write_bytes(b"Finder metadata")
+    (lanes / "notes.txt").write_text("not a model lane")
+    (lanes / "linked-lane").symlink_to(lanes / "model-a", target_is_directory=True)
+
+    assert service.shadow_lanes(root) == [lanes / "model-a"]
+
+
 def put(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value))
