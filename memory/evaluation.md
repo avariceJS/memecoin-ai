@@ -1,5 +1,15 @@
 # Оценка модели и управление версиями
 
+## 2026-10-06 — единицы сравнения и shadow trigger
+
+Не сравнивать OLD/NEW собственные rolling test scores как paired improvement.
+На общем NEW test 252 decisions/8pools результат смешанный; поздний future replay
+18origins/2pools слишком мал. OLD replay выполнен offline, не prospectively published.
+Raw MATURED, new eligible, new train membership и genuinely-new train — разные величины.
+Disjoint windows/effective pools не statistical ESS. information-support-v1 пока shadow,
+не меняет live reservations. [Review](../docs/brain-experience-review.md).
+
+
 ## 2026-10-05 — автономные candidates и будущие exams B13
 
 Каждый completed/sealed candidate получает отдельный future exam с реальным activation,

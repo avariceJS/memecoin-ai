@@ -1,5 +1,15 @@
 # Реестр исследовательских экспериментов
 
+## 2026-10-06 — forensic и acquisition qualification, без новых fits
+
+OLD/NEW B13 paired descriptive test выполнен отдельно от собственных rolling test scores.
+5m улучшился на 3.98%,15m ухудшился на 5.77%; confidence/edge не заявлены.
+Исторические acquisition campaigns зарегистрированы до RPC; финальные strict swap reports
+имеют суффикс02 после проверки exact instruction length. Приобретение данных не означает
+новый ML эксперимент: additional fits0, promotion0, future paper прежнего frozen candidate.
+[Forensic](../docs/brain-experience-review.md), [acquisition](../docs/brain-market-vacuum.md).
+
+
 ## 2026-10-05 — B13 preregistered autonomous refit
 
 Рецепт зарегистрирован commit86929cb до новых fits: прежние 12 features/context8,

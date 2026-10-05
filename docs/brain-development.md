@@ -1,5 +1,15 @@
 # Brain Development B01: независимый exploratory track
 
+## Уточнение 2026-10-06 — результаты первого автономного периода
+
+[Forensic review](brain-experience-review.md) и [historical vacuum](brain-vacuum-results.md)
+имеют приоритет над более ранними описаниями активных B10/B12/D43 tracks.
+AUTO B13 сохраняется; новый corpus отделён от USD train до qualification coverage/units.
+965 registry/event markets не означают расширение 24-market train. Новых fits этой сессией
+не выполнялось. Adaptive support trigger и streaming loader квалифицированы отдельно,
+live cutover пока отсутствует. Следующий шаг — historical admission, затем data-only candidate.
+
+
 ## Решение и стартовый план — 2026-10-04, до сбора и обучения
 
 Прямое указание пользователя открывает historical backfill, расширение universe,

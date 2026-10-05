@@ -117,6 +117,7 @@ def main():
         old={k: support(v) for k, v in old.items()},
         new={k: support(v) for k, v in new.items()},
         train_delta=delta(old["train"], new["train"]),
+        genuinely_new_train_delta=delta(sum(old.values(), []), new["train"]),
         eligible_delta=delta(sum(old.values(), []), sum(new.values(), [])),
         raw_audit=dict(old=old_meta, new=new_meta),
         forecasts=forecasts(args.root, args.cutoff_ns),

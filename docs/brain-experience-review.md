@@ -94,3 +94,60 @@ birth cohort discovery, versioned protocol admission, canonical store и streami
 snapshots. Все исходные manifest hashes совпали; удалены только эти новые ancillary files,
 seals повторно verified. Audit использует immutable=1 только для sealed backups, никогда
 для live WAL. Это не изменение данных и не удаление прежнего incident.
+
+## Дополнительный forensic срез и точные оговорки
+
+`experience02.json` уточняет genuinely-new train:2082решения,15pools,effective9.98,
+largest11.19%,11new pool-days,25UTC-hour buckets,216disjoint windows.
+Сравнение идёт против всех прежних eligible train/validation/test IDs, поэтому803из2885
+новых train-membership rows не названы новым опытом. Raw UI proxy по telemetry:
+87493→90103 (+2610), иной срез/definition, чем snapshot eligible87422→90020 (+2598).
+Нельзя складывать их. Новые eligible age bins:0–1d149,1–7d988,7–30d291,30–90d585,
+≥90d585; newborn<1d — лишь149. RMS return buckets<0.005/0.02/0.1/≥0.1:
+1214/404/924/56. Volume bins<100/<1000/<10000/<100000/≥100000USD:
+17/197/1415/939/30. Bucket boundary definitions — `diversity.py`.
+На основных pools соседние15m returns имеют lag1 correlation около0.60–0.70;
+редкие/малые cohorts не дают устойчивой оценки. Все raw per-pool counts есть в JSON.
+
+Source journal с21:13:36UTC4октября до21:32:01UTC5октября:
+2243reserved/2243outcome,2219valid,7duplicate_bar_in_response,17transport failures;
+HTTP2002226,17безHTTPresponse. Цепочка journal и capture manifest references проверены,
+полный raw replay всех GET заново не выполнялся. Один сохранённый failure:
+requests/001774, URLError/ConnectionResetError. Между любыми outcome максимум114.90s,
+но между запросами отдельных quarantined pools до12h. На NEW snapshot лишь4/24pools
+имели last closed candle моложе10min; самый старый был44.62h. Низкая freshness рынка
+и no-trade не различены по одному отсутствию новых баров. Healthy source ≠24fresh markets.
+
+На исходном cutoff B13 forecasts1576 (дваmodel lanes, дваhorizons),scored1528,
+censored16,pending32;788bookkeeping origin groups не statistical independent observations.
+Агрегированная paper-проекция stale:2311WAIT,11ENTERintents,0HOLD/EXIT,0fills,
+realized0,fees0,turnover0,cash100% в шести показанных независимых книгах.
+Она НЕ полная свежая оценка всех книг; legacy PnL нельзя приписывать NEW Brain.
+`operator.integrity_ok=false` в forensic renderer связан с `refused:runtime/outside_root`:
+pinned runtime находится вне operator04, отчёт не последовал за ним по безопасному
+path allowlist. Это ограничение проекции, не доказательство повреждения model bundles;
+их seals проверены отдельно. Этот UI/report дефект не скрыт и не исправлен снятиемpathgate.
+
+Поздний paired replay (`paired02.json`, cutoff22:03:46UTC5октября): всего18origin decisions,
+2pools,18targets5m/14targets15m. OLD→NEW pool macro5m0.00306464→0.00246807,
+15m0.00267620→0.00238181. NEW coverage5m0/88.89/100%,15m0/78.57/100%:
+медиана сдвинулась вверх, но calibrated результат не доказан. OLD inference offline;
+это не парный prospective publication и не новый экзамен, созданный нами.
+
+### Временная линия UTC
+
+- 2026-10-04 21:09:15: operator initialized; первоначальный UI цикл manual.
+- 21:13:36: первый future exam activated.
+- 21:46:36–21:49:59: реальные AUTO/Pause/Resume/Stop/restart/Resume при приёмке;
+  вмешательство, не автономное испытание отказов.
+- 2026-10-05 06:20:43: `.DS_Store` paper failure, ошибочный domain_stop.
+- 08:30:47: Resume сразу снова paused;08:57:43: Codex Resume послеruntime06repair.
+- 21:12:11–21:13:55: настоящий automatic snapshot.
+- 21:13:55–21:14:48: automatic four-fit training/candidate publication.
+- 21:14:49: новый future exam activated;21:14:50: paper job published.
+
+AUTO Collect/config adoption, Snapshot, Train, publication, Future paper, Waiting прошли
+на реальных данных;24h таймер сработал. Pause/Resume/Stop/restart проверены реальнымUI
+под наблюдением человека/Codex. Crash reservation/fault tests остаются fixtures там, где
+нет реального события. Пятидневного unattended AUTO не было; первый paper оборвался
+через≈9h, source продолжил жить, B10/B12 stopped остались отдельным evidence.

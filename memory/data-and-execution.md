@@ -1,5 +1,16 @@
 # Данные и достоверное исполнение
 
+## 2026-10-06 — historical registry/events, отдельный namespace
+
+Raw Pump historical lane квалифицирует birth metadata и strictly reconciled swap candidates,
+но не execution или USD training bars. Event identity = signature + instruction path;
+conflicting economic revisions отвергаются, повторные captures сохраняются как provenance.
+Immutable page reservations/cursors/gap debt, single-writer derived corpus SQLite;
+sealed DB читать mode=ro&immutable=1, live WAL — только обычный consistent read snapshot.
+965 registry/event markets не равны 24 train markets. WSOL/USDC units не смешивать с USD.
+Подробности, costs и pins: [результат](../docs/brain-vacuum-results.md).
+
+
 ## 2026-10-05 — B13 store/recovery и ограниченный successor
 
 B12 обнаружил false membership-corruption при concurrent SQLite commit между SELECT.

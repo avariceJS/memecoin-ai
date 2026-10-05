@@ -1,5 +1,17 @@
 # История изменений решений
 
+## 2026-10-06 — продолжение: historical vacuum и уточнение forensic audit
+
+- Source journal: 2243 attempts, 17 transport failures, 7 ambiguous bar responses;
+  здоровый collector не означает свежие данные всех 24 markets.
+- Новый train experience уточнён: 2082 IDs после исключения всех прежних eligible folds.
+- Historical migration/fee indices, strict versioned decoders, immutable canonical store:
+  965 markets /1579 deduplicated swap candidates; train admission пока 0.
+- Streaming writer и memory-map loader квалифицированы на реальном snapshot.
+- Adaptive trigger реализован в shadow; existing AUTO, books, budgets, STOP сохранены.
+- [Полный результат](../docs/brain-vacuum-results.md); прежние отчёты и отрицательные probes сохранены.
+
+
 ## 2026-10-06
 
 - Восстановлен первый реальный AUTO refit; выявлены legacy B10/B12 STOP на `.DS_Store`.

@@ -1,5 +1,22 @@
 # Реестр архитектурных решений
 
+## 2026-10-06 — исторический corpus: registry/event admission отдельно от train
+
+Статус: реализован и измерен отдельный historical lane, live cutover не выполнен.
+Program address index дал 0 rows; Pump migration authority дал 865 births, shared fee
+accounts — events многих pools без per-pool GET. Выбраны версии исторического ABI,
+unknown tails/extensions остаются quarantine. Sealed corpus: 965 markets, 1579 events;
+training-ready прирост пока 0. Не смешивать WSOL/USDC quote bars с USD features.
+
+Information-support-v1 зарегистрирован и реализован в shadow: normal 1000 new train IDs /
+8 effective pools /8 new pool-days /128 disjoint windows /1h; fast 20000/50/50/1000/10min.
+New IDs сравниваются со всеми прежними eligible folds; old val→train не новый опыт.
+Quota/domain/freshness сохраняются. 24h gate действующего AUTO не меняется до qualification
+нового admission path. Streaming shards/cache сохраняют прежний feature contract.
+Основание и результаты: [vacuum](../docs/brain-vacuum-results.md),
+[preregistration](../docs/brain-market-vacuum.md). Richer policy — последующая отдельная ablation.
+
+
 ## 2026-10-06 — diversity до ускорения таймера
 
 Новый приоритет пользователя: сначала forensic review, затем масштаб полезного опыта.

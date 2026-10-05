@@ -1,5 +1,38 @@
 # Текущий статус
 
+## 2026-10-06 — forensic review и historical vacuum qualification завершены
+
+Актуальный итог: [forensic review](../docs/brain-experience-review.md),
+[vacuum results](../docs/brain-vacuum-results.md). Предыдущая секция «в работе» ниже — история.
+AUTO operator04/runtime06 продолжает работать: waiting, source healthy, domain_stop=false,
+2/6 reservations. В этой сессии runtime, LaunchAgents, expiry, книги и gate не менялись.
+Source expiry 2026-10-07 12:23:51 UTC; operator bound 2026-10-11 20:31:13 UTC.
+
+Реальный automatic refit подтвердился, но первая paper-сессия упала через ~9h; `.DS_Store`
+и domain STOP исправлены прежним commit6b445b8. Legacy B10/B12 остались stopped.
+D43: 1 completed + 2 failed окна, затем closure; последние 3 не запускались. Holdout не читался.
+OLD/NEW: 5m paired descriptive loss −3.98%, 15m +5.77%; общего улучшения не доказано.
+Новое eligible +2598, действительно новое внутри train +2082, новых train pools 0.
+
+Новый raw lane: 147 RPC /14340 nominal CU. Sealed corpus01: 965 разных markets,
+865 birth pools, 167 swap pools, 1579 уникальных reconciled swap candidates из 2025–2026
+campaigns. Births из 17 месяцев; пригодные swap layouts преимущественно 2025.
+Это НЕ 965 train markets: raw → USD training admission ещё не квалифицирован,
+новых training-ready decisions 0. Действующий Brain: 24 train pools /93days /48000 retained.
+Свежий candidate на enlarged corpus не обучался; активен уже automatic B13 candidate.
+
+Реализованы indexed multi-pool discovery/fee streams, immutable cursor/reservation journal,
+gap debt, strict historical IDLs, global dedup/revision rejection, canonical SQLite snapshot.
+Campaigns завершены, новый 24/7 daemon не установлен. Exact decoder не игнорирует suffix.
+Streaming shards + memory-map minibatch cache проверены на реальном 91472-sample snapshot.
+Information-support-v1 реализован только shadow; live AUTO остаётся 24h+100matured.
+
+Следующий сильный шаг: qualified contiguous historical ranges + quote/USD normalization
+и actual 2026 layouts; затем расширенный dataset, fixed-recipe candidate/future paper,
+после этого exact cutover loader/diversity gate. Не сжигать quota на partial bars.
+Не открывать F01/D43 reserved holdout и не оживлять закрытый calendar track.
+
+
 ## 2026-10-06 — forensic review, новый data этап в работе
 
 Первый настоящий B13 AUTO refit выполнен: candidate `job_ef9cb49cef6d7157`, exam
