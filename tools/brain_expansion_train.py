@@ -19,11 +19,13 @@ BASE = Path(__file__).resolve().parents[1]
 OUT = BASE / "work/brain-expansion-20261006"
 
 
-def admitted(campaigns, output):
+def admitted(campaigns, output, *, role="train"):
     captures, inputs = [], []
     for campaign in campaigns:
         verify(campaign)
         binding = read(campaign / "binding.json")
+        if binding.get("data_role", "train") != role:
+            raise ValueError("campaign_data_role_mismatch")
         cases = {b["pool"]: b for b in binding["cases"]}
         for path in sorted((campaign / "requests").iterdir()):
             if not (path / "receipt.json").exists():
@@ -31,11 +33,13 @@ def admitted(campaigns, output):
             pool = read(path / "request.json")["url"].split("/pools/")[1].split("/")[0]
             captures.append((path, cases[pool]))
         inputs.append(dict(path=str(campaign), sha=sha(campaign / "manifest.json")))
-    return compile_corpus(captures, output, selection=inputs)
+    return compile_corpus(captures, output, selection=inputs, role=role)
 
 
 def experiment(corpus, output):
     verify(corpus)
+    if read(corpus / "admission.json")["role"] != "train":
+        raise ValueError("reserved_evaluation_corpus")
     output.mkdir(exist_ok=False)
     source = BASE / "work/brain-b13/source-repaired01"
     cutoff = time.time_ns()
@@ -128,12 +132,15 @@ def main():
     a = sub.add_parser("admit")
     a.add_argument("output", type=Path)
     a.add_argument("campaigns", nargs="+", type=Path)
+    a.add_argument("--role", choices=["train", "descriptive_unseen_test"], default="train")
     a = sub.add_parser("train")
     a.add_argument("corpus", type=Path)
     a.add_argument("output", type=Path)
     args = p.parse_args()
     if args.action == "admit":
-        result = admitted([p.resolve() for p in args.campaigns], args.output.resolve())
+        result = admitted(
+            [p.resolve() for p in args.campaigns], args.output.resolve(), role=args.role
+        )
         print(
             json.dumps(
                 {k: v for k, v in result.items() if k not in ("records", "rejected", "per_pool")}

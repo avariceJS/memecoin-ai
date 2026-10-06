@@ -2,9 +2,10 @@
 
 import math
 from collections import Counter, defaultdict
+from pathlib import Path
 
 from memecoin_ml.data import read, sha
-from memecoin_registry.contracts import digest
+from memecoin_registry.contracts import digest, verify
 
 
 def read_lane(exam, ref, cutoff, activation):
@@ -86,6 +87,13 @@ def compare_exam(exam, cutoff):
     c = read(exam / "config.json")
     lanes, totals = {}, {}
     for ref in c["frozen_exam_models"]:
+        model = Path(ref["path"])
+        verify(model)
+        card = read(model / "model-card.json")
+        if sha(model / "manifest.json") != ref["sha"] or not (
+            card["training_as_of_ns"] <= card["finished_ns"] < c["activation_ns"]
+        ):
+            raise ValueError("future_model_boundary")
         lanes[ref["label"]], totals[ref["label"]] = read_lane(exam, ref, cutoff, c["activation_ns"])
     common = set.intersection(*(set(rows) for rows in lanes.values()))
     for key in common:

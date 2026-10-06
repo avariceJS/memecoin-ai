@@ -6,11 +6,21 @@ import pytest
 
 from memecoin_curriculum.future import compare_exam
 from memecoin_ml.data import sha
+from memecoin_registry.contracts import seal
 from memecoin_runner.ledger import publish
 
 
 def exam(tmp_path):
-    refs = [dict(label=name, sha=name) for name in ("control", "broad")]
+    refs = []
+    for name in ("control", "broad"):
+        model = tmp_path / "models" / name
+        model.mkdir(parents=True)
+        publish(
+            model / "model-card.json",
+            dict(label=name, training_as_of_ns=100 * 10**9, finished_ns=200 * 10**9),
+        )
+        seal(model)
+        refs.append(dict(label=name, sha=sha(model / "manifest.json"), path=str(model)))
     publish(tmp_path / "config.json", dict(frozen_exam_models=refs, activation_ns=300 * 10**9))
     for ref in refs:
         root = tmp_path / "candidate-shadows" / ref["sha"] / "shadow"
@@ -50,6 +60,15 @@ def exam(tmp_path):
     return tmp_path
 
 
+def broad_lane(root):
+    ref = next(
+        r
+        for r in json.loads((root / "config.json").read_text())["frozen_exam_models"]
+        if r["label"] == "broad"
+    )
+    return root / "candidate-shadows" / ref["sha"] / "shadow"
+
+
 def rewrite(path, change):
     value = json.loads(path.read_text())
     change(value)
@@ -68,8 +87,8 @@ def test_future_membership_and_metrics_are_exact(tmp_path):
 
 def test_future_refuses_backdated_or_unpaired_evidence(tmp_path):
     root = exam(tmp_path)
-    prediction = root / "candidate-shadows/broad/shadow/predictions/1.json"
-    outcome = root / "candidate-shadows/broad/shadow/outcomes/1.json"
+    prediction = broad_lane(root) / "predictions/1.json"
+    outcome = broad_lane(root) / "outcomes/1.json"
     rewrite(prediction, lambda p: p.update(origin_close=2))
     rewrite(outcome, lambda o: o.update(prediction_sha=sha(prediction)))
     with pytest.raises(ValueError, match="input_mismatch"):
@@ -82,7 +101,7 @@ def test_future_refuses_backdated_or_unpaired_evidence(tmp_path):
 
 def test_outcome_loss_is_recomputed_not_trusted(tmp_path):
     root = exam(tmp_path)
-    path = root / "candidate-shadows/broad/shadow/outcomes/1.json"
+    path = broad_lane(root) / "outcomes/1.json"
 
     def corrupt(o):
         o["candidate_metrics"]["gru"]["pinball"] = 0

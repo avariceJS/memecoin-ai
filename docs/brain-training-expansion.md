@@ -90,3 +90,33 @@ case; прочиеcases можно продолжить.5transportfailures су�
 Только проверка owner существующегоaccount; ответ не влияет на membership/выборпобедителей,
 не доказывает historical completeness и не заменяет price feed. Endpoint
 https://api.mainnet-beta.solana.com. Ошибка сохраняется, другие endpoints не перебирать.
+
+## Unseen-market descriptive check (registered до fits/новых GET)
+
+Future exam на borrowedsource в основном покрывает старыеhotmarkets. Поэтому дополнительно
+фиксируются следующие20birthpools в ТОМ ЖЕ month/SHAround-robin ordering после первых100.
+Их membership seal доfits; они НЕ входят ни в train, ни в modelselection. Послеfreeze обоих
+arms — отдельные≤20GETс30sspacing/прежнимиcooldown/gates, тотжеbirth+3daysUSDcontract.
+Только один descriptiveunseenmarkettest всехempirical/linear/GRU, без повторныхfits.
+Это past-event/out-of-pool test, НЕfuture и НЕconfirmatory. Позволяет увидеть, не ограничен
+ли результат прежними24рынками. Егоreservedcorpusимеетотдельныйrole и запрещён вAUTOtrain.
+
+## Bulk03 recovery amendment
+
+Bulk02 остановился при краткомcontrol_source_cooldown после14cases. Source самостоятельно
+восстановился;25GET исходного100charged, transportgaps3суммарно. Следующаяrevision продолжает
+75оставшихсяcases, не повторяет25attempted. Не меняет старыеconfig/STOP/expiry.
+Routine livecooldown теперь WAIT внутри прежнегоwall expiry; sourceSTOP/configdriftstillfatal.
+Сначала source должен снова показатьfreshsuccessfulreservation. Еслиcooldown начался уже
+послестартаGET, этотboundedread может закончиться; новыхGETне будетдо восстановления.
+RaceдоGET сохраняется какdeferred_source(0GET), не какпустойрынок.
+Все3transportfailures длилисьровно15s; timeout30s/child65s,≤10transportfailures суммарно
+или3подряд. Это operationaldeadline, неdataqualitygate; остальныеHTTP/auth/rateSTOPнеизменны.
+Отдельныхretriesнет, исходные100case/GETиwall expiryне расширяются.
+
+## Public verification correction
+
+Вpublic-verification01 адрес вручную скопирован с пропущенным`j`после`Zr`.
+ЕгоnullНЕявляется evidence оselectedpool. Исправление: ещё1RPCgetAccountInfo с адресом,
+прочитанным программно изadmission-probe02/binding.json cases[2], прежние15s/1MiB/no-retry.
+Ошибочныйcaptureсохранён; стоимостьverificationвсего2RPC/0USD. Membership не менять.

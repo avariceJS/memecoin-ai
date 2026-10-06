@@ -139,3 +139,13 @@ def test_disjoint_accounts_for_features_before_first_context_frame():
         dict(pool="a", event_close_s=i * 300, maturity_s=(i + 3) * 300) for i in range(20, 56)
     ]
     assert disjoint(samples) == 2
+
+
+def test_reserved_development_test_cannot_enter_training_merge(tmp_path):
+    c, b = capture(tmp_path)
+    corpus = tmp_path / "unseen"
+    compile_corpus([(c, b)], corpus, role="descriptive_unseen_test")
+    ref = dict(path=str(corpus), sha=sha(corpus / "manifest.json"))
+    with pytest.raises(ValueError, match="reserved_evaluation"):
+        merge_history([], dict(as_of_ns=10**18), [ref])
+    assert len(load_corpus(ref, 10**18, training=False)) == 60

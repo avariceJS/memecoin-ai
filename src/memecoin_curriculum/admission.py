@@ -81,8 +81,10 @@ def disjoint(samples):
     return count
 
 
-def compile_corpus(captures, output, *, selection=None):
+def compile_corpus(captures, output, *, selection=None, role="train"):
     """No source mutation. Inputs are (sealed capture, independently qualified birth)."""
+    if role not in {"train", "descriptive_unseen_test"}:
+        raise ValueError("admission_data_role")
     output.mkdir(parents=True, exist_ok=False)
     records, combined, rejected = [], {}, []
     pools = set()
@@ -109,6 +111,7 @@ def compile_corpus(captures, output, *, selection=None):
     n = sum(counts.values())
     report = dict(
         version="birth-usd-admission-v1",
+        role=role,
         namespace=NAMESPACE,
         records=records,
         rejected=rejected,
@@ -134,12 +137,14 @@ def compile_corpus(captures, output, *, selection=None):
     return report
 
 
-def load_corpus(reference, cutoff):
+def load_corpus(reference, cutoff, *, training=True):
     path = Path(reference["path"])
     if sha(path / "manifest.json") != reference["sha"]:
         raise ValueError("admission_corpus_pin")
     verify(path)
     report = read(path / "admission.json")
+    if training and report["role"] != "train":
+        raise ValueError("admission_reserved_evaluation_corpus")
     if report["namespace"] != NAMESPACE or report["rows_sha"] != sha(path / "rows.jsonl"):
         raise ValueError("admission_corpus_namespace")
     with (path / "rows.jsonl").open() as stream:

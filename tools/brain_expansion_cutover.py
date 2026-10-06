@@ -41,7 +41,7 @@ def install(root, corpus, bundle):
     ref = dict(path=str(corpus), sha=sha(corpus / "manifest.json"))
     revision = stage(root, bundle, historical_training_corpora=[ref], activate=False)
     record = root / "revisions" / bundle.name
-    record.mkdir(exist_ok=False)
+    record.mkdir(parents=True, exist_ok=False)
     publish(record / "proposed-deployment.json", revision)
     publish(record / "previous-deployment.json", original)
     publish(record / "status-before.json", state)

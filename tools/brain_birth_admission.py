@@ -20,16 +20,24 @@ from memecoin_runner.ledger import publish
 BASE = Path.cwd()
 
 
-def control(binding):
+def control(binding, *, allow_wait=False):
     source = Path(binding["source"])
     if sha(source / "config.json") != binding["source_config_sha"] or (source / "STOP").exists():
         raise ValueError("control_source_changed_or_stopped")
+    if time.time_ns() >= read(source / "config.json")["expires_ns"]:
+        raise ValueError("control_source_expired")
     latest = sorted((source / "journal").glob("event-*.json"))[-1]
-    state = read(latest)["payload"]["state"]
-    if state["cooldown_ns"] > time.time_ns():
-        raise ValueError("control_source_cooldown")
-    if time.time_ns() - state["last_ns"] > 600 * 10**9:
-        raise ValueError("control_source_stale")
+    event = read(latest)
+    state = event["payload"]["state"]
+    state["ready"] = (
+        event["kind"] == "outcome"
+        and event["payload"].get("status") == "valid"
+        and state["cooldown_ns"] <= time.time_ns()
+        and time.time_ns() - state["last_ns"] <= 180 * 10**9
+        and state["failures"] == 0
+    )
+    if not state["ready"] and not allow_wait:
+        raise ValueError("control_source_not_ready")
     return state
 
 
@@ -38,8 +46,13 @@ def worker(root, index):
 
     lease_watchdog(int(os.environ["MEMECOIN_LEASE_FD"]))
     binding = read(root / "binding.json")
-    control(binding)
     case = binding["cases"][index]
+    if not control(binding, allow_wait=True)["ready"]:
+        publish(
+            root / "results" / f"{index:06d}.json",
+            dict(pool=case["pool"], eligible=0, status="deferred_source", birth=case, requests=0),
+        )
+        return
     try:
         capture = ohlcv(
             root, case["pool"], lane="historical", before=case["event_s"] + 3 * 86400, limit=1000
@@ -84,7 +97,7 @@ def worker(root, index):
     publish(root / "results" / f"{index:06d}.json", result)
 
 
-def initialize(root, count, spacing, not_before, previous=None):
+def initialize(root, count, spacing, not_before, previous=None, case_plan=None, experiment=None):
     catalogue = BASE / "work/brain-review-20261006/monthly-births01-catalogue"
     source = BASE / "work/brain-b13/source-repaired01"
     verify(catalogue)
@@ -111,29 +124,69 @@ def initialize(root, count, spacing, not_before, previous=None):
                 cases.append(values.pop(0))
         if not any(months.values()) and len(cases) < count:
             raise ValueError("not_enough_births")
+    data_role, plan_reference = "train", None
+    if case_plan:
+        if previous or not experiment:
+            raise ValueError("case_plan_requires_frozen_experiment")
+        verify(case_plan)
+        plan = read(case_plan / "plan.json")
+        verify(experiment)
+        outcome = read(experiment / "result.json")
+        if (
+            outcome["fits"] != 8
+            or plan["role"] != "descriptive_unseen_test"
+            or plan["training_allowed"] is not False
+        ):
+            raise ValueError("case_plan_role")
+        if any(c["finished_ns"] > time.time_ns() for c in outcome["models"].values()):
+            raise ValueError("case_plan_model_not_frozen")
+        cases = plan["cases"]
+        count = len(cases)
+        if (
+            count != 20
+            or len({b["pool"] for b in cases}) != count
+            or any(b["pool"] in EXCLUDED for b in cases)
+        ):
+            raise ValueError("case_plan_membership")
+        data_role = plan["role"]
+        plan_reference = dict(
+            path=str(case_plan),
+            sha=sha(case_plan / "manifest.json"),
+            frozen_experiment_sha=sha(experiment / "manifest.json"),
+        )
     continuation = None
     if previous:
         verify(previous)
         old = read(previous / "binding.json")
+        data_role = old.get("data_role", "train")
+        plan_reference = old.get("case_plan")
         attempts = sorted((previous / "requests").iterdir())
-        failure = read(attempts[-1] / "failure.json")
-        if (
-            not (previous / "STOP").exists()
-            or failure.get("http_status") is not None
-            or failure.get("error_type") != "URLError"
+        failure = (
+            read(attempts[-1] / "failure.json") if (attempts[-1] / "failure.json").exists() else {}
+        )
+        stop = read(previous / "STOP")
+        if stop["category"] not in {"control_source_cooldown", "control_source_not_ready"} and not (
+            failure.get("http_status") is None and failure.get("error_type") == "URLError"
         ):
-            raise ValueError("continuation_requires_transport_stop")
-        cases = old["cases"][len(attempts) :]
+            raise ValueError("continuation_requires_transport_or_source_wait")
+        case_attempts = len(list((previous / "processes").glob("*-reservation.json")))
+        cases = old["cases"][case_attempts:]
         count = len(cases)
+        prior = old.get("continuation") or {}
+        gaps = sum(
+            read(p)["status"] == "transport_gap" for p in (previous / "results").glob("*.json")
+        )
+        if failure and not (previous / "results" / f"{case_attempts - 1:06d}.json").exists():
+            gaps += 1
         continuation = dict(
             path=str(previous),
             sha=sha(previous / "manifest.json"),
-            charged_requests=len(attempts),
-            transport_failures=1,
-            original_case_count=len(old["cases"]),
-            failed_pool=old["cases"][len(attempts) - 1]["pool"],
+            charged_requests=prior.get("charged_requests", 0) + len(attempts),
+            transport_failures=prior.get("transport_failures", 0) + gaps,
+            original_case_count=prior.get("original_case_count", len(old["cases"])),
+            prior_case_attempts=case_attempts,
         )
-        not_before = max(not_before, failure["received_ns"] + 120 * 10**9)
+        not_before = max(not_before, failure.get("received_ns", 0) + 120 * 10**9)
     root.mkdir(parents=True, exist_ok=False)
     for name in ("requests", "results", "processes", "code"):
         (root / name).mkdir()
@@ -155,7 +208,7 @@ def initialize(root, count, spacing, not_before, previous=None):
             expires_ns=expires,
             max_requests=count,
             min_request_interval_seconds=spacing,
-            timeout_seconds=15,
+            timeout_seconds=30,
             max_response_bytes=2 * 1024**2,
             free_floor_bytes=4 * 1024**3,
             storage_limit_bytes=320 * 1024**2,
@@ -177,7 +230,9 @@ def initialize(root, count, spacing, not_before, previous=None):
             automatic_retry=False,
             continuation=continuation,
             transport_gap_cooldown_s=120,
-            max_transport_failures=5,
+            max_transport_failures=10,
+            data_role=data_role,
+            case_plan=plan_reference,
         ),
     )
 
@@ -197,9 +252,9 @@ def run(root):
                 now = time.time_ns()
                 if now >= c["expires_ns"] or (root / "STOP").exists():
                     raise ValueError("campaign_expiry_or_stop")
-                state = control(b)
+                state = control(b, allow_wait=True)
                 # Background lane yields at least 12s after each observed control reservation.
-                if now >= max(due, state["last_ns"] + 12 * 10**9):
+                if state["ready"] and now >= max(due, state["last_ns"] + 12 * 10**9):
                     break
                 time.sleep(1)
             script = (
@@ -225,8 +280,8 @@ def run(root):
                     str(index),
                 ],
                 root / "processes" / f"{index:06d}.log",
-                45,
-                lambda: control(b),
+                65,
+                lambda: control(b, allow_wait=True),
             )
             publish(root / "processes" / f"{index:06d}-outcome.json", result)
             if result["exit_code"] or not (root / "results" / f"{index:06d}.json").exists():
@@ -275,6 +330,8 @@ def main():
     p.add_argument("--spacing", type=int, default=30)
     p.add_argument("--not-before", type=int, default=1791261712341818000)
     p.add_argument("--continue-from", type=Path)
+    p.add_argument("--case-plan", type=Path)
+    p.add_argument("--frozen-experiment", type=Path)
     args = p.parse_args()
     root = args.root.resolve()
     if args.worker is not None:
@@ -288,6 +345,8 @@ def main():
             args.spacing,
             args.not_before,
             args.continue_from.resolve() if args.continue_from else None,
+            args.case_plan.resolve() if args.case_plan else None,
+            args.frozen_experiment.resolve() if args.frozen_experiment else None,
         )
         run(root)
 
