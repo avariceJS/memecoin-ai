@@ -69,6 +69,8 @@ runtime перед изменениями: данные о процессах и
 - [Актуальные команды/ограничения](../docs/two-mac-operations.md). Следующий шаг: SSH
   `user@host` Mac1 + host-key verification, synthetic two-host probe, readonly health,
   квалификация release на owner. Без подключения продолжать scoped engineering наMac2.
+- Exact code `ab8c1a7`:978tests passed/12optional skipped,ruff/mypy/smoke PASS;
+  [acceptance/делегирование](../docs/evidence/two-mac-worker-2026-10-06.json).
 
 ## Где читать первоисточник
 

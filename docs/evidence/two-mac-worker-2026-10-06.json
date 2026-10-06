@@ -1,0 +1,381 @@
+{
+  "schema": "memecoin-two-mac-acceptance-v1",
+  "observed_at": "2026-10-06T18:57:46.364211+00:00",
+  "base_commit": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+  "code_commit": "ab8c1a7f94e74c796e403b2fbc4d0a40d72ff9c4",
+  "node": "mac2",
+  "preflight": {
+    "schema": "memecoin-worker-preflight-v1",
+    "observed_at": "2026-10-06T18:22:30.657447+00:00",
+    "node_id": "mac2",
+    "host": {
+      "os": "Darwin",
+      "release": "25.5.0",
+      "architecture": "arm64",
+      "cpu": "Apple M4 Pro",
+      "memory_bytes": 51539607552,
+      "swap_observation": "total = 13312.00M  used = 11616.12M  free = 1695.88M  (encrypted)",
+      "disk_free_bytes": 819229581312,
+      "python_version": "3.9.6"
+    },
+    "repo": {
+      "head": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+      "clean": false
+    },
+    "cursor": {
+      "installed": true,
+      "version": "2026.10.01-e373342",
+      "model_catalog_verified": false
+    },
+    "ollama_catalog": {
+      "available": true,
+      "models": [
+        {
+          "name": "qwen3.5:35b-a3b-q8_0",
+          "digest": "655d273ede3adc056594f511c120d616d92bf4c4d5bcfe580f3cfa29abe8109d",
+          "size": 38697031228,
+          "size_vram": null,
+          "context_length": null,
+          "parameter_size": "36.0B",
+          "quantization_level": "Q8_0"
+        }
+      ]
+    },
+    "ollama_loaded": {
+      "available": true,
+      "models": []
+    },
+    "provider_credentials_inspected": false,
+    "provider_requests": 0,
+    "inference_requests": 0,
+    "ready_for_live_or_training": false
+  },
+  "bootstrap": {
+    "directory": "~/Desktop/two-mac-bootstrap-20261006-01",
+    "receipt_sha256": "6b3996a555fddce5e89d2a7451753589c12de9e1effdf381a9ea7b4bf030cbd6",
+    "sha256sums_exit": 0,
+    "verified_members": [
+      "BASE_COMMIT",
+      "BOOTSTRAP.command",
+      "README.md",
+      "TASK-001.md",
+      "project.bundle"
+    ],
+    "initial_commit": "eee7ce1a473e97b67047c487ea66dbd631d01c36",
+    "initial_clean": true
+  },
+  "topology": {
+    "mac1_ssh_connected": false,
+    "mac1_runtime_inspected": false,
+    "production_changes": false,
+    "new_market_requests": 0,
+    "new_training_runs": 0,
+    "mac2_role": "development and bounded local tooling",
+    "mac1_assigned_role": "source, canonical registry, AUTO, current short training, paper"
+  },
+  "code_hashes": {
+    "tools/worker_artifacts.py": "87431c1d902536a1d6bf3aebe1e272019b7ad555be1e38c023921cabec603939",
+    "tools/worker_release.py": "3c98933d29c4f6f303532205970531de6b699d7fdc7281f9f2a60cd79a14bd13",
+    "tools/local_model_task.py": "a6e0a3c55c61382f1efe36bf5b7821259f28fb4c39e5705a923780727196a46a",
+    "tools/local_evidence_queue.py": "25f21f1aef20656cf84079156e18cc713ae6b46d50f41504e5f5ce99d26d9750",
+    "tests/tools/test_worker_artifacts.py": "9c0012f73d4cbff78fc1610afe761b57c671d6c20c6015b7aa1fd3ea877ae92d",
+    "tests/tools/test_worker_release.py": "ab5126349a7059b1c3dcca43462a5dd4c6e45f1da1616c5ba6d76094eca20f73",
+    "tests/tools/test_local_evidence_queue.py": "d6b855648ed0499ee9f4b5804dabfe46e15eea3fb011872d72ef708d039f2b93"
+  },
+  "artifact_and_queue_probe": {
+    "synthetic": true,
+    "topology": "same-host-two-independent-stores",
+    "ssh_round_trip": false,
+    "archive_sha256": "df3609852d43a7c8ca67d8eae0047afc3adf378ba3bc5851fd6abe5ff0a52f64",
+    "manifest_sha256": "6f3839a1410c015c840781d633537322ea5d6d5949f86a5d9cbb27181d75fe81",
+    "receive": "published_transport_only",
+    "retry": "already_present",
+    "return_status": "published_transport_only",
+    "exact_return": true,
+    "packet_bytes": 11303,
+    "summary_bytes": 788,
+    "critical_categories_preserved": true,
+    "llm_gate": {
+      "status": "deferred",
+      "reason": "model_exceeds_60_percent_ram",
+      "source_sha256": "56e33346884fcfebf5ebb7cd52e3431a46bcf8d178fde1bdd95fa9315755e32d"
+    },
+    "inference_requests": 0
+  },
+  "release": {
+    "revision": "ab8c1a7f94e74c796e403b2fbc4d0a40d72ff9c4",
+    "receipt_sha256": "8d60f7d35467230427aa3dc51ed4a8f9a400721b192a5163dc4f87db8b2623e8",
+    "binding_probe": {
+      "binding_prepared": true,
+      "launchctl_calls": 0,
+      "preserve_initial_state": true,
+      "preserved_later_events": true,
+      "previous_code_restored": true,
+      "production_activation": false,
+      "record_sha256": "51689117f2efe8158a30bc3802c6eace9bb3ddacbf0fa838d82f5038626ece58",
+      "revision": "ab8c1a7f94e74c796e403b2fbc4d0a40d72ff9c4",
+      "synthetic": true
+    },
+    "checks": [
+      {
+        "command": [
+          "/Users/sl-aleksandr/Developer/memecoin-worker/.venv/bin/python",
+          "-m",
+          "ruff",
+          "check",
+          "--no-cache",
+          "src",
+          "tests",
+          "tools"
+        ],
+        "exit_code": 0,
+        "log": "check-0.log"
+      },
+      {
+        "command": [
+          "/Users/sl-aleksandr/Developer/memecoin-worker/.venv/bin/python",
+          "-m",
+          "ruff",
+          "format",
+          "--check",
+          "--no-cache",
+          "src",
+          "tests",
+          "tools"
+        ],
+        "exit_code": 0,
+        "log": "check-1.log"
+      },
+      {
+        "command": [
+          "/Users/sl-aleksandr/Developer/memecoin-worker/.venv/bin/python",
+          "-m",
+          "mypy",
+          "--cache-dir",
+          "/Users/sl-aleksandr/Developer/memecoin-worker/work/release-mac2-ab8c1a7/mypy-cache",
+          "src/memecoin_ai",
+          "src/memecoin_registry",
+          "src/memecoin_research",
+          "src/memecoin_runner/contracts.py",
+          "src/memecoin_runner/ledger.py",
+          "src/memecoin_runner/scoring.py",
+          "src/memecoin_sampling",
+          "src/memecoin_collector",
+          "src/memecoin_operational"
+        ],
+        "exit_code": 0,
+        "log": "check-2.log"
+      },
+      {
+        "command": [
+          "/Users/sl-aleksandr/Developer/memecoin-worker/.venv/bin/python",
+          "-m",
+          "pytest",
+          "-q",
+          "-p",
+          "no:cacheprovider"
+        ],
+        "exit_code": 0,
+        "log": "check-3.log"
+      },
+      {
+        "command": [
+          "/Users/sl-aleksandr/Developer/memecoin-worker/.venv/bin/python",
+          "tools/smoke.py"
+        ],
+        "exit_code": 0,
+        "log": "check-4.log"
+      }
+    ],
+    "check_hashes": {
+      "check-0.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "check-1.log": "47becdc7bcfd38c7c036ee66cb757f0aa4e68da6ad6e174ff6513d36cf87332b",
+      "check-2.log": "960745a059df2e6bf5556b518f6404c7707247bf3da084d48c3008145eb95a5d",
+      "check-3.log": "5b743fb22945651fe0f6b4682e5f06f8bcce144b56305bf1925246812b05195d",
+      "check-4.log": "1df45492d4c52c5e70729af868dc9d76a6e12283f542252cbf2b4c1a919e5360"
+    },
+    "pytest_summary": "978 passed, 12 skipped in 246.19s (0:04:06)",
+    "activated_on_mac1": false,
+    "synthetic_switch_rollback_tests": true,
+    "power_loss_between_pointers_qualified": false
+  },
+  "checks": {
+    "make_setup_exit": 0,
+    "make_check_exit": 0,
+    "make_check_passed": 975,
+    "make_check_optional_skipped": 12,
+    "make_check_seconds": 239.79,
+    "make_smoke_exit": 0,
+    "initial_failures": [
+      "Absent Mac1 work fixture: fixed by MAC2-002",
+      "Sandbox ps/localhost EPERM: rerun outside sandbox passed",
+      "First prepare attempt PYTHONPATH tests/operator shadowed stdlib operator: fixed before code commit"
+    ],
+    "optional_dependencies_not_installed": [
+      "torch",
+      "Playwright Chromium/module"
+    ]
+  },
+  "delegated_tasks": [
+    {
+      "task": "TASK-MAC2-001: Review worker_preflight.py and bootstrap_worker.command. Summarize verified capabilities versus unsupported assumptions; identify concrete false-positive readiness or integrity risks. Read-only, at most six findings with exact sources. Do not propose trading changes.",
+      "base_commit": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+      "node": "mac2",
+      "requested_model": "qwen3.5:35b-a3b-q8_0",
+      "catalog": {
+        "name": "qwen3.5:35b-a3b-q8_0",
+        "digest": "655d273ede3adc056594f511c120d616d92bf4c4d5bcfe580f3cfa29abe8109d",
+        "size": 38697031228,
+        "size_vram": null,
+        "context_length": null,
+        "parameter_size": "36.0B",
+        "quantization_level": "Q8_0"
+      },
+      "ownership": [],
+      "inputs": {
+        "tools/worker_preflight.py": "853678fc17c81b0b1e6c2b2ac5237f6436f712b43193e2788c572c45b79136be",
+        "tools/bootstrap_worker.command": "6a186dea0ae617f61ede52582c693302d3d88d4a62aabeadbbd3579f6ee3f526"
+      },
+      "input_sha256": "d38e6bfc4cfa7b47432951090f0df5763ee3d6780990fa0726c99afdbcc06332",
+      "started_ns": 1791310676374918000,
+      "billed_tokens": null,
+      "tests": [],
+      "blockers": [],
+      "review": "pending",
+      "memory_before": "The system has 51539607552 (3145728 pages with a page size of 16384).\nSystem-wide memory free percentage: 88%",
+      "swap_before": "total = 7168.00M  used = 5447.50M  free = 1720.50M  (encrypted)",
+      "actual_model": "qwen3.5:35b-a3b-q8_0",
+      "output_sha256": "ce2b1f851dddbd8c974bbf1f1a7f8fc4964cfa052f0dbef4b1258d0fafec762d",
+      "done": true,
+      "done_reason": "length",
+      "usage": {
+        "prompt_eval_count": 2242,
+        "eval_count": 900,
+        "load_duration": 16604511416,
+        "total_duration": 39035293958,
+        "prompt_eval_duration": 3167339000,
+        "eval_duration": 19097916000
+      },
+      "loaded": {
+        "available": true,
+        "models": [
+          {
+            "name": "qwen3.5:35b-a3b-q8_0",
+            "digest": "655d273ede3adc056594f511c120d616d92bf4c4d5bcfe580f3cfa29abe8109d",
+            "size": 36989095114,
+            "size_vram": 36989095114,
+            "context_length": 8192,
+            "parameter_size": "36.0B",
+            "quantization_level": "Q8_0"
+          }
+        ]
+      },
+      "memory_after": "The system has 51539607552 (3145728 pages with a page size of 16384).\nSystem-wide memory free percentage: 7%",
+      "swap_after": "total = 15360.00M  used = 14569.00M  free = 791.00M  (encrypted)",
+      "process_rss": [
+        "ollama             2416"
+      ],
+      "exit_code": 0,
+      "finished_ns": 1791310715565543000,
+      "final_commit": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+      "assessment": {
+        "accepted_as_review": false,
+        "output_incomplete": true,
+        "findings": [
+          "Claim that empty /api/ps implies false ready is wrong: ready_for_live_or_training is explicitly false.",
+          "Unknown clean/memory values are reported as null, not success; downstream misuse was hypothetical.",
+          "Binary presence versus executable/version readiness is a possible inventory hardening, not an authorization gate.",
+          "Bootstrap integrity warning ignored preceding SHA256SUMS and set -e; output truncated during finding 5."
+        ],
+        "use": "resource qualification and task-fit evidence only",
+        "reviewer": "primary Codex",
+        "review_and_rework_seconds": null,
+        "reviewed_output": "### Verified Capabilities vs. Unsupported Assumptions & Risks\n\n**1. False-Positive Readiness via Missing Ollama Process Verification**\n*   **Finding:** The script assumes `ollama_metadata(\"ps\")` returning a valid JSON structure implies the service is running and healthy. However, if Ollama is installed but not started, or if the API returns an empty list for `/api/ps`, the code treats this as \"available: True\" with zero models loaded, potentially masking a critical readiness failure.\n*   **Source:** `tools/worker_preflight.py`:50-60 (Logic parses `rows` from payload; if `rows` is empty but valid JSON, `available` remains `True`).\n*   **Risk:** System reports \"ready\" despite no inference engine actually running.\n\n**2. Integrity Risk: Unverified Git Repository State for \"Clean\" Flag**\n*   **Finding:** The `repo.clean` field relies on `git status --porcelain` returning an empty string. If the command fails (e.g., permission denied, not a git repo) and returns `None`, the logic `dirty == \"\" if dirty is not None else None` sets `clean` to `None`. However, downstream consumers might interpret `None` or a missing field as \"unknown\" rather than \"failed,\" creating ambiguity in integrity checks.\n*   **Source:** `tools/worker_preflight.py`:69-70 (`dirty = command(...) if head else None`; `clean: dirty == \"\" if dirty is not None else None`).\n*   **Risk:** Ambiguous state reporting where a failed status check is indistinguishable from a clean repo in some parsers.\n\n**3. Unsupported Assumption: Cursor Agent Binary Location**\n*   **Finding:** The script assumes the `agent` binary exists in standard paths or `.local/bin`. It does not verify if the binary is executable or if it requires specific environment variables (e.g., `PATH`) to run, relying solely on `shutil.which` which may return a path that fails upon execution due to missing dependencies.\n*   **Source:** `tools/worker_preflight.py`:72-75 (`cursor = shutil.which(\"agent\") or ...`; `candidate.is_file()` check).\n*   **Risk:** False positive on \"installed\" status if the binary exists but is broken, unexecutable, or requires a specific shell environment not present during the preflight.\n\n**4. Concrete Risk: Silent Failure in `sysctl` Hardware Queries**\n*   **Finding:** The script uses `command()` which returns `None` on any failure (including non-zero exit codes). If `sysctl -n hw.memsize` fails (e.g., on a non-macOS system or restricted environment), `memory_bytes` becomes `None`. The code does not raise an error or flag this as a critical hardware mismatch, allowing the inventory to proceed with missing critical resource data.\n*   **Source:** `tools/worker_preflight.py`:71 (`memory = command([\"sysctl\", \"-n\", \"hw.memsize\"])`); 83 (`\"memory_bytes\": int(memory) if memory and memory.isdigit() else None`).\n*   **Risk:** Inventory reports valid structure but missing RAM data, potentially leading to scheduling decisions on insufficient hardware.\n\n**5. Unsupported Assumption: `git clone` Source Availability in Bootstrap**\n*   **Finding:** `bootstrap_worker.command` assumes `project.bundle` is a valid, accessible Git repository at the time of execution. If the bundle is corrupted or the remote URL is unreachable, the script exits with code 2 (Commit mismatch) only *after* cloning. The initial clone failure might be masked if the directory creation logic (`mkdir -p`) succeeds but `git clone` fails silently in a way not caught by `set -e` if the error handling is complex, though `set -euo pipefail` generally catches this.\n*   **Source:** `tools/bootstrap_worker.command`:23-28 (`git clone ...`; `actual_commit != expected_commit`).\n*   **Risk:** If `project.bundle` is a local path that doesn't exist or is read-only, the script fails at line 23. While it exits, the \"Commit mismatch\" logic",
+        "first_attempt": "input extension allowlist refused .command before inference; fixed and retried"
+      }
+    },
+    {
+      "task": "MAC2-002 portable operator UI tests",
+      "base_commit": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+      "final_commit": "3854eb23e9ed5c3a3421f868ccfab47d380ed54f",
+      "node": "mac2",
+      "agent": "/root/portable_tests",
+      "actual_model_id": null,
+      "ownership": [
+        "tests/operator/test_ui_polish.py",
+        "tests/operator/polish_visual.cjs"
+      ],
+      "input_hashes": {
+        "tests/operator/test_ui_polish.py": "d3c1f1dbefe8dc749ed74416433975ac58241a22696f0025ddaf5bf10d246705"
+      },
+      "output_hashes": {
+        "tests/operator/test_ui_polish.py": "5c098c8f6b61bb5c803979c45291e82e4563f1284579a9d06c5052bde595b425",
+        "tests/operator/polish_visual.cjs": "9c943c2e3296769f942aeb77af07ad6622843b008d060590bc64d2bed3d4eb1c"
+      },
+      "tests": [
+        {
+          "command": ".venv/bin/python -m pytest tests/operator -q -rs",
+          "exit": 0,
+          "passed": 220,
+          "optional_skipped": 4,
+          "seconds": 224.69
+        },
+        {
+          "command": "ruff check/format; node --check; git diff --check",
+          "exit": 0
+        }
+      ],
+      "review": "accepted after primary diff review; original unavailable browser JS equivalence not asserted",
+      "blockers": [
+        "Actual browser run unverified: optional Playwright absent"
+      ],
+      "usage": null,
+      "review_and_rework_seconds": null
+    },
+    {
+      "task": "MAC2-003 read-only release/artifact adversarial review",
+      "base_commit": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+      "final_commit": "ab8c1a7f94e74c796e403b2fbc4d0a40d72ff9c4",
+      "node": "mac2",
+      "agent": "/root/portable_tests",
+      "actual_model_id": null,
+      "ownership": [],
+      "input_hashes": {
+        "tools/worker_artifacts.py": "e5ebca142088c95c3efc61b69dfa769ab9077027938b111bceba7f2c236217ee",
+        "tools/worker_release.py": "2301465e127cf75ddbcebc83d9c5c162d63e9715a28fd4802fdf18713ee6012c"
+      },
+      "output": [
+        "Wrong-service health acceptance",
+        "Expiry during recovery",
+        "Fixed pending temp blocks recovery",
+        "Missing mypy in prepare",
+        "Missing directory fsync",
+        "Recovery bootout failure journal gap",
+        "Early expired restart branch"
+      ],
+      "resolution": "Primary fixed and added regressions; release tests 26 passed at final targeted run",
+      "tests_exit": 0,
+      "usage": null,
+      "review_and_rework_seconds": null,
+      "residual": [
+        "Production host rehearsal pending",
+        "Power-loss between two pointer files requires manual recovery"
+      ]
+    }
+  ],
+  "model_roles": {
+    "external_mcp_qwen": "unavailable, explicitly deferred",
+    "local_qwen": "optional evidence annotations; not code/architecture authority",
+    "current_q8_unattended_admitted": false,
+    "queue_daemon_installed": false,
+    "real_log_exporter_connected": false,
+    "market_features_admitted": false,
+    "feature_ablation": "not conducted",
+    "billed_quota_savings": null
+  },
+  "missing_user_actions": [
+    "Mac1 user@host, Remote Login and verified SSH host key/auth",
+    "~/.local/bin/agent login for Cursor model catalog and Grok"
+  ],
+  "operator_instructions": "docs/two-mac-operations.md"
+}

@@ -10,6 +10,8 @@ Local Qwen35B Q8 measured47.1tok/s, но swap5.3→14.2GiB, review обреза�
 MCP-Qwen отдельно и отложен. Выбрана optional preprocessing роль; unattendedQ8/LLMfeatures
 не допущены. Codex worker устранил UI-test dependence отMac1work/, сохранив optional browser
 checks; operator220passed/4skipped. [Инструкция](../docs/two-mac-operations.md).
+Итоговые commits3854eb2/ab8c1a7; exactrelease978passed/12optional skipped,
+ruff/format/mypy/smokePASS, syntheticbind/switch/rollbackPASS. [Receipts](../docs/evidence/two-mac-worker-2026-10-06.json).
 
 ## 2026-10-06 — two-Mac worker bootstrap и quota boundaries
 

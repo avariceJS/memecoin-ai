@@ -26,6 +26,14 @@ status и tracked optional browser runner: operator suite220passed/4skipped.
 Нужны Mac1 user@host/verified SSH и Cursor login. Затем real synthetic two-host probe,
 readonly runtime inventory, owner-host release rehearsal; новый historical campaign не начат.
 
+Итог: commits `3854eb2` (portable UI tests), `ab8c1a7` (worker tools/границы).
+`make check`:975passed/12optional skipped; exact Git release `ab8c1a7` после последних
+regressions:978passed/12skipped,ruff/format/mypy/smoke exit0. Synthetic bind→switch→rollback
+сохранил событие после переключения, launchctl calls0. Независимый review выявил и привёл
+к исправлению wrong-service health, expiry/recovery, pending-temp и failure-journal ошибок.
+Полные hashes/receipts/делегирование: [evidence](../docs/evidence/two-mac-worker-2026-10-06.json).
+GitHub auth avariceJS подтверждена; Git author локально настроен по существующей истории.
+
 ## 2026-10-06 — подготовка реального worker checkout для Mac 2
 
 Выбрана асимметричная схема: Mac1 сохраняет source/AUTO/paper/registry; Mac2 — engineering/

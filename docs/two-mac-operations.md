@@ -178,3 +178,12 @@ receipt time, отдельный заранее заданный split, ablation
 учёт latency/missing annotations. Никакого F01/D43/holdout, future outcomes в inputs или
 подбора feature по уже раскрытому future test. Сейчас полезнее сокращение объёма evidence,
 а не добавление LLM в training/runtime.
+
+## Итоговая Приёмка
+
+Code `ab8c1a7`: отдельная exact Git installation прошла ruff/format/mypy,978pytest tests
+(12optional skips: Torch/Playwright) и synthetic smoke. Synthetic bind/switch/rollback
+сохранил новое event после activation; production LaunchAgents не вызывались.
+UI portability commit `3854eb2`; GitHub auth подтверждена как avariceJS.
+[Machine-readable evidence, model receipts и review/rework](evidence/two-mac-worker-2026-10-06.json).
+Это local acceptance, а не two-host integration или live rollout.
