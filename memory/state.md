@@ -2,6 +2,11 @@
 
 ## 2026-10-06 — actual training support 24 → 86
 
+На session cutoff2026-10-06 06:20:01UTC: common future12horizon cases/8origins/2pools,
+5m8 и15m4. BroadGRU loss0,006225/0,006437 хужеcontrol0,003319/0,002723; малыйN,
+не доказательство общей деградации или улучшения. Все12virtualbooks CASH,0fills/fees/PnL.
+24h exam ещё идёт. [Exact evidence](../docs/evidence/brain-training-expansion-2026-10-06.json).
+
 Текущий результат: [training expansion](../docs/brain-training-expansion-results.md).
 Alchemy birth selection → GT USD admission → sealed corpus → прежний B13 recipe выполнен.
 62 новых train pools /7987 eligible decisions /95 новых pool-days; May–Sep2026, возраст≤3days.

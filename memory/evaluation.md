@@ -2,6 +2,11 @@
 
 ## 2026-10-06 — prospective comparison трёх frozen bundles
 
+На session cutoff2026-10-06 06:20:01UTC: common future12horizon cases/8origins/2pools,
+5m8 и15m4. BroadGRU loss0,006225/0,006437 хужеcontrol0,003319/0,002723; малыйN,
+не доказательство общей деградации или улучшения. Все12virtualbooks CASH,0fills/fees/PnL.
+24h exam ещё идёт. [Exact evidence](../docs/evidence/brain-training-expansion-2026-10-06.json).
+
 Новый exam paper01/UI8797 публикует прогнозы frozenB13/control/broad **до** target receipts.
 Всеweights завершены до activation2026-10-06 05:51:06UTC; не refit внутриexam. Comparator
 проверяет exact common origins/inputframes/targetcaptures/Y и пересчитывает loss/coverage.

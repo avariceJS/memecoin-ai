@@ -129,7 +129,7 @@ weights новыеpools получают72,09% вероятностной мас
 
 Acquisition:107GET,100success,401×1,429×1,URLError×5;2 193 348bytes успешных payloads,
 0USD budget. Это74,64eligible decisions и5,31disjoint windows на chargedGET с учётом ошибок.
-От первого probe до последнего bulk — около86минут, включая900s rate cooldown.
+От первого probe до последнего bulk — около85минут, включая900s rate cooldown.
 Скорость одной historical выборки нельзя экстраполировать на устойчивый daily поток.
 Восемь fits вместе со snapshots/audit заняли28,64s; peakRSS1 806 925 824bytes на этом Mac.
 Compute/training и второй Mac на данном масштабе не были главным ограничением.
@@ -159,9 +159,38 @@ broad5m[0,0122;0,7805;0,9756],15m[0,0366;0,5285;0,9187]. Ошибки калиб
 
 ### Future и отложенный historical test
 
-Future activation2026-10-06 05:51:06UTC, expiry2026-10-07 05:51:06UTC. Отложенные20pools
-не входят в train, selection или AUTO corpus. Итоговый срез добавляется после maturation;
-ранний `comparison-early01.json` имеет0общих matured variants и не доказывает improvement.
+Future activation **2026-10-06 05:51:06 UTC**, expiry **2026-10-07 05:51:06 UTC**.
+Срез этого отчёта: **06:20:01 UTC**, cutoff_ns `1791267601231386000`.
+Каждый bundle опубликовал 20 horizon forecasts: 12 scored, 8 pending. Это общие
+**8 market/origin decisions, 12 horizon cases**, а не 36 независимых observations:
+5m — 8 cases, 15m — 4 cases, два старых рынка, один UTC day. Все input/target identities
+и causal receipts совпали; offline inference не выдаётся за опубликованный прогноз.
+
+| Bundle / family | Future 5m loss | Future 15m loss |
+|---|---:|---:|
+| Frozen B13 empirical | 0.00360831 | 0.00688762 |
+| Frozen B13 linear | 0.01336337 | 0.00332097 |
+| Frozen B13 gru | 0.00329437 | 0.00411153 |
+| Control empirical | 0.00361516 | 0.00693163 |
+| Control linear | 0.01332573 | 0.00330904 |
+| Control gru | 0.00331950 | 0.00272287 |
+| Broad empirical | 0.00755257 | 0.01439207 |
+| Broad linear | 0.02691280 | 0.01060330 |
+| Broad gru | 0.00622468 | 0.00643741 |
+
+Broad GRU хуже control и frozen B13 GRU на обоих горизонтах этого раннего среза.
+Coverage broad GRU: 5m [0;0,875;1], 15m [0;0,75;1]; control GRU: [0;0,375;1] /
+[0;0,75;1]. При таком N это не надёжная оценка calibration. CI и independent N не заявлены;
+устойчивого улучшения нет, весь 24h exam ещё **не завершён**. Нельзя переносить результат
+двух знакомых pools на широкий новый universe. Exam продолжает работать автономно.
+
+Все 12 отдельных virtual books остаются в CASH: по1000USD price-proxy capital, positions0,
+pending entries0, fills/trades0, fees0, realized PnL0. Это отдельные книги, не единый
+портфель на12000USD. Policy fixed15min/cost assumptions не менялась; trading improvement
+не измерено. Ранние отчёты с0/2matured cases сохранены как отдельные artifacts.
+
+Отложенные20pools не входят в train, selection или AUTO corpus.
+
 
 Отложенный historical test завершён:20успешныхGET,13eligiblepools/924decisions/64disjoint
 windows. Одинpool даёт66,34%строк; effectivepools2,19. Он НЕ добавлен к86trainmarkets.
@@ -205,9 +234,13 @@ test не входит ни в train, ни в selection. Он дополняет
 Future borrowedsource узок: hotforecast support преимущественно изстарых рынков. Даже
 улучшение на нескольких таких outcomes не доказывает общего улучшения широкогоBrain.
 
-## Проверки на текущем срезе
+## Проверки и evidence
 
-`make check`:909passed/11optional skips. ML:140passed. Предыдущийsmoke/build прошёл.
+`make check`: 909 passed /11 optional skips. ML: 140 passed. Smoke/build прошли.
+Финальные ruff/check/format для src/tests/tools и git diff --check прошли.
+На повторном запуске с тем же `--cutoff-ns` совпали scientific metrics, membership,
+source journal prefix, admission и costs; latest operational dashboard намеренно отдельный.
+[Git evidence](evidence/brain-training-expansion-2026-10-06.json).
 Проверены namespace/mint mismatch, gaps, receipt cutoff, corruption, duplicate admission,
 source-onlygrowth послеmerge, stagedruntimeбезпереключения, prospective pairing/metric
 reproduction, transport isolation/auth/rateSTOP. Реальный cutover сохранил 2372 прежних paper event/STOP files по hashes.
@@ -268,7 +301,7 @@ AUTO после cutover ещё не дошёл до следующего сут�
 
 Cutover evidence: `work/brain-b13/operator04/revisions/operator-runtime07/`.
 Ранняяопорная версия кода:948b068, qualification/protocol beforefits:c5d88bb.
-Финальныйgitcommit содержит этот отчёт и обновлённыйMemoryBank. Без новыхfits/GET можно
+Runtime integration/results commit:660bcfd; финальный commit добавляет future evidence и MemoryBank. Без новыхfits/GET можно
 пересчитать будущий срез, выбрав **новый** output filename:
 
 ```sh
@@ -279,6 +312,10 @@ work/ml-venv/bin/python -B tools/brain_expansion_report.py \
   work/brain-expansion-20261006/comparison-next.json \
   --unseen work/brain-expansion-20261006/unseen-corpus01
 ```
+
+Для точного повторения scientific prefix добавить `--cutoff-ns 1791267601231386000`;
+operational dashboard показывает своё последнее состояние и собственный timestamp.
+Полный session report SHA: `938079d62cd58a49a16050f5f0c629345482404851363a9cbe3cac9f7abfe571`.
 
 Completed campaigns/fits не перезапускать. Reservedunseen corpus не добавлять кtrainingrefs.
 Expiry source2026-10-07 12:23:51UTC иoperator2026-10-11 20:31:13UTC сохранены.

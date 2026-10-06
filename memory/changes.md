@@ -2,6 +2,8 @@
 
 ## 2026-10-06 — historical corpus впервые расширил actual train до86pools
 
+- Зафиксирован ранний prospective срез:12commoncases/2pools; broadGRUхужеобоихold/control.
+  Exact cutoff replay совпал;24hexamпродолжается,championнеизменён.
 - Qualified62newpools/7987eligible; raw965registrycounterотделён от86actualtrainmarkets.
 - Восемь fixed-recipefits: control24/broad86; commonhistoricaltestbroadGRUхуже8,92%.
 - FrozenfuturecomparisonUI8797; отдельныйunseenhistoricaltestбезtraining/selection.

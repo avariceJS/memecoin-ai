@@ -106,11 +106,14 @@ def source_operations(source, since, cutoff):
     )
 
 
-def report(experiment, exam, corpus, output, unseen=None):
+def report(experiment, exam, corpus, output, unseen=None, cutoff_ns=None):
     torch.set_num_threads(1)
     verify(experiment)
     verify(corpus)
-    cutoff = time.time_ns()
+    now = time.time_ns()
+    cutoff = now if cutoff_ns is None else cutoff_ns
+    if not read(exam / "config.json")["activation_ns"] <= cutoff <= now:
+        raise ValueError("report_cutoff_outside_observed_exam")
     refs = read(exam / "config.json")["frozen_exam_models"]
     models = {r["label"]: Path(r["path"]) for r in refs}
     dataset = load_dataset(experiment / "control-snapshot/dataset")
@@ -179,6 +182,7 @@ def report(experiment, exam, corpus, output, unseen=None):
         bounds=bounds,
         future=compare_exam(exam, cutoff),
         paper_dashboard=read(exam / "dashboard.json"),
+        operational_projections_are_latest=True,
         acquisition=economics(campaigns),
         live_source_operations=source_operations(
             Path(read(exam / "config.json")["source"]),
@@ -241,6 +245,9 @@ def main():
     p.add_argument("corpus", type=Path)
     p.add_argument("output", type=Path)
     p.add_argument("--unseen", type=Path)
+    p.add_argument(
+        "--cutoff-ns", type=int, help="Reproduce the scientific/journal prefix at this cutoff"
+    )
     a = p.parse_args()
     report(
         a.experiment.resolve(),
@@ -248,6 +255,7 @@ def main():
         a.corpus.resolve(),
         a.output.resolve(),
         a.unseen.resolve() if a.unseen else None,
+        a.cutoff_ns,
     )
 
 
