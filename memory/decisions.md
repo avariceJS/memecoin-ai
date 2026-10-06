@@ -1,5 +1,32 @@
 # Реестр архитектурных решений
 
+## 2026-10-06 — ограничивать контекст до задачи; два Mac через sealed artifacts
+
+Статус: context entrypoint и bounded context-packet tool реализованы; перенос workload на второй
+Mac не включён. Основной Mac содержит единственный checkout и Codex; остальные модели на втором
+Mac без проекта, поэтому кода/Brain они сейчас не видят. Новые сессии начинают с `memory/now.md`
+и scoped `tools/agent_context.py`, а не
+полного исторического `state/decisions/changes`. Полные документы остаются каноничными и
+доступны для targeted review. Оценка размера контекста только эвристика, не измерение Astra
+quota; нет telemetry токенов или подтверждённого автоматического local-Qwen endpoint.
+
+Главные проектные семантики остаются за Astra: causal/availability, data eligibility, protected
+holdout, selection/promotion, execution/risk и архитектурное принятие. Subagents/hosted models
+получают file-scoped coding, tests, docs и adversarial review; выводы должны содержать источники.
+Qwen можно использовать офлайн для предварительного отбора больших логов/diffs, но её summary
+не заменяет source/evidence review. Не отправлять private evidence в hosted endpoint без решения.
+
+Основной M4/24GB остаётся live/source/AUTO/control owner; второй M4/48GB — изолированный
+offline research/training/LLM worker только после проверенного checkout/artifact handoff.
+Не шарить mutable SQLite и не создавать второго writer. Основание: текущий matched expansion
+использовал 86 pools, 8 fits менее чем за 29s, но дал отрицательное сравнение; compute не показан bottleneck, а новый
+training node и его доступность пока не проверены. Пересмотреть после измерения очереди,
+RAM/времени/тепла и безопасного end-to-end handoff на read-only копии.
+
+Условие пересмотра: сначала подтвердить канал передачи, права и изоляцию на read-only копии;
+экономию Astra quota измерять telemetry, если она появится; пока допустимы только оценки по доле
+работы. См. [короткий контекст](now.md).
+
 ## 2026-10-06 — sleep/wake считается interruption, а не целостностным STOP
 
 Статус: реализовано на source, managed operator и paper supervision; live cutover выполнен

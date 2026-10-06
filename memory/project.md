@@ -1,5 +1,27 @@
 # Цель и границы проекта
 
+## 2026-10-06 — контекст моделей и двух узлов
+
+Снизить расход Astra/Codex следует выбором релевантных источников и передачей больших
+механических задач другим исполнителям, а не ослаблением научного review. Astra оставляет
+за собой причинность/eligibility/leakage, holdout, preregistration/evaluation, model selection,
+promotion и risk/execution. Другим агентам допустимы изолированные implementation, тесты,
+поиск, документация и независимый review с указанием точных файлов/evidence. Qwen пригодна для
+локальной предварительной triage/summarization больших логов и diff с проверяемыми ссылками;
+она не является источником истины или торговым runtime.
+
+Основной Mac (24GB) — единственный checkout и live/source/AUTO/control owner; здесь доступен
+Codex. Второй M4 Pro (48GB) содержит другие модели, но проекта там нет. Пока нет проверенной
+передачи исходников/артефактов, эти модели не могут выполнять repo-задачи. Первый шаг
+делегирования — передать bounded context packet или sanitized evidence и потребовать точные
+file/line references; результат проходит review на основном checkout. Для реализации нужна
+отдельная проверенная копия/ветка проекта.
+
+В долгосрочной схеме второй Mac — offline research/training/LLM worker через sealed dataset
+shards и hash-verified model bundles. Общий mutable SQLite, второй writer и distributed
+training пока не обоснованы. Локальное подключение, endpoint Qwen, безопасный transfer и
+training bottleneck на втором Mac не проверены; никакой workload туда не перенесён.
+
 ## 2026-10-06 — широкий рынок должен доходить до train
 
 Пользователь принял forensic review и historical vacuum и изменил главный фокус:

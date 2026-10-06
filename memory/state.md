@@ -1,5 +1,27 @@
 # Текущий статус
 
+## 2026-10-06 — сокращение повторного контекста Codex
+
+Подтверждена структура памяти: `state.md` 1 477 строк /134KB, `decisions.md` 1 176 /115KB,
+`changes.md` 819 /75KB; полный стартовый перечень создавал избыточное повторное чтение истории.
+Добавлены компактная точка входа `memory/now.md`, task-scoped `tools/agent_context.py` и
+профили operator/data/ml/architecture/review/docs с cap 24 000 символов (до ~6 000 tokens по
+грубой chars/4 эвристике, не по реальному биллингу). История/evidence не удалялись. Пакет
+выводит только профильные документы, git status и последние commits; query ограничен этими
+источниками. Большие logs/work и protected evidence автоматически не включаются.
+
+Этот checkout на основном M4 Pro/24GB; фактический hardware проверен. Здесь доступен Codex;
+все остальные модели пользователя находятся на втором M4 Pro/48GB, где checkout проекта нет.
+Поэтому реальные Grok/Qwen/Kimi/GLM/DeepSeek repo-задачи пока не запускались: нет подтверждённой
+передачи файлов/ветки или локального Qwen endpoint. Второй узел выбран как будущий изолированный
+implementation/LLM/offline training worker; live source/AUTO/canonical store остаются на первом.
+Передача только bounded context/sanitized evidence либо sealed shards и hash-verified bundles;
+никакого общего mutable SQLite/второго writer.
+
+Роли и текущая схема описаны в [now.md](now.md); полного расхода/остатка Astra quota эта среда
+не показывает. Проверки: полный `make check` — 922 passed, 11 skipped (optional ML env);
+ruff, format и mypy прошли. Context helper: 3 tests passed.
+
 ## 2026-10-06 — восстановление после закрытия крышки / clock jump
 
 Установленная причина паузы: 2026-10-06 10:47:26 МСК source child завершился `-9`,

@@ -1,5 +1,12 @@
 # История изменений решений
 
+## 2026-10-06 — scoped context workflow и двухузловая граница
+
+Добавлены компактная `memory/now.md`, правила context-first чтения и `tools/agent_context.py`
+с task profiles/query excerpts. История не удалялась и не переписывалась. Зафиксированы роли
+моделей и изолированная роль второго Mac; checkout/канала пока нет, runtime не мигрировал.
+Проверки: make check 922 passed/11 optional skips; 3 context tests passed.
+
 ## 2026-10-06 — устойчивое восстановление B13 после сна Mac
 
 - Исправлен STOP cascade для подтверждённого `clock_jump_or_suspend`/SIGKILL; paper resume
