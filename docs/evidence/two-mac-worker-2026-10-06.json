@@ -67,7 +67,9 @@
   "topology": {
     "mac1_ssh_connected": true,
     "mac1_runtime_inspected": true,
-    "production_changes": false,
+    "production_changes": true,
+    "active_production_state_changed": false,
+    "nonactive_runtime_bundle_staged": true,
     "new_market_requests": 0,
     "new_training_runs": 0,
     "mac2_role": "development and bounded local tooling",
@@ -240,6 +242,45 @@
     "activated_on_mac1": false,
     "synthetic_switch_rollback_tests": true,
     "power_loss_between_pointers_qualified": false
+  },
+  "mac1_owner_release_rehearsal": {
+    "observed_at": "2026-10-06T20:15:35+00:00",
+    "revision": "669d4d583a405a8fdf5b17a885346d38432656f5",
+    "runtime_python_sha256": "0d1fc12cf4887074b3eb257241f152cb85ca5a135879120b7e8e3b9aa57d5094",
+    "dev_site_packages": "/Users/root1/Desktop/memecoin-ai/.venv/lib/python3.13/site-packages",
+    "release_receipt_sha256": "4d13826d888aa3c393a64baa06897b7c901aeeb6d3e208d083355ce98eee3faf",
+    "checks": {
+      "ruff": 0,
+      "format": 0,
+      "mypy": 0,
+      "pytest_exit": 0,
+      "pytest_summary": "980 passed, 12 skipped in 244.27s",
+      "synthetic_smoke": 0
+    },
+    "binding": {
+      "record_sha256": "95eb689f1158d8c6303e74abce108c345655f31bca225c75f93e6b06d9716e1c",
+      "active_bundle_before": "/Users/root1/Desktop/memecoin-ai/work/brain-b13/operator-runtime08",
+      "staged_bundle": "/Users/root1/Desktop/memecoin-ai/work/brain-b13/operator-runtime09",
+      "active_and_staged_manifest_sha256": "fec78c60d5c93b4b1d9cf4a680843162169f214910b98cc135c194cee8e63c3a",
+      "runtime_code_content_identical": true,
+      "activated": false
+    },
+    "activation_gate": {
+      "mode": "auto",
+      "phase": "waiting",
+      "jobs": {"completed": 7, "queued_or_running": 0},
+      "unexpired_exam_count": 1,
+      "unexpired_exam_expires_at": "2026-10-06T21:14:49.537701+00:00",
+      "activation_command_executed": false,
+      "automatic_review_rejection": "Live activation request rejected while a managed exam is unexpired"
+    },
+    "post_check": {
+      "active_bundle": "/Users/root1/Desktop/memecoin-ai/work/brain-b13/operator-runtime08",
+      "operator_pid": 64937,
+      "status": "auto/waiting",
+      "domain_stop": false,
+      "production_pointer_changed": false
+    }
   },
   "checks": {
     "make_setup_exit": 0,

@@ -17,7 +17,10 @@ runtime перед изменениями: данные о процессах и
   сессии Mac 2 2026-10-06 SSH к `root1@192.168.31.66` прошёл с проверенным host fingerprint;
   Read-only `/api/status`: `operator-status-v1`, `auto/waiting`, `domain_stop=false`;
   TCP listener, LaunchAgent `ai.memecoin.brain.operator` и runtime process совпали
-  (PID 64937, pinned `runtime08`). Production release rehearsal ещё не проводилась.
+  (PID 64937, pinned `runtime08`). Owner prepare/bind commit `669d4d5` прошли: 980 passed/12
+  skipped; staged `runtime09` имеет тот же runtime pin. Activation заблокирована: одна managed
+  exam действует до `2026-10-06 21:14:49 UTC`, operator `auto/waiting`; нужен expiry и штатная
+  Pause через UI.
 
 ## Нерушимые границы
 

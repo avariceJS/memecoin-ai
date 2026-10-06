@@ -7,11 +7,14 @@ Bootstrap проверен и обновлён доa594474; установлен
 curated evidence queue и bounded Ollama task receipts. Synthetic roundtrip/retry и rollback
 с новыми events проверены. Затем SSH Mac2→Mac1 настроен и проверен по host fingerprint;
 synthetic report принят в отдельный `/private/tmp` staging Mac1 и возвращён на Mac2,
-где повторно проверены archive pin, manifest и member hash. Mac1 production не меняли.
+где повторно проверены archive pin, manifest и member hash. Active production state не меняли.
 Read-only GET `/api/status` вернул `operator-status-v1`, `auto/waiting`, `domain_stop=false`;
-PID 64937 совпал в LaunchAgent, listener и runtime process (`runtime08`). Production release
-rehearsal остаётся следующим шагом. `worker_artifacts send` получил флаги identity/known_hosts;
-16 artifact tests и реальный SSH retry через CLI прошли.
+PID 64937 совпал в LaunchAgent, listener и runtime process (`runtime08`). Candidate `runtime09`
+прошёл owner prepare (980 passed/12 skipped) и bind без активации; bundle staged в production work,
+manifest совпал с `runtime08`,
+поэтому это no-op кодовый rollout. Один managed exam ещё действовал до 21:14:49 UTC; live
+activation отклонена auto-review и не выполнялась. `worker_artifacts send` получил флаги
+identity/known_hosts; 16 artifact tests и реальный SSH retry через CLI прошли.
 Local Qwen35B Q8 measured47.1tok/s, но swap5.3→14.2GiB, review обрезан/не принят. Сильный
 MCP-Qwen отдельно и отложен. Выбрана optional preprocessing роль; unattendedQ8/LLMfeatures
 не допущены. Codex worker устранил UI-test dependence отMac1work/, сохранив optional browser

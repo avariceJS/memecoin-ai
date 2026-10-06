@@ -5,7 +5,9 @@
 Статус: engineering tools реализованы; sealed-artifact transport прошёл synthetic two-host
 round trip через SSH и проверку pin/manifest. Read-only `/api/status` подтвердил `auto/waiting`
 и `domain_stop=false`; operator LaunchAgent/listener/runtime process совпали на PID 64937,
-pinned `runtime08`. Production release qualification на Mac1 не проводилась. Mac2 —
+pinned `runtime08`. Owner prepare/bind commit `669d4d5` прошли (980 passed/12 skipped), но staged
+runtime modules совпадают с `runtime08`. Live activation/rollback не квалифицированы: действовал
+unexpired exam и режим AUTO; auto-review отклонил activation. Mac2 —
 разработка/review/commits; Mac1 — sole canonical writer/source/AUTO/
 paper и нынешнее короткое training. Transport publication не admission; новый release
 активируется отдельно от push, с паузой/no active jobs/no unexpired managed exams. Rollback

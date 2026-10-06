@@ -9,7 +9,11 @@ Cursor MCP servers не настроены. На Mac1 `root1@192.168.31.66` вк
 авторизация ключом Mac2 и host fingerprint подтверждены. Synthetic artifact принят Mac1 и
 возвращён на Mac2. Read-only `/api/status` ответил `operator-status-v1`, `auto/waiting`,
 `domain_stop=false`; LaunchAgent, listener и runtime process совпали на PID 64937
-(`ai.memecoin.brain.operator`, pinned `runtime08`). Production release не выполняли.
+(`ai.memecoin.brain.operator`, pinned `runtime08`). Commit `669d4d5` подготовлен на owner Python
+3.13.6: 980 passed/12 skipped; `runtime09` staged, но модули runtime идентичны `runtime08`.
+Activation не выполняли: одна managed exam действовала до `2026-10-06 21:14:49 UTC`, режим AUTO;
+auto-review отклонил запрос. Post-check подтвердил прежний active pointer/PID/status; staged bundle
+остался в production work directory, неактивным.
 
 Реализованы tools/worker_artifacts.py (explicit sealed roots, staged hash/membership
 verification, idempotence/conflict отказ, SSH stdin transport), tools/worker_release.py
@@ -28,8 +32,8 @@ billed-token savings. Codex worker перенёс UI tests с отсутству
 status и tracked optional browser runner: operator suite220passed/4skipped.
 
 Команды, ограничения, missing access и следующий шаг: [two-mac-operations](../docs/two-mac-operations.md).
-Следующий технический шаг: отдельная owner-host release rehearsal
-с контролируемыми pause/activate/health/rollback gates. Cursor login всё ещё нужен для hosted
+Следующий технический шаг: после expiry и штатной UI Pause — owner-host activate/health/rollback
+rehearsal. Cursor login всё ещё нужен для hosted
 model catalog; новый historical campaign не начат.
 
 Итог: commits `3854eb2` (portable UI tests), `ab8c1a7` (worker tools/границы).

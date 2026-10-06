@@ -4,10 +4,11 @@
 `/Users/sl-aleksandr/Developer/memecoin-worker`, M4 Pro / 48 GiB.
 Mac 1 остаётся владельцем source, registry, AUTO, короткого training и paper.
 SSH `root1@192.168.31.66` и synthetic artifact round trip проверены между двумя машинами.
-Live runtime и production activation ниже на Mac 1 не квалифицированы.
+Read-only runtime health и release prepare/bind выполнены на Mac 1; production activation/rollback
+ещё не квалифицированы.
 Read-only GET `/api/status` вернул schema `operator-status-v1`, mode `auto`, phase `waiting`,
 `domain_stop=false`. Listener PID 64937 совпал с LaunchAgent `ai.memecoin.brain.operator`
-и runtime command для pinned `runtime08`. Release rehearsal на Mac 1 не проводилась.
+и runtime command для pinned `runtime08`. Activation/rollback rehearsal на Mac 1 ещё не пройдена.
 
 ## Разработка
 
@@ -145,6 +146,15 @@ production release activation.
 и review конкретного revision. При аварии питания между двумя заменами файлов сервис остаётся
 выгруженным; intent journal содержит обе версии и прежний plist. Автоматическое crash recovery
 для такого разрыва пока не реализовано; не делать новый update поверх незакрытого intent.
+
+Owner-host rehearsal 2026-10-06: commit `669d4d5` подготовлен на Mac 1 с runtime Python 3.13.6
+и dev tools из его `.venv`; 980 tests passed / 12 skipped, lint/type/smoke checks passed.
+`runtime09` staged, но его manifest pin совпал с `runtime08`: runtime modules не менялись.
+Staged bundle записан в production work directory, active pointer/operator остались на `runtime08`.
+В момент проверки mode был `auto/waiting`, queued/running jobs — 0,
+но одна managed exam истекала только в `2026-10-06 21:14:49 UTC`. Activation не выполнялась:
+системный auto-review отклонил запрос live activation при действующей exam. После expiry всё равно
+нужна штатная Pause через UI перед дальнейшей activation/rollback проверкой.
 
 ## Модели И Локальная Очередь
 
