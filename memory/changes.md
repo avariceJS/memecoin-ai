@@ -1,5 +1,16 @@
 # История изменений решений
 
+## 2026-10-06 — Mac 2 development acceptance и local Qwen уточнение
+
+Bootstrap проверен и обновлён доa594474; установлены Python3.13/dev deps и CursorCLI
+(login pending). Добавлены sealed artifact transfer, exact-revision release/rollback CLI,
+curated evidence queue и bounded Ollama task receipts. Synthetic roundtrip/retry и rollback
+с новыми events проверены. Mac1 SSH/two-host update не выполнены; production не изменён.
+Local Qwen35B Q8 measured47.1tok/s, но swap5.3→14.2GiB, review обрезан/не принят. Сильный
+MCP-Qwen отдельно и отложен. Выбрана optional preprocessing роль; unattendedQ8/LLMfeatures
+не допущены. Codex worker устранил UI-test dependence отMac1work/, сохранив optional browser
+checks; operator220passed/4skipped. [Инструкция](../docs/two-mac-operations.md).
+
 ## 2026-10-06 — two-Mac worker bootstrap и quota boundaries
 
 Зафиксированы measured bottlenecks, рабочие роли и Git/sealedartifact handoff; допускаются

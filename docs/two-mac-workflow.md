@@ -1,8 +1,9 @@
 # Два Mac: один проект, изолированные workers
 
-Дата решения: 2026-10-06. Состояние подключения: Mac 1 проверен; Mac 2 ещё не доступен этой
-сессии. Переход live runtime не выполнялся. Следующий шаг — перенести bootstrap kit или
-дать SSH `user@host` (без пароля в чате), затем проверить Mac 2 и выполнить одну repo-задачу.
+Дата решения: 2026-10-06. Обновление из сессии Mac 2: bootstrap установлен и проверен,
+M4Pro/48GiB подтверждены; разработка теперь здесь. Mac1 runtime в этой сессии не проверен,
+его SSH host неизвестен. Переход live runtime не выполнялся. Реализованные CLI, фактическая
+qualification и следующие действия: [операторская инструкция](two-mac-operations.md).
 
 Комплект создан: `work/two-mac-bootstrap-20261006-01.zip`, source commit
 `eee7ce1a473e97b67047c487ea66dbd631d01c36`. Git bundle проверен, новый checkout на том же
@@ -23,21 +24,21 @@ qualified contiguous data, разнообразие фактических на�
 | Workload | Сейчас/целевая машина | Причина |
 |---|---|---|
 | Live source, AUTO, registry, future paper, Control Center | Mac 1 | Сохранить работающие pins, журналы, экспирации и единственного владельца состояния |
-| Разработка, тесты, review, локальная Qwen | Mac 2 после checkout | Убрать engineering и большие LLM-контексты с Astra и live host |
+| Разработка, тесты, review, локальная Qwen | Mac 2, checkout проверен | Убрать engineering и большие LLM-контексты с live host |
 | Historical campaigns, decode, replay | Mac 2 после bounded qualification | Непересекающиеся ranges, локальный raw journal, импорт sealed результатов |
 | Нынешний короткий AUTO training | Пока Mac 1 | Миграция сейчас дороже 28.64s compute; operator adapter ещё локальный |
 | Более тяжёлые snapshots/independent fits | Mac 2 после artifact handoff test | 48GB полезны для больших shards/cache, если появится очередь или RAM pressure |
 
 Потеря Mac 2/сети не должна остановить текущий live/paper контур. Сумма24+48GB не является
-общей памятью одной модели. Заявленные39GB Qwen могут описывать файл модели; фактические
-resident RAM/KV-cache/context/throughput не измерены. На48GB не планировать Qwen35B и тяжёлое
-MPS training одновременно: сначала inventory/benchmark, затем отдельные фазы LLM и training.
+общей памятью одной модели. На Mac2 измерены Q8 disk38.7GB, Ollama ps36.99GB/context8192,
+≈47.1tok/s, но swap вырос5.3→14.2GiB. ТекущаяQ8 не допущена к unattended processing.
+LLM и heavyMPS разделяются lease/фазами; подробности в операторской инструкции.
 
 ## Код и работа моделей
 
 Один Git remote и reviewed `main`. Worker получает exact base commit, свою branch/worktree,
 task ID, file ownership, acceptance command и запреты по semantics. Возвращает commits/patch,
-краткий результат, tests/exit codes и receipts. Интеграция на Mac 1 после review; worker не
+краткий результат, tests/exit codes и receipts. Интеграция кода на Mac 2 после review; worker не
 меняет pinned live runtime. Один файл не принадлежит двум параллельным задачам.
 
 - Astra: architecture/integration, causal/availability/admission, leakage/holdout,

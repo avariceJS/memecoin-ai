@@ -1,5 +1,26 @@
 # Реестр архитектурных решений
 
+## 2026-10-06 — development на Mac 2; local Qwen как optional evidence preprocessing
+
+Статус: engineering tools реализованы с synthetic проверкой; two-host/live qualification
+отложена до SSH. Mac2 — разработка/review/commits; Mac1 — sole canonical writer/source/AUTO/
+paper и нынешнее короткое training. Transport publication не admission; новый release
+активируется отдельно от push, с паузой/no active jobs/no unexpired managed exams. Rollback
+меняет code pointers и сохраняет текущие базы/новые events. Schema migration не поддержана.
+
+Прямое уточнение пользователя разделяет сильный внешний MCP-Qwen (сейчас недоступен/отложен)
+и бесплатную локальную Qwen35B. Последняя не должна заменять strong reviewer. Измеренная Q8
+даёт47.1tok/s, но резко увеличивает swap; первая bounded review задача не прошла quality.
+Выбран deterministic grouping curated evidence + optional LLM annotation с источниками,
+без действий/ground truth. Один compute lease, context4096/output256/keep_alive0; conservative
+gate≤60%RAM и free≥70% отказывает текущейQ8. 24h service пока не включён. LLM-derived market
+features требуют отдельного preregistered ablation; эксперимент не проведён, не admitted.
+Экономия Codex quota2–3x не подтверждена. [Факты/команды/ограничения](../docs/two-mac-operations.md).
+
+Test portability: обязательный stdlib suite не зависит от private work/ или Playwright;
+HTTP/security assertions остаются обязательными, browser acceptance отдельно имеет явный
+optional dependency skip и tracked runner. Это не evidence визуального прохождения.
+
 ## 2026-10-06 — Mac 2 как worker, включая разрешённый historical acquisition
 
 Уточнение прежней offline-only схемы: пользователь разрешил оценить independent accounts/

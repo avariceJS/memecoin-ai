@@ -1,5 +1,31 @@
 # Текущий статус
 
+## 2026-10-06 — Mac 2 принят как development host; transport/release tooling
+
+Проверен `/Users/sl-aleksandr/Developer/memecoin-worker`: M4Pro/48GiB, bootstrap receipt
+и SHA256SUMS, clean base eee7ce1, fetch/fast-forward доa594474. Python3.13/dev env и
+Cursor CLI2026.10.01-e373342 установлены. Cursor auth отсутствует, model catalog не проверен;
+Cursor MCP servers не настроены. Mac1 SSH host запрошен, не получен; production не трогали.
+
+Реализованы tools/worker_artifacts.py (explicit sealed roots, staged hash/membership
+verification, idempotence/conflict отказ, SSH stdin transport), tools/worker_release.py
+(exact Git prepare/checks, preserve refs bind, paused/no-active-exams update, code rollback
+без database restore). На synthetic roots проверены round trip/retry/tamper и сохранение
+новых ledger events при rollback. Реальная связь/production update НЕ квалифицированы.
+
+Уточнение пользователя: сильный внешний MCP-Qwen сейчас отложен; local35B — бесплатный
+preprocessing worker, не strong code reviewer. Одна задача Q8 context8192 дала≈47.1tok/s,
+но swap5.3→14.2GiB/free88→7%; output900tokens обрезан и содержит неверные findings, review
+не принят. Новая очередь local_evidence_queue.py сохраняет curated source/STOP и deterministic
+summary, optional annotation без authority. RAM gate откладывает текущуюQ8; нет daemon,
+training/market features/admission изменений. Synthetic101events:11303→788bytes; это не
+billed-token savings. Codex worker перенёс UI tests с отсутствующего Mac1 work/ на synthetic
+status и tracked optional browser runner: operator suite220passed/4skipped.
+
+Команды, ограничения, missing access и следующий шаг: [two-mac-operations](../docs/two-mac-operations.md).
+Нужны Mac1 user@host/verified SSH и Cursor login. Затем real synthetic two-host probe,
+readonly runtime inventory, owner-host release rehearsal; новый historical campaign не начат.
+
 ## 2026-10-06 — подготовка реального worker checkout для Mac 2
 
 Выбрана асимметричная схема: Mac1 сохраняет source/AUTO/paper/registry; Mac2 — engineering/
