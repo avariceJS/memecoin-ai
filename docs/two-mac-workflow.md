@@ -4,6 +4,12 @@
 сессии. Переход live runtime не выполнялся. Следующий шаг — перенести bootstrap kit или
 дать SSH `user@host` (без пароля в чате), затем проверить Mac 2 и выполнить одну repo-задачу.
 
+Комплект создан: `work/two-mac-bootstrap-20261006-01.zip`, source commit
+`eee7ce1a473e97b67047c487ea66dbd631d01c36`. Git bundle проверен, новый checkout на том же
+Mac воспроизвёл exact commit/clean state; занятый путь и altered checksum отклонены.
+9 tooling tests и synthetic smoke прошли. Это ещё не two-host acceptance и не запуск Qwen.
+[Machine-readable receipt](evidence/two-mac-bootstrap-2026-10-06.json).
+
 ## Почему именно такое разделение
 
 Последнее измерение: 8 fits вместе со snapshots/audit — 28.64s, peak RSS 1.81GB; acquisition

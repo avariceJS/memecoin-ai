@@ -6,6 +6,8 @@
 qualifiedhistorical workers наMac2, без sharedSQLite или automaticpromotion. Добавлен
 standalone read-only inventory и устранена обрезкаAGENTS/now вcontextpacket. ВторойMac ещё
 не проверен, providerbudget не увеличен. Детали: docs/two-mac-workflow.md.
+Bootstrap наcode`eee7ce1` прошёл same-hostclone/pin/overwrite/tamper проверки;9tooltests,
+smokePASS. Artifact+read-onlylive receipt: docs/evidence/two-mac-bootstrap-2026-10-06.json.
 
 ## 2026-10-06 — scoped context workflow и двухузловая граница
 

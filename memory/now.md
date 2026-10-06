@@ -64,6 +64,9 @@ runtime перед изменениями: данные о процессах и
   ограничений и plan. AlchemyTerms2.2(x) запрещает spread usage across accounts; второйMac/ключ
   не автоматически новая quota. Диапазоны раздельные, budgets/reservations сохраняются.
   [Архитектура/переход/метрики](../docs/two-mac-workflow.md), `tools/worker_preflight.py`.
+- Для подключения готов `work/two-mac-bootstrap-20261006-01.zip` (code`eee7ce1`): новый
+  worker checkout + read-only inventory через BOOTSTRAP.command. Same-host rehearsal прошёл;
+  перенос/запуск наMac2 и модели ещё не проверены. Начальная задачаCursor — TASK-001.md вZIP.
 
 ## Где читать первоисточник
 

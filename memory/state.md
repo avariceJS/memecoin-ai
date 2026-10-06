@@ -17,6 +17,10 @@ billed context; bytes также не tokens. Подготовка portableGitbo
 domain_stop=false, sourcehealthy; deployment/runtime/expiries не менялись.
 Проверки tooling:9passed,ruff/format,bashsyntax; `make smoke` reproducible syntheticPASS.
 Полный runtime suite повторно не запускался: изменены только tool/docs/worker bootstrap.
+Bootstrap ZIP5.54MB закреплён на code`eee7ce1`, лежит в`work/two-mac-bootstrap-20261006-01.zip`.
+Same-host rehearsal: exactcommit/cleanclone, existingtargetrefused, tamperrejected доclone.
+Mac2acceptance и реальные modeltasks ещё не выполнены. Final readonly: AUTO/waiting,
+source4898attempts/0failures/healthy, domain_stop=false; [receipt](../docs/evidence/two-mac-bootstrap-2026-10-06.json).
 
 ## 2026-10-06 — сокращение повторного контекста Codex
 
