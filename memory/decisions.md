@@ -2,8 +2,11 @@
 
 ## 2026-10-06 — development на Mac 2; local Qwen как optional evidence preprocessing
 
-Статус: engineering tools реализованы с synthetic проверкой; two-host/live qualification
-отложена до SSH. Mac2 — разработка/review/commits; Mac1 — sole canonical writer/source/AUTO/
+Статус: engineering tools реализованы; sealed-artifact transport прошёл synthetic two-host
+round trip через SSH и проверку pin/manifest. Read-only `/api/status` подтвердил `auto/waiting`
+и `domain_stop=false`; operator LaunchAgent/listener/runtime process совпали на PID 64937,
+pinned `runtime08`. Production release qualification на Mac1 не проводилась. Mac2 —
+разработка/review/commits; Mac1 — sole canonical writer/source/AUTO/
 paper и нынешнее короткое training. Transport publication не admission; новый release
 активируется отдельно от push, с паузой/no active jobs/no unexpired managed exams. Rollback
 меняет code pointers и сохраняет текущие базы/новые events. Schema migration не поддержана.

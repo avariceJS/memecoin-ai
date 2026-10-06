@@ -3,8 +3,11 @@
 Дата: 2026-10-06. Development checkout проверен на Mac 2:
 `/Users/sl-aleksandr/Developer/memecoin-worker`, M4 Pro / 48 GiB.
 Mac 1 остаётся владельцем source, registry, AUTO, короткого training и paper.
-Его актуальное состояние в этой сессии не проверено: адрес SSH не предоставлен.
-Ни SSH round trip, ни production activation ниже пока не квалифицированы на двух машинах.
+SSH `root1@192.168.31.66` и synthetic artifact round trip проверены между двумя машинами.
+Live runtime и production activation ниже на Mac 1 не квалифицированы.
+Read-only GET `/api/status` вернул schema `operator-status-v1`, mode `auto`, phase `waiting`,
+`domain_stop=false`. Listener PID 64937 совпал с LaunchAgent `ai.memecoin.brain.operator`
+и runtime command для pinned `runtime08`. Release rehearsal на Mac 1 не проводилась.
 
 ## Разработка
 
@@ -31,6 +34,11 @@ production restart. `.codex/config.toml`, возникший локально в
 Пароли/private keys в чат не отправлять; `StrictHostKeyChecking=no` не применять.
 Для unattended transport нужен уже проверенный SSH key/agent; `BatchMode=yes`
 сознательно откажет при интерактивном password prompt.
+
+2026-10-06: Mac 2 использует отдельный ключ `memecoin_mac2_ed25519`; Mac 1 добавил его
+в `authorized_keys`. Host fingerprint сверён: `SHA256:hkTc4KWC0pjJKWvpafiv1I0yc3ue9A3fgdqvPXkEUMA`.
+SSH отдал `arm64`; system Python на Mac 1 — 3.9.6. Для проверки команды явно задавали
+IdentityFile и временный known_hosts. Permanent SSH config Mac 2 не менялся.
 
 Для Control Center после подключения можно создать SSH tunnel:
 
@@ -78,6 +86,16 @@ SSH-передача тем же проверяющим кодом, после �
 Обратное направление выполняется с другой машины той же командой. Отправитель и принимающая
 машина должны иметь проверенную копию tool. SHA256 подтверждает целостность, SSH — peer.
 Первый реальный probe должен быть synthetic report, не market/holdout dataset.
+
+Двуххостовая проверка 2026-10-06: Mac 2 передал `synthetic-probe01` через SSH stdin receiver
+в `/private/tmp/memecoin-exchange-validation-20261006` на Mac 1. Archive SHA256
+`df3609852d43a7c8ca67d8eae0047afc3adf378ba3bc5851fd6abe5ff0a52f64`, manifest SHA256
+`6f3839a1410c015c840781d633537322ea5d6d5949f86a5d9cbb27181d75fe81`; статус на Mac 1 —
+`published_transport_only`. Mac 1 перепаковал тот же report как `synthetic-return01`, Mac 2
+скачал архив и принял его с pin `2fed84a2d933df5467e512836b24edbddeeebaba22d48ec7a6b7cfdd6e86112f`.
+Manifest и hash `report.json` совпали на обеих сторонах. Это доказывает сетевой канал и
+целостность transport для маленького synthetic report, но не domain admission, live exporter,
+повтор через CLI `send` или production release activation.
 
 Не упаковывать mutable root и не создавать transport manifest над открытой базой.
 Для SQLite сначала штатный consistent snapshot/backup, затем seal; для обучения предпочтительны

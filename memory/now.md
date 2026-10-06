@@ -13,9 +13,11 @@ runtime перед изменениями: данные о процессах и
   Это отрицательный результат, не основание менять test, recipe или champion.
 - AUTO остаётся bounded: 24h и ≥100 новых matured outcomes, ≤6 reservations за 7 дней;
   текущий operational state всегда считывать с машины, не выводить из этой заметки.
-- Последний runtime commit: `d3024b6` (sleep/wake recovery), context entrypoint: `88526bf`. Сверить
-  `git status`, HEAD, LaunchAgents, source health, expiry и incidents на Mac 1. В сессии
-  Mac 2 от 2026-10-06 production state не считывался: SSH host пока неизвестен.
+- Последний runtime commit: `d3024b6` (sleep/wake recovery), context entrypoint: `88526bf`. В
+  сессии Mac 2 2026-10-06 SSH к `root1@192.168.31.66` прошёл с проверенным host fingerprint;
+  Read-only `/api/status`: `operator-status-v1`, `auto/waiting`, `domain_stop=false`;
+  TCP listener, LaunchAgent `ai.memecoin.brain.operator` и runtime process совпали
+  (PID 64937, pinned `runtime08`). Production release rehearsal ещё не проводилась.
 
 ## Нерушимые границы
 
@@ -46,8 +48,10 @@ runtime перед изменениями: данные о процессах и
   архитектурные trade-offs и финальная интеграция.
 - Development теперь на Mac 2: `/Users/sl-aleksandr/Developer/memecoin-worker`, measured
   M4 Pro/48GiB, bootstrap checksums совпали, base fast-forward `eee7ce1`→`a594474`.
-  Python3.13/dev `.venv` установлены; системный python3 остаётся3.9. Mac1 сохраняет live
-  source/AUTO/registry/paper и короткий training; нет SSH host, связи или production cutover.
+  Python3.13/dev `.venv` установлены; системный python3 остаётся3.9. SSH Mac2→Mac1 проверен;
+  synthetic report принят на Mac1 и возвращён на Mac2 с совпадающими manifest/member hash.
+  Mac1 сохраняет live source/AUTO/registry/paper и короткий training; read-only operator health
+  проверен, production release на Mac1 не переключали.
 - Cursor CLI2026.10.01-e373342 установлен, требует `~/.local/bin/agent login`. Каталог/Grok/
   Kimi/GLM/DeepSeek не подтверждены; Cursor MCP list пуст. Внешний сильный MCP-Qwen отложен.
   Отдельный Codex worker исправил зависимость UI-тестов от Mac1 work/; не считать его Grok.
@@ -55,9 +59,10 @@ runtime перед изменениями: данные о процессах и
   `qwen3.5:35b-a3b-q8_0` проверена: Q8_0/36.0B, disk38.7GB, context8192,
   ≈47.1tok/s. Первый review обрезан/ошибочен и не принят; swap5.3→14.2GiB, free88→7%.
   Модель затем выгружена. Unattended Q8 не квалифицирована, heavy training не запускался.
-- Добавлены sealed artifact CLI и runtime prepare/bind/activate/rollback CLI; пока local
-  synthetic acceptance, не two-host qualification. UI update action отсутствует. Rollback
-  сохраняет новые events; активация требует паузы, no jobs/no unexpired managed exams.
+- Добавлены sealed artifact CLI и runtime prepare/bind/activate/rollback CLI. Artifact transfer
+  прошёл synthetic two-host round trip; release bind/rollback проверены только на synthetic
+  root. UI update action отсутствует. Rollback сохраняет новые events; активация требует
+  паузы, no jobs/no unexpired managed exams.
 - `local_evidence_queue.py`: deterministic grouping curated packets с полными исходниками/
   STOP и необязательной LLM annotation. Shared compute lease, context4096, output256,
   keep_alive0; нынешняя Q8 отложена по RAM gate. Нет 24h service или реального log exporter.
@@ -66,9 +71,9 @@ runtime перед изменениями: данные о процессах и
   ограничений и plan. AlchemyTerms2.2(x) запрещает spread usage across accounts; второйMac/ключ
   не автоматически новая quota. Диапазоны раздельные, budgets/reservations сохраняются.
   [Архитектура/переход/метрики](../docs/two-mac-workflow.md), `tools/worker_preflight.py`.
-- [Актуальные команды/ограничения](../docs/two-mac-operations.md). Следующий шаг: SSH
-  `user@host` Mac1 + host-key verification, synthetic two-host probe, readonly health,
-  квалификация release на owner. Без подключения продолжать scoped engineering наMac2.
+- [Актуальные команды/ограничения](../docs/two-mac-operations.md). Следующий шаг: отдельная
+  bounded owner-host release rehearsal с prepare/bind/paused activate/health/rollback;
+  release qualification остаётся на owner; новых historical campaigns пока нет.
 - Exact code `ab8c1a7`:978tests passed/12optional skipped,ruff/mypy/smoke PASS;
   [acceptance/делегирование](../docs/evidence/two-mac-worker-2026-10-06.json).
 

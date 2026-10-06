@@ -5,13 +5,18 @@
 Проверен `/Users/sl-aleksandr/Developer/memecoin-worker`: M4Pro/48GiB, bootstrap receipt
 и SHA256SUMS, clean base eee7ce1, fetch/fast-forward доa594474. Python3.13/dev env и
 Cursor CLI2026.10.01-e373342 установлены. Cursor auth отсутствует, model catalog не проверен;
-Cursor MCP servers не настроены. Mac1 SSH host запрошен, не получен; production не трогали.
+Cursor MCP servers не настроены. На Mac1 `root1@192.168.31.66` включён Remote Login,
+авторизация ключом Mac2 и host fingerprint подтверждены. Synthetic artifact принят Mac1 и
+возвращён на Mac2. Read-only `/api/status` ответил `operator-status-v1`, `auto/waiting`,
+`domain_stop=false`; LaunchAgent, listener и runtime process совпали на PID 64937
+(`ai.memecoin.brain.operator`, pinned `runtime08`). Production release не выполняли.
 
 Реализованы tools/worker_artifacts.py (explicit sealed roots, staged hash/membership
 verification, idempotence/conflict отказ, SSH stdin transport), tools/worker_release.py
 (exact Git prepare/checks, preserve refs bind, paused/no-active-exams update, code rollback
 без database restore). На synthetic roots проверены round trip/retry/tamper и сохранение
-новых ledger events при rollback. Реальная связь/production update НЕ квалифицированы.
+новых ledger events при rollback. Двуххостовая synthetic передача/возврат квалифицированы;
+production release на Mac1 не проверяли.
 
 Уточнение пользователя: сильный внешний MCP-Qwen сейчас отложен; local35B — бесплатный
 preprocessing worker, не strong code reviewer. Одна задача Q8 context8192 дала≈47.1tok/s,
@@ -23,8 +28,9 @@ billed-token savings. Codex worker перенёс UI tests с отсутству
 status и tracked optional browser runner: operator suite220passed/4skipped.
 
 Команды, ограничения, missing access и следующий шаг: [two-mac-operations](../docs/two-mac-operations.md).
-Нужны Mac1 user@host/verified SSH и Cursor login. Затем real synthetic two-host probe,
-readonly runtime inventory, owner-host release rehearsal; новый historical campaign не начат.
+Следующий технический шаг: отдельная owner-host release rehearsal
+с контролируемыми pause/activate/health/rollback gates. Cursor login всё ещё нужен для hosted
+model catalog; новый historical campaign не начат.
 
 Итог: commits `3854eb2` (portable UI tests), `ab8c1a7` (worker tools/границы).
 `make check`:975passed/12optional skipped; exact Git release `ab8c1a7` после последних

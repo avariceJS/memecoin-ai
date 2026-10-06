@@ -65,13 +65,50 @@
     "initial_clean": true
   },
   "topology": {
-    "mac1_ssh_connected": false,
-    "mac1_runtime_inspected": false,
+    "mac1_ssh_connected": true,
+    "mac1_runtime_inspected": true,
     "production_changes": false,
     "new_market_requests": 0,
     "new_training_runs": 0,
     "mac2_role": "development and bounded local tooling",
     "mac1_assigned_role": "source, canonical registry, AUTO, current short training, paper"
+  },
+  "two_host_artifact_probe": {
+    "observed_at": "2026-10-06T19:35:46+00:00",
+    "synthetic": true,
+    "transport_only": true,
+    "host_fingerprint": "SHA256:hkTc4KWC0pjJKWvpafiv1I0yc3ue9A3fgdqvPXkEUMA",
+    "mac1_python": "3.9.6",
+    "mac1_architecture": "arm64",
+    "outbound": {
+      "id": "synthetic-probe01",
+      "direction": "mac2_to_mac1",
+      "archive_sha256": "df3609852d43a7c8ca67d8eae0047afc3adf378ba3bc5851fd6abe5ff0a52f64",
+      "manifest_sha256": "6f3839a1410c015c840781d633537322ea5d6d5949f86a5d9cbb27181d75fe81",
+      "status": "published_transport_only",
+      "path": "/private/tmp/memecoin-exchange-validation-20261006/synthetic-probe01"
+    },
+    "return": {
+      "id": "synthetic-return01",
+      "direction": "mac1_to_mac2",
+      "archive_sha256": "2fed84a2d933df5467e512836b24edbddeeebaba22d48ec7a6b7cfdd6e86112f",
+      "manifest_sha256": "6f3839a1410c015c840781d633537322ea5d6d5949f86a5d9cbb27181d75fe81",
+      "member_sha256": "753365d96656d054b57fe906eaebc6ad2ab48f5544f0efe4b8fbd74803473eb3",
+      "status": "published_transport_only",
+      "path": "/Users/sl-aleksandr/Developer/memecoin-worker/work/two-mac-remote-return-store-20261006/synthetic-return01"
+    },
+    "production_changes": false,
+    "mac1_runtime_health_checked": true,
+    "mac1_status": {
+      "schema": "operator-status-v1",
+      "mode": "auto",
+      "phase": "waiting",
+      "domain_stop": false
+    },
+    "launchagent_pid_socket_inventory": true,
+    "operator_pid": 64937,
+    "operator_label": "ai.memecoin.brain.operator",
+    "pinned_runtime": "runtime08"
   },
   "code_hashes": {
     "tools/worker_artifacts.py": "87431c1d902536a1d6bf3aebe1e272019b7ad555be1e38c023921cabec603939",
@@ -374,7 +411,7 @@
     "billed_quota_savings": null
   },
   "missing_user_actions": [
-    "Mac1 user@host, Remote Login and verified SSH host key/auth",
+    "Bounded owner-host release rehearsal (prepare/bind/paused activate/health/rollback)",
     "~/.local/bin/agent login for Cursor model catalog and Grok"
   ],
   "operator_instructions": "docs/two-mac-operations.md"
