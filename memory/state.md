@@ -1,5 +1,23 @@
 # Текущий статус
 
+## 2026-10-06 — подготовка реального worker checkout для Mac 2
+
+Выбрана асимметричная схема: Mac1 сохраняет source/AUTO/paper/registry; Mac2 — engineering/
+LLM worker, далее bounded non-overlapping historical campaigns и при необходимости heavy
+replay/training. Current8fits28.64s против≈85min acquisition: distributed training не нужен.
+Доступ ко второмуMac отсутствует, только user-reported48GB/Ollama/Qwen35B≈39GB; SSH адрес
+запрошен. Дополнительные accounts не активированы, budgets не увеличены. AlchemyTerms2.2(x)
+запрещает spread across accounts; допускаются лишь реально разрешённые provider envelopes.
+
+Добавлен standalone `tools/worker_preflight.py` (host/Git/CLI/loopback Ollama metadata,
+0inference/0providerrequests). Context helper исправлен: полныеAGENTS/now безprefix truncation,
+остальные excerpt bounded сhashes. Прежние72.9k — размер вывода доtruncation, не измеренный
+billed context; bytes также не tokens. Подготовка portableGitbootstrap описана в
+[two-mac-workflow](../docs/two-mac-workflow.md). Live read-only check: AUTO/waiting,
+domain_stop=false, sourcehealthy; deployment/runtime/expiries не менялись.
+Проверки tooling:9passed,ruff/format,bashsyntax; `make smoke` reproducible syntheticPASS.
+Полный runtime suite повторно не запускался: изменены только tool/docs/worker bootstrap.
+
 ## 2026-10-06 — сокращение повторного контекста Codex
 
 Подтверждена структура памяти: `state.md` 1 477 строк /134KB, `decisions.md` 1 176 /115KB,

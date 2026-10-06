@@ -40,6 +40,8 @@ def test_packet_contains_git_and_context_map() -> None:
     assert "memory/now.md" in packet
     assert "docs/brain-operator-manual.md" in packet
     assert len(packet) <= 24_200
+    assert (ROOT / "AGENTS.md").read_text() in packet
+    assert (ROOT / "memory/now.md").read_text() in packet
 
 
 def test_query_is_limited_to_selected_sources() -> None:

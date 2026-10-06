@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import subprocess
 from pathlib import Path
@@ -44,11 +45,11 @@ PROFILES: dict[str, tuple[str, ...]] = {
 }
 
 
-def _read(path: Path, limit: int = MAX_FILE_CHARS) -> str:
+def _read(path: Path, limit: int | None = MAX_FILE_CHARS) -> str:
     if not path.is_file():
         return f"[missing: {path.relative_to(ROOT)}]"
     content = path.read_text(encoding="utf-8")
-    if len(content) > limit:
+    if limit is not None and len(content) > limit:
         return content[:limit] + f"\n[…обрезано; полный файл: {path.relative_to(ROOT)}]"
     return content
 
@@ -90,11 +91,21 @@ def build_packet(task: str, query: str | None = None) -> str:
         "## Git status\n" + _git("status", "--short", "--branch"),
         "## Recent commits\n" + _git("log", "-5", "--oneline", "--decorate"),
     ]
+    # Operating instructions and hard boundaries must never be prefix-truncated.
+    for rel in ("AGENTS.md", "memory/now.md"):
+        chunks.append(f"## Source: {rel}\n" + _read(ROOT / rel, limit=None))
+    chunks.append("## Profile source index\n" + "\n".join(PROFILES[task]))
+    if len("\n\n".join(chunks)) > MAX_PACKET_CHARS - 500:
+        raise ValueError("mandatory_context_exceeds_budget: read mandatory sources directly")
     if query:
         excerpts = _query_snippets(query, sources)
         chunks.append("## Search excerpts (profile sources only)\n" + excerpts)
-    for rel in dict.fromkeys(sources):
-        chunks.append(f"## Source: {rel}\n" + _read(ROOT / rel))
+    for rel in dict.fromkeys(PROFILES[task]):
+        if rel in ("AGENTS.md", "memory/now.md"):
+            continue
+        path = ROOT / rel
+        pin = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else "missing"
+        chunks.append(f"## Source: {rel}\nSHA256: {pin}\n" + _read(path))
     packet = "\n\n".join(chunks)
     if len(packet) > MAX_PACKET_CHARS:
         packet = packet[:MAX_PACKET_CHARS] + "\n[…packet capped; open referenced sources as needed]"

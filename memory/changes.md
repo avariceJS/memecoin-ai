@@ -1,5 +1,12 @@
 # История изменений решений
 
+## 2026-10-06 — two-Mac worker bootstrap и quota boundaries
+
+Зафиксированы measured bottlenecks, рабочие роли и Git/sealedartifact handoff; допускаются
+qualifiedhistorical workers наMac2, без sharedSQLite или automaticpromotion. Добавлен
+standalone read-only inventory и устранена обрезкаAGENTS/now вcontextpacket. ВторойMac ещё
+не проверен, providerbudget не увеличен. Детали: docs/two-mac-workflow.md.
+
 ## 2026-10-06 — scoped context workflow и двухузловая граница
 
 Добавлены компактная `memory/now.md`, правила context-first чтения и `tools/agent_context.py`

@@ -9,11 +9,11 @@ runtime перед изменениями: данные о процессах и
   candidate → future paper. Paper PnL отдельно от forecast scoring; онлайн-обучения после
   сделок нет. Автоматический champion promotion запрещён.
 - На 2026-10-06 corpus 24 → 86 train pools был включён в AUTO через pinned immutable
-  revision. 8 matched fits: расширенный GRU не улучшил общий historical test на 8.92%.
+  revision. 8 matched fits: расширенный GRU хуже control на общем historical test на 8.92%.
   Это отрицательный результат, не основание менять test, recipe или champion.
 - AUTO остаётся bounded: 24h и ≥100 новых matured outcomes, ≤6 reservations за 7 дней;
   текущий operational state всегда считывать с машины, не выводить из этой заметки.
-- Последний commit при записи сводки: `d3024b6` (sleep/wake recovery). Позже сверить
+- Последний runtime commit: `d3024b6` (sleep/wake recovery), context entrypoint: `88526bf`. Сверить
   `git status`, HEAD, LaunchAgents, source health, expiry и incidents.
 
 ## Нерушимые границы
@@ -57,9 +57,13 @@ runtime перед изменениями: данные о процессах и
   второй модели возможна только после явной передачи ограниченного пакета/артефактов и возврата
   результата; канал пока не проверен.
 - Основной Mac остаётся owner live source, canonical local store, AUTO и Control Center. Второй
-  Mac — изолированный offline research/training/LLM worker после проверенной передачи sealed
-  shards и hash-verified bundles. Не шарить mutable SQLite/не создавать второго writer. Сейчас
-  копии checkout и измеренного канала передачи нет; training workload не запущен.
+  Mac — isolated engineering/LLM worker, затем bounded historical campaigns и тяжёлый replay/train
+  через sealed artifacts. Текущий28.64s training пока оставлен наMac1. Общего mutableSQLite нет.
+  Mac2 пока не подключён. Qwen35B/39GB и Ollama на48GB — сообщение пользователя, не measurement.
+- Разрешённые отдельные provider budgets можно учитывать после проверки account-wide/IP
+  ограничений и plan. AlchemyTerms2.2(x) запрещает spread usage across accounts; второйMac/ключ
+  не автоматически новая quota. Диапазоны раздельные, budgets/reservations сохраняются.
+  [Архитектура/переход/метрики](../docs/two-mac-workflow.md), `tools/worker_preflight.py`.
 
 ## Где читать первоисточник
 

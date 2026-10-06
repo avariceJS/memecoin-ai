@@ -1,5 +1,15 @@
 # Реестр архитектурных решений
 
+## 2026-10-06 — Mac 2 как worker, включая разрешённый historical acquisition
+
+Уточнение прежней offline-only схемы: пользователь разрешил оценить independent accounts/
+quotas второгоMac. Выбраны separate campaign stores и central assignment/admission, sealed
+artifact handoff; live owner и короткийAUTOtrain покаMac1. Новые provider accounts/credentials
+не созданы. Alchemy запрещает multiplex across accounts, sharedaccountthroughput не удваивается;
+другие реально разрешённые budgets можно распределять на непересекающиесяmarkets/ranges.
+Distributed training сейчас не оправдан28.64sfit. Qwen RAM/throughput и Mac2connection пока
+не проверены. [Архитектура, первичные ссылки и план подключения](../docs/two-mac-workflow.md).
+
 ## 2026-10-06 — ограничивать контекст до задачи; два Mac через sealed artifacts
 
 Статус: context entrypoint и bounded context-packet tool реализованы; перенос workload на второй

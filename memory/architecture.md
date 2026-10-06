@@ -1,5 +1,9 @@
 # Архитектурное направление
 
+Два Mac, актуальное решение2026-10-06: [worker topology и переход](../docs/two-mac-workflow.md).
+Mac1 — liveowner/registry; Mac2 — engineering/LLM и boundedhistorical worker после
+подключения. ТекущийAUTOtrain остаётся локальным; передача толькоGit/sealedartifacts.
+
 ## B12 — независимые research trainer и frozen future exam, 2026-10-04
 
 `memecoin_curriculum.design/training/scoring`: общие chronological folds, label-independent
