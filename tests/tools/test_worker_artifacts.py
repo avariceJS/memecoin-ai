@@ -62,6 +62,37 @@ def test_receive_stdin_uses_same_verification(tmp_path):
     assert broken.returncode != 0
 
 
+def test_send_uses_explicit_identity_and_host_pins(tmp_path, monkeypatch):
+    _, archive, receipt = artifact(tmp_path)
+    captured = {}
+
+    def fake_run(args, **kwargs):
+        captured.update(args=args, stdin_data=kwargs["stdin"].read(), **kwargs)
+        return subprocess.CompletedProcess(
+            args, 0, stdout=b'{"status":"already_present"}', stderr=b""
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    result = w.send(
+        archive,
+        "root1@192.168.31.66",
+        "/usr/bin/python3",
+        "/tmp/worker_artifacts.py",
+        "/private/tmp/exchange",
+        identity_file=tmp_path / "mac2_ed25519",
+        known_hosts=tmp_path / "known_hosts",
+    )
+
+    args = captured["args"]
+    assert result["status"] == "already_present"
+    assert "-oStrictHostKeyChecking=yes" in args
+    assert "-oIdentitiesOnly=yes" in args
+    assert args[args.index("-i") + 1] == str(tmp_path / "mac2_ed25519")
+    assert f"-oUserKnownHostsFile={tmp_path / 'known_hosts'}" in args
+    assert "-oGlobalKnownHostsFile=/dev/null" in args
+    assert captured["stdin_data"] == archive.read_bytes()
+
+
 def test_conflict_preserves_original_and_failed_staging(tmp_path):
     source, archive, receipt = artifact(tmp_path / "a")
     store = tmp_path / "store"

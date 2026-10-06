@@ -217,7 +217,9 @@ def receive(archive, store, expected_sha):
         return dict(status="published_transport_only", path=str(dest), **envelope)
 
 
-def send(archive, host, remote_python, remote_tool, remote_store):
+def send(
+    archive, host, remote_python, remote_tool, remote_store, identity_file=None, known_hosts=None
+):
     import shlex
 
     if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.@-]*", host):
@@ -226,15 +228,24 @@ def send(archive, host, remote_python, remote_tool, remote_store):
     pin = sha(archive)
     args = [remote_python, remote_tool, "receive-stdin", "--store", remote_store, "--sha256", pin]
     with archive.open("rb") as stream:
+        ssh_args = [
+            "ssh",
+            "-oBatchMode=yes",
+            "-oStrictHostKeyChecking=yes",
+            "-oConnectTimeout=10",
+        ]
+        if identity_file is not None:
+            ssh_args.extend(("-oIdentitiesOnly=yes", "-i", str(identity_file)))
+        if known_hosts is not None:
+            ssh_args.extend(
+                (
+                    f"-oUserKnownHostsFile={known_hosts}",
+                    "-oGlobalKnownHostsFile=/dev/null",
+                )
+            )
+        ssh_args.extend((host, shlex.join(args)))
         result = subprocess.run(
-            [
-                "ssh",
-                "-oBatchMode=yes",
-                "-oStrictHostKeyChecking=yes",
-                "-oConnectTimeout=10",
-                host,
-                shlex.join(args),
-            ],
+            ssh_args,
             stdin=stream,
             capture_output=True,
             timeout=1800,
@@ -265,13 +276,23 @@ def main():
     sender.add_argument("--remote-python", required=True)
     sender.add_argument("--remote-tool", required=True)
     sender.add_argument("--remote-store", required=True)
+    sender.add_argument("--identity-file", type=Path)
+    sender.add_argument("--known-hosts", type=Path)
     a = p.parse_args()
     if a.command == "pack":
         result = pack(a.source, a.archive, a.id, a.role, a.manifest_sha256)
     elif a.command == "receive":
         result = receive(a.archive, a.store, a.sha256)
     elif a.command == "send":
-        result = send(a.archive, a.host, a.remote_python, a.remote_tool, a.remote_store)
+        result = send(
+            a.archive,
+            a.host,
+            a.remote_python,
+            a.remote_tool,
+            a.remote_store,
+            a.identity_file,
+            a.known_hosts,
+        )
     else:
         import sys
 
