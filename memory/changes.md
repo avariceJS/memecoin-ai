@@ -1,5 +1,13 @@
 # История изменений решений
 
+## 2026-10-07 — post-training audit и публикация Watch Market
+
+Последний AUTO candidate `job_5edd5e5ecda88338` завершён без integrity/temporal violations,
+но matched forecast хуже champion, не promoted; costed prospective exam пока без сделок.
+Watch Market implementation/review/tests опубликованы commit `0e9a2c1`. Mac1 остаётся на
+runtime08; runtime09 не содержит feature, будущий bundle — runtime10 из exact commit. Exam ещё
+активен, production не переключали. Evidence: [отчёт](../docs/brain-post-training-audit-2026-10-07.md).
+
 ## 2026-10-06 — Control Center Watch Market implementation
 
 Добавлена изолированная mint/pool watch lane с GeckoTerminal public source, 60s snapshot/OHLCV

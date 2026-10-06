@@ -1,5 +1,38 @@
 # Текущий статус
 
+## 2026-10-07 — post-training audit и Watch Market release readiness
+
+Read-only Mac1 аудит последнего законченного AUTO training `job_5edd5e5ecda88338`:
+completion корректен, 4/4 fits закончены, ledger chain и sealed candidate/model/snapshot/dataset
+manifests проверены, partial/corrupt outputs и temporal/split/availability violations не найдены.
+Pipeline выбрал 2-seed GRU, candidate не promoted. Матched pool-macro pinball на test:
+combined 0.008904 против champion empirical 0.006272 (+41.95% хуже); 5m +65.43%, 15m
++27.07%. На validation combined +32.78% хуже. CI нет; retrospective folds малы и serially
+correlated. Managed prospective exam использует одинаковый B07 15m book/costs (50 bps slippage
++25 bps fee на сторону); на момент receipt обе книги имели 8 decisions, 0 trades/fills, $0
+realized PnL/fees. Cost-adjusted superiority не установлена. Champion остался empirical SHA
+`9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920`.
+
+Mac1: `auto/waiting`, domain STOP=false, queued/running jobs=0, активная managed exam
+`job_2069a67d64cf1bc8` истекает `2026-10-07T12:23:51.922091Z`; operator expiry
+`2026-10-11T20:31:13.058527Z`. PID 64937 обслуживает `operator-runtime08`. Это не Pause-only
+окно: не ставить на паузу ради release, пока exam активен. После expiry заново подтвердить
+status/no jobs/no exams, затем routine Control Center Pause, guarded activation и health check;
+resume только после успешного health. `runtime09` имеет тот же manifest pin, что runtime08,
+и не содержит Watch Market. Требуемый новый bundle: `operator-runtime10` из Watch Market commit
+`0e9a2c1`. Производственный runtime не переключался.
+
+Watch Market implementation/review/tests опубликованы в `0e9a2c1`; start закрепляет официальный
+champion path+manifest SHA из operator config и проверяет hash, не смотрит на latest candidate.
+Regression test добавляет более новую unpromoted GRU в registry и доказывает, что Watch стартует
+с pinned official champion. Полный отчёт, manifests, hashes и live-readiness receipt:
+[audit](../docs/brain-post-training-audit-2026-10-07.md) и
+[JSON](../docs/evidence/brain-post-training-audit-2026-10-07.json).
+
+Проверки Mac2: `make check` — 985 passed / 12 skipped; Ruff, format, mypy и `make smoke` passed.
+Skipped cases требуют optional Torch/browser dependencies; browser visual acceptance и live
+provider acceptance не проводились. Mac1 production activation/pause не выполнялись.
+
 ## 2026-10-06 — Watch Market implementation (не выложено)
 
 В Control Center добавлен отдельный Watch Market UI/API/worker: пользователь вводит mint/pool,

@@ -1,5 +1,19 @@
 # Операторский центр (B13)
 
+## 2026-10-07: результат последнего training и Watch Market
+
+Последний AUTO candidate `job_5edd5e5ecda88338` integrity audit прошёл, но выбранный GRU хуже
+текущего empirical champion по matched validation/test pool-macro pinball и не promoted.
+Prospective cost-adjusted exam ещё шёл при проверке, но обе книги имели 0 trades; вывод о
+торговом преимуществе невозможен. Champion не менялся. Подробные цифры и хэши:
+[post-training audit](brain-post-training-audit-2026-10-07.md).
+
+Watch Market доступен в опубликованном code revision `0e9a2c1`; он пока не установлен на Mac1.
+Не использовать staged `runtime09`: его manifest совпадает с активным `runtime08`, и в нём нет
+Watch Market. После expiry managed exam и повторной проверки no-jobs/no-exams готовить новый
+`operator-runtime10` из exact commit `0e9a2c1`, затем выполнять штатную Pause и guarded release.
+Наблюдательная сессия закрепляет официальный champion из config, не latest unpromoted candidate.
+
 Локальная панель виртуального исследования. Она ставит в очередь снимок, обучение и
 будущий paper-exam, ведёт журнал и показывает состояние. Подписи транзакций, реальные
 ордера и автоматическое назначение чемпиона здесь нет. Красивый paper и точность прогноза

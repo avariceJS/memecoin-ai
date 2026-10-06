@@ -156,6 +156,15 @@ Staged bundle записан в production work directory, active pointer/operat
 системный auto-review отклонил запрос live activation при действующей exam. После expiry всё равно
 нужна штатная Pause через UI перед дальнейшей activation/rollback проверкой.
 
+Post-training check 2026-10-07: Mac1 всё ещё AUTO/waiting, no queued/running jobs, но managed
+exam `job_2069a67d64cf1bc8` истекает `2026-10-07T12:23:51.922091Z`; пока он активен, не
+нажимать Pause ради release. `runtime09` и `runtime08` имеют одинаковый manifest и оба не
+содержат Watch Market. Реализация опубликована commit `0e9a2c1`; после expiry и новой проверки
+gates готовить owner-host `operator-runtime10` из exact commit, затем использовать штатную
+Pause и стандартный guarded `activate`/health flow. Candidate GRU из последнего training не
+promoted; Watch Market обязан pin configured official champion. Полный read-only audit:
+[`brain-post-training-audit-2026-10-07.md`](brain-post-training-audit-2026-10-07.md).
+
 ## Модели И Локальная Очередь
 
 Cursor CLI `2026.10.01-e373342` установлен в `~/.local/bin/agent` по

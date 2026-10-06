@@ -1,5 +1,19 @@
 # Реестр архитектурных решений
 
+## 2026-10-07 — training candidate не заменяет champion; Watch release отдельным runtime
+
+Статус: принято по post-training audit. Последний candidate `job_5edd5e5ecda88338` прошёл
+integrity/temporal audit, но GRU хуже официального empirical champion на matched validation и
+test pool-macro pinball; promotion не выполнялся и gates не менялись. На prospective costed
+exam пока 0 fills у обеих книг, поэтому торговый результат не интерпретируется.
+
+Watch Market должен закреплять только champion из официального operator config с проверкой
+manifest SHA, не выбирать candidate registry/latest model. Это покрыто regression test. Feature
+опубликован commit `0e9a2c1`. `runtime09` равен runtime08 по manifest и Watch Market не содержит;
+новый owner-host `operator-runtime10` должен быть prepared из exact feature commit после expiry
+managed exam. На проверке exam оставался активен, поэтому Pause/production activation не
+выполнялись; AUTO продолжает работать. Подробности: [audit](../docs/brain-post-training-audit-2026-10-07.md).
+
 ## 2026-10-06 — Watch Market как отдельный single-pool shadow lane
 
 Статус: реализация и synthetic verification; provider/live acceptance и Mac1 rollout не

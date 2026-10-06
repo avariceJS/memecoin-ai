@@ -1,5 +1,27 @@
 # Краткий контекст проекта
 
+## Актуально на 2026-10-07
+
+- Последний завершённый AUTO training `job_5edd5e5ecda88338` integrity/temporal audit прошёл;
+  pipeline выбрал GRU (seeds 7/19), но candidate не promoted. На одинаковом historical test
+  pool-macro pinball combined 5m/15m хуже официального empirical champion на 41.95% (5m:
+  +65.43%, 15m: +27.07%); validation также хуже. Prospective costed paper exam ещё активен:
+  8 решений на книгу, 0 сделок/fills, поэтому cost-adjusted вывод о превосходстве пока невозможен.
+  Champion SHA остаётся `9ea4a6bd…3920`. Полный отчёт и immutable pins:
+  [audit](../docs/brain-post-training-audit-2026-10-07.md).
+- Mac1 read-only: `auto/waiting`, domain STOP=false, queued/running=0, managed exam до
+  `2026-10-07T12:23:51.922091Z`, operator expiry `2026-10-11T20:31:13.058527Z`; активен
+  `operator-runtime08` PID 64937. Это не Pause-only окно: пока exam жив, Pause не снимет exam
+  release gate. После expiry и повторной проверки quiescence нужна штатная Pause, затем
+  guarded activation/health check и только после успеха resume.
+- Watch Market опубликован feature commit `0e9a2c1`, но не установлен на Mac1. `runtime09`
+  совпадает по manifest с `runtime08` и не содержит Watch Market. Новый owner-host release:
+  `operator-runtime10`, собранный из exact commit `0e9a2c1` после exam expiry; production не
+  переключать до выполнения release gates. Watch pins configured official champion SHA/path,
+  а не самую новую candidate.
+- Evidence/update: [post-training audit](../docs/brain-post-training-audit-2026-10-07.md),
+  [Watch Market](../docs/watch-market.md), machine-readable [receipt](../docs/evidence/brain-post-training-audit-2026-10-07.json).
+
 Это входная сводка, а не замена первичным документам. Проверяйте Git и фактический
 runtime перед изменениями: данные о процессах и сроках быстро устаревают.
 
