@@ -117,7 +117,9 @@ production release activation.
 1. `prepare EXACT_40_CHAR_COMMIT NEW_RELEASE_DIR --repo CHECKOUT` извлекает committed code,
    запускает ruff, format, mypy, pytest и synthetic smoke, сохраняет hashes/logs. Не использует
    грязные исходники checkout. Выполнять Python-интерпретатором целевого runtime с dev deps;
-   receipt закрепляет interpreter hash. Это не cross-host перенос виртуального окружения.
+   receipt закрепляет interpreter hash. Если dev tools установлены в другом venv на том же
+   Python runtime, добавьте его `site-packages` через повторяемый `--extra-pythonpath PATH`.
+   Пути записываются в receipt; это не cross-host перенос виртуального окружения.
 2. `bind RELEASE_DIR OPERATOR_ROOT NEW_BUNDLE` проверяет release и прежний deployment,
    stage без активации, сохраняя config/source config/expiry/historical corpus refs.
    Возвращает и записывает `NEW_BUNDLE-update.json` рядом с bundle.

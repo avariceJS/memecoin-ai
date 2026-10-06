@@ -309,3 +309,31 @@ def test_prepare_checks_and_seals_exact_extracted_code(tmp_path, monkeypatch, fa
         (release / "code/README.md").write_text("changed")
         with pytest.raises(ValueError, match="code_integrity"):
             r.verify_release(release)
+
+
+def test_prepare_adds_explicit_dev_pythonpath_to_exact_runtime(tmp_path, monkeypatch):
+    raw = io.BytesIO()
+    with r.zipfile.ZipFile(raw, "w") as archive:
+        archive.writestr("README.md", "synthetic code fixture")
+    revision = "b" * 40
+    monkeypatch.setattr(
+        r,
+        "git",
+        lambda repo, *args: revision.encode() if args[0] == "rev-parse" else raw.getvalue(),
+    )
+    site = tmp_path / "site-packages"
+    site.mkdir()
+    environments = []
+
+    def check(args, **kwargs):
+        environments.append(kwargs["env"])
+        return r.subprocess.CompletedProcess(args, 0)
+
+    monkeypatch.setattr(r.subprocess, "run", check)
+    receipt = r.prepare(tmp_path, revision, tmp_path / "prepared", [site])
+
+    assert all(
+        env["PYTHONPATH"].split(r.os.pathsep) == [str(tmp_path / "prepared/code/src"), str(site)]
+        for env in environments
+    )
+    assert receipt["extra_pythonpath"] == [str(site)]

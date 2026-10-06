@@ -66,7 +66,7 @@ def git(repo, *args):
     return subprocess.check_output(["git", "-C", str(repo), *args])
 
 
-def prepare(repo, revision, output):
+def prepare(repo, revision, output, extra_pythonpath=()):
     repo, output = plain(repo), plain(output)
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise ValueError("exact_git_revision_required")
@@ -93,9 +93,13 @@ def prepare(repo, revision, output):
             with dest.open("xb") as stream:
                 stream.write(zipped.read(info))
     before = tree(code)
+    extra_pythonpath = tuple(Path(path).resolve(strict=True) for path in extra_pythonpath)
+    if any(not path.is_dir() for path in extra_pythonpath):
+        raise ValueError("release_pythonpath_directory")
+    pythonpath = [str(code / "src"), *(str(path) for path in extra_pythonpath)]
     env = dict(
         os.environ,
-        PYTHONPATH=str(code / "src"),
+        PYTHONPATH=os.pathsep.join(pythonpath),
         PYTHONDONTWRITEBYTECODE="1",
     )
     checks = [
@@ -145,6 +149,7 @@ def prepare(repo, revision, output):
         revision=revision,
         code=before,
         python_sha256=sha(Path(sys.executable).resolve()),
+        extra_pythonpath=[str(path) for path in extra_pythonpath],
         checks=results,
         check_hashes={r["log"]: sha(output / r["log"]) for r in results},
         prepared_ns=time.time_ns(),
@@ -500,6 +505,7 @@ def main():
     prep.add_argument("revision")
     prep.add_argument("output", type=Path)
     prep.add_argument("--repo", type=Path, default=Path.cwd())
+    prep.add_argument("--extra-pythonpath", type=Path, action="append", default=[])
     binder = sub.add_parser("bind")
     binder.add_argument("release", type=Path)
     binder.add_argument("root", type=Path)
@@ -510,7 +516,7 @@ def main():
         action.add_argument("journal", type=Path)
     a = p.parse_args()
     if a.command == "prepare":
-        result = prepare(a.repo, a.revision, a.output)
+        result = prepare(a.repo, a.revision, a.output, a.extra_pythonpath)
     elif a.command == "bind":
         result = bind(a.release.resolve(), a.root, a.bundle)
     else:
