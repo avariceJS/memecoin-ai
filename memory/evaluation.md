@@ -1,5 +1,19 @@
 # Оценка модели и управление версиями
 
+## 2026-10-06 — prospective comparison трёх frozen bundles
+
+Новый exam paper01/UI8797 публикует прогнозы frozenB13/control/broad **до** target receipts.
+Всеweights завершены до activation2026-10-06 05:51:06UTC; не refit внутриexam. Comparator
+проверяет exact common origins/inputframes/targetcaptures/Y и пересчитывает loss/coverage.
+Два горизонта5m/15m и всеempirical/linear/GRU оцениваются независимо отselectedfamily.
+СтарыйB13empirical сохраняется reference: победа над ухудшившимсяbroadempirical недостаточна.
+
+Historical common test246/8pools — descriptive;20reservedunseenpoolsтожеhistorical,НЕfuture.
+Live future cohort узкий; малый overlappingN/одинday не доказывает general improvement.
+IndependentESS/CI не выдумывать. ОбщийtestbroadGRU хужеcontrol8,92%; promotion0.
+Corpus diversity metrics различают unweighted poolcounts, samplingmass и disjointfullinput
+windows; ни одна изних не statisticalESS. [Результат](../docs/brain-training-expansion-results.md).
+
 ## 2026-10-06 — единицы сравнения и shadow trigger
 
 Не сравнивать OLD/NEW собственные rolling test scores как paired improvement.

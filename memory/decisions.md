@@ -1,5 +1,19 @@
 # Реестр архитектурных решений
 
+## 2026-10-06 — qualified corpus подключён к AUTO, regression сохраняется
+
+Статус: реализовано, реальные86trainpools,8fits, exactruntime07cutover. Конкретный feed —
+Alchemy birth universe + GT USD bars; independent public accountownercheck выполнен.
+Historical corpus проходитnamespace/mint/receipt/gapgates и immutablepin. Reservedunseen
+corpus имеет инойrole и отвергается trainingloader. Sourcewriter/config/books не меняются.
+
+Выбрано подключить qualified данные к будущим exploratory AUTO candidates, сохранивchampion:
+negative modelresult не повод скрыватьданные или автоматическиpromote. BroadGRU проиграл
+controlcommon test8,92%. Samplingequalpools выявил23,26%массыуpools<16decisions; это основание
+дляследующейpreregisteredablation, не для текущейtest-drivenперетренировки.24h+100livegate
+сохранён: fastertimer не исправляет support/targetdistribution.8fitsотдельногопротокола
+учтеныявно,operatorreservations2/6. [Отчёт](../docs/brain-training-expansion-results.md).
+
 ## 2026-10-06 — приоритет actual training admission над новым raw counter
 
 Прямой пользовательский фокус: широкий и разнообразныйtrain → честноеfuture comparison.
@@ -12,7 +26,8 @@ Registered data-only8fits control/broad приidenticalval/test иfixedB13recipe
 frozenfutureexam. Empirical сохраняется полноправнымcandidate. Никакихtest-drivenretries,
 policy/backbone changes/promotion. Qualified corpus refs можно exactrevisionподключить
 кAUTOsnapshotбезсменыsourcewriter/books/quota/24hgate. Livegrowthcounter нельзя смешивать
-сhistoricaltrainingcount. Статус: реализованоoffline, acquisitionиqualificationвработе.
+сhistoricaltrainingcount. Статус при регистрации: реализовано offline, acquisition и qualification ещё впереди.
+Итог и runtime07 cutover приведены в новой записи выше.
 [Протокол](../docs/brain-training-expansion.md).
 
 ## 2026-10-06 — исторический corpus: registry/event admission отдельно от train

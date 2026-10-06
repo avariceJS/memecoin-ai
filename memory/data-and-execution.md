@@ -1,6 +1,11 @@
 # Данные и достоверное исполнение
 
-## 2026-10-06 — birth-selected USD admission (qualification в работе)
+## 2026-10-06 — birth-selected USD admission квалифицирован
+
+Sealed corpus01:17825bars/62eligiblepools/7987decisions; после merge86actualtrainpools.
+Runtime07 читает pinnedcorpus; oldsourceSQLite/config/expiry сохранены. Отдельный
+`descriptive_unseen_test` role запрещён trainingloader. Full-data summary и provider economics:
+[результат](../docs/brain-training-expansion-results.md).
 
 Новыйnamespace соответствует прежнемуGT/USD/base/5min/first-observed. Universe задаётся
 Alchemy historicalbirths, неcurrentranking. Передadmission: exactbase/quotemint, rawseal,

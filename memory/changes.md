@@ -1,5 +1,16 @@
 # История изменений решений
 
+## 2026-10-06 — historical corpus впервые расширил actual train до86pools
+
+- Qualified62newpools/7987eligible; raw965registrycounterотделён от86actualtrainmarkets.
+- Восемь fixed-recipefits: control24/broad86; commonhistoricaltestbroadGRUхуже8,92%.
+- FrozenfuturecomparisonUI8797; отдельныйunseenhistoricaltestбезtraining/selection.
+- Exactruntime07 подключилsealedcorpuskAUTOsnapshot; сохраненыsource/config/2372bookevent+STOP
+  hashes,quota2/6,24hgate. ExternalcandidatesвиднывосновномControlCenter.
+- Реальные401/429/5transportfailures и ихboundedrecoveryсохранены; source failures учитываются
+  отдельно. PublicRPCошибочныйaddresscaptureнеудалён,исправленвторымпровереннымзапросом.
+- [Отчёт](../docs/brain-training-expansion-results.md), [эксплуатация](../docs/brain-operator-manual.md).
+
 ## 2026-10-06 — начат этап расширения именно train
 
 - Новый пользовательский приоритет заменяет дальнейший ростrawregistry как основнойрезультат.

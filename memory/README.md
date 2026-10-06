@@ -58,6 +58,9 @@ Memory Bank — канонический, пригодный для чтения
 - [Operator manual](../docs/brain-operator-manual.md) — кнопки, bounds, STOP и restart.
 - [Протокол/архитектура](../docs/brain-autonomous-operator.md).
 - [Acceptance/evidence](../docs/brain-b13-acceptance.md), [история и отчёты](../docs/brain-operator-evidence.md).
+- [Forensic первых суток](../docs/brain-experience-review.md), [historical vacuum](../docs/brain-vacuum-results.md).
+- [Actual training expansion 24 → 86](../docs/brain-training-expansion-results.md),
+  [зарегистрированный протокол](../docs/brain-training-expansion.md).
 
 ## Типы утверждений
 

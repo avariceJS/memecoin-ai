@@ -1,5 +1,23 @@
 # Реестр исследовательских экспериментов
 
+## 2026-10-06 — matched data expansion, 8 fits
+
+Один consistent source prefix/cutoff; control24pools и broad86pools. Validation264/test246
+решений на одинаковых8старыхpools, exact sample/input equality проверена доfits. Прежний
+B13-pool-day-v1,48k cap,12features/context8,linear/GRU16,seeds7/19,1000updates. Все8fits
+completed,28,64s including snapshots; no retries. Оба выбралиGRU поvalidation; broad
+descriptive loss хужеcontrol5m17,14%,15m4,04%,aggregate8,92%. Сложность не увеличена.
+
+62новыхрынка/7987решений/95pool-days admitted, каждыйfit действительно sampled86pools.
+20новыхpools<16decisions;72,09%samplingmass выделено новым16,64%строк. Это measuredshift,
+не установленная единственная причина regression. Nextablation должна иметь новый protocol
+и futureevidence; не делать повторныеfits ради победыGRU нараскрытомtest.
+FrozenB13/control/broadprospectiveexam05:51UTC→24h, immutableweights; отдельные20unseen
+historicalpoolsзарегистрированыдоfits,получаютсяпослеfreeze,не training/selection/future.
+Unseen13pools/924decisions: broadempirical выигрываетpoolmacro; broadGRU неулучшился.
+Pooledloss даёт другойвывод; dominantpool66,34%строк. Selection не менялась.
+[Протокол](../docs/brain-training-expansion.md), [результат](../docs/brain-training-expansion-results.md).
+
 ## 2026-10-06 — forensic и acquisition qualification, без новых fits
 
 OLD/NEW B13 paired descriptive test выполнен отдельно от собственных rolling test scores.

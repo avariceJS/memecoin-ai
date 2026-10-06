@@ -1,6 +1,42 @@
 # Текущий статус
 
-## 2026-10-06 — historical registry → actual train (в работе)
+## 2026-10-06 — actual training support 24 → 86
+
+Текущий результат: [training expansion](../docs/brain-training-expansion-results.md).
+Alchemy birth selection → GT USD admission → sealed corpus → прежний B13 recipe выполнен.
+62 новых train pools /7987 eligible decisions /95 новых pool-days; May–Sep2026, возраст≤3days.
+Train до cap90336→98323, после cap48000 в обоих arms, UTCdays93→104. Каждый learned fit
+broad реально использовал86pools. Всего8fits,28,64s вместе с snapshots/audit, без retries.
+Оба arms выбрали GRU; общий descriptive test broad хуже control на8,92%. Улучшения нет.
+
+AUTO operator04 теперь runtime07, pin90059c8a474da9e534bbba41a23ab195b20a2aa4c99d152026985fc4616f5c6c.
+В binding закреплён work/brain-expansion-20261006/corpus01,
+SHA727df2a88d022966f6ca614e5b3fba0edca963008ebfce15c70c8ed2d40443e4.
+Следующие AUTO snapshots добавляют этот corpus; source index не переписывался. Source-only
+matured growth отделён от total training support. AUTO/waiting,2/6reservations;24h+100gate
+сохранён. Config/source/expiry/books/STOP сохранены,2372старых event/STOP hashes совпали.
+8externalfits НЕ скрыты как0fits и НЕ списаны повторно с operator reservations.
+
+Новый common frozen paper: work/brain-expansion-20261006/paper01, UI8797,
+activation2026-10-06 05:51:06UTC, expiry2026-10-07 05:51:06UTC. B13latest/control/broad,
+все3families, прежняяfixed15policy,trainingdisabled,0providerGET. Это отдельные LaunchAgents,
+не managed кнопкой B13 «Стоп всё»; команды остановки в operator manual. Champion unchanged.
+Broad SHA6acae357bd985087bc3c85820c001be6264f471c8661659bfb0ebde73ec5e41a;
+control SHA1839f0ca035711ebad0748d5207ad24ee93446c15c0059140fba5fe495d24ab2.
+В registry опубликованы expansion01-{control,broad}-{dataset,candidate}.
+
+Main acquisition sealed:107GET/100success/401×1/429×1/URLError×5,2,19MB payloads,0USD.
+Unseen20case plan закреплён доfits:20successGET,13eligiblepools/924decisions. Этот past-event
+test запрещён в train/selection. Broad empirical лучше поpoolmacro,но хужепоpooledloss;
+broadGRU не улучшился (5m+17,08%,15m+0,027% кcontrol).
+Future exam ещё идёт; не выдавать короткий срез за доказательство улучшения. GT остаётся
+единственным qualifiedUSDfeed;965registrymarkets не стали965trainmarkets.
+Главный следующий вопрос — support-aware sampling и широкая future evaluation, вместе с
+полнотой historical/live coverage. Новыеpools дают16,64%строк,но72,09%samplingmass;
+20pools<16decisions. Модель/feature/policy sweep по раскрытому test запрещён.
+Сначала проверить actual future reports, source health, readonly seals; не повторять fits.
+
+## 2026-10-06 — начальная запись этапа (завершён; актуальный итог выше)
 
 Пользователь принял forensic/vacuum и поручил расширить именно training support, затем
 честно сравнить learned models на будущем рынке. Модельную сложность не увеличивать.
