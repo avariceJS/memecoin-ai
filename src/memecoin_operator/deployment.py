@@ -11,7 +11,7 @@ from memecoin_registry.contracts import seal, verify
 from memecoin_runner.ledger import publish
 
 
-def stage(root, bundle):
+def stage(root, bundle, *, historical_training_corpora=None, activate=True):
     root, bundle = Path(root).resolve(), Path(bundle).resolve()
     c = read(root / "config.json")
     if c.get("real_execution_enabled") or c.get("paid_budget_usd", 0) != 0:
@@ -19,6 +19,16 @@ def stage(root, bundle):
     created = c.get("created_ns", c.get("init_ns"))
     if type(created) is not int or not 0 < c["expires_ns"] - created <= 7 * 86400 * 10**9:
         raise ValueError("operator_rollout_bound")
+    references = historical_training_corpora or []
+    if len(references) > 8:
+        raise ValueError("operator_historical_corpus_bound")
+    if references:
+        import time
+
+        from memecoin_curriculum.admission import load_corpus
+
+        for ref in references:
+            load_corpus(ref, time.time_ns())
     bundle.mkdir(exist_ok=False)
     src = Path(__file__).parent.parent
     for path in src.glob("memecoin_*/*.py"):
@@ -33,15 +43,32 @@ def stage(root, bundle):
             python_sha=sha(Path(sys.executable).resolve()),
             expires_ns=c["expires_ns"],
             source_config_sha=sha(Path(c["source_root"]) / "config.json"),
+            historical_training_corpora=references,
         ),
     )
     seal(bundle)
-    publish(root / "deployment.json", dict(bundle=str(bundle), pin=sha(bundle / "manifest.json")))
-    return guard(root)
+    revision = dict(bundle=str(bundle), pin=sha(bundle / "manifest.json"))
+    guard_revision(root, revision)
+    if activate:
+        publish(root / "deployment.json", revision)
+    return revision
+
+
+def training_history(root):
+    """Immutable data references belong to the frozen runtime revision, never a hot config."""
+    if not (root / "deployment.json").exists():
+        return []
+    d = guard(root)
+    return read(Path(d["bundle"]) / "binding.json").get("historical_training_corpora", [])
 
 
 def guard(root):
     d = read(root / "deployment.json")
+    return guard_revision(root, d)
+
+
+def guard_revision(root, d):
+    """Qualify a staged revision before changing the active deployment pointer."""
     bundle = Path(d["bundle"])
     if sha(bundle / "manifest.json") != d["pin"]:
         raise ValueError("operator_runtime_pin")

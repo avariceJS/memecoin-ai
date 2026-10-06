@@ -1,5 +1,13 @@
 # История изменений решений
 
+## 2026-10-06 — начат этап расширения именно train
+
+- Новый пользовательский приоритет заменяет дальнейший ростrawregistry как основнойрезультат.
+- Birth-selected USD admission, common-evaluation eight-fit protocol и pinnedAUTOcorpusrefs.
+- Реальные401(public180days),429 и15s transportfailures сохранены; existingAUTOhealthy.
+- Offline gates/merge и source-onlygrowthnamespace проверены; fits/cutover ещё впереди.
+- [Протокол](../docs/brain-training-expansion.md), artifacts work/brain-expansion-20261006/.
+
 ## 2026-10-06 — продолжение: historical vacuum и уточнение forensic audit
 
 - Source journal: 2243 attempts, 17 transport failures, 7 ambiguous bar responses;

@@ -95,6 +95,17 @@ def test_rollout_bound_accepts_seven_days_and_rejects_the_next_nanosecond(tmp_pa
         assert not bundle.exists()
 
 
+def test_staged_revision_can_be_verified_without_changing_running_pointer(tmp_path):
+    root, old, _source, original = installed(tmp_path)
+    before = (root / "deployment.json").read_bytes()
+    newer = tmp_path / "next-bundle"
+    revision = deployment.stage(root, newer, activate=False)
+    assert (root / "deployment.json").read_bytes() == before
+    assert deployment.guard(root) == original
+    assert deployment.guard_revision(root, revision) == revision
+    assert revision["bundle"] != str(old)
+
+
 def test_stage_rejects_real_execution_and_a_paid_budget(tmp_path):
     source = source_file(tmp_path / "source")
     created = 1_700_000_000 * NS

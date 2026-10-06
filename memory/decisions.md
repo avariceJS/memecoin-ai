@@ -1,5 +1,20 @@
 # Реестр архитектурных решений
 
+## 2026-10-06 — приоритет actual training admission над новым raw counter
+
+Прямой пользовательский фокус: широкий и разнообразныйtrain → честноеfuture comparison.
+Выбран ближайший qualifiedпуть: Alchemy birthcatalogue задаёт universe,GT hydrates USD bars
+в пределахpublic180days. Полная2025raw→USD задача остаётся отдельно: не подставлятьWSOL
+цену вместоUSD и не игнорироватьunknown2026layouts. Helius configuredkey/unknownplan
+не является подтверждённымno-paidbulk; publicRPC используется толькоboundedverification.
+
+Registered data-only8fits control/broad приidenticalval/test иfixedB13recipe, потом отдельный
+frozenfutureexam. Empirical сохраняется полноправнымcandidate. Никакихtest-drivenretries,
+policy/backbone changes/promotion. Qualified corpus refs можно exactrevisionподключить
+кAUTOsnapshotбезсменыsourcewriter/books/quota/24hgate. Livegrowthcounter нельзя смешивать
+сhistoricaltrainingcount. Статус: реализованоoffline, acquisitionиqualificationвработе.
+[Протокол](../docs/brain-training-expansion.md).
+
 ## 2026-10-06 — исторический corpus: registry/event admission отдельно от train
 
 Статус: реализован и измерен отдельный historical lane, live cutover не выполнен.

@@ -83,7 +83,9 @@ def register(root, kind, output, value):
 
 def snapshot(root, output):
     from memecoin_continuous.store import audit, view
+    from memecoin_curriculum.admission import merge_history
 
+    from .deployment import training_history
     from .learning import prepare
 
     source = source_path(root)
@@ -95,9 +97,21 @@ def snapshot(root, output):
     src.close()
     dst.close()
     rows, prov = view(output, cutoff)
+    references = training_history(root)
+    if references:
+        rows, prov = merge_history(rows, prov, references)
     if len(rows) > 510000:
         raise ValueError("operator_snapshot_capacity")
     report = prepare(rows, prov, output)
+    if references:
+        from .readmodel import coverage
+
+        # AUTO compares live growth with the same live namespace. Historical admission
+        # expands training but must not poison the next source-only growth subtraction.
+        report["training_matured_samples"] = report["matured_samples"]
+        report["matured_samples"] = coverage(output, cutoff, ttl_s=0)["matured_samples"]
+        report["matured_namespace"] = "continuous_source_only"
+        report["historical_training_corpora"] = references
     report["raw_audit"] = audit(output, cutoff)
     report["source_pin"] = read(source / "deployment.json")["pin"]
     report["source_config_sha"] = sha(source / "config.json")

@@ -1,5 +1,17 @@
 # Данные и достоверное исполнение
 
+## 2026-10-06 — birth-selected USD admission (qualification в работе)
+
+Новыйnamespace соответствует прежнемуGT/USD/base/5min/first-observed. Universe задаётся
+Alchemy historicalbirths, неcurrentranking. Передadmission: exactbase/quotemint, rawseal,
+responsehash,requestcurrency/aggregation,actualreceiptorder,birthrange и прежние OHLC gates.
+Gaps не заполняются; sparse/dead/rug не отождествлять. Одинwhole-decision target требует
+непрерывные8context+3futurebars. Полная зависимость признаков достигает15inputbars;
+новаяmetric disjoint_feature_and_target_windows учитывает её отдельно отстаройcontextmetric.
+Immutable corpus refs закрепляются runtimebinding, читаются каждымsnapshot; sourceSQLite
+не получает второгоwriter. Historical rows расширяютtrain, но AUTO growth продолжает
+сравнивать толькоlive source maturedcounter. [Протокол](../docs/brain-training-expansion.md).
+
 ## 2026-10-06 — historical registry/events, отдельный namespace
 
 Raw Pump historical lane квалифицирует birth metadata и strictly reconciled swap candidates,

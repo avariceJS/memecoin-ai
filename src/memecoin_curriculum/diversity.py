@@ -56,14 +56,19 @@ def support(rows):
         by_pool[r["pool"]].append(r)
     adjacent = 0
     nonoverlap = 0
+    feature_nonoverlap = 0
     correlations = {}
     for pool, part in sorted(by_pool.items()):
         part.sort(key=lambda r: r["close"])
         previous_end = -math.inf
+        previous_feature_end = -math.inf
         for r in part:
             if r["close"] - 8 * 300 >= previous_end:
                 nonoverlap += 1
                 previous_end = r["maturity"]
+            if r["close"] - 15 * 300 >= previous_feature_end:
+                feature_nonoverlap += 1
+                previous_feature_end = r["maturity"]
         pairs = [
             (a, b)
             for a, b in zip(part[:-1], part[1:], strict=True)
@@ -92,6 +97,7 @@ def support(rows):
         adjacent_decisions=adjacent,
         adjacent_fraction=adjacent / n if n else None,
         disjoint_context_and_target_windows=nonoverlap,
+        disjoint_feature_and_target_windows=feature_nonoverlap,
         lag1_return_correlation=correlations,
         independent_sample_size=None,
     )

@@ -1,5 +1,27 @@
 # Текущий статус
 
+## 2026-10-06 — historical registry → actual train (в работе)
+
+Пользователь принял forensic/vacuum и поручил расширить именно training support, затем
+честно сравнить learned models на будущем рынке. Модельную сложность не увеличивать.
+[Протокол](../docs/brain-training-expansion.md): Alchemy birth cohorts May–Sep2026 →
+GT USD bars с exact mint/quote/receipt проверкой → immutable admitted corpus → прежнийB13
+recipe.100outcome-independent new pools, capped acquisition; data-only control/broad8fits
+зарегистрированы, пока не проведены. СтарыйAUTO/runtime06/source/24hgate ещё не менялись.
+
+GT probe2025 получил401(public180day limit); probe02 после5validGET получил429.
+STOP/no retries сохранены,900scooldown соблюдён. Bulk01:10validGET, затем15sURLError;
+bulk02 продолжает лишь89unrequestedcases исходного100сdebit11/старымdeadline.
+Transport gaps изолированы,120scooldown,≤5failures включаяbulk01;401/403/429stillSTOP.
+Raw artifacts: work/brain-expansion-20261006/. Многиеpools имеют очень малоcontiguouswindows;
+финальная ширина ещё не измерена. Не перезапускать завершённыеcampaigns.
+
+Реализованы offline admission/merge, exact shared-evaluation experiment, prospective join
+с повторным расчётомloss, pinned historical refs для будущихAUTO snapshots. Live matured
+сохраняется в source namespace отдельно отtotaltraining, чтобы не сломатьgrowth subtraction.
+Ниruntimecutover, ниnewcandidate/futureexam пока не выполнены. При продолжении сначала
+проверить текущийbulk02 и егоSTOP/results.
+
 ## 2026-10-06 — forensic review и historical vacuum qualification завершены
 
 Актуальный итог: [forensic review](../docs/brain-experience-review.md),
