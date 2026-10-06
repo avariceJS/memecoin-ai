@@ -80,8 +80,13 @@ SSH-передача тем же проверяющим кодом, после �
 .venv/bin/python tools/worker_artifacts.py send /ABS/report01.tar --host root1@HOST \
   --remote-python /ABS/PYTHON311_OR_NEWER \
   --remote-tool /ABS/CHECKOUT/tools/worker_artifacts.py \
-  --remote-store /ABS/worker-exchange
+  --remote-store /ABS/worker-exchange \
+  --identity-file /ABS/SSH_PRIVATE_KEY --known-hosts /ABS/VERIFIED_KNOWN_HOSTS
 ```
+
+`--identity-file` и `--known-hosts` необязательны при корректном системном SSH config/agent.
+При явной передаче ключа host key проверяется строго по указанному файлу; global known_hosts
+для этой команды выключен.
 
 Обратное направление выполняется с другой машины той же командой. Отправитель и принимающая
 машина должны иметь проверенную копию tool. SHA256 подтверждает целостность, SSH — peer.
@@ -93,9 +98,10 @@ SSH-передача тем же проверяющим кодом, после �
 `6f3839a1410c015c840781d633537322ea5d6d5949f86a5d9cbb27181d75fe81`; статус на Mac 1 —
 `published_transport_only`. Mac 1 перепаковал тот же report как `synthetic-return01`, Mac 2
 скачал архив и принял его с pin `2fed84a2d933df5467e512836b24edbddeeebaba22d48ec7a6b7cfdd6e86112f`.
-Manifest и hash `report.json` совпали на обеих сторонах. Это доказывает сетевой канал и
-целостность transport для маленького synthetic report, но не domain admission, live exporter,
-повтор через CLI `send` или production release activation.
+Manifest и hash `report.json` совпали на обеих сторонах. Повтор той же отправки через CLI `send`
+с явными identity/known_hosts вернул `already_present`. Это доказывает канал и целостность
+transport для маленького synthetic report, но не domain admission, live exporter или
+production release activation.
 
 Не упаковывать mutable root и не создавать transport manifest над открытой базой.
 Для SQLite сначала штатный consistent snapshot/backup, затем seal; для обучения предпочтительны
