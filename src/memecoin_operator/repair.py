@@ -105,7 +105,7 @@ def recover_source(old, new, bundle, prefix):
     if new.exists() or bundle.exists():
         raise ValueError("repair_destination_exists")
     with _exclusive(old, SOURCE_LOCKS):
-        _require_audit_deadline(old)
+        stop_evidence = _require_recoverable_source_stop(old)
         config = guard_source(old)
         if time.time_ns() >= config["expires_ns"]:
             raise ValueError("repair_source_expired")
@@ -115,8 +115,7 @@ def recover_source(old, new, bundle, prefix):
         stop_bytes = (old / "STOP").read_bytes()
         last_state, old_head = _last_journal_state(old)
         with _snapshot(old / "index.sqlite") as db:
-            if PIN_INDEX in _index_names(db):
-                raise ValueError("repair_index_already_present")
+            index_was_present = PIN_INDEX in _index_names(db)
             before_hash, before_counts = _logical_index(db)
             new.mkdir()
             (new / "requests").mkdir()
@@ -158,6 +157,8 @@ def recover_source(old, new, bundle, prefix):
             timing,
             cutoff,
             prefix,
+            stop_evidence,
+            index_was_present,
         )
         publish(new / "migration.json", receipt)
         fresh = dict(config)
@@ -191,7 +192,9 @@ def recover_source(old, new, bundle, prefix):
             before_counts,
         ):
             raise ValueError("repair_old_source_mutated")
-        if (new / "STOP").exists() or PIN_INDEX in _index_names_on(old / "index.sqlite"):
+        if (new / "STOP").exists() or (
+            (PIN_INDEX in _index_names_on(old / "index.sqlite")) != index_was_present
+        ):
             raise ValueError("repair_old_source_mutated")
     return read(new / "migration.json")
 
@@ -200,7 +203,9 @@ def recover_paper(old, new, source, prefix, port):
     """Point a quiescent paper root at an audited source repair. Does not activate it."""
     old, new, source = Path(old), Path(new), Path(source)
     prefix = _service_prefix(prefix)
-    if type(port) is not int or not 0 < port < 65536:
+    # Port 0 is valid for centrally managed exams that deliberately expose no
+    # independent local HTTP server.
+    if type(port) is not int or not 0 <= port < 65536:
         raise ValueError("repair_port")
     if new.exists():
         raise ValueError("repair_destination_exists")
@@ -304,7 +309,7 @@ def _service_prefix(prefix):
     return prefix
 
 
-def _require_audit_deadline(old):
+def _require_recoverable_source_stop(old):
     stop_path = old / "STOP"
     if stop_path.is_symlink() or not stop_path.is_file():
         raise ValueError("repair_stop_missing")
@@ -314,7 +319,7 @@ def _require_audit_deadline(old):
         or set(stop) != {"incident", "reason"}
         or stop["reason"] != "source_worker_failure"
     ):
-        raise ValueError("repair_stop_not_audit_deadline")
+        raise ValueError("repair_stop_not_recoverable_worker")
     name = stop.get("incident")
     if (
         type(name) is not str
@@ -341,41 +346,52 @@ def _require_audit_deadline(old):
     }:
         raise ValueError("repair_competing_error")
     elapsed = incident["elapsed_seconds"]
-    if (
-        incident["category"] != "source_stop_or_deadline"
-        or type(incident["exit_code"]) is not int
-        or incident["exit_code"] != -9
-        or isinstance(elapsed, bool)
-        or not isinstance(elapsed, (int, float))
-        or abs(float(elapsed) - AUDIT_DEADLINE_S) > DEADLINE_TOLERANCE_S
-    ):
-        raise ValueError("repair_stop_not_audit_deadline")
+    if type(incident["exit_code"]) is not int or incident["exit_code"] != -9:
+        raise ValueError("repair_stop_not_recoverable_worker")
+    if isinstance(elapsed, bool) or not isinstance(elapsed, (int, float)):
+        raise ValueError("repair_stop_not_recoverable_worker")
+    if incident["category"] == "source_stop_or_deadline":
+        if abs(float(elapsed) - AUDIT_DEADLINE_S) > DEADLINE_TOLERANCE_S:
+            raise ValueError("repair_stop_not_audit_deadline")
+        phase = "audit"
+        kind = "source_audit_deadline_repair"
+    elif incident["category"] == "clock_jump_or_suspend":
+        if not 0 < float(elapsed) <= 240 + DEADLINE_TOLERANCE_S:
+            raise ValueError("repair_stop_not_suspend")
+        phase = "source"
+        kind = "source_suspend_recovery"
+    else:
+        raise ValueError("repair_stop_not_recoverable_worker")
     token = name.removeprefix("incident-").removesuffix(".json")
     if not token.isdigit():
         raise ValueError("repair_stop_incident")
     incident_ns = int(token)
     starts = []
-    for path in old.glob("audit-worker-*.log"):
+    for path in old.glob(f"{phase}-worker-*.log"):
         if path.is_symlink() or not path.is_file():
-            raise ValueError("repair_stop_not_audit_deadline")
-        stamp = path.name.removeprefix("audit-worker-").removesuffix(".log")
+            raise ValueError("repair_stop_not_recoverable_worker")
+        stamp = path.name.removeprefix(f"{phase}-worker-").removesuffix(".log")
         if not stamp.isdigit():
-            raise ValueError("repair_stop_not_audit_deadline")
+            raise ValueError("repair_stop_not_recoverable_worker")
         starts.append(int(stamp))
     prior = [stamp for stamp in starts if stamp <= incident_ns]
     if not prior:
-        raise ValueError("repair_stop_not_audit_deadline")
+        raise ValueError("repair_stop_not_recoverable_worker")
     start = max(prior)
     delta = (incident_ns - start) / 1_000_000_000
-    if (
-        abs(delta - float(elapsed)) > DEADLINE_TOLERANCE_S
-        or abs(delta - AUDIT_DEADLINE_S) > DEADLINE_TOLERANCE_S
-    ):
-        raise ValueError("repair_stop_not_audit_deadline")
-    for path in old.glob("audit-*.json"):
-        stamp = path.name.removeprefix("audit-").removesuffix(".json")
-        if stamp.isdigit() and int(stamp) >= start:
-            raise ValueError("repair_competing_error")
+    if phase == "audit":
+        if (
+            abs(delta - float(elapsed)) > DEADLINE_TOLERANCE_S
+            or abs(delta - AUDIT_DEADLINE_S) > DEADLINE_TOLERANCE_S
+        ):
+            raise ValueError("repair_stop_not_audit_deadline")
+        for path in old.glob("audit-*.json"):
+            stamp = path.name.removeprefix("audit-").removesuffix(".json")
+            if stamp.isdigit() and int(stamp) >= start:
+                raise ValueError("repair_competing_error")
+    elif delta < float(elapsed) - DEADLINE_TOLERANCE_S:
+        # Wall time may advance during sleep while monotonic elapsed time does not.
+        raise ValueError("repair_stop_not_suspend")
     health_path = old / "failure-health.json"
     if health_path.exists():
         if health_path.is_symlink() or not health_path.is_file():
@@ -390,7 +406,13 @@ def _require_audit_deadline(old):
             or health.get("elapsed_seconds") != elapsed
         ):
             raise ValueError("repair_competing_error")
-    return incident_ns, start
+    return dict(
+        kind=kind,
+        category=incident["category"],
+        incident_ns=incident_ns,
+        worker_started_ns=start,
+        elapsed_seconds=float(elapsed),
+    )
 
 
 def _last_journal_state(old):
@@ -461,10 +483,23 @@ def _publish_source_seed(new, old, state, old_head):
 
 
 def _source_receipt(
-    old, config, old_head, state, index_hash, counts, raw_audit, plan, timing, cutoff, prefix
+    old,
+    config,
+    old_head,
+    state,
+    index_hash,
+    counts,
+    raw_audit,
+    plan,
+    timing,
+    cutoff,
+    prefix,
+    stop_evidence,
+    index_was_present,
 ):
     return dict(
-        kind="source_audit_deadline_repair",
+        kind=stop_evidence["kind"],
+        stop_evidence=stop_evidence,
         parent_root=str(old.resolve()),
         created_ns=time.time_ns(),
         old_config_sha=sha(old / "config.json"),
@@ -487,7 +522,8 @@ def _source_receipt(
         audit_cutoff_ns=cutoff,
         query_plan=plan,
         query_timing_s=timing,
-        index_added=PIN_INDEX,
+        index_added=not index_was_present,
+        index_reused=index_was_present,
         lineage="technical_repair_genesis",
         old_chain_rewritten=False,
         inherited_qualification_sha=sha(old / "qualification.json"),
@@ -518,7 +554,11 @@ def _audited_source(source):
     audit_body = receipt.get("raw_audit") if isinstance(receipt, dict) else None
     if (
         not isinstance(receipt, dict)
-        or receipt.get("kind") != "source_audit_deadline_repair"
+        or receipt.get("kind")
+        not in {
+            "source_audit_deadline_repair",
+            "source_suspend_recovery",
+        }
         or not isinstance(audit_body, dict)
         or audit_body.get("exact") is not True
         or receipt.get("old_attempts") != receipt.get("new_attempts")

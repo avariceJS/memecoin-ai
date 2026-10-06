@@ -40,6 +40,10 @@ _GRACEFUL = frozenset(
         "expired",
         "inactive",
         "duplicate",
+        # A host suspend only interrupted a bounded child. Keep the immutable
+        # receipt, let the manager schedule the next tick, and do not STOP a
+        # verified source for an expected laptop sleep/wake cycle.
+        "clock_jump_or_suspend",
     }
 )
 _SOURCE_EXIT = {10: "operator_cancelled", 11: "expired", 12: "inactive"}

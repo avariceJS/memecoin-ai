@@ -72,19 +72,27 @@ def reservations(root):
 
 
 def reserve(root, phase, result, incident, now):
-    """Only an external signal, never a guard-induced kill, is automatically recoverable."""
+    """Recover ledger-safe SIGKILLs and explicit suspend interrupts after full replay."""
     attempts = reservations(root)
-    if (
-        phase != "paper"
-        or result["category"] != "worker_failed"
-        or result["exit_code"] not in (-9, -15)
-        or len(attempts) >= 2
+    suspended = result.get("category") == "clock_jump_or_suspend" and result.get("exit_code") == -9
+    if phase != "paper" or not (
+        suspended
+        or (
+            result.get("category") == "worker_failed"
+            and result.get("exit_code") in (-9, -15)
+            and len(attempts) < 2
+        )
     ):
         return False
     (root / "recovery").mkdir(exist_ok=True)
     publish(
         root / "recovery" / f"attempt-{len(attempts):06d}.json",
-        dict(incident=incident.name, reserved_ns=now, not_before_ns=now + 60 * 10**9),
+        dict(
+            incident=incident.name,
+            reserved_ns=now,
+            not_before_ns=now + 60 * 10**9,
+            reason="host_suspend" if suspended else "external_signal",
+        ),
     )
     return True
 

@@ -15,6 +15,8 @@ import pytest
 from memecoin_ml.data import sha
 from memecoin_operator.background import (
     Manager,
+    _fatal,
+    _interpret,
     history,
     paper_command,
     source_command,
@@ -22,6 +24,15 @@ from memecoin_operator.background import (
 )
 
 SRC = Path(__file__).resolve().parents[2] / "src"
+
+
+def test_suspend_is_graceful_for_managed_source_worker():
+    result = dict(category="clock_jump_or_suspend", exit_code=-9)
+    category = _interpret("source", result, cancelled=False, parent_dead=False)
+    assert category == "clock_jump_or_suspend"
+    assert not _fatal(category)
+
+
 TICK = """
 import os, sys, time
 from pathlib import Path

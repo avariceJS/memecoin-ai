@@ -1,5 +1,16 @@
 # История изменений решений
 
+## 2026-10-06 — устойчивое восстановление B13 после сна Mac
+
+- Исправлен STOP cascade для подтверждённого `clock_jump_or_suspend`/SIGKILL; paper resume
+  защищён полным ledger replay. Неизвестные ошибки остаются fail-closed.
+- Source восстановлен отдельной immutable revision; AUTO переведён на runtime08. Исходные
+  STOP/incidents, quota, expiry, model refs и paper history сохранены.
+- Подтверждён второй sleep-interruption без нового STOP; operator снова AUTO/waiting,
+  source healthy. Крышка закрыта — сбор не идёт; пропуск задним числом не заполняется.
+- [Evidence](../docs/evidence/brain-suspend-recovery-2026-10-06.json),
+  [operator guide](../docs/brain-operator-manual.md).
+
 ## 2026-10-06 — historical corpus впервые расширил actual train до86pools
 
 - Зафиксирован ранний prospective срез:12commoncases/2pools; broadGRUхужеобоихold/control.

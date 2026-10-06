@@ -82,6 +82,20 @@ def deadline(root, elapsed=ELAPSED, incident_ns=INCIDENT_NS, exit_code=-9):
     return name
 
 
+def suspend_stop(root, *, elapsed=5.911989124957472, incident_ns=None):
+    if incident_ns is None:
+        incident_ns = time.time_ns()
+    name = f"incident-{incident_ns}.json"
+    body = dict(category="clock_jump_or_suspend", elapsed_seconds=elapsed, exit_code=-9)
+    publish(root / name, body)
+    publish(root / "STOP", dict(reason="source_worker_failure", incident=name))
+    # Wall time can jump while monotonic elapsed time pauses with the host.
+    start = incident_ns - 120 * NS
+    (root / f"source-worker-{start}.log").write_bytes(b"")
+    publish(root / "failure-health.json", dict(at_ns=incident_ns + 1, **body))
+    return name
+
+
 def build_source(tmp, *, expires_ns=None):
     old = tmp / "old-source"
     old.mkdir(parents=True)
@@ -289,6 +303,68 @@ def test_source_repair_refuses_inflight_unknown_deadline_and_expiry(tmp_path):
         recover_source(expired, tmp_path / "new-expired", tmp_path / "bundle-expired", PREFIX)
     assert (expired / "STOP").read_bytes() == before
     assert not (tmp_path / "new-expired").exists()
+
+
+def test_source_suspend_repair_preserves_stop_and_exact_state(tmp_path):
+    old, latest, _cap = build_source(tmp_path)
+    old_incident = read(old / "STOP")["incident"]
+    (old / old_incident).unlink()
+    (old / "STOP").unlink()
+    (old / "failure-health.json").unlink()
+    name = suspend_stop(old)
+    stop_before = (old / "STOP").read_bytes()
+    index_before = logical_rows(old)
+    journal_before = named_bytes(old / "journal", "event-*.json")
+
+    new = tmp_path / "source-suspend-repair"
+    receipt = recover_source(old, new, tmp_path / "source-suspend-runtime", PREFIX)
+
+    assert receipt["kind"] == "source_suspend_recovery"
+    assert receipt["stop_evidence"]["category"] == "clock_jump_or_suspend"
+    incident_ns = int(name.removeprefix("incident-").removesuffix(".json"))
+    assert receipt["stop_evidence"]["incident_ns"] == incident_ns
+    assert (old / "STOP").read_bytes() == stop_before
+    assert logical_rows(old) == index_before
+    assert named_bytes(old / "journal", "event-*.json") == journal_before
+    assert not (new / "STOP").exists()
+    assert receipt["old_attempts"] == receipt["new_attempts"] == latest["attempts"]
+    assert receipt["raw_audit"]["exact"] is True
+    assert journal_state(new) == latest
+    assert seed_state(new) == latest
+    guard_source(new)
+
+
+def test_source_repair_reuses_existing_pin_index_without_changing_parent(tmp_path):
+    old, _latest, _cap = build_source(tmp_path)
+    with sqlite3.connect(old / "index.sqlite") as db:
+        db.execute("create index versions_pin_open on versions(pin, open_s)")
+    old_stop = (old / "STOP").read_bytes()
+    before = logical_rows(old)
+    new = tmp_path / "source-existing-index"
+
+    receipt = recover_source(old, new, tmp_path / "source-existing-runtime", PREFIX)
+
+    assert receipt["index_reused"] is True
+    assert receipt["index_added"] is False
+    assert logical_rows(old) == before
+    assert (old / "STOP").read_bytes() == old_stop
+    with sqlite3.connect(f"file:{new / 'index.sqlite'}?mode=ro", uri=True) as db:
+        names = {row[0] for row in db.execute("select name from sqlite_master where type='index'")}
+    assert "versions_pin_open" in names
+
+
+def test_source_suspend_repair_rejects_unclassified_failure(tmp_path):
+    old, _latest, _cap = build_source(tmp_path)
+    name = read(old / "STOP")["incident"]
+    body = read(old / name)
+    body["category"] = "worker_failed"
+    (old / name).unlink()
+    publish(old / name, body)
+    before = (old / "STOP").read_bytes()
+    with pytest.raises(ValueError, match="repair_stop_not_recoverable_worker"):
+        recover_source(old, tmp_path / "new-unclassified", tmp_path / "bundle-unclassified", PREFIX)
+    assert (old / "STOP").read_bytes() == before
+    assert not (tmp_path / "new-unclassified").exists()
 
 
 def observation(pool_name, close_s):

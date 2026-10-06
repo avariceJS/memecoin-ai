@@ -1,5 +1,30 @@
 # Текущий статус
 
+## 2026-10-06 — восстановление после закрытия крышки / clock jump
+
+Установленная причина паузы: 2026-10-06 10:47:26 МСК source child завершился `-9`,
+`clock_jump_or_suspend` спустя 5,91 с supervisor time; старый source runtime ошибочно
+превратил эту ожидаемую реакцию на сон в `STOP(source_worker_failure)`. STOP и incident
+сохранены в `source-repaired01`, хеши зафиксированы в evidence. Это был fail-closed каскад,
+а не проблема «Продолжить» или отсутствующего интернет-соединения.
+
+Добавлена обработка точного sleep/SIGKILL случая: source пишет отдельный
+`sleep-interruption`, не создавая STOP; managed B13 не распространяет этот сигнал на весь
+operator; paper возобновляется только после полного replay, без лимита на повторные
+подтверждённые suspend-прерывания. Другие неизвестные ошибки остаются STOP. Исправленный
+source восстановлен в отдельный root с теми же 4449 attempts, expiry, бюджетом и audited
+index; старый root и STOP неизменны. Уже исправленный source пережил ещё одно такое
+прерывание без STOP и вернулся к healthy heartbeat.
+
+Operator runtime08 pinned и переключён на recovered source; paper exam перепривязан
+отдельной revision с точным paper ledger. Сейчас operator `mode=auto`, `phase=waiting`,
+`domain_stop=false`, source healthy; последнее чтение: 4481 attempts, failures=0. Quota
+2/6, сутки/100 matured gate, champion, expiry и AUTO book сохранены. Полный текущий paper
+replay: 1650 ticks, 1512 decision, 3 cancel, 0 open/pending positions, realized 0, edge
+не установлен. Сон всё ещё означает пробел в наблюдениях; восполнение истории не заявляется.
+[Recovery evidence](../docs/evidence/brain-suspend-recovery-2026-10-06.json),
+[инструкция оператору](../docs/brain-operator-manual.md).
+
 ## 2026-10-06 — actual training support 24 → 86
 
 На session cutoff2026-10-06 06:20:01UTC: common future12horizon cases/8origins/2pools,

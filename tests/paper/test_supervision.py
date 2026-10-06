@@ -61,6 +61,21 @@ def test_signal_recovery_replays_tail_and_never_changes_history(tmp_path, cache)
     assert len(s.reservations(tmp_path)) == 2
 
 
+def test_repeated_suspend_recovery_is_unbounded_but_replay_gated(tmp_path):
+    make_ledger(tmp_path)
+    expected = replay(tmp_path)
+    for i in range(5):
+        now = (i + 1) * 100 * 10**9
+        error = dict(category="clock_jump_or_suspend", exit_code=-9)
+        incident = s.incidents(tmp_path, "paper", error)
+        assert s.reserve(tmp_path, "paper", error, incident, now)
+        assert not s.ready(tmp_path, now + 59 * 10**9)
+        assert s.ready(tmp_path, now + 61 * 10**9)
+        assert replay(tmp_path) == expected
+        s.complete(tmp_path, now + 62 * 10**9)
+    assert len(s.reservations(tmp_path)) == 5
+
+
 def test_corrupt_checkpoint_and_ledger_fail_closed_on_recovery(tmp_path):
     make_ledger(tmp_path)
     error = dict(category="worker_failed", exit_code=-15)
@@ -85,7 +100,7 @@ def test_corrupt_checkpoint_and_ledger_fail_closed_on_recovery(tmp_path):
         ("paper", "supervisor_guard", -9),
         ("paper", "paper_guard_failure", -9),
         ("paper", "worker_failed", 1),
-        ("paper", "clock_jump_or_suspend", -9),
+        ("paper", "clock_jump_or_suspend", -15),
         ("paper", "child_deadline", -9),
     ],
 )

@@ -38,8 +38,19 @@ def stage_source(root, bundle):
     seal(bundle)
     pin = sha(bundle / "manifest.json")
     publish(root / "deployment.json", dict(bundle=str(bundle.resolve()), pin=pin))
+    write_launchagents(root, bundle)
+    return pin
+
+
+def write_launchagents(root, bundle, launch_dir=None):
+    """Write fresh, uniquely prefixed source/audit LaunchAgents for a qualified root."""
+    root, bundle = Path(root).resolve(), Path(bundle).resolve()
+    launch = Path(launch_dir) if launch_dir is not None else Path.home() / "Library/LaunchAgents"
+    launch.mkdir(parents=True, exist_ok=True)
+    labels = []
     for phase, interval in [("source", 5), ("audit", 3600)]:
         label = read(root / "config.json").get("service_prefix", "ai.memecoin.brain.b08.") + phase
+        labels.append(label)
         script = (
             "import sys;sys.path.insert(0,sys.argv.pop(1));"
             "from memecoin_continuous.runtime import main;main()"
@@ -57,15 +68,15 @@ def stage_source(root, bundle):
                 "-c",
                 script,
                 str((bundle / "runtime").resolve()),
-                str(root.resolve()),
+                str(root),
                 phase,
             ],
             StandardOutPath=str(root / (phase + ".stdout.log")),
             StandardErrorPath=str(root / (phase + ".stderr.log")),
         )
-        with (Path.home() / "Library/LaunchAgents" / (label + ".plist")).open("xb") as f:
+        with (launch / (label + ".plist")).open("xb") as f:
             plistlib.dump(plist, f)
-    return pin
+    return labels
 
 
 def guard_source(root, pin=None):
@@ -99,6 +110,26 @@ def worker(root, phase):
         publish(root / ("audit-" + str(time.time_ns()) + ".json"), result)
     else:
         raise ValueError("source_phase")
+
+
+def _record_worker_failure(root, phase, result):
+    incident = root / ("incident-" + str(time.time_ns()) + ".json")
+    publish(incident, result)
+    # A closed laptop suspends both launchd and this supervisor. On wake, Watch
+    # detects the wall/monotonic discontinuity and kills only the active child.
+    # Source.tick is crash-recoverable from its append-only reservation journal,
+    # so record this interruption and let the next scheduled tick resume it.
+    # Other failures remain fail-closed.
+    suspended = result.get("category") == "clock_jump_or_suspend" and result.get("exit_code") == -9
+    if suspended:
+        publish(
+            root / ("sleep-interruption-" + str(time.time_ns()) + ".json"),
+            dict(incident=incident.name, phase=phase, **result),
+        )
+    elif not (root / "STOP").exists():
+        publish(root / "STOP", dict(reason="source_worker_failure", incident=incident.name))
+    atomic(root / "failure-health.json", dict(at_ns=time.time_ns(), **result))
+    return incident
 
 
 def main():
@@ -136,9 +167,5 @@ def main():
             active,
         )
         if result["exit_code"] != 0:
-            incident = root / ("incident-" + str(time.time_ns()) + ".json")
-            publish(incident, result)
-            if not (root / "STOP").exists():
-                publish(root / "STOP", dict(reason="source_worker_failure", incident=incident.name))
-            atomic(root / "failure-health.json", dict(at_ns=time.time_ns(), **result))
+            _record_worker_failure(root, phase, result)
         print(json.dumps(dict(phase=phase, **result)), flush=True)

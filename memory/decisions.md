@@ -1,5 +1,21 @@
 # Реестр архитектурных решений
 
+## 2026-10-06 — sleep/wake считается interruption, а не целостностным STOP
+
+Статус: реализовано на source, managed operator и paper supervision; live cutover выполнен
+после подтверждённого incident. Точный `clock_jump_or_suspend` + exit `-9` записывается
+отдельно и восстанавливается. Paper обязателен full replay перед каждой попыткой. Ошибки
+другой категории, неполное доказательство и integrity failures остаются fail-closed.
+Сон не считается временем доступности источника: gap сохраняется, synthetic/backfilled
+наблюдения не создаются. Повторные sleep interruptions не расходуют новую paper recovery
+reservation; внешний kill остаётся в прежнем ограниченном режиме.
+
+Основание: lid-close 2026-10-06 10:47:26 МСК привёл к `source_worker_failure` STOP, после
+чего `resume` не мог снять domain STOP. Exact source index и журнал сохранены; recovery
+собрал новую revision без изменения старого STOP. На исправленном runtime наблюдалось ещё
+одно подтверждённое suspend-прерывание с успешным последующим heartbeat.
+[Evidence и limitations](../docs/evidence/brain-suspend-recovery-2026-10-06.json).
+
 ## 2026-10-06 — qualified corpus подключён к AUTO, regression сохраняется
 
 Статус: реализовано, реальные86trainpools,8fits, exactruntime07cutover. Конкретный feed —
