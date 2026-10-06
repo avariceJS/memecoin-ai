@@ -2,15 +2,18 @@
 
 import inspect
 import json
+import shutil
+import subprocess
 import threading
 from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import pytest
+
 from memecoin_operator.web import PAGE, OperatorHandler, make_server
 
-ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / "work" / "brain-b13" / "delegation"
+VISUAL_SCRIPT = Path(__file__).with_name("polish_visual.cjs")
 NOW = int(datetime(2026, 10, 4, 20, 0, tzinfo=UTC).timestamp() * 1_000_000_000)
 NS = 1_000_000_000
 _SHA_CHAMPION = "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920"
@@ -505,7 +508,9 @@ class _SynthHandler(BaseHTTPRequestHandler):
 
 
 class _SavedHandler(BaseHTTPRequestHandler):
-    payload = (ROOT / "work/brain-b13/operator04/live-status-future01.json").read_bytes()
+    """Serve a frozen synthetic status without depending on a production capture."""
+
+    payload = json.dumps(_status()).encode()
 
     def log_message(self, format: str, *args) -> None:
         return
@@ -568,9 +573,8 @@ def _serve(server) -> threading.Thread:
     return thread
 
 
-def test_real_and_synthetic_cabin(tmp_path):
-    import subprocess
-
+@pytest.fixture
+def cabin_urls(tmp_path):
     real = _bind(None, None, tmp_path / "real", 18790)
     synth = _bind(ThreadingHTTPServer, _SynthHandler, None, 18990)
     saved = _bind(ThreadingHTTPServer, _SavedHandler, None, 19010)
@@ -578,43 +582,11 @@ def test_real_and_synthetic_cabin(tmp_path):
     synth_thread = _serve(synth)
     saved_thread = _serve(saved)
     try:
-        import urllib.request
-
-        port = real.server_address[1]
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5) as response:
-            page = response.read().decode()
-            assert response.status == 200
-            assert response.headers["X-Frame-Options"] == "DENY"
-            assert "default-src 'none'" in response.headers["Content-Security-Policy"]
-        assert "Операторский центр" in page
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=5) as response:
-            body = json.loads(response.read().decode())
-        assert body["schema"] == "operator-status-v1"
-        assert body["promotion"] is False
-        script = OUT / "polish-visual.cjs"
-        completed = subprocess.run(
-            [
-                "node",
-                str(script),
-                "--real",
-                f"http://127.0.0.1:{port}/",
-                "--synth",
-                f"http://127.0.0.1:{synth.server_address[1]}/",
-                "--saved",
-                f"http://127.0.0.1:{saved.server_address[1]}/",
-                "--out",
-                str(OUT),
-            ],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=180,
-        )
-        if completed.returncode != 0:
-            raise AssertionError(completed.stderr[-2000:] or completed.stdout[-2000:])
-        report = json.loads((OUT / "polish-visual.json").read_text())
-        assert report["ok"] is True
-        assert report["contrast"]["value"] >= 4.5
+        yield {
+            "real": f"http://127.0.0.1:{real.server_address[1]}/",
+            "synth": f"http://127.0.0.1:{synth.server_address[1]}/",
+            "saved": f"http://127.0.0.1:{saved.server_address[1]}/",
+        }
     finally:
         real.shutdown_background()
         real_thread.join(timeout=3)
@@ -624,3 +596,48 @@ def test_real_and_synthetic_cabin(tmp_path):
         saved.shutdown()
         saved.server_close()
         saved_thread.join(timeout=3)
+
+
+def test_real_and_synthetic_cabin(cabin_urls):
+    import urllib.request
+
+    with urllib.request.urlopen(cabin_urls["real"], timeout=5) as response:
+        page = response.read().decode()
+        assert response.status == 200
+        assert response.headers["X-Frame-Options"] == "DENY"
+        assert "default-src 'none'" in response.headers["Content-Security-Policy"]
+    assert "Операторский центр" in page
+    for name, url in cabin_urls.items():
+        with urllib.request.urlopen(url + "api/status", timeout=5) as response:
+            body = json.loads(response.read().decode())
+        assert body["schema"] == "operator-status-v1"
+        assert body["promotion"] is False
+        if name != "real":
+            assert body["synthetic"] is True
+            assert body == _status()
+
+
+def test_cabin_viewports(tmp_path, request):
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("optional browser acceptance requires Node.js and Playwright Chromium")
+    probe = subprocess.run(
+        [node, str(VISUAL_SCRIPT), "--probe"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if probe.returncode == 77:
+        pytest.skip(probe.stderr.strip())
+    assert probe.returncode == 0, probe.stderr
+    cabin_urls = request.getfixturevalue("cabin_urls")
+    args = [node, str(VISUAL_SCRIPT)]
+    for name, url in cabin_urls.items():
+        args.extend(["--" + name, url])
+    args.extend(["--out", str(tmp_path)])
+    completed = subprocess.run(args, check=False, capture_output=True, text=True, timeout=180)
+    assert completed.returncode == 0, completed.stderr[-2000:] or completed.stdout[-2000:]
+    report = json.loads((tmp_path / "polish-visual.json").read_text())
+    assert report["ok"] is True
+    assert report["contrast"]["value"] >= 4.5
