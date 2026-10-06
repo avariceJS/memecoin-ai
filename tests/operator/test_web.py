@@ -6,8 +6,11 @@ import threading
 from http.client import HTTPConnection
 from pathlib import Path
 
+from memecoin_ml.data import write
+from memecoin_operator import watch_market
 from memecoin_operator.control import status
 from memecoin_operator.web import make_server
+from memecoin_registry.contracts import seal
 
 _spec = importlib.util.spec_from_file_location(
     "operator_test_control_for_web", Path(__file__).with_name("test_control.py")
@@ -24,6 +27,7 @@ PAGE_MARKERS = (
     "Обучение",
     "Модели",
     "Paper",
+    "Watch Market",
     "Система",
     "Стоп всё",
     "allowlist",
@@ -52,7 +56,7 @@ def request(port, method, path, body=None, headers=None):
     return status_code, payload
 
 
-def test_projection_and_write_guards(adapter, tmp_path):
+def test_projection_and_write_guards(adapter, tmp_path, monkeypatch):
     root = make_root(
         tmp_path,
         inspect={
@@ -70,6 +74,7 @@ def test_projection_and_write_guards(adapter, tmp_path):
         for marker in PAGE_MARKERS:
             assert marker in text
         assert "cdn" not in text and "unpkg" not in text and "fonts.googleapis" not in text
+        assert 'id="watch-pool"' in text and 'id="watch-portfolio"' in text
         code, raw = request(port, "GET", "/api/bootstrap")
         token = json.loads(raw)["token"]
         assert token and token in text
@@ -77,6 +82,11 @@ def test_projection_and_write_guards(adapter, tmp_path):
         body = json.loads(raw)
         assert code == 200 and body["schema"] == "operator-status-v1"
         assert "/Users" not in raw.decode() and "operator.sqlite" not in raw.decode()
+        code, raw = request(port, "GET", "/api/watch/status")
+        watch = json.loads(raw)
+        assert code == 200 and watch["schema"] == "watch-market-v1"
+        assert watch["status"] == "idle" and watch["auto_untouched"] is True
+        assert "/Users" not in raw.decode()
         code, raw = request(port, "GET", "/", headers={"Host": "evil.example"})
         assert code == 403 and json.loads(raw)["reason"] == "bad_host"
         code, raw = request(port, "GET", "/", headers={"Origin": "https://evil.example"})
@@ -90,6 +100,59 @@ def test_projection_and_write_guards(adapter, tmp_path):
             "Content-Type": "application/json",
             "X-Operator-Token": token,
         }
+        invalid_watch = json.dumps(
+            {
+                "request_id": "watch1",
+                "action": "resolve",
+                "params": {"address_kind": "mint", "address": "bad"},
+            }
+        ).encode()
+        code, raw = request(port, "POST", "/api/watch/resolve", invalid_watch, headers)
+        assert code == 400 and json.loads(raw)["reason"] == "invalid_address"
+        invalid_watch_headers = dict(headers)
+        invalid_watch_headers["X-Operator-Token"] = "nope"
+        code, raw = request(
+            port, "POST", "/api/watch/resolve", invalid_watch, invalid_watch_headers
+        )
+        assert code == 403 and json.loads(raw)["reason"] == "bad_token"
+        mint = "So11111111111111111111111111111111111111112"
+        pool = "7XawhbbxtsRcQA8KTkHT9f9nc6d69UwqCDh6U5EEbEmX"
+
+        def fake_fetch(provider, path, params, *, lane):
+            capture = provider / "requests" / "000000"
+            capture.mkdir()
+            write(
+                capture / "response.bin",
+                {
+                    "data": [
+                        {
+                            "id": "solana_" + pool,
+                            "type": "pool",
+                            "attributes": {"address": pool, "name": "TOKEN / SOL"},
+                            "relationships": {
+                                "base_token": {"data": {"id": "solana_" + mint}},
+                                "quote_token": {"data": {"id": "solana_" + mint}},
+                            },
+                        }
+                    ]
+                },
+            )
+            seal(capture)
+            return capture
+
+        monkeypatch.setattr(watch_market.source, "fetch", fake_fetch)
+        resolve = json.dumps(
+            {
+                "request_id": "watch2",
+                "action": "resolve",
+                "params": {"address_kind": "mint", "address": mint},
+            }
+        ).encode()
+        code, raw = request(port, "POST", "/api/watch/resolve", resolve, headers)
+        resolved = json.loads(raw)
+        assert code == 200 and resolved["ok"] is True
+        assert resolved["pools"][0]["address"] == pool
+        assert status(root)["jobs"] == []
         payload = json.dumps({"request_id": "web1", "action": "snapshot", "params": {}}).encode()
         bad = dict(headers)
         bad["X-Operator-Token"] = "nope"

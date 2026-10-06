@@ -1,5 +1,13 @@
 # История изменений решений
 
+## 2026-10-06 — Control Center Watch Market implementation
+
+Добавлена изолированная mint/pool watch lane с GeckoTerminal public source, 60s snapshot/OHLCV
+polling, pinned current Brain, forecasts/uncertainty, WAIT/ENTER/HOLD/EXIT и отдельным
+virtual B07 ledger. AUTO не меняется. Synthetic tests покрывают HTTP/UI, source path, model
+pin и paper states. Mac1/provider/user-token/browser end-to-end пока не проверялись;
+production rollout не производился. [Документация](../docs/watch-market.md).
+
 ## 2026-10-06 — Mac 2 development acceptance и local Qwen уточнение
 
 Bootstrap проверен и обновлён доa594474; установлены Python3.13/dev deps и CursorCLI

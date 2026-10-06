@@ -118,7 +118,7 @@ async function main() {
       if (name !== "real") await inspectProjection(page);
       for (const width of [1440, 1100, 390]) {
         await page.setViewportSize({ width, height: 900 });
-        for (const tab of ["overview", "data", "training", "models", "paper", "system"]) {
+        for (const tab of ["overview", "data", "training", "models", "paper", "watch", "system"]) {
           await page.locator("#tab-" + tab).click();
           const measured = await layout(page);
           assert.ok(measured.overflow <= 1, `${name}/${width}/${tab}: overflow ${measured.overflow}`);

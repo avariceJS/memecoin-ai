@@ -13,6 +13,11 @@ runtime перед изменениями: данные о процессах и
   Это отрицательный результат, не основание менять test, recipe или champion.
 - AUTO остаётся bounded: 24h и ≥100 новых matured outcomes, ≤6 reservations за 7 дней;
   текущий operational state всегда считывать с машины, не выводить из этой заметки.
+- 2026-10-06: реализован отдельный Watch Market single-pool lane в Control Center на
+  GeckoTerminal Public API; synthetic tests покрывают resolve→forecast→B07 paper ledger.
+  Не выкладывался на Mac1 и не проходил provider/live/browser acceptance: нужен конкретный
+  mint/pool пользователя и отдельное безопасное owner-host release window. Подробности:
+  [Watch Market](../docs/watch-market.md). AUTO/runtime не менялись.
 - Последний runtime commit: `d3024b6` (sleep/wake recovery), context entrypoint: `88526bf`. В
   сессии Mac 2 2026-10-06 SSH к `root1@192.168.31.66` прошёл с проверенным host fingerprint;
   Read-only `/api/status`: `operator-status-v1`, `auto/waiting`, `domain_stop=false`;

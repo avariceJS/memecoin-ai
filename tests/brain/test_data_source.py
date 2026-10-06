@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+from memecoin_brain import source as brain_source
 from memecoin_brain.data import build, corpus, encode, features, scaler, split
 from memecoin_brain.shadow import eligible, evaluate_prediction
 from memecoin_brain.source import BAR, NS, SourceFailure, bars, fetch, initialize, select_universe
@@ -53,6 +54,32 @@ def test_historical_receipt_is_not_event_time_and_incomplete_bars_removed(tmp_pa
     result = bars(p, POOL)
     assert len(result) == 1 and result[0]["available_ns"] == 500 * NS
     assert result[0]["open_s"] == 0
+
+
+def test_watch_provider_paths_and_token_side_are_strictly_scoped(tmp_path, monkeypatch):
+    mint = "So11111111111111111111111111111111111111112"
+    pool = "7XawhbbxtsRcQA8KTkHT9f9nc6d69UwqCDh6U5EEbEmX"
+    calls = []
+    monkeypatch.setattr(
+        brain_source,
+        "fetch",
+        lambda root, path, params, *, lane: calls.append((root, path, params, lane)) or tmp_path,
+    )
+    brain_source.ohlcv(tmp_path, pool, lane="prospective", limit=96, token=mint)
+    root, path, params, lane = calls[0]
+    assert path == f"/networks/solana/pools/{pool}/ohlcv/minute"
+    assert root == tmp_path and lane == "prospective"
+    assert params["aggregate"] == 5 and params["currency"] == "usd"
+    assert params["token"] == mint
+    with pytest.raises(SourceFailure, match="source_scope"):
+        brain_source.ohlcv(tmp_path, pool, lane="prospective", token="../../outside")
+    for allowed in (
+        f"/networks/solana/tokens/{mint}/pools",
+        f"/networks/solana/pools/{pool}",
+        f"/networks/solana/pools/{pool}/ohlcv/minute",
+    ):
+        assert brain_source._SOURCE_PATH.fullmatch(allowed)
+    assert not brain_source._SOURCE_PATH.fullmatch(f"/networks/solana/pools/{pool}/../../etc")
 
 
 def test_invalid_ohlcv_and_duplicate_rejected(tmp_path):

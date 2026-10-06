@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from memecoin_operator import watch_market
 from memecoin_operator.control import (
     BODY_LIMIT,
     command,
@@ -112,6 +113,22 @@ svg.band { width: 100%; height: 132px; display: block; overflow: hidden; }
 .tag.quarantine { color: var(--bad); border-color: #6d3b3b; }
 .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
 .filters label { display: flex; flex-direction: column; gap: 3px; color: var(--faint); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; flex: 1 1 140px; }
+.watch-form { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.watch-form input[type="text"], .watch-form select { background: var(--card); border: 1px solid var(--line); border-radius: 8px; min-height: 34px; padding: 6px 8px; }
+.watch-mode { display: flex; gap: 4px; min-height: 34px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 3px 7px; }
+.watch-mode label { display: inline-flex; align-items: center; gap: 4px; color: var(--faint); }
+.watch-mode input { accent-color: var(--teal); }
+.watch-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.watch-buttons button { background: var(--card); border: 1px solid var(--line); border-radius: 8px; min-height: 34px; padding: 6px 9px; cursor: pointer; }
+.watch-buttons button:disabled { opacity: .55; cursor: not-allowed; }
+.watch-buttons .danger { border-color: #6d3b3b; color: var(--bad); }
+.watch-market-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(250px, .8fr); gap: 8px; }
+.watch-value { font: 20px/1.2 ui-monospace, monospace; overflow-wrap: anywhere; }
+.watch-meta { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.watch-status { min-height: 1.4em; color: var(--muted); margin: 4px 0 8px; }
+.watch-reasons { color: var(--faint); overflow-wrap: anywhere; }
+.watch-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.watch-action { font: 18px/1.2 ui-monospace, monospace; font-weight: 700; }
 dialog { border: 1px solid var(--line); background: #101820; color: var(--text); border-radius: 14px; padding: 0; width: min(480px, calc(100vw - 24px)); }
 dialog::backdrop { background: rgba(4, 8, 16, .72); }
 .dialog-body { padding: 14px; }
@@ -129,7 +146,7 @@ footer { margin-top: 14px; color: var(--faint); font-size: 12px; }
   .tabs { flex-direction: row; flex-wrap: wrap; }
 }
 @media (max-width: 700px) {
-  .grid { grid-template-columns: minmax(0, 1fr); }
+  .grid, .watch-market-grid { grid-template-columns: minmax(0, 1fr); }
   .stats { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .top, .links { display: flex; flex-wrap: wrap; }
   .shell { padding: 10px; }
@@ -153,6 +170,7 @@ footer { margin-top: 14px; color: var(--faint); font-size: 12px; }
     <button type="button" role="tab" id="tab-training" aria-selected="false" aria-controls="panel-training">Обучение</button>
     <button type="button" role="tab" id="tab-models" aria-selected="false" aria-controls="panel-models">Модели</button>
     <button type="button" role="tab" id="tab-paper" aria-selected="false" aria-controls="panel-paper">Paper</button>
+    <button type="button" role="tab" id="tab-watch" aria-selected="false" aria-controls="panel-watch">Watch Market</button>
     <button type="button" role="tab" id="tab-system" aria-selected="false" aria-controls="panel-system">Система</button>
   </div>
   <div id="side-next"></div>
@@ -228,6 +246,30 @@ footer { margin-top: 14px; color: var(--faint); font-size: 12px; }
   <article class="card" style="margin-top:8px"><h2>Решения WAIT / ENTER / HOLD / EXIT</h2><p class="hint">Удержание — уже существующая или ожидающая экспозиция, не filled-позиция. Намерение входа ещё не сделка. Выход фиксированный 15 минут, не выученный и не MPC. Полоса ниже — квантили log return этого решения, не цена.</p><div id="band"></div><div class="panel" id="decisions"></div></article>
   <article class="card" style="margin-top:8px"><h2>Позиции и сделки</h2><div class="panel" id="ledger"></div></article>
   <article class="card" style="margin-top:8px"><h2>Прогнозы</h2><div class="panel" id="forecasts"></div></article>
+</section>
+<section id="panel-watch" class="hidden" role="tabpanel">
+  <p class="hint">GeckoTerminal public snapshot может запаздывать. Brain использует закрытые 5-минутные бары; выбранный pool может быть вне обучающей выборки. Paper fill — ценовой proxy, не подтверждённое исполнение.</p>
+  <div class="watch-form">
+    <div class="field"><span>Адрес из Axiom</span><div class="watch-mode" role="group" aria-label="Тип адреса">
+      <label><input type="radio" name="watch-kind" value="mint" checked> mint</label>
+      <label><input type="radio" name="watch-kind" value="pool"> pool</label>
+    </div></div>
+    <label class="field"><span>Solana mint или pool</span><input id="watch-address" type="text" spellcheck="false" autocomplete="off" placeholder="Base58 address"></label>
+    <div class="watch-buttons"><button type="button" id="watch-resolve">Найти рынок</button></div>
+    <label class="field"><span>Pool</span><select id="watch-pool" disabled><option value="">Сначала найдите адрес</option></select></label>
+    <label class="field"><span>Токен пары</span><select id="watch-mint" disabled><option value="">Выберите pool</option></select></label>
+    <div class="watch-buttons"><button type="button" id="watch-start" disabled>Начать наблюдение</button><button type="button" class="danger" id="watch-stop" disabled>Остановить</button></div>
+  </div>
+  <div id="watch-status" class="watch-status" aria-live="polite">Watch Market остановлен.</div>
+  <div class="watch-market-grid">
+    <article class="card"><h2>Рынок</h2><div id="watch-chart"></div><div id="watch-market-meta" class="watch-meta">Нет выбранного рынка.</div></article>
+    <article class="card"><h2>Brain · прогнозы</h2><div id="watch-forecasts" class="panel"></div><div id="watch-model-meta" class="watch-meta"></div></article>
+  </div>
+  <div class="grid" style="margin-top:8px">
+    <article class="card"><h2>Решение</h2><div class="watch-actions"><div id="watch-action" class="watch-action">WAIT</div><div id="watch-reason" class="watch-reasons">Ожидание прогноза.</div></div></article>
+    <article class="card"><h2>Виртуальный портфель</h2><div id="watch-portfolio"></div></article>
+  </div>
+  <article class="card" style="margin-top:8px"><h2>Сделки и сигналы</h2><div class="panel" id="watch-ledger"></div></article>
 </section>
 <section id="panel-system" class="hidden" role="tabpanel">
   <p class="muted" id="port-note">Живые консоли только из legacy[]. Порты 8790 и 8791 сами ссылками не становятся.</p>
@@ -308,6 +350,8 @@ let eventRows = [];
 let eventsTruncated = false;
 let eventsError = "";
 let bookKey = "";
+let watchResolution = null;
+let watchView = null;
 function formatReason(code) {
   const human = labelReason(code);
   if (!code) return human;
@@ -1261,6 +1305,136 @@ async function refresh() {
   }
   await eventsPromise;
 }
+function watchTime(ns) {
+  return ns ? new Date(Number(ns) / 1e6).toLocaleTimeString() : "—";
+}
+function watchPrice(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  return n >= 1 ? n.toLocaleString(undefined, {maximumFractionDigits: 6}) : n.toPrecision(6);
+}
+function watchChart(rows) {
+  const values = (rows || []).map(row => Number(row.price)).filter(Number.isFinite);
+  if (values.length < 2) return '<div class="empty">Ожидание ценовых баров.</div>';
+  const low = Math.min.apply(null, values), high = Math.max.apply(null, values);
+  const span = high - low || Math.abs(high) * 0.001 || 1;
+  const points = values.map((value, index) => {
+    const x = 8 + index * 624 / (values.length - 1);
+    const y = 154 - (value - low) * 140 / span;
+    return x.toFixed(1) + "," + y.toFixed(1);
+  }).join(" ");
+  return '<svg class="chart" viewBox="0 0 640 168" role="img" aria-label="Цена выбранного токена">' +
+    '<polyline points="' + points + '" fill="none" stroke="#8fd0c8" stroke-width="2" vector-effect="non-scaling-stroke"/>' +
+    '<text x="8" y="12" fill="#93a3bf" font-size="10">' + esc(watchPrice(high)) + '</text>' +
+    '<text x="8" y="165" fill="#93a3bf" font-size="10">' + esc(watchPrice(low)) + '</text></svg>';
+}
+function renderWatch(view) {
+  watchView = view;
+  const running = view.status === "running";
+  $("watch-start").disabled = running || !watchResolution || !view || view.status === "running";
+  $("watch-stop").disabled = !running;
+  if (running) {
+    const age = view.last_success_ns ? Math.max(0, Date.now() - Number(view.last_success_ns) / 1e6) / 1000 : null;
+    $("watch-status").textContent = "Наблюдение · " + esc(view.pool_name || view.pool || "рынок") +
+      (age == null ? " · ожидание первого ответа" : " · источник обновлён " + Math.round(age) + " с назад") +
+      (view.last_error ? " · " + esc(view.last_error) : "");
+    $("watch-status").className = "watch-status " + (view.last_error ? "warn" : "live");
+  } else {
+    $("watch-status").textContent = view.status === "stopped" ? "Наблюдение остановлено." : "Watch Market остановлен.";
+    $("watch-status").className = "watch-status";
+  }
+  const market = view.market || {};
+  $("watch-chart").innerHTML = watchChart(view.price_history || []);
+  const shownPrice = view.live_price || market.price;
+  $("watch-market-meta").innerHTML = shownPrice
+    ? '<div class="watch-value">$' + esc(watchPrice(shownPrice)) + '</div><div class="watch-meta">' +
+      (view.live_price_kind === "provider_pool_snapshot" ? "Снимок pool provider · " + esc(watchTime(view.live_price_received_ns)) : "Последний закрытый 5-минутный бар") +
+      ' · bar close ' +
+      esc(watchTime(Number(market.close_s) * 1e9)) + ' · received ' + esc(watchTime(market.available_ns)) +
+      ' · ' + esc(view.dex || "DEX") + ' · ' + esc(view.pool || "") + '</div>'
+    : "Нет выбранного рынка.";
+  const forecasts = view.forecasts || [];
+  const forecastRows = forecasts.flatMap(item => Object.entries(item.q_by_model || {}).map(([model, q]) => {
+    if (!Array.isArray(q) || q.length !== 3) return [esc(item.horizon_minutes + " мин"), esc(model), "—", "—", "—", "—"];
+    return [
+      esc(item.horizon_minutes + " мин"),
+      esc(model + (model === "empirical" ? " · paper" : "")),
+      esc((100 * (Math.exp(q[0]) - 1)).toFixed(2) + "%"),
+      esc((100 * (Math.exp(q[1]) - 1)).toFixed(2) + "%"),
+      esc((100 * (Math.exp(q[2]) - 1)).toFixed(2) + "%"),
+      esc((100 * (Math.exp(q[2]) - Math.exp(q[0]))).toFixed(2) + " п.п.")
+    ];
+  }));
+  $("watch-forecasts").innerHTML = forecasts.length
+    ? table(["горизонт", "модель", "Q10", "медиана", "Q90", "ширина Q10–Q90"], forecastRows)
+    : '<div class="empty">Brain ждёт 8 последовательных закрытых баров.</div>';
+  $("watch-model-meta").textContent = forecasts.length
+    ? "Frozen model pin · empirical используется paper-книгой · model " + String(view.model_sha || "").slice(0, 12) +
+      " · forecast as-of " + watchTime(forecasts[forecasts.length - 1].predicted_ns)
+    : view.model_sha ? "Frozen champion · empirical · model " + String(view.model_sha).slice(0, 12) : "";
+  $("watch-action").textContent = view.action || "WAIT";
+  $("watch-reason").textContent = (view.reason || "waiting_for_first_forecast") +
+    (view.reason === "position_open_fixed_15m_exit" ? " · выход по фиксированному сроку" : "");
+  const book = (view.portfolio || [])[0];
+  $("watch-portfolio").innerHTML = book
+    ? table(["кэш", "equity", "realized", "комиссии", "позиция", "pending"], [[
+      esc("$" + Number(book.cash).toFixed(2)),
+      esc("$" + Number(book.equity).toFixed(2)),
+      esc("$" + Number(book.realized).toFixed(2)),
+      esc("$" + Number(book.fees).toFixed(2)),
+      esc((book.positions || []).length),
+      esc((book.pending || []).length)
+    ]]) + '<div class="watch-meta">Virtual only · assumptions: 50 bps slippage + 25 bps fee/side · ' +
+      (book.mark_stale ? '<span class="warn">stale mark</span>' : "mark по последней цене") + '</div>'
+    : '<div class="watch-meta">$1,000 · пустая книга до первого решения</div>';
+  $("watch-ledger").innerHTML = table(["время", "действие", "причина", "цена / PnL"], (view.decisions || []).slice().reverse().map(row => {
+    const action = row.kind === "exit" ? "EXIT" : row.kind === "entry" ? "ENTER · filled" :
+      row.kind === "decision" && row.reason === "enter_next_observed_close" ? "ENTER · intent" : "WAIT";
+    return [esc(watchTime(row.decision_ns || row.exit_ns || row.entry_ns)),
+      esc(action), esc(row.reason || "—"), esc(row.price || row.net_pnl || "—")];
+  }));
+}
+async function watchPost(action, params) {
+  const response = await fetch("/api/watch/" + action, {
+    method: "POST",
+    headers: {"Content-Type": "application/json", "X-Operator-Token": document.querySelector('meta[name="operator-token"]').content},
+    body: JSON.stringify({request_id: rid(), action: action, params: params || {}})
+  });
+  const body = await response.json();
+  if (!response.ok || body.ok === false) throw new Error(body.reason || body.category || ("HTTP " + response.status));
+  return body;
+}
+function renderPoolChoices() {
+  const pools = watchResolution ? watchResolution.pools || [] : [];
+  $("watch-pool").innerHTML = pools.length
+    ? pools.map((pool, index) => '<option value="' + esc(pool.address) + '">' + esc(pool.name || pool.address) +
+      (pool.dex ? " · " + esc(pool.dex) : "") +
+      (pool.reserve_usd ? " · $" + esc(pool.reserve_usd) : "") + '</option>').join("")
+    : '<option value="">Пулы не найдены</option>';
+  $("watch-pool").disabled = !pools.length;
+  const selected = pools.find(pool => pool.address === $("watch-pool").value) || pools[0];
+  const tokens = selected ? [selected.base, selected.quote].filter(Boolean) : [];
+  if (watchResolution && watchResolution.target_mint) {
+    $("watch-mint").innerHTML = '<option value="' + esc(watchResolution.target_mint) + '">' + esc(watchResolution.target_mint) + '</option>';
+    $("watch-mint").disabled = false;
+  } else {
+    $("watch-mint").innerHTML = tokens.length
+      ? tokens.map(token => '<option value="' + esc(token.mint) + '">' + esc(token.symbol || token.name || token.mint) + " · " + esc(token.mint) + '</option>').join("")
+      : '<option value="">Mint пары не вернулся</option>';
+    $("watch-mint").disabled = !tokens.length;
+  }
+  $("watch-start").disabled = !pools.length || !tokens.length && !watchResolution?.target_mint || watchView?.status === "running";
+}
+async function refreshWatch() {
+  try {
+    const response = await fetch("/api/watch/status", {cache: "no-store"});
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    renderWatch(await response.json());
+  } catch (err) {
+    $("watch-status").textContent = "Watch Market: " + err.message;
+    $("watch-status").className = "watch-status bad";
+  }
+}
 function rid() {
   const bytes = new Uint8Array(8);
   crypto.getRandomValues(bytes);
@@ -1338,6 +1512,51 @@ $("act-stop-all").onclick = async () => {
   const yes = await confirmBox("Остановить всё, включая legacy?", "Это также ставит на паузу allowlist прежних prospective сервисов B09/B10/B12. Доказательства не удаляются. Продолжить потом не снимает доменный STOP.");
   if (yes) send("stop_all", {confirm: true});
 };
+$("watch-resolve").onclick = async () => {
+  const address = $("watch-address").value.trim();
+  const kind = document.querySelector('input[name="watch-kind"]:checked').value;
+  $("watch-status").textContent = "Запрос GeckoTerminal…";
+  try {
+    watchResolution = await watchPost("resolve", {address_kind: kind, address});
+    renderPoolChoices();
+    $("watch-status").textContent = (watchResolution.pools || []).length
+      ? "Найдено пулов: " + watchResolution.pools.length + ". Выберите точный рынок и сторону токена."
+      : "Пул не найден для этого адреса.";
+    $("watch-status").className = "watch-status";
+  } catch (err) {
+    watchResolution = null;
+    renderPoolChoices();
+    $("watch-status").textContent = "Не удалось найти рынок: " + err.message;
+    $("watch-status").className = "watch-status bad";
+  }
+};
+$("watch-pool").onchange = renderPoolChoices;
+$("watch-start").onclick = async () => {
+  if (!watchResolution) return;
+  try {
+    const result = await watchPost("start", {
+      resolution_id: watchResolution.resolution_id,
+      pool: $("watch-pool").value,
+      target_mint: $("watch-mint").value
+    });
+    $("watch-status").textContent = "Сессия " + result.session_id.slice(0, 12) + " запущена · model " + result.model_sha.slice(0, 12);
+    await refreshWatch();
+  } catch (err) {
+    $("watch-status").textContent = "Watch не запущен: " + err.message;
+    $("watch-status").className = "watch-status bad";
+  }
+};
+$("watch-stop").onclick = async () => {
+  const yes = await confirmBox("Остановить Watch Market?", "Остановить наблюдение выбранного пула и paper-книгу. AUTO и его источник не затрагиваются.");
+  if (!yes) return;
+  try {
+    await watchPost("stop", {});
+    await refreshWatch();
+  } catch (err) {
+    $("watch-status").textContent = "Не удалось остановить: " + err.message;
+    $("watch-status").className = "watch-status bad";
+  }
+};
 $("book").onchange = () => { bookKey = $("book").value; if (last) renderPaper(last); };
 $("q").addEventListener("input", renderLog);
 $("kind").addEventListener("change", renderLog);
@@ -1362,7 +1581,9 @@ document.querySelector('[role="tablist"]').addEventListener("keydown", event => 
   next.click();
 });
 refresh();
+refreshWatch();
 setInterval(refresh, 5000);
+setInterval(refreshWatch, 5000);
 </script>
 </html>
 """
@@ -1379,6 +1600,10 @@ class OperatorServer(ThreadingHTTPServer):
         self._halt = threading.Event()
         self._ticker = threading.Thread(target=self._loop, name="operator-tick", daemon=True)
         self._ticker.start()
+        self._watch_ticker = threading.Thread(
+            target=self._watch_loop, name="watch-market-worker", daemon=True
+        )
+        self._watch_ticker.start()
 
     def _loop(self) -> None:
         while not self._halt.wait(1.0):
@@ -1387,11 +1612,25 @@ class OperatorServer(ThreadingHTTPServer):
             except Exception as exc:
                 private_log(self.root, "tick_failed", exc)
 
+    def _watch_loop(self) -> None:
+        watch_root = self.root.resolve().parent / "watch-market"
+        while not self._halt.wait(5.0):
+            state_path = watch_root / "state.json"
+            if state_path.is_symlink() or not state_path.is_file():
+                continue
+            try:
+                state = json.loads(state_path.read_text())
+                if state.get("status") == "running":
+                    watch_market.tick(self.root)
+            except Exception:
+                continue
+
     def shutdown_background(self) -> None:
         self._halt.set()
         self.shutdown()
         self.server_close()
         self._ticker.join(timeout=2)
+        self._watch_ticker.join(timeout=20)
 
 
 class OperatorHandler(BaseHTTPRequestHandler):
@@ -1472,6 +1711,15 @@ class OperatorHandler(BaseHTTPRequestHandler):
                 private_log(self.server.root, "status_failed", exc)
                 self._error(500, "internal", "internal")
             return
+        if parsed.path == "/api/watch/status":
+            if parsed.query:
+                self._error(404, "bad_request", "not_found")
+                return
+            try:
+                self._json(200, watch_market.status(self.server.root))
+            except Exception:
+                self._error(500, "internal", "watch_status_unavailable")
+            return
         if parsed.path == "/api/events":
             query = parse_qs(parsed.query, keep_blank_values=False)
             if set(query) - {"after", "limit"}:
@@ -1494,7 +1742,12 @@ class OperatorHandler(BaseHTTPRequestHandler):
         if not self._authorized_read():
             return
         parsed = urlparse(self.path)
-        if parsed.path != "/api/command" or parsed.query:
+        watch_route = parsed.path in {
+            "/api/watch/resolve",
+            "/api/watch/start",
+            "/api/watch/stop",
+        }
+        if (parsed.path != "/api/command" and not watch_route) or parsed.query:
             self._error(404, "bad_request", "not_found")
             return
         origin = self.headers.get("Origin")
@@ -1536,6 +1789,48 @@ class OperatorHandler(BaseHTTPRequestHandler):
             return
         if not isinstance(params, dict):
             self._error(400, "bad_request", "bad_params")
+            return
+        if watch_route:
+            try:
+                if parsed.path == "/api/watch/resolve":
+                    body = watch_market.resolve(
+                        self.server.root, params.get("address_kind"), params.get("address")
+                    )
+                elif parsed.path == "/api/watch/start":
+                    body = watch_market.start(
+                        self.server.root,
+                        resolution_id=params.get("resolution_id"),
+                        pool=params.get("pool"),
+                        target_mint=params.get("target_mint"),
+                    )
+                else:
+                    body = watch_market.stop(self.server.root)
+                self._json(200, {"ok": True, **body})
+            except ValueError as exc:
+                reason = str(exc)
+                known = {
+                    "invalid_address",
+                    "invalid_address_kind",
+                    "invalid_resolution",
+                    "watch_already_running",
+                    "watch_pool_token_mismatch",
+                    "watch_mint_mismatch",
+                    "watch_champion_pin",
+                    "watch_model_not_ready",
+                }
+                status_code = 409 if reason == "watch_already_running" else 400
+                self._json(
+                    status_code,
+                    {
+                        "ok": False,
+                        "category": "watch_request",
+                        "reason": reason if reason in known else "watch_request_failed",
+                    },
+                )
+            except Exception:
+                self._json(
+                    502, {"ok": False, "category": "watch_provider", "reason": "watch_unavailable"}
+                )
             return
         body = command(self.server.root, request_id, action, params)
         self._json(int(body.get("http_status", 500)), body)

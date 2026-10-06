@@ -1,5 +1,24 @@
 # Реестр архитектурных решений
 
+## 2026-10-06 — Watch Market как отдельный single-pool shadow lane
+
+Статус: реализация и synthetic verification; provider/live acceptance и Mac1 rollout не
+выполнялись. Для конечного пользовательского пути выбран отдельный Control Center режим,
+который принимает mint/pool, резолвит пары через GeckoTerminal Public API и наблюдает один
+выбранный pool. Snapshot price отделён от first-observed closed 5m OHLCV, на котором работает
+неизменённый Brain. Текущая champion manifest SHA закрепляется на сессию; forecasts включают
+Brain candidate quantiles, но решения/портфель используют только существующую empirical
+B07 fixed-time price-proxy policy. Отдельные source captures, shadow predictions и immutable
+virtual paper ledger не смешиваются с AUTO. Без real execution, paid keys или claims об edge.
+
+Причина: проверить конкретный пользовательский сценарий без изменения модели и без риска
+повредить существующий AUTO. 60s polling выбрано по cadence публичного provider API, а не как
+эквивалент real-time venue stream. Market outputs не являются labels/features автоматически;
+любое использование в Brain — только через заранее заданную prospective ablation.
+Ограничения и следующий шаг — [docs/watch-market.md](../docs/watch-market.md): запросить
+конкретный mint/pool, затем отдельно квалифицировать owner-host release при соблюдении pause,
+no-jobs и managed-exam gates.
+
 ## 2026-10-06 — development на Mac 2; local Qwen как optional evidence preprocessing
 
 Статус: engineering tools реализованы; sealed-artifact transport прошёл synthetic two-host

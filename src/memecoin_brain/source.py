@@ -33,6 +33,10 @@ BASE_EXCLUDED = {
     "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
     "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
 }
+ADDRESS = r"[1-9A-HJ-NP-Za-km-z]{32,44}"
+_SOURCE_PATH = re.compile(
+    rf"/networks/solana/(?:pools(?:/{ADDRESS}(?:/ohlcv/minute)?|/{ADDRESS}/info)?|tokens/{ADDRESS}/pools)"
+)
 
 
 class SourceFailure(ValueError):
@@ -93,9 +97,7 @@ def host_guard(root: Path) -> Row:
 
 def fetch(root: Path, path: str, params: Row, *, lane: str) -> Path:
     """Caller holds track lock. Every attempted GET reserves budget before network."""
-    if lane not in ("discovery", "historical", "prospective") or not re.fullmatch(
-        r"/networks/solana/pools(?:/[1-9A-HJ-NP-Za-km-z]{32,44}/ohlcv/minute)?", path
-    ):
+    if lane not in ("discovery", "historical", "prospective") or not _SOURCE_PATH.fullmatch(path):
         raise SourceFailure("source_scope")
     c = host_guard(root)
     prior = sorted((root / "requests").iterdir())
@@ -291,10 +293,18 @@ def bars(capture: Path, pool: str) -> list[Row]:
 
 
 def ohlcv(
-    root: Path, pool: str, *, lane: str, before: int | None = None, limit: int = 1000
+    root: Path,
+    pool: str,
+    *,
+    lane: str,
+    before: int | None = None,
+    limit: int = 1000,
+    token: str = "base",
 ) -> Path:
+    if token not in ("base", "quote") and not re.fullmatch(ADDRESS, token):
+        raise SourceFailure("source_scope")
     params: Row = dict(
-        aggregate=5, limit=limit, currency="usd", token="base", include_empty_intervals="false"
+        aggregate=5, limit=limit, currency="usd", token=token, include_empty_intervals="false"
     )
     if before is not None:
         params["before_timestamp"] = before

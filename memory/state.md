@@ -1,5 +1,25 @@
 # Текущий статус
 
+## 2026-10-06 — Watch Market implementation (не выложено)
+
+В Control Center добавлен отдельный Watch Market UI/API/worker: пользователь вводит mint/pool,
+выбирает разрешённый GeckoTerminal pool и mint side; отдельная 60s public-provider lane
+строит closed-5m Brain forecasts, quantile uncertainty и independent B07 virtual book/ledger.
+Зафиксирован model manifest SHA, $1,000 paper cash; real execution выключен. AUTO routes,
+config, jobs и ledger не используются этой lane. Реальная provider acceptance не проводилась;
+mint/pool ещё не дан, браузерная визуальная проверка недоступна в этой среде, Mac1 rollout не
+делался. Это implementation proof плюс synthetic tests, не подтверждение live market path,
+edge или торговли. Подробности/границы: [docs/watch-market.md](../docs/watch-market.md).
+
+Синтетические проверки: focused tests покрывают mint/pool validation, model pin, per-market
+forecast/paper accounting, WAIT/ENTER/HOLD/EXIT, CSRF/UI/API и отсутствие AUTO mutation.
+`make check`: 985 passed, 12 skipped; ruff, format, mypy и `make smoke` прошли. Skips —
+optional ML dependencies (Torch отсутствует) и browser acceptance (Playwright Node module
+отсутствует). Локальный fixture запускался и был остановлен; подключённого browser surface
+в среде нет. Mac1 в исходной read-only
+проверке оставался AUTO/waiting с активным managed exam; production release не разрешён
+этой задачей и не выполнялся.
+
 ## 2026-10-06 — Mac 2 принят как development host; transport/release tooling
 
 Проверен `/Users/sl-aleksandr/Developer/memecoin-worker`: M4Pro/48GiB, bootstrap receipt
