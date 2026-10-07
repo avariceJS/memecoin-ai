@@ -85,3 +85,29 @@ def test_many_sources_bounded_handles_and_first_receipt(monkeypatch):
     assert result == list(bars(2))
     assert maximum == 1 and live == 0
     assert counts == dict(source_rows=2000, duplicate_rows=1998, revised_keys=2)
+
+
+def test_role_decision_binds_the_same_bytes_verified_by_pin(tmp_path, monkeypatch):
+    from memecoin_experience import sources
+
+    cap, birth = capture(tmp_path)
+    root = tmp_path / "reserved_synthetic"
+    compile_corpus([(cap, birth)], root, role="descriptive_unseen_test")
+    reference = dict(kind="admitted", path=str(root), pin=file_hash(root / "manifest.json"))
+    original = (root / "admission.json").read_bytes()
+    misleading = json.loads(original)
+    misleading["role"] = "train"
+    (root / "admission.json").write_text(json.dumps(misleading))
+    verify = sources.verify_files
+    called = False
+
+    def swap_before_verify(path, pin):
+        nonlocal called
+        called = True
+        (root / "admission.json").write_bytes(original)
+        return verify(path, pin)
+
+    monkeypatch.setattr(sources, "verify_files", swap_before_verify)
+    with pytest.raises(ValueError, match="source_report_pin"):
+        list(inputs([reference], 10**18, Counter()))
+    assert not called  # Reject the unbound role before any payload hashing or raw replay.

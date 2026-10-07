@@ -1,5 +1,6 @@
 """Streaming adapter for sealed, admitted USD corpora. No provider or runtime access."""
 
+import hashlib
 import json
 import sqlite3
 import tempfile
@@ -10,15 +11,19 @@ from memecoin_brain.source import EXCLUDED
 from memecoin_curriculum.admission import NAMESPACE, qualify
 
 from .records import checked_rows
-from .storage import canonical, file_hash, safe_path, verify_files
+from .storage import canonical, file_hash, read_manifest, safe_path, verify_files
 
 
 def admitted(reference, cutoff):
     root = safe_path(reference["path"])
     # Check role before opening/hashing any market payload, including reserved evaluation data.
-    report = json.loads(safe_path(root / "admission.json").read_text())
+    report_bytes = safe_path(root / "admission.json").read_bytes()
+    report = json.loads(report_bytes)
     if report["role"] != "train" or any(r["pool"] in EXCLUDED for r in report["records"]):
         raise ValueError("experience_reserved_source")
+    inventory = read_manifest(root, reference["pin"])
+    if hashlib.sha256(report_bytes).hexdigest() != inventory.get("admission.json"):
+        raise ValueError("experience_source_report_pin")
     verify_files(root, reference["pin"])
     if report["namespace"] != NAMESPACE or report["rows_sha"] != file_hash(root / "rows.jsonl"):
         raise ValueError("experience_source_namespace")

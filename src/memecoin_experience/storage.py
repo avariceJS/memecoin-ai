@@ -85,12 +85,18 @@ def seal_files(root):
     return file_hash(root / "manifest.json")
 
 
-def verify_files(root, pin=None):
+def read_manifest(root, pin=None):
     root = safe_path(root)
     manifest = safe_path(root / "manifest.json")
-    if pin is not None and file_hash(manifest) != pin:
+    raw = manifest.read_bytes()
+    if pin is not None and hashlib.sha256(raw).hexdigest() != pin:
         raise ValueError("experience_manifest_pin")
-    expected = json.loads(manifest.read_text())
+    return json.loads(raw)
+
+
+def verify_files(root, pin=None):
+    root = safe_path(root)
+    expected = read_manifest(root, pin)
     if set(expected) != {p.name for p in root.iterdir() if p.name != "manifest.json"}:
         raise ValueError("experience_inventory")
     for name, checksum in expected.items():

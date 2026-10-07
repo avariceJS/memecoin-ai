@@ -60,7 +60,10 @@ def experiences(rows, cutoff, context=8):
             previous = row["open_s"]
             past.append(row)
             dependencies = [(r["open_s"], r["available_ns"], r["capture_sha"]) for r in past]
-            frames.append((features(list(past)), dependencies))
+            values = features(list(past))
+            if any(v is not None and not math.isfinite(v) for v in values):
+                raise ValueError("experience_nonfinite_feature")
+            frames.append((values, dependencies))
             if len(frames) == context:
                 inputs = sorted({tuple(d) for _, deps in frames for d in deps})
                 targets, status, label_times, target_pins = [], [], [], []
@@ -68,9 +71,12 @@ def experiences(rows, cutoff, context=8):
                 for horizon in HORIZONS:
                     needed = [lookup.get(row["open_s"] + BAR * i) for i in range(1, horizon + 1)]
                     valid = all(r is not None for r in needed)
-                    targets.append(
-                        math.log(needed[-1]["ohlcv"][3] / row["ohlcv"][3]) if valid else None
-                    )
+                    ratio = needed[-1]["ohlcv"][3] / row["ohlcv"][3] if valid else None
+                    if ratio is not None and (ratio <= 0 or not math.isfinite(ratio)):
+                        raise ValueError("experience_nonfinite_target")
+                    targets.append(math.log(ratio) if valid else None)
+                    if targets[-1] is not None and not math.isfinite(targets[-1]):
+                        raise ValueError("experience_nonfinite_target")
                     maturity = (row["open_s"] + (horizon + 1) * BAR) * NS
                     status.append(
                         "observed"

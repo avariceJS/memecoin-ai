@@ -12,10 +12,13 @@ from memecoin_experience.storage import Snapshot, atomic_json, build
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rows", type=int, default=520000)
+    parser.add_argument("--batch", type=int, default=1024)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.rows < 100:
         parser.error("--rows must be at least 100")
+    if not 1 <= args.batch <= 4096:
+        parser.error("--batch must be between 1 and 4096")
 
     def rows():
         for i in range(args.rows):
@@ -56,15 +59,23 @@ def main():
             validation_end_s=end * 9 // 10,
             test_end_s=end,
         )
-        train_count = sum(
-            len(ids) for _, _, _, ids, _ in batches(snapshot, plan, "train", 256, seed=42)
-        )
+        train_count, reader_batches, previous_size = 0, 0, 0
+        for _, _, _, ids, _ in batches(snapshot, plan, "train", args.batch, seed=42):
+            if reader_batches:
+                assert previous_size == args.batch
+            previous_size = len(ids)
+            train_count += previous_size
+            reader_batches += 1
         assert train_count > args.rows * 0.79
         receipt = dict(
             qualification="synthetic_engineering_only_no_market_claim",
             input_bars=args.rows,
             decisions=observed,
             training_reader_origins=train_count,
+            requested_batch=args.batch,
+            training_reader_batches=reader_batches,
+            final_batch_size=previous_size,
+            all_nonfinal_batches_full=True,
             partitions=len(snapshot.parts),
             max_partition=max_partition,
             bytes=byte_count,

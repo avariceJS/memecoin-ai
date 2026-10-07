@@ -55,7 +55,12 @@ def recipe(config):
     ):
         if type(c[key]) is not int or not low <= c[key] <= high:
             raise ValueError("experience_training_config")
-    if c["device"] not in {"cpu", "cuda"} or not 0 < c["lr"] <= 0.1:
+    if (
+        not isinstance(c["device"], str)
+        or c["device"] not in {"cpu", "cuda"}
+        or type(c["lr"]) not in (int, float)
+        or not 0 < c["lr"] <= 0.1
+    ):
         raise ValueError("experience_training_config")
     return c
 
@@ -65,6 +70,11 @@ def batches(snapshot, plan, role, batch, *, seed=None, epoch=0, cursor=(0, 0)):
     order = list(range(len(snapshot.parts)))
     if seed is not None:
         random.Random(f"{seed}:{epoch}:partitions").shuffle(order)
+    xs, ys, ms, ids = [], [], [], []
+
+    def packed(next_cursor):
+        return np.concatenate(xs), np.concatenate(ys), np.concatenate(ms), ids, next_cursor
+
     for position in range(cursor[0], len(order)):
         index = order[position]
         path, rows = snapshot.partition(index)
@@ -87,21 +97,22 @@ def batches(snapshot, plan, role, batch, *, seed=None, epoch=0, cursor=(0, 0)):
             shape=(len(rows), snapshot.schema["context"], len(FEATURES)),
         )
         y = np.memmap(path / "y.f64", dtype="<f8", mode="r", shape=(len(rows), len(HORIZONS)))
-        start = cursor[1] if position == cursor[0] else 0
-        for offset in range(start, len(indices), batch):
-            take = indices[offset : offset + batch]
+        offset = cursor[1] if position == cursor[0] else 0
+        while offset < len(indices):
+            take = indices[offset : offset + batch - len(ids)]
             selected = [chosen[i] for i in take]
-            next_cursor = (position, offset + batch)
-            if offset + batch >= len(indices):
-                next_cursor = (position + 1, 0)
-            yield (
-                np.array(x[selected]),
-                np.array(y[selected]),
-                np.array([masks[i] for i in take], dtype=bool),
-                [rows[i]["id"] for i in selected],
-                next_cursor,
-            )
+            xs.append(np.array(x[selected]))
+            ys.append(np.array(y[selected]))
+            ms.append(np.array([masks[i] for i in take], dtype=bool))
+            ids.extend(rows[i]["id"] for i in selected)
+            offset += len(take)
+            if len(ids) == batch:
+                next_cursor = (position + 1, 0) if offset == len(indices) else (position, offset)
+                yield packed(next_cursor)
+                xs, ys, ms, ids = [], [], [], []
         del x, y
+    if ids:
+        yield packed((len(order), 0))
 
 
 def prepare(snapshot, plan, output, batch):
@@ -119,8 +130,9 @@ def prepare(snapshot, plan, output, batch):
             for h, valid, status in zip(HORIZONS, mask, row["target_status"], strict=True):
                 denominators[f"{role}/{h}/{status}"] += 1
                 denominators[f"{role}/{h}/usable"] += int(valid)
-    path = output / "baseline.sqlite"
-    path.unlink(missing_ok=True)  # Scratch only; restart from pinned input after interruption.
+    fd, name = tempfile.mkstemp(prefix=".baseline-", suffix=".sqlite", dir=output)
+    os.close(fd)
+    path = Path(name)  # Unique scratch: a killed SQLite journal can never contaminate a retry.
     db = sqlite3.connect(path)
     try:
         db.execute("pragma temp_store=FILE")
@@ -202,6 +214,8 @@ class Network(nn.Module):
 
 
 def tensors(x, y, mask, stats, device):
+    if np.isinf(x).any() or not np.isfinite(y[mask]).all():
+        raise ValueError("experience_nonfinite_learning_input")
     present = np.isfinite(x)
     normalized = np.where(present, (x - np.array(stats["mean"])) / stats["scale"], 0)
     age = np.broadcast_to(
@@ -248,7 +262,12 @@ def evaluate(model, snapshot, plan, role, stats, config):
     result = {}
     for name, matrix in accum.items():
         result[name] = [
-            dict(horizon=h, n=int(n), pinball=p / n if n else None, coverage=c / n if n else None)
+            dict(
+                horizon=h,
+                n=int(n),
+                pinball=float(p / n) if n else None,
+                coverage=float(c / n) if n else None,
+            )
             for h, (n, p, c) in zip(HORIZONS, matrix, strict=True)
         ]
     if any(r["n"] == 0 for r in result["model"]):
@@ -273,10 +292,10 @@ def save_checkpoint(path, state):
 
 
 def train(store, pin, output, *, plan, config=None, stop_after=None):
-    """Replayable local CPU/CUDA job. Output is research-only; no model registry mutation."""
+    """Research-only job. stop_after is an absolute one-shot test interrupt; omit on resume."""
     output, plan, config = safe_path(output), split_plan(plan), recipe(config or {})
     output.mkdir(parents=True, exist_ok=True)
-    if not (output / "binding.json").exists() and any(
+    if not (output / "recipe.json").exists() and any(
         p.name != ".training.lock" for p in output.iterdir()
     ):
         raise ValueError("experience_unowned_training_directory")
@@ -300,6 +319,19 @@ def train(store, pin, output, *, plan, config=None, stop_after=None):
             raise ValueError("experience_cuda_unavailable")
         binding["environment"]["accelerator"] = torch.cuda.get_device_name()
     with lock(output / ".training.lock"):
+        atomic_json(output / "recipe.json", binding)
+        stats_path = safe_path(output / "statistics.json")
+        bound_path = safe_path(output / "binding.json")
+        if bound_path.exists():
+            bound = json.loads(bound_path.read_text())
+            stats = json.loads(stats_path.read_text())
+            if bound != dict(binding, statistics=digest(stats)):
+                raise ValueError("experience_statistics_binding")
+        else:
+            # statistics.json without a final binding is an uncommitted derived file.
+            stats = prepare(snapshot, plan, output, config["batch"])
+            atomic_json(stats_path, stats, replace=True)
+        binding = dict(binding, statistics=digest(stats))
         atomic_json(output / "binding.json", binding)
         artifact = output / "artifact"
         if artifact.exists():
@@ -314,13 +346,6 @@ def train(store, pin, output, *, plan, config=None, stop_after=None):
         torch.use_deterministic_algorithms(True)
         torch.backends.cudnn.benchmark = False
         torch.backends.cuda.matmul.allow_tf32 = False
-        stats_path = safe_path(output / "statistics.json")
-        stats = (
-            json.loads(stats_path.read_text())
-            if stats_path.exists()
-            else prepare(snapshot, plan, output, config["batch"])
-        )
-        atomic_json(stats_path, stats)
         model = Network(config["width"]).to(config["device"])
         optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"])
         checkpoint = safe_path(output / "checkpoint.pt")
@@ -382,6 +407,9 @@ def train(store, pin, output, *, plan, config=None, stop_after=None):
                 if stop_after is not None and state["steps"] >= stop_after:
                     save()
                     return dict(status="interrupted", steps=state["steps"])
+            expected = (state["epoch"] + 1) * stats["population"]["train_usable"]
+            if state["rows_seen"] != expected:
+                raise ValueError("experience_incomplete_epoch")
             validation = evaluate(model, snapshot, plan, "validation", stats, config)
             score = validation["selection_score"]
             state["history"].append(dict(epoch=state["epoch"], validation=validation))

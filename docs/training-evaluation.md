@@ -159,7 +159,9 @@ configurable. The default width is 64. Two independent ordered quantile heads al
 horizon differences. This is an engineering interface, not a new validated Brain generation.
 
 Every epoch visits each usable train origin once, using seeded partition order and bounded
-within-partition permutations. Short final batches are retained. There is no pool/day oversampling
+within-partition permutations. Batches span partition boundaries; only the final batch of an
+epoch may be short. Partition size therefore does not cap the requested compute batch or give
+every small pool/day its own full optimizer update. There is no pool/day oversampling
 or 48k retention. Chronological split boundaries are explicit absolute seconds; the full raw input
 dependency must lie inside its role, and each target horizon must mature strictly before the
 role ends. Partial targets contribute only where observed. Missing labels are not zero returns.
@@ -176,6 +178,10 @@ generalization. No trading/execution or uncertainty claim follows from these met
 
 CPU and single CUDA-device recipes share the reader/model path. CUDA is implemented but has
 not been exercised on this Mac. Distributed training and throughput tuning are not implemented.
+An immutable `recipe.json` establishes job ownership before preprocessing. The final `binding.json`
+also pins the computed statistics before the first optimizer step. Interrupted, uncommitted
+statistics are recomputed; committed statistics with a changed digest fail closed. Checkpoints
+use only safe built-in metadata types plus tensors, including validation history.
 Checkpoint state binds snapshot, code, recipe, environment, statistics, optimizer, model, RNG,
 best validation weights and the next partition/batch cursor. Atomic checkpoints default to every
 100 updates and each epoch; a crash replays only updates since the last complete checkpoint.
@@ -231,20 +237,48 @@ batch iterator above the former ceilings; the million-origin optimizer workload 
 execution were not benchmarked. The representation still repeats window features/provenance,
 so compaction and columnar ecosystem integration remain future storage improvements.
 
-Migration acceptance includes 19 focused tests in the pinned ML environment, including CLI
+Migration acceptance includes focused tests in the pinned ML environment, including CLI
 training at context 32/width 64, exact recovery, source corruption, partial targets, role exclusion,
 source merging and immutable reuse. Existing optional ML regression tests passed (32 passed;
 five Apple-MPS-specific checks skipped). `make smoke` passed; the repeated `make check` completed
 with 1,074 passed and 13 optional-dependency skips. Subsequent focused acceptance also checks
 final manifest/checkpoint path hardening (symlink rejection and completed-artifact recipe binding).
-The capacity measurement's code basis remains `8683305`, before that final path hardening.
+The October 7 capacity measurement's code basis remains `8683305`, before later batch-packing
+and recovery hardening; it is not silently relabeled as evidence for later source bytes.
 
-External assistance: two Grok 4.7 High CLI sessions reviewed generic storage/recovery and temporal
-streaming designs; Eliza Kimi K3 reviewed generic training/resume requirements. Automatic approval
-review rejected transmitting repository files to Grok; subsequent requests supplied only generic
-engineering problems. No external model edited project code. The integrator implemented and
-tested the result, rejecting inappropriate suggestions such as publishing a manifest by writing
-directly into its final filename and treating receipt-ordered online freezing as historical replay.
+### External code review and adjudication (2026-10-08)
+
+After the user explicitly authorized source export, Kimi K3 and GLM 5.3 reviewed selected actual
+source/test files. Completed responses, rather than `finish_reason=length` fragments, informed
+the review. Kimi's default `max` reasoning required a larger budget; finalization with the API's
+supported `low` setting returned complete answers. No secrets or protected market data were sent.
+Grok 4.7 High previously returned useful generic design reviews, but four actual-code review
+attempts timed out (two large packets, two single-file packets); those are not counted as reviews.
+Qwen's partial answer is likewise not counted as completed code acceptance. No helper edited code.
+
+Integrator-verified findings and fixes: Kimi identified unsafe NumPy scalar metadata in post-epoch
+checkpoints and statistics not authenticated before the first checkpoint. Both were reproduced
+and repaired without unsafe pickle loading. GLM identified a stale admission-role read: the exact
+metadata bytes driving the role gate now must match the pinned manifest before payload access.
+The integrator also reproduced partition-boundary batch truncation, nonfinite values masquerading
+as missing features, and incomplete-epoch publication after cursor corruption; all have focused
+regression tests. Target overflow/underflow and malformed learning-rate configuration fail with
+explicit contract errors. Missing data continues to have a distinct representation.
+
+Rejected or scoped findings: GLM's claim that legacy `load_corpus` accepts a symlinked root is
+false (`verify` already raises `symlink_forbidden`, locally reproduced). Legacy admission's
+context-8 disjoint count is not consumed as a variable-context experience metric. Equal-receipt
+tie policy differs deliberately: the new path uses capture hash, legacy keeps reference order;
+production merge behavior was not changed. Kimi's later claim that a conflicting recipe overwrites
+`binding.json` ignores `atomic_json`'s no-replace semantics; tests verify rejection and unchanged
+bytes. `stop_after` is an absolute, one-shot test interrupt, absent from the CLI.
+
+Kimi's assertion of inevitable failure on every CUDA host was not accepted as established:
+it was not reproduced here, and inspecting the current PyTorch cuDNN RNN source did not establish
+the claimed universal rejection. CUDA remains unqualified; an actual-device train/resume test
+now exists and skips on this Mac. Checkpoint validation-history size grows with epochs and full
+partition hashes are reread each pass; these are recorded performance limits, not hidden claims
+of distributed or unlimited-throughput training.
 
 ## Historical reproduction map
 

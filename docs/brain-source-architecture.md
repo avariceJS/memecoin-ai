@@ -115,10 +115,13 @@ network, CPU, or GPU will fail first.
 
 `memecoin_experience` introduces an opt-in research data plane. Its admitted-corpus adapter
 streams existing sealed `birth-usd-admission-v1` training corpora, checks their namespace and
-manifest, and requalifies bounded raw captures before accepting individual rows. Reserved
+manifest, and requalifies bounded raw captures before accepting individual rows. The exact metadata
+bytes used for the role gate must match the pinned manifest before market payloads are accessed. Reserved
 evaluation roles and protected pools are rejected. It does not call providers or open owner
 runtime. Multiple sorted corpora merge by earliest receipt, with explicit duplicate/revision
-counts and pinned sources preserving the alternative versions.
+counts and pinned sources preserving the alternative versions. Equal receipt times use capture
+hash as a deterministic tie-break. Legacy admission eligibility/disjoint counts retain their
+context-8 meaning; new variable-context jobs derive their own membership and denominators.
 
 The builder retains bounded history and emits every context-ready origin, including separately
 masked incomplete horizons. Receipt maxima and capture dependencies cover every raw bar used

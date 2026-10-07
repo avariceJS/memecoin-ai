@@ -141,3 +141,21 @@ def test_manifest_symlink_is_rejected(tmp_path):
     manifest.symlink_to(moved)
     with pytest.raises(ValueError, match="symlink"):
         snapshot.partition(0)
+
+
+def test_overflow_is_not_silently_a_missing_feature():
+    rows = list(bars(12))
+    for row in rows:
+        row["ohlcv"] = [1.0, 1e308, 1e-308, 1.0, 100.0]
+    with pytest.raises(ValueError, match="nonfinite_feature"):
+        list(experiences(rows, 10**18))
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_nonfinite_target_is_rejected_before_publication(reverse):
+    rows = list(bars(12))
+    for i, row in enumerate(rows):
+        price = 1e-300 if (i < 8) != reverse else 1e300
+        row["ohlcv"] = [price, price, price, price, 100.0]
+    with pytest.raises(ValueError, match="nonfinite_target"):
+        list(experiences(rows, 10**18))
