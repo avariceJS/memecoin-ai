@@ -80,6 +80,8 @@ The component map is:
   scheduling, history shards, admission, training, and evaluation.
 - `memecoin_registry`: immutable dataset/model manifests and qualification records.
 - `memecoin_ml`: empirical/neural forecasters, training and benchmarks.
+- `memecoin_experience`: scalable research sources, snapshots, model generations and independent
+  evaluation; its opt-in integrated pipeline is described above.
 - `memecoin_paper`: virtual accounting, projections, supervision, and audit.
 - `memecoin_operator`: durable jobs/commands, Control Center, deployment checks, and Watch Market.
 
@@ -109,9 +111,11 @@ separate as versioned stages over immutable inputs. A future scale path should s
 5. Workers on local hosts first, with immutable shard/model transfer; shared mutable SQLite remains
    single-writer. Add distributed storage/training only after measured bottlenecks require it.
 
-The 48k retained-row / 500k materialization / 1k-update limits describe the current experimental
-recipe, not the desired capacity ceiling. Synthetic million-origin storage/reader qualification exists; this is not a 100M-scale or
-cluster acceptance. See the data, training/evaluation and operator documents for measured limits.
+The 48k retained-row / 500k materialization / 1k-update limits describe the legacy experimental
+path. The new experience pipeline has completed synthetic million-bar qualification including
+two full CPU training epochs and independent evaluation. This does not qualify 100M-scale,
+cluster execution or market usefulness. See the data, training/evaluation and operator documents
+for measured limits and the exact code-bound receipts.
 
 ## Research tracks
 

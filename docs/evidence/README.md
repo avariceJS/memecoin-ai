@@ -68,3 +68,5 @@ are not in Git; consult the receipt's pinned local root and manifest when author
 
 - `brain-integrated-pipeline-capacity-2026-10-08.json`: 100k synthetic bars through continuous export, v2 experience, two CPU training epochs and registered evaluation at `f5aca3d`.
 - `brain-integrated-million-capacity-2026-10-08.json`: million-bar writer/reader check at `f5aca3d`, before paged-catalog implementation.
+- `brain-paged-million-pipeline-capacity-2026-10-08.json`: million-bar, two-epoch full pipeline at `2f1eff2`; eight pools use inline catalogs despite the paging-capable revision and filename.
+- `brain-wide-paged-pipeline-capacity-2026-10-08.json`: 1.024M synthetic bars across 2,048 pools at `6ae0ea9`; actual paged train/evaluation catalogs, two CPU epochs and separate evaluation.

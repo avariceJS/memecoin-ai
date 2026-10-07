@@ -356,6 +356,8 @@ unestimated. The empirical baseline comes from training, and no execution/tradin
 `preregistered_forward_replay` scope requires future registration and a `point_in_time` producer;
 it is not live forecast-publication or trade-fill evidence. The current OHLCV orchestration uses
 only retrospective scope. Registration time is a local receipt, not an external timestamp attestation.
+Registration uses the observed local clock; callers cannot supply an earlier registration time.
+This is a reproducible local research record, not an externally attested timestamp service.
 All evaluation artifacts are production-ineligible. Protected holdouts and existing promotion gates
 are not part of this path.
 
@@ -406,8 +408,9 @@ Payload memory is bounded; new large snapshots page partition metadata and keep 
 metadata O(catalog pages). Legacy inline snapshots remain O(partitions), and enrollment metadata
 is O(pools). Preparation verifies all partitions and spills exact-quantile sorting to disk. Role
 readers use authenticated decision bounds to skip unrelated payloads and verify every consumed
-partition. Normalization and per-epoch training/evaluation remain real data passes. Continuous exports still requalify indexed capture history and hold a WAL read
-view while exporting. Profile these costs before moving to 100M+ examples. None is disguised as
+partition. Normalization and per-epoch training/evaluation remain real data passes. Continuous
+exports still requalify indexed capture history and hold a WAL read view while exporting.
+Profile these costs before moving to 100M+ examples. None is disguised as
 constant-cost ingestion or unlimited GPU scaling.
 
 Kimi/GLM designs and code reviews were used as fallible inputs. Suggestions to adopt partitions by
@@ -416,6 +419,12 @@ materialize the whole continuous view were rejected. The integrator verified v1 
 atomic export and completed-training reuse against actual code/tests instead of accepting contrary
 review claims. Point-in-time label receipt, retained quarantine verification, explicit source
 accounting and completed-generation idempotence received focused regression coverage.
+Qwen completed an integration review of the pre-paging implementation at `f5aca3d` with no
+remaining blockers; its initially incomplete conclusion was obtained in a follow-up. GLM separately
+reviewed catalog publication, integrity and iteration. Its concerns about catalog slices and
+progress-directory durability were resolved with streaming-only catalog iteration and parent
+directory fsync. These are static assistant reviews, independently checked against code and
+regressions; they do not replace executed tests or qualify market/GPU behavior. Grok was not used.
 
 The first integrated [100k-bar receipt](evidence/brain-integrated-pipeline-capacity-2026-10-08.json)
 is bound to `f5aca3d`: eight synthetic pools, 80,000 qualified training-source bars, 79,944 persisted
@@ -425,6 +434,50 @@ evaluation. It completed in 41.6 seconds at approximately 337 MiB process peak R
 measured 72.9 seconds and approximately 217 MiB RSS on the same revision. Both precede catalog
 paging and are not silently relabeled as later-code evidence. Timings include concurrent worker
 activity and are engineering observations, not an isolated hardware or GPU benchmark.
+
+The [million-bar full-pipeline receipt](evidence/brain-paged-million-pipeline-capacity-2026-10-08.json)
+is bound to `2f1eff2`: eight synthetic pools, 800,000 qualified training-source bars, 799,944
+persisted examples, 1,199,856 optimizer row visits over two CPU epochs, and separate evaluation
+on 200,000 source bars. It completed in 271.1 seconds at approximately 348 MiB process peak RSS.
+Despite the filename, this run exercises the paging-capable revision with small inline catalogs:
+its eight long histories do not exceed the 1,024-partition paging threshold. Paging correctness is
+covered separately; do not interpret the filename as evidence that the large-catalog branch ran.
+The reference model is a width-16 GRU with three targets. Synthetic forecast scores demonstrate
+the evaluation plumbing, not trading usefulness or adequate model capacity for a large Brain.
+
+The [wide paged-pipeline receipt](evidence/brain-wide-paged-pipeline-capacity-2026-10-08.json)
+is bound to `6ae0ea9` and explicitly records catalog shape. Across 2,048 synthetic pools and
+1,024,000 raw bars, it qualified 819,200 training-source bars, persisted 804,864 examples in
+4,096 partitions/four catalog pages, consumed 1,191,936 optimizer row visits across two epochs,
+then evaluated a separate 204,800-bar source in 2,048 partitions/two pages. It completed in
+360.0 seconds with approximately 355 MiB process peak RSS and 5.94 GB temporary payloads.
+This exercises paged reading and hierarchical training sampling at the real page-size threshold.
+It does not establish 100M-scale performance. Temporary synthetic payloads were deleted after
+each load run; immutable receipts retain code/tool/identity/count bindings for reproduction.
+
+Final regression checks for this migration: `make check` passed with 1,099 tests and 18 optional
+skips, including lint/format and the configured mypy targets; `make smoke` passed. Separately,
+the selected broader ML suite in `work/ml-venv` passed 96 tests with five MPS and one CUDA
+hardware skips. These test sets overlap; do not sum their counts. GPU hardware and optional
+browser acceptance were not established. Both million-scale receipts' code/tool hashes were
+checked against their recorded Git revisions.
+
+### Next integrated qualification
+
+The next acceptance unit is a declared, non-protected research population through the whole
+pipeline. Use sealed read-only exports, keep unsupported pools in coverage denominators, measure
+raw-to-qualified-to-persisted-to-optimizer conversion, and attribute each loss to its stage.
+Demonstrate a cumulative snapshot and a parent-bound next generation, including interrupted-job
+recovery and replica verification, before judging improvements against the train-only baseline.
+Register candidate/population/window before scoring. Historical backfills remain retrospective;
+future-availability claims require a qualified point-in-time producer and actual advance registration.
+
+On a real CUDA worker, measure preparation, I/O, optimizer throughput, memory and checkpoint
+recovery separately using the same snapshot/artifact contracts. DDP and remote publication need
+their own acceptance when implemented. Broader modalities require semantic source qualification,
+not just adding feature names. Forecast improvement and executable trading usefulness remain
+separate questions: costs, liquidity, execution and independent temporal/population coverage are
+not established by these engineering fixtures. No promotion follows automatically from any run.
 
 ## Historical reproduction map
 
