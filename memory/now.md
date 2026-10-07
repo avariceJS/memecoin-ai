@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-07 Europe/Moscow. Re-read the owner host before operational decisions.
+**As of:** 2026-10-08 Europe/Moscow. Re-read the owner host before operational decisions.
 
 ## Goal
 
@@ -17,12 +17,15 @@ plan limits have not been audited in this repository.
   qualified admission units and resumable full-epoch CPU/CUDA research jobs. Usage and limitations
   are in `training-evaluation.md`; source contract is in `brain-source-architecture.md`.
   Synthetic checks cover provenance, partial targets, full consumption and exact CPU recovery.
+  Final checks: 1,079 core tests passed; combined optional ML/migration suite 64 passed, six
+  device checks skipped. Lint, types and `make smoke` passed.
   AUTO/champion, owner runtime, market datasets and protected holdouts were not changed.
-  Foundation commits: `284f134` (store) and `8683305` (trainer/CLI). Million-bar engineering
-  receipt: 999,993 origins persisted, 799,991 visited by training reader, approximately 212 MiB
-  peak RSS; no million-origin optimizer fit or market-edge claim. CUDA remains untested here.
-  Acceptance: repeated `make check` 1,074 passed/13 optional skips; focused final ML suite
-  19 passed; existing optional ML regressions 32 passed/5 MPS skips; `make smoke` passed.
+  Foundation commits: `284f134` (store), `8683305` (trainer/CLI), `035406a` (review fixes).
+  Latest million-bar receipt: 999,993 origins persisted, 799,991 visited in 782 batches (size
+  1,024, one final partial), approximately 214 MiB peak RSS. No million-origin optimizer fit or
+  market-edge claim. CUDA has an acceptance test but remains unqualified on this Mac.
+  Completed Kimi/GLM code reviews were adjudicated; recovery/statistics and metadata-role pinning
+  defects are fixed. Grok code-review attempts timed out and are not counted as acceptance.
 
 - The status snapshot was read from code base `b3bb5e3350d8ae8b713ae034f0556289997fb0ec`; the evidence receipt is `docs/evidence/brain-handoff-status-2026-10-07.json`.
 - Owner Mac 1 read-only status at 2026-10-07 17:16:36 UTC: revision 33, paused/paused,

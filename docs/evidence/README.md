@@ -9,6 +9,8 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - Partitioned experience engineering capacity (synthetic only):
   `brain-experience-capacity-2026-10-07.json` (initial 520k-bar development measurement),
   `brain-experience-million-capacity-2026-10-07.json` (final million-bar path at `8683305`).
+- Post-review experience batching: `brain-experience-batch-capacity-2026-10-08.json`
+  (million synthetic bars, cross-partition batches of 1,024, code `035406a`).
 
 - Development, source architecture, historical vacuum, and acquisition: `brain-development-2026-10-04.json`,
   `brain-source-architecture-2026-10-04.json`, `brain-vacuum-2026-10-06.json`,

@@ -237,12 +237,20 @@ batch iterator above the former ceilings; the million-origin optimizer workload 
 execution were not benchmarked. The representation still repeats window features/provenance,
 so compaction and columnar ecosystem integration remain future storage improvements.
 
+The [post-review batch-capacity receipt](evidence/brain-experience-batch-capacity-2026-10-08.json)
+is bound to `035406a`: 1,000,000 synthetic bars, 999,993 persisted origins, 799,991 training-reader
+origins, 782 batches at requested size 1,024 (781 full batches and a final 247), approximately
+214 MiB peak RSS and 62 seconds. A physical partition holds at most 288 origins in this fixture;
+the measurement confirms that it no longer caps the learning batch. These are data-path checks,
+not a million-origin optimizer fit, GPU throughput measurement or evidence of market edge.
+
 Migration acceptance includes focused tests in the pinned ML environment, including CLI
 training at context 32/width 64, exact recovery, source corruption, partial targets, role exclusion,
-source merging and immutable reuse. Existing optional ML regression tests passed (32 passed;
-five Apple-MPS-specific checks skipped). `make smoke` passed; the repeated `make check` completed
-with 1,074 passed and 13 optional-dependency skips. Subsequent focused acceptance also checks
-final manifest/checkpoint path hardening (symlink rejection and completed-artifact recipe binding).
+source merging and immutable reuse. Final focused migration tests: 32 passed, one CUDA check
+skipped. Combined migration and existing optional ML regression tests: 64 passed, six device
+checks skipped (five Apple MPS, one CUDA). `make smoke` passed; final `make check` completed
+with 1,079 passed and 13 optional-dependency skips, plus lint and type checks. Acceptance also
+covers symlink rejection, completed-artifact recipe binding and post-validation checkpoint recovery.
 The October 7 capacity measurement's code basis remains `8683305`, before later batch-packing
 and recovery hardening; it is not silently relabeled as evidence for later source bytes.
 
@@ -274,7 +282,9 @@ production merge behavior was not changed. Kimi's later claim that a conflicting
 bytes. `stop_after` is an absolute, one-shot test interrupt, absent from the CLI.
 
 Kimi's assertion of inevitable failure on every CUDA host was not accepted as established:
-it was not reproduced here, and inspecting the current PyTorch cuDNN RNN source did not establish
+it was not reproduced here, and inspecting the current
+[PyTorch cuDNN RNN source](https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/cudnn/RNN.cpp)
+did not establish
 the claimed universal rejection. CUDA remains unqualified; an actual-device train/resume test
 now exists and skips on this Mac. Checkpoint validation-history size grows with epochs and full
 partition hashes are reread each pass; these are recorded performance limits, not hidden claims
