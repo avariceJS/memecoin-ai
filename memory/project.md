@@ -1,5 +1,23 @@
 # Цель и границы проекта
 
+## 2026-10-07 — большой Brain, а не постоянный малый пилот
+
+Пользователь явно уточнил целевой масштаб: непрерывная Solana ML/data system с ростом
+corpus/compute на порядки и настоящими поколениями V1/V2/V3, независимым benchmark и
+измеримым quality gain. Два Mac — первый этап, не конечная инфраструктура; допустимый
+архитектурный горизонт включает GPU/data center. Пользователь сообщает paid Alchemy с
+высоким throughput и готовность расширять ресурсы; тариф/доступная квота здесь не измерены.
+Старые free-tier caps,48k train,1000updates и маленькие campaigns — история пилота,
+не требования масштаба. Safety/provenance/temporal correctness/immutable artifacts сохраняются.
+
+Сейчас запрошен только внешний technical handoff: без rebuild, новых больших experiments,
+production/champion/AUTO mutations или новых расходов. Подготовлен
+[полный отчёт](../docs/brain-independent-review-handoff-2026-10-07.md), включая candid
+keep/replace review, scaling10x/100x/1000x и собственную ретроспективу автора.
+Ниже сохранена история: утверждение2026-10-06 «на Mac2 нет проекта» уже не актуально;
+worker checkout и verified research bundles теперь существуют. Raw/streaming utilities
+не равнозначны готовому production-wide learning path; benchmark всё ещё не наполнен.
+
 ## 2026-10-06 — контекст моделей и двух узлов
 
 Снизить расход Astra/Codex следует выбором релевантных источников и передачей больших

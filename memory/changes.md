@@ -1,5 +1,15 @@
 # История изменений решений
 
+## 2026-10-07 — full-project handoff для независимого Claude review
+
+Добавлен [полный Markdown-отчёт](../docs/brain-independent-review-handoff-2026-10-07.md):
+цель большого Brain, component map, data funnel, causal ML findings, acquisition failures,
+keep/replace/scaling analysis и «начал бы заново». Новое resource/scale направление отражено
+в project/decisions/now/state; evidence отделено от proposals. Fresh owner read-only check
+подтвердил paused/revision33/прежнийchampion/deployment; код, production и experiments не менялись.
+При сверке найдено и явно исправлено erratum baselineB12:5.34%vsrecent-selectedempirical,
+5.81%vsrecentGRU; старый evidenceJSON сохранён. Links/context tests проверены.
+
 ## 2026-10-07 — exact-role guard и завершённый research envelope
 
 Добавлены macOS redacted process inventory, zero-GET qualifier и retired-owner research

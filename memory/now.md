@@ -2,6 +2,14 @@
 
 ## Актуально на 2026-10-07
 
+- Новый приоритет пользователя: масштабируемый Brain/data/compute, Macs как первый этап,
+  не постоянный потолок tiny fits. Paid Alchemy/high throughput заявлены пользователем;
+  тариф здесь не аудирован. [Полный независимый handoff](../docs/brain-independent-review-handoff-2026-10-07.md)
+  отделяет evidence/гипотезы/unknown, содержит architecture/data/ML/scaling review.
+  Сейчас только docs, без rebuild/экспериментов. Fresh17:16UTC: revision33paused,
+  returnedjobs10completed/exams3expired/champion иdeployment unchanged. Направление —
+  continuous qualified data + broad evaluation; новые бюджеты/release ещё не разрешены.
+
 - SSH192.168.31.67 verified. Новый isolated research envelope завершил31suffixGET;
   весь прежний20mint roster теперь40/40HTTP200,2020bars/453origins/6mint/29disjointwindows.
   Age7–10d support0,71.08%origins одногоmint: broad benchmark НЕ готов.

@@ -1,5 +1,19 @@
 # Оценка модели и управление версиями
 
+## 2026-10-07 — полный roster не сделал benchmark широким
+
+Последний isolated envelope завершил40/40GET:2020bars/453origins/6supportedmints/
+29globaldisjointwindows; age7–10d0,largestmint71.08%. Нижний9GETprefix сохранён как
+история, но не текущий aggregate. Development/calibration/prospective temporal packets
+отсутствуют; MLtuning не возобновлять по oldtest. Внешний
+[full-project handoff](../docs/brain-independent-review-handoff-2026-10-07.md) связывает
+sampler/budget/head/LR/clipping evidence с необходимостью independent broadbenchmark.
+Нового scoring/training в этой documentation-сессии нет.
+
+Erratum к старомуaudit: B12 improvement5.34% был против recent-selected empirical,
+не recentGRU (противнего5.81%). Первичный `docs/brain-curriculum-comparison.md` имеет
+приоритет; oldJSON не переписан. Вывод «5/9/42 не temporal trend» сохраняется.
+
 ## 2026-10-07 — cold-transfer prefix не прошёл broad support
 
 Получены9/40preregisteredGET,411bars,38completeorigins/2mint,3disjointwindows, всеage<1d.

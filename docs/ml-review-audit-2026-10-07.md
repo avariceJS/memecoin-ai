@@ -1,5 +1,11 @@
 # Независимая проверка ML-review — 2026-10-07
 
+**Erratum 2026-10-07, full-project handoff:** ниже baseline числа5.34% назван recentGRU
+ошибочно. [Первичный B12](brain-curriculum-comparison.md) показывает selected fullGRU
+0.0273579 против recent-selected empirical0.0289014: improvement5.34%; против recentGRU
+0.0290466 improvement5.81%. Вывод об отсутствии общего temporal degradation trend не меняется.
+Исходный evidenceJSON/исторический текст сохранены, не переписаны как новый результат.
+
 Уточнение после аудита: пользователь разрешил causal ablation (2 arms × seeds7/19).
 После сетевого обрыва проверено отсутствие прежнего output; четыре fits выполнены и проверены.
 Ансамбль pinball улучшился6.42%validation/11.91%test, но15mmediancoverage ухудшилась.

@@ -1,5 +1,16 @@
 # Реестр архитектурных решений
 
+## 2026-10-07 — масштабируемый Brain как цель, handoff перед перестройкой
+
+Принято прямое уточнение пользователя: Mac-stage не конечный масштаб; generations должны
+отражать useful corpus/compute и independent quality, не tiny refit/version churn.
+Сохранить safety/provenance/temporal/evaluation invariants, но не считать исторические
+free-tier/campaign/cap choices постоянными requirements. Paid Alchemy заявлен пользователем;
+операционные budgets/расходы/deployment отдельно проверяются и здесь не изменены.
+На этом шаге только [полный независимый technical review packet](../docs/brain-independent-review-handoff-2026-10-07.md).
+Предложения заменить experiment-shaped data/control paths являются инженерными гипотезами,
+не утверждённым rewrite; никаких новых MLexperiments/promotion/productionchanges.
+
 ## 2026-10-07 — research retirement envelope отдельно от production successor
 
 Статус: finite live qualification пройдена; unattended не admitted. Не восстанавливать

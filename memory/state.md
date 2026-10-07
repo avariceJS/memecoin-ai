@@ -1,5 +1,19 @@
 # Текущий статус
 
+## 2026-10-07 — полный technical handoff, без изменения системы
+
+Создан [отчёт для Claude Code / Claude Opus](../docs/brain-independent-review-handoff-2026-10-07.md)
+по всей архитектуре/history/data/training/evaluation/operator, с evidence/engineering
+hypotheses/unknown, ограничениями масштаба и предложениями keep/replace. Новое направление
+пользователя: настоящая scalable ML/data system, Macs не потолок; paid Alchemy user-reported,
+не новый quota audit/разрешение расходов. ML/code/acquisition/release не выполнялись.
+Read-only owner17:16:36UTC: revision33paused/paused,domain_stop=false,10returnedjobscompleted,
+3exams expired,champion9ea4a6bd...3920. DeploymentSHA db3f12d9...78fde совпал с ранее
+провереннымruntime08 binding; executable заново не аттестовывался. Watch repo-only,
+benchmark unpopulated. Полная цифра последнего fullcheck1063/12 взята из предыдущей
+code-сессии, а не нового training/test run. Next: independent review, затем отдельное
+решение по continuous data/benchmark foundation; текущие gates не меняются.
+
 ## 2026-10-07 — finite research acquisition работает, coverage остаётся bottleneck
 
 Mac1 192.168.31.67, прежний host key. После read-only qualification exact argv/executable
