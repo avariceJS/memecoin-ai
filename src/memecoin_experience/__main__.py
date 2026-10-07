@@ -134,7 +134,9 @@ def main():
             role=role,
             selection=selection,
         )
-        result = {k: v for k, v in result.items() if k not in {"partitions", "binding"}}
+        result = {
+            k: v for k, v in result.items() if k not in {"partitions", "partition_pages", "binding"}
+        }
     elif args.action == "inspect":
         snapshot = Snapshot(args.store, args.snapshot)
         for i in range(len(snapshot.parts)):

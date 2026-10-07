@@ -65,3 +65,6 @@ contain large exact payloads, so open only the named artifact needed for a speci
 For an exact filename lookup, use `rg --files docs/evidence`. Receipt names are deliberately kept
 stable because reports and experiment artifacts refer to them. `work/` datasets and model bundles
 are not in Git; consult the receipt's pinned local root and manifest when authorized.
+
+- `brain-integrated-pipeline-capacity-2026-10-08.json`: 100k synthetic bars through continuous export, v2 experience, two CPU training epochs and registered evaluation at `f5aca3d`.
+- `brain-integrated-million-capacity-2026-10-08.json`: million-bar writer/reader check at `f5aca3d`, before paged-catalog implementation.

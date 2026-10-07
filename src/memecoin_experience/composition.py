@@ -59,7 +59,9 @@ def compose(store, pins):
                         ),
                     )
             db.commit()
-            parts, statuses = [], Counter()
+            from .catalog import Writer
+
+            parts, statuses = Writer(store), Counter()
             previous = None
             for entity, start, end, raw in db.execute(
                 "select entity,start,end,part from ranges order by entity,start,pin"
@@ -79,11 +81,11 @@ def compose(store, pins):
                     chunk=max(s.manifest["binding"]["chunk"] for s in snapshots),
                     code=code_identity(),
                 ),
-                partitions=parts,
-                decisions=sum(p["count"] for p in parts),
+                **parts.finish(),
+                decisions=parts.decisions,
                 target_statuses=dict(statuses),
                 source_counts=None,
-                composition_counts=dict(parent_snapshots=len(pins), unique_partitions=len(parts)),
+                composition_counts=dict(parent_snapshots=len(pins), unique_partitions=parts.count),
                 source_accounting=dict(
                     mode="per_parent_not_additive",
                     parents={s.pin: s.manifest.get("source_counts") for s in snapshots},

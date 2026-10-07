@@ -16,13 +16,22 @@ def replicate(source, target, pin):
     with lock(target / ".publication.lock"):
         for name in ("objects", "snapshots", "staging"):
             safe_path(target / name).mkdir(exist_ok=True)
-        for i, entry in enumerate(snapshot.parts):
-            origin, _ = snapshot.partition(i)
+
+        def objects():
+            for page in snapshot.manifest.get("partition_pages", []):
+                yield object_path(source, page["pin"]), page
+            for i, entry in enumerate(snapshot.parts):
+                origin, _ = snapshot.partition(i)
+                yield origin, entry
+
+        for origin, entry in objects():
             destination = object_path(target, entry["pin"])
             if destination.exists():
                 verify_files(destination, entry["pin"])
                 reused += 1
                 continue
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            sync_dir(target / "objects")
             stage = Path(tempfile.mkdtemp(prefix="replica-", dir=target / "staging"))
             try:
                 shutil.copytree(origin, stage, dirs_exist_ok=True)
@@ -32,7 +41,7 @@ def replicate(source, target, pin):
                         os.fsync(stream.fileno())
                 sync_dir(stage)
                 os.rename(stage, destination)
-                sync_dir(target / "objects")
+                sync_dir(destination.parent)
                 copied += 1
             finally:
                 if stage.exists():

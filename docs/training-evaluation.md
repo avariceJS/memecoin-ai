@@ -159,7 +159,9 @@ configurable. The default width is 64. Two independent ordered quantile heads al
 horizon differences. This is an engineering interface, not a new validated Brain generation.
 
 Every epoch visits each usable train origin once, using seeded partition order and bounded
-within-partition permutations. Batches span partition boundaries; only the final batch of an
+within-partition permutations. Large paged snapshots first permute catalog pages, then partitions
+inside each page, then rows; the recorded sampler is hierarchical, not a globally uniform row
+permutation. This keeps page reads local and metadata memory bounded. Batches span partition boundaries; only the final batch of an
 epoch may be short. Partition size therefore does not cap the requested compute batch or give
 every small pool/day its own full optimizer update. There is no pool/day oversampling
 or 48k retention. Chronological split boundaries are explicit absolute seconds; the full raw input
@@ -292,7 +294,7 @@ it was not reproduced here, and inspecting the current
 did not establish
 the claimed universal rejection. CUDA remains unqualified; an actual-device train/resume test
 now exists and skips on this Mac. Checkpoint validation-history size grows with epochs and full
-partition hashes are reread each pass; these are recorded performance limits, not hidden claims
+consumed partition hashes are reread each pass; these are recorded performance limits, not hidden claims
 of distributed or unlimited-throughput training.
 
 ## Integrated research pipeline and generations (2026-10-08)
@@ -400,9 +402,11 @@ Unique load receipts below, rather than a neural market candidate, establish the
 CUDA remains unqualified. Its workspace setting is validated and recorded, not silently inherited
 as an unbound recipe. There is no DDP, cluster scheduler or remote conditional object publication.
 The explicit local job/artifact boundaries permit those extensions; they do not certify performance.
-Payload memory is bounded, but snapshot metadata remains O(partitions), enrollment metadata
-O(pools), normalization/exact-quantile preparation rereads data, and each training pass verifies
-partition hashes. Continuous exports still requalify indexed capture history and hold a WAL read
+Payload memory is bounded; new large snapshots page partition metadata and keep root/permutation
+metadata O(catalog pages). Legacy inline snapshots remain O(partitions), and enrollment metadata
+is O(pools). Preparation verifies all partitions and spills exact-quantile sorting to disk. Role
+readers use authenticated decision bounds to skip unrelated payloads and verify every consumed
+partition. Normalization and per-epoch training/evaluation remain real data passes. Continuous exports still requalify indexed capture history and hold a WAL read
 view while exporting. Profile these costs before moving to 100M+ examples. None is disguised as
 constant-cost ingestion or unlimited GPU scaling.
 
@@ -412,6 +416,15 @@ materialize the whole continuous view were rejected. The integrator verified v1 
 atomic export and completed-training reuse against actual code/tests instead of accepting contrary
 review claims. Point-in-time label receipt, retained quarantine verification, explicit source
 accounting and completed-generation idempotence received focused regression coverage.
+
+The first integrated [100k-bar receipt](evidence/brain-integrated-pipeline-capacity-2026-10-08.json)
+is bound to `f5aca3d`: eight synthetic pools, 80,000 qualified training-source bars, 79,944 persisted
+examples and 119,856 optimizer row visits across two CPU epochs, followed by separate registered
+evaluation. It completed in 41.6 seconds at approximately 337 MiB process peak RSS. A separate
+[million-bar writer/reader receipt](evidence/brain-integrated-million-capacity-2026-10-08.json)
+measured 72.9 seconds and approximately 217 MiB RSS on the same revision. Both precede catalog
+paging and are not silently relabeled as later-code evidence. Timings include concurrent worker
+activity and are engineering observations, not an isolated hardware or GPU benchmark.
 
 ## Historical reproduction map
 

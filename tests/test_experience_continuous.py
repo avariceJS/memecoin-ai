@@ -174,3 +174,32 @@ def test_interrupted_export_is_atomic_and_can_retry(tmp_path, monkeypatch):
             export(index, out, plan)
     assert not out.exists()
     assert export(index, out, plan)["bars"] == 60
+
+
+def test_null_mint_metadata_quarantines_one_capture(tmp_path):
+    from memecoin_ml.data import sha
+    from memecoin_registry.contracts import seal
+
+    cap, birth = capture(tmp_path)
+    body = json.loads((cap / "response.bin").read_text())
+    body["meta"] = None
+    (cap / "response.bin").write_text(json.dumps(body))
+    receipt = json.loads((cap / "receipt.json").read_text())
+    receipt["response_sha256"] = sha(cap / "response.bin")
+    (cap / "receipt.json").write_text(json.dumps(receipt))
+    (cap / "manifest.json").unlink()
+    seal(cap)
+    index = tmp_path / "index.sqlite"
+    with connect(index) as db:
+        ingest(db, cap, birth["pool"])
+    plan = dict(
+        role="train",
+        cutoff_ns=10**18,
+        start_s=300000,
+        end_s=318000,
+        selection="synthetic",
+        pools=[{k: birth[k] for k in ("pool", "base_mint", "quote_mint")}],
+    )
+    report = export(index, tmp_path / "export", plan)
+    assert report["counts"]["mint_mismatch"] == 1
+    assert report["bars"] == 0

@@ -92,8 +92,10 @@ def qualify_capture(path, pool):
     ):
         return [], "unsupported_namespace"
     payload = json.loads((path / "response.bin").read_text())
-    if any(
-        payload.get("meta", {}).get(side, {}).get("address") != pool[side + "_mint"]
+    metadata = payload.get("meta")
+    if not isinstance(metadata, dict) or any(
+        not isinstance(metadata.get(side), dict)
+        or metadata[side].get("address") != pool[side + "_mint"]
         for side in ("base", "quote")
     ):
         return [], "mint_mismatch"

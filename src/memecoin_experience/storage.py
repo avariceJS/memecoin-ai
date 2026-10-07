@@ -109,7 +109,10 @@ def verify_files(root, pin=None):
 def object_path(store, pin):
     if not isinstance(pin, str) or not PIN.fullmatch(pin):
         raise ValueError("experience_object_pin")
-    return safe_path(Path(store) / "objects" / pin)
+    legacy = safe_path(Path(store) / "objects" / pin)
+    if legacy.exists():
+        return legacy
+    return safe_path(Path(store) / "objects" / pin[:2] / pin)
 
 
 def write_partition(store, rows, schema):
@@ -140,12 +143,14 @@ def write_partition(store, rows, schema):
         )
         pin = seal_files(staging)
         target = object_path(store, pin)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        sync_dir(store / "objects")
         # Caller holds the store publication lock. A directory rename publishes all columns.
         if target.exists():
             verify_files(target, pin)
         else:
             os.rename(staging, target)
-            sync_dir(store / "objects")
+            sync_dir(target.parent)
         from .composition import bounds
 
         return dict(pin=pin, count=len(rows), statuses=dict(counts), bounds=bounds(rows))
@@ -165,6 +170,15 @@ def code_identity():
         *(Path(m.__file__) for m in (data, source, admission, contracts, ml_data)),
     ]
     return {f"{p.parent.name}/{p.name}": file_hash(p) for p in sorted(files)}
+
+
+def progress_part(progress, index):
+    group = safe_path(progress / "parts" / f"{index // 1024:09d}")
+    if not group.exists():
+        group.mkdir(parents=True, exist_ok=True)
+        sync_dir(group.parent)
+        sync_dir(progress)
+    return group / f"{index:09d}.json"
 
 
 def logical_sources(references):
@@ -216,9 +230,13 @@ def build(
             safe_path(store / name).mkdir(exist_ok=True)
         progress = store / "builds" / build_id
         progress.mkdir(exist_ok=True)
+        sync_dir(store / "builds")
+        sync_dir(store)
         atomic_json(progress / "binding.json", binding)
         atomic_json(progress / ("locators-" + digest(sources) + ".json"), sources)
-        parts, counts = [], Counter()
+        from .catalog import Writer
+
+        parts, counts = Writer(store), Counter()
         consumed = 0
 
         def counted():
@@ -242,20 +260,20 @@ def build(
         ):
             while batch := list(itertools.islice(group, chunk)):
                 part = write_partition(store, batch, schema)
-                i = len(parts)
-                atomic_json(progress / f"part-{i:09d}.json", part)
+                i = parts.count
+                atomic_json(progress_part(progress, i), part)
                 parts.append(part)
                 counts.update(part["statuses"])
-        if (progress / f"part-{len(parts):09d}.json").exists() or not parts:
+        if progress_part(progress, parts.count).exists() or not parts.count:
             raise ValueError("experience_empty_or_truncated_input")
         manifest = dict(
             binding=binding,
-            partitions=parts,
-            decisions=sum(p["count"] for p in parts),
+            **parts.finish(),
+            decisions=parts.decisions,
             target_statuses=dict(counts),
             input_records=consumed,
             unique_bars=consumed if schema["schema"] == "brain-experience-v1" else None,
-            context_unready_bars=(consumed - sum(p["count"] for p in parts))
+            context_unready_bars=(consumed - parts.decisions)
             if schema["schema"] == "brain-experience-v1"
             else None,
             source_counts=dict(source_counts or {}),
@@ -281,9 +299,16 @@ class Snapshot:
             raise ValueError("experience_snapshot_checksum")
         self.schema = self.manifest["binding"]["contract"]
         validate(self.schema)
-        self.parts = self.manifest["partitions"]
-        if sum(p["count"] for p in self.parts) != self.manifest["decisions"]:
-            raise ValueError("experience_snapshot_count")
+        if "partitions" in self.manifest:
+            if "partition_pages" in self.manifest:
+                raise ValueError("experience_catalog_schema")
+            self.parts = self.manifest["partitions"]
+            if sum(p["count"] for p in self.parts) != self.manifest["decisions"]:
+                raise ValueError("experience_snapshot_count")
+        else:
+            from .catalog import Parts
+
+            self.parts = Parts(self.store, self.manifest)
 
     def partition(self, index):
         entry = self.parts[index]

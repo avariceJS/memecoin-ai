@@ -139,7 +139,8 @@ Keep new admission units bounded (for example, per capture/pool); the old `compi
 implementation itself still materializes its supplied unit. Do not feed it the whole market at once.
 
 Payload memory is bounded by context, raw-capture cache and partition size (maximum 4096 origins).
-Snapshot metadata remains O(partitions); source admission metadata remains O(pools/captures).
+Legacy inline metadata is O(partitions); new large snapshots use the paged catalog below.
+Source admission metadata remains O(pools/captures).
 The initial format is a versioned stdlib binary layout, not Parquet or a distributed database.
 The admitted-history adapter is retained; the continuous export described below connects a
 second source to the same reader. Raw-vacuum semantic qualification remains separate work. These engineering changes establish no market edge.
@@ -191,7 +192,16 @@ exporting an increment and use build-plan `origin_interval_s` with v2 to choose 
 origins. Source accounting stays attached to parent snapshot pins and is not summed when parents
 share inputs. Location hints live in build journals; relocating a pinned source does not change
 the new dataset identity. `replicate` publishes a destination snapshot only after its objects are
-copied, fsynced and verified. Root metadata is still O(partitions), not an unbounded-memory claim.
+copied, fsynced and verified.
+
+New snapshots with more than 1,024 partitions use immutable catalog pages of at most 1,024 entries.
+The root pins page identities/counts; each page pins feature objects. Readers cache at most two
+catalog pages. Small and historical inline manifests remain supported. New object paths use a
+SHA-prefix directory, with a fallback for old flat locations; build journals group ordinal records
+into directories as well. Writers/composition flush page metadata incrementally. Root metadata
+and the large-snapshot sampler are O(catalog pages), with O(page size) partition ordering, rather
+than materializing all partition dictionaries or a full partition permutation. Metadata is still
+not constant-size, and explicitly converting an iterator to a list is the caller's responsibility.
 
 Relevant implementation: `src/memecoin_ai/{sources,storage,collection,observations,datasets}.py`,
 `src/memecoin_brain/{source,data}.py`, `src/memecoin_brain_sources/`, `src/memecoin_continuous/`,

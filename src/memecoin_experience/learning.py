@@ -72,18 +72,53 @@ def recipe(config):
     return c
 
 
+def partition_indices(snapshot, seed, epoch, start=0):
+    """Page/partition permutation: bounded metadata and sequential catalog-page consumption."""
+    if "partition_pages" not in snapshot.manifest:
+        order = list(range(len(snapshot.parts)))
+        if seed is not None:
+            random.Random(f"{seed}:{epoch}:partitions").shuffle(order)
+        yield from enumerate(order[start:], start)
+        return
+    pages = snapshot.manifest["partition_pages"]
+    order = list(range(len(pages)))
+    if seed is not None:
+        random.Random(f"{seed}:{epoch}:catalog-pages").shuffle(order)
+    position = 0
+    for page_index in order:
+        count = pages[page_index]["count"]
+        if position + count <= start:
+            position += count
+            continue
+        begin = snapshot.parts.ends[page_index - 1] if page_index else 0
+        indices = list(range(begin, begin + count))
+        if seed is not None:
+            random.Random(f"{seed}:{epoch}:{pages[page_index]['pin']}:partitions").shuffle(indices)
+        for local in range(max(0, start - position), count):
+            yield position + local, indices[local]
+        position += count
+
+
 def batches(snapshot, plan, role, batch, *, seed=None, epoch=0, cursor=(0, 0), with_metadata=False):
     """Permutation of partitions then rows: exactly once per role per epoch, bounded payload."""
-    order = list(range(len(snapshot.parts)))
-    if seed is not None:
-        random.Random(f"{seed}:{epoch}:partitions").shuffle(order)
     xs, ys, ms, ids = [], [], [], []
 
     def packed(next_cursor):
         return np.concatenate(xs), np.concatenate(ys), np.concatenate(ms), ids, next_cursor
 
-    for position in range(cursor[0], len(order)):
-        index = order[position]
+    intervals = {
+        "train": (plan["train_start_s"], plan["train_end_s"]),
+        "validation": (plan["train_end_s"], plan["validation_end_s"]),
+        "test": (plan["validation_end_s"], plan["test_end_s"]),
+    }
+    if role not in intervals:
+        raise ValueError("experience_batch_role")
+    start_ns, end_ns = (t * 10**9 for t in intervals[role])
+    for position, index in partition_indices(snapshot, seed, epoch, cursor[0]):
+        extent = snapshot.parts[index].get("bounds")
+        if extent and (extent["last_ns"] < start_ns or extent["first_ns"] >= end_ns):
+            # Authenticated bounds exclude payloads that this role cannot use.
+            continue
         path, rows = snapshot.partition(index)
         chosen, masks = [], []
         for i, row in enumerate(rows):
@@ -124,7 +159,7 @@ def batches(snapshot, plan, role, batch, *, seed=None, epoch=0, cursor=(0, 0), w
                 xs, ys, ms, ids = [], [], [], []
         del x, y
     if ids:
-        yield packed((len(order), 0))
+        yield packed((len(snapshot.parts), 0))
 
 
 def prepare(snapshot, plan, output, batch):
@@ -201,7 +236,11 @@ def prepare(snapshot, plan, output, batch):
         population=dict(population),
         denominators=dict(denominators),
         normalization="train_usable_decision_frames_population_variance",
-        sampling="uniform_usable_origin_once_per_epoch_partition_shuffle",
+        sampling=(
+            "uniform_usable_origin_once_per_epoch_catalog_partition_row_shuffle"
+            if "partition_pages" in snapshot.manifest
+            else "uniform_usable_origin_once_per_epoch_partition_shuffle"
+        ),
         loss="macro_mean_of_observed_horizon_pinball_means",
     )
 
