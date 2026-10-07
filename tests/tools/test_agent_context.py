@@ -20,12 +20,12 @@ def run_packet(*args: str) -> str:
 
 def test_profiles_are_scoped_and_known() -> None:
     expected = {
-        "operator": "docs/brain-operator-manual.md",
-        "data": "memory/data-and-execution.md",
-        "ml": "memory/evaluation.md",
-        "architecture": "memory/architecture.md",
+        "operator": "docs/operator-runtime.md",
+        "data": "docs/brain-source-architecture.md",
+        "ml": "docs/training-evaluation.md",
+        "architecture": "docs/brain-development.md",
         "review": "docs/contracts.md",
-        "docs": "memory/README.md",
+        "docs": "docs/INDEX.md",
     }
     for task, source in expected.items():
         packet = run_packet("--task", task)
@@ -38,7 +38,7 @@ def test_packet_contains_git_and_context_map() -> None:
     packet = run_packet("--task", "operator")
     assert "## Git status" in packet
     assert "memory/now.md" in packet
-    assert "docs/brain-operator-manual.md" in packet
+    assert "docs/operator-runtime.md" in packet
     assert len(packet) <= 24_200
     assert (ROOT / "AGENTS.md").read_text() in packet
     assert (ROOT / "memory/now.md").read_text() in packet
@@ -47,4 +47,4 @@ def test_packet_contains_git_and_context_map() -> None:
 def test_query_is_limited_to_selected_sources() -> None:
     packet = run_packet("--task", "operator", "--query", "sleep recovery")
     assert "Search excerpts (profile sources only)" in packet
-    assert "memory/decisions.md:" not in packet
+    assert "memory/evaluation.md:" not in packet

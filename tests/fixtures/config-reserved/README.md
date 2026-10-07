@@ -1,11 +1,11 @@
-# Real unsupported config captures, 2026-10-02
+# Unsupported Config Captures
 
-Original Solana public RPC getMultipleAccounts responses, HTTP 200 / finalized.
-Clock.slot equals context.slot in both. Existing strict decoder rejects nonzero
-reserved AmmConfig word at offset 116, value 50000; economic meaning unknown.
+Original finalized public Solana RPC `getMultipleAccounts` responses. In both, Clock.slot equals
+context.slot. The strict decoder rejects a nonzero reserved AmmConfig word at offset 116 with
+value 50000; its economic meaning is unknown.
 
-- token2022: work/prospective-public-coherent-01/segments/000/corpus/captures/000
-- classic: work/coherence-classic-probe-01/000
+- Token-2022: `work/prospective-public-coherent-01/segments/000/corpus/captures/000`
+- Classic: `work/coherence-classic-probe-01/000`
 
-Do not normalize padding, substitute older config, or infer a fee model. Public
-on-chain accounts only; exact requests/receipts/raw hashes preserved, no endpoint key.
+Do not normalize padding, substitute an older config, or infer a fee model. Public on-chain data
+only; exact requests, receipts, and raw hashes are preserved. No endpoint key is included.

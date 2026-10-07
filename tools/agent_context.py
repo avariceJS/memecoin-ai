@@ -14,34 +14,12 @@ MAX_FILE_CHARS = 5_000
 MAX_PACKET_CHARS = 24_000
 
 PROFILES: dict[str, tuple[str, ...]] = {
-    "operator": (
-        "docs/brain-operator-manual.md",
-        "docs/brain-autonomous-operator.md",
-    ),
-    "data": (
-        "memory/data-and-execution.md",
-        "docs/brain-training-expansion-results.md",
-    ),
-    "ml": (
-        "memory/evaluation.md",
-        "memory/research.md",
-        "docs/brain-training-expansion-results.md",
-    ),
-    "architecture": (
-        "memory/architecture.md",
-        "memory/project.md",
-        "docs/brain-autonomous-operator.md",
-    ),
-    "review": (
-        "memory/now.md",
-        "memory/decisions.md",
-        "docs/contracts.md",
-    ),
-    "docs": (
-        "memory/now.md",
-        "memory/README.md",
-        "memory/changes.md",
-    ),
+    "operator": ("docs/operator-runtime.md", "docs/contracts.md"),
+    "data": ("docs/brain-source-architecture.md", "docs/contracts.md"),
+    "ml": ("docs/training-evaluation.md",),
+    "architecture": ("docs/brain-development.md", "docs/brain-source-architecture.md"),
+    "review": ("docs/contracts.md", "docs/training-evaluation.md"),
+    "docs": ("docs/INDEX.md", "docs/evidence/README.md"),
 }
 
 
@@ -50,7 +28,7 @@ def _read(path: Path, limit: int | None = MAX_FILE_CHARS) -> str:
         return f"[missing: {path.relative_to(ROOT)}]"
     content = path.read_text(encoding="utf-8")
     if limit is not None and len(content) > limit:
-        return content[:limit] + f"\n[…обрезано; полный файл: {path.relative_to(ROOT)}]"
+        return content[:limit] + f"\n[…truncated; full file: {path.relative_to(ROOT)}]"
     return content
 
 
@@ -78,7 +56,7 @@ def _query_snippets(query: str, paths: tuple[str, ...], limit: int = 8) -> str:
                 found.append(f"### {rel}:{index + 1}\n{excerpt}")
                 if len(found) >= limit:
                     return "\n\n".join(found)
-    return "\n\n".join(found) or "Совпадений в выбранных источниках нет."
+    return "\n\n".join(found) or "No matches in the selected sources."
 
 
 def build_packet(task: str, query: str | None = None) -> str:
@@ -86,8 +64,8 @@ def build_packet(task: str, query: str | None = None) -> str:
         raise ValueError(f"unknown task profile: {task}")
     sources = ("AGENTS.md", "memory/now.md", *PROFILES[task])
     chunks = [
-        f"# Контекст задачи: {task}",
-        "Сводка — навигация; критические решения сверяйте с первичными документами/evidence.",
+        f"# Task context: {task}",
+        "This packet is navigation. Verify critical claims against the owning source and receipt.",
         "## Git status\n" + _git("status", "--short", "--branch"),
         "## Recent commits\n" + _git("log", "-5", "--oneline", "--decorate"),
     ]

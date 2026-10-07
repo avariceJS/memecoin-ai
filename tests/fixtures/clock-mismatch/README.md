@@ -1,10 +1,10 @@
-# Real rejected Helius responses, 2026-10-02
+# Rejected Clock-Mismatch Captures
 
-Unmodified captures from prospective campaigns, exact receipt/request/response hashes.
-Public on-chain accounts only; no endpoint/key. Both HTTP 200, no JSON-RPC error.
+Unmodified public on-chain captures from prospective campaigns, with exact request/receipt/
+response hashes. Both responses were HTTP 200 with no JSON-RPC error.
 
-- first: campaign-01 segment 000 attempt 048, context 452681508, Clock 452681509.
-- second: campaign-02 segment 000 attempt 067, context 452682339, Clock 452682340.
+- Campaign 01, segment 000, attempt 048: context slot 452681508, Clock 452681509.
+- Campaign 02, segment 000, attempt 067: context slot 452682339, Clock 452682340.
 
-Existing strict decoder rejects both. Root cause at provider unknown. These fixtures
-must never be normalized into matching bank IDs or admitted as valid observations.
+The strict decoder rejects both. The provider-side cause is unknown. Never normalize these into
+matching bank IDs or admit them as valid observations.

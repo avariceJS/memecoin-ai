@@ -1,11 +1,11 @@
-# Реальный Helius getTransaction с обрезанным trace
+# Truncated Helius `getTransaction` Trace
 
-Неизменённые response/receipt из `work/helius-trace-probe-01/capture`, mainnet
-slot 452408962, получены 2026-10-02. Request: finalized, jsonParsed, max version 1.
-Manifest содержит hashes. Endpoint/key отсутствуют в capture.
+Unmodified response/receipt from `work/helius-trace-probe-01/capture`, mainnet slot 452408962,
+collected 2026-10-02. Request was finalized, `jsonParsed`, max transaction version 1. Manifest
+contains hashes. Endpoint and key are absent.
 
-В logMessages есть точный runtime marker `Log truncated`. Этот ответ подтверждает
-необходимость отдельного completeness guard даже при одинаковых responses.
-Он не является полным trace и не доказывает независимое agreement. Полный первичный
-getBlock вне Git: `work/helius-range-01/blocks/000-reference`; tx index 433.
-Не создавать getTransaction capture из извлечения этой транзакции из блока.
+The logs contain the exact runtime marker `Log truncated`. This response shows why a completeness
+guard is required even when responses match. It is not a complete trace and does not prove
+independent provider agreement. The full primary `getBlock` is outside Git at
+`work/helius-range-01/blocks/000-reference`; transaction index 433. Do not create a
+`getTransaction` capture from that extracted transaction.

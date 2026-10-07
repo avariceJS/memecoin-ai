@@ -1,185 +1,98 @@
-# Implemented contracts and validity domain
+# Shared Contracts and Validity Boundaries
 
-## B10 — восстановление paper внутри прежних bounds, 2026-10-04
+This is the canonical owner for cross-cutting data, replay, training, and artifact invariants.
+Domain-specific behavior belongs in the architecture, data, training/evaluation, or operator docs.
 
-B09 source/audit не менялся. B09 paper STOP сохранён; отдельный B10 exact migration не
-обнуляет ledger/cash/model namespaces/training budget/soak. Причина старого supervisor_guard
-не установлена. Automatic paper recovery только внешний SIGKILL/SIGTERM при worker_failed,
-≤2 за migration lineage и cooldown60s с full replay/projection audit. Unknown guard,
-integrity/deadline и training failures остаются STOP; старый неизвестный отказ этот retry
-механизм не обходит. Новые candidates допускаются после completed sealed run и отдельного
-atomic ready marker. Source budgets/expiry и F01/D43/holdout прежние. Weekly activation нет.
-[Текущий runbook](brain-operational-recovery.md). Ниже исторические этапы.
+## Time and availability
 
-## B09 — активный bounded hot-paper runtime, 2026-10-04
+- Normalize timestamps as integer UTC nanoseconds; this is an encoding, not nanosecond accuracy.
+- `event_ns` orders a market event, `received_ns` records transport receipt, and `available_ns`
+  determines whether a model could use it. Keep `decision_ns`, prediction publication, and label
+  maturity separate as well.
+- Block time is not receipt time. Backfilled history is not retroactively available to a past
+  forecast.
+- Preserve observed, assumed (with a named assumption), and unknown as separate states.
+- An observation later than the decision cannot enter features, scaler fitting, or label selection.
 
-B09source qualification пройдена; approval связан сconfig/runtime/report hashes.72h/25kGET,
-background≤4k,global≤5/min,paid0. Hot6 приобщемuniverse24; paperfresh300s/policy/costs прежние.
-B07ledgerprefix/cash сохранены; checkpoint не заменяетimmutableledgerиfullreplay. Новаяsource
-activation не снимаетстарыеB04/B08STOPи не открываетF01/D43/holdout. [Runbook](brain-hot-lane.md).
-РазделB08ниже — предыдущийотрицательныйрезультат,не текущийproductstatus.
+## Identity, revisions, and storage
 
-## B08 continuity capability — не deployed weekly service
+- Raw bytes and receipts are immutable and content-addressed. Corrections create new versions;
+  they do not rewrite the first-seen value.
+- Canonical IDs deduplicate exact repeated observations. Conflicting records reject/ quarantine
+  rather than silently overwrite.
+- A sealed bundle manifest binds record hashes, source/code/schema identity, and membership.
+  A matching hash proves byte identity, not source truth, coverage, or honest provider behavior.
+- SQLite is a local transactional metadata/journal store with one canonical writer. It is not a
+  full-chain event store. Read live WAL through a consistent read snapshot; do not mark it
+  immutable or copy the database without its WAL state.
+- Keep secrets, API keys, and credentials out of Git, raw summaries, logs, and task packets.
 
-Source root B08 содержит отрицательный qualification gate и STOP; запуск plists/cutover
-не разрешён этим результатом. B04 STOP не снимать. Работающий B07 UI/accounting показывает
-паузу источника. Derived SQLite не заменяет raw provenance; migration tests не означают
-реальную migration. Новые costs/features/targets/ML winner в B08 не вводились.
-[Актуальный итог и ограничения](brain-continuity.md).
+## Missing data, admission, and splits
 
-## B07: отдельный виртуальный paper контракт
+- Missing bars, unsupported protocols, stale observations, failed requests, and immature labels
+  retain explicit reasons and denominators; none means a zero return.
+- Raw capture, decoded event, feature-ready origin, mature label, training admission, and execution
+  qualification are different gates.
+- A feature/target row may enter a training role only if every input was available by the fit
+  cutoff and all target outcomes matured within their assigned interval.
+- Purge complete target and feature dependencies across split boundaries. Keep train-only scaler
+  fitting and record source membership, pool/mint identity, and exposure.
+- Failed/unsupported markets remain in the original enrollment denominator; do not replace them
+  after observing their outcomes.
+- Protected F01/D43 and reserved holdout are out of scope: do not read, mutate, relabel, or train on
+  them from this exploratory Brain track.
 
-Новая явная авторизация пользователя разрешает live paper/shadow, но не реальные сделки.
-`memecoin_paper` использует causal GT price bars, последующую доступную цену, Decimal
-accounting и immutable ledger; costs являются неподтверждённым assumption. Это отдельный
-exploratory product loop, не расширение synthetic reference replay gate или venue support.
-CPMM/F01/D43/holdout неизменны. [Полные правила и ограничения](brain-paper-loop.md).
+## Synthetic replay and real market data
 
+`ReferenceCPMM` and `ReferenceReplay` are synthetic engineering references. They are not a live
+Raydium adapter or market-edge evidence. The bounded real CPMM decoder has a narrower validity
+domain and does not generalize to CLMM/DLMM venues.
 
-## Time and observations
+Use integer asset atoms and explicit quote denomination at validated boundaries. Do not silently
+convert WSOL/USDC to USD. Token-2022 extension type IDs may be inventoried while semantics remain
+unsupported; unknown transfer fees, hooks, withheld amounts, configs, and account layouts fail
+closed. A pinned public IDL is a schema reference, not proof of deployed binary equivalence.
 
-All normalized clocks are integer UTC nanoseconds. This is an encoding, not a claim of nanosecond source accuracy. `event_ns` orders market changes; `available_ns` gates observations; `received_ns` is receipt evidence. `observed`, `assumed` with a named assumption, and `unknown` are distinct. Historical block time must never be substituted for receipt time.
+On-chain provider agreement is not independence if providers share upstream data. A confirmed
+transaction or vault balance is not a quote, counterfactual fill, or historical receipt timestamp.
+Venue execution, fees, latency, inclusion, and failure behavior require separate evidence.
 
-Events are immutable canonical JSON with schema version 1. IDs deduplicate identical observations; a conflicting ID aborts the ingest transaction. Corrections need new events with explicit effective ordering, not silent overwrite. A late older pool update cannot rewind the observation book. Observation snapshots are immutable, and never expose the truth book. Gap ingestion disables trading until reconstruction from a verified checkpoint. General chain fork/reorg reconciliation is not implemented.
+## Paper ledger and risk
 
-## Storage
+Paper uses Decimal accounting and explicit virtual cash/positions. Fills bind to a fresh observation
+available after decision; intents are not fills. Ledger reservations prevent double spending;
+settlement is atomic and tied to original intent/assets. Preserve ledger prefix and cash through
+recovery/migration; never reset a book to make a result look clean.
 
-SQLite is a local transactional reference journal, not a full-chain ingestion database. Raw blobs are content addressed. Dataset bundles contain canonical JSONL, required raw provenance blobs and a checksummed manifest. Export does not establish coverage or source honesty. The bundle identity hashes the manifest; record it in run provenance. The reference implementation loads bundles into memory; large dataset streaming/Parquet is a future measured extension.
+The current paper slippage/fee values are assumptions, not calibrated execution. Stale/unsupported
+observations cannot close positions at invented prices. A conservative mark is not proof of exit.
+Paper PnL cannot authorize real trades. No signing/submission or real-money execution is in scope.
 
-## Synthetic execution only
+## Features, models, and scoring
 
-`ReferenceCPMM` is a mathematical constant-product example, NOT a Raydium or other Solana adapter. Pool reserves, balances, inputs and fees are integer asset atoms. All pools in one reference replay use one explicit quote asset; decimal conversion belongs at validated ingest/display boundaries. Quote currency also pays the synthetic network fee. A SOL-quoted reference does not implement USDC-denominated gas conversion.
+`Features` and `Target` are separate immutable objects. `Forecaster.predict` takes no target.
+Training examples require labels available by their cutoff. Preserve target definition, horizon,
+pool/origin identity, quantile order, censoring reason, and model hash in scoring.
 
-Only synthetic events can enter `ReferenceReplay`. No live transaction signing/submission exists. Multi-route execution, token extensions, venue-specific fee splits/rounding and calibration are absent. Unsupported mechanisms fail explicitly.
+Pinball and coverage are forecast metrics, not execution metrics. Report per horizon and relevant
+market strata; pooled means can hide offsetting biases. Overlapping origins are dependent. Any
+uncertainty estimate must resample valid time/mint blocks and state the support; iid rows are not
+an independence claim.
 
-At a tied timestamp: market updates (sequence order), observation arrivals, due executions, then decisions. Decisions always have positive execution latency. The policy receives only `Observation` and immutable `Portfolio`; execution receives current truth. End-of-run orders that cannot resolve are rejected before submission.
+Candidate selection and promotion are distinct. Keep the official champion as a frozen baseline.
+An immutable candidate, a successful fit, a future exam, or a paper score does not automatically
+change the champion. No promotion gate may be bypassed or weakened to admit a candidate.
 
-Reference pool fee = ceil(input * fee_bps / 10000), retained in input reserves. Output rounds down. Included failures charge the configured network fee; drops and pretrade rejections do not. Outcomes are seeded synthetic scenarios, not empirical estimates. An out-of-domain participation violation invalidates the replay, rather than inventing a real execution failure.
+## Run and release provenance
 
-Historical snapshots overwrite pool state, including previous own impact. This is explicitly limited by both per-order and cumulative input/reserve participation budgets; the latter never resets. This restriction does not make market counterfactuals accurate. A venue simulator must revisit this assumption.
+Each training/research output uses a new reserved directory and records code/data/config/split/
+seed/recipe identity, environment, actual draws/compute, failures, result hashes, and completion
+status. Failed or partial attempts remain visible and cannot be published as completed candidates.
+Never overwrite sealed runs or dataset snapshots.
 
-## Portfolio and risk
+Runtime release pins the exact source/runtime manifest. Validate host ownership, jobs/exams,
+champion, source lease, deployment pointer, and health at the owner before a switch. Worker checkout
+does not imply release permission or production state.
 
-Ledger reservations prevent double spending. Settlement is atomic, bound to the original intent and asset identities, and cannot exceed reserved debits. The reference engine serializes pending orders globally. That is a conservative limitation, not the eventual portfolio architecture.
-
-Risk checks run on observed information: freshness, quote currency, order/position/total exposure and input participation. Exposure checks use observed reserve ratios as conservative sizing references, not as liquidation valuations. Market changes after submission can move exposure beyond a pretrade limit; limits are not a guarantee against loss. Portfolio target-to-intent conversion is separate from policy and risk. Integer swap rounding may overshoot requested base units slightly; risk checks use the resulting quote. HOLD means current units, not constant portfolio weight.
-
-Valuation uses hypothetical executable exit proceeds minus exit network fee. It never adds those proceeds to actual balances. Without gas, a supported pool or a positive exit quote, the asset is reported as unpriced and valued at zero in the conservative mark. Final inventories remain explicit; there is no automatic profitable terminal liquidation. The mark is not evidence that an exit would succeed.
-
-## Supervised research boundary
-
-`Features` and `Target` are separate immutable objects. `Example` joins them for offline training/scoring only; `Forecaster.predict` never accepts targets. `TrainingSet` requires labels to be available by its cutoff. Walk-forward splits purge labels crossing the next test start or arriving after fit time. The included standardizer fits only the supplied training set; this does not replace correct fold construction.
-
-The flat `Features` path and unconditional empirical distribution are reference implementations. They do not choose a neural backbone, representation or final label. Event/sequence/graph encoders and PyTorch training loops can use their own batch representation behind separate adapters; they must preserve the same availability and cutoff semantics. No neural model or profitable strategy is claimed.
-
-Missing outcomes carry an explicit censoring reason. The empirical baseline refuses to silently drop censored rows. Forecasts carry target definitions and reject crossing quantiles. Pinball scoring checks identity and definition. Moving-block bootstrap requires ordered inputs and an explicit block size; it does not correct all selection bias or validate stationarity.
-
-## Runs and promotion
-
-CLI configs are strict TOML with explicit synthetic execution assumptions and risk limits. `scripted_fixture` is a test driver with prespecified actions, not a proposed trading strategy. No hyperparameters are tuned to improve the fixture PnL; the example loses money.
-
-Each run reserves a new directory, records dataset identity, resolved configuration, source hash, Git status and environment, then writes results, checksums and completed/failed status. Existing runs cannot be overwritten. Failed runs remain visible. A dirty checkout is recorded rather than pretending to be the last commit. Completed run verification checks integrity, not economic validity. Promotion requires separate real-OOS, execution-calibration, frozen-protocol, paper and risk evidence; a synthetic run cannot supply these.
-
-## Reference sampling
-
-`observation_stream` reconstructs the information set using arrival order and rejects unknown availability. `pool_features` uses only visible, fresh and tradable pool state; the universe is discovered from past observations. `reference_examples` labels the change in the **observed reserve ratio** after an explicit horizon. It is not a realized or executable return and is intended for pipeline tests. Target coverage end is an explicit caller assertion that must come from a qualified manifest for real research; timestamp bounds alone do not establish coverage. Missing/untradable/stale endpoints remain censored, not dropped. Snapshot history and targets stay outside the policy interface.
-
-Source snapshots are saved with each run, including dirty code. The `run --repo` checkout must match the code actually imported (editable or installed), so a Git hash cannot be borrowed from a different checkout. Bundle publication reserves a destination exclusively and publishes its manifest last; interrupted bundles fail validation. Hashes protect against accidental mutation, not an adversary who edits artifacts and recomputes hashes.
-
-## Real CPMM qualification boundary
-
-`raydium.py` decodes a pinned public PoolState/AmmConfig layout. No claim equates that
-source revision with the deployed binary. Full pool/config/vault/mint checkpoints come
-from one finalized getMultipleAccounts response. The preceding pool lookup only discovers
-addresses. minContextSlot is a lower bound; it does not request historical account state.
-Context slot is a bank checkpoint, not account modification time; receipt time describes
-raw HTTP availability, not a backfilled historical feature's availability.
-
-The strict reserve decoder accepts only classic SPL Token accounts/mints of exact sizes.
-Token-2022 structural inventory preserves extension type IDs and lengths, including unknown
-IDs, while leaving payload semantics uninterpreted and execution unqualified. It is not a
-shortcut around transfer fees, hooks, confidential balances or restrictions. Mint/freeze
-flags, pool status and open time are facts, not automatic permission to trade.
-
-The bounded qualifier accepts parsed transaction versions legacy/0/1 and discovers CPMM
-swap calls at top level and CPI. It records failed/unavailable/unsupported samples. A latest
-signature sample is activity-selected, not a point-in-time memecoin universe. Vault flow
-reconciliation compares parsed SPL transfers against pre/post token metadata from the SAME
-provider; it is neither independent-source corroboration nor swap-price validation. It does
-not reconstruct historical pool fee counters or all intervening state. Unknown extensions,
-failed transactions, missing balances and unknown layouts are never convenient zero returns.
-
-No qualification command removes ReferenceReplay's synthetic-only gate. Outputs can be
-reproduced offline from captures; hashes detect accidental corruption, not a malicious
-provider or an adversary rewriting every checksum. Raw responses are bounded in memory;
-this is a source audit tool, not a continuous collector or full-chain throughput benchmark.
-
-New qualification specs include hashes of the local decoder/source/contract implementation.
-Older retained captures predate this field: verification reports fingerprint_recorded=false
-and matches_recorded=false while still reproducing their outputs. Missing hashes are never
-retroactively invented. Raw historical arrival times likewise remain unknown.
-
-## Durable collection pilot
-
-`collection.py` owns a fixed-cohort WAL journal and atomic scan cursors; `reconciliation.py`
-replays classic SPL vault amounts between adjacent finalized banks. The raw capture is stored
-before parsing, and cursor/work transition is atomic. Recovery never rewrites an old receipt.
-Missing transaction or block order remains pending even when every signature page is fetched.
-See [pilot contract and measurements](forward-pilot.md) for provider-index and full-state limits.
-Pilot writing uses a Unix file lock (tested on macOS; CI on Linux). Audits read a consistent
-SQLite transaction, and exported backups are checksummed alongside the auditor's source.
-
-## CPMM economic transitions
-
-`cpmm.py` is a pinned Raydium classic-SPL integer model, separate from `ReferenceCPMM`.
-`protocol.py` reconstructs vaults, six excluded-fee counters and internal LP supply.
-CPI depth and runtime logs attribute events/transfers; event amounts are assertions,
-not state inputs or endpoint repairs. Unknown operations fail the interval. Quote matches
-are conditional on checkpoint configuration and provider index completeness. Oracle,
-recent_epoch, Token-2022, admission and future inclusion are outside this contract.
-`audit-protocol` keeps execution/dataset qualification false. Supported vs empirically
-verified operations and reproducibility are specified in [protocol audit](protocol-audit.md).
-
-## Allowlisted Token-2022 checkpoints
-
-Schema 2 is opt-in per pilot and reads Clock with the six pool accounts. Mint extensions
-1/18/19 and vault extensions 2/7 are supported; unknown transfer restrictions fail closed.
-Gross input, net reserve credit, pool fees, gross output and net recipient amount are
-separate quantities. Vault amount already excludes withheld; the latter is reconstructed
-as a separate accumulator and compared at endpoints. Epoch/base-mint/config changes
-block an interval; captured older/newer schedules never use the collector's current epoch
-for historical transactions. Harvest-to-mint resets the tracked vault accumulator in invocation order; mint-wide totals,
-direct withheld withdrawals and user account admission remain unsupported.
-Full contract: [Token-2022](token2022.md). Six-account schema 1 decoding is unchanged.
-
-## Parameter history coverage
-
-Config/mint history is explicit opt-in. Captured epoch schedule is anchored to both
-checkpoint Clocks; endpoint matches never reconstruct intermediate tariffs. Full-block
-and bounded-range recovery preserve their distinct raw provenance. A completed pending
-queue is not an audit proof. Event-conditioned LP witnesses never qualify a historical
-dataset. See [parameter history](parameter-history.md) for the current contract/evidence.
-
-## Bounded Alchemy snapshot-trigger pilot (D40)
-
-WSS is a raw hint channel, never a source of atomic pool snapshots. Every account
-observation still passes the existing finalized HTTP/Clock/profile2 decoder and CausalBook.
-Subscription acknowledgements precede anchors; unresolved gaps reset history. Raw receipts
-are never backdated. There is no proof of complete intermediate writes or historical
-recovery from accountSubscribe. The v1 load/quality criterion failed; existing primary
-collector remains unchanged. See [D40 report](alchemy-pilot.md) for measured scope,
-source-pinned reproduction, queue/frame bounds, restart semantics and limitations.
-
-## B13: локальный operator control plane
-
-`memecoin_operator` добавляет localhost UI/API и durable команды поверх независимого
-Brain Development track. Scientific contracts описаны в
-[brain-autonomous-operator.md](brain-autonomous-operator.md); действия пользователя — в
-[brain-operator-manual.md](brain-operator-manual.md). Это не изменение frozen F01,
-canonical raw PumpSwap, execution/signing или synthetic-only reference replay.
-
-Команда хранится до side effects; request id идемпотентен. Неуспешные training reservations
-расходуют allowance. Published dataset/model имеют immutable manifest/hash. Stop intent
-и подтверждённое выключение различаются; неуспешный Stop all блокирует Resume до ACK.
-Неизвестные integrity errors не снимаются автоматически. Новые source/runtime revisions
-не изменяют исходные STOP, expiry, incidents, sealed artifacts и paper cash/PnL.
+For implementation contracts, read the owning package and tests. This document records invariants,
+not a substitute for source-level interface review.
