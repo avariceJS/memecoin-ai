@@ -25,7 +25,9 @@ plan limits have not been audited in this repository.
   1,024, one final partial), approximately 214 MiB peak RSS. No million-origin optimizer fit or
   market-edge claim. CUDA has an acceptance test but remains unqualified on this Mac.
   Completed Kimi/GLM code reviews were adjudicated; recovery/statistics and metadata-role pinning
-  defects are fixed. Grok code-review attempts timed out and are not counted as acceptance.
+  defects are fixed. Grok code-review attempts produced no completed acceptance; the user
+  discontinued Grok. Further external checks use Eliza only. Final GLM review of current
+  training/storage code and recovery tests completed with no blockers.
 
 - The status snapshot was read from code base `b3bb5e3350d8ae8b713ae034f0556289997fb0ec`; the evidence receipt is `docs/evidence/brain-handoff-status-2026-10-07.json`.
 - Owner Mac 1 read-only status at 2026-10-07 17:16:36 UTC: revision 33, paused/paused,

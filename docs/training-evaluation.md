@@ -262,7 +262,12 @@ the review. Kimi's default `max` reasoning required a larger budget; finalizatio
 supported `low` setting returned complete answers. No secrets or protected market data were sent.
 Grok 4.7 High previously returned useful generic design reviews, but four actual-code review
 attempts timed out (two large packets, two single-file packets); those are not counted as reviews.
+Two later `grok-4.7-high-fast` file-tool attempts were cancelled when the user discontinued Grok;
+neither produced a completed review. Further external verification uses Eliza only.
 Qwen's partial answer is likewise not counted as completed code acceptance. No helper edited code.
+A final GLM 5.3 review of the current `learning.py`, `storage.py` and recovery tests completed
+with `finish_reason=stop` and found no blockers. Its batch/cursor and publication arguments were
+checked against the code and local regression results; source review is not CUDA acceptance.
 
 Integrator-verified findings and fixes: Kimi identified unsafe NumPy scalar metadata in post-epoch
 checkpoints and statistics not authenticated before the first checkpoint. Both were reproduced
