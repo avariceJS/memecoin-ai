@@ -207,3 +207,53 @@ def test_continuation_preserves_roster_expiry_and_charges_prefix(tmp_path):
     seal(root)
     with pytest.raises(ValueError, match="incomplete_prefix"):
         tool.continuation_plan(root)
+
+
+def test_new_envelope_reporting_requires_exact_sealed_roster_suffix(tmp_path):
+    c, b = fixture(tmp_path)
+    _, result = qualify_window(c, b, 3)
+    first = tmp_path / "first"
+    for directory in ("frozen", "requests", "results"):
+        (first / directory).mkdir(parents=True)
+    shutil.copytree(c, first / "requests/000000")
+    publish(first / "results/000000.json", result)
+    old = dict(
+        cases=[b],
+        expires_ns=12345,
+        jobs=[dict(birth=b, days=d) for d in (3, 10)],
+        age_semantics="synthetic",
+    )
+    publish(first / "frozen/plan.json", old)
+    publish(first / "result.json", dict(requests=1))
+    seal(first / "frozen")
+    seal(first)
+    new = tmp_path / "new"
+    for directory in ("frozen", "requests", "results"):
+        (new / directory).mkdir(parents=True)
+    plan = dict(
+        old,
+        guard_kind="retired_owner_research_v1",
+        jobs=old["jobs"][1:],
+        created_ns=12346,
+        expires_ns=99999,
+        original_expiry_ns=12345,
+        original_roster_sha=sha(first / "frozen/plan.json"),
+        prior_envelopes=[
+            dict(path="/other-host/first", sha=sha(first / "manifest.json"), requests=1)
+        ],
+    )
+    publish(new / "frozen/plan.json", plan)
+    publish(new / "result.json", dict(requests=0))
+    seal(new / "frozen")
+    seal(new)
+    report = tool.report_campaigns([first, new], tmp_path / "report")
+    assert report["attempted_windows"] == 1
+    assert not report["complete_benchmark_ready"]
+    plan["jobs"] = old["jobs"]
+    (new / "frozen/plan.json").write_text(json.dumps(plan))
+    (new / "frozen/manifest.json").unlink()
+    (new / "manifest.json").unlink()
+    seal(new / "frozen")
+    seal(new)
+    with pytest.raises(ValueError, match="new_envelope_binding"):
+        tool.report_campaigns([first, new], tmp_path / "wrong")

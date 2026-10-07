@@ -1,5 +1,15 @@
 # Данные и достоверное исполнение
 
+## 2026-10-07 — research cold-transfer завершён отдельно от production
+
+Исходный20mint roster40/40GET,2020uniqueUSD5minbars,453eligibleorigins/6mint/29global
+dependency-disjointwindows. Age7–10d support0,largestmint71.08%; это descriptive development,
+не training илиfuturebenchmark. Rawreceiptorder/namespace/mintbinding и15barinput+targets
+проверены независимо наMac2, gaps неfill. Новый31GETsuffix послеownerexpiry выполнен
+через отдельный finite research envelope: exact-roleconsumer guard, readonlyownerfence,
+sharedresearchlease/prior debit. SourceSTOP/leases/configs/AUTO/champion неменялись.
+[Evidence/ограничения](../docs/brain-research-envelope-2026-10-07.md).
+
 ## 2026-10-06 — birth-selected USD admission квалифицирован
 
 Sealed corpus01:17825bars/62eligiblepools/7987decisions; после merge86actualtrainpools.

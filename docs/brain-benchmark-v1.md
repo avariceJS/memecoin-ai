@@ -1,10 +1,11 @@
 # Brain benchmark v1: development, calibration, prospective
 
 Дата: 2026-10-07. Статус: контракт и metadata preflight реализованы; реальный широкий
-benchmark НЕ наполнен. Production/champion/AUTO не менялись. Получен частичный cold-transfer
-prefix:9GET,2supportedmints/38origins/3disjointwindows; futurepackets по-прежнему отсутствуют.
-Boundeddata design, actual STOPs и текущие ограничения:
-[development acquisition](brain-development-acquisition-2026-10-07.md). Historicalcold-mint
+benchmark НЕ наполнен. Production/champion/AUTO не менялись. Cold-transfer roster завершён:
+40GET,6supportedmints/453origins/29globaldisjointwindows; age7–10d support0,71.08%origins
+одногоmint. Futurepackets по-прежнему отсутствуют. Новый bounded research envelope работает,
+но не квалифицирован для unattended acquisition:
+[research result](brain-research-envelope-2026-10-07.md). Historicalcold-mint
 transfer — отдельныйdescriptivedevelopmenttrack, незаменаstrictchronological/futurestages.
 
 ## Что уже есть, а чего нет

@@ -4,6 +4,13 @@
 Решение: сначала populate development, clipping исследовать после qualification. Production,
 champion, AUTO, training recipe и promotion gates не менять.
 
+Позднейшее уточнение 2026-10-07: после source/exam expiry квалифицирован отдельный research
+envelope и завершены31незапрошенное окно, без изменения старых STOP/expiry. Итог40/40GET,
+2020bars/453origins/6mint/29disjoint windows; broad benchmark всё ещё не готов.
+[Новый отчёт и границы guard](brain-research-envelope-2026-10-07.md).
+Описанные ниже9GET и отсутствиетретьегозапуска относятся к прежнему состоянию/протоколу,
+не к нынешнему отдельному envelope.
+
 ## Фактический результат после восстановления связи
 
 SSH на `172.20.10.11` восстановлен, прежний host key подтверждён. Выполнен ограниченный

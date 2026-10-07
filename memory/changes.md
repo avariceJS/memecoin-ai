@@ -1,5 +1,14 @@
 # История изменений решений
 
+## 2026-10-07 — exact-role guard и завершённый research envelope
+
+Добавлены macOS redacted process inventory, zero-GET qualifier и retired-owner research
+prepare/lease/fences; legacysource guards не ослаблены.31suffixGET завершены безизменения
+production/champion/AUTO. Aggregate40receipts independently reproduced:453origins/6mint/
+29disjoint windows, broadbenchmarknotready. Persistedargv толькоhashes, protectedoutcomes
+нечитались. Tests/evidence/report/state обновлены; MLtrial иclippingtuning не запускались.
+[Отчёт и immutable pins](../docs/brain-research-envelope-2026-10-07.md).
+
 ## 2026-10-07 — actual development acquisition после восстановления SSH
 
 Добавлен отдельныйresearch collector: deterministicmintdisjoint enrollment, frozen code,

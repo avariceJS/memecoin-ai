@@ -1,5 +1,24 @@
 # Текущий статус
 
+## 2026-10-07 — finite research acquisition работает, coverage остаётся bottleneck
+
+Mac1 192.168.31.67, прежний host key. После read-only qualification exact argv/executable
+roles создан отдельный research-envelope01, старыеcampaign01/02 STOP/expiry/seals untouched.
+31новыйGET/31HTTP200/377553bytes/927.4s; unknownconsumers0. Общий20mint roster40/40GET:
+2020bars,453origins,6supportedmint,29globalnonoverlap dependencywindows. Age<1d405origins,
+age1–3d48origins/1mint,age7–10d0; largestmint71.08%. Benchmark не broad/неprospective.
+Все raw/saved reports reproduced наMac2; frozen code/raw/qualification наобоихMac,
+support02 local. Истёкшие legacy B04/paper supervisors наблюдались: oldsubstringguard
+их отклонял бы, но identity историческогоSTOP02 не сохранена и не доказана заднимчислом.
+Owner before/after qualification02/03 по29snapshots: revision33paused/paused,jobs0,
+exams expired,champion9ea4a6bd...3920/runtime08/fec78c60...63c3a/sourcepins unchanged.
+SourceSTOPexpecteddeadline сохранён,adapter_unavailable не исправлялся. Production/AUTO
+не менялись; nofits/predictions/oldtestscore. Repo prepare дополнительно serialreplayfenced.
+Finalfullcheck1063passed/12optional skips;53focused/ruff/format/mypy/smokePASS.
+Next: отдельный preregistered prospective enrollment/coverage, не clipping/backbone trial.
+[Отчёт](../docs/brain-research-envelope-2026-10-07.md),
+[evidence](../docs/evidence/brain-research-envelope-2026-10-07.json).
+
 ## 2026-10-07 — связь восстановлена, development prefix получен, benchmark не готов
 
 На172.20.10.11 host key совпал. Cold-transfer enrollment20mint/40окон sealed доGET;

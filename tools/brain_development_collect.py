@@ -148,8 +148,12 @@ def qualify_window(capture, birth, days):
     )
 
 
-def consumer_guard(plan):
+def consumer_guard(plan, receipt=None):
     """Reject an unexpected project process capable of making provider requests."""
+    if plan.get("guard_kind") == "retired_owner_research_v1":
+        from memecoin_curriculum.research_guard import require_consumers
+
+        return require_consumers(plan, receipt)
     lines = subprocess.check_output(["ps", "-axo", "pid,command"], text=True).splitlines()
     observed = []
     for line in lines:
@@ -175,6 +179,10 @@ def consumer_guard(plan):
 
 
 def shared_guard(plan):
+    if plan.get("guard_kind") == "retired_owner_research_v1":
+        from memecoin_curriculum.research_guard import owner_guard
+
+        return owner_guard(plan)
     source = Path(plan["source"])
     if (source / "STOP").exists() or sha(source / "config.json") != plan["source_config_sha"]:
         raise GateError("shared_source_changed_or_stopped")
@@ -380,6 +388,16 @@ def worker(root, index):
 
 
 def run(root):
+    plan = read(root / "frozen/plan.json")
+    if plan.get("guard_kind") == "retired_owner_research_v1":
+        from memecoin_curriculum.research_guard import research_lease
+
+        with research_lease(Path(plan["research_lease"])):
+            return run_locked(root)
+    return run_locked(root)
+
+
+def run_locked(root):
     verify(root / "frozen")
     if sha(root / "frozen/manifest.json") != read(root / "reservation.json")["frozen_sha"]:
         raise ValueError("frozen_pin")
@@ -415,7 +433,7 @@ def run(root):
                 guard()
                 time.sleep(1)
             guard()
-            consumer_guard(plan)
+            consumer_guard(plan, root / "processes" / f"{index:06d}-consumers.json")
             if watch.remaining() < 40:
                 raise GateError("insufficient_request_lease")
             publish(
@@ -477,7 +495,24 @@ def report_campaigns(campaigns, output):
         plan = read(root / "frozen/plan.json")
         if first is None:
             first = plan
-        elif plan["cases"] != first["cases"] or plan["expires_ns"] != first["expires_ns"]:
+        elif plan["cases"] != first["cases"]:
+            raise ValueError("report_campaign_membership")
+        elif plan.get("guard_kind") == "retired_owner_research_v1":
+            if (
+                [(r["sha"], r["requests"]) for r in plan["prior_envelopes"]]
+                != [(r["manifest_sha"], r["result"]["requests"]) for r in refs]
+                or plan["original_expiry_ns"] != first["expires_ns"]
+                or plan["original_roster_sha"] != sha(campaigns[0] / "frozen/plan.json")
+                or plan["created_ns"] <= first["expires_ns"]
+                or plan["jobs"]
+                != [
+                    j
+                    for j in first["jobs"]
+                    if (j["birth"]["pool"], j["days"]) not in attempted_jobs
+                ]
+            ):
+                raise ValueError("report_new_envelope_binding")
+        elif plan["expires_ns"] != first["expires_ns"]:
             raise ValueError("report_campaign_membership")
         elif plan.get("continuation", {}).get("sha") != refs[-1]["manifest_sha"]:
             raise ValueError("report_continuation_pin")
@@ -497,6 +532,9 @@ def report_campaigns(campaigns, output):
                 raise ValueError("report_repeated_request")
             attempted_jobs.add(key)
             verify(capture)
+            request_ns = read(capture / "request.json")["started_ns"]
+            if "created_ns" in plan and not plan["created_ns"] <= request_ns < plan["expires_ns"]:
+                raise ValueError("report_request_outside_envelope")
             if (capture / "failure.json").exists():
                 records.append(
                     dict(

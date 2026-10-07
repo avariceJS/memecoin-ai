@@ -2,12 +2,14 @@
 
 ## Актуально на 2026-10-07
 
-- SSH172.20.10.11 восстановлен. Data-only20mint roster sealed; фактически9/40GET,
-  411bars/38origins/2mints/3disjointwindows: broad benchmark НЕ готов. STOP01source timeout,
-  STOP02unknownconsumer без identity; третьего запуска нет. [Отчёт/clipping](../docs/brain-development-acquisition-2026-10-07.md).
-  Ownerrevision33paused,champion/runtime08 unchanged; adapter_unavailable, expiry0вUI
-  не доказанныйsourceexpiry. Managedexam до12:23:51UTC не раскрывать дляdevelopment.
-  Clip100%confirmed, causalharmunknown; новыхfits/oldtestscore0. СледующийMLtrial послеdata.
+- SSH192.168.31.67 verified. Новый isolated research envelope завершил31suffixGET;
+  весь прежний20mint roster теперь40/40HTTP200,2020bars/453origins/6mint/29disjointwindows.
+  Age7–10d support0,71.08%origins одногоmint: broad benchmark НЕ готов.
+  Exact-role consumer guard прошёл bounded run; old STOP02 identity не восстановлена.
+  Source STOP признан штатным deadline после12:23:51UTC, НЕ снят. Всеexams expired;
+  post-run revision33paused/jobs0/champion9ea4a6bd...3920/runtime08 unchanged.
+  [Итог/receipts/следующий data шаг](../docs/brain-research-envelope-2026-10-07.md).
+  Новыхfits/inference0,clipping не тюнили. Unattended/prospective campaign ещё не qualified.
 
 - Создан [benchmark-v1 contract](../docs/brain-benchmark-v1.md), config/exposure registry и
   metadata preflight с tests. Широких development/calibration/prospective packets пока НЕТ:

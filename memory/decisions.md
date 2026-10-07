@@ -1,5 +1,17 @@
 # Реестр архитектурных решений
 
+## 2026-10-07 — research retirement envelope отдельно от production successor
+
+Статус: finite live qualification пройдена; unattended не admitted. Не восстанавливать
+истёкший production source ради research. После expecteddeadlineSTOP и noactiveexams
+допускается новый finite envelope с exact-roleconsumer inventory, read-only owner fence,
+новой явной expiry, общим research lease/debit и неизменным исходным roster. Это уточняет
+предыдущее «не запускать третью continuation»: старый протокол не продлён и STOP не снят.
+31suffixGET completed безошибок; cold-transfer coverage всёещё узкая. Не заменить sparse
+mint постфактум, не imputemissing и не снижать benchmark floors. Следующаяbasis требует
+future enrollment с frozen eligibility и полным denominator, не ML-tuning наoldtest.
+НиактивацииAUTO, ниpromotion. [Основание](../docs/brain-research-envelope-2026-10-07.md).
+
 ## 2026-10-07 — partial acquisition не объявлять benchmark readiness
 
 Статус: data-only prefix получен, MLtrial отложен. Два isolatedroot дали9HTTP200,
