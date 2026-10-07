@@ -47,5 +47,5 @@ JSON and sealed machine-local `work/` bundles.
 
 To reproduce an old experiment, use its recorded commit and sealed inputs. Do not run its old
 campaign script against current runtime, mutate a source receipt, or overwrite a completed output.
-The seven frozen protocol files listed in `INDEX.md` remain byte-identical because historical
-tools included their hashes in run receipts.
+The historical protocol bytes remain in Git history because old tools included their hashes in run
+receipts. Do not execute those old tools against the current English pointer files.

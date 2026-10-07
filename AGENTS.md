@@ -18,9 +18,9 @@ Canonical ownership:
 - Current volatile state: `memory/now.md`.
 
 `docs/evidence/README.md` is a locator, not a reading list. Open a receipt only to answer a
-specific audit/reproduction question. Frozen protocol inputs and compatibility pages are
-identified in `docs/INDEX.md`; do not load them into ordinary task context. Their old Git
-commits retain the complete historical documentation.
+specific audit/reproduction question. Historical protocol pointers and compatibility pages are
+identified in `docs/INDEX.md`; do not load them into ordinary task context. Their original content
+is available from historical Git commits.
 
 ## Documentation policy
 
@@ -31,8 +31,10 @@ commits retain the complete historical documentation.
 - Keep raw receipts immutable. Never duplicate a receipt or copy its full contents into Markdown.
 - A new Markdown file needs a distinct long-lived owner/topic or a frozen protocol hash dependency.
   Add it to `docs/INDEX.md` and explain why existing canonical documents cannot own it.
-- Current Markdown must be English. Preserve hash-bound historical protocol bytes; do not translate
-  or edit them in place. Do not create translated duplicates of frozen protocols.
+- Current Markdown must be English. Legacy protocol paths may be short English archival pointers;
+  exact historical bytes remain in Git history. Never run an old campaign script against a pointer
+  at current HEAD or claim that the pointer preserves the old protocol hash. Reproduce only from
+  the recorded source commit and verify its receipt-bound hashes.
 - Keep `memory/now.md` short and dated. Do not recreate the old append-only narrative memory bank;
   Git history and immutable evidence hold the detailed chronology.
 

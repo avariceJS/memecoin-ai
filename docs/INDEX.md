@@ -30,16 +30,16 @@ Root `README.md` is developer setup only. `memory/now.md` is the only active pro
 memory. `memory/evaluation.md` is a compatibility pointer for the operator's historical report
 renderer; add no second evaluation history there.
 
-## Frozen protocol inputs and compatibility files
+## Historical Pointers and Review Artifacts
 
-The seven preregistration files below are retained byte-for-byte because old experiment tools
-embed their SHA256 in receipts. They are **not canonical**, are not current status, and must not be
-loaded in ordinary work. Historical reproduction must use the recorded Git commit, not current
-code. Their original text is unchanged even though it predates the current English documentation
-rule. The remaining listed paths are concise English compatibility pointers kept for existing
-code, reports, or frozen documents; they are not independent sources of truth.
+All Markdown in the current tree is English. The seven legacy protocol paths below are concise
+archival pointers, not the hash-bound protocol inputs. Their exact original bytes remain in Git at
+`b3bb5e3350d8ae8b713ae034f0556289997fb0ec` and earlier history. Historical reproduction must
+checkout the recorded experiment commit and verify its original protocol hash. Do not run the old
+campaign scripts from current `HEAD`: they read these pointer files as input and would create a
+different protocol identity.
 
-- Hash-bound preregistrations: `brain-continuity.md`, `brain-curriculum-comparison.md`,
+- Legacy hash-bound protocol paths: `brain-continuity.md`, `brain-curriculum-comparison.md`,
   `brain-hot-lane.md`, `brain-market-vacuum.md`, `brain-operational-recovery.md`,
   `brain-paper-loop.md`, `brain-training-expansion.md`.
 - Compatibility references emitted by old operator reports: `brain-autonomous-operator.md`,
@@ -47,6 +47,8 @@ code, reports, or frozen documents; they are not independent sources of truth.
 - Other old-link compatibility paths: `brain-experience-review.md`, `brain-b13-acceptance.md`,
   `two-mac-workflow.md`, and `memory/roadmap.md`. Current Brain architecture is in
   `brain-development.md`.
+- [`brain-independent-review-handoff-2026-10-07.md`](brain-independent-review-handoff-2026-10-07.md)
+  is a dated external-review packet, not a canonical source or routine context input.
 
 Other retired reports, plans, and narrative memory files were removed from the working tree after
 their enduring facts were merged into canonical sources. Git history remains the record of those
