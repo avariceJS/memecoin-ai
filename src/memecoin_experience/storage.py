@@ -167,6 +167,18 @@ def code_identity():
     return {f"{p.parent.name}/{p.name}": file_hash(p) for p in sorted(files)}
 
 
+def logical_sources(references):
+    """Locations resolve immutable inputs; moving bytes must not change dataset identity."""
+    result = []
+    for reference in references:
+        if "path" in reference and (
+            not isinstance(reference.get("pin"), str) or not PIN.fullmatch(reference["pin"])
+        ):
+            raise ValueError("experience_unpinned_locator")
+        result.append({k: v for k, v in reference.items() if k != "path"})
+    return result
+
+
 def build(
     store,
     rows,
@@ -190,7 +202,7 @@ def build(
     context = schema["context"]
     binding = dict(
         contract=schema,
-        sources=sources,
+        sources=logical_sources(sources),
         cutoff_ns=cutoff,
         chunk=chunk,
         code=code_identity(),
@@ -205,6 +217,7 @@ def build(
         progress = store / "builds" / build_id
         progress.mkdir(exist_ok=True)
         atomic_json(progress / "binding.json", binding)
+        atomic_json(progress / ("locators-" + digest(sources) + ".json"), sources)
         parts, counts = [], Counter()
         consumed = 0
 

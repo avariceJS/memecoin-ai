@@ -29,7 +29,16 @@ def ohlcv_schema(context=8, horizons=(1, 3)):
             layout="dense-sequence-f64-v1",
             context=context,
             features=[
-                dict(name=name, unit="legacy_transform", modality="ohlcv") for name in data.FEATURES
+                dict(
+                    name=name,
+                    unit={
+                        "log_volume_usd": "log1p_USD",
+                        "past_positive_fraction": "fraction",
+                        "zero_volume": "indicator",
+                    }.get(name, "log_ratio"),
+                    modality="ohlcv",
+                )
+                for name in data.FEATURES
             ],
             targets=[
                 dict(

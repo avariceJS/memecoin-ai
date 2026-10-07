@@ -58,8 +58,8 @@ machine-readable source/run records: [`evidence/README.md`](evidence/README.md).
   not evidence that a model could observe the event then.
 - Keep first-seen bar values immutable; later provider revisions are new observations. Do not
   replace an earlier feature with a revised candle that arrived after the historical decision.
-- Feature dependencies require 8 context bars and up to 15 input bars including return features;
-  both future horizons must mature before an origin enters a fold.
+- The legacy eight-frame OHLCV representation needs up to 15 transitive input bars. New contracts
+  declare context and target definitions; each observed target is masked/purged independently.
 - Missing/stale intervals are not zero returns, market death, or rug labels. Preserve failures in
   the enrollment denominator.
 - Keep WSOL/USDC denominated prices separate from USD. A quote conversion is itself time-aware
@@ -141,8 +141,57 @@ implementation itself still materializes its supplied unit. Do not feed it the w
 Payload memory is bounded by context, raw-capture cache and partition size (maximum 4096 origins).
 Snapshot metadata remains O(partitions); source admission metadata remains O(pools/captures).
 The initial format is a versioned stdlib binary layout, not Parquet or a distributed database.
-The first adapter covers admitted USD history; continuous-index export and raw-vacuum semantic
-qualification remain separate work. These engineering changes establish no market edge.
+The admitted-history adapter is retained; the continuous export described below connects a
+second source to the same reader. Raw-vacuum semantic qualification remains separate work. These engineering changes establish no market edge.
+
+### Continuous export and representation boundary (2026-10-08)
+
+`continuous.export(index, output, plan)` reads the existing SQLite index using `mode=ro` and one
+explicit WAL read transaction. It does not invoke the writer's schema initializer or change the
+owner runtime. Its plan has exactly `role`, `cutoff_ns`, `start_s`, `end_s`, `selection` and `pools`;
+each enrolled pool supplies `pool`, `base_mint`, `quote_mint`. Roles are `train` or the new
+`research_evaluation`, never protected/reserved holdout. Validate roles/protected IDs before
+opening index/payload. Missing enrolled pools remain in expected 300-second-slot denominators.
+
+Export replays bounded captures, verifies their index/version/checksum agreement and explicit
+HTTPS GeckoTerminal USD/base/5-minute namespace and mint identity. Unsupported namespace/mints
+and malformed bar schemas are quarantined with pinned evidence. Integrity failures abort
+publication. Selection is the earliest **qualified** receipt with capture-SHA tie-break, not the
+legacy `firsts` table's insertion-order tie policy. Revisions/ties retain counters and all capture
+versions. The export does not infer a request-attempt denominator: unindexed transport failures
+are explicitly unknown. Selection history is the declared enrollment, not a reconstructed universe.
+
+The portable bundle contains `meta/{source.json,captures.jsonl,rows.jsonl,manifest.json}` and
+`captures/<capture-pin>/`. Export copies/seals into staging and atomically renames the result;
+a failure cannot publish a partial final directory. The source reader verifies quarantine evidence
+as well as raw dependencies of admitted rows, including after bundle relocation. It requires a
+consumer cutoff at least as late as the export cutoff. No receipt is rewritten as event-time
+availability. Re-export still scans/requalifies indexed captures; caching that pure pinned
+qualification function and reducing WAL retention are future throughput optimizations.
+
+`brain-experience-v2` declares a materialized layout (`dense-sequence-f64-v1`), context, named
+feature units/modalities, named target units/kinds, representation name/version/code SHA and an
+availability policy. The currently shipped OHLCV producer supports explicit horizon sets; generic
+producers can emit a different feature/target count through `storage.build(..., schema=...)`.
+Records carry nanosecond decisions, full input dependencies, availability maxima, separate target
+maturity/availability, masks and capture pins. Structural validation cannot qualify a new venue's
+semantics: that remains the producer's responsibility and needs independent evidence/review.
+Dense views are not a replacement for immutable raw multi-modal evidence; new physical layouts
+need a new layout reader while retaining snapshot/object and role contracts.
+
+`historical_replay` means event-time splits on data known by the research cutoff, without a claim
+that it existed at historical decisions. `point_in_time` additionally enforces input availability
+by decision and label receipt within the role interval. The two validity domains are explicit.
+Unknown/missing/censored targets have masks, never invented zero values.
+
+`compose` combines snapshots with identical representation/role and disjoint entity/decision
+intervals; identical objects deduplicate, overlapping distinct partitions fail closed. This is an
+increment interface, not silent row-level revision replacement. Supply context/label overlap when
+exporting an increment and use build-plan `origin_interval_s` with v2 to choose disjoint output
+origins. Source accounting stays attached to parent snapshot pins and is not summed when parents
+share inputs. Location hints live in build journals; relocating a pinned source does not change
+the new dataset identity. `replicate` publishes a destination snapshot only after its objects are
+copied, fsynced and verified. Root metadata is still O(partitions), not an unbounded-memory claim.
 
 Relevant implementation: `src/memecoin_ai/{sources,storage,collection,observations,datasets}.py`,
 `src/memecoin_brain/{source,data}.py`, `src/memecoin_brain_sources/`, `src/memecoin_continuous/`,

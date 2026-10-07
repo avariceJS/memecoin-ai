@@ -14,6 +14,7 @@ from .storage import (
     digest,
     file_hash,
     lock,
+    logical_sources,
     safe_path,
     verify_files,
 )
@@ -66,8 +67,12 @@ def run(root, plan):
                 snapshot_pin = json.loads(step.read_text())["snapshot"]
                 snapshot = Snapshot(store, snapshot_pin)
                 if (
-                    snapshot.manifest["binding"]["sources"] != [reference]
+                    snapshot.manifest["binding"]["sources"] != logical_sources([reference])
                     or snapshot.schema != schema
+                    or snapshot.manifest["binding"].get("role") != source["role"]
+                    or snapshot.manifest["binding"]["cutoff_ns"] != source["cutoff_ns"]
+                    or snapshot.manifest["binding"].get("selection") != {}
+                    or snapshot.manifest["binding"]["code"] != declaration["code"]
                 ):
                     raise ValueError("experience_pipeline_snapshot_binding")
             else:
@@ -118,6 +123,17 @@ def run(root, plan):
             )
             protocol_pin = registered["protocol"]
             atomic_json(protocol_step, dict(protocol=protocol_pin))
+        protocol = json.loads((root / "protocols" / (protocol_pin + ".json")).read_text())
+        expected = dict(
+            candidate=record["artifact"],
+            start_s=plan["evaluation_source"]["start_s"],
+            end_s=plan["evaluation_source"]["end_s"],
+            pools=sorted(p["pool"] for p in plan["evaluation_source"]["pools"]),
+            scope="retrospective",
+            schema=schema,
+        )
+        if digest(protocol) != protocol_pin or any(protocol[k] != v for k, v in expected.items()):
+            raise ValueError("experience_pipeline_protocol_binding")
         eval_pin, evaluation_source = dataset("evaluation_source")
         evaluated = score(
             root / "protocols", protocol_pin, store, eval_pin, artifact, root / "evaluation"

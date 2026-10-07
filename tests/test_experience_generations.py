@@ -200,3 +200,17 @@ def test_completed_generation_never_reenters_optimizer(tmp_path, monkeypatch):
     monkeypatch.setattr(torch.optim.AdamW, "step", forbidden)
     assert generations.run(root, **args)["artifact"] == first["artifact"]
     assert list((root / "jobs" / first["generation"] / "attempts").iterdir()) == attempts
+
+
+def test_generation_metadata_binds_actual_model_report(tmp_path):
+    store, pin = dataset(tmp_path)
+    root = tmp_path / "registry"
+    done = generations.run(
+        root, name="V1", owner="research", store=store, snapshot=pin, split=PLAN, config=CONFIG
+    )
+    path = root / "generations" / (done["generation"] + ".json")
+    record = json.loads(path.read_text())
+    record["rows_seen"] += 1
+    path.write_text(json.dumps(record))
+    with pytest.raises(ValueError, match="generation_binding"):
+        generations.get(root, done["generation"])

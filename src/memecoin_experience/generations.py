@@ -106,6 +106,23 @@ def get(root, identity):
     from .predict import Predictor
 
     model = Predictor(artifact, record["artifact"])
-    if record["model"] != model.spec or record["ancestors"] != model.report["ancestors"]:
+    declaration = record["declaration"]
+    binding = model.report["binding"]
+    if (
+        record["model"] != model.spec
+        or record["ancestors"] != model.report["ancestors"]
+        or any(
+            binding[k] != declaration[d]
+            for k, d in (
+                ("snapshot", "snapshot"),
+                ("plan", "split"),
+                ("config", "config"),
+                ("parent", "parent"),
+                ("code", "code"),
+            )
+        )
+        or record["rows_seen"] != model.report["rows_seen"]
+        or record["seen_end_s"] != model.report["seen_end_s"]
+    ):
         raise ValueError("experience_generation_binding")
     return record, artifact

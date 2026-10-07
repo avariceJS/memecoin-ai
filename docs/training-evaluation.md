@@ -295,6 +295,124 @@ now exists and skips on this Mac. Checkpoint validation-history size grows with 
 partition hashes are reread each pass; these are recorded performance limits, not hidden claims
 of distributed or unlimited-throughput training.
 
+## Integrated research pipeline and generations (2026-10-08)
+
+The concrete command path is now:
+
+```text
+read-only continuous WAL snapshot -> portable qualified source + coverage/quarantine
+  -> versioned representation -> immutable experience snapshot (or disjoint composition)
+  -> owned generation job -> sealed model spec/weights/statistics/report
+  -> standalone predictor -> registered candidate/population/window -> evaluation receipt
+```
+
+The v2 dense contract removes trainer assumptions about twelve features or two targets. The
+shipped producer still derives OHLCV features; richer producer semantics are not invented by the
+contract. Feature names/units/modalities, target names/units/kinds, context and representation code
+are pinned. Both `gru-quantiles-v1` and `temporal-mlp-quantiles-v1` implement the current dense
+quantile trainer; `config.model_kind` selects one. This is a real model factory, not a promise of
+transformer/DDP qualification. A different task/loss or physical layout needs another explicit
+trainer/reader capability, retaining the immutable data/job/evaluation boundaries.
+
+`artifact/model.json` pins the complete model/representation/encoding specification and model
+implementation SHA. `Predictor(artifact, manifest_pin)` verifies the artifact and statistics,
+strictly loads weights and validates input dimensions. It needs neither the training store nor
+operator runtime. The tensor encoder is shared with training. A model implementation change is
+not silently treated as compatible serving code. Older snapshots remain readable; old checkpoint
+resume still requires its original code/environment binding, not an automatic migration.
+
+### Generation ownership and recovery
+
+`generations.run(root, name=..., owner=..., store=..., snapshot=..., split=..., config=..., parent=...)`
+reserves a name against a content-derived declaration. The owner is a research namespace identity,
+not OS authentication. Local locks prevent a second job writer. Attempts/outcomes survive failure;
+only completed sealed artifacts get immutable generation records. Repeating a completed generation
+verifies/returns it without entering the optimizer. A changed dataset, recipe, code or parent needs
+a new generation name; rollback selects an older immutable artifact, never rewrites a champion.
+
+`parent` is optional `{ "path": ".../artifact", "pin": "manifest SHA" }`. Warm start requires the
+same model and representation spec, loads weights strictly, freezes parent mean/scale, computes
+current-corpus baseline/denominators and creates a fresh optimizer. It is distinct from exact-job
+resume. Ancestor artifact pins and the latest interval seen in any train/validation/descriptive-test
+report propagate to children. No tensor surgery, silent normalization drift or cross-generation
+optimizer reuse occurs. Frozen normalization can become statistically unsuitable as markets drift;
+qualification must compare a fresh fit as well as continuation. Corpus/replay policy is the pinned
+snapshot membership, not an implicit latest-data-only policy.
+
+### Separate evaluation contract
+
+`evaluation.register` fixes candidate artifact, representation, enrolled entities, interval,
+metrics, scope and local registration time before evaluation payload is read. `score` requires a
+`research_evaluation` snapshot, the same representation, a closed registered interval and no
+candidate/ancestor-seen interval. Training refuses that snapshot role. Superset populations are
+rejected rather than silently changing enrollment. Missing enrolled pools stay in the denominator;
+record counts, usable records, label statuses, purged/outside counts and per-pool/day scores are
+reported separately. Overlapping rows are not independent episodes; uncertainty is explicitly
+unestimated. The empirical baseline comes from training, and no execution/trading result is inferred.
+
+`retrospective` is a fixed-candidate historical research comparison. The separate
+`preregistered_forward_replay` scope requires future registration and a `point_in_time` producer;
+it is not live forecast-publication or trade-fill evidence. The current OHLCV orchestration uses
+only retrospective scope. Registration time is a local receipt, not an external timestamp attestation.
+All evaluation artifacts are production-ineligible. Protected holdouts and existing promotion gates
+are not part of this path.
+
+### CLI and one-run orchestration
+
+The existing `build`, `inspect`, `train` commands remain. New commands are
+`export-continuous`, `compose`, `replicate`, `generation`, `predict`, `register-evaluation`,
+`evaluate` and `pipeline`; use `python -m memecoin_experience COMMAND --help` for file flags.
+Build plans can specify `representation={"name":"ohlcv-sequence-v2","horizons":[1,3,6]}`,
+`role`, and a v2 `origin_interval_s=[start,end]`. That interval filters output decisions after
+loading adequate raw lookback/label overlap. It is included in build identity. Composition never
+silently replaces an overlapping old origin with a revision.
+
+A pipeline plan has exactly `name`, `owner`, `index`, `training_source`, `evaluation_source`,
+`representation`, `split` and `config`. Source-plan fields are specified in
+[`brain-source-architecture.md`](brain-source-architecture.md); their roles must be `train` and
+`research_evaluation`. `representation` is `{ "context": 32, "horizons": [1,3,6] }`.
+`split` is the existing four absolute-second boundaries; `config` is the trainer recipe.
+The evaluation source must start at or after the descriptive training test ends. Enroll populations
+explicitly, including unsupported/empty markets; do not auto-select winners from observed support.
+
+```sh
+work/ml-venv/bin/python -m memecoin_experience pipeline --root work/research-system-run --plan work/pipeline-plan.json
+work/ml-venv/bin/python -m memecoin_experience replicate --source work/research-system-run/experience --target work/worker-replica --snapshot SNAPSHOT_SHA
+work/ml-venv/bin/python -m memecoin_experience compose --store work/experience --snapshots INCREMENT_A INCREMENT_B
+```
+
+The pipeline's declaration, sealed exports, stage pins, generation, registered protocol and final
+receipt make reruns recover the same inputs. It never starts collection or changes owner state.
+Its final receipt connects qualified bars, persisted examples, optimizer exposure, artifact and
+evaluation pins; a failed/empty stage does not become a completed candidate. Source exports can
+be moved; new snapshot identity excludes physical source paths and keeps locator hints separately.
+
+### Qualification scope and remaining implementation limits
+
+Synthetic regression now covers read-only WAL consistency with a concurrent writer, portable raw
+requalification, quarantine evidence corruption, empty enrollment, variable feature/target counts,
+two model kinds, replica integrity, disjoint composition/overlap rejection, parent warmstart and
+exact recovery, standalone inference, separate evaluation roles and end-to-end stage retry.
+Full-pipeline capacity tooling is `tools/experience_pipeline_capacity.py`; the original
+`tools/experience_capacity.py` also supports `--fit-epochs` for an actual synthetic optimizer run.
+Unique load receipts below, rather than a neural market candidate, establish the measured scope.
+
+CUDA remains unqualified. Its workspace setting is validated and recorded, not silently inherited
+as an unbound recipe. There is no DDP, cluster scheduler or remote conditional object publication.
+The explicit local job/artifact boundaries permit those extensions; they do not certify performance.
+Payload memory is bounded, but snapshot metadata remains O(partitions), enrollment metadata
+O(pools), normalization/exact-quantile preparation rereads data, and each training pass verifies
+partition hashes. Continuous exports still requalify indexed capture history and hold a WAL read
+view while exporting. Profile these costs before moving to 100M+ examples. None is disguised as
+constant-cost ingestion or unlimited GPU scaling.
+
+Kimi/GLM designs and code reviews were used as fallible inputs. Suggestions to adopt partitions by
+boundary IDs, loosen warmstart weight binding, exclude missing markets from enrollment, or
+materialize the whole continuous view were rejected. The integrator verified v1 input availability,
+atomic export and completed-training reuse against actual code/tests instead of accepting contrary
+review claims. Point-in-time label receipt, retained quarantine verification, explicit source
+accounting and completed-generation idempotence received focused regression coverage.
+
 ## Historical reproduction map
 
 Receipts live in `docs/evidence/` and sealed `work/` roots on the research machines. The receipt

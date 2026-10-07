@@ -17,26 +17,38 @@ Do not infer a quota or start paid work from that report alone.
 
 ## Current system
 
-### First migration boundary: experience and training
+### Integrated research migration boundary
 
-The opt-in `memecoin_experience` path separates immutable, partitioned learning experience from
-local training jobs. It consumes sealed admitted USD history, preserves full feature dependencies
-and partial-label denominators, and visits all usable training origins each epoch. Model context,
-width, epoch budget, batch size and CPU/CUDA backend are explicit recipe fields. Independent
-horizon heads replace the legacy shared-head restriction in this research path only.
+The opt-in `memecoin_experience` path now connects a read-only continuous-index export to
+qualified portable sources, versioned experience snapshots, research generations, standalone
+prediction and registered evaluation. `python -m memecoin_experience pipeline` runs and recovers
+that path without acquisition, AUTO, promotion or owner credentials. This is research integration,
+not a production Brain replacement or demonstrated market improvement.
 
-This is a working migration boundary, not a replacement production Brain. AUTO continues to use
-its current contracts and champion. Store objects and pinned snapshots can be copied to another
-training host without copying owner runtime or credentials. The current publisher is a local
-single writer; DDP, object storage publication, cluster scheduling and GPU throughput qualification
-are not implemented. The payload format currently carries the existing OHLCV representation;
-larger dimensions alone establish no capability gain.
+The data plane owns immutable captures, qualified source manifests, representation contracts and
+content-addressed partitions. Source locations are resolution hints outside dataset identity.
+Disjoint increments compose into a new snapshot without rewriting feature payloads; replicas
+verify the same object/snapshot pins on a second local store. Domain producers qualify observations
+and preserve dependencies; the dense materialized-view contract is independent of source names,
+feature count, horizon count and neural architecture. Existing v1 snapshots remain readable.
 
-Next priority is sustained semantic qualification into this experience interface: bounded admission
-units, continuous-source export, economically meaningful market-state features, and a broad
-preregistered prospective evaluation population. Those links determine whether more raw data and
-compute can produce a stronger generation. Training mechanics no longer need to impose the B13
-48k retention cap, but this work does not itself fix raw-vacuum training eligibility or trading targets.
+The compute boundary owns a pinned trainer recipe, exact resume state, model specification and
+sealed artifact. Generation declarations bind logical owner/name, snapshot, recipe, code and
+parent artifact. Warm starts freeze the parent's normalization and initialize a fresh optimizer;
+resume remains the identical-job operation. A standalone predictor and separately registered
+candidate/enrollment/window evaluation consume these artifacts. No serving runtime is switched.
+
+The concrete producer remains qualified USD OHLCV. A second synthetic modality/feature contract
+and two neural implementations exercise the extension boundaries; they are not new qualified
+order-flow or liquidity datasets. Unknown venue semantics stay outside admission. The full
+pipeline currently runs historical replay; point-in-time contracts and forward-replay registration
+are available for a future qualified producer, not retroactively assigned to historical candles.
+
+Local filesystem publication/locks and CPU training are implemented. Single CUDA is implemented
+but unqualified; DDP, object-store conditional publication and a cluster scheduler are not present.
+Those are backend/trainer extensions behind immutable snapshot and generation ownership, not
+pretend distributed coordination. Next priority is integrated qualification on explicit research
+populations, then source and GPU throughput work based on measured failures.
 
 ```text
 Solana RPC / indexed history              GeckoTerminal price bars
@@ -71,9 +83,9 @@ The component map is:
 - `memecoin_paper`: virtual accounting, projections, supervision, and audit.
 - `memecoin_operator`: durable jobs/commands, Control Center, deployment checks, and Watch Market.
 
-These package boundaries are real code. They do not imply one integrated high-throughput path:
-raw-chain event history is not yet a broad qualified USD feature stream; the current AUTO trainer
-still materializes bounded datasets; Watch Market is not installed on the owner runtime.
+The new research pipeline connects the qualified bar lane end to end. Raw-chain event history
+is still not a broad qualified feature stream; the current AUTO trainer remains separate and
+bounded; Watch Market is not installed on the owner runtime.
 
 ## Learning path today
 
@@ -98,8 +110,8 @@ separate as versioned stages over immutable inputs. A future scale path should s
    single-writer. Add distributed storage/training only after measured bottlenecks require it.
 
 The 48k retained-row / 500k materialization / 1k-update limits describe the current experimental
-recipe, not the desired capacity ceiling. No 10x/100x/1000x load test has been run. See the data,
-training/evaluation, and operator documents for measured constraints.
+recipe, not the desired capacity ceiling. Synthetic million-origin storage/reader qualification exists; this is not a 100M-scale or
+cluster acceptance. See the data, training/evaluation and operator documents for measured limits.
 
 ## Research tracks
 

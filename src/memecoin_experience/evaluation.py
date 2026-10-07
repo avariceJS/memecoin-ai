@@ -98,6 +98,24 @@ def score(protocol_root, protocol_pin, store, snapshot_pin, artifact, output, *,
     if snapshot.manifest["binding"]["cutoff_ns"] < protocol["end_s"] * 10**9:
         raise ValueError("experience_evaluation_window_open")
     model = Predictor(artifact, protocol["candidate"])
+    if (
+        protocol["start_s"] < model.report["seen_end_s"]
+        or not 1 < protocol["start_s"] < protocol["end_s"]
+        or protocol["quantiles"] != model.spec["quantiles"]
+        or protocol["data_role"] != "research_evaluation"
+        or not protocol["pools"]
+        or len(set(protocol["pools"])) != len(protocol["pools"])
+        or any(p in EXCLUDED for p in protocol["pools"])
+        or protocol["scope"] not in {"retrospective", "preregistered_forward_replay"}
+        or (
+            protocol["scope"] == "preregistered_forward_replay"
+            and (
+                protocol["registered_ns"] >= protocol["start_s"] * 10**9
+                or model.spec["schema"].get("availability") != "point_in_time"
+            )
+        )
+    ):
+        raise ValueError("experience_evaluation_protocol")
     if snapshot.schema != protocol["schema"] or model.spec["schema"] != snapshot.schema:
         raise ValueError("experience_evaluation_schema")
     output = safe_path(output)

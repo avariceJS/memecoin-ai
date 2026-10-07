@@ -108,3 +108,23 @@ def test_point_in_time_label_receipt_cannot_cross_training_boundary():
         "train",
         [True],
     )
+
+
+def test_source_location_is_not_dataset_identity(tmp_path):
+    schema, rows = custom_samples(30)
+    first = build(
+        tmp_path / "a",
+        rows,
+        sources=[dict(kind="synthetic", path="/host-a/source", pin="a" * 64)],
+        schema=schema,
+        cutoff=10**18,
+    )
+    second = build(
+        tmp_path / "b",
+        rows,
+        sources=[dict(kind="synthetic", path="/host-b/source", pin="a" * 64)],
+        schema=schema,
+        cutoff=10**18,
+    )
+    assert first["snapshot"] == second["snapshot"]
+    assert "path" not in first["binding"]["sources"][0]

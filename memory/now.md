@@ -13,21 +13,20 @@ plan limits have not been audited in this repository.
 
 ## Repository and research
 
-- Opt-in `memecoin_experience` migration now provides immutable partitioned experience from
-  qualified admission units and resumable full-epoch CPU/CUDA research jobs. Usage and limitations
-  are in `training-evaluation.md`; source contract is in `brain-source-architecture.md`.
-  Synthetic checks cover provenance, partial targets, full consumption and exact CPU recovery.
-  Final checks: 1,079 core tests passed; combined optional ML/migration suite 64 passed, six
-  device checks skipped. Lint, types and `make smoke` passed.
+- `memecoin_experience` now connects read-only continuous export, qualified portable sources,
+  representation-defined snapshots, disjoint composition/replication, owned model generations,
+  warmstart/resume, portable prediction and registered research evaluation. Its `pipeline` CLI
+  runs the historical research path end to end. Canonical usage is in `training-evaluation.md`.
+  Source locations no longer determine new snapshot identity; v1 snapshots remain readable.
+  Focused synthetic checks: 58 passed, one CUDA acceptance skipped. The complete suite and
+  integrated load run are being refreshed for final code. No market candidate has been trained.
+  Kimi/GLM design and code reviews were independently adjudicated; Qwen final integration review
+  is pending. Grok remains disabled by user instruction; external assistance uses Eliza only.
   AUTO/champion, owner runtime, market datasets and protected holdouts were not changed.
-  Foundation commits: `284f134` (store), `8683305` (trainer/CLI), `035406a` (review fixes).
-  Latest million-bar receipt: 999,993 origins persisted, 799,991 visited in 782 batches (size
-  1,024, one final partial), approximately 214 MiB peak RSS. No million-origin optimizer fit or
-  market-edge claim. CUDA has an acceptance test but remains unqualified on this Mac.
-  Completed Kimi/GLM code reviews were adjudicated; recovery/statistics and metadata-role pinning
-  defects are fixed. Grok code-review attempts produced no completed acceptance; the user
-  discontinued Grok. Further external checks use Eliza only. Final GLM review of current
-  training/storage code and recovery tests completed with no blockers.
+  Foundation: `2bdef07` integrates source/data/model/evaluation boundaries. Previous million-bar
+  engineering receipts remain immutable and do not certify this later code or GPU throughput.
+  Largest remaining qualification questions are useful real-market coverage, population breadth,
+  richer semantically qualified producers, data-path throughput and actual CUDA/distributed compute.
 
 - The status snapshot was read from code base `b3bb5e3350d8ae8b713ae034f0556289997fb0ec`; the evidence receipt is `docs/evidence/brain-handoff-status-2026-10-07.json`.
 - Owner Mac 1 read-only status at 2026-10-07 17:16:36 UTC: revision 33, paused/paused,

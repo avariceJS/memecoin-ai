@@ -64,7 +64,8 @@ documents. Unique JSON receipts and figures remain unchanged.
 - Source/store/curriculum: `src/memecoin_continuous/`, `src/memecoin_collector/`,
   `src/memecoin_curriculum/`, `src/memecoin_pumpswap/`.
 - Models: `src/memecoin_ml/`; registry: `src/memecoin_registry/`.
-- Partitioned research experience and streaming CPU/CUDA jobs: `src/memecoin_experience/`;
+- Qualified continuous export, versioned experience, research generations and evaluation:
+  `src/memecoin_experience/`;
   contracts and usage are owned by `brain-source-architecture.md` and `training-evaluation.md`.
 - Paper/operator: `src/memecoin_paper/`, `src/memecoin_operator/`.
 - Profiles: `python3 tools/agent_context.py --task operator|data|ml|architecture|review|docs`;
