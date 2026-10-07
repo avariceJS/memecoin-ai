@@ -2,25 +2,46 @@
 
 ## Актуально на 2026-10-07
 
-- Последний завершённый AUTO training `job_5edd5e5ecda88338` integrity/temporal audit прошёл;
-  pipeline выбрал GRU (seeds 7/19), но candidate не promoted. На одинаковом historical test
-  pool-macro pinball combined 5m/15m хуже официального empirical champion на 41.95% (5m:
-  +65.43%, 15m: +27.07%); validation также хуже. Prospective costed paper exam ещё активен:
-  8 решений на книгу, 0 сделок/fills, поэтому cost-adjusted вывод о превосходстве пока невозможен.
-  Champion SHA остаётся `9ea4a6bd…3920`. Полный отчёт и immutable pins:
-  [audit](../docs/brain-post-training-audit-2026-10-07.md).
-- Mac1 read-only: `auto/waiting`, domain STOP=false, queued/running=0, managed exam до
-  `2026-10-07T12:23:51.922091Z`, operator expiry `2026-10-11T20:31:13.058527Z`; активен
-  `operator-runtime08` PID 64937. Это не Pause-only окно: пока exam жив, Pause не снимет exam
-  release gate. После expiry и повторной проверки quiescence нужна штатная Pause, затем
-  guarded activation/health check и только после успеха resume.
-- Watch Market опубликован feature commit `0e9a2c1`, но не установлен на Mac1. `runtime09`
-  совпадает по manifest с `runtime08` и не содержит Watch Market. Новый owner-host release:
-  `operator-runtime10`, собранный из exact commit `0e9a2c1` после exam expiry; production не
-  переключать до выполнения release gates. Watch pins configured official champion SHA/path,
-  а не самую новую candidate.
-- Evidence/update: [post-training audit](../docs/brain-post-training-audit-2026-10-07.md),
-  [Watch Market](../docs/watch-market.md), machine-readable [receipt](../docs/evidence/brain-post-training-audit-2026-10-07.json).
+- SSH172.20.10.11 восстановлен. Data-only20mint roster sealed; фактически9/40GET,
+  411bars/38origins/2mints/3disjointwindows: broad benchmark НЕ готов. STOP01source timeout,
+  STOP02unknownconsumer без identity; третьего запуска нет. [Отчёт/clipping](../docs/brain-development-acquisition-2026-10-07.md).
+  Ownerrevision33paused,champion/runtime08 unchanged; adapter_unavailable, expiry0вUI
+  не доказанныйsourceexpiry. Managedexam до12:23:51UTC не раскрывать дляdevelopment.
+  Clip100%confirmed, causalharmunknown; новыхfits/oldtestscore0. СледующийMLtrial послеdata.
+
+- Создан [benchmark-v1 contract](../docs/brain-benchmark-v1.md), config/exposure registry и
+  metadata preflight с tests. Широких development/calibration/prospective packets пока НЕТ:
+  support_ready=false; это не готовый live benchmark. Protected/oldtest не переиспользовать.
+- Train-only LR diagnostic8continuations:0.001->0.0001 уменьшил mediancoverage SD на55–58%
+  meanseeds и улучшилtraincalibration во всех4pairs. Loss+2.29%current/-1.55%capped;
+  futurequality не проверялось, evalpredictions0. Причинная поддержка optimizationinstability,
+  не новыйdefaultLR. [Результат](../docs/brain-lr-diagnostic-2026-10-07.md).
+
+- Horizon-head causal ablation завершён:2samplers ×2heads ×seeds7/19,4000steps;
+  zero-init48parameter horizon/latent interaction,8fits37.4s,controls weights exact,
+  144metricgroups independently exact. Terminal ensemble head test effect -3.93% current,
+  +1.08% capped; median calibration не исправлена (82.72% current; capped5m38.62/15m67.89%).
+  Structural restriction реальна, но главный остаточный defect head не установлен.
+  Research target разделён: actual eligible AUTO origins и отдельная Watch breadth/traffic
+  оценка по age/seen/horizon. Admission old/new != market age;16.64%/4000 не новый recipe.
+  Следующий приоритет — old+new dev/prospective eval contract до дальнейшего tuning;
+  LR/convergence и separate calibration block ещё не проверены. Production/champion/AUTO
+  unchanged; owner revision33 paused(reason expired). [Результат](../docs/brain-horizon-ablation-2026-10-07.md).
+
+- Sampling и finite budget causally влияют на loss данного snapshot: combined test -20.76%,
+  calibration не квалифицирована;16.64%/4000 не production recipe. Retained rows оставались48000.
+  [Sampling](../docs/brain-sampling-ablation-2026-10-07.md),
+  [budget](../docs/brain-budget-ablation-2026-10-07.md).
+- Historical ~5/~9/~42% не temporal degradation trend: разные sets/baselines; z1425 старый,
+  не latest test. [Независимый audit](../docs/ml-review-audit-2026-10-07.md).
+- Latest AUTO job5edd выбралGRU, но не promoted; matched historical test хужеchampion41.95%.
+  Champion empirical SHA9ea4a6bd...3920 unchanged. Owner latest read-only revision33,
+  paused/paused(reason expired),queued/running0; SSH172.20.10.11 с прежним host key.
+  Не возобновлять production; release gates требуют новой проверки фактического состояния.
+  [Post-training audit](../docs/brain-post-training-audit-2026-10-07.md).
+- Watch feature commit0e9a2c1 не установлен: активенruntime08, runtime09эквивалентен08.
+  Планируемый release10 должен содержатьWatch и pin official champion; live acceptance
+  не проведён. [Контракт/статус](../docs/watch-market.md). История expiries — memory/state.md.
 
 Это входная сводка, а не замена первичным документам. Проверяйте Git и фактический
 runtime перед изменениями: данные о процессах и сроках быстро устаревают.

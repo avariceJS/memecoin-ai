@@ -1,5 +1,80 @@
 # Реестр архитектурных решений
 
+## 2026-10-07 — partial acquisition не объявлять benchmark readiness
+
+Статус: data-only prefix получен, MLtrial отложен. Два isolatedroot дали9HTTP200,
+но support только2mint/3windows. Не расширять cohort по увиденнымценам/плотности,
+не снижатьfloors, не использовать currentmanagedexam дляdevelopment. Одна reviewed
+continuation послеsource recovery перенесла весьdebit/expiry; второйSTOPunknownconsumer
+не обходить третьимзапуском. Исправитьidentifiabilityguard, квалифицироватьresearchenvelope.
+Production/champion/AUTO неизменны. [Evidence](../docs/brain-development-acquisition-2026-10-07.md).
+
+## 2026-10-07 — собиратьdevelopment раньше новогоoptimizationtrial
+
+Статус: designprepared, executionblocked(ownerSSH); нетproductionadmission. Cold-mint
+historicaltransfer и seen-temporal должны быть разнымиtracks, historicalpast неprospective.
+Сохранитьexposure/sourceguards иglobalquota, неstartsecondproviderwriter приunknownownerstate.
+100%clip невыключатьавтоматически: приsaturationlossIQRscaleсокращается, но variablebatchnorm
+меняетAdammoments. ДляfuturecausaltrialвыбранLR×clip2×2 сsameinitialstates, послеnewdevdata,
+а непороговыйsweepнастaромtest. [Rationale](../docs/brain-development-acquisition-2026-10-07.md).
+
+## 2026-10-07 — benchmark roles enforced offline; LR hypothesis train-only
+
+Статус: реализована research foundation, real benchmark не populated, productionunchanged.
+User запретил дальнейший tuning на exposedoldtest. Приняты separate dev/calibration/future
+roles, AUTO traffic/Watchbreadth, source-exposure registry и fail-closed metadata preflight;
+он не заменяет raw lineage/timing/admission. Fullbenchmark collection ещё не запущена.
+Выбран минимальный causalLRcontinuation вместо новогоbackbone: lowerLR снизилoscillation
+у4/4pairs, но loss tradeoff зависит отsampler. Не менять defaultLR; ближайшийrecipe trial
+фиксируетGRU и сравниваетoptimization schedule толькопосле broaddevelopment support.
+[Основание](../docs/brain-lr-diagnostic-2026-10-07.md), [contract](../docs/brain-benchmark-v1.md).
+
+## 2026-10-07 — distribution contract раньше следующего recipe
+
+Статус: research direction, production unchanged. Пользователь отклонил автоматическое
+закрепление16.64%/4000. Разделяем AUTO operational traffic и Watch generalization breadth;
+market age/seen status не равны admission cohort. Не назначаем global mixture без usage
+evidence. Новый recipe оценивается на закреплённых old+new validation/prospective strata,
+а не оптимизируется по открытому old test. Исходный GRU backbone сохраняется.
+48parameter horizon interaction проверена с exact initial function/controls: effects
+неустойчивы; её НЕ принимать как calibration fix. Следующее optimization/calibration
+исследование требует широкого dev-eval contract; protectedholdout/providerquota untouched.
+[Результат и rationale](../docs/brain-horizon-ablation-2026-10-07.md).
+
+## 2026-10-07 — разделять optimizer objective, exposure и compute
+
+Статус: causal research result, production recipe unchanged. Sampling benefit сохранился при
+4000 updates, увеличение budget также улучшило loss; retained 48000 rows были одинаковы до/после
+expansion. Следовательно, ни «просто больше данных», ни «нужно только больше steps» не описывают
+всю проблему. Candidate recipe должен явно задавать cohort objective и проверять exposure,
+validation convergence, calibration по horizon/cohort/seed. 16.64%/4000 не объявлены оптимумом.
+Переход на другой GRU backbone не обоснован; ограничения head отдельно подтверждены структурно,
+но ещё не causally isolated. Продолжать tuning на opened old test нельзя; следующий шаг —
+frozen prospective old/new comparison. [Evidence](../docs/brain-budget-ablation-2026-10-07.md).
+
+## 2026-10-07 — cohort budget обоснован как candidate, AUTO recipe сохранён
+
+Статус: исследовательский sampler ablation завершён; внедрение не выполняется. При тех же
+rows/scaler/seeds/compute снижение new mass 72.09% -> 16.64% улучшило ансамбль pinball на
+6.42% val / 11.91% test. Поэтому узкая causal hypothesis подтверждена и прежний статус «только
+корреляция» уточнён для этого snapshot. Full calibration claim отклонён: 15m median заметно хуже;
+latest AUTO run другой, test короткий и содержит только old pools. Следующий recipe candidate
+должен проверить cohort budget prospectively на old/new pools и по horizons; 16.64% не доказано
+как оптимум. Пользователь разрешил только ablation: production/champion/gates/AUTO не менять.
+[Результат](../docs/brain-sampling-ablation-2026-10-07.md).
+
+## 2026-10-07 — sampling mass является гипотезой, не установленной причиной
+
+Статус: независимый read-only ML audit завершён; pipeline, AUTO, champion и promotion gates
+не менялись. Equal-pool/day sampling подтвердился как главный измеренный подозреваемый после
+расширения: new cohort 16.64% rows / 72.09% draw mass; ESS 1872.95→1171.60. Однако B13 broad
+менял несколько факторов одновременно, а существующая B12 sampler ablation относится к старой
+когорте; causal effect новой cohort mass не изолирован. Latest GRU calibration плохая, но
+первопричина неизвестна; historical z≈1425 не относится к latest eval. Не объявлять trend из
+несопоставимых B12/B13/latest результатов и не менять recipe по открытому test. Следующая
+информативная проверка, если будет отдельно одобрено обучение: 2-arm × 2-seed weighting ablation
+на неизменном sealed 86-pool snapshot/scaler. [Audit](../docs/ml-review-audit-2026-10-07.md).
+
 ## 2026-10-07 — training candidate не заменяет champion; Watch release отдельным runtime
 
 Статус: принято по post-training audit. Последний candidate `job_5edd5e5ecda88338` прошёл

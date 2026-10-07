@@ -1,5 +1,85 @@
 # Оценка модели и управление версиями
 
+## 2026-10-07 — cold-transfer prefix не прошёл broad support
+
+Получены9/40preregisteredGET,411bars,38completeorigins/2mint,3disjointwindows, всеage<1d.
+Denominator сохраняет31unattemptedwindow и7observedwindows безsupport; не заменять mint.
+Pool birth только ageproxy, не подтверждённый mintgenesis. Raw receipts/seals проверены,
+score/fit0. Temporalcalibration/prospective packets отсутствуют; активный managedexam
+не переносить вdevelopment. Нельзя запускатьrecipe selection на этом маломprefix как на
+широкомbenchmark. [Результат](../docs/brain-development-acquisition-2026-10-07.md).
+
+## 2026-10-07 — development cold-transfer не равен prospective
+
+Initialdata-onlycampaign design допускает unseenmint historicalpast дляtransferdevelopment;
+его нельзя смешивать с seen-temporal after-exposure windows или объявлятьfuturequality.
+Roster/budgetнеsealedиз-заownerconnectivity, новыхданных0. Старыйtest неиспользовать.
+Clipauditтолькоreceipt/algebra: 100%triggerconfirmed, causalharmнеустановлен. Послеnewdevbasis
+предложенsameGRU2×2LR×clip, неexecuted. [Подробности](../docs/brain-development-acquisition-2026-10-07.md).
+
+## 2026-10-07 — новый benchmark contract, старый test regression-only
+
+Benchmark-v1 разделяет development7days/calibration3days/prospective7days с full dependency
+purge, mint-disjoint track и per-lane/horizon/age/seen reports. Это proposed windows/floors,
+не уже gathered data/power calculation. Config exposure denylist + offline metadata checker
+реализованы, assignments пусты, support_ready=false, admission_ready всегдаfalse до raw review.
+Old exposed datasets не переименовывать в новыйtest; closed/protectedholdout не открывать.
+Train-only LR continuation:8forks, oldeval scoring0. SDcoverage-55–58%, terminalcalibration
+лучше4/4pairs; loss хужеcurrent(+2.29%)/лучшеcapped(-1.55%). Это optimization diagnostic,
+неgeneralizationcomparison. Next fixedGRU optimizationtrial требует populated broaddevelopment.
+[Контракт](../docs/brain-benchmark-v1.md), [результат](../docs/brain-lr-diagnostic-2026-10-07.md).
+
+## 2026-10-07 — target population и horizon-head intervention
+
+Brain evaluation разделять по AUTO/Watch lane,seen/unseenpool,age-at-origin и horizon.
+Old/new admission cohorts не заменяют age strata. AUTO traffic-weighted eligible origins
+и Watch breadth macro с отдельной session weighting — разные estimands; неизвестный
+product traffic mix не подменять row share16.64% или равным числом pools. Unsupported/
+stale/не созревшие outcomes показывать отдельно, не исключать незаметно из denominator.
+Opened8oldpool test теперь regression/descriptive, не критерий tuning нового recipe.
+Нужны отдельные train/selection/calibration/futuretest temporal blocks плюс mint-disjoint
+transfer track; protected holdouts не использовать. Новая acquisition не проведена.
+Head interaction ablation8fits воспроизвёл baseline tensors; primary terminal effect
+test-3.93%current/+1.08%capped,conditional calibration всё ещё нарушена.144группы exact
+rescoring. Head fix не admitted; LR instability vs representation отдельно не доказаны.
+[Evidence и полный research contract](../docs/brain-horizon-ablation-2026-10-07.md).
+
+## 2026-10-07 — fixed sampler × fixed budget continuation
+
+Matched continuation 1000->4000 при двух sampling arms/seeds 7/19 сохранил original draw prefix,
+scaler/rows/targets/optimizer и cadence 100; replay model+optimizer exact. Test loss budget effect
+-8.95% current/-10.05% capped, sampling@4000 -12.98%, combined -20.76%. Сравнение terminal1000/4000
+подтвердило improvement и без checkpoint selection (-3.53%/-9.52%). Однако current terminal median
+83.33%; pooled capped4000 coverage скрывает horizon/seed biases. Поэтому loss improvement не
+считать calibration qualification. Weighted train cohort diagnostics показали objective mismatch
+на тех же train rows; eval по 8 old pools не квалифицирует new pools. Constant horizon-median offset
+подтверждён как head constraint, causal ablation head не проведена. Test ранее открыт, CI нет,
+latest AUTO +41.95% использует другой snapshot. [Результат](../docs/brain-budget-ablation-2026-10-07.md).
+
+## 2026-10-07 — isolated cohort-mass ablation, четыре fits
+
+Один expansion snapshot 48,000 rows/86 pools, seeds 7/19, exact scaler/code/optimizer/checkpoint rule.
+Только new cohort mass 72.09% -> 16.64%; обе baseline weights точно совпали с original. Ensemble
+pool-macro pinball улучшился на 6.42% validation / 11.91% test; seeds: test improvement 5.22%/16.13%.
+Это причинный эффект вмешательства на фиксированном snapshot; два seeds, один test day, 8 old pools
+не дают generalization CI и не объясняют весь latest AUTO +41.95% на другом snapshot. Aggregate
+coverage улучшилась, но 15m median ухудшился 52.85% -> 71.95%; calibration исправлена не целиком.
+Новые pools не представлены в evaluation; оптимальность budget 16.64% не доказана. Все 36 групп
+метрик независимо пересчитаны по сохранённым predictions/targets, loss <1e-14, coverage exact.
+Новые recipe/promotion/exams не запускались. [Отчет](../docs/brain-sampling-ablation-2026-10-07.md).
+
+## 2026-10-07 — независимая проверка claims о sampling/calibration
+
+Новый read-only audit восстановил weights/ESS из sealed snapshots. B13 broad cohort имеет
+16.64% retained rows, но 72.09% equal-pool draw mass; ESS вероятностей draws 1171.60 против
+1872.95 control. Это концентрация sampler, не независимый statistical N. Latest GRU q10/q50/q90
+coverage: validation 2.652/79.356/98.485%, test 1.606/77.912/98.996% (nominal 10/50/90).
+Latest test — 249 overlapping decisions/8 pools/1 UTC day, CI отсутствует; +41.95% candidate
+vs champion остаётся descriptive. B12 known +5.34% was improvement vs recent GRU; B13 +8.92%
+and latest +41.95% use other sets/baselines, so generation trend не установлен. Sampling
+causality not established: B13 co-varied cohort/scaler/row exposure; B12 sampler ablation is
+on older cohort only. Предложенный isolating ablation ещё не проведён. [Полный аудит](../docs/ml-review-audit-2026-10-07.md).
+
 ## 2026-10-06 — prospective comparison трёх frozen bundles
 
 На session cutoff2026-10-06 06:20:01UTC: common future12horizon cases/8origins/2pools,

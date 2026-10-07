@@ -1,0 +1,65 @@
+{
+  "schema": "memecoin-ml-review-audit-v1",
+  "audit_date": "2026-10-07",
+  "audit_cutoff_utc": "2026-10-06T22:13:05Z",
+  "mode": "read_only_offline_reconstruction",
+  "training_started": false,
+  "production_changed": false,
+  "champion_changed": false,
+  "promotion_gates_changed": false,
+  "source_receipts": {
+    "training_expansion": {
+      "path": "docs/evidence/brain-training-expansion-2026-10-06.json",
+      "sha256": "13f976369c95fb4fff9f8264b222ee4075ca94da3602439ac864875b273f5d19"
+    },
+    "post_training_audit": {
+      "path": "docs/evidence/brain-post-training-audit-2026-10-07.json",
+      "sha256": "a3c1a00514943df5c43b8146619a3e2b498bf766829353b0248ab3a6b84e9a8b"
+    },
+    "availability_normalization": {
+      "path": "docs/evidence/brain-availability-normalization-2026-10-04.json",
+      "sha256": "a91f294724005ff32a20c4102f89553eda75917e8e7fd799be4fcbad1ddcaf5d"
+    }
+  },
+  "reconstructed": {
+    "control": {
+      "rows": 48000,
+      "pools": 24,
+      "pool_days": 370,
+      "draw_probability_ess": 1872.9485549303956
+    },
+    "broad": {
+      "rows": 48000,
+      "pools": 86,
+      "pool_days": 465,
+      "new_pool_rows": 7987,
+      "new_pool_row_share": 0.16639583333333334,
+      "new_pool_count": 62,
+      "new_pool_draw_mass": 0.7209302325581395,
+      "pools_below_16_decisions": 20,
+      "small_new_pool_draw_mass": 0.23255813953488372,
+      "draw_probability_ess": 1171.6022618792185
+    },
+    "latest_snapshot": {
+      "train_max_abs_z": 135.764117,
+      "validation_max_abs_z": 6.114913,
+      "test_max_abs_z": 4.120213,
+      "calibration_nominal_percent": [10, 50, 90],
+      "calibration_validation_percent": [2.652, 79.356, 98.485],
+      "calibration_test_percent": [1.606, 77.912, 98.996]
+    },
+    "comparison_context": {
+      "b12": "selected_gru_5.34_percent_better_than_recent_gru; 6027 decisions, 24 pools, 2 UTC days",
+      "b13": "broad_gru_8.92_percent_worse_than_control_gru; 246 decisions, 8 pools, 1 UTC day",
+      "latest": "candidate_gru_41.95_percent_worse_than_official_empirical_champion; 249 decisions, 8 pools, 1 UTC day"
+    }
+  },
+  "causality": {
+    "sampling_primary_measured_suspect": true,
+    "sampling_causality_established": false,
+    "existing_same_rows_sampler_ablation": "B12 on the old 24-pool cohort; does not isolate new-cohort mass",
+    "recommended_experiment": "2 arms x seeds 7/19 on same sealed 86-pool snapshot; cap new cohort mass at 7987/48000 while preserving within-cohort pool/day proportions",
+    "estimated_fit_time_seconds": "about 49 seconds for four fits, plus artifact replay/check",
+    "experiment_run": false
+  }
+}

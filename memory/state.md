@@ -1,5 +1,144 @@
 # Текущий статус
 
+## 2026-10-07 — связь восстановлена, development prefix получен, benchmark не готов
+
+На172.20.10.11 host key совпал. Cold-transfer enrollment20mint/40окон sealed доGET;
+исключения проверены по mint, prior plans и3reference datasets. Фактически9HTTP200,
+81670bytes,411unique bars,38complete origins/2mint/3nonoverlap windows, толькоage<1d.
+Campaign01STOP после5GET: sharedsource URLError/TimeoutError. После verifiedsource recovery
+одна reviewed continuation сохранила debit5/roster/expiry; campaign02STOP после4GET:
+unexpected_project_consumer. Егоidentityне сохранена, truewriter vs falsepositive unknown.
+Третьего запуска нет, STOP/seals неизменны. Guard diagnostics исправлена локально;
+не квалифицирован unattended. Raw seals и9reports reproduced наMac2, fits/predictions0.
+Revision33paused/champion9ea4a6bd...3920/runtime08/sourceconfig unchanged. SourceSTOPнет,
+failures0 вcloseout. UIadapter_unavailable/expiry0 не доказательство фактическогоexpiry.
+Seen temporaldata не раскрывались: current managedexam до12:23:51UTC совпадает сsourcelease.
+Нужна отдельная research acquisition qualification, не productionrenewal/новыйMLsweep.
+[Результат/ограничения](../docs/brain-development-acquisition-2026-10-07.md),
+[receipts](../docs/evidence/brain-development-acquisition-2026-10-07.json).
+
+## 2026-10-07 — data acquisition priority, owner connectivity blocked
+
+По новому запросу выбран data-first, не дальнейшийrecipe sweep. ПопыткиSSH наknownIPs
+172.20.10.11/192.168.31.66timeout; knownmDNSunresolved. Hostkeyнеобходился, scansнет.
+Currentruntime/quota/exclusions неverified; freshstatus неизвестен. ЗапрошенIPуuser.
+Bounded initialdevelopment design:20unseenmints×2agewindows +до8seenfuture-rangeGET,
+<=48GET/45min/0USD, no retry, no productionwrites; realroster/window/budgetreservation
+ещёнефиксированы, acquisitionНЕзапущена. Coldhistoricaltransfer отдельно отtemporal/future.
+Clippingread-onlyaudit verifiedsealedLRreceipts:8/8forksclip100%, no perstepnorm/directions
+дляcausalverdict. Syntheticalgebra подтверждает IQRcancellation вsaturatedclip и различие
+batch-dependentgradientnormalization дляAdam; неGRUablation. Nextafterbroaddata:2×2LR×clip,
+samebackbone, matchedfromscratchAdamstates; thresholdнеподбиратьпоoldtest. Production/champion
+неизменялись, newfits/providerGET0. [Design/audit](../docs/brain-development-acquisition-2026-10-07.md).
+
+## 2026-10-07 — benchmark foundation и train-only LR diagnostic
+
+Созданы docs/brain-benchmark-v1.md, configs/brain-benchmark-v1.json и offline metadata
+preflight в curriculum/benchmark.py. Явные development/calibration/prospective roles,
+lane/age/seen/horizon support, known-exposure denylist, temporal/maturity/availability,
+mint-related-window dedup. Это не raw admission или live collector; support_ready=false,
+все3realpackets missing, promotion=false. Новаяacquisition/providerquota не запускалась.
+Минимальный chosenexperiment:4terminal4000 forks ×LR0.001/0.0001,8000updates31.218s,
+sameoptimizer/draws/scaler/GRU; validation/test predictions0. MediancoverageSD meanseeds
+-54.70%current/-58.20%capped; traincalibrationMAE2.736->2.169pp и8.145->2.872pp.
+Trainloss+2.29%/-1.55%, residualcohortbias сохраняется. LowerLR не новыйrecipe; сначала
+широкийdevelopment, затем fixed optimization comparison/calibration/futuretest.
+48terminalmetricgroups independent inference/stdlib rescoring maxerror2.22e-16.
+RunSHA3d81f4eb1239cf7dacfc4ade2650e6c5d752a0de4f97d19be76175258e07415a.
+Ownerrevision33 до/после paused/paused,activejobs0,champion9ea4a6bd...3920 unchanged.
+[LR evidence](../docs/brain-lr-diagnostic-2026-10-07.md),
+[benchmark/readiness](../docs/brain-benchmark-v1.md). Краткая now.md сокращена: история вreports/state.
+Итоговые проверки:makecheck1007passed/12optionalskips,ruff/format/mypy/smokePASS;
+22новыхbenchmark tests. Первый fullrun:transientstoptest иcontextcap; повторныеchecksPASS.
+
+## 2026-10-07 — horizon interaction не дала устойчивого calibration fix
+
+На sealed86pool snapshot проведено8fits:2samplers ×shared/interactionhead ×seeds7/19,
+fixed4000updates.48нулевых новых parameters сохранили initial function; controls exactly
+воспроизвели обе прежние selected/terminal weights. Run37.406s,144metricgroups independently
+rescored exact. Terminal head effect test -3.93%current/+1.08%capped; current median82.72%,
+capped median5m38.62%/15m67.89%. Selected outcomes также неоднозначны. Head limitation
+confirmed, claim principal remaining calibration cause not established. GRU/runtime code
+не менялись. Target distribution теперь явно lane-specific: AUTO eligible traffic,
+Watch age/seen breadth with traffic separately; no arbitrary global old/new coefficient.
+Admission cohort не возраст рынка; train/eval weights, oversampling и loss objective
+следует различать. Требуется широкий old+new dev/prospective eval до дальнейшего recipe tuning.
+F01/D43/reserved holdout не читались; acquisition0/promotion0. Owner revision33 до/после,
+paused/paused(reason expired),queued/running0,champion9ea4a6bd...3920 unchanged.
+RunSHA497a90dfd84aa409eedc5e731ca70fd9b21a44475d1b2ce6954a3adf841de91d.
+[Протокол/результат/target contract](../docs/brain-horizon-ablation-2026-10-07.md).
+
+## 2026-10-07 — sampling × budget: две причины loss, calibration остаётся ограничением
+
+Пользователь разрешил короткую самостоятельную диагностику. До результатов зафиксирован
+2 samplers × 1000/4000 updates × seeds 7/19 continuation protocol; все inputs/optimizer/checkpoint
+cadence 100 одинаковы. Четыре continuations и 400 verification updates выполнились за 16.588s.
+Replay 900->1000 точно воспроизвёл model+optimizer всех 4 fits, original1000 metrics exact.
+Ensemble test loss current1000/4000 = 0.010601888/0.009653287; capped1000/4000 =
+0.009339007/0.008400464. Budget effects -8.95%/-10.05%, sampling@4000 -12.98%, combined -20.76%.
+Terminal-only test loss тоже лучше (-3.53% current/-9.52% capped), но current4000 median coverage 83.33%.
+Capped4000 pooled test coverage 7.72/48.78/92.68 скрывает median 5m 41.06%/15m 56.50% и разные seeds.
+Train diagnosis: current1k weighted median 5m 48–54%, old cohort 70–79%; target quantiles old/new
+резко различаются. Retained train 48000 не вырос, уменьшился old exposure и изменился objective.
+Constant head median15m−5m across histories подтверждён кодом/predictions; причинность head не
+проверялась. Нет основания менять GRU backbone. Следующий recipe только research candidate
+с явным cohort budget/validation compute и prospective old+new evaluation, не production admission.
+Artifacts: `work/brain-budget-ablation-20261007/run01`, SHA
+`58545e8ef584e2987708169c330100c00d6ebc1693910d7ffded79abd738349a`;
+144 группы метрик независимо пересчитаны. Owner до/после paused/paused, active jobs 0, champion unchanged.
+[Отчет](../docs/brain-budget-ablation-2026-10-07.md),
+[evidence](../docs/evidence/brain-budget-ablation-2026-10-07.json).
+
+## 2026-10-07 — sampling ablation завершён, production recipe не менялся
+
+После подключения Mac1 по 172.20.10.11 (прежний verified host key) проверено: прежнего output
+нет, процессов обучения 0, operator уже paused/paused. Выполнены ровно 4 GRU fits на expansion
+snapshot: текущая mass новых pools 72.09% и cap 16.64%, seeds 7/19, остальные inputs/rules exact.
+Оба baseline fit воспроизвели original B13 tensors. Sealed run 8.070s; 36 групп метрик независимо
+пересчитаны на Mac2. Validation/test pool-macro pinball ансамбля 0.014873905 -> 0.013919116
+(-6.42%) и 0.010601888 -> 0.009339007 (-11.91%). Seeds 7/19: test improvement 5.22%/16.13%.
+Coverage ансамбля на test 2.44/65.45/94.72% -> 6.10/62.40/92.48%; calibration исправлена не полностью:
+median 15m 52.85% -> 71.95%, тогда как 5m 78.05% -> 52.85%. Узкий causal effect sampler подтверждён,
+но latest AUTO snapshot другой; один test day и 8 old pools ограничивают перенос вывода.
+Champion SHA 9ea4a6bd...3920 unchanged; AUTO остался paused, release/promotion/recipe не менялись.
+Следующий recipe только candidate для prospective old+new cohort check, не автоматически admitted.
+[Отчет](../docs/brain-sampling-ablation-2026-10-07.md),
+[evidence](../docs/evidence/brain-sampling-ablation-2026-10-07.json).
+Mac1/Mac2 artifact `work/brain-sampling-ablation-20261007/run01`, manifest SHA
+`94c86c385c5d944ab34869874cb0922473af6c8fe9676744ad03ace518d15d11`.
+Запись ниже о сетевом блокировании сохранена как история; доступ и эксперимент восстановлены.
+
+## 2026-10-07 — sampling ablation разрешён, восстановление после сетевого обрыва
+
+Пользователь разрешил ровно четыре GRU fits: current mass72.09% / cohort row-share16.64%,
+seeds7/19, остальные параметры неизменны. Snapshot `experiment01/broad-snapshot/dataset`,
+manifest SHA `ba9081b124dd066df8641a19724300c81785b885a15ce17a288a55cdc95be430`.
+Первый inline preflight остановился на отсутствующем `train_start_s` до создания output;
+второй inline запуск потерял tool session при сетевом обрыве, его удалённый статус неизвестен.
+Не утверждать, что все fits завершены или что ни один не запустился. Сначала проверить
+Mac1 `work/brain-sampling-ablation-20261007/run01` и процессы; новые fits не дублировать.
+Повторные SSH timeout; ARP192.168.31.66 incomplete, route en0; Mac2 имеет192.168.31.235.
+Пользователю отправлен запрос текущего IP/доступности Mac1. Подготовлен временный runner
+`/private/tmp/memecoin-sampling-ablation.py`: exact B13 partitions/coverage membership,
+baseline draws/scaler/code pins, reuse sealed completed fits, four-fit bound, per-seed и
+ensemble validation/test scoring. Исправлена форма test predictions в wrapper: native scoring
+ожидает flat variant list. AST compile и synthetic flat/horizon scoring smoke passed.
+Runner ещё не передан/не запущен. Production/AUTO/champion/gates не изменялись.
+
+## 2026-10-07 — независимая проверка ML-review
+
+Read-only реконструкция из expansion/post-training/normalization receipts и sealed 86-pool
+snapshot подтвердила: новые pools 16.64% строк получили 72.09% pool-balanced draw mass;
+draw-probability ESS control/broad 1872.9486/1171.6023; 20 новых pools имели <16 decisions.
+Это главный проверяемый sampling-mismatch механизм, но причинность ухудшения не установлена.
+Latest GRU coverage на test 1.606/77.912/98.996% против nominal 10/50/90; причина однозначно
+не локализуется. Исторический z=1425.58 относится к старому B03 eval; latest test max |z|=4.12.
+B12/B13/latest comparisons используют разные eval/baselines, известный B12 +5.34% был
+улучшением; monotonic generational degradation не доказана. One-day/8-pool/249-decision latest
+test не имеет CI, +41.95% — descriptive. Новый training не запускался. Полные реконструкции,
+verdicts и минимальная cohort-mass ablation: [отчет](../docs/ml-review-audit-2026-10-07.md),
+[machine-readable receipt](../docs/evidence/ml-review-audit-2026-10-07.json).
+
 ## 2026-10-07 — post-training audit и Watch Market release readiness
 
 Read-only Mac1 аудит последнего законченного AUTO training `job_5edd5e5ecda88338`:

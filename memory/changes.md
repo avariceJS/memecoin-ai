@@ -1,5 +1,72 @@
 # История изменений решений
 
+## 2026-10-07 — actual development acquisition после восстановления SSH
+
+Добавлен отдельныйresearch collector: deterministicmintdisjoint enrollment, frozen code,
+budget/expiry/source guards, supervisedGET/no retries, одна reviewed suffixcontinuation,
+raw supportreproduction.9HTTP200/411bars/2supportedmints; обаSTOP сохранены, broadbasis
+не получена. Улучшенunknownconsumer fingerprint после обнаруженногоdiagnosticgap.
+Новыхfits/inference0; production/champion/runtime08unchanged. Report иmemory обновлены.
+[Отчёт/receipts](../docs/brain-development-acquisition-2026-10-07.md).
+
+## 2026-10-07 — data-first campaign design и clipping interpretation
+
+Подготовленboundeddevelopment hydrationdesign<=48GET, фактическийstartblockedSSH/quotaunknown.
+Новыйread-onlyclippingaudittool извлекает8sealedLRreceipts и явноsyntheticalgebrachecks;
+3focusedtestsPASS. Ниrealdata/fit/productionchanges. Memoryфиксируетнедоступностьowner,
+неповторяетстарыйpausedstatusкактекущий. [Отчет](../docs/brain-development-acquisition-2026-10-07.md).
+
+## 2026-10-07 — benchmark foundation и8train-only LRcontinuations
+
+Добавлены benchmark-v1 protocol/config/exposure registry, metadata readiness CLI/tests;
+все realpackets missing, admission/promotion не заявлены. OfflineLR0.001/0.0001 same-state
+experiment31.2s:coverageoscillation↓55–58%, traincalibrationлучше4/4, loss effectmixed.
+48terminalgroups independentlyverified, oldeval predictions0. Production/champion/AUTO
+unchanged. now.md сжата для boundedcontext, история сохранена вreports/state.
+[Benchmark](../docs/brain-benchmark-v1.md), [LRreport](../docs/brain-lr-diagnostic-2026-10-07.md).
+
+## 2026-10-07 — target distribution и причинная проверка horizon head
+
+Завершены8offlinefits37.4s,48parameter horizon interaction initial-function matched,
+4controls exact,144evalgroups independently exact. Head constant-gap restriction снята,
+устойчивый calibration fix не получен. Зафиксирован lane-specific train/eval research
+contract: AUTO traffic/Watch breadth, age/seen/horizon strata, separate calibration block,
+без принятия16.64%/4000 или чтения protectedholdout. Research artifacts sealed на двухMac,
+production/champion/AUTO/gates unchanged. [Отчет](../docs/brain-horizon-ablation-2026-10-07.md).
+
+## 2026-10-07 — причинная проверка sampling и training budget
+
+Четыре sealed fits продолжены 1000->4000 updates, exact optimizer replay; 144 eval groups независимо
+пересчитаны. Sampling и budget оба влияют на loss, combined test improvement 20.76%, но calibration
+остаётся неоднородной по seeds/horizons/cohorts. Retained rows 48000 не выросли; measured mechanism
+в objective/exposure и ограниченном compute. Head constraint подтверждён, contribution не изолирован.
+Production/AUTO/champion/gates без изменений. [Диагноз](../docs/brain-budget-ablation-2026-10-07.md).
+
+## 2026-10-07 — четыре causal sampling fits завершены после восстановления сети
+
+Зафиксированы same-snapshot 2 arms × seeds 7/19, exact baseline tensors и неизменные controls.
+Ensemble pinball val/test улучшился на 6.42%/11.91%, но 15m median coverage хуже: 52.85% -> 71.95%.
+Частичный calibration effect, не полное исправление и не обобщение на latest AUTO run.
+Sealed artifacts скопированы на Mac2, 36 групп метрик независимо пересчитаны. Только research
+outputs/docs; production recipe/champion/gates/AUTO не менялись.
+[Отчет](../docs/brain-sampling-ablation-2026-10-07.md).
+
+## 2026-10-07 — sampling ablation: разрешение и сетевой обрыв
+
+Разрешены четыре isolated offline fits. После потери сети статус удалённого запуска не
+подтверждён; Mac1 не отвечает на ARP/SSH. Сохранена точка продолжения, подготовлен временный
+runner с reuse sealed fits, проверкой исходных draws/scaler и per-seed/ensemble scoring.
+Численных результатов ещё нет, production/AUTO/champion/gates не изменялись.
+
+## 2026-10-07 — независимый аудит sampling и latest GRU calibration
+
+Восстановлены weights/ESS из immutable B13 snapshots, проверены latest scaler/z-scores и
+quantile coverage, сверены B12/B13/latest evaluation populations/baselines. Sampling shift
+подтверждён как гипотеза, причинность и temporal degradation trend не установлены; известные
+B12 +5.34% — improvement. Training/production/champion/gates не менялись. Следующая проверка
+описана, но не запускалась: фиксированные строки/scaler, две cohort-mass arms × два seeds.
+[Отчет](../docs/ml-review-audit-2026-10-07.md), [receipt](../docs/evidence/ml-review-audit-2026-10-07.json).
+
 ## 2026-10-07 — post-training audit и публикация Watch Market
 
 Последний AUTO candidate `job_5edd5e5ecda88338` завершён без integrity/temporal violations,
