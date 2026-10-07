@@ -111,6 +111,31 @@ network, CPU, or GPU will fail first.
 
 ## Data path interfaces
 
+### Partitioned research experience (2026-10-07)
+
+`memecoin_experience` introduces an opt-in research data plane. Its admitted-corpus adapter
+streams existing sealed `birth-usd-admission-v1` training corpora, checks their namespace and
+manifest, and requalifies bounded raw captures before accepting individual rows. Reserved
+evaluation roles and protected pools are rejected. It does not call providers or open owner
+runtime. Multiple sorted corpora merge by earliest receipt, with explicit duplicate/revision
+counts and pinned sources preserving the alternative versions.
+
+The builder retains bounded history and emits every context-ready origin, including separately
+masked incomplete horizons. Receipt maxima and capture dependencies cover every raw bar used
+by every input frame. Historical availability remains explicitly unknown at event time.
+Pool/day partitions contain binary feature/target columns plus provenance JSONL. Content-addressed
+objects are shared by snapshot manifests; no 500k assembly ceiling applies. Publication uses
+fsync and atomic namespace operations under a local writer lock. Immutable per-partition journal
+entries allow retries to replay their input prefix and reuse published objects; this is not a
+random-access source cursor. Corrupt objects fail closed. Unreferenced crash leftovers are safe
+but currently require manual storage housekeeping.
+
+Payload memory is bounded by context, source count and partition size (maximum 4096 origins).
+Snapshot metadata remains O(partitions); source admission metadata remains O(pools/captures).
+The initial format is a versioned stdlib binary layout, not Parquet or a distributed database.
+The first adapter covers admitted USD history; continuous-index export and raw-vacuum semantic
+qualification remain separate work. These engineering changes establish no market edge.
+
 Relevant implementation: `src/memecoin_ai/{sources,storage,collection,observations,datasets}.py`,
 `src/memecoin_brain/{source,data}.py`, `src/memecoin_brain_sources/`, `src/memecoin_continuous/`,
 `src/memecoin_curriculum/{archive,admission,streaming}.py`, and `src/memecoin_pumpswap/`.
