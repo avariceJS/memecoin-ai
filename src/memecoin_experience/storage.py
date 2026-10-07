@@ -13,7 +13,8 @@ from collections import Counter
 from contextlib import contextmanager
 from pathlib import Path
 
-from .records import FEATURES, HORIZONS, contract, experiences
+from .records import contract, experiences
+from .schema import checked_samples, feature_names, target_names, validate
 
 PIN = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -145,7 +146,9 @@ def write_partition(store, rows, schema):
         else:
             os.rename(staging, target)
             sync_dir(store / "objects")
-        return dict(pin=pin, count=len(rows), statuses=dict(counts))
+        from .composition import bounds
+
+        return dict(pin=pin, count=len(rows), statuses=dict(counts), bounds=bounds(rows))
     finally:
         if staging.exists():
             shutil.rmtree(staging)
@@ -164,14 +167,35 @@ def code_identity():
     return {f"{p.parent.name}/{p.name}": file_hash(p) for p in sorted(files)}
 
 
-def build(store, rows, *, sources, cutoff, context=8, chunk=4096, source_counts=None):
+def build(
+    store,
+    rows,
+    *,
+    sources,
+    cutoff,
+    context=8,
+    chunk=4096,
+    source_counts=None,
+    schema=None,
+    role="train",
+    selection=None,
+):
     """Retry replays the deterministic input prefix and reuses sealed objects; no row cap."""
+    if role not in {"train", "research_evaluation"}:
+        raise ValueError("experience_reserved_source")
     store = safe_path(store)
     if type(chunk) is not int or not 1 <= chunk <= 4096 or not sources:
         raise ValueError("experience_build_plan")
-    schema = contract(context)
+    schema = validate(schema) if schema is not None else contract(context)
+    context = schema["context"]
     binding = dict(
-        contract=schema, sources=sources, cutoff_ns=cutoff, chunk=chunk, code=code_identity()
+        contract=schema,
+        sources=sources,
+        cutoff_ns=cutoff,
+        chunk=chunk,
+        code=code_identity(),
+        role=role,
+        selection=selection or {},
     )
     build_id = digest(binding)
     store.mkdir(parents=True, exist_ok=True)
@@ -190,10 +214,18 @@ def build(store, rows, *, sources, cutoff, context=8, chunk=4096, source_counts=
                 consumed += 1
                 yield row
 
-        records = experiences(counted(), cutoff, context)
+        records = (
+            experiences(counted(), cutoff, context)
+            if schema["schema"] == "brain-experience-v1"
+            else checked_samples(counted(), schema, cutoff)
+        )
         # Stable pool/day boundaries let later snapshots share completed historical partitions.
         for _, group in itertools.groupby(
-            records, key=lambda r: (r["pool"], r["origin_s"] // 86400)
+            records,
+            key=lambda r: (
+                r["pool"],
+                (r["origin_s"] if "origin_s" in r else r["decision_ns"] // 10**9) // 86400,
+            ),
         ):
             while batch := list(itertools.islice(group, chunk)):
                 part = write_partition(store, batch, schema)
@@ -208,8 +240,11 @@ def build(store, rows, *, sources, cutoff, context=8, chunk=4096, source_counts=
             partitions=parts,
             decisions=sum(p["count"] for p in parts),
             target_statuses=dict(counts),
-            unique_bars=consumed,
-            context_unready_bars=consumed - sum(p["count"] for p in parts),
+            input_records=consumed,
+            unique_bars=consumed if schema["schema"] == "brain-experience-v1" else None,
+            context_unready_bars=(consumed - sum(p["count"] for p in parts))
+            if schema["schema"] == "brain-experience-v1"
+            else None,
             source_counts=dict(source_counts or {}),
             production_eligible=False,
         )
@@ -232,8 +267,7 @@ class Snapshot:
         if digest(self.manifest) != pin:
             raise ValueError("experience_snapshot_checksum")
         self.schema = self.manifest["binding"]["contract"]
-        if self.schema != contract(self.schema["context"]):
-            raise ValueError("experience_schema")
+        validate(self.schema)
         self.parts = self.manifest["partitions"]
         if sum(p["count"] for p in self.parts) != self.manifest["decisions"]:
             raise ValueError("experience_snapshot_count")
@@ -251,8 +285,14 @@ class Snapshot:
         if (
             n != entry["count"]
             or not 1 <= n <= self.manifest["binding"]["chunk"]
-            or (path / "x.f64").stat().st_size != n * self.schema["context"] * len(FEATURES) * 8
-            or (path / "y.f64").stat().st_size != n * len(HORIZONS) * 8
+            or (path / "x.f64").stat().st_size
+            != n * self.schema["context"] * len(feature_names(self.schema)) * 8
+            or (path / "y.f64").stat().st_size != n * len(target_names(self.schema)) * 8
         ):
             raise ValueError("experience_column_size")
+        if "bounds" in entry:
+            from .composition import bounds
+
+            if entry["bounds"] != bounds(rows):
+                raise ValueError("experience_partition_bounds")
         return path, rows

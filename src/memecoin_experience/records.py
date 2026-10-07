@@ -44,12 +44,18 @@ def checked_rows(rows, cutoff):
         yield row
 
 
-def experiences(rows, cutoff, context=8):
+def experiences(rows, cutoff, context=8, *, horizons=HORIZONS):
     """Emit all context-ready origins, including incomplete labels. Memory O(context)."""
     if type(context) is not int or not 1 <= context <= 256:
         raise ValueError("experience_context")
+    if (
+        not horizons
+        or any(type(h) is not int or not 1 <= h <= 4096 for h in horizons)
+        or len(set(horizons)) != len(horizons)
+    ):
+        raise ValueError("experience_horizons")
     for pool, stream in itertools.groupby(checked_rows(rows, cutoff), key=lambda r: r["pool"]):
-        future = deque(itertools.islice(stream, max(HORIZONS) + 1))
+        future = deque(itertools.islice(stream, max(horizons) + 1))
         past, frames = deque(maxlen=8), deque(maxlen=context)
         previous = None
         while future:
@@ -68,7 +74,7 @@ def experiences(rows, cutoff, context=8):
                 inputs = sorted({tuple(d) for _, deps in frames for d in deps})
                 targets, status, label_times, target_pins = [], [], [], []
                 lookup = {r["open_s"]: r for r in future}
-                for horizon in HORIZONS:
+                for horizon in horizons:
                     needed = [lookup.get(row["open_s"] + BAR * i) for i in range(1, horizon + 1)]
                     valid = all(r is not None for r in needed)
                     ratio = needed[-1]["ohlcv"][3] / row["ohlcv"][3] if valid else None

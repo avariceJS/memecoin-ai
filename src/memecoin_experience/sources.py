@@ -51,13 +51,26 @@ def admitted(reference, cutoff):
         raise ValueError("experience_source_count")
 
 
-def inputs(references, cutoff, counters):
+def source_rows(reference, cutoff, role="train"):
+    if reference.get("kind") == "admitted":
+        if role != "train":
+            raise ValueError("experience_reserved_source")
+        yield from admitted(reference, cutoff)
+    elif reference.get("kind") == "continuous":
+        from .continuous import source
+
+        yield from source(reference, cutoff, role=role)
+    else:
+        raise ValueError("experience_source_kind")
+
+
+def inputs(references, cutoff, counters, *, role="train"):
     """Disk merge; bounded open files even with thousands of independently admitted corpora."""
-    if not references or any(r.get("kind") != "admitted" for r in references):
+    if not references or any(r.get("kind") not in {"admitted", "continuous"} for r in references):
         raise ValueError("experience_source_kind")
     counters.update(source_rows=0, duplicate_rows=0, revised_keys=0)
     if len(references) == 1:
-        for row in admitted(references[0], cutoff):
+        for row in source_rows(references[0], cutoff, role):
             counters["source_rows"] += 1
             yield row
         return
@@ -71,7 +84,7 @@ def inputs(references, cutoff, counters):
                 "primary key(pool,t)) without rowid"
             )
             for reference in references:
-                for row in admitted(reference, cutoff):
+                for row in source_rows(reference, cutoff, role):
                     counters["source_rows"] += 1
                     key = row["pool"], row["open_s"]
                     found = db.execute(

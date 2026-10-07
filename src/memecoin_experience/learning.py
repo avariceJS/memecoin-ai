@@ -15,7 +15,9 @@ import numpy as np
 import torch
 from torch import nn
 
-from .records import FEATURES, HORIZONS, membership, split_plan
+from .models import GRU, QUANTILES, construct, input_tensor, model_spec
+from .records import split_plan
+from .schema import feature_names, membership, target_names
 from .storage import (
     Snapshot,
     atomic_json,
@@ -28,7 +30,7 @@ from .storage import (
     verify_files,
 )
 
-QUANTILES = (0.1, 0.5, 0.9)
+Network = GRU  # Backward-compatible research import; dimensions come from artifact specs.
 
 
 def recipe(config):
@@ -41,6 +43,7 @@ def recipe(config):
         lr=0.001,
         checkpoint_every=100,
         cpu_threads=1,
+        model_kind="gru-quantiles-v1",
     )
     if set(config) - set(defaults):
         raise ValueError("experience_training_config")
@@ -62,10 +65,14 @@ def recipe(config):
         or not 0 < c["lr"] <= 0.1
     ):
         raise ValueError("experience_training_config")
+    from .models import KINDS
+
+    if c["model_kind"] not in KINDS:
+        raise ValueError("experience_training_config")
     return c
 
 
-def batches(snapshot, plan, role, batch, *, seed=None, epoch=0, cursor=(0, 0)):
+def batches(snapshot, plan, role, batch, *, seed=None, epoch=0, cursor=(0, 0), with_metadata=False):
     """Permutation of partitions then rows: exactly once per role per epoch, bounded payload."""
     order = list(range(len(snapshot.parts)))
     if seed is not None:
@@ -80,7 +87,7 @@ def batches(snapshot, plan, role, batch, *, seed=None, epoch=0, cursor=(0, 0)):
         path, rows = snapshot.partition(index)
         chosen, masks = [], []
         for i, row in enumerate(rows):
-            row_role, mask = membership(row, plan)
+            row_role, mask = membership(row, plan, snapshot.schema)
             if row_role == role and any(mask):
                 chosen.append(i)
                 masks.append(mask)
@@ -94,9 +101,14 @@ def batches(snapshot, plan, role, batch, *, seed=None, epoch=0, cursor=(0, 0)):
             path / "x.f64",
             dtype="<f8",
             mode="r",
-            shape=(len(rows), snapshot.schema["context"], len(FEATURES)),
+            shape=(len(rows), snapshot.schema["context"], len(feature_names(snapshot.schema))),
         )
-        y = np.memmap(path / "y.f64", dtype="<f8", mode="r", shape=(len(rows), len(HORIZONS)))
+        y = np.memmap(
+            path / "y.f64",
+            dtype="<f8",
+            mode="r",
+            shape=(len(rows), len(target_names(snapshot.schema))),
+        )
         offset = cursor[1] if position == cursor[0] else 0
         while offset < len(indices):
             take = indices[offset : offset + batch - len(ids)]
@@ -104,7 +116,7 @@ def batches(snapshot, plan, role, batch, *, seed=None, epoch=0, cursor=(0, 0)):
             xs.append(np.array(x[selected]))
             ys.append(np.array(y[selected]))
             ms.append(np.array([masks[i] for i in take], dtype=bool))
-            ids.extend(rows[i]["id"] for i in selected)
+            ids.extend(rows[i] if with_metadata else rows[i]["id"] for i in selected)
             offset += len(take)
             if len(ids) == batch:
                 next_cursor = (position + 1, 0) if offset == len(indices) else (position, offset)
@@ -117,17 +129,18 @@ def batches(snapshot, plan, role, batch, *, seed=None, epoch=0, cursor=(0, 0)):
 
 def prepare(snapshot, plan, output, batch):
     """Train-only Welford statistics and exact empirical quantiles via disposable disk sort."""
-    counts = np.zeros(len(FEATURES), dtype=np.int64)
-    means, m2 = np.zeros(len(FEATURES)), np.zeros(len(FEATURES))
+    names, horizons = feature_names(snapshot.schema), target_names(snapshot.schema)
+    counts = np.zeros(len(names), dtype=np.int64)
+    means, m2 = np.zeros(len(names)), np.zeros(len(names))
     population = Counter()
     denominators = Counter()
     for i in range(len(snapshot.parts)):
         _, rows = snapshot.partition(i)
         for row in rows:
-            role, mask = membership(row, plan)
+            role, mask = membership(row, plan, snapshot.schema)
             population[role] += 1
             population[role + "_usable"] += int(any(mask))
-            for h, valid, status in zip(HORIZONS, mask, row["target_status"], strict=True):
+            for h, valid, status in zip(horizons, mask, row["target_status"], strict=True):
                 denominators[f"{role}/{h}/{status}"] += 1
                 denominators[f"{role}/{h}/usable"] += int(valid)
     fd, name = tempfile.mkstemp(prefix=".baseline-", suffix=".sqlite", dir=output)
@@ -139,8 +152,8 @@ def prepare(snapshot, plan, output, batch):
         db.execute("pragma cache_size=-8192")
         db.execute("create table labels(h integer, y real)")
         for x, y, mask, _, _ in batches(snapshot, plan, "train", batch):
-            flat = x.reshape(-1, len(FEATURES))
-            for j in range(len(FEATURES)):
+            flat = x.reshape(-1, len(names))
+            for j in range(len(names)):
                 observed = flat[:, j][np.isfinite(flat[:, j])]
                 n = len(observed)
                 if not n:
@@ -156,13 +169,13 @@ def prepare(snapshot, plan, output, batch):
                     (
                         (h, float(y[i, h]))
                         for i in range(len(y))
-                        for h in range(len(HORIZONS))
+                        for h in range(len(horizons))
                         if mask[i, h]
                     ),
                 )
         db.execute("create index ordered_labels on labels(h,y)")
         baseline = []
-        for h in range(len(HORIZONS)):
+        for h in range(len(horizons)):
             n = db.execute("select count(*) from labels where h=?", (h,)).fetchone()[0]
             if not n:
                 raise ValueError("experience_empty_training_horizon")
@@ -193,37 +206,13 @@ def prepare(snapshot, plan, output, batch):
     )
 
 
-class Network(nn.Module):
-    def __init__(self, width):
-        super().__init__()
-        self.gru = nn.GRU(len(FEATURES) * 2 + 1, width, batch_first=True)
-        self.head = nn.Linear(width, len(HORIZONS) * 3)
-
-    def forward(self, x):
-        states, _ = self.gru(x)
-        p = self.head(states[:, -1]).reshape(-1, len(HORIZONS), 3)
-        center = p[:, :, 0]
-        return torch.stack(
-            (
-                center - nn.functional.softplus(p[:, :, 1]),
-                center,
-                center + nn.functional.softplus(p[:, :, 2]),
-            ),
-            dim=-1,
-        )
-
-
 def tensors(x, y, mask, stats, device):
     if np.isinf(x).any() or not np.isfinite(y[mask]).all():
         raise ValueError("experience_nonfinite_learning_input")
-    present = np.isfinite(x)
-    normalized = np.where(present, (x - np.array(stats["mean"])) / stats["scale"], 0)
-    age = np.broadcast_to(
-        np.linspace(-1, 0, x.shape[1])[None, :, None], (x.shape[0], x.shape[1], 1)
-    )
-    inputs = np.concatenate((np.clip(normalized, -8, 8), present.astype(float), age), axis=2)
+    if y.shape != mask.shape or y.ndim != 2 or y.shape[0] != x.shape[0]:
+        raise ValueError("experience_label_shape")
     return (
-        torch.tensor(inputs, dtype=torch.float32, device=device),
+        input_tensor(x, stats, device),
         torch.tensor(np.where(mask, y, 0), dtype=torch.float32, device=device),
         torch.tensor(mask, dtype=torch.bool, device=device),
     )
@@ -238,7 +227,8 @@ def loss(prediction, target, mask):
 
 
 def evaluate(model, snapshot, plan, role, stats, config):
-    accum = {name: np.zeros((len(HORIZONS), 3)) for name in ("model", "empirical")}
+    horizons = target_names(snapshot.schema)
+    accum = {name: np.zeros((len(horizons), 3)) for name in ("model", "empirical")}
     model.eval()
     with torch.no_grad():
         for x, y, mask, _, _ in batches(snapshot, plan, role, config["batch"]):
@@ -248,7 +238,7 @@ def evaluate(model, snapshot, plan, role, stats, config):
                 empirical=np.broadcast_to(stats["baseline"], (*y.shape, 3)),
             )
             for name, p in predictions.items():
-                for h in range(len(HORIZONS)):
+                for h in range(len(horizons)):
                     truth, pred = y[mask[:, h], h], p[mask[:, h], h]
                     error = truth[:, None] - pred
                     acc = accum[name][h]
@@ -268,11 +258,11 @@ def evaluate(model, snapshot, plan, role, stats, config):
                 pinball=float(p / n) if n else None,
                 coverage=float(c / n) if n else None,
             )
-            for h, (n, p, c) in zip(HORIZONS, matrix, strict=True)
+            for h, (n, p, c) in zip(horizons, matrix, strict=True)
         ]
     if any(r["n"] == 0 for r in result["model"]):
         raise ValueError("experience_empty_evaluation_horizon")
-    result["selection_score"] = sum(r["pinball"] for r in result["model"]) / len(HORIZONS)
+    result["selection_score"] = sum(r["pinball"] for r in result["model"]) / len(horizons)
     if not math.isfinite(result["selection_score"]):
         raise ValueError("experience_nonfinite_metric")
     return result
@@ -291,7 +281,7 @@ def save_checkpoint(path, state):
         Path(name).unlink(missing_ok=True)
 
 
-def train(store, pin, output, *, plan, config=None, stop_after=None):
+def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None):
     """Research-only job. stop_after is an absolute one-shot test interrupt; omit on resume."""
     output, plan, config = safe_path(output), split_plan(plan), recipe(config or {})
     output.mkdir(parents=True, exist_ok=True)
@@ -300,7 +290,24 @@ def train(store, pin, output, *, plan, config=None, stop_after=None):
     ):
         raise ValueError("experience_unowned_training_directory")
     snapshot = Snapshot(store, pin)
+    if snapshot.manifest["binding"].get("role", "train") != "train":
+        raise ValueError("experience_reserved_snapshot")
+    spec = model_spec(snapshot.schema, config["width"], config["model_kind"])
+    ancestor = None
+    if parent is not None:
+        from .predict import Predictor
+
+        if set(parent) != {"path", "pin"}:
+            raise ValueError("experience_parent_reference")
+        ancestor = Predictor(parent["path"], parent["pin"])
+        if ancestor.spec != spec:
+            raise ValueError("experience_parent_contract")
     binding = dict(
+        model=spec,
+        parent=parent["pin"] if parent else None,
+        initialization="parent_weights_frozen_normalizer_fresh_optimizer"
+        if parent
+        else "seeded_fresh",
         snapshot=pin,
         plan=plan,
         config=config,
@@ -315,6 +322,11 @@ def train(store, pin, output, *, plan, config=None, stop_after=None):
         ),
     )
     if config["device"] == "cuda":
+        workspace = os.environ.get("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+        if workspace not in {":4096:8", ":16:8"}:
+            raise ValueError("experience_cuda_workspace_config")
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = workspace
+        binding["environment"]["cublas_workspace_config"] = workspace
         if not torch.cuda.is_available():
             raise ValueError("experience_cuda_unavailable")
         binding["environment"]["accelerator"] = torch.cuda.get_device_name()
@@ -330,6 +342,13 @@ def train(store, pin, output, *, plan, config=None, stop_after=None):
         else:
             # statistics.json without a final binding is an uncommitted derived file.
             stats = prepare(snapshot, plan, output, config["batch"])
+            if ancestor is not None:
+                stats.update(
+                    mean=ancestor.stats["mean"],
+                    scale=ancestor.stats["scale"],
+                    normalization="frozen_parent_normalizer",
+                    normalizer_parent=parent["pin"],
+                )
             atomic_json(stats_path, stats, replace=True)
         binding = dict(binding, statistics=digest(stats))
         atomic_json(output / "binding.json", binding)
@@ -340,13 +359,14 @@ def train(store, pin, output, *, plan, config=None, stop_after=None):
             if report["binding"] != binding:
                 raise ValueError("experience_artifact_binding")
             return report
-        os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
         torch.set_num_threads(config["cpu_threads"])
         torch.manual_seed(config["seed"])
         torch.use_deterministic_algorithms(True)
         torch.backends.cudnn.benchmark = False
         torch.backends.cuda.matmul.allow_tf32 = False
-        model = Network(config["width"]).to(config["device"])
+        model = construct(spec).to(config["device"])
+        if ancestor is not None:
+            model.load_state_dict(ancestor.model.state_dict(), strict=True)
         optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"])
         checkpoint = safe_path(output / "checkpoint.pt")
         state = dict(
@@ -364,6 +384,8 @@ def train(store, pin, output, *, plan, config=None, stop_after=None):
             saved = torch.load(checkpoint, map_location="cpu", weights_only=True)
             if saved["binding"] != state["binding"] or saved["statistics"] != state["statistics"]:
                 raise ValueError("experience_checkpoint_binding")
+            if stop_after is not None and saved["steps"] >= stop_after:
+                raise ValueError("experience_stop_after_already_reached")
             state = saved
             model.load_state_dict(state["model"])
             optimizer.load_state_dict(state["optimizer"])
@@ -432,9 +454,12 @@ def train(store, pin, output, *, plan, config=None, stop_after=None):
             test=test,
             production_eligible=False,
             evaluation_scope="descriptive_temporal_research_no_edge_claim",
+            ancestors=([parent["pin"], *ancestor.report["ancestors"]] if ancestor else []),
+            seen_end_s=max(plan["test_end_s"], ancestor.report["seen_end_s"] if ancestor else 0),
         )
         staging = Path(tempfile.mkdtemp(prefix=".artifact-", dir=output))
         save_checkpoint(staging / "weights.pt", {k: v.cpu() for k, v in model.state_dict().items()})
+        atomic_json(staging / "model.json", spec)
         atomic_json(staging / "report.json", report)
         atomic_json(staging / "statistics.json", stats)
         seal_files(staging)

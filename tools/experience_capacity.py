@@ -13,8 +13,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rows", type=int, default=520000)
     parser.add_argument("--batch", type=int, default=1024)
+    parser.add_argument("--fit-epochs", type=int, default=0)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    if not 0 <= args.fit_epochs <= 10:
+        parser.error("--fit-epochs must be between 0 and 10")
     if args.rows < 100:
         parser.error("--rows must be at least 100")
     if not 1 <= args.batch <= 4096:
@@ -67,8 +70,32 @@ def main():
             train_count += previous_size
             reader_batches += 1
         assert train_count > args.rows * 0.79
+        fitted = None
+        if args.fit_epochs:
+            from memecoin_experience.learning import train
+            from memecoin_experience.storage import file_hash
+
+            job = root / "capacity-fit"
+            training = train(
+                root,
+                result["snapshot"],
+                job,
+                plan=plan,
+                config=dict(width=16, batch=args.batch, epochs=args.fit_epochs, seed=42),
+            )
+            assert training["rows_seen"] == train_count * args.fit_epochs
+            fitted = dict(
+                epochs=training["epochs"],
+                steps=training["steps"],
+                rows_seen=training["rows_seen"],
+                parameters=training["parameters"],
+                artifact=file_hash(job / "artifact/manifest.json"),
+                test=training["test"],
+                device="cpu",
+            )
         receipt = dict(
             qualification="synthetic_engineering_only_no_market_claim",
+            optimizer_fit=fitted,
             input_bars=args.rows,
             decisions=observed,
             training_reader_origins=train_count,

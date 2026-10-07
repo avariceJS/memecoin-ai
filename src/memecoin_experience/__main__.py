@@ -12,6 +12,10 @@ from .storage import Snapshot, build
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
+    exporter = commands.add_parser("export-continuous")
+    exporter.add_argument("--index", required=True, type=Path)
+    exporter.add_argument("--plan", required=True, type=Path)
+    exporter.add_argument("--output", required=True, type=Path)
     builder = commands.add_parser("build")
     builder.add_argument("--plan", required=True, type=Path)
     builder.add_argument("--store", required=True, type=Path)
@@ -23,20 +27,112 @@ def main():
     trainer.add_argument("--snapshot", required=True)
     trainer.add_argument("--plan", required=True, type=Path)
     trainer.add_argument("--output", required=True, type=Path)
+    for name in ("pipeline", "generation", "register-evaluation"):
+        command = commands.add_parser(name)
+        command.add_argument("--root", required=True, type=Path)
+        command.add_argument("--plan", required=True, type=Path)
+    evaluator = commands.add_parser("evaluate")
+    evaluator.add_argument("--plan", required=True, type=Path)
+    evaluator.add_argument("--output", required=True, type=Path)
+    transfer = commands.add_parser("replicate")
+    transfer.add_argument("--source", required=True, type=Path)
+    transfer.add_argument("--target", required=True, type=Path)
+    transfer.add_argument("--snapshot", required=True)
+    composer = commands.add_parser("compose")
+    composer.add_argument("--store", required=True, type=Path)
+    composer.add_argument("--snapshots", nargs="+", required=True)
+    predictor = commands.add_parser("predict")
+    predictor.add_argument("--artifact", required=True, type=Path)
+    predictor.add_argument("--pin", required=True)
+    predictor.add_argument("--frames", required=True, type=Path)
     args = parser.parse_args()
-    if args.action == "build":
+    if args.action == "pipeline":
+        from .pipeline import run
+
+        result = run(args.root, json.loads(args.plan.read_text()))
+    elif args.action == "generation":
+        from .generations import run
+
+        result = run(args.root, **json.loads(args.plan.read_text()))
+    elif args.action == "register-evaluation":
+        from .evaluation import register
+
+        result = register(args.root, **json.loads(args.plan.read_text()))
+    elif args.action == "evaluate":
+        from .evaluation import score
+
+        result = score(output=args.output, **json.loads(args.plan.read_text()))
+    elif args.action == "replicate":
+        from .transfer import replicate
+
+        result = replicate(args.source, args.target, args.snapshot)
+    elif args.action == "compose":
+        from .composition import compose
+
+        report = compose(args.store, args.snapshots)
+        result = dict(snapshot=report["snapshot"], decisions=report["decisions"])
+    elif args.action == "predict":
+        from .predict import Predictor
+
+        model = Predictor(args.artifact, args.pin)
+        result = dict(
+            artifact=args.pin,
+            predictions=model.predict(json.loads(args.frames.read_text())).tolist(),
+        )
+    elif args.action == "export-continuous":
+        from .continuous import export
+
+        result = export(args.index, args.output, json.loads(args.plan.read_text()))
+    elif args.action == "build":
         plan = json.loads(args.plan.read_text())
-        if set(plan) != {"sources", "cutoff_ns", "context", "chunk"}:
+        required = {"sources", "cutoff_ns", "context", "chunk"}
+        if not required <= set(plan) or set(plan) - required - {
+            "representation",
+            "role",
+            "origin_interval_s",
+        }:
             raise ValueError("experience_build_plan_schema")
         counters = Counter()
+        role = plan.get("role", "train")
+        rows = inputs(plan["sources"], plan["cutoff_ns"], counters, role=role)
+        schema = None
+        if "representation" in plan:
+            from .representations import ohlcv_samples, ohlcv_schema
+
+            representation = plan["representation"]
+            if (
+                set(representation) != {"name", "horizons"}
+                or representation["name"] != "ohlcv-sequence-v2"
+            ):
+                raise ValueError("experience_representation")
+            schema = ohlcv_schema(plan["context"], tuple(representation["horizons"]))
+            rows = ohlcv_samples(rows, plan["cutoff_ns"], schema)
+        selection = {}
+        if "origin_interval_s" in plan:
+            if schema is None:
+                raise ValueError("experience_interval_requires_v2")
+            interval = plan["origin_interval_s"]
+            if (
+                len(interval) != 2
+                or any(type(t) is not int for t in interval)
+                or not 0 <= interval[0] < interval[1]
+            ):
+                raise ValueError("experience_origin_interval")
+            selection = dict(origin_interval_s=interval)
+            rows = (
+                r for r in rows if interval[0] * 10**9 <= r["decision_ns"] < interval[1] * 10**9
+            )
         result = build(
             args.store,
-            inputs(plan["sources"], plan["cutoff_ns"], counters),
+            rows,
             sources=plan["sources"],
             cutoff=plan["cutoff_ns"],
             context=plan["context"],
             chunk=plan["chunk"],
             source_counts=counters,
+            schema=schema,
+            role=role,
+            selection=selection,
         )
         result = {k: v for k, v in result.items() if k not in {"partitions", "binding"}}
     elif args.action == "inspect":
@@ -53,10 +149,15 @@ def main():
         from .learning import train
 
         plan = json.loads(args.plan.read_text())
-        if set(plan) != {"split", "config"}:
+        if not {"split", "config"} <= set(plan) or set(plan) - {"split", "config", "parent"}:
             raise ValueError("experience_train_plan_schema")
         report = train(
-            args.store, args.snapshot, args.output, plan=plan["split"], config=plan["config"]
+            args.store,
+            args.snapshot,
+            args.output,
+            plan=plan["split"],
+            config=plan["config"],
+            parent=plan.get("parent"),
         )
         result = {k: report[k] for k in ("status", "steps", "rows_seen", "parameters")}
         result["artifact"] = str(args.output / "artifact")
