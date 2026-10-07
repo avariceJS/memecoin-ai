@@ -2,6 +2,7 @@
 
 import itertools
 import math
+import re
 from collections import deque
 
 from memecoin_brain.data import FEATURES, features
@@ -12,6 +13,8 @@ HORIZONS = (1, 3)
 
 
 def checked_rows(rows, cutoff):
+    if type(cutoff) is not int or cutoff < 0:
+        raise ValueError("experience_cutoff")
     previous = None
     for row in rows:
         key = (row["pool"], row["open_s"])
@@ -34,7 +37,7 @@ def checked_rows(rows, cutoff):
             or values[1] < max(values[0], values[3])
             or values[2] > min(values[0], values[3])
             or not isinstance(row["capture_sha"], str)
-            or len(row["capture_sha"]) != 64
+            or re.fullmatch(r"[0-9a-f]{64}", row["capture_sha"]) is None
         ):
             raise ValueError("experience_bar_contract")
         previous = key
@@ -76,8 +79,10 @@ def experiences(rows, cutoff, context=8):
                         if maturity > cutoff
                         else "missing_future"
                     )
-                    label_times.append(max(r["available_ns"] for r in needed) if valid else None)
-                    target_pins.append([r["capture_sha"] for r in needed] if valid else [])
+                    label_times.append(
+                        max(r["available_ns"] for r in [row, *needed]) if valid else None
+                    )
+                    target_pins.append([r["capture_sha"] for r in [row, *needed]] if valid else [])
                 yield dict(
                     id=f"{pool}:{row['open_s']}",
                     pool=pool,

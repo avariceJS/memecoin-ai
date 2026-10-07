@@ -13,6 +13,12 @@ plan limits have not been audited in this repository.
 
 ## Repository and research
 
+- Opt-in `memecoin_experience` migration now provides immutable partitioned experience from
+  qualified admission units and resumable full-epoch CPU/CUDA research jobs. Usage and limitations
+  are in `training-evaluation.md`; source contract is in `brain-source-architecture.md`.
+  Synthetic checks cover provenance, partial targets, full consumption and exact CPU recovery.
+  AUTO/champion, owner runtime, market datasets and protected holdouts were not changed.
+
 - The status snapshot was read from code base `b3bb5e3350d8ae8b713ae034f0556289997fb0ec`; the evidence receipt is `docs/evidence/brain-handoff-status-2026-10-07.json`.
 - Owner Mac 1 read-only status at 2026-10-07 17:16:36 UTC: revision 33, paused/paused,
   domain_stop=false, 10 API-returned jobs completed, 3 managed exams expired.
@@ -26,8 +32,8 @@ plan limits have not been audited in this repository.
   imbalanced. It is not a broad or prospective benchmark.
 - Latest GRU was not promoted. Current comparisons and causal ML evidence are in
   [`training-evaluation.md`](../docs/training-evaluation.md).
-- Current priority is a sustained qualified data path and broad, prospective evaluation. No new
-  model training or production change was made during documentation consolidation.
+- Current priority remains sustained semantic qualification and broad prospective evaluation.
+  Migration validation has trained synthetic fixtures only, not a new market candidate.
 
 ## Working boundary
 

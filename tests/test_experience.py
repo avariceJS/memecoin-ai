@@ -118,3 +118,14 @@ def test_synthetic_snapshot_not_market_evidence(tmp_path):
         for row in rows:
             statuses.update(row["target_status"])
     assert dict(statuses) == result["target_statuses"]
+
+
+def test_append_shares_complete_days_and_rejects_symlink(tmp_path):
+    first = create(tmp_path / "store", n=600)
+    second = create(tmp_path / "store", n=900)
+    # Last few labels in the last day may change; earlier completed day stays identical.
+    assert first["partitions"][0] == second["partitions"][0]
+    alias = tmp_path / "alias"
+    alias.symlink_to(tmp_path / "store", target_is_directory=True)
+    with pytest.raises(ValueError, match="symlink"):
+        Snapshot(alias, first["snapshot"])

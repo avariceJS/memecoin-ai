@@ -145,9 +145,15 @@ def write_partition(store, rows, schema):
 
 
 def code_identity():
-    from memecoin_brain import data
+    from memecoin_brain import data, source
+    from memecoin_curriculum import admission
+    from memecoin_ml import data as ml_data
+    from memecoin_registry import contracts
 
-    files = [*Path(__file__).parent.glob("*.py"), Path(data.__file__)]
+    files = [
+        *Path(__file__).parent.glob("*.py"),
+        *(Path(m.__file__) for m in (data, source, admission, contracts, ml_data)),
+    ]
     return {f"{p.parent.name}/{p.name}": file_hash(p) for p in sorted(files)}
 
 

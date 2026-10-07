@@ -17,6 +17,27 @@ Do not infer a quota or start paid work from that report alone.
 
 ## Current system
 
+### First migration boundary: experience and training
+
+The opt-in `memecoin_experience` path separates immutable, partitioned learning experience from
+local training jobs. It consumes sealed admitted USD history, preserves full feature dependencies
+and partial-label denominators, and visits all usable training origins each epoch. Model context,
+width, epoch budget, batch size and CPU/CUDA backend are explicit recipe fields. Independent
+horizon heads replace the legacy shared-head restriction in this research path only.
+
+This is a working migration boundary, not a replacement production Brain. AUTO continues to use
+its current contracts and champion. Store objects and pinned snapshots can be copied to another
+training host without copying owner runtime or credentials. The current publisher is a local
+single writer; DDP, object storage publication, cluster scheduling and GPU throughput qualification
+are not implemented. The payload format currently carries the existing OHLCV representation;
+larger dimensions alone establish no capability gain.
+
+Next priority is sustained semantic qualification into this experience interface: bounded admission
+units, continuous-source export, economically meaningful market-state features, and a broad
+preregistered prospective evaluation population. Those links determine whether more raw data and
+compute can produce a stronger generation. Training mechanics no longer need to impose the B13
+48k retention cap, but this work does not itself fix raw-vacuum training eligibility or trading targets.
+
 ```text
 Solana RPC / indexed history              GeckoTerminal price bars
           |                                         |

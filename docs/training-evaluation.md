@@ -76,7 +76,8 @@ New pools were absent from evaluation, so transfer to young markets is unknown.
 ### Training budget
 
 Extending exact seeded continuations from 1,000 to 4,000 updates improved selected test loss by
-10.24% current sampler and 10.05% capped sampler (terminal checkpoints: 3.53% and 9.52%). At
+8.95% current sampler and 10.05% capped sampler (10.24% is current-sampler validation,
+not test; terminal test checkpoints: 3.53% and 9.52%). At
 4,000 updates, capped mass also improved selected test loss 12.98% over current mass. Combined
 sampling + budget change improved test loss 20.76% versus current/1,000.
 
@@ -149,7 +150,80 @@ review is still required. Current support floors and 7/3/7-day windows are initi
 heuristics, not statistical power analysis. Actual development/calibration/prospective packets
 are absent. No promotion gate is changed by this document.
 
-## Reproduction map
+## Partitioned research jobs (2026-10-07)
+
+The separate `memecoin_experience` implementation removes B13's assembly, retention and fixed
+update ceilings for opt-in research jobs. It is not wired into AUTO or promotion. Its first
+representation remains the twelve OHLCV features; context (1–256) and GRU width (4–4096) are
+configurable. The default width is 64. Two independent ordered quantile heads allow conditional
+horizon differences. This is an engineering interface, not a new validated Brain generation.
+
+Every epoch visits each usable train origin once, using seeded partition order and bounded
+within-partition permutations. Short final batches are retained. There is no pool/day oversampling
+or 48k retention. Chronological split boundaries are explicit absolute seconds; the full raw input
+dependency must lie inside its role, and each target horizon must mature strictly before the
+role ends. Partial targets contribute only where observed. Missing labels are not zero returns.
+Role counts, purged/outside counts, per-horizon availability and usable denominators are retained.
+
+Train-only Welford statistics normalize decision-frame occurrences (not unique raw frames).
+Missing features get a separate mask; standardized values clip at ±8. Exact empirical train
+quantiles use a disposable SQLite disk sort. The neural loss is the macro mean of available
+horizon pinball means within each batch, in raw log-return units; AdamW uses its default weight
+decay 0.01 and gradient norm clip 1. Validation mean horizon pinball selects an epoch. The final
+temporal test is descriptive, scored after selection and accompanied by the train-only empirical
+baseline, counts and interval coverage. Repeated jobs on this test cannot establish independent
+generalization. No trading/execution or uncertainty claim follows from these metrics.
+
+CPU and single CUDA-device recipes share the reader/model path. CUDA is implemented but has
+not been exercised on this Mac. Distributed training and throughput tuning are not implemented.
+Checkpoint state binds snapshot, code, recipe, environment, statistics, optimizer, model, RNG,
+best validation weights and the next partition/batch cursor. Atomic checkpoints default to every
+100 updates and each epoch; a crash replays only updates since the last complete checkpoint.
+CPU synthetic tests establish bitwise resumed-weight equality, including a failure after an
+optimizer mutation. They do not establish cross-device bitwise reproducibility. Resume requires
+the same binding; a different dataset/configuration needs a new job directory. Cross-generation
+warm starts and replay policies remain future work.
+
+### Running an isolated job
+
+Use bounded, already qualified training admission units. A build-plan JSON has exactly these keys:
+
+```json
+{
+  "sources": [{"kind": "admitted", "path": "/absolute/path/to/admitted-corpus", "pin": "SHA256_OF_MANIFEST_JSON"}],
+  "cutoff_ns": 1791388800000000000,
+  "context": 32,
+  "chunk": 4096
+}
+```
+
+Use a receipt cutoff and split dates appropriate for the pinned data. The train-plan JSON has
+`split` (integer `train_start_s`, `train_end_s`, `validation_end_s`, `test_end_s`, strictly ordered)
+and `config` (optional `width`, `batch`, `epochs`, `seed`, `device`, `lr`, `checkpoint_every`,
+`cpu_threads`; default CPU thread count is one).
+Every role and both evaluation horizons must retain usable labels, otherwise the job fails.
+
+```sh
+work/ml-venv/bin/python -m memecoin_experience build --plan work/build-plan.json --store work/experience
+work/ml-venv/bin/python -m memecoin_experience inspect --store work/experience --snapshot SNAPSHOT_SHA
+work/ml-venv/bin/python -m memecoin_experience train --store work/experience --snapshot SNAPSHOT_SHA --plan work/train-plan.json --output work/research-generation-v1
+```
+
+The last command resumes an interrupted identical job or verifies and returns its completed result.
+`artifact/` contains sealed weights, statistics and a report; it is explicitly production-ineligible.
+Copy the immutable store objects and snapshot manifest to another training host, install the pinned
+ML environment, and use a new output directory. No owner credentials or runtime are required.
+Local publication locking must not be treated as distributed coordination.
+
+Engineering checks: `work/ml-venv/bin/python -m pytest -q tests/test_experience*.py`;
+capacity: `work/ml-venv/bin/python tools/experience_capacity.py --rows 1000000 --output NEW_RECEIPT.json`.
+The capacity tool uses temporary synthetic payloads and deletes them after measurement. The initial
+[520k-bar receipt](evidence/brain-experience-capacity-2026-10-07.json) records 519,993 persisted
+origins and 415,991 train-reader origins at approximately 210 MiB peak RSS, including torch import.
+It measured a development revision before final provenance/checkpoint hardening; its exact code
+hashes are in the receipt. It did not perform a 520k-origin optimizer fit or assess market utility.
+
+## Historical reproduction map
 
 Receipts live in `docs/evidence/` and sealed `work/` roots on the research machines. The receipt
 index is [`evidence/README.md`](evidence/README.md); open only the relevant artifact.

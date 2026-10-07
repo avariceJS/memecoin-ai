@@ -1,10 +1,13 @@
 # Evidence Index
 
-Evidence is immutable and task-scoped. Do not read this directory wholesale. The 76 JSON receipts
-and 9 figures are unique by content hash; this cleanup preserves their bytes. Reports/receipts can
+Evidence is immutable and task-scoped. Do not read this directory wholesale. Historical receipts
+and figures retain their original bytes. Reports/receipts can
 contain large exact payloads, so open only the named artifact needed for a specific claim.
 
 ## Brain and operator
+
+- Partitioned experience engineering capacity (synthetic only):
+  `brain-experience-capacity-2026-10-07.json` (initial 520k-bar development measurement).
 
 - Development, source architecture, historical vacuum, and acquisition: `brain-development-2026-10-04.json`,
   `brain-source-architecture-2026-10-04.json`, `brain-vacuum-2026-10-06.json`,

@@ -49,6 +49,10 @@ different protocol identity.
   `brain-development.md`.
 - [`brain-independent-review-handoff-2026-10-07.md`](brain-independent-review-handoff-2026-10-07.md)
   is a dated external-review packet, not a canonical source or routine context input.
+- [`AI-agents/astra.md`](AI-agents/astra.md) is the requested independent forensic verdict at
+  `6feba83525c0d21392432c53becd79e8901650ea`, adjudicating the two external reviews against code
+  and evidence. It owns the distinct review/adjudication record; canonical topic documents
+  continue to own implementation facts and policy, so this is not a replacement architecture spec.
 
 Other retired reports, plans, and narrative memory files were removed from the working tree after
 their enduring facts were merged into canonical sources. Git history remains the record of those
@@ -60,6 +64,8 @@ documents. Unique JSON receipts and figures remain unchanged.
 - Source/store/curriculum: `src/memecoin_continuous/`, `src/memecoin_collector/`,
   `src/memecoin_curriculum/`, `src/memecoin_pumpswap/`.
 - Models: `src/memecoin_ml/`; registry: `src/memecoin_registry/`.
+- Partitioned research experience and streaming CPU/CUDA jobs: `src/memecoin_experience/`;
+  contracts and usage are owned by `brain-source-architecture.md` and `training-evaluation.md`.
 - Paper/operator: `src/memecoin_paper/`, `src/memecoin_operator/`.
 - Profiles: `python3 tools/agent_context.py --task operator|data|ml|architecture|review|docs`;
   add `--query 'terms'` for bounded snippets from that task's canonical sources.

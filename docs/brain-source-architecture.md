@@ -130,7 +130,12 @@ entries allow retries to replay their input prefix and reuse published objects; 
 random-access source cursor. Corrupt objects fail closed. Unreferenced crash leftovers are safe
 but currently require manual storage housekeeping.
 
-Payload memory is bounded by context, source count and partition size (maximum 4096 origins).
+Multiple admission units merge through a disposable, bounded-cache SQLite spool with a bounded
+number of open files; a single unit streams directly. Failed merges restart from pinned sources.
+Keep new admission units bounded (for example, per capture/pool); the old `compile_corpus`
+implementation itself still materializes its supplied unit. Do not feed it the whole market at once.
+
+Payload memory is bounded by context, raw-capture cache and partition size (maximum 4096 origins).
 Snapshot metadata remains O(partitions); source admission metadata remains O(pools/captures).
 The initial format is a versioned stdlib binary layout, not Parquet or a distributed database.
 The first adapter covers admitted USD history; continuous-index export and raw-vacuum semantic
