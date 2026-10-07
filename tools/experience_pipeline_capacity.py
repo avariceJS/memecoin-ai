@@ -11,7 +11,7 @@ from urllib.parse import urlencode
 
 from memecoin_continuous.store import connect, ingest
 from memecoin_experience.pipeline import run
-from memecoin_experience.storage import atomic_json, code_identity, file_hash, seal_files
+from memecoin_experience.storage import Snapshot, atomic_json, code_identity, file_hash, seal_files
 
 
 def exercise(root, *, pools=8, bars_per_pool=12500, epochs=2):
@@ -105,6 +105,14 @@ def exercise(root, *, pools=8, bars_per_pool=12500, epochs=2):
     assert receipt["rows_seen"] == pools * (bars_per_pool * 6 // 10 - 9) * epochs
     assert len(receipt["metrics"]) == 3
     assert (root / "pipeline/evaluation/predictions.jsonl").is_file()
+    catalogs = {}
+    for role, key in (("train", "train_snapshot"), ("evaluation", "evaluation_snapshot")):
+        snapshot = Snapshot(root / "pipeline/experience", receipt[key])
+        catalogs[role] = dict(
+            partitions=len(snapshot.parts),
+            pages=len(snapshot.manifest.get("partition_pages", [])),
+            index=snapshot.manifest.get("partition_index", "inline"),
+        )
     return dict(
         qualification="synthetic_full_pipeline_only_no_market_or_GPU_claim",
         source_commit=subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
@@ -114,6 +122,7 @@ def exercise(root, *, pools=8, bars_per_pool=12500, epochs=2):
         input_bars=pools * bars_per_pool,
         epochs=epochs,
         device="cpu",
+        catalogs=catalogs,
         indexed_seconds=indexed_seconds,
         elapsed_seconds=elapsed,
         max_rss_platform_units=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,

@@ -90,7 +90,7 @@ def test_generation_resume_parent_and_lineage(tmp_path):
     assert all(torch.equal(v, b[k]) for k, v in a.items())
 
 
-def test_replication_and_registered_evaluation(tmp_path):
+def test_replication_and_registered_evaluation(tmp_path, monkeypatch):
     store, pin = dataset(tmp_path)
     replica = tmp_path / "replica"
     assert replicate(store, replica, pin)["copied"] > 0
@@ -108,16 +108,21 @@ def test_replication_and_registered_evaluation(tmp_path):
             end_s=200000,
             pools=["synthetic"],
         )
-    protocol = evaluation.register(
-        protocols,
-        artifact,
-        artifact_pin,
+    registration = dict(
         start_s=100000,
         end_s=200000,
         pools=["synthetic", "missing-pool"],
         scope="preregistered_forward_replay",
-        now_ns=1,
     )
+    with pytest.raises(TypeError, match="now_ns"):
+        evaluation.register(protocols, artifact, artifact_pin, **registration, now_ns=1)
+    with monkeypatch.context() as clock:
+        clock.setattr(evaluation.time, "time_ns", lambda: 200000 * 10**9)
+        with pytest.raises(ValueError, match="not_prospective"):
+            evaluation.register(protocols, artifact, artifact_pin, **registration)
+        clock.setattr(evaluation.time, "time_ns", lambda: 1)
+        protocol = evaluation.register(protocols, artifact, artifact_pin, **registration)
+    assert protocol["registered_ns"] == 1
     eval_store, eval_pin = dataset(tmp_path / "evaluation", evaluation_only=True, start=100000)
     with pytest.raises(ValueError, match="reserved_snapshot"):
         train(eval_store, eval_pin, tmp_path / "forbidden", plan=PLAN, config=CONFIG)

@@ -26,12 +26,10 @@ from .storage import (
 )
 
 
-def register(
-    root, artifact, artifact_pin, *, start_s, end_s, pools, scope="retrospective", now_ns=None
-):
+def register(root, artifact, artifact_pin, *, start_s, end_s, pools, scope="retrospective"):
     from .predict import Predictor
 
-    now_ns = time.time_ns() if now_ns is None else now_ns
+    now_ns = time.time_ns()
     if (
         scope not in {"retrospective", "preregistered_forward_replay"}
         or type(start_s) is not int
