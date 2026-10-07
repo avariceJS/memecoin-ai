@@ -121,3 +121,32 @@ def test_empty_split_and_unowned_output_fail_closed(tmp_path):
         train(store, pin, tmp_path / "empty", plan=tiny, config=CONFIG)
     with pytest.raises(ValueError, match="unowned"):
         train(store, pin, tmp_path, plan=PLAN, config=CONFIG)
+
+
+def test_cli_trains_larger_context_and_width(tmp_path, monkeypatch, capsys):
+    from memecoin_experience.__main__ import main
+
+    store = tmp_path / "store"
+    result = create(store, n=310, context=32)
+    output, plan = tmp_path / "run", tmp_path / "plan.json"
+    plan.write_text(json.dumps(dict(split=PLAN, config=dict(CONFIG, width=64, epochs=1))))
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "experience",
+            "train",
+            "--store",
+            str(store),
+            "--snapshot",
+            result["snapshot"],
+            "--plan",
+            str(plan),
+            "--output",
+            str(output),
+        ],
+    )
+    main()
+    report = json.loads(capsys.readouterr().out)
+    assert report["status"] == "completed"
+    assert report["parameters"] > 2174
+    assert (output / "artifact/manifest.json").exists()

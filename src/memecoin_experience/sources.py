@@ -16,7 +16,7 @@ from .storage import canonical, file_hash, safe_path, verify_files
 def admitted(reference, cutoff):
     root = safe_path(reference["path"])
     # Check role before opening/hashing any market payload, including reserved evaluation data.
-    report = json.loads((root / "admission.json").read_text())
+    report = json.loads(safe_path(root / "admission.json").read_text())
     if report["role"] != "train" or any(r["pool"] in EXCLUDED for r in report["records"]):
         raise ValueError("experience_reserved_source")
     verify_files(root, reference["pin"])

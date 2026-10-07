@@ -129,3 +129,15 @@ def test_append_shares_complete_days_and_rejects_symlink(tmp_path):
     alias.symlink_to(tmp_path / "store", target_is_directory=True)
     with pytest.raises(ValueError, match="symlink"):
         Snapshot(alias, first["snapshot"])
+
+
+def test_manifest_symlink_is_rejected(tmp_path):
+    result = create(tmp_path / "store")
+    snapshot = Snapshot(tmp_path / "store", result["snapshot"])
+    path, _ = snapshot.partition(0)
+    manifest = path / "manifest.json"
+    moved = tmp_path / "moved.json"
+    manifest.rename(moved)
+    manifest.symlink_to(moved)
+    with pytest.raises(ValueError, match="symlink"):
+        snapshot.partition(0)

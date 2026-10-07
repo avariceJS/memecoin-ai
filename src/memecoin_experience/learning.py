@@ -304,14 +304,17 @@ def train(store, pin, output, *, plan, config=None, stop_after=None):
         artifact = output / "artifact"
         if artifact.exists():
             verify_files(artifact)
-            return json.loads((artifact / "report.json").read_text())
+            report = json.loads((artifact / "report.json").read_text())
+            if report["binding"] != binding:
+                raise ValueError("experience_artifact_binding")
+            return report
         os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
         torch.set_num_threads(config["cpu_threads"])
         torch.manual_seed(config["seed"])
         torch.use_deterministic_algorithms(True)
         torch.backends.cudnn.benchmark = False
         torch.backends.cuda.matmul.allow_tf32 = False
-        stats_path = output / "statistics.json"
+        stats_path = safe_path(output / "statistics.json")
         stats = (
             json.loads(stats_path.read_text())
             if stats_path.exists()
@@ -320,7 +323,7 @@ def train(store, pin, output, *, plan, config=None, stop_after=None):
         atomic_json(stats_path, stats)
         model = Network(config["width"]).to(config["device"])
         optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"])
-        checkpoint = output / "checkpoint.pt"
+        checkpoint = safe_path(output / "checkpoint.pt")
         state = dict(
             binding=digest(binding),
             statistics=digest(stats),

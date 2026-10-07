@@ -223,6 +223,29 @@ origins and 415,991 train-reader origins at approximately 210 MiB peak RSS, incl
 It measured a development revision before final provenance/checkpoint hardening; its exact code
 hashes are in the receipt. It did not perform a 520k-origin optimizer fit or assess market utility.
 
+The [million-bar receipt](evidence/brain-experience-million-capacity-2026-10-07.json),
+reproducible from `8683305`, records 999,993 persisted origins, 799,991 training-reader origins,
+3,473 partitions, approximately 212 MiB peak RSS and 55.5 seconds on this worker. Payloads occupied
+2.96 GB before cleanup. This checks the actual partition writer, integrity reader and learning
+batch iterator above the former ceilings; the million-origin optimizer workload and distributed
+execution were not benchmarked. The representation still repeats window features/provenance,
+so compaction and columnar ecosystem integration remain future storage improvements.
+
+Migration acceptance includes 19 focused tests in the pinned ML environment, including CLI
+training at context 32/width 64, exact recovery, source corruption, partial targets, role exclusion,
+source merging and immutable reuse. Existing optional ML regression tests passed (32 passed;
+five Apple-MPS-specific checks skipped). `make smoke` passed; the repeated `make check` completed
+with 1,074 passed and 13 optional-dependency skips. Subsequent focused acceptance also checks
+final manifest/checkpoint path hardening (symlink rejection and completed-artifact recipe binding).
+The capacity measurement's code basis remains `8683305`, before that final path hardening.
+
+External assistance: two Grok 4.7 High CLI sessions reviewed generic storage/recovery and temporal
+streaming designs; Eliza Kimi K3 reviewed generic training/resume requirements. Automatic approval
+review rejected transmitting repository files to Grok; subsequent requests supplied only generic
+engineering problems. No external model edited project code. The integrator implemented and
+tested the result, rejecting inappropriate suggestions such as publishing a manifest by writing
+directly into its final filename and treating receipt-ordered online freezing as historical replay.
+
 ## Historical reproduction map
 
 Receipts live in `docs/evidence/` and sealed `work/` roots on the research machines. The receipt

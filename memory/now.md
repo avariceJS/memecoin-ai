@@ -18,6 +18,11 @@ plan limits have not been audited in this repository.
   are in `training-evaluation.md`; source contract is in `brain-source-architecture.md`.
   Synthetic checks cover provenance, partial targets, full consumption and exact CPU recovery.
   AUTO/champion, owner runtime, market datasets and protected holdouts were not changed.
+  Foundation commits: `284f134` (store) and `8683305` (trainer/CLI). Million-bar engineering
+  receipt: 999,993 origins persisted, 799,991 visited by training reader, approximately 212 MiB
+  peak RSS; no million-origin optimizer fit or market-edge claim. CUDA remains untested here.
+  Acceptance: repeated `make check` 1,074 passed/13 optional skips; focused final ML suite
+  19 passed; existing optional ML regressions 32 passed/5 MPS skips; `make smoke` passed.
 
 - The status snapshot was read from code base `b3bb5e3350d8ae8b713ae034f0556289997fb0ec`; the evidence receipt is `docs/evidence/brain-handoff-status-2026-10-07.json`.
 - Owner Mac 1 read-only status at 2026-10-07 17:16:36 UTC: revision 33, paused/paused,
