@@ -592,3 +592,18 @@ records both actual row/target draws and the mass this batch objective assigns t
 stratum. Journal heads are checkpoint-bound; identical replay is idempotent. Large group aggregates
 live in disk-backed sidecars, not checkpoints. Exposure means committed optimizer inputs, not
 physical retried compute, gradient magnitude or causal influence on the selected best checkpoint.
+
+Evaluation registration optionally accepts `cohorts: {store, population, config}` instead of an
+inline pool list. The population must have `research_evaluation` role and cutoff no later than
+registration. Config pins `entity_prefix`, `knowledge`, `axes`, `time_bucket_ns`, `selection`.
+Scoring takes `population_store` as a transport locator and revalidates the pinned contract.
+Enrollment, zero-support groups and per-target support stream to sealed JSONL sidecars; generic
+strata receive the same unreweighted pinball/baseline/coverage metrics. No claim of independence,
+calibration or edge follows from these counts. The evaluation snapshot must contain only enrolled
+entity IDs, including its non-test records; test origins must also lie inside valid enrollment.
+
+The existing source-driven `memecoin_experience.pipeline` accepts optional `diversity` audit
+arguments and `cohorts` registration arguments. It binds the audit before generation ownership,
+propagates exposure into the receipt and registers cohorts before reading evaluation payload.
+Generic representations use the same `audit`, `generations.run` and `evaluation.register/score`
+interfaces directly; the OHLCV convenience pipeline does not define the data model boundary.

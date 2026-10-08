@@ -235,3 +235,21 @@ stable as population grows and independent of downloaded support. Worker partiti
 they are work descriptions, not a distributed executor or authority to retry charged requests.
 Changing a stream/grid contract requires reprojecting existing captures into new cells. A missing
 cell never proves that a provider request has not previously been charged.
+
+Use `python -m memecoin_population ACTION --job arguments.json`: `publish` streams `rows_path`
+JSONL; `compact` and `replicate` operate on fact pins; `plan` seals a sparse SQLite worklist;
+`work` streams one `partition` (or all cells with null); `audit` joins a pinned experience snapshot.
+The corresponding function signatures in `catalog.py`, `planning.py`, `diversity.py` define job keys.
+The `universe` adapter imports a hash-pinned legacy universe with its real admission timestamp;
+optional `age_edges_ns` produces time-varying lifecycle bands. It explicitly retains survivor
+selection bias. `continuous-coverage` requalifies a sealed continuous export, then projects unique
+bar support onto compatible cells; other modalities and out-of-export intervals stay unknown.
+Only this adapter knows the existing 300-second OHLCV convention. New producers publish the same
+population/coverage facts without changing their storage model.
+
+Knowledge policy governs attribute lookup, not retrospective enrollment: the declared population
+is the union as of its pinned cutoff, including periods whose attributes were then unknown.
+This is essential for diagnosing selection bias and is not a claim that the population was known
+historically. A population removal is a new selection contract; shorter metadata intervals never
+silently withdraw prior enrollment. Before dispatch, reconcile work cells with the acquisition
+request ledger and provider budget; planning alone cannot prove a request has never been charged.

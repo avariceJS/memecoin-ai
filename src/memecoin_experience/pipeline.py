@@ -31,7 +31,7 @@ def run(root, plan):
         "split",
         "config",
     }
-    if set(plan) != required:
+    if not required <= set(plan) or set(plan) - required - {"diversity", "cohorts"}:
         raise ValueError("experience_pipeline_plan")
     for name, role in (("training_source", "train"), ("evaluation_source", "research_evaluation")):
         if source_plan(plan[name])["role"] != role:
@@ -93,6 +93,20 @@ def run(root, plan):
             return snapshot_pin, report
 
         train_pin, training_source = dataset("training_source")
+        diversity_ref = None
+        if "diversity" in plan:
+            from memecoin_population.diversity import audit
+
+            audit(
+                store,
+                train_pin,
+                output=root / "diversity",
+                split=plan["split"],
+                **plan["diversity"],
+            )
+            diversity_ref = dict(
+                path=str(root / "diversity"), pin=file_hash(root / "diversity/manifest.json")
+            )
         from .generations import get
         from .generations import run as generation
 
@@ -104,6 +118,7 @@ def run(root, plan):
             snapshot=train_pin,
             split=plan["split"],
             config=plan["config"],
+            diversity=diversity_ref,
         )
         record, artifact = get(root / "models", fitted["generation"])
         from .evaluation import register, score
@@ -118,7 +133,10 @@ def run(root, plan):
                 record["artifact"],
                 start_s=plan["evaluation_source"]["start_s"],
                 end_s=plan["evaluation_source"]["end_s"],
-                pools=[p["pool"] for p in plan["evaluation_source"]["pools"]],
+                pools=None
+                if "cohorts" in plan
+                else [p["pool"] for p in plan["evaluation_source"]["pools"]],
+                cohorts=plan.get("cohorts"),
                 scope="retrospective",
             )
             protocol_pin = registered["protocol"]
@@ -128,15 +146,30 @@ def run(root, plan):
             candidate=record["artifact"],
             start_s=plan["evaluation_source"]["start_s"],
             end_s=plan["evaluation_source"]["end_s"],
-            pools=sorted(p["pool"] for p in plan["evaluation_source"]["pools"]),
+            pools=[]
+            if "cohorts" in plan
+            else sorted(p["pool"] for p in plan["evaluation_source"]["pools"]),
             scope="retrospective",
             schema=schema,
         )
+        if "cohorts" in plan:
+            from memecoin_population.evaluation import contract
+
+            c = plan["cohorts"]
+            expected["cohorts"] = contract(
+                c["store"], c["population"], c["config"], protocol["registered_ns"]
+            )
         if digest(protocol) != protocol_pin or any(protocol[k] != v for k, v in expected.items()):
             raise ValueError("experience_pipeline_protocol_binding")
         eval_pin, evaluation_source = dataset("evaluation_source")
         evaluated = score(
-            root / "protocols", protocol_pin, store, eval_pin, artifact, root / "evaluation"
+            root / "protocols",
+            protocol_pin,
+            store,
+            eval_pin,
+            artifact,
+            root / "evaluation",
+            population_store=plan["cohorts"]["store"] if "cohorts" in plan else None,
         )
         receipt = dict(
             version="brain-research-pipeline-v1",
@@ -155,5 +188,8 @@ def run(root, plan):
             metrics=evaluated["metrics"],
             production_eligible=False,
         )
+        if diversity_ref:
+            receipt["diversity"] = diversity_ref["pin"]
+            receipt["exposure"] = json.loads((artifact / "report.json").read_text())["exposure"]
         atomic_json(root / "receipt.json", receipt)
         return receipt

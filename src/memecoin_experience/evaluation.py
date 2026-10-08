@@ -26,16 +26,21 @@ from .storage import (
 )
 
 
-def register(root, artifact, artifact_pin, *, start_s, end_s, pools, scope="retrospective"):
+def register(
+    root, artifact, artifact_pin, *, start_s, end_s, pools=None, scope="retrospective", cohorts=None
+):
     from .predict import Predictor
 
     now_ns = time.time_ns()
+    pools = pools or []
+    if cohorts is not None and pools:
+        raise ValueError("experience_evaluation_enrollment_modes")
     if (
         scope not in {"retrospective", "preregistered_forward_replay"}
         or type(start_s) is not int
         or type(end_s) is not int
         or not 1 < start_s < end_s
-        or not pools
+        or (not pools and cohorts is None)
         or len(set(pools)) != len(pools)
         or any(not isinstance(p, str) or not p or p in EXCLUDED for p in pools)
         or type(now_ns) is not int
@@ -63,6 +68,12 @@ def register(root, artifact, artifact_pin, *, start_s, end_s, pools, scope="retr
         data_role="research_evaluation",
         production_eligible=False,
     )
+    if cohorts is not None:
+        from memecoin_population.evaluation import contract
+
+        protocol["cohorts"] = contract(
+            cohorts["store"], cohorts["population"], cohorts["config"], now_ns
+        )
     pin = digest(protocol)
     root = safe_path(root)
     root.mkdir(parents=True, exist_ok=True)
@@ -70,7 +81,17 @@ def register(root, artifact, artifact_pin, *, start_s, end_s, pools, scope="retr
     return dict(protocol=pin, **protocol)
 
 
-def score(protocol_root, protocol_pin, store, snapshot_pin, artifact, output, *, batch=256):
+def score(
+    protocol_root,
+    protocol_pin,
+    store,
+    snapshot_pin,
+    artifact,
+    output,
+    *,
+    batch=256,
+    population_store=None,
+):
     import numpy as np
 
     from .learning import batches
@@ -101,7 +122,8 @@ def score(protocol_root, protocol_pin, store, snapshot_pin, artifact, output, *,
         or not 1 < protocol["start_s"] < protocol["end_s"]
         or protocol["quantiles"] != model.spec["quantiles"]
         or protocol["data_role"] != "research_evaluation"
-        or not protocol["pools"]
+        or (not protocol["pools"] and "cohorts" not in protocol)
+        or (bool(protocol["pools"]) and "cohorts" in protocol)
         or len(set(protocol["pools"])) != len(protocol["pools"])
         or any(p in EXCLUDED for p in protocol["pools"])
         or protocol["scope"] not in {"retrospective", "preregistered_forward_replay"}
@@ -114,6 +136,13 @@ def score(protocol_root, protocol_pin, store, snapshot_pin, artifact, output, *,
         )
     ):
         raise ValueError("experience_evaluation_protocol")
+    if (
+        "cohorts" in protocol
+        and protocol["cohorts"]["cutoff_ns"] > snapshot.manifest["binding"]["cutoff_ns"]
+    ):
+        raise ValueError("experience_evaluation_population_cutoff")
+    if ("cohorts" in protocol) != (population_store is not None):
+        raise ValueError("experience_evaluation_population_transport")
     if snapshot.schema != protocol["schema"] or model.spec["schema"] != snapshot.schema:
         raise ValueError("experience_evaluation_schema")
     output = safe_path(output)
@@ -144,7 +173,19 @@ def score(protocol_root, protocol_pin, store, snapshot_pin, artifact, output, *,
             return result
         stage = Path(tempfile.mkdtemp(prefix=".evaluation-", dir=output.parent))
         db = sqlite3.connect(stage / "scratch.sqlite")
+        cohorts = None
         try:
+            if "cohorts" in protocol:
+                from memecoin_population.evaluation import Cohorts
+
+                cohorts = Cohorts(
+                    stage,
+                    population_store,
+                    protocol["cohorts"],
+                    protocol["start_s"],
+                    protocol["end_s"],
+                    snapshot.schema,
+                )
             db.execute("pragma cache_size=-8192")
             db.execute("pragma temp_store=FILE")
             db.execute(
@@ -163,13 +204,20 @@ def score(protocol_root, protocol_pin, store, snapshot_pin, artifact, output, *,
             for index in range(len(snapshot.parts)):
                 _, rows = snapshot.partition(index)
                 for row in rows:
-                    if row["pool"] not in support:
+                    if (
+                        (not cohorts.contains(row["pool"]))
+                        if cohorts
+                        else row["pool"] not in support
+                    ):
                         raise ValueError("experience_evaluation_enrollment")
                     role, mask = membership(row, plan, snapshot.schema)
                     population[role] += 1
                     if role == "test":
-                        support[row["pool"]] += 1
-                        usable_support[row["pool"]] += int(any(mask))
+                        if cohorts:
+                            cohorts.observe(row, mask)
+                        else:
+                            support[row["pool"]] += 1
+                            usable_support[row["pool"]] += int(any(mask))
                         population["usable"] += int(any(mask))
                         for name, status, valid in zip(
                             target_names(snapshot.schema), row["target_status"], mask, strict=True
@@ -213,10 +261,15 @@ def score(protocol_root, protocol_pin, store, snapshot_pin, artifact, output, *,
                                 ]
                             )
                             totals[h] += values
-                            for key in (
-                                "pool:" + row["pool"],
-                                "day:" + str(decision // (86400 * 10**9)),
-                            ):
+                            keys = (
+                                cohorts.keys(row)
+                                if cohorts
+                                else [
+                                    "pool:" + row["pool"],
+                                    "day:" + str(decision // (86400 * 10**9)),
+                                ]
+                            )
+                            for key in keys:
                                 accum.setdefault((key, h), np.zeros(4))[:] += values
                     db.executemany(
                         "insert into strata values(?,?,?,?,?,?) on conflict(key,h) do update set "
@@ -276,6 +329,12 @@ def score(protocol_root, protocol_pin, store, snapshot_pin, artifact, output, *,
                 execution="not_evaluated",
                 production_eligible=False,
             )
+            if cohorts:
+                result.pop("per_pool_records")
+                result.pop("per_pool_usable")
+                result.update(cohorts.finish(stage))
+                cohorts.close()
+                (stage / "population.sqlite").unlink()
             db.close()
             (stage / "scratch.sqlite").unlink()
             atomic_json(stage / "protocol.json", protocol)
@@ -285,6 +344,8 @@ def score(protocol_root, protocol_pin, store, snapshot_pin, artifact, output, *,
             sync_dir(output.parent)
             return result
         finally:
+            if cohorts:
+                cohorts.close()
             db.close()
             if stage.exists():
                 shutil.rmtree(stage)

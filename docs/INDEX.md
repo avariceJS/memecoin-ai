@@ -67,6 +67,8 @@ documents. Unique JSON receipts and figures remain unchanged.
 - Qualified continuous export, versioned experience, research generations and evaluation:
   `src/memecoin_experience/`;
   contracts and usage are owned by `brain-source-architecture.md` and `training-evaluation.md`.
+- Population facts, coverage work plans, diversity gates and exposure: `src/memecoin_population/`;
+  owned by `brain-source-architecture.md` and `training-evaluation.md`.
 - Paper/operator: `src/memecoin_paper/`, `src/memecoin_operator/`.
 - Profiles: `python3 tools/agent_context.py --task operator|data|ml|architecture|review|docs`;
   add `--query 'terms'` for bounded snippets from that task's canonical sources.

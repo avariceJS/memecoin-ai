@@ -103,6 +103,17 @@ def checked(row, kind, cutoff):
             raise ValueError("population_coverage_unknown_is_not_zero")
         if row["status"] in {"complete", "partial"} and row["observed"] is None:
             raise ValueError("population_coverage_missing_count")
+        if (
+            row["stage"] == "qualified"
+            and row["expected"] is not None
+            and row["observed"] is not None
+        ):
+            if (
+                row["observed"] > row["expected"]
+                or (row["status"] == "complete" and row["observed"] != row["expected"])
+                or (row["status"] == "partial" and row["observed"] == row["expected"])
+            ):
+                raise ValueError("population_qualified_denominator")
     if len(canonical(row)) > 32768:
         raise ValueError("population_record_too_large")
     return row

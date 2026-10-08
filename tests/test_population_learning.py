@@ -83,3 +83,64 @@ def test_gate_and_corrupt_checkpoint_exposure(tmp_path):
     step.write_text(json.dumps(value))
     with pytest.raises(ValueError, match="exposure_chain|checkpoint_exposure"):
         train(store, pin, run, plan=PLAN, config=CONFIG, diversity=ref)
+
+
+def test_generation_binds_diversity_and_population_evaluation(tmp_path):
+    from test_experience_generations import dataset as generic_dataset
+
+    from memecoin_experience import evaluation, generations
+    from memecoin_experience.storage import Snapshot
+
+    store, pin = generic_dataset(tmp_path)
+    ref = audit(tmp_path, store, pin, Snapshot(store, pin))
+    done = generations.run(
+        tmp_path / "generations",
+        name="V1",
+        owner="synthetic",
+        store=store,
+        snapshot=pin,
+        split=PLAN,
+        config=CONFIG,
+        diversity=ref,
+    )
+    record, artifact = generations.get(tmp_path / "generations", done["generation"])
+    assert record["declaration"]["diversity"] == ref["pin"]
+    facts = tmp_path / "eval-facts"
+    pop = catalog.publish(
+        facts,
+        "population",
+        [
+            member("synthetic", end=10**18, known=1, venue="X"),
+            member("missing", end=10**18, known=1, venue="Y"),
+        ],
+        cutoff_ns=1,
+        definition=definition("research_evaluation"),
+    )
+    cfg = config()
+    cfg = {k: cfg[k] for k in ("entity_prefix", "knowledge", "axes", "time_bucket_ns", "selection")}
+    protocols = tmp_path / "protocols"
+    protocol = evaluation.register(
+        protocols,
+        artifact,
+        done["artifact"],
+        start_s=100000,
+        end_s=200000,
+        cohorts=dict(store=facts, population=pop, config=cfg),
+    )
+    eval_store, eval_pin = generic_dataset(tmp_path / "eval", evaluation_only=True, start=100000)
+    out = tmp_path / "scores"
+    result = evaluation.score(
+        protocols, protocol["protocol"], eval_store, eval_pin, artifact, out, population_store=facts
+    )
+    assert result["enrollment"] == 2 and result["supported_pools"] == 1
+    assert result["metrics"][0]["n"] == 310
+    rows = [
+        json.loads(line) for line in (out / "population-support.jsonl").read_text().splitlines()
+    ]
+    assert next(r for r in rows if r["entity"].endswith("missing"))["usable"] == 0
+    strata = [json.loads(line) for line in (out / "strata.jsonl").read_text().splitlines()]
+    assert any("venue" in row["stratum"] for row in strata)
+    with pytest.raises(ValueError, match="population_transport"):
+        evaluation.score(
+            protocols, protocol["protocol"], eval_store, eval_pin, artifact, tmp_path / "bad"
+        )

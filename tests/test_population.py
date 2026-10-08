@@ -224,3 +224,81 @@ def test_diversity_audit_preserves_distribution_and_unknown_denominators(tmp_pat
     cfg = dict(cfg, max_entity_share=0.5)
     blocked = diversity.audit(store, snap, facts, pin, tmp_path / "blocked", split=PLAN, config=cfg)
     assert "entity_concentration" in blocked["violations"]
+
+
+def test_sealed_continuous_projection_and_stream_identity(tmp_path):
+    from test_experience_continuous import fixture
+
+    from memecoin_experience.continuous import NAMESPACE, export
+    from memecoin_population.adapters import continuous_coverage
+
+    index, _, export_plan = fixture(tmp_path)
+    exported = export(index, tmp_path / "export", export_plan)
+    name = export_plan["pools"][0]["pool"]
+    store = tmp_path / "facts"
+    row = member(name, start=300000 * 10**9, end=318000 * 10**9)
+    row["entity"] = "solana/pool/" + name
+    pop = catalog.publish(store, "population", [row], cutoff_ns=10**18, definition=definition())
+    stream = dict(
+        name="bars",
+        source=NAMESPACE,
+        modality="ohlcv",
+        representation="qualified-ohlcv-v1",
+        unit="unique_bar_opens",
+        tile_ns=18000 * 10**9,
+        cadence_ns=300 * 10**9,
+    )
+    plan = dict(
+        start_ns=300000 * 10**9,
+        end_ns=318000 * 10**9,
+        cutoff_ns=10**18,
+        streams=[stream],
+        selection=dict(salt="x", numerator=1, denominator=1),
+        partitions=2,
+    )
+    initial = tmp_path / "initial"
+    planning.create(store, pop, initial, plan)
+    ref = dict(path=str(tmp_path / "export"), pin=exported["pin"])
+    cov = continuous_coverage(store, ref, initial, file_hash(initial / "manifest.json"))
+    result = planning.create(store, pop, tmp_path / "covered", plan, coverage=cov)
+    assert result["actions"] == {"covered": result["cells"]}
+    assert sum(r["observed"] for r in catalog.records(store, cov)) == 60
+    changed = dict(plan, streams=[dict(stream, source="another-provider")])
+    other = planning.create(store, pop, tmp_path / "other", changed, coverage=cov)
+    assert other["actions"] == {"acquire_unobserved": other["cells"]}
+
+
+def test_qualified_count_semantics_and_append_only_enrollment(tmp_path):
+    from memecoin_experience.storage import digest
+
+    # Population enrollment is cumulative; a later metadata interval is not a withdrawal.
+    store = tmp_path / "facts"
+    pin = catalog.publish(
+        store,
+        "population",
+        [member(end=100, known=0), member(end=10, known=50)],
+        cutoff_ns=100,
+        definition=definition(),
+    )
+    view = catalog.View(tmp_path / "view.sqlite")
+    view.ingest(store, pin)
+    assert list(view.intervals(0, 100, 100)) == [("chain/market/A", 0, 100)]
+    view.close()
+    base = dict(
+        entity="chain/market/A",
+        start_ns=0,
+        end_ns=100,
+        known_ns=100,
+        stream="test",
+        contract=digest("test"),
+        unit="events",
+        evidence=["a" * 64],
+        stage="qualified",
+        status="complete",
+        expected=8,
+        observed=9,
+    )
+    for row in (base, dict(base, observed=7), dict(base, observed=8, status="partial")):
+        with pytest.raises(ValueError, match="qualified_denominator"):
+            catalog.checked(row, "coverage", 100)
+    assert catalog.checked(dict(base, observed=8), "coverage", 100)

@@ -138,6 +138,15 @@ def create(store, population, output, plan, *, coverage=None):
                 "text)"
             )
             counts = Counter()
+            support = {
+                s["name"]: dict(
+                    cells=0,
+                    observed_cells=0,
+                    observed_total=0,
+                    expected_total=0 if s["cadence_ns"] else None,
+                )
+                for s in plan["streams"]
+            }
             entities = 0
             previous = None
             for entity, start, end in view.intervals(
@@ -196,6 +205,13 @@ def create(store, population, output, plan, *, coverage=None):
                             ),
                         )
                         counts[next_action] += 1
+                        total = support[stream["name"]]
+                        total["cells"] += 1
+                        if expected is not None:
+                            total["expected_total"] += expected
+                        if qualified and qualified["observed"] is not None:
+                            total["observed_cells"] += 1
+                            total["observed_total"] += qualified["observed"]
                         at = until
             db.execute("create index work_partition on cells(worker,id)")
             db.commit()
@@ -207,6 +223,7 @@ def create(store, population, output, plan, *, coverage=None):
                 enrolled_entities=entities,
                 cells=sum(counts.values()),
                 actions=dict(counts),
+                streams=support,
                 execution="planning_only_no_requests_or_retry_authority",
                 unknown_expected="event_streams_have_no_invented_denominator",
             )
@@ -225,18 +242,23 @@ def create(store, population, output, plan, *, coverage=None):
                 shutil.rmtree(stage)
 
 
-def work(output, pin, partition):
+def work(output, pin, partition=None):
     verify_files(output, pin)
     binding = json.loads((Path(output) / "plan.json").read_text())
-    if type(partition) is not int or not 0 <= partition < binding["plan"]["partitions"]:
+    if partition is not None and (
+        type(partition) is not int or not 0 <= partition < binding["plan"]["partitions"]
+    ):
         raise ValueError("population_worker_partition")
     db = sqlite3.connect(
         (Path(output) / "cells.sqlite").absolute().as_uri() + "?mode=ro&immutable=1", uri=True
     )
     try:
-        for (payload,) in db.execute(
-            "select payload from cells where worker=? order by id", (partition,)
-        ):
+        query, args = (
+            ("select payload from cells order by id", ())
+            if partition is None
+            else ("select payload from cells where worker=? order by id", (partition,))
+        )
+        for (payload,) in db.execute(query, args):
             yield json.loads(payload)
     finally:
         db.close()

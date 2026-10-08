@@ -46,7 +46,10 @@ def test_disjoint_composition_reuses_objects_and_rejects_overlap(tmp_path):
         compose(store, [first["snapshot"], overlapping["snapshot"]])
 
 
-def test_pipeline_recovers_and_repeats_from_sealed_stages(tmp_path, monkeypatch, capsys):
+@pytest.mark.parametrize("with_diversity", [False, True])
+def test_pipeline_recovers_and_repeats_from_sealed_stages(
+    tmp_path, monkeypatch, capsys, with_diversity
+):
     pytest.importorskip("torch")
     from curriculum.test_admission import capture
 
@@ -91,6 +94,21 @@ def test_pipeline_recovers_and_repeats_from_sealed_stages(tmp_path, monkeypatch,
         ),
         config=dict(width=8, epochs=1, batch=64),
     )
+    if with_diversity:
+        from test_population import config, definition, member
+
+        from memecoin_population.catalog import publish
+
+        facts = tmp_path / "facts"
+        rows = [member(birth["pool"], end=10**18, known=1, venue="X")]
+        pop = publish(facts, "population", rows, cutoff_ns=1, definition=definition())
+        epop = publish(
+            facts, "population", rows, cutoff_ns=1, definition=definition("research_evaluation")
+        )
+        cfg = config()
+        plan["diversity"] = dict(population_store=str(facts), population=pop, config=cfg)
+        keys = ("entity_prefix", "knowledge", "axes", "time_bucket_ns", "selection")
+        plan["cohorts"] = dict(store=str(facts), population=epop, config={k: cfg[k] for k in keys})
     root = tmp_path / "pipeline"
     real = generations.run
     calls = []
@@ -110,6 +128,8 @@ def test_pipeline_recovers_and_repeats_from_sealed_stages(tmp_path, monkeypatch,
     assert result["qualified_bars"] == 300
     assert result["persisted_examples"] == 293
     assert len(result["metrics"]) == 3
+    if with_diversity:
+        assert result["exposure"]["binding"]["audit"] == result["diversity"]
     assert result == run(root, plan)
     plan_path = tmp_path / "plan.json"
     plan_path.write_text(json.dumps(plan))
