@@ -138,6 +138,9 @@ def capture(
                         dict(reason=result["status"], request=key, automatic_retry=False),
                     )
                     raise ValueError("acquisition_recovered_provider_stop")
+            from .recovery import require_reviewed_failures
+
+            require_reviewed_failures(root, plan, db)
             total_bytes = sum(
                 p.stat().st_size for p in (root / "requests").glob("*/*") if p.is_file()
             )

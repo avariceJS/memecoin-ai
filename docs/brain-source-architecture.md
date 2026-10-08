@@ -296,3 +296,7 @@ reserved/unsealed requests and provider stops fail closed. It writes a recovery 
 the original STOP bytes into immutable history. Original budgets/expiry remain in force. The failed
 request remains terminal and counted; a later guarded capture invocation sends only previously
 unrequested jobs. Crash recovery of the reconciliation itself is idempotent.
+Restart also reconstructs an unreviewed STOP from terminal ledger failures, covering a crash between
+terminal commit and STOP publication. Earlier transport failures require their own matching review
+receipt; interrupted archival with both directory entries is completed only after verifying the
+original STOP hash. User-requested pause is a distinct STOP reason and is never auto-reconciled.

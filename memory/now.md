@@ -8,31 +8,45 @@ Build a large Solana learning system with growing useful corpus, deliberate trai
 reproducible generations and independent evaluation. Two Macs are an initial stage. Preserve
 provenance, temporal correctness and recovery; no demonstrated executable trading edge.
 
-## Active independent-population campaign
+## Paused independent-population campaign — explicit user request
 
-- Mac 1 moved to `192.168.31.68` (same pinned `.66` SSH host key). Live research guard checks
-  operator revision 33 paused, source STOP and unchanged source/config hashes before every GET.
+- **Do not resume until the user asks.** Safe stop at 2026-10-08 09:28:35 UTC. Acquisition,
+  its supervisor and the waiting trainer exited; capture lock is free. No training started.
+- Root: `work/brain-diverse-campaign-20261008/`. `pause-state.json` pins the plan, stopped ledger,
+  STOP and last sealed capture. 1,142 attempted requests: 1,141 received and one terminal transport
+  timeout (ordinal 925, never retried). No unresolved reservations. **86 requests remain.**
 - Frozen acquisition at `a994c9e`: 307 birth-enrolled pools (170 May–August train; 137 September
   evaluation), cross-role base mints disjoint, prior/protected cohorts excluded before price IO.
-  1,228 distinct public keyless requests, 3 s minimum spacing, 8 h expiry, no GET retries.
-  Root: `work/brain-diverse-campaign-20261008/`; acquisition plan pin
-  `d872e0d8d8266b2dd22b1c2a8ef7e505a12b6f93ccdf82df9b7b6f206d7e7de8`.
-- Collection is in progress. Transient unreadable/unknown owner processes stop before reservation;
-  a supervisor rechecks readiness and resumes only unrequested work. Never clear a provider STOP or
-  unresolved reservation automatically. Check the live ledger/logs, not this dated progress note.
-- `e6ec88b` adds immutable input-only admission masks, stable OHLCV representation v3, optional
-  constant-feature scale 1 and preregistered quality evaluation. `73363fe` connects acquisition,
-  role-separated qualification, population audits, owned generations and paired mint bootstrap.
-- Frozen `learning-code/` at `73363fe` will run after capture completion. The three fixed recipes
-  compare narrow/broad fresh training and rounded row-draw compute control. No real learning result
-  yet. `evaluation-access.json` discloses one early response-shape/token-metadata/count inspection;
-  recipes and cohort were fixed before all requests. This is historical replay, not a pristine blind
-  or prospective test. No promotion, protected payload access or production mutation.
-- Checks: standard suite 1,121 passed / 23 optional skips and smoke passed before later focused
-  hardening; optional integrated learning suite 37 passed / one CUDA skip. Additional mask paging,
-  portable closure, enrollment and source-window regressions pass. Sets overlap.
-- Eliza GLM/Qwen reviewed bounded source/admission contracts; Kimi summarized partial training
-  inventory. Numerical summaries were recomputed locally; several helper claims were rejected.
+  Plan pin `d872e0d8d8266b2dd22b1c2a8ef7e505a12b6f93ccdf82df9b7b6f206d7e7de8`.
+  Original expiry: **2026-10-08 15:58:12 UTC**. No GET retries; never extend/overwrite frozen plans.
+- Current `capture/STOP.json` is `user_requested_pause`. Preserve it and pause evidence in history
+  when explicitly resuming. Recheck owner fence, ledger/capture hashes and expiry first. If expired,
+  use a new explicit continuation envelope for only unrequested jobs, linked to the original plan;
+  do not silently reuse/alter the expired envelope or rewrite previous outcomes.
+- Mac 1 is `192.168.31.68`, same pinned `.66` SSH host key. The guard required operator revision 33
+  paused, source STOP and unchanged source/config hashes before every GET. Transient unreadable
+  owner processes stopped before reservation; fresh checks resumed only unrequested work.
+- The timeout was reconciled explicitly at `4781ba5`: sealed prefix verified, original STOP archived
+  under `capture/recoveries/`, recovery receipt retained, failed request stayed terminal. A later
+  tested hardening reconstructs missing STOP after terminal DB commit and verifies prior failure
+  reviews. Provider stops and unknown reservations cannot use transport reconciliation.
+- `e6ec88b`: immutable causal admission masks, stable OHLCV v3, optional constant-feature scale 1,
+  preregistered quality evaluation. `73363fe`: role-separated source qualification, population
+  audits, owned generations and paired mint bootstrap. `e7477e0`: undeclared source intervals stay
+  unknown in population coverage. No real learning-gain result yet.
+- Frozen `learning-code/` at `73363fe` and `learning-source.json` are ready for the completed
+  acquisition. Three recipes: narrow/broad fresh training plus rounded row-draw compute control.
+  `control/` preserves acquisition/waiting/owner-guard/coverage helper scripts; **do not launch the
+  waiting trainer while paused**. `learning-supervisor02.log` records cancellation on STOP.
+- `evaluation-access.json` discloses one early raw response-shape/token-metadata/count inspection.
+  Recipes/cohort were fixed before all requests. Historical replay, not pristine blind or prospective
+  evaluation. No promotion, protected payload access, production changes or claimed learning gains.
+- Checks at `4781ba5`: `make check` 1,128 passed / 23 optional skips; smoke passed. Optional ML suite:
+  38 passed / one CUDA skip. Subsequent recovery crash regressions: 13 focused tests passed; sets
+  overlap. Final hardening is not covered by another full suite yet.
+- Eliza GLM/Qwen provided bounded source/admission/recovery/evaluation reviews; Kimi summarized
+  partial training inventory. Findings and numbers were checked locally. Recovery crash-window
+  findings were fixed; several unsupported helper claims were rejected. Grok remains disabled.
 
 ## Current research state
 

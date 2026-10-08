@@ -84,3 +84,26 @@ def test_unknown_or_provider_stop_cannot_use_transport_recovery(tmp_path, monkey
     with pytest.raises(ValueError, match="requires_other_review"):
         recovery.reconcile_transport_stop(other, stop_pin=pin, reason="review")
     assert (other / "STOP.json").exists()
+
+
+def test_terminal_commit_before_stop_crash_is_detected_on_restart(tmp_path):
+    p, _ = stopped(tmp_path)
+    # Simulate the state after terminal commit, before durable STOP publication.
+    (tmp_path / "STOP.json").unlink()
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("unreviewed terminal failure must block new GETs")
+
+    with pytest.raises(ValueError, match="unreviewed_terminal_failure"):
+        capture(tmp_path, p, guard=lambda: None, opener=forbidden, clock=lambda: 10**12 + 4 * 10**9)
+    assert (tmp_path / "STOP.json").exists()
+
+
+def test_recovery_finishes_when_both_stop_entries_survive(tmp_path, monkeypatch):
+    monkeypatch.setattr(recovery.time, "time_ns", lambda: 10**12)
+    _, pin = stopped(tmp_path)
+    before = (tmp_path / "STOP.json").read_bytes()
+    original = recovery.reconcile_transport_stop(tmp_path, stop_pin=pin, reason="review")
+    (tmp_path / "STOP.json").write_bytes(before)
+    assert recovery.reconcile_transport_stop(tmp_path, stop_pin=pin, reason="finish") == original
+    assert not (tmp_path / "STOP.json").exists()

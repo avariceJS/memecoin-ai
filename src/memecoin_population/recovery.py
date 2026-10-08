@@ -18,6 +18,53 @@ from memecoin_experience.storage import (
 from .acquisition import validate
 
 
+def reviewed(root, plan, key, prefix):
+    stopped = dict(reason="transport_failure", request=key, automatic_retry=False)
+    pin = digest(stopped)
+    archive = root / "recoveries" / (pin + ".stop.json")
+    receipt = root / "recoveries" / (pin + ".json")
+    if not archive.exists() or not receipt.exists():
+        return False
+    if file_hash(archive) != pin:
+        raise ValueError("acquisition_recovery_archive_binding")
+    report = json.loads(receipt.read_text())
+    expected = dict(
+        plan=digest(plan),
+        stop=pin,
+        prefix=digest(prefix),
+        attempted=len(prefix),
+        remaining=len(plan["jobs"]) - len(prefix),
+        action="resume_unrequested_only",
+        retried_requests=0,
+        expires_ns=plan["expires_ns"],
+    )
+    if any(report.get(k) != v for k, v in expected.items()):
+        raise ValueError("acquisition_recovery_binding")
+    return True
+
+
+def require_reviewed_failures(root, plan, db):
+    """Recover STOP even if death occurred after terminal DB commit but before STOP publication."""
+    failures = db.execute(
+        "select ordinal,id,status from requests where status in "
+        "('transport_failure','provider_stop') order by ordinal"
+    ).fetchall()
+    for ordinal, key, status in failures:
+        prefix = []
+        for request, state, path in db.execute(
+            "select id,status,capture from requests where ordinal<=? order by ordinal", (ordinal,)
+        ):
+            cap = safe_path(path)
+            verify_files(cap)
+            prefix.append(
+                dict(request=request, status=state, capture=file_hash(cap / "manifest.json"))
+            )
+        if status == "transport_failure" and reviewed(root, plan, key, prefix):
+            continue
+        atomic_json(root / "STOP.json", dict(reason=status, request=key, automatic_retry=False))
+        raise ValueError("acquisition_unreviewed_terminal_failure")
+
+
 def reconcile_transport_stop(root, *, stop_pin, reason):
     """Archive a sealed transport STOP after full prefix reconciliation, under the capture lock.
 
@@ -94,6 +141,9 @@ def reconcile_transport_stop(root, *, stop_pin, reason):
                 prefix.append(
                     dict(request=key, status=status, capture=file_hash(cap / "manifest.json"))
                 )
+                if status == "transport_failure" and key != stopped["request"]:
+                    if not reviewed(root, plan, key, prefix):
+                        raise ValueError("acquisition_recovery_unreviewed_prior_failure")
             if (
                 not prefix
                 or prefix[-1]["request"] != stopped["request"]
@@ -120,8 +170,12 @@ def reconcile_transport_stop(root, *, stop_pin, reason):
             report = dict(binding, reviewed_ns=now, reason=reason)
             atomic_json(receipt_path, report)
         if archive.exists():
-            raise ValueError("acquisition_recovery_archive_exists")
-        os.rename(stop, archive)
+            if file_hash(archive) != stop_pin:
+                raise ValueError("acquisition_recovery_archive_binding")
+            # A power loss can leave both directory entries. Preserve the verified archive.
+            stop.unlink()
+        else:
+            os.rename(stop, archive)
         sync_dir(history)
         sync_dir(root)
         return report
