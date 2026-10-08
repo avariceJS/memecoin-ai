@@ -340,3 +340,14 @@ def test_generic_axis_gates_distinguish_enrollment_and_unknown_from_train_suppor
     assert report["train_distribution"]['["venue","regime"]']["known_supported_values"] == 0
     assert report["train_distribution"]['["venue","regime"]']["unknown_fraction"] == 1
     assert planning.action(dict(status="unknown", observed=None), None, None) == "reconcile_unknown"
+
+
+def test_interval_export_does_not_claim_unknown_grid_cells():
+    from memecoin_population.adapters import covers_grid
+
+    export = dict(start_s=0, end_s=3000, intervals={"A": [[300, 900], [1500, 2100]]})
+    assert covers_grid(export, "A", 1 * 10**9, 900 * 10**9)
+    assert covers_grid(export, "A", 1500 * 10**9, 2100 * 10**9)
+    assert not covers_grid(export, "A", 900 * 10**9, 1500 * 10**9)
+    assert not covers_grid(export, "A", 300 * 10**9, 2100 * 10**9)
+    assert not covers_grid(export, "A", 2100 * 10**9, 2400 * 10**9)

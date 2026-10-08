@@ -284,3 +284,6 @@ capture bindings. Its sealed accounting lists every planned request and qualific
 Population publication retains the complete enrolled role with birth/lifecycle metadata known only
 at plan creation, not retroactively at event time. OHLCV intervals denote grid-aligned opens in the
 planned half-open request windows; full-bar receipt causality is enforced independently.
+The population coverage adapter publishes a cell only when the source declares every eligible bar
+open in it. Cells crossing undeclared per-entity gaps remain unknown; they are not relabeled as
+observed zero/partial coverage merely because they lie within the export's global calendar bounds.

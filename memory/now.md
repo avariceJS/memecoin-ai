@@ -8,6 +8,32 @@ Build a large Solana learning system with growing useful corpus, deliberate trai
 reproducible generations and independent evaluation. Two Macs are an initial stage. Preserve
 provenance, temporal correctness and recovery; no demonstrated executable trading edge.
 
+## Active independent-population campaign
+
+- Mac 1 moved to `192.168.31.68` (same pinned `.66` SSH host key). Live research guard checks
+  operator revision 33 paused, source STOP and unchanged source/config hashes before every GET.
+- Frozen acquisition at `a994c9e`: 307 birth-enrolled pools (170 May–August train; 137 September
+  evaluation), cross-role base mints disjoint, prior/protected cohorts excluded before price IO.
+  1,228 distinct public keyless requests, 3 s minimum spacing, 8 h expiry, no GET retries.
+  Root: `work/brain-diverse-campaign-20261008/`; acquisition plan pin
+  `d872e0d8d8266b2dd22b1c2a8ef7e505a12b6f93ccdf82df9b7b6f206d7e7de8`.
+- Collection is in progress. Transient unreadable/unknown owner processes stop before reservation;
+  a supervisor rechecks readiness and resumes only unrequested work. Never clear a provider STOP or
+  unresolved reservation automatically. Check the live ledger/logs, not this dated progress note.
+- `e6ec88b` adds immutable input-only admission masks, stable OHLCV representation v3, optional
+  constant-feature scale 1 and preregistered quality evaluation. `73363fe` connects acquisition,
+  role-separated qualification, population audits, owned generations and paired mint bootstrap.
+- Frozen `learning-code/` at `73363fe` will run after capture completion. The three fixed recipes
+  compare narrow/broad fresh training and rounded row-draw compute control. No real learning result
+  yet. `evaluation-access.json` discloses one early response-shape/token-metadata/count inspection;
+  recipes and cohort were fixed before all requests. This is historical replay, not a pristine blind
+  or prospective test. No promotion, protected payload access or production mutation.
+- Checks: standard suite 1,121 passed / 23 optional skips and smoke passed before later focused
+  hardening; optional integrated learning suite 37 passed / one CUDA skip. Additional mask paging,
+  portable closure, enrollment and source-window regressions pass. Sets overlap.
+- Eliza GLM/Qwen reviewed bounded source/admission contracts; Kimi summarized partial training
+  inventory. Numerical summaries were recomputed locally; several helper claims were rejected.
+
 ## Current research state
 
 - The opt-in experience foundation connects qualified portable sources, generic representations,
@@ -48,7 +74,7 @@ provenance, temporal correctness and recovery; no demonstrated executable tradin
 
 ## Owner and protected boundary
 
-- Mac 1 is `192.168.31.67`, accessed as `root1` using the previously pinned SSH host key for its
+- Mac 1 is `192.168.31.68`, accessed as `root1` using the previously pinned SSH host key for its
   old `.66` address; strict host-key verification remained enabled.
 - Read-only owner check at 2026-10-08 05:22:19 UTC: operator revision 33, paused, expired,
   domain_stop=false; source STOP present. Configs, deployment pointer, universe and source range

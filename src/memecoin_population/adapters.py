@@ -66,6 +66,15 @@ def universe(store, path, pin, *, role, cutoff_ns, age_edges_ns=()):
     )
 
 
+def covers_grid(export, pool, start_ns, end_ns):
+    """An export covers a work cell only if it declares every eligible bar open in that cell."""
+    cadence = 300 * 10**9
+    first, end = ((t + cadence - 1) // cadence for t in (start_ns, end_ns))
+    spans = export.get("intervals", {}).get(pool, [[export["start_s"], export["end_s"]]])
+    covered = sum(max(0, min(end, b // 300) - max(first, a // 300)) for a, b in spans)
+    return covered == end - first
+
+
 def continuous_coverage(store, reference, plan_path, plan_pin):
     """Requalify sealed captures and project actual unique bars onto declared sparse work cells."""
     plan_path = safe_path(plan_path)
@@ -108,8 +117,9 @@ def continuous_coverage(store, reference, plan_path, plan_pin):
                     if (
                         cell["contract"] not in compatible
                         or cell["entity"] not in pools
-                        or cell["start_ns"] < export["start_s"] * 10**9
-                        or cell["end_ns"] > export["end_s"] * 10**9
+                        or not covers_grid(
+                            export, cell["entity"].split("/")[-1], cell["start_ns"], cell["end_ns"]
+                        )
                     ):
                         continue  # Unknown outside the sealed export's declared scope.
                     observed = db.execute(
