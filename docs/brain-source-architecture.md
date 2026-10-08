@@ -300,3 +300,27 @@ Restart also reconstructs an unreviewed STOP from terminal ledger failures, cove
 terminal commit and STOP publication. Earlier transport failures require their own matching review
 receipt; interrupted archival with both directory entries is completed only after verifying the
 original STOP hash. User-requested pause is a distinct STOP reason and is never auto-reconciled.
+
+The 2026-10-08 independent-population campaign completed 307 birth-enrolled markets without
+response-based replacement. Its source funnel is recorded in
+[`brain-independent-population-learning-2026-10-08.json`](evidence/brain-independent-population-learning-2026-10-08.json):
+38,705 unique train-role bars became 8,792 context-ready rows across 49 of 170 markets;
+14,375 evaluation bars became 6,465 rows across 30 of 137. All 307 markets have some qualified bars.
+The 32-consecutive-bar producer loses 29,913 train bars to initial/gap context warm-up. This is an
+experience-conversion bottleneck; a larger population alone cannot resolve it.
+
+The provider returned nonempty qualified payloads for 1,221 requests, yet 381 contained no bars
+inside their own requested window (216 train, 165 evaluation). Older returned history and repeated
+bars are not new interval coverage. Source exports deduplicate first qualified receipts across all
+captures and apply the declared per-entity interval union; an overlapping response can recover
+support absent from its own interval's request. The terminal timeout and six duplicate-bar
+quarantines remain explicit. Requested intervals contain 587,520 train and 473,472 evaluation grid
+slots; missing slots can mean inactivity, unsupported history or missing observations and are not
+a provider-error rate. Wider lifetime work plans also include unrequested cells; cells partly
+outside source intervals remain unknown, so their denominators differ intentionally.
+
+Causal volume admission rejected only 20 train-role contexts and no evaluation contexts. It does
+not fix the larger selection imposed by requiring uninterrupted active bars. Future sparse/event
+producers should preserve event spacing, known inactivity versus unknown observation support,
+lifecycle and censoring, and use objectives that can learn from short/failed market histories.
+Do not infer inactivity from a missing provider bar or filter enrollment by future survival.

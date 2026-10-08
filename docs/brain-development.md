@@ -142,6 +142,15 @@ two full CPU training epochs and independent evaluation. This does not qualify 1
 cluster execution or market usefulness. See the data, training/evaluation and operator documents
 for measured limits and the exact code-bound receipts.
 
+The independent 307-market birth campaign has now exercised population enrollment through real
+CPU learning and independent-mint evaluation. Its conversion loss confirms the next architectural
+priority: the active contiguous-OHLCV producer still excludes most short/sparse histories from
+learning, even though storage preserves their enrollment and raw observations. Broader data improved
+neural controls but did not beat empirical train quantiles. Preserve the existing data-plane,
+snapshot, generation and evaluation boundaries; qualify sparse/event-time and lifecycle producers
+and appropriate objectives before interpreting more downloads or larger neural fits as capability
+growth. Exact results and limitations belong to `training-evaluation.md`.
+
 ## Research tracks
 
 Brain Development is separate from frozen F01/D43; protected holdouts remain unavailable.

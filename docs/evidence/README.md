@@ -74,3 +74,8 @@ are not in Git; consult the receipt's pinned local root and manifest when author
 
 - `brain-population-million-capacity-2026-10-08.json`: 10k synthetic markets, 520k coverage cells, 1M examples and identical audited/plain CPU training at `47c72ae`; payloads in `work/brain-population-scale-20261008/`.
 - `brain-population-real-diversity-2026-10-08.json`: population/coverage/usable-exposure audit of the prior 24-market sealed development corpus at `47c72ae`; no new market fit, provider request or holdout access.
+- `brain-independent-population-learning-2026-10-08.json`: 307 independently birth-enrolled markets,
+  1,228 requests with one unretried timeout, original split infeasibility, explicitly revised calendar
+  split and three CPU fits at `24ae9ae`. Broader data beats neural controls but loses to empirical
+  train quantiles; source/context/admission/exposure denominators, paired mint intervals and access
+  disclosures are retained. Payloads: `work/brain-diverse-campaign-20261008/`.

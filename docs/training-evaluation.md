@@ -722,3 +722,61 @@ reconciles the terminal ledger and sealed captures, qualified source/bar/context
 zero-support entities, per-pool persisted contexts, admission/split counts, committed row draws,
 model artifacts and paired evaluation summaries. It performs no requests, fitting or selection.
 Infeasible runs remain explicit reports; an empty comparison list is not evidence of improvement.
+
+### Independent birth-population learning qualification, 2026-10-08
+
+Receipt: [`brain-independent-population-learning-2026-10-08.json`](evidence/brain-independent-population-learning-2026-10-08.json).
+Payload root: `work/brain-diverse-campaign-20261008/`. Acquisition at `a994c9e` completed
+1,228 distinct requests for 307 independently birth-enrolled base mints (170 May–August training
+source; 137 September evaluation). There were 1,227 received responses and one sealed timeout,
+explicitly reconciled without retry. The user pause/resume preserved the ledger prefix and STOP.
+Six received responses were quarantined for duplicate bars; all markets remain enrolled.
+
+The original fixed learning protocol at `73363fe` was **infeasible**: Aug 8/11/15 split boundaries
+left zero usable validation/test rows. No candidate fitted. Its frozen harness nevertheless
+qualified the evaluation source and built its admission view; no model scores existed. This is
+preserved evidence, not a successful experiment. After inspecting only train-role calendar support,
+a new declaration at `24ae9ae` used May–June train, July validation and August descriptive test,
+with unchanged representation, quality policy, preselected narrow population, model recipes and
+September evaluation bounds. `learning-plan02.json` binds the failed result/support evidence;
+`learning02/` is a separate run. This revision and the earlier one-response metadata/shape inspection
+mean the evaluation is retrospective, not untouched. Do not tune more candidates on it.
+
+The three 60,681-parameter CPU GRUs used 32 frames, 12 features and 5/15/30-minute return targets:
+
+- Narrow fresh: 140 usable training rows from two markets, five epochs, 700 row draws / five steps.
+- Broad fresh: 3,990 rows from 14 markets, five epochs, 19,950 draws / 40 steps.
+- Narrow compute control: 143 epochs, 20,020 draws / 143 steps. Approximate row-draw matching is
+  not equal FLOPs or equal optimizer opportunity. All models shared 1,171 usable July validation
+  and 3,505 August test rows; no score-based recipe or admission-policy search was performed.
+
+On September observed support, broad pinball was 0.025848 / 0.039153 / 0.046405 for 5/15/30 minutes.
+It improved over narrow fresh by 49.27% / 50.35% / 48.45%, and over the repeated narrow control by
+14.18% / 20.46% / 44.30%. Paired whole-mint bootstrap micro and equal-mint intervals exclude zero
+for these six comparisons, conditional on one trainer seed and this fixed historical cohort,
+without multiplicity correction. Support is 6,428 / 6,356 / 6,261 origins from 30 / 27 / 25 mints,
+out of 137 enrolled. Input admission removes no evaluation rows; structural and qualified metrics
+and paired comparisons match, while the latter reports additional admission counters.
+
+**The broad neural model still loses to its own train-only empirical quantile baseline by 35.38% /
+19.37% / 13.30%.** Its nominal 80% intervals cover 98.48% / 97.03% / 95.27%. This is evidence that
+broader usable data helped these neural controls on this replay; it is not evidence of sufficient
+conditional forecasting skill, calibrated intervals or trading usefulness. More market names did
+not produce broad learning exposure: one market supplies 55.36% of broad draws, effective Shannon
+entity count is 4.49, and May supplies 96.07% of train rows. Admission was causal, but observability
+and contiguous-context selection still condition the learned population.
+
+Checks at `24ae9ae`: `make check` 1,130 passed / 23 optional skips, lint/format/mypy passed;
+`make smoke` passed; optional ML regressions 38 passed / one actual-CUDA skip (sets overlap).
+Independent reconciliation rechecked all raw capture seals, source/context counts, generations,
+actual draws and paired summaries. All three extracted source archives match their archived files.
+No new million-row/GPU/cluster test occurred in this campaign. Owner read-only fence remained paused;
+no champion, production runtime or protected payload was changed.
+
+Next priority is qualified sparse/event-time and lifecycle experience that can retain learning
+signal outside uninterrupted active-bar sequences, with explicit gaps and observation-process
+semantics. Assess feature-conditioned skill against empirical baselines on fresh populations;
+do not scale this GRU or repeatedly extend the same survivor-conditioned bar corpus and call it
+Brain growth. Representation changes must not invent zero activity/returns where capture support
+is unknown. Richer sources, independent fresh evaluation, multiple seeds and GPU qualification
+remain unproven.
