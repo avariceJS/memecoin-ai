@@ -98,6 +98,8 @@ Eliza for bounded nonsecret assistance and verify findings. Runtime dependencies
   `make runner-check` 18 passed. Focused sparse/learning suite: 42 passed / one actual-CUDA skip.
 - Sol architecture review was incorporated. Eliza Kimi/GLM/Qwen connectors were unavailable in this
   session; no secrets or protected payloads were sent externally.
+- Implementation committed locally on `research/active` as `5c8ea27`; working tree was clean
+  after commit. Branch remains two commits ahead of `origin/research/active`; no push or deployment.
 
 ## Next major stage
 
