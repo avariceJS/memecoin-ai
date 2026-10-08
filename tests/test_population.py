@@ -302,3 +302,41 @@ def test_qualified_count_semantics_and_append_only_enrollment(tmp_path):
         with pytest.raises(ValueError, match="qualified_denominator"):
             catalog.checked(row, "coverage", 100)
     assert catalog.checked(dict(base, observed=8), "coverage", 100)
+
+
+def test_generic_axis_gates_distinguish_enrollment_and_unknown_from_train_support(tmp_path):
+    schema, rows = custom_samples()
+    snap = build(
+        tmp_path / "data", rows, schema=schema, sources=[dict(synthetic=True)], cutoff=10**18
+    )["snapshot"]
+    pop = catalog.publish(
+        tmp_path / "facts",
+        "population",
+        [
+            member("synthetic", end=10**18, known=0, venue="X"),
+            member("unsupported", end=10**18, known=0, venue="Y"),
+        ],
+        cutoff_ns=10**18,
+        definition=definition(),
+    )
+    cfg = config()
+    cfg["axis_limits"] = [
+        dict(axis=["venue"], min_known_values=2, max_share=0.8, max_unknown_fraction=0)
+    ]
+    split = dict(train_start_s=0, train_end_s=30000, validation_end_s=60000, test_end_s=90000)
+    report = diversity.audit(
+        tmp_path / "data",
+        snap,
+        tmp_path / "facts",
+        pop,
+        tmp_path / "audit",
+        split=split,
+        config=cfg,
+    )
+    assert not report["training_allowed"]
+    assert 'insufficient_known_values:["venue"]' in report["violations"]
+    assert 'axis_concentration:["venue"]' in report["violations"]
+    assert report["train_distribution"]['["venue"]']["known_supported_values"] == 1
+    assert report["train_distribution"]['["venue","regime"]']["known_supported_values"] == 0
+    assert report["train_distribution"]['["venue","regime"]']["unknown_fraction"] == 1
+    assert planning.action(dict(status="unknown", observed=None), None, None) == "reconcile_unknown"

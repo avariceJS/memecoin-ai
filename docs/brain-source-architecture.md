@@ -253,3 +253,9 @@ This is essential for diagnosing selection bias and is not a claim that the popu
 historically. A population removal is a new selection contract; shorter metadata intervals never
 silently withdraw prior enrollment. Before dispatch, reconcile work cells with the acquisition
 request ledger and provider budget; planning alone cannot prove a request has never been charged.
+
+Population attributes are small categorical stratification metadata, not market feature vectors.
+Each fact supplies a complete attribute map for its valid interval; later knowledge replaces that
+map for lookup, not field-wise merging across unrelated producers. Explicit `unknown` request
+outcomes route to reconciliation, not another acquisition suggestion. Capture completeness and
+qualified grid support remain distinct: qualified counts cannot exceed a known denominator.

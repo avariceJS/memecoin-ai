@@ -31,7 +31,7 @@ UNKNOWN = "__unknown__"
 
 
 def policy(value):
-    if set(value) != {
+    required = {
         "entity_prefix",
         "knowledge",
         "axes",
@@ -42,7 +42,8 @@ def policy(value):
         "max_entity_share",
         "max_unknown_fraction",
         "objective",
-    }:
+    }
+    if not required <= set(value) or set(value) - required - {"axis_limits"}:
         raise ValueError("diversity_policy")
     if (
         value["knowledge"] not in {"at_decision", "at_cutoff"}
@@ -95,6 +96,26 @@ def policy(value):
         or not 0 < s["numerator"] <= s["denominator"] <= 2**32
     ):
         raise ValueError("diversity_policy_selection")
+    limits = value.get("axis_limits", [])
+    if not isinstance(limits, list) or len(limits) > len(axes):
+        raise ValueError("diversity_axis_limits")
+    seen = set()
+    for item in limits:
+        if (
+            set(item) != {"axis", "min_known_values", "max_share", "max_unknown_fraction"}
+            or item["axis"] not in axes
+            or type(item["min_known_values"]) is not int
+            or item["min_known_values"] < 0
+            or any(
+                type(item[k]) not in (int, float) or not 0 <= item[k] <= 1
+                for k in ("max_share", "max_unknown_fraction")
+            )
+        ):
+            raise ValueError("diversity_axis_limits")
+        key = canonical(item["axis"]).decode()
+        if key in seen:
+            raise ValueError("diversity_axis_limits")
+        seen.add(key)
     return value
 
 
@@ -121,17 +142,24 @@ def summary(db, table="counts", metric="usable", role="train"):
         f"select distinct axis from {table} where metric=? and role=? order by axis", (metric, role)
     ):
         n, total, square, logsum, maximum = 0, 0.0, 0.0, 0.0, 0.0
-        for (v,) in db.execute(
-            f"select n from {table} where axis=? and role=? and metric=? and n>0",
+        known_values, unknown_total = 0, 0.0
+        for value, v in db.execute(
+            f"select value,n from {table} where axis=? and role=? and metric=? and n>0",
             (axis, role, metric),
         ):
             n += 1
+            if UNKNOWN in json.loads(value):
+                unknown_total += v
+            else:
+                known_values += 1
             total += v
             square += v * v
             logsum += v * math.log(v)
             maximum = max(maximum, v)
         output[axis] = dict(
             supported_values=n,
+            known_supported_values=known_values,
+            unknown_fraction=unknown_total / total if total else None,
             total=total,
             max_share=maximum / total if total else None,
             effective_shannon=math.exp(math.log(total) - logsum / total) if total else 0,
@@ -292,8 +320,11 @@ def audit(
                         counts[axis, value, role, "usable"] += int(any(mask))
                         if role == "train" and any(mask) and UNKNOWN in json.loads(value):
                             unknown[axis] += 1
-                        for name, valid in zip(target_names(data.schema), mask, strict=True):
+                        for name, valid, status in zip(
+                            target_names(data.schema), mask, row["target_status"], strict=True
+                        ):
                             counts[axis, value, role, "target:" + str(name)] += int(valid)
+                            counts[axis, value, role, "status:" + str(name) + ":" + status] += 1
                 add_counts(db, counts)
                 db.commit()
             distribution = summary(db)
@@ -311,6 +342,18 @@ def audit(
             for axis, n in unknown.items():
                 if n / max(1, totals["train_usable"]) > config["max_unknown_fraction"]:
                     violations.append("unknown_metadata:" + axis)
+            for limit in config.get("axis_limits", []):
+                key = canonical(limit["axis"]).decode()
+                stats = distribution.get(key, {})
+                if stats.get("known_supported_values", 0) < limit["min_known_values"]:
+                    violations.append("insufficient_known_values:" + key)
+                if stats.get("max_share") is not None and stats["max_share"] > limit["max_share"]:
+                    violations.append("axis_concentration:" + key)
+                if (
+                    stats.get("unknown_fraction") is not None
+                    and stats["unknown_fraction"] > limit["max_unknown_fraction"]
+                ):
+                    violations.append("axis_unknown_metadata:" + key)
             result = dict(
                 binding=binding,
                 enrolled_entities=enrolled,

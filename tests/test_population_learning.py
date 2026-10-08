@@ -144,3 +144,32 @@ def test_generation_binds_diversity_and_population_evaluation(tmp_path):
         evaluation.score(
             protocols, protocol["protocol"], eval_store, eval_pin, artifact, tmp_path / "bad"
         )
+
+
+def test_objective_mass_tracks_partial_horizon_loss_not_equal_row_weights(tmp_path):
+    from memecoin_experience.learning import loss
+    from memecoin_population.exposure import Journal, validate
+
+    store, pin, snapshot = dataset(tmp_path)
+    ref = audit(tmp_path, store, pin, snapshot)
+    report = validate(ref, pin, PLAN, snapshot.schema)
+    rows = [dict(row) for row in snapshot.partition(0)[1][:2]]
+    rows[1]["pool"] += "-unit-test-only"
+    mask = np.array([[True, True], [True, False]])
+    out = tmp_path / "journal"
+    out.mkdir()
+    with Journal(ref, out, report) as journal:
+        head = journal.record(1, 0, rows, mask)
+        record = json.loads(journal.path(1).read_text())
+        masses = {
+            json.loads(row[1])[0]: row[4]
+            for row in record["counts"]
+            if row[0] == '["@entity"]' and row[3] == "objective_mass"
+        }
+        assert masses["chain/market/" + rows[0]["pool"]] == 0.75
+        assert masses["chain/market/" + rows[1]["pool"]] == 0.25
+        journal.verify(1, head, 2)
+    pred = torch.zeros((2, 2, 3))
+    first = loss(pred, torch.tensor([[1.0, 1.0], [0.0, 0.0]]), torch.tensor(mask))
+    second = loss(pred, torch.tensor([[0.0, 0.0], [1.0, 0.0]]), torch.tensor(mask))
+    assert float(first / (first + second)) == pytest.approx(0.75)

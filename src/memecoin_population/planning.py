@@ -93,6 +93,10 @@ def action(capture, qualified, expected):
             return "review_failure"
         if capture["status"] == "unsupported":
             return "source_review"
+        if capture["status"] == "unknown":
+            return "reconcile_unknown"
+    if qualified and qualified["status"] == "unknown":
+        return "reconcile_unknown"
     return "acquire_unobserved"
 
 

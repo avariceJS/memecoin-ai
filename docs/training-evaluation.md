@@ -607,3 +607,10 @@ arguments and `cohorts` registration arguments. It binds the audit before genera
 propagates exposure into the receipt and registers cohorts before reading evaluation payload.
 Generic representations use the same `audit`, `generations.run` and `evaluation.register/score`
 interfaces directly; the OHLCV convenience pipeline does not define the data model boundary.
+
+Policies may add `axis_limits` entries with `axis` (one of the declared axes),
+`min_known_values`, `max_share`, `max_unknown_fraction`. These gate usable training support,
+not merely enrolled groups; unknown groups do not satisfy `min_known_values`. Per-target status
+counts preserve missing/maturity/purge denominators alongside usable masks. The declared objective
+remains independent of these distribution requirements; changing it requires a distinct trainer
+contract and matching exposure accounting.
