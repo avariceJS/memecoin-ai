@@ -1,71 +1,62 @@
 # Current Project State
 
-**As of:** 2026-10-08 Europe/Moscow. Re-read the owner host before operational decisions.
+**As of:** 2026-10-08 Europe/Moscow. Re-read the owner before operational decisions.
 
 ## Goal
 
-Build a scalable Solana Brain/data system whose generations represent substantially more useful
-data, deliberate training compute, independent evaluation, and measured improvements. The two
-Macs are an initial stage, not the infrastructure ceiling. Preserve temporal correctness,
-provenance, immutable artifacts, and safety while removing historical pilot limits that have no
-technical justification. The user reports paid Alchemy capacity and willingness to scale; actual
-plan limits have not been audited in this repository.
+Build a large Solana learning system with growing useful corpus, deliberate training compute,
+reproducible generations and independent evaluation. Two Macs are an initial stage. Preserve
+provenance, temporal correctness and recovery; no demonstrated executable trading edge.
 
-## Repository and research
+## Current research state
 
-- `memecoin_experience` connects read-only continuous export, qualified portable sources,
-  versioned snapshots, disjoint composition/replication, owned model generations, warmstart/resume,
-  standalone prediction and registered research evaluation. Its `pipeline` CLI runs and recovers
-  the historical research path end to end; usage and qualification scope are in
-  [`training-evaluation.md`](../docs/training-evaluation.md). Source paths are outside snapshot
-  identity. Large catalogs page metadata; hierarchical sampling preserves full-epoch exposure.
-  Existing v1 snapshots remain readable. No market candidate was trained during this migration.
-- Implemented in `2bdef07`, `f5aca3d`, `2f1eff2` and `6ae0ea9`. Final code checks: `make check`
-  passed (1,099 tests, 18 optional skips; lint/format and mypy passed), `make smoke` passed.
-  Selected broader ML regressions passed in the torch environment: 96 tests, six hardware skips
-  (five MPS, one CUDA). Counts overlap and must not be summed.
-- The million-bar full pipeline at `2f1eff2` completed two CPU epochs, 1,199,856 optimizer row
-  visits and separate evaluation in 271.1 seconds at about 348 MiB RSS. This is synthetic
-  engineering evidence with a width-16 GRU, not market/GPU acceptance. Its eight-pool catalogs
-  remain inline; the receipt filename does not establish that paging was exercised.
-- A second full-pipeline run at `6ae0ea9` covered 1,024,000 bars across 2,048 synthetic pools:
-  804,864 persisted training examples, four training catalog pages, two evaluation pages,
-  1,191,936 optimizer row visits and separate evaluation. It completed in 360 seconds at about
-  355 MiB RSS. The unique receipt is
-  `docs/evidence/brain-wide-paged-pipeline-capacity-2026-10-08.json`. Both million-scale receipts
-  were verified against their recorded source/tool hashes; temporary payloads were removed.
-- Kimi/GLM designs and reviews, Qwen's completed integration review, and GLM's catalog review
-  were independently adjudicated. Some assistant bug claims were disproved by code and tests;
-  canonical training docs summarize material decisions. Grok remains disabled; Eliza only.
-  AUTO/champion, owner runtime, market datasets and protected holdouts were not changed.
-- Next acceptance is integrated qualification on an explicitly enrolled, non-protected research
-  population plus real CUDA worker qualification. Measure raw-to-learning conversion, incremental
-  generations, recovery, throughput and independent forecasts. Richer source semantics, executable
-  trading value, 100M-scale throughput, DDP and remote conditional publication remain unqualified
-  or unimplemented; they are not implied by local replica or synthetic results.
-- User supplied owner Mac 1 address `192.168.31.67` on 2026-10-08. It was not contacted during
-  this migration; the owner status below remains dated, not a fresh runtime attestation.
+- The opt-in `memecoin_experience` architecture connects qualified portable continuous sources,
+  extensible representations, paged immutable snapshots, composition/replication, owned generations,
+  exact resume, parent warmstart, portable prediction and registered research evaluation.
+  Migration commits: `2bdef07`, `f5aca3d`, `2f1eff2`, `6ae0ea9`; synthetic million-scale receipts
+  and limits are in [`training-evaluation.md`](../docs/training-evaluation.md).
+- Real-data CPU system qualification is complete on the fixed existing 24-market development
+  universe. Frozen plan/harness: `339cb40`; independent reporter: `d0f6732`.
+  Receipt: `docs/evidence/brain-real-system-qualification-2026-10-08.json`.
+  Sealed inputs/artifacts: `work/brain-system-qualification-20261008/`, run root `run01`.
+  No new market-data requests, recipe search, production promotion or protected payload access.
+- 95,801 qualified training-window bars became 82,436 context-32 examples: 12,486 origins lost
+  to context after gaps, 667 to initial context, 212 outside the origin interval. Base + disjoint
+  increment was 71,548 + 10,888; replicas verified and reused. Cumulative train has 74,680 usable
+  origins from eight markets; four still supply 95.62% of exposure. Broad population remains weak.
+- Three fixed width-128, 60,681-parameter GRU fits ran five full CPU epochs: qualification V1,
+  cumulative V2 warm, cumulative V2 fresh. A separate V1 killed after checkpoint step 20 recovered
+  exactly equal weight tensors and an identical report. These are acceptance cases, not production
+  model generations or evidence of a large trained Brain.
+- October 5–7 retrospective evaluation supported ten of 24 markets, approximately 4.3k origins
+  per horizon. Warm versus V1 worsened 5-minute pinball by about 5%, improved 15/30-minute by
+  1.8%/5.2%. Coverage remains imperfect. No uniform generation-gain, independent calibration,
+  prospective capability or execution/edge claim. Do not tune repeatedly on this same window.
+- Final checks: `make check` passed (1,100 tests, 19 optional skips; lint/format/mypy passed),
+  `make smoke` passed. Selected broader ML regressions: 98 passed, six hardware skips
+  (five MPS, one CUDA). Test sets overlap. Actual CUDA was unavailable; GPU host details were
+  requested. No paid compute was provisioned. Per-fit wall time was not instrumented.
+- Next: a broader independently enrolled population with contiguous coverage and a real GPU
+  worker. Quantify learning conversion, normalization drift, training/I/O throughput and recovery
+  before scaling model size. Richer semantic producers, 100M-scale throughput, DDP and remote
+  conditional publication remain separate qualifications/extensions.
+- Eliza helpers are primarily bounded log/receipt/document/test-inventory assistants. Selective
+  critical-boundary review only; outputs are hypotheses. This stage used GLM for test inventory,
+  with incorrect suggestions rejected. Grok remains disabled. See `operator-runtime.md`.
 
-- The status snapshot was read from code base `b3bb5e3350d8ae8b713ae034f0556289997fb0ec`; the evidence receipt is `docs/evidence/brain-handoff-status-2026-10-07.json`.
-- Owner Mac 1 read-only status at 2026-10-07 17:16:36 UTC: revision 33, paused/paused,
-  domain_stop=false, 10 API-returned jobs completed, 3 managed exams expired.
-- Official champion is the empirical model,
+## Owner and protected boundary
+
+- Mac 1 is `192.168.31.67`, accessed as `root1` using the previously pinned SSH host key for its
+  old `.66` address; strict host-key verification remained enabled.
+- Read-only owner check at 2026-10-08 05:22:19 UTC: operator revision 33, paused, expired,
+  domain_stop=false; source STOP present. Configs, deployment pointer, universe and source range
+  metadata matched preflight. The running executable was not freshly attested.
+- Official empirical champion remains
   `9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920`.
-- Active deployment file matched the previously attested runtime08 binding. That check did not
-  freshly attest the running executable. Runtime08 does not contain Watch Market; repo feature
-  commit `0e9a2c1` has not passed owner-host live acceptance.
-- Last broad corpus: 86 training pools, 48,000 retained decisions. Last research envelope:
-  2,020 bars, 453 origins, 6 supported mints, 29 globally disjoint windows; old/young support is
-  imbalanced. It is not a broad or prospective benchmark.
-- Latest GRU was not promoted. Current comparisons and causal ML evidence are in
-  [`training-evaluation.md`](../docs/training-evaluation.md).
-- Current priority remains sustained semantic qualification and broad prospective evaluation.
-  Migration validation has trained synthetic fixtures only, not a new market candidate.
+  Deployment still points to runtime08; no Watch release or owner runtime switch occurred.
+- Only a new isolated research export directory was created on the owner; no mutable SQLite copy
+  or second canonical writer. F01/D43/reserved holdout remain protected. No real trading, signing,
+  provider upgrade or secret transfer. Preserve user-owned untracked `.codex/` files.
 
-## Working boundary
-
-F01/D43 and reserved holdout remain protected. No real trades, signing, submission, provider
-upgrade, or secret transfer. User-owned `.codex/` files are outside this repository cleanup.
-
-See [`docs/INDEX.md`](../docs/INDEX.md) for canonical sources. This file is volatile status only;
-replace dated facts after checking current evidence, do not append an event history.
+See [`docs/INDEX.md`](../docs/INDEX.md) for canonical sources. Replace dated state after checking
+current evidence; Git and immutable receipts hold history.

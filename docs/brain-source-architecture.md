@@ -194,6 +194,14 @@ share inputs. Location hints live in build journals; relocating a pinned source 
 the new dataset identity. `replicate` publishes a destination snapshot only after its objects are
 copied, fsynced and verified.
 
+Real-data CPU qualification on the existing 24-market development universe exported 95,801
+qualified training-window bars and persisted 82,436 context-32 examples. Independent accounting
+identified 12,486 losses after temporal gaps, 667 initial-context losses and 212 outside the chosen
+origin interval. Only eight markets supplied usable cumulative training origins; four supplied
+95.62% of that exposure. These are source/representation/population constraints, not retained-row
+caps. Source coverage and model findings have their receipt and interpretation in
+[`training-evaluation.md`](training-evaluation.md#real-data-system-qualification-2026-10-08).
+
 New snapshots with more than 1,024 partitions use immutable catalog pages of at most 1,024 entries.
 The root pins page identities/counts; each page pins feature objects. Readers cache at most two
 catalog pages. Small and historical inline manifests remain supported. New object paths use a

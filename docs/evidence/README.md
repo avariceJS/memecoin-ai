@@ -70,3 +70,4 @@ are not in Git; consult the receipt's pinned local root and manifest when author
 - `brain-integrated-million-capacity-2026-10-08.json`: million-bar writer/reader check at `f5aca3d`, before paged-catalog implementation.
 - `brain-paged-million-pipeline-capacity-2026-10-08.json`: million-bar, two-epoch full pipeline at `2f1eff2`; eight pools use inline catalogs despite the paging-capable revision and filename.
 - `brain-wide-paged-pipeline-capacity-2026-10-08.json`: 1.024M synthetic bars across 2,048 pools at `6ae0ea9`; actual paged train/evaluation catalogs, two CPU epochs and separate evaluation.
+- `brain-real-system-qualification-2026-10-08.json`: fixed 24-market development population, cumulative/replica snapshots, three CPU fits, exact SIGKILL recovery and retrospective evaluation; harness `339cb40`, reporter `d0f6732`.

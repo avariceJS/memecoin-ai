@@ -83,3 +83,10 @@ annotations with source references. Its output is untrusted derived data, never 
 promotion authority, or a trading feature without independent experiment. Do not let it compete
 with heavy training for memory when measurements show harmful swap/residency pressure. LLMs are
 not in the trading runtime.
+
+Eliza Kimi/GLM/Qwen are primarily bounded helpers for large logs/receipts, artifact comparison,
+anomaly searches, documentation summaries and edge-case/test inventories. Independent code review
+is selective at provenance, recovery, concurrency, temporal and integrity boundaries, not a
+mandatory pass after every edit. Treat findings as hypotheses. Architecture, complex implementation,
+integration, ML/data semantics and the final quality judgment remain the integrator's responsibility.
+Grok remains disabled by the user's latest instruction.

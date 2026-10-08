@@ -50,6 +50,13 @@ Those are backend/trainer extensions behind immutable snapshot and generation ow
 pretend distributed coordination. Next priority is integrated qualification on explicit research
 populations, then source and GPU throughput work based on measured failures.
 
+The first integrated CPU qualification on real captures is complete: fixed 24-market development
+enrollment, cumulative/replica snapshots, parent and fresh generations, exact hard-kill recovery,
+and separate retrospective evaluation. Four markets still supplied 95.62% of cumulative training
+exposure; generation gains were mixed by horizon. The next constraint is broader useful data and
+actual GPU qualification, not another increase to a retained-row cap. Exact scope and receipt:
+[`training-evaluation.md`](training-evaluation.md#real-data-system-qualification-2026-10-08).
+
 ```text
 Solana RPC / indexed history              GeckoTerminal price bars
           |                                         |

@@ -462,12 +462,87 @@ hardware skips. These test sets overlap; do not sum their counts. GPU hardware a
 browser acceptance were not established. Both million-scale receipts' code/tool hashes were
 checked against their recorded Git revisions.
 
-### Next integrated qualification
+### Real-data system qualification (2026-10-08)
 
-The next acceptance unit is a declared, non-protected research population through the whole
-pipeline. Use sealed read-only exports, keep unsupported pools in coverage denominators, measure
+The fixed [plan](../configs/brain-system-qualification-20261008.json) and
+[receipt](evidence/brain-real-system-qualification-2026-10-08.json) qualify the integrated CPU
+path on existing development history. The harness/test/plan were committed at `339cb40`; the
+independent funnel reporter at `d0f6732`. Raw bundles and artifacts remain under
+`work/brain-system-qualification-20261008/` (run root `run01`), outside Git. Reproduce from those
+revisions and sealed sources, not by rereading a later live index. No market-data request, production
+promotion, protected payload read or owner runtime switch was performed.
+
+All 24 members of the pre-existing continuous universe were enrolled before source export/fits;
+none was replaced based on support or scores. Pool and base-mint metadata were disjoint from the
+reserved cohorts. This is a survivor-selected, previously studied development population, not an
+untouched cold-market benchmark. The new artifacts never saw the October 5–7 evaluation interval
+in fitting/validation/descriptive test, but this temporal separation does not erase earlier human
+research on the same market history. Historical replay remains explicitly retrospective.
+
+The read-only WAL exporter processed 6,644 indexed captures: 6,625 qualified, 19 quarantined for
+duplicate bars within a response, 282,525 duplicate observations and 9,839 revised observations.
+All 95,801 indexed firsts in the declared training event window had qualified support; the larger
+102,168 owner count covered a later interval and is not a qualification-loss denominator.
+Independent accounting reconciled all 95,801 exported bars: 212 outside the origin interval,
+667 initial-context losses, 12,486 context losses after gaps, and 82,436 persisted examples.
+Expected-slot gaps include pre-birth periods; they are not a provider failure rate.
+
+The base snapshot has 71,548 examples and the disjoint increment 10,888; composition preserves
+their objects and sums to 82,436. Both base and cumulative snapshots were replicated, reread and
+reused idempotently. Base train has 56,435 usable origins from four markets; cumulative train has
+74,680 from eight. The top four still supply 95.62% of cumulative train exposure. The cumulative
+split purges 1,050 origins for transitive input dependencies and separately retains target masks.
+Removing row caps has not supplied broad market support or solved missing contiguous context.
+
+Three fixed qualification cases used context 32, horizons 5/15/30 minutes, GRU width 128,
+60,681 parameters, five full CPU epochs and no recipe search: base `V1`, cumulative `V2-warm`
+with frozen parent normalization/fresh optimizer, and cumulative `V2-fresh`. They consumed
+282,175 / 373,400 / 373,400 optimizer row visits respectively. The names denote this acceptance
+run, not production generations or a large trained Brain. A fourth V1 run was killed with SIGKILL
+after a durable checkpoint at step 20 / 10,240 rows. Recovery produced exactly equal weight tensors
+and an identical report to uninterrupted V1. All three evaluation protocols were registered before
+the separate evaluation export and scoring. Model artifacts were not selected from those scores.
+
+The October 5–7 window yielded 4,310 / 4,290 / 4,260 scored origins for 5/15/30 minutes, supported
+by ten of 24 enrolled markets. Pinball values were:
+
+- V1: 0.009613 / 0.018959 / 0.026967.
+- V2 fresh: 0.009552 / 0.019262 / 0.026535.
+- V2 warm: 0.010094 / 0.018616 / 0.025564.
+
+All beat their own train-only empirical baseline on this window. Warm continuation versus V1
+worsened 5-minute loss by about 5.0% and improved 15/30-minute loss by 1.8%/5.2%; improvement is
+not uniform. Warm q10–q90 coverage was 79.7% / 75.0% / 75.7%, and fresh 30-minute coverage only
+66.4%. These dependent historical origins establish neither independent uncertainty, calibration,
+stable generation improvement nor executable edge. Per-market/day strata and missing-market
+denominators remain in sealed evaluation artifacts. No repeated tuning on this window is justified.
+
+One simultaneous generation admission encountered the shared registry's nonblocking lock before
+creating a training attempt. Resubmitting that unstarted case after lock release succeeded;
+training ownership was preserved. Callers must handle this busy signal; the local registry is not
+a distributed scheduler. Per-fit wall time was not instrumented, so this receipt does not estimate
+GPU cost or training throughput. CUDA hardware was unavailable; its acceptance remains open.
+
+`tools/experience_qualify.py` provides `prepare`, `fit --case`, `recovery`, `register`, and `score`
+phases with `--root`/`--plan`; source phases additionally require `--source`. It binds the fixed plan,
+source code and harness hash, and refuses changed-run reuse. `tools/experience_qualification_report.py`
+reconciles the source/snapshot/report pins and independent context-loss accounting. The new
+synthetic regression exercises composition, three fits, repeated registration/scoring, empty-market
+enrollment and immutable plan/source rejection. A bounded GLM test inventory helped plan the
+acceptance; its mistaken historical-availability and test-coverage claims were not adopted.
+
+Final checks for this qualification tooling: `make check` passed (1,100 tests, 19 optional skips,
+lint/format/mypy), `make smoke` passed, and the selected broader ML suite passed 98 tests with
+six hardware skips. Test sets overlap. The receipt's source/harness/reporter hashes were checked
+against their recorded commits. Owner metadata, configs, deployment and champion matched preflight;
+operator stayed paused and source STOP stayed present. This did not re-attest the running binary.
+
+### Next qualification boundary
+
+The next acceptance unit is a broader, independently enrolled non-protected population and a real
+compute worker. Use sealed read-only exports, keep unsupported pools in coverage denominators, measure
 raw-to-qualified-to-persisted-to-optimizer conversion, and attribute each loss to its stage.
-Demonstrate a cumulative snapshot and a parent-bound next generation, including interrupted-job
+Repeat cumulative snapshots and parent-bound next generations at that broader scale, including interrupted-job
 recovery and replica verification, before judging improvements against the train-only baseline.
 Register candidate/population/window before scoring. Historical backfills remain retrospective;
 future-availability claims require a qualified point-in-time producer and actual advance registration.
