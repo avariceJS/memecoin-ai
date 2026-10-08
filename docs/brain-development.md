@@ -57,6 +57,22 @@ exposure; generation gains were mixed by horizon. The next constraint is broader
 actual GPU qualification, not another increase to a retained-row cap. Exact scope and receipt:
 [`training-evaluation.md`](training-evaluation.md#real-data-system-qualification-2026-10-08).
 
+The `memecoin_population` layer now makes enrollment, coverage, usable corpus and optimizer
+exposure separate pinned contracts. Append-only temporal metadata and coverage facts feed sparse
+source work plans and generic diversity audits; audits bind owned generations and their committed
+exposure journals. Evaluation registers its own population and axes before scoring. Neither
+sampling nor loss is silently balanced. The integrated route is now:
+
+`declared populations/streams → reconciled acquisition → immutable captures → qualified experience
+→ representation snapshots + diversity audit → owned training + exposure → registered cohort evaluation`.
+
+Planning/reconciliation interfaces are implemented; provider dispatch remains in the existing
+acquisition plane. Real order-flow/on-chain semantic producers, independent broad enrollment and
+GPU/distributed backend qualification remain substantive work. They can now add facts, streams,
+representations and trainers without changing population identity or snapshot/evaluation semantics.
+Capacity and real-data diversity findings are owned by
+[`training-evaluation.md`](training-evaluation.md#diversity-qualification-2026-10-08).
+
 ```text
 Solana RPC / indexed history              GeckoTerminal price bars
           |                                         |
@@ -89,6 +105,8 @@ The component map is:
 - `memecoin_ml`: empirical/neural forecasters, training and benchmarks.
 - `memecoin_experience`: scalable research sources, snapshots, model generations and independent
   evaluation; its opt-in integrated pipeline is described above.
+- `memecoin_population`: temporal enrollment/coverage facts, sparse work plans, diversity audits,
+  committed exposure and registered evaluation cohorts.
 - `memecoin_paper`: virtual accounting, projections, supervision, and audit.
 - `memecoin_operator`: durable jobs/commands, Control Center, deployment checks, and Watch Market.
 

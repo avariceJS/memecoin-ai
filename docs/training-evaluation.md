@@ -614,3 +614,55 @@ not merely enrolled groups; unknown groups do not satisfy `min_known_values`. Pe
 counts preserve missing/maturity/purge denominators alongside usable masks. The declared objective
 remains independent of these distribution requirements; changing it requires a distinct trainer
 contract and matching exposure accounting.
+
+### Diversity qualification, 2026-10-08
+
+Frozen harness/source revision `47c72ae` produced two immutable receipts (later generic axis gates
+and status-denominator reporting at `4ffde3e` have focused regressions; the load figures below belong
+to the frozen revision):
+
+- [`brain-population-million-capacity-2026-10-08.json`](evidence/brain-population-million-capacity-2026-10-08.json):
+  10,000 declared synthetic markets, 20,000 temporal metadata facts, 520,000 sparse work cells,
+  1,000,000 generic flow/depth examples. Intentionally unsupported 2,000 markets stayed enrolled;
+  8,000 supplied usable training inputs. Planning took 11.18 s, building 28.62 s, audit 49.20 s.
+  One CPU epoch used 616,000 rows in 602 steps. Audited/plain fits took 78.99/52.97 s and produced
+  exactly equal tensors and test metrics. Peak process RSS was 359,251,968 bytes, including torch;
+  total run 221.67 s. The 115-parameter synthetic model measures plumbing, not useful learning.
+  Row-draw effective Shannon count was 8,000; objective-mass count was about 7,998.23 because the
+  final short batch has the same loss normalization as full batches. These are concentration
+  diagnostics, not effective independent observations. Journaling overhead was about 49% of the
+  tiny baseline fit; larger training throughput, GPUs and 100M-scale storage remain unqualified.
+- [`brain-population-real-diversity-2026-10-08.json`](evidence/brain-population-real-diversity-2026-10-08.json):
+  read-only reuse of the prior sealed 24-market development inputs. 74,680 usable train origins
+  still come from eight markets; four supply 95.6227%. Entity effective Shannon/Simpson counts are
+  4.35/3.89. Descriptive lifecycle classification places 92.37% of training origins after seven
+  days of age. All venue/lifecycle labels are unknown under `at_decision`, because these legacy
+  enrollments were learned after the training interval. No label was backdated or fed to a model.
+  Within the declared population intervals there are 95,580 qualified bar opens out of 100,253
+  expected slots, across 361 cells: 241 covered, 120 with deficits. The separate swaps stream has
+  361 unobserved cells and no invented expected event count. Neither a success response nor a
+  checked grid slot count proves complete market experience or independent population selection.
+
+The real-data diagnosis is therefore broader than filling gaps: these recent survivor-selected
+markets have highly unequal available lifetimes inside the training window. Backfilling the same
+24 cannot produce a broad historical census. The next campaign should enroll populations and
+periods independently of download success/outcomes, retain unsupported/failed/disappeared entities,
+reconcile provider request/budget ownership, and qualify new experience producers. Keep original
+coverage, usable corpus and optimizer objective mass separate when testing whether diversity/data
+improve future capability. No new fit or score search on the already studied real evaluation window
+was performed in this stage.
+
+Reproduce from `47c72ae` with `tools/population_qualify.py scale --entities 10000 --per-entity 125
+--fit --root <new-directory>` in the optional ML environment, or `real --inputs
+work/brain-system-qualification-20261008 --root <new-directory>` in the core environment. Original
+sealed payloads remain in `work/brain-population-scale-20261008/` and
+`work/brain-population-real-20261008/`; receipts were moved unchanged to the canonical evidence
+paths above. The real-mode harness pins and requalifies the previous qualification's allowed
+sources and uses its snapshot; it never opens protected payloads or calls a provider.
+
+Final regression state at `4ffde3e`: `make check` passed (1,107 tests, 21 optional skips,
+lint/format/mypy), `make smoke` passed; selected ML/experience regressions passed 86 tests with
+one CUDA skip. Sets overlap. New cases cover temporal metadata ambiguity/unknowns, paged append,
+compaction/replication/corruption, sparse worker partitions, stream identity, count semantics,
+required diversity gates, zero-support cohorts, pipeline resume, checkpoint-journal corruption,
+uncheckpointed step replay, partial-horizon objective mass and portable artifact binding.
