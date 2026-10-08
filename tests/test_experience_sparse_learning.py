@@ -18,6 +18,35 @@ from memecoin_experience.storage import Snapshot, file_hash  # noqa: E402
 from memecoin_population import catalog, diversity  # noqa: E402
 
 
+def test_namespaced_protected_evaluation_rejected_before_artifact_read(tmp_path):
+    from memecoin_brain.source import EXCLUDED
+    from memecoin_experience.storage import atomic_json, digest
+
+    with pytest.raises(ValueError, match="evaluation_protocol"):
+        evaluation.register(
+            tmp_path / "protocols",
+            tmp_path / "absent-artifact",
+            "a" * 64,
+            start_s=10,
+            end_s=20,
+            pools=["solana/pool/" + next(iter(EXCLUDED))],
+        )
+    protocol = dict(
+        version="brain-research-evaluation-v1", pools=["solana/pool/" + next(iter(EXCLUDED))]
+    )
+    pin = digest(protocol)
+    atomic_json(tmp_path / (pin + ".json"), protocol)
+    with pytest.raises(ValueError, match="evaluation_protocol_pin"):
+        evaluation.score(
+            tmp_path,
+            pin,
+            tmp_path / "absent-store",
+            "b" * 64,
+            tmp_path / "absent-artifact",
+            tmp_path / "output",
+        )
+
+
 def data(store, *, eval_only=False):
     rows = []
     members = []

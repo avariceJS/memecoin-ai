@@ -51,7 +51,7 @@ def register(
         or not 1 < start_s < end_s
         or (not pools and cohorts is None)
         or len(set(pools)) != len(pools)
-        or any(not isinstance(p, str) or not p or p in EXCLUDED for p in pools)
+        or any(not isinstance(p, str) or not p or p.rsplit("/", 1)[-1] in EXCLUDED for p in pools)
         or type(now_ns) is not int
         or now_ns < 0
     ):
@@ -122,6 +122,10 @@ def score(
     if (
         digest(protocol) != protocol_pin
         or protocol.get("version") != "brain-research-evaluation-v1"
+        or any(
+            not isinstance(p, str) or p.rsplit("/", 1)[-1] in EXCLUDED
+            for p in protocol.get("pools", [])
+        )
     ):
         raise ValueError("experience_evaluation_protocol_pin")
     snapshot = Snapshot(store, snapshot_pin)
@@ -138,7 +142,6 @@ def score(
         or (not protocol["pools"] and "cohorts" not in protocol)
         or (bool(protocol["pools"]) and "cohorts" in protocol)
         or len(set(protocol["pools"])) != len(protocol["pools"])
-        or any(p in EXCLUDED for p in protocol["pools"])
         or protocol["scope"] not in {"retrospective", "preregistered_forward_replay"}
         or (
             protocol["scope"] == "preregistered_forward_replay"
