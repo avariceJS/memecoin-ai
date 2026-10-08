@@ -8,7 +8,7 @@ Build a scalable, reproducible Solana learning system. No demonstrated executabl
 
 ## Active state
 
-- Research checkout `/Users/root1/Developer/memecoin-research`, branch `research/active`, latest consolidated baseline `d3727c8`; current HEAD `a408658` before the pending Senses integration commit. Local commits are allowed; do not push. Senses now includes observation qualification, scheduled/re-entry-safe sparse episodes, positive-value capture, offline finalized-block inventory, and a bounded expiring capture-plan interface.
+- Research checkout `/Users/root1/Developer/memecoin-research`, branch `research/active`, latest consolidated baseline `d3727c8`; Senses integration is committed at `93d620c`. Local commits are allowed; do not push. Senses now includes observation qualification, scheduled/re-entry-safe sparse episodes, positive-value capture, offline finalized-block inventory, and a bounded expiring capture-plan interface.
 - Production owner was clean at the handoff fence; no runtime, champion, config, STOP or protected data changed in this work.
 - Mac 1 is the active research host; Mac 2 is standby. See `docs/two-mac-workflow.md` before host work.
 
