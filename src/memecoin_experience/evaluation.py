@@ -257,7 +257,11 @@ def score(
                     snapshot, plan, "test", batch, with_metadata=True
                 ):
                     pred = model.predict(x)
-                    empirical = np.broadcast_to(model.stats["baseline"], pred.shape)
+                    baseline = model.stats["baseline"]
+                    empirical = np.broadcast_to(
+                        np.array([v if v is not None else [0.0, 0.0, 0.0] for v in baseline]),
+                        pred.shape,
+                    )
                     q = np.array(protocol["quantiles"])
                     accum = {}
                     for i, row in enumerate(metadata):
@@ -278,15 +282,18 @@ def score(
                         for h in range(len(totals)):
                             if not mask[i, h]:
                                 continue
-                            error, base_error = y[i, h] - pred[i, h], y[i, h] - empirical[i, h]
+                            error = y[i, h] - pred[i, h]
                             values = np.array(
                                 [
                                     1,
                                     np.maximum(q * error, (q - 1) * error).mean(),
-                                    np.maximum(q * base_error, (q - 1) * base_error).mean(),
+                                    0.0,
                                     int(pred[i, h, 0] <= y[i, h] <= pred[i, h, 2]),
                                 ]
                             )
+                            if baseline[h] is not None:
+                                base_error = y[i, h] - empirical[i, h]
+                                values[2] = np.maximum(q * base_error, (q - 1) * base_error).mean()
                             totals[h] += values
                             keys = (
                                 cohorts.keys(row)
@@ -309,7 +316,7 @@ def score(
                     db.commit()
                 stream.flush()
                 os.fsync(stream.fileno())
-            if any(t[0] == 0 for t in totals):
+            if not any(t[0] > 0 for t in totals):
                 raise ValueError("experience_empty_evaluation_horizon")
             with (stage / "strata.jsonl").open("wb") as stream:
                 for key, h, n, p, e, c in db.execute("select * from strata order by key,h"):
@@ -319,9 +326,11 @@ def score(
                                 stratum=key,
                                 target=target_names(snapshot.schema)[h],
                                 n=n,
-                                pinball=p / n,
-                                empirical_pinball=e / n,
-                                coverage=c / n,
+                                pinball=p / n if n else None,
+                                empirical_pinball=(
+                                    e / n if n and model.stats["baseline"][h] is not None else None
+                                ),
+                                coverage=c / n if n else None,
                             )
                         )
                         + b"\n"
@@ -344,12 +353,14 @@ def score(
                     dict(
                         target=name,
                         n=int(n),
-                        pinball=float(p / n),
-                        empirical_pinball=float(e / n),
-                        coverage=float(c / n),
+                        pinball=float(p / n) if n else None,
+                        empirical_pinball=(
+                            float(e / n) if n and model.stats["baseline"][i] is not None else None
+                        ),
+                        coverage=float(c / n) if n else None,
                     )
-                    for name, (n, p, e, c) in zip(
-                        target_names(snapshot.schema), totals, strict=True
+                    for i, (name, (n, p, e, c)) in enumerate(
+                        zip(target_names(snapshot.schema), totals, strict=True)
                     )
                 ],
                 uncertainty="not_estimated; overlapping_origins_are_dependent",

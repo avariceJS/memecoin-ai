@@ -123,7 +123,7 @@ def test_short_sparse_lifecycle_and_true_zero(tmp_path):
         snap.partition(i)
 
 
-@pytest.mark.parametrize("status", ["unknown", "failed", "unsupported"])
+@pytest.mark.parametrize("status", ["unknown", "failed", "stopped", "unsupported"])
 def test_unknown_support_is_censoring_not_zero(tmp_path, status):
     rows = facts()
     rows[-1]["status"] = status
@@ -132,6 +132,18 @@ def test_unknown_support_is_censoring_not_zero(tmp_path, status):
     assert second["target_status"] == ["missing_future", "censored"]
     assert second["targets"] == [None, None]
     assert second["target_details"][1]["lower_bound"] == 0
+    first = samples[1]
+    assert first["target_details"][1]["lower_bound"] == 1
+    assert first["target_details"][1]["lower_bound_available_ns"] == 11 * NS
+    assert (
+        first["target_details"][1]["reason"]
+        == {
+            "unknown": "unknown_support",
+            "failed": "source_failed",
+            "stopped": "source_stopped",
+            "unsupported": "unsupported_process",
+        }[status]
+    )
     split = dict(train_start_s=0, train_end_s=50, validation_end_s=60, test_end_s=70)
     assert membership(second, split, sparse.schema(source(tmp_path / "extra"), plan())) == (
         "train",
@@ -148,6 +160,7 @@ def test_endpoint_across_gap_and_administrative_censoring(tmp_path):
     assert rows[2]["target_status"][0] == "missing_future"
     assert rows[3]["target_status"][0] == "censored"
     assert rows[3]["target_details"][0]["reason"] == "enrollment_boundary"
+    assert rows[3]["target_status"][1] == "observed"
     p["targets"][0]["horizon_ns"] = 101 * NS
     _, rows, _ = materialized(tmp_path / "pending", projection=p)
     assert all(r["target_status"][0] == "pending" for r in rows)

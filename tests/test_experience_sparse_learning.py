@@ -9,13 +9,49 @@ import pytest
 np = pytest.importorskip("numpy")
 torch = pytest.importorskip("torch")
 
-from test_experience_sparse import NS, contract, plan  # noqa: E402
+from test_experience_sparse import NS, contract, facts, materialized, plan, source  # noqa: E402
 
 from memecoin_experience import evaluation, generations, observations, sparse  # noqa: E402
-from memecoin_experience.learning import batches  # noqa: E402
+from memecoin_experience.learning import _censor_bounds, batches, train  # noqa: E402
 from memecoin_experience.predict import Predictor  # noqa: E402
 from memecoin_experience.storage import Snapshot, file_hash  # noqa: E402
 from memecoin_population import catalog, diversity  # noqa: E402
+
+
+def test_partial_count_batch_keeps_censored_count_separate_from_exact_mask(tmp_path):
+    rows = facts()
+    rows[-1]["status"] = "unknown"
+    projection = plan()
+    projection["targets"] = [projection["targets"][1]]
+    source_data = source(tmp_path, rows)
+    built = sparse.materialize(
+        source_data.store,
+        source_data.pin,
+        tmp_path / "snapshot",
+        plan=projection,
+        chunk=2,
+    )
+    snapshot = Snapshot(tmp_path / "snapshot", built["snapshot"])
+    split = dict(train_start_s=0, train_end_s=50, validation_end_s=60, test_end_s=70)
+    batches_out = list(batches(snapshot, split, "train", 16, with_censoring=True))
+    assert batches_out
+    _, _, exact_mask, lower, censored, ids, _ = batches_out[0]
+    i = ids.index("event:ticks:0")
+    assert exact_mask[i].tolist() == [False]
+    assert lower[i].tolist() == [1.0]
+    assert censored[i].tolist() == [True]
+
+
+def test_late_point_in_time_censor_bound_is_not_train_supervision(tmp_path):
+    rows = facts()
+    rows[-1]["status"] = "unknown"
+    next(r for r in rows if r["kind"] == "event" and r["event_ns"] == 11 * NS)["available_ns"] = (
+        55 * NS
+    )
+    _, samples, _ = materialized(tmp_path, rows, availability="point_in_time")
+    schema = sparse.schema(source(tmp_path / "schema", rows, availability="point_in_time"), plan())
+    split = dict(train_start_s=0, train_end_s=50, validation_end_s=60, test_end_s=70)
+    assert not any(_censor_bounds(samples[1], schema, "train", split)[1])
 
 
 def test_namespaced_protected_evaluation_rejected_before_artifact_read(tmp_path):
@@ -47,7 +83,7 @@ def test_namespaced_protected_evaluation_rejected_before_artifact_read(tmp_path)
         )
 
 
-def data(store, *, eval_only=False):
+def data(store, *, eval_only=False, support_status="complete"):
     rows = []
     members = []
     for phase in [3] if eval_only else [0, 1, 2]:
@@ -100,7 +136,7 @@ def data(store, *, eval_only=False):
                     start_ns=start * NS,
                     end_ns=end * NS,
                     available_ns=end * NS,
-                    status="complete",
+                    status=support_status,
                 )
             )
             members.append(
@@ -225,6 +261,80 @@ def test_sparse_generation_exposure_resume_replica_evaluation(tmp_path):
     assert any("censored" in k for k in scored["denominators"])
     x = next(batches(Snapshot(store, built["snapshot"]), split, "test", 16))[0]
     assert np.isfinite(Predictor(ra, resumed["artifact"]).predict(x)).all()
+
+
+def test_partial_count_objective_trains_only_identified_positive_bounds(tmp_path):
+    source = tmp_path / "sources"
+    pin, _ = data(source, support_status="unknown")
+    cfg = plan()
+    cfg.update(context=8, max_history_ns=50 * NS)
+    store = tmp_path / "experience"
+    built = sparse.materialize(source, pin, store, plan=cfg, chunk=16)
+    split = dict(train_start_s=0, train_end_s=1000, validation_end_s=2000, test_end_s=3000)
+    config = dict(
+        width=8,
+        epochs=1,
+        batch=16,
+        seed=19,
+        cpu_threads=1,
+        checkpoint_every=2,
+        normalization="constant_feature_scale_one_v1",
+        objective="partial_count_lower_bound_pinball_v1",
+    )
+    interrupted = train(
+        store, built["snapshot"], tmp_path / "partial-run", plan=split, config=config, stop_after=1
+    )
+    assert interrupted["status"] == "interrupted"
+    report = train(store, built["snapshot"], tmp_path / "partial-run", plan=split, config=config)
+    train(store, built["snapshot"], tmp_path / "fresh-partial-run", plan=split, config=config)
+    resumed_weights = torch.load(tmp_path / "partial-run/artifact/weights.pt", weights_only=True)
+    fresh_weights = torch.load(
+        tmp_path / "fresh-partial-run/artifact/weights.pt", weights_only=True
+    )
+    assert all(torch.equal(resumed_weights[k], fresh_weights[k]) for k in fresh_weights)
+    stats = report["statistics"]
+    assert stats["target_transforms"][1] == "log1p_nonnegative"
+    assert stats["baseline"][1] is None  # No complete process window; no fabricated baseline.
+    assert stats["population"]["train_partial_count_usable"] > 0
+    assert report["rows_seen"] == stats["population"]["train_objective_usable"]
+    bounds = report["test"]["partial_count_bounds"][0]
+    assert bounds["cells"] > 0
+    assert report["test"]["model"][1]["n"] == 0
+    eval_source = tmp_path / "evaluation-source"
+    eval_pin, _ = data(eval_source, eval_only=True, support_status="unknown")
+    eval_data = sparse.materialize(
+        eval_source,
+        eval_pin,
+        store,
+        plan=cfg,
+        role="research_evaluation",
+    )
+    artifact = tmp_path / "partial-run/artifact"
+    artifact_pin = file_hash(artifact / "manifest.json")
+    registered = evaluation.register(
+        tmp_path / "protocols",
+        artifact,
+        artifact_pin,
+        start_s=3000,
+        end_s=3100,
+        pools=[f"test/market/3-{i}" for i in range(3)],
+    )
+    scored = evaluation.score(
+        tmp_path / "protocols",
+        registered["protocol"],
+        store,
+        eval_data["snapshot"],
+        artifact,
+        tmp_path / "partial-evaluation",
+    )
+    assert scored["metrics"][1]["n"] == 0
+    assert scored["metrics"][1]["empirical_pinball"] is None
+    x = next(batches(Snapshot(store, built["snapshot"]), split, "test", 16))[0]
+    prediction = Predictor(artifact, artifact_pin).predict(x)
+    assert np.isfinite(prediction).all()
+    assert (prediction[:, 1, :] >= 0).all()
+    assert (prediction[:, 1, 0] <= prediction[:, 1, 1]).all()
+    assert (prediction[:, 1, 1] <= prediction[:, 1, 2]).all()
 
 
 def test_qualification_resumes_conversion_without_rewriting_measurements(tmp_path, monkeypatch):

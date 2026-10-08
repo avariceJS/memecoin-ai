@@ -333,10 +333,11 @@ lifecycle transitions. Enrollment is an administrative interval, not a claim abo
 Empty, failed and unsupported entities remain enrolled. No terminal transition is inferred from
 silence. Streams declare feature names/units/modalities and the exact observed process.
 
-Every fact carries actual availability and evidence pins. Support is `complete`, `unknown`,
-`failed` or `unsupported`; complete means coverage of the **named process**, not all economic
-activity. Complete intervals cannot overlap other support assertions, end after their availability,
-or precede the availability of included events. Missing HTTP/provider bars never certify absence.
+Every fact carries actual availability and evidence pins. Support is `complete`, `unknown`, `failed`,
+`stopped` or `unsupported`; complete means coverage of the **named process**, not all economic
+activity. `stopped` records an evidenced source stop; neither it nor `failed` implies market death.
+Complete intervals cannot overlap other support assertions, end after their availability, or
+precede the availability of included events. Missing HTTP/provider bars never certify absence.
 Corrections/revised coverage require a new source version, not overlapping contradictory facts.
 
 Facts are CAS JSONL shards grouped by entity/kind/stream/day with paged catalogs. Publication and
@@ -350,9 +351,14 @@ materializers; there is no cluster scheduler or object-store publication impleme
 `sparse.materialize` projects one selected stream plus lifecycle facts into existing generic v2
 snapshots. It accepts short histories, preserves event spacing, age, padding masks and known gap
 coverage, and never forward-fills prices. Multiple source streams are representable today; joined
-multistream producers and new objectives are future implementations. Stable support-shard evidence
-avoids embedding a changing whole-source hash in every old row; the snapshot binds the full source.
-Appending another entity preserves unchanged source objects and materialized partitions.
+multistream producers remain future work. Count targets retain an exact value only under complete
+coverage of the named process. Otherwise they retain a lower bound from qualified observed events,
+the latest receipt time supporting that bound, and support reasons (`unknown_support`, `source_failed`,
+`source_stopped`, `unsupported_process`, or `unasserted_gap`). An administrative enrollment boundary
+is separately marked; lifecycle transitions still require explicit evidence. A zero lower bound on
+an incomplete interval is not an inactivity label. Stable support-shard evidence avoids embedding a
+changing whole-source hash in every old row; the snapshot binds the full source. Appending another
+entity preserves unchanged source objects and materialized partitions.
 
 CLI jobs: `python -m memecoin_experience {publish-observations,observations-from-continuous,
 build-sparse,replicate-observations} --job JSON`. Publisher jobs supply sorted `rows_path`, `store`,
@@ -361,4 +367,10 @@ build-sparse,replicate-observations} --job JSON`. Publisher jobs supply sorted `
 lifecycle_origins, relative_features and named targets with kind/horizon_ns/feature. Replica jobs
 supply source/target/pin/role. Adapter jobs supply a sealed continuous reference, store, role and
 optional sorted lifecycle_path. The adapter preserves receipt availability and raw evidence,
-always emits unknown observation support, and accepts birth facts only from explicit evidence.
+always emits unknown observation support, and accepts birth facts only from explicit evidence. It
+does not qualify a source's event-process completeness. Qualification needs a named process and
+interval, complete request/cursor accounting, explicit failure/unsupported ranges, immutable receipt
+provenance, and an independently reconciled coverage boundary. Provider disappearance is not a
+lifecycle event. The existing real sparse source `81f7c74b…4b10c3e0` has 170/170 support facts
+marked `unknown`; its 38,705 retained events prove neither complete event counts nor inactivity. No
+new acquisition was performed because the paid Alchemy account-level limits remain unverified.

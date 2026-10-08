@@ -82,6 +82,44 @@ def test_partial_loss_and_horizon_heads():
     assert torch.all(out[:, :, 1] <= out[:, :, 2])
 
 
+def test_partial_count_loss_uses_only_the_guaranteed_lower_bound():
+    p = torch.zeros((1, 2, 3), requires_grad=True)
+    y = torch.tensor([[0.0, 0.0]])
+    exact = torch.tensor([[False, True]])
+    lower = torch.tensor([[2.0, 0.0]])
+    censored = torch.tensor([[True, False]])
+    value = loss(p, y, exact, lower_bound=lower, censored=censored)
+    assert value.item() == pytest.approx(
+        0.5
+    )  # bound envelope averaged with the separate exact head
+    value.backward()
+    assert torch.all(p.grad[0, 0] < 0)  # Predictions below L are contradicted.
+    assert torch.any(p.grad[0, 1] != 0)  # An exact zero still receives ordinary pinball gradients.
+
+
+def test_log_count_transform_is_reversed_for_reported_quantiles():
+    from memecoin_experience.learning import inverse_predictions, transform_targets
+
+    values = np.array([[0.0, 3.0]])
+    transformed = transform_targets(values, ["identity", "log1p_nonnegative"])
+    np.testing.assert_allclose(transformed, [[0.0, np.log(4.0)]])
+    predictions = np.repeat(transformed[:, :, None], 3, axis=2)
+    restored = inverse_predictions(
+        predictions,
+        {"target_transforms": ["identity", "log1p_nonnegative"]},
+    )
+    np.testing.assert_allclose(restored[0, 1], [3.0, 3.0, 3.0])
+
+
+def test_legacy_recipe_keeps_default_objective_and_target_units():
+    from memecoin_experience.learning import recipe, transform_targets
+
+    assert recipe({})["objective"] == "masked_pinball_v1"
+    np.testing.assert_array_equal(
+        transform_targets(np.array([[0.5]]), ["identity"]), np.array([[0.5]])
+    )
+
+
 def test_nonfinite_input_not_reclassified_as_missing():
     x, y = np.zeros((1, 8, 12)), np.zeros((1, 2))
     mask = np.ones((1, 2), dtype=bool)

@@ -826,10 +826,39 @@ Dense context snapshots duplicate history by design; immutable sparse facts rema
 input for future packed/ragged or multistream representations.
 
 Focused tests cover delayed arrivals, future-fact isolation, explicit zero-event supervision,
-unknown/failed/unsupported censoring, role-before-payload rejection, integrity, support conflicts,
-idempotent publication/replication, stable historical partitions, full dependency purging, exact
-training resume, optimizer exposure, portable prediction and synthetic registered evaluation.
-Quantile loss uses observed cells only; censor bounds are retained metadata, not a survival loss.
+unknown/failed/stopped/unsupported censoring, role-before-payload rejection, integrity, support
+conflicts, idempotent publication/replication, stable historical partitions, full dependency
+purging, exact training resume, optimizer exposure, portable prediction and synthetic registered
+evaluation.
+
+### Identified lower-bound count objective (2026-10-08)
+
+`partial_count_lower_bound_pinball_v1` is an opt-in research objective for `observed_process_count`
+targets. Existing `masked_pinball_v1`, v1/v2 representations, five-item batch API and exact-label
+mask are unchanged by default. A count with complete named-process support, including zero, receives
+ordinary pinball loss. An incomplete interval keeps `target=None`; a positive count of qualified
+observed events supplies only the inequality `Y >= L`. A zero bound, pending target, missing bound
+availability or unavailable point-in-time bound supplies no loss. Bound availability must precede
+the role cutoff for point-in-time data, and target maturity and input purging remain enforced.
+
+For quantile `q`, the censored-cell term is `q * max(L - prediction, 0)`. This is a per-quantile
+lower-envelope surrogate for compatible completions, not a proper score, survival likelihood,
+consistent estimator of full count quantiles, or upper bound on forecast error. Predictions above a
+bound are unresolved; arbitrarily high predictions can achieve zero loss on all-censored labels.
+The count head uses `log1p` while fitting and maps ordered predictions back to nonnegative event-count
+units for reports/inference. Exact empirical baselines and observed-subset evaluation remain separate;
+when a target has no exact train labels its baseline is `null`, and exact pinball is reported with
+`n=0`. Validation checkpoint selection uses the registered transformed objective when only bound
+cells are available. Bound violations are reported separately from exact pinball/coverage.
+
+Synthetic engineering qualification shows censored-only count targets can pass through immutable
+snapshot, objective fit, stop/resume, evaluation and standalone inference without manufacturing an
+exact label. It is plumbing evidence, not a learning-gain comparison. The existing real train source
+has 170/170 support intervals unknown, so its observed counts can contribute positive lower bounds
+but cannot teach observed inactivity or establish complete event-process coverage. Event-triggered
+origins still sample observation intensity; no source qualification, fresh independent comparison,
+or learning gain is established. See [`brain-censoring-objective-2026-10-08.json`](evidence/brain-censoring-objective-2026-10-08.json)
+for source counts, exact checks and limitations. This stage passed `make check` (1,147 passed, 24 optional skips; Control Center Python 39 passed), `make smoke`, `make ml-check` (17 passed), `make runner-check` (18 passed), and the focused sparse/learning suite (42 passed, one actual-CUDA skip).
 
 Checks: `make check` 1,146 passed / 24 optional skips, lint/format/mypy and smoke passed; optional
 ML regression set 60 passed / one actual-CUDA skip. The final protected-namespace guard at `b975471`
@@ -844,8 +873,7 @@ Enrollment, source coverage, origin eligibility, target observability and optimi
 separate denominators. Any change to sampling or loss needs its own registered objective; retaining
 more sparse origins does not automatically remove observation-process selection bias.
 
-Next: qualify a real event observation process with independently supported coverage and lifecycle
-facts, including sparse/failed entities; register fresh populations and multiple seeds to compare
-learning objectives against empirical baselines. More retained observations do not alone establish
-that Brain learned useful conditional structure. Source completeness and censor-aware objectives,
-followed by fresh independent skill testing, now constrain that claim more than context warm-up.
+Next: verify account-level quota before registering any acquisition; qualify a real event source with
+independent coverage reconciliation and explicit stopped/failed/unsupported intervals; then run
+fresh preregistered populations and multi-seed comparisons against empirical baselines. More retained
+observations or bound-compatible optimization do not alone establish useful conditional learning.

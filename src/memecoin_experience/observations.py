@@ -109,7 +109,7 @@ def checked(row, schema, cutoff):
         ):
             raise ValueError("observation_values")
     if kind == "support":
-        if row["status"] not in {"complete", "unknown", "failed", "unsupported"}:
+        if row["status"] not in {"complete", "unknown", "failed", "stopped", "unsupported"}:
             raise ValueError("observation_support")
         if row["status"] == "complete" and at < row["end_ns"]:
             raise ValueError("observation_completeness_before_end")

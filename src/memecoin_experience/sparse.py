@@ -129,12 +129,14 @@ def schema(source, plan):
 
 
 def support(db, entity, stream, start, end, known):
-    """Full union coverage of [start,end). Unknown/failed/unsupported never imply absence."""
+    """Full union coverage of [start,end); non-complete states never imply absence."""
     if start >= end:
-        return dict(complete=True, available=0, end_ns=end, evidence=[])
-    cursor = start
+        return dict(complete=True, available=0, end_ns=end, evidence=[], reasons=[])
+    cursor = assertion_cursor = start
     available = last = 0
     evidence = set()
+    states = set()
+    gap = False
     previous = db.execute(
         "select start from support where entity=? and stream=? and start<=? "
         "order by start desc limit 1",
@@ -147,16 +149,37 @@ def support(db, entity, stream, start, end, known):
         (entity, stream, first, end, start),
     ):
         row = json.loads(raw)
-        if at > known or row["status"] != "complete":
+        if at > known:
             continue
-        if a > cursor:
-            break
-        cursor = max(cursor, b)
-        evidence.add(row["_source_shard"])
-        available, last = max(available, at), max(last, b)
-        if cursor >= end:
-            return dict(complete=True, available=available, end_ns=last, evidence=sorted(evidence))
-    return dict(complete=False, available=available, end_ns=last, evidence=sorted(evidence))
+        states.add(row["status"])
+        if a > assertion_cursor:
+            gap = True
+        assertion_cursor = max(assertion_cursor, b)
+        if row["status"] == "complete" and a <= cursor:
+            cursor = max(cursor, b)
+            evidence.add(row["_source_shard"])
+            available, last = max(available, at), max(last, b)
+    complete = cursor >= end
+    reasons = []
+    if not complete:
+        reason_names = {
+            "unknown": "unknown_support",
+            "failed": "source_failed",
+            "stopped": "source_stopped",
+            "unsupported": "unsupported_process",
+        }
+        reasons.extend(sorted(reason_names[s] for s in states if s in reason_names))
+        if gap or assertion_cursor < end:
+            reasons.append("unasserted_gap")
+        if not reasons:
+            reasons.append("incomplete_complete_support")
+    return dict(
+        complete=complete,
+        available=available,
+        end_ns=last,
+        evidence=sorted(evidence),
+        reasons=reasons,
+    )
 
 
 def event_count(db, entity, stream, start, end):
@@ -171,6 +194,15 @@ def event_count(db, entity, stream, start, end):
         (entity, stream, end),
     ).fetchone()
     return max(0, last[0] - first[0] + 1) if first and last else 0
+
+
+def event_lower_bound(db, entity, stream, start, end):
+    """Count retained process events and the latest receipt that supports this bound."""
+    count, available = db.execute(
+        "select count(*),max(available) from events where entity=? and stream=? and t>? and t<=?",
+        (entity, stream, start, end),
+    ).fetchone()
+    return int(count), available
 
 
 def samples(db, source, plan, counts=None):
@@ -334,7 +366,9 @@ def samples(db, source, plan, counts=None):
                 at = None
                 evidence = []
                 lower = None
+                lower_available = None
                 reason = "unknown_observation_support"
+                support_reasons = []
                 if maturity > cutoff:
                     status = "pending"
                     reason = "fit_cutoff"
@@ -370,7 +404,7 @@ def samples(db, source, plan, counts=None):
                     else:
                         reason = "no_exact_endpoint_unknown_return"
                 else:
-                    n = event_count(db, entity, stream, decision, maturity)
+                    n, lower_available = event_lower_bound(db, entity, stream, decision, maturity)
                     coverage = support(db, entity, stream, decision + 1, maturity + 1, cutoff)
                     if coverage["complete"]:
                         # Completeness is specific to the declared observation process, not all
@@ -384,10 +418,16 @@ def samples(db, source, plan, counts=None):
                         evidence = sorted(set(evidence))
                     else:
                         status = "censored"
-                        reason = "incomplete_observation_process"
                         lower = n
+                        support_reasons = coverage["reasons"]
+                        if maturity < end:
+                            reason = (
+                                support_reasons[0]
+                                if len(support_reasons) == 1
+                                else "mixed_incomplete_support"
+                            )
                 if target["kind"] == "observed_process_count" and status != "observed":
-                    lower = event_count(
+                    lower, lower_available = event_lower_bound(
                         db, entity, stream, decision, min(maturity, end - 1, cutoff)
                     )
                 labels.append(value)
@@ -401,6 +441,8 @@ def samples(db, source, plan, counts=None):
                         interval_start_ns=decision + 1,
                         interval_end_ns=maturity + 1,
                         lower_bound=lower,
+                        lower_bound_available_ns=lower_available,
+                        support_reasons=support_reasons,
                         process=source.schema["streams"][stream]["process"],
                         evidence_scope="snapshot_source_manifest",
                     )

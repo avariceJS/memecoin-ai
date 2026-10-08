@@ -4,6 +4,7 @@ import json
 
 import torch
 
+from .learning import inverse_predictions
 from .models import construct, input_tensor
 from .schema import feature_names
 from .storage import digest, file_hash, safe_path, verify_files
@@ -62,4 +63,4 @@ class Predictor:
             features=len(feature_names(schema)),
         )
         with torch.no_grad():
-            return self.model(tensor).cpu().numpy()
+            return inverse_predictions(self.model(tensor).cpu().numpy(), self.stats)

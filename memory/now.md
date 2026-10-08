@@ -80,14 +80,34 @@ Eliza for bounded nonsecret assistance and verify findings. Runtime dependencies
   `pin-correction.json` binds the failure and corrected `real-job02.json`; `real02/` is the successful
   run. Never rewrite frozen declarations or receipts to make a failed run look successful.
 
+## Completed censor-aware objective step
+
+- Opt-in `partial_count_lower_bound_pinball_v1` trains on exact counts plus qualified positive
+  censored lower bounds; exact-label masks and default objectives remain unchanged. Zero bounds,
+  unknown labels, and missing point-in-time bound availability never become exact zeros. Count heads
+  fit in `log1p` units and predictions return to nonnegative event-count units.
+- Support details preserve unknown, failed, stopped, unsupported, unasserted-gap, and administrative
+  window-end reasons. Provider disappearance still creates no lifecycle transition.
+- Re-audited the existing real train source `81f7c74b…4b10c3e0`: 170 enrollments, 38,705 events,
+  170 births, 170 support facts, all 170 `unknown`. This source cannot establish complete counts or
+  inactivity. Alchemy account limits remain unverified; no provider request was made.
+- Synthetic fit/resume/evaluation/inference reproduced in `work/brain-censoring-objective-2026-10-08/`.
+  Receipt: [`brain-censoring-objective-2026-10-08.json`](../docs/evidence/brain-censoring-objective-2026-10-08.json).
+  The run is engineering-only and did not establish learning gain.
+- `make check`: 1,147 passed / 24 optional skips; smoke passed; `make ml-check` 17 passed and
+  `make runner-check` 18 passed. Focused sparse/learning suite: 42 passed / one actual-CUDA skip.
+- Sol architecture review was incorporated. Eliza Kimi/GLM/Qwen connectors were unavailable in this
+  session; no secrets or protected payloads were sent externally.
+
 ## Next major stage
 
-Qualify real event-process completeness and lifecycle coverage, retaining sparse/failed entities.
-Current quantile loss excludes censored cells; bounds are metadata, not a survival likelihood.
-Real missing bars still cannot prove inactivity/death. Next objective work must consume honest
-coverage/censoring, then use fresh registered populations and multiple seeds against empirical
-baselines. No further tuning on the studied September cohort. GPU, distributed materialization,
-object storage, rich qualified on-chain/order-flow and packed multistream views remain unqualified.
+First verify account-level limits before any acquisition. Then qualify a real named event process with
+reproducible request/cursor coverage and independent reconciliation, including explicit stopped,
+failed, unsupported and unknown intervals. Preserve current real-source bounds as partial evidence;
+do not claim complete activity, inactivity, lifecycle or death. After source qualification, register
+fresh populations and multiple seeds against empirical baselines. September remains studied. GPU,
+distributed materialization, object storage, rich on-chain/order-flow sources and packed multistream
+views remain unqualified.
 
 ## Prior campaign and owner
 

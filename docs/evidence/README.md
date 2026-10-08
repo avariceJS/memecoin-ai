@@ -16,6 +16,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - Sparse/event-time foundation, real train-role conversion and synthetic load:
   `brain-sparse-experience-2026-10-08.json` (typed observation support/lifecycle, 2,000 synthetic
   entities, 170 real train-role markets, CPU/exposure/replica qualification; no learning-gain claim).
+- Censor-aware count objective and real-source coverage audit:
+  `brain-censoring-objective-2026-10-08.json` (opt-in synthetic fit/resume/evaluation; existing real
+  source has 170/170 support intervals unknown; no provider request or learning-gain claim).
 
 - Partitioned experience engineering capacity (synthetic only):
   `brain-experience-capacity-2026-10-07.json` (initial 520k-bar development measurement),
