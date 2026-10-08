@@ -780,3 +780,72 @@ do not scale this GRU or repeatedly extend the same survivor-conditioned bar cor
 Brain growth. Representation changes must not invent zero activity/returns where capture support
 is unknown. Richer sources, independent fresh evaluation, multiple seeds and GPU qualification
 remain unproven.
+
+### Sparse/event-time engineering qualification, 2026-10-08
+
+Receipt: [`brain-sparse-experience-2026-10-08.json`](evidence/brain-sparse-experience-2026-10-08.json).
+Frozen implementation/harness: `f9a0c1f`; root `work/brain-sparse-qualification-20261008/`.
+`tools/sparse_qualify.py` declares the job before publication and fitting. Subsequent harness
+recovery at `86c33da` preserves first-run measurements and rejects semantic checkpoint changes;
+the qualification's frozen code and completed artifacts are not rewritten.
+
+The producer emits at each qualified event and optionally each evidenced lifecycle transition,
+using at most a declared number/age of past observations, with explicit short-history padding,
+event age, gaps and observation-support features. It supports exact endpoint log returns and
+complete-process event counts. Input availability, target availability and maturity remain separate.
+Arrival-time mode uses availability as the decision clock; real backfill remains historical replay.
+The existing generic training, normalization, generation, prediction, evaluation and exposure
+contracts consume these samples without a new source-specific trainer.
+
+Only the previous campaign's **train-role source** was converted; no September evaluation payload
+was opened or rescored. Its 38,705 qualified observations plus 170 evidenced births now yield
+38,875 origins across all 170 enrolled markets, versus 8,792 contiguous-context origins across
+49 previously. The same May–June / July / August role boundaries admit 16,616 / 4,348 / 10,504
+origins with at least one observed endpoint, from 46 / 26 / 93 markets. Five markets have no usable
+endpoint target but remain enrolled and represented. Birth-only origins lack price targets.
+
+Across all three 5/15/30-minute targets, 74,804 cells are observed, 41,282 lack an exact endpoint,
+510 have no origin price, and 29 are administratively censored. Missing future prices remain
+unknown, not zero. The adapter asserts no complete observation windows and infers no death from
+silence. Thus real lifecycle-only histories currently retain evidence but supply no price loss;
+an appropriately qualified event/count or survival objective is still required for that signal.
+
+One 5,577-parameter CPU engineering generation completed one epoch: 16,616 actual row draws,
+33 optimizer steps, 46 exposed markets; largest draw share 20.20%, Shannon effective count 13.40.
+The previous admitted bar run had 3,990 origins, 14 markets and 55.36% largest share, but this is
+**not a controlled learning comparison**: representation, context eligibility, targets, recipe and
+admission differ. This run uses qualified bar validity, not the old contiguous-context volume
+admission rule. It establishes conversion/training plumbing, not forecast improvement or edge.
+
+Synthetic load retained 2,000 entities and 117,664 facts, emitting 113,664 origins through paged
+source and experience catalogs. Of the count labels, 90,969 are exact and 22,695 remain censored.
+Publication plus projection/census took 55.78 seconds, peak process RSS 66,584,576 bytes (about
+63.5 MiB). The real conversion and CPU fit took 85.10 seconds, peak RSS 404,750,336 bytes including
+ML libraries. These are local measurements, not million-row sparse, GPU or cluster qualification.
+Dense context snapshots duplicate history by design; immutable sparse facts remain the canonical
+input for future packed/ragged or multistream representations.
+
+Focused tests cover delayed arrivals, future-fact isolation, explicit zero-event supervision,
+unknown/failed/unsupported censoring, role-before-payload rejection, integrity, support conflicts,
+idempotent publication/replication, stable historical partitions, full dependency purging, exact
+training resume, optimizer exposure, portable prediction and synthetic registered evaluation.
+Quantile loss uses observed cells only; censor bounds are retained metadata, not a survival loss.
+
+Checks: `make check` 1,146 passed / 24 optional skips, lint/format/mypy and smoke passed; optional
+ML regression set 60 passed / one actual-CUDA skip. The final protected-namespace guard at `b975471`
+has focused coverage after the full-suite start. Independent reconciliation verifies frozen code,
+source/snapshot counts and hashes, the real generation and exposure chain, source/snapshot replicas
+and finite standalone predictions. Qwen audited receipt arithmetic; GLM reviewed selected temporal
+boundaries. Neither helper output substitutes for these checks. Initial real execution failed closed
+on a transcribed incorrect source pin; a separate corrected declaration/root preserves that failure.
+
+Event-triggered origins still sample observation intensity, not uniform wall-clock market exposure.
+Enrollment, source coverage, origin eligibility, target observability and optimizer weights remain
+separate denominators. Any change to sampling or loss needs its own registered objective; retaining
+more sparse origins does not automatically remove observation-process selection bias.
+
+Next: qualify a real event observation process with independently supported coverage and lifecycle
+facts, including sparse/failed entities; register fresh populations and multiple seeds to compare
+learning objectives against empirical baselines. More retained observations do not alone establish
+that Brain learned useful conditional structure. Source completeness and censor-aware objectives,
+followed by fresh independent skill testing, now constrain that claim more than context warm-up.
