@@ -12,9 +12,27 @@ This document owns source roles, data admission, coverage, and acquisition desig
 | Public Solana RPC | Structural controls and bounded read-only verification | It is not a complete archive or independent proof of another provider's dataset |
 | Helius / secondary RPCs | Diagnostics or explicitly qualified cross-checks | Configured access does not prove plan, completeness, or independent agreement |
 
-The user reports paid Alchemy capacity. Account plan, throughput, concurrent-use scope, and actual
-remaining quota are **not measured here**. Plan a provider coordinator around verified account
-limits; do not multiply budgets by host count or request overlapping history twice.
+Alchemy endpoint qualification (2026-10-09) measured bounded read-only behavior on two
+independent project accounts. The Free Solana account is published at 30M CU/month and 300 CU/s;
+our direct tests verified `getSlot` and a two-method JSON-RPC batch, but `getSignaturesForAddress`
+returned HTTP 429 in 41/56 calls across two low-throughput phases. The Free account's current CU
+usage was not exposed. PAYG returned 228/228 calls without provider errors (up to 33.68 calls/s in
+the tested phase); the delayed usage meter moved by 5,520 CU: 180 `getSlot` calls at 20 CU each and
+48 `getSignaturesForAddress` calls at 40 CU each. At the published $0.525/M CU rate, the measured
+increment estimates $0.002898. PAYG 10,000 CU/s is a published base throughput, not a locally
+saturated limit. PAYG's MCP transport did not expose JSON-RPC batch testing. Use Free for development
+and basic low-volume RPC when healthy; use PAYG for bounded indexed signature qualification while
+Free exhibits the measured 429 pattern. Both results qualify endpoint behavior only, not source
+coverage, archive retention, independent reconciliation, or market-process completeness. Keep
+budgets per account and campaign; never treat the two accounts as one quota.
+
+Receipt: [`alchemy-endpoint-qualification-2026-10-09.json`](evidence/alchemy-endpoint-qualification-2026-10-09.json).
+Published plan/method references: [pricing plans](https://www.alchemy.com/docs/reference/pricing-plans),
+[compute-unit costs](https://www.alchemy.com/docs/reference/compute-unit-costs),
+[throughput](https://www.alchemy.com/docs/reference/throughput),
+[Free tier](https://support.alchemy.com/articles/5827006872-what-is-included-in-the-free-tier), and
+[`getSignaturesForAddress`](https://www.alchemy.com/docs/chains/solana/solana-api-endpoints/get-signatures-for-address).
+Measurements are specific to this bounded test date and do not establish sustained throughput.
 
 ## Data funnel
 
@@ -340,6 +358,53 @@ Complete intervals cannot overlap other support assertions, end after their avai
 precede the availability of included events. Missing HTTP/provider bars never certify absence.
 Corrections/revised coverage require a new source version, not overlapping contradictory facts.
 
+`memecoin_experience.qualification` adds `process-contract-v1` and immutable
+`qualification-receipt-v1` records over the existing stores. A receipt binds its process descriptor,
+input/source/decoder/qualification-code pins, population pin and role, actual availability, explicit
+captured/decoded/rejected/qualified/unresolved partition counts, and the exact projection capabilities
+it supports; counts use `accounting_unit=candidate_process_records`. `scope_pin` names a sealed paged manifest of explicit
+entity/half-open-interval members with each member's own status, availability, counts, capabilities
+and evidence. Accounting requires captured = decoded + rejected and decoded = qualified +
+unresolved, both per member and for the partition. A `SupportAssertion` is accepted only for an
+exact scope member; partition totals never prove that every member is complete. Projection
+revalidates membership and capability immediately before writing the existing observation support
+fact or population coverage row. Complete support additionally requires the member's
+`complete_support` capability and zero rejected/unresolved records. Only then can that member's
+qualified count of zero mean an exact observed zero. A self-declared status, opaque hash, or all-zero
+receipt is insufficient: the statically registered synthetic fixture verifier currently supports
+complete and partial fixtures after binding and re-executing against the explicit fixture, process
+contract, exact member and verifier implementation hash. The receipt's qualification-code pin must
+equal that registered verifier hash. Verifier reads repeat publisher checks for fixture intervals,
+schema shape and finite values, so a content pin constructed outside the publisher does not bypass
+validation. Synthetic source identity is derived from the process and scope pins, and synthetic receipts require the registered decoder identity. Fixture
+publication checks finite values and payload shape; only registered rule definitions are accepted.
+Other statuses remain declarations and project no counts. Full-use cache keys include file identity
+for every fixture dependency, while full verification hashes each dependency. This grants no
+real-source completeness path. `qualified_process_events` has no independent
+expected-event denominator, so its projected coverage keeps `expected=null`, even for complete
+support. The v1 observation schema has no `partial` support state: that projection is conservatively
+`unknown`; population coverage preserves verifier-backed `partial` and its observed lower-bound
+count. Observation projection checks the destination process, stream, schema pin, fields, units and
+modality. Receipt/scope pages are fully checked on publication and first use/import, then cached by
+immutable pins and dependency file signatures; member-page reads are bounded. Cache-hit invalidation
+still stats each verifier fixture, so cost is linear in verified fixtures; large-scope throughput
+is not established. The receipt itself does not infer a lifecycle transition.
+
+The process descriptor binds `entity_namespace`, modality, a hash-pinned payload schema (value names,
+units and denominations), versioned event-identity/time-basis/interval/revision rules, and nullable
+timestamp precision. These rule/schema references must resolve to matching immutable artifacts.
+Provider location is not process identity. Changing event, time, payload or revision semantics
+changes the process pin. Distinct producers may share this semantic pin while retaining separate
+source and qualification receipts.
+
+These machine checks establish hash identity, accounting, role/scope and capability consistency;
+they do not establish provider truth or replace human/domain qualification. Capture/reconciliation
+records remain acquisition evidence; these receipts are not a replacement transport ledger or a
+distributed qualification service. `stopped` is an explicit population
+coverage status and routes to `review_stop`; it is never converted to empty, complete or observed=0.
+Incomplete support remains explicit in the assertion and coverage fact, and cannot prove
+inactivity.
+
 Facts are CAS JSONL shards grouped by entity/kind/stream/day with paged catalogs. Publication and
 replication use existing locks, seals and durable manifest publication. A crash before publication
 leaves reusable objects; replay verifies and reuses them. Roles are checked before payload reads.
@@ -372,5 +437,6 @@ does not qualify a source's event-process completeness. Qualification needs a na
 interval, complete request/cursor accounting, explicit failure/unsupported ranges, immutable receipt
 provenance, and an independently reconciled coverage boundary. Provider disappearance is not a
 lifecycle event. The existing real sparse source `81f7c74b…4b10c3e0` has 170/170 support facts
-marked `unknown`; its 38,705 retained events prove neither complete event counts nor inactivity. No
-new acquisition was performed because the paid Alchemy account-level limits remain unverified.
+marked `unknown`; its 38,705 retained events prove neither complete event counts nor inactivity.
+The 2026-10-09 Alchemy qualification exercises RPC availability, metering, batch behavior on Free,
+and bounded concurrency; it did not reconcile any market event process or certify completeness.

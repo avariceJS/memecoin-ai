@@ -877,3 +877,35 @@ Next: verify account-level quota before registering any acquisition; qualify a r
 independent coverage reconciliation and explicit stopped/failed/unsupported intervals; then run
 fresh preregistered populations and multi-seed comparisons against empirical baselines. More retained
 observations or bound-compatible optimization do not alone establish useful conditional learning.
+
+### Brain Senses qualification boundary
+
+The opt-in `memecoin_experience.qualification` module binds a versioned process descriptor and
+immutable receipt to source/decoder/qualifier/input pins and a sealed paged `scope_pin` of explicit
+entity/interval members for one pinned population and role. Each member keeps its own availability,
+status, accounting, capabilities and evidence; aggregate partition counts never imply complete
+support for all members. The process pin resolves payload-schema fields/units/denominations plus
+versioned identity, event-time, interval and revision rules; timestamp precision may be unknown, and
+provider location is excluded. Counts use `candidate_process_records`; projection revalidates exact
+membership against the receipt. An opaque hash or self-declared all-zero receipt cannot grant
+complete support or a partial count. The registered synthetic fixture verifier re-executes against
+the fixture and process/member pins for complete and partial fixtures, with its implementation hash
+bound into the proof and required as the receipt qualification-code pin. Verifier reads repeat
+publisher checks so hand-constructed fixture pins cannot bypass interval, schema or finite-value
+validation. Synthetic source identity derives from process and scope pins; the decoder identity is
+registered. Fixture publication checks finite schema-compatible values and process
+rules use a fixed supported set. Other statuses remain
+declarations with no projected counts. Observation projection binds the destination process, stream,
+payload schema, fields, units and modality. Full receipt/scope validation runs on publication and
+first use/import and is cached by immutable dependency identity, including file identities for every
+fixture dependency. Cache-hit invalidation currently stats each verifier fixture, so lookup cost is
+linear in verified fixtures; large-scope performance is not established. No real-source completeness verifier is available. A
+complete qualified zero requires zero rejected and unresolved inputs and the member's
+`complete_support` capability. Partial maps to `unknown` in the strict v1 observation-support schema, while population
+coverage retains `partial` and its observed bound. Event-count coverage keeps expected null even
+under complete support. Missing, unknown, failed, stopped and unsupported cases do not become exact
+zero targets; lifecycle evidence remains separate. The validator checks identity, accounting and
+scope consistency, not provider truth or domain semantics. Synthetic fixture coverage includes a
+page-boundary case just over one page; it is not a capacity claim. No real market source was newly
+qualified and no market-data acquisition was performed. No learning or execution claim follows from
+this interface work.

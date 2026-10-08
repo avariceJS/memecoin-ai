@@ -284,11 +284,20 @@ def prepare(
                 denominators[f"{role}/{h}/{status}"] += 1
                 denominators[f"{role}/{h}/usable"] += int(valid)
             if snapshot.schema.get("schema") == "brain-experience-v2":
+                target_details = row.get("target_details")
+                if target_details is None and not any(
+                    target["kind"].startswith("observed_process_count@")
+                    for target in snapshot.schema["targets"]
+                ):
+                    # Older price-only rows predate per-target censor details.
+                    target_details = [{} for _ in snapshot.schema["targets"]]
+                if target_details is None:
+                    target_details = []
                 for h, (target, status, detail) in enumerate(
                     zip(
                         snapshot.schema["targets"],
                         row["target_status"],
-                        row.get("target_details", []),
+                        target_details,
                         strict=True,
                     )
                 ):

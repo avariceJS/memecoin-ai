@@ -47,10 +47,22 @@ Domain-specific behavior belongs in the architecture, data, training/evaluation,
   its age is explicit and it is not a newly observed decision-time mark. No exact endpoint means
   unknown return, never zero. Process counts are exact only under complete coverage of their named
   process; other counts retain a lower bound with censoring and never become zero-valued labels.
-- Administrative ends, immature targets and missing endpoints remain distinct. Censor bounds are
-  metadata in the current quantile trainer, whose loss admits only observed labels. A future
-  survival likelihood must explicitly consume them. Full dependency purging includes lifecycle
-  facts; long-lived birth dependencies can exclude later split rows and must be reported.
+- A zero count is exact only when a hash-bound qualification receipt verifies complete support for
+  the named process and exact entity/interval member in its pinned population scope. Historical event
+  time does not backdate member availability. Unknown, partial, failed, stopped, unsupported or
+  absent assertions cannot establish zero; lifecycle changes require their own evidence.
+- Hash and accounting checks establish byte identity and internal consistency, not provider truth or
+  semantic completeness. Keep machine validation distinct from domain source qualification.
+- `market-observations-v1` has no `partial` support value. When projecting a partial assertion, map it
+  to `unknown` there while preserving the partial status and qualified lower bound in population
+  coverage/evidence. Event-count coverage has no expected event denominator; keep it null.
+- Administrative ends, immature targets and missing endpoints remain distinct. The default
+  exact-label objective admits observed labels only. The opt-in, versioned
+  `partial_count_lower_bound_pinball_v1` also consumes verified positive process-count lower
+  bounds with a one-sided per-quantile hinge; zero bounds and unavailable support remain excluded.
+  This is not a survival likelihood and does not identify the full count distribution. Full
+  dependency purging includes lifecycle facts; long-lived birth dependencies can exclude later
+  split rows and must be reported.
 - Protected F01/D43 and reserved holdout are out of scope: do not read, mutate, relabel, or train on
   them from this exploratory Brain track.
 

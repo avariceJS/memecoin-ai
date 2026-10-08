@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-08 Europe/Moscow. Re-read owner state before operational decisions.
+**As of:** 2026-10-09 Europe/Moscow. Re-read owner state before operational decisions.
 
 ## Goal and boundaries
 
@@ -90,7 +90,8 @@ Eliza for bounded nonsecret assistance and verify findings. Runtime dependencies
   window-end reasons. Provider disappearance still creates no lifecycle transition.
 - Re-audited the existing real train source `81f7c74b…4b10c3e0`: 170 enrollments, 38,705 events,
   170 births, 170 support facts, all 170 `unknown`. This source cannot establish complete counts or
-  inactivity. Alchemy account limits remain unverified; no provider request was made.
+  inactivity. At that 2026-10-08 checkpoint no provider request had been made and Alchemy limits
+  were unverified; bounded endpoint behavior was measured on 2026-10-09 below.
 - Synthetic fit/resume/evaluation/inference reproduced in `work/brain-censoring-objective-2026-10-08/`.
   Receipt: [`brain-censoring-objective-2026-10-08.json`](../docs/evidence/brain-censoring-objective-2026-10-08.json).
   The run is engineering-only and did not establish learning gain.
@@ -101,15 +102,30 @@ Eliza for bounded nonsecret assistance and verify findings. Runtime dependencies
 - Implementation committed locally on `research/active` as `5c8ea27`; working tree was clean
   after commit. Branch remains two commits ahead of `origin/research/active`; no push or deployment.
 
-## Next major stage
+## Next Brain Senses horizon
 
-First verify account-level limits before any acquisition. Then qualify a real named event process with
-reproducible request/cursor coverage and independent reconciliation, including explicit stopped,
-failed, unsupported and unknown intervals. Preserve current real-source bounds as partial evidence;
-do not claim complete activity, inactivity, lifecycle or death. After source qualification, register
-fresh populations and multiple seeds against empirical baselines. September remains studied. GPU,
-distributed materialization, object storage, rich on-chain/order-flow sources and packed multistream
-views remain unqualified.
+Continue with an offline causal sensing episode: verified synthetic price and irregular-flow
+processes, decision origins from a pinned clock schedule (including quiet intervals), stream-specific
+as-of histories, point-in-time dense snapshots, objective-compatible targets, deterministic replay,
+and a dry-run account-budget adapter. This is a semantics/integration exercise, not source evidence.
+After reassessing it, qualify real named event coverage using complete request/cursor accounting and
+independent reconciliation; PAYG is available for bounded work, with per-campaign measured budget.
+Do not infer complete activity, inactivity, lifecycle or death from endpoint availability. Fresh
+independent population comparisons remain after sourcing and must not reuse September.
+
+## Brain Senses Wave 1
+
+`memecoin_experience.qualification` adds a versioned process descriptor, immutable receipt and paged
+scope manifest with per-entity/interval status, availability, denominators, capabilities and evidence.
+Projection revalidates exact member scope before using existing observation/population facts; hashes
+check identity and consistency, not provider truth. `candidate_process_records` is the accounting unit;
+only the registered closed synthetic-fixture verifier grants complete support, after re-executing the
+bound input and process/member pins; the proof binds the verifier code hash. Synthetic source identity
+is derived from process/scope pins and decoder identity is registered. No real-source completeness
+verifier or qualification was added.
+Synthetic tests only; this verifier grants no real-source completeness. Market-process acquisition
+was not performed in this wave. Authenticated Alchemy usage was initially 0 CU, but the account
+meter was refreshed after the bounded read-only qualification below.
 
 ## Prior campaign and owner
 
@@ -123,6 +139,24 @@ views remain unqualified.
   `172.22.124.203` address timed out. Migration before/after read-only fences agree; recheck owner
   before any later operational action. No runtime mutation in the sparse or migration stage.
 - Last recorded champion: `9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920`, runtime08.
-  Paid Alchemy account capacity remains unverified; no provider request in this stage.
+  No production state was inspected or changed in this sensing work.
 
 Start from `docs/INDEX.md` for canonical architecture, source, training and operator contracts.
+
+## Brain Senses Wave 1 — endpoint qualification update (2026-10-09)
+
+- Sanitized receipt: `docs/evidence/alchemy-endpoint-qualification-2026-10-09.json`. Free Solana
+  verified basic RPC and a two-method HTTP batch; signature lookup produced 41 HTTP 429 responses
+  in 56 calls across two bounded phases, with no retries. PAYG had 228/228 successful calls and a
+  measured usage delta of 5,520 CU: `getSlot` 20 CU/call and `getSignaturesForAddress` 40 CU/call,
+  matching the delayed account meter. Estimated increment at the published rate: $0.002898.
+- Choose Free for healthy basic development calls and PAYG for bounded indexed-signature
+  qualification under the observed Free 429 pattern. The test did not saturate PAYG, test its HTTP
+  batch behavior, inspect Free account usage, establish historical retention, or qualify market
+  completeness. The measured 33.68 PAYG calls/s is a phase result, not a plan limit.
+- The Free key is local in ignored `.env.local` (mode 0600); no endpoint/key is in Git, docs or
+  receipts. `MEMECOIN_ALCHEMY_FREE_HTTP_URL` in `.env.example` is blank.
+- Qualification implementation remains synthetic-only and must not project real zero counts. Sol
+  reviewed the next horizon: scheduled offline multistream sensing with point-in-time availability,
+  followed by budget-admission dry-run. Cache invalidation still stats all fixture dependencies;
+  large-scope throughput remains unqualified.

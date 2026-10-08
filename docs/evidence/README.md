@@ -6,6 +6,7 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- Alchemy Free/PAYG endpoint behavior, metered CU reconciliation and bounded errors: `alchemy-endpoint-qualification-2026-10-09.json` (no secrets; endpoint behavior only, no completeness claim).
 - Git consolidation: `brain-git-consolidation-2026-10-08.json`
   (research/UI ancestry, compatibility fixes, full Mac 1 regression and unchanged production fence).
 

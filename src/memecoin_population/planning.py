@@ -84,6 +84,8 @@ def action(capture, qualified, expected):
             )
         if qualified["status"] == "partial":
             return "inspect_deficit"
+        if qualified["status"] == "stopped":
+            return "review_stop"
         if qualified["status"] == "failed":
             return "review_failure"
     if capture:
@@ -91,6 +93,8 @@ def action(capture, qualified, expected):
             return "qualify_existing"
         if capture["status"] == "failed":
             return "review_failure"
+        if capture["status"] == "stopped":
+            return "review_stop"
         if capture["status"] == "unsupported":
             return "source_review"
         if capture["status"] == "unknown":

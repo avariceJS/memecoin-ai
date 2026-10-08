@@ -86,6 +86,7 @@ def checked(row, kind, cutoff):
             "empty",
             "unsupported",
             "failed",
+            "stopped",
             "unknown",
         }:
             raise ValueError("population_coverage_status")
@@ -99,7 +100,10 @@ def checked(row, kind, cutoff):
                 raise ValueError("population_coverage_count")
         if row["status"] == "empty" and row["observed"] != 0:
             raise ValueError("population_coverage_empty")
-        if row["status"] in {"failed", "unsupported", "unknown"} and row["observed"] is not None:
+        if (
+            row["status"] in {"failed", "stopped", "unsupported", "unknown"}
+            and row["observed"] is not None
+        ):
             raise ValueError("population_coverage_unknown_is_not_zero")
         if row["status"] in {"complete", "partial"} and row["observed"] is None:
             raise ValueError("population_coverage_missing_count")
