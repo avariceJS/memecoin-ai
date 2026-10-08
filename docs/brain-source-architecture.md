@@ -276,3 +276,11 @@ unrequested work. Continuous export additionally supports optional per-entity di
 coverage denominators use these intervals, avoiding invented missing history before market birth.
 HTTP failures, malformed payloads, namespace/mint failures and invalid bars stay quarantined in
 source accounting. Integrity failures still abort publication.
+
+`memecoin_population.corpus` bridges the acquisition ledger to portable qualified source bundles.
+Every request in a role must be resolved before its source is published; the other role's payloads
+are not opened. The bridge checks frozen-plan, request-window, ordinal, outcome, receipt and raw
+capture bindings. Its sealed accounting lists every planned request and qualification reason.
+Population publication retains the complete enrolled role with birth/lifecycle metadata known only
+at plan creation, not retroactively at event time. OHLCV intervals denote grid-aligned opens in the
+planned half-open request windows; full-bar receipt causality is enforced independently.

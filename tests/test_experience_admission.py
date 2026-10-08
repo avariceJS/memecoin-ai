@@ -127,3 +127,29 @@ def test_constant_feature_normalization_and_masked_training(tmp_path):
     assert stats["mean"][j] == 0
     assert stats["scale"][j] == 1
     assert stats["population"]["train_usable"] < stats["population"]["train"]
+
+
+def test_admission_paged_catalog_replication_and_cross_partition_binding(tmp_path, monkeypatch):
+    from memecoin_experience import catalog
+    from memecoin_experience.storage import atomic_json, digest
+
+    monkeypatch.setattr(catalog, "PAGE_SIZE", 2)
+    store = tmp_path / "store"
+    result, _, _ = dataset(store)
+    view = create(store, result["snapshot"], POLICY)
+    child = Snapshot(store, view["snapshot"])
+    assert "partition_pages" in child.manifest
+    replicate(store, tmp_path / "replica", view["snapshot"])
+    clone = Snapshot(tmp_path / "replica", view["snapshot"])
+    assert clone.partition(len(clone.parts) - 1)[1] == child.partition(len(child.parts) - 1)[1]
+    # Even a newly hashed catalog cannot move a valid mask onto a different partition.
+    forged = copy.deepcopy(child.manifest)
+    forged.pop("partition_pages")
+    forged.pop("partition_count")
+    forged.pop("partition_index")
+    forged["partitions"] = list(child.parts)
+    forged["partitions"][0] = dict(forged["partitions"][0], admission=child.parts[1]["admission"])
+    pin = digest(forged)
+    atomic_json(store / "snapshots" / (pin + ".json"), forged)
+    with pytest.raises(ValueError, match="admission_binding"):
+        Snapshot(store, pin).partition(0)

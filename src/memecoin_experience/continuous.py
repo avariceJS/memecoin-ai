@@ -143,6 +143,8 @@ def qualify_capture(path, pool):
         return [], "bar_schema_or_alignment"
     try:
         return bars(path, pool["pool"]), "qualified"
+    except OverflowError:
+        return [], "invalid_OHLCV"
     except ValueError as exc:
         if str(exc) not in {
             "invalid_OHLCV",

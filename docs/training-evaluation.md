@@ -692,3 +692,19 @@ positive finite prices and an overflow-safe past volume average. Version 2 remai
 The opt-in training recipe `normalization="constant_feature_scale_one_v1"` gives exactly constant
 features scale 1 instead of amplifying later unseen variation by 1e6; other scales retain the 1e-6
 floor. These choices are included in representation/recipe identities. Legacy defaults are retained.
+
+`tools/population_learning.py --campaign CAPTURE_ROOT --root RUN_ROOT` binds a frozen acquisition
+plan, source code and harness before conversion. It builds separate train/evaluation source bundles,
+raw and admitted snapshots, population audits and owned model generations. The narrow model uses a
+preselected entity subset only during training; later validation/test origins are shared with the
+broad model. The additional narrow control repeats epochs to approximately match broad row draws
+(rounded whole epochs, bounded at 500); this is not an exact FLOP match. Report actual steps, draws,
+training mass and support alongside losses.
+
+Candidates and structural/input-qualified evaluation protocols are registered before opening the
+new evaluation-role source. Comparisons require identical snapshot and origin/mask identities.
+Paired uncertainty resamples whole observed base mints, combining pools for the same mint, and reports
+micro and equal-mint descriptive differences. It is conditional on one trainer seed and the fixed
+historical cohort; it does not establish prospective performance, causal value of diversity alone,
+execution quality or statistical independence across correlated mints. Empty roles/horizons and
+infeasible controls are recorded as failures, never successful models or zero losses.
