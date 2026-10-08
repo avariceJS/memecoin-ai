@@ -18,6 +18,23 @@ from memecoin_population import catalog, diversity
 NS = 10**9
 
 
+def checkpoint(path, report):
+    """Keep first-run measurements on resume; refuse any change to semantic results."""
+    if path.exists():
+        previous = json.loads(path.read_text())
+
+        def stable(value):
+            return {
+                k: v for k, v in value.items() if k not in {"seconds", "process_peak_rss_bytes"}
+            }
+
+        if stable(previous) != stable(report):
+            raise ValueError("sparse_qualification_checkpoint_mismatch")
+        return previous
+    atomic_json(path, report)
+    return report
+
+
 def synthetic(entities, events):
     for i in range(entities):
         start = (i % 3) * 100000
@@ -175,7 +192,7 @@ def run(job, root):
         production_eligible=False,
         qualification="engineering_only_not_learning_gain",
     )
-    atomic_json(root / "conversion.json", report)
+    report = checkpoint(root / "conversion.json", report)
     if job.get("train"):
         from memecoin_experience import generations
 
@@ -232,7 +249,7 @@ def run(job, root):
         _, artifact = generations.get(root / "models", trained["generation"])
         fitted = json.loads((artifact / "report.json").read_text())
         report["training"] = dict(
-            generation=trained,
+            generation={k: trained[k] for k in ("status", "generation", "artifact")},
             rows_seen=fitted["rows_seen"],
             steps=fitted["steps"],
             parameters=fitted["parameters"],
@@ -243,8 +260,7 @@ def run(job, root):
     report["process_peak_rss_bytes"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * (
         1 if sys.platform == "darwin" else 1024
     )
-    atomic_json(root / "result.json", report)
-    return report
+    return checkpoint(root / "result.json", report)
 
 
 def main():

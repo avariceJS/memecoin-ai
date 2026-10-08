@@ -1,6 +1,8 @@
 """Generic sparse price/count/lifecycle integration; synthetic markets only."""
 
+import importlib.util
 import json
+from pathlib import Path
 
 import pytest
 
@@ -194,3 +196,47 @@ def test_sparse_generation_exposure_resume_replica_evaluation(tmp_path):
     assert any("censored" in k for k in scored["denominators"])
     x = next(batches(Snapshot(store, built["snapshot"]), split, "test", 16))[0]
     assert np.isfinite(Predictor(ra, resumed["artifact"]).predict(x)).all()
+
+
+def test_qualification_resumes_conversion_without_rewriting_measurements(tmp_path, monkeypatch):
+    spec = importlib.util.spec_from_file_location(
+        "sparse_qualify", Path(__file__).parents[1] / "tools/sparse_qualify.py"
+    )
+    qualifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(qualifier)
+    projection = plan()
+    projection.update(context=4, relative_features=[])
+    projection["targets"] = [
+        dict(name="count", kind="observed_process_count", horizon_ns=10 * NS, feature=None)
+    ]
+    job = dict(
+        mode="synthetic",
+        entities=9,
+        events=8,
+        projection=projection,
+        split=dict(train_start_s=0, train_end_s=100000, validation_end_s=200000, test_end_s=300000),
+        train=dict(
+            width=8,
+            epochs=1,
+            batch=16,
+            seed=19,
+            cpu_threads=1,
+            checkpoint_every=2,
+            normalization="constant_feature_scale_one_v1",
+        ),
+    )
+    original = generations.run
+
+    def crash(*args, **kwargs):
+        raise RuntimeError("injected after durable conversion")
+
+    monkeypatch.setattr(generations, "run", crash)
+    with pytest.raises(RuntimeError, match="injected"):
+        qualifier.run(job, tmp_path)
+    before = (tmp_path / "conversion.json").read_bytes()
+    monkeypatch.setattr(generations, "run", original)
+    first = qualifier.run(job, tmp_path)
+    assert qualifier.run(job, tmp_path) == first
+    assert (tmp_path / "conversion.json").read_bytes() == before
+    with pytest.raises(ValueError, match="checkpoint_mismatch"):
+        qualifier.checkpoint(tmp_path / "result.json", dict(first, source="tampered"))
