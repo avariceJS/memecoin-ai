@@ -12,6 +12,14 @@ from .storage import Snapshot, build
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
+    for action in (
+        "publish-observations",
+        "build-sparse",
+        "observations-from-continuous",
+        "replicate-observations",
+    ):
+        command = commands.add_parser(action)
+        command.add_argument("--job", required=True, type=Path)
     exporter = commands.add_parser("export-continuous")
     exporter.add_argument("--index", required=True, type=Path)
     exporter.add_argument("--plan", required=True, type=Path)
@@ -50,7 +58,34 @@ def main():
     predictor.add_argument("--pin", required=True)
     predictor.add_argument("--frames", required=True, type=Path)
     args = parser.parse_args()
-    if args.action == "admit":
+    if args.action in {
+        "publish-observations",
+        "build-sparse",
+        "observations-from-continuous",
+        "replicate-observations",
+    }:
+        from contextlib import ExitStack
+
+        from . import observation_adapters, observations, sparse
+
+        job = json.loads(args.job.read_text())
+        with ExitStack() as opened:
+            if args.action == "publish-observations":
+                stream = opened.enter_context(Path(job.pop("rows_path")).open())
+                result = dict(
+                    source=observations.publish(rows=(json.loads(line) for line in stream), **job)
+                )
+            elif args.action == "build-sparse":
+                built = sparse.materialize(**job)
+                result = {k: built[k] for k in ("snapshot", "decisions", "target_statuses")}
+            elif args.action == "replicate-observations":
+                result = observations.replicate(**job)
+            else:
+                if "lifecycle_path" in job:
+                    stream = opened.enter_context(Path(job.pop("lifecycle_path")).open())
+                    job["lifecycle"] = (json.loads(line) for line in stream)
+                result = dict(source=observation_adapters.from_continuous(**job))
+    elif args.action == "admit":
         from .admission import create
 
         result = create(args.store, args.snapshot, **json.loads(args.plan.read_text()))

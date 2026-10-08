@@ -104,7 +104,7 @@ def checked_samples(rows, schema, cutoff):
     for row in rows:
         from memecoin_brain.source import EXCLUDED
 
-        if row["pool"] in EXCLUDED:
+        if row["pool"] in EXCLUDED or str(row["pool"]).rsplit("/", 1)[-1] in EXCLUDED:
             raise ValueError("experience_protected_pool")
         decision, start, available = (
             row[k] for k in ("decision_ns", "input_start_ns", "input_available_ns")

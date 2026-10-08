@@ -53,7 +53,7 @@ def policy(value):
         raise ValueError("diversity_policy_semantics")
     if (
         not isinstance(value["entity_prefix"], str)
-        or not value["entity_prefix"].endswith("/")
+        or (value["entity_prefix"] != "" and not value["entity_prefix"].endswith("/"))
         or type(value["time_bucket_ns"]) is not int
         or not 0 < value["time_bucket_ns"] <= MAX_TIME
     ):

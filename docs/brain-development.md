@@ -38,11 +38,13 @@ parent artifact. Warm starts freeze the parent's normalization and initialize a 
 resume remains the identical-job operation. A standalone predictor and separately registered
 candidate/enrollment/window evaluation consume these artifacts. No serving runtime is switched.
 
-The concrete producer remains qualified USD OHLCV. A second synthetic modality/feature contract
-and two neural implementations exercise the extension boundaries; they are not new qualified
-order-flow or liquidity datasets. Unknown venue semantics stay outside admission. The full
-pipeline currently runs historical replay; point-in-time contracts and forward-replay registration
-are available for a future qualified producer, not retroactively assigned to historical candles.
+Real qualified observations remain USD OHLCV and evidenced births. The sparse observation layer
+separates immutable typed event/lifecycle/support facts from representation snapshots; it no longer
+requires long consecutive bar runs to emit experience. Synthetic flow/count objectives exercise
+short and zero-event histories under explicit observation completeness. They are not new qualified
+order-flow or liquidity datasets. Unknown venue semantics stay outside admission. Real qualification
+uses historical replay; sparse arrival-time contracts are exercised synthetically and are not
+retroactively assigned to historical candles.
 
 Local filesystem publication/locks and CPU training are implemented. Single CUDA is implemented
 but unqualified; DDP, object-store conditional publication and a cluster scheduler are not present.

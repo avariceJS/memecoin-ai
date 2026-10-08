@@ -13,6 +13,9 @@ Domain-specific behavior belongs in the architecture, data, training/evaluation,
   forecast.
 - Preserve observed, assumed (with a named assumption), and unknown as separate states.
 - An observation later than the decision cannot enter features, scaler fitting, or label selection.
+- Sparse point-in-time origins use arrival/availability as decision time and retain event time
+  separately. Historical replay uses event-time decisions and explicitly permits later receipts
+  up to its fit cutoff; it must never be reported as online-causal experience.
 
 ## Identity, revisions, and storage
 
@@ -39,6 +42,15 @@ Domain-specific behavior belongs in the architecture, data, training/evaluation,
   fitting and record source membership, pool/mint identity, and exposure.
 - Failed/unsupported markets remain in the original enrollment denominator; do not replace them
   after observing their outcomes.
+- Sparse endpoint returns require an exact unique observed future endpoint and a positive observed
+  origin value, not uninterrupted intervening events. In arrival mode the origin value may be old;
+  its age is explicit and it is not a newly observed decision-time mark. No exact endpoint means
+  unknown return, never zero. Process counts are exact only under complete coverage of their named
+  process; other counts retain a lower bound with censoring and never become zero-valued labels.
+- Administrative ends, immature targets and missing endpoints remain distinct. Censor bounds are
+  metadata in the current quantile trainer, whose loss admits only observed labels. A future
+  survival likelihood must explicitly consume them. Full dependency purging includes lifecycle
+  facts; long-lived birth dependencies can exclude later split rows and must be reported.
 - Protected F01/D43 and reserved holdout are out of scope: do not read, mutate, relabel, or train on
   them from this exploratory Brain track.
 

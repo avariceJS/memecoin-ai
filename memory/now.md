@@ -53,6 +53,14 @@ bounded nonsecret work, with findings checked locally.
 
 ## Implementation and next stage
 
+- Sparse/event-time foundation is implemented in `observations.py`, `sparse.py` and
+  `observation_adapters.py`: immutable typed facts, explicit observation support/lifecycle,
+  short-history projection, exact endpoint targets, censored process counts and arrival-time mode.
+  `tools/sparse_qualify.py` freezes conversion/load/CPU plumbing jobs without network access.
+  Focused sparse and optional ML integration checks pass, including exact resume, replica identity,
+  diversity exposure and synthetic evaluation. Full project checks are in progress.
+  Next: freeze code and qualify synthetic load plus conversion of the existing **train-role** source;
+  no September evaluation reuse and no learning-gain claim from this engineering stage.
 - `24ae9ae` adds separate immutable learning declarations, support preflight before expensive fits,
   no-candidate evaluation gating, and `tools/population_campaign_report.py` reconciliation.
   A new recipe requires a new run root; acquisition roles/history cannot be rewritten.

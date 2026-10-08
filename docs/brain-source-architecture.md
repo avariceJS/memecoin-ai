@@ -324,3 +324,41 @@ not fix the larger selection imposed by requiring uninterrupted active bars. Fut
 producers should preserve event spacing, known inactivity versus unknown observation support,
 lifecycle and censoring, and use objectives that can learn from short/failed market histories.
 Do not infer inactivity from a missing provider bar or filter enrollment by future survival.
+
+### Sparse observations and lifecycle facts
+
+`memecoin_experience.observations` publishes `market-observations-v1`: a sorted immutable stream
+of namespaced entity enrollments, typed events, observation-support intervals and evidenced
+lifecycle transitions. Enrollment is an administrative interval, not a claim about market lifetime.
+Empty, failed and unsupported entities remain enrolled. No terminal transition is inferred from
+silence. Streams declare feature names/units/modalities and the exact observed process.
+
+Every fact carries actual availability and evidence pins. Support is `complete`, `unknown`,
+`failed` or `unsupported`; complete means coverage of the **named process**, not all economic
+activity. Complete intervals cannot overlap other support assertions, end after their availability,
+or precede the availability of included events. Missing HTTP/provider bars never certify absence.
+Corrections/revised coverage require a new source version, not overlapping contradictory facts.
+
+Facts are CAS JSONL shards grouped by entity/kind/stream/day with paged catalogs. Publication and
+replication use existing locks, seals and durable manifest publication. A crash before publication
+leaves reusable objects; replay verifies and reuses them. Roles are checked before payload reads.
+A disposable SQLite query index provides bounded-cache history, interval and rank-count lookup;
+it is not the canonical event store. The current materializer is local and single-worker. Entity
+partitioning and immutable source/snapshot identity provide the boundary for later distributed
+materializers; there is no cluster scheduler or object-store publication implementation here.
+
+`sparse.materialize` projects one selected stream plus lifecycle facts into existing generic v2
+snapshots. It accepts short histories, preserves event spacing, age, padding masks and known gap
+coverage, and never forward-fills prices. Multiple source streams are representable today; joined
+multistream producers and new objectives are future implementations. Stable support-shard evidence
+avoids embedding a changing whole-source hash in every old row; the snapshot binds the full source.
+Appending another entity preserves unchanged source objects and materialized partitions.
+
+CLI jobs: `python -m memecoin_experience {publish-observations,observations-from-continuous,
+build-sparse,replicate-observations} --job JSON`. Publisher jobs supply sorted `rows_path`, `store`,
+`schema`, `cutoff`, `sources`, optional `chunk`; materialization jobs supply `store`, `pin`, `output`,
+`plan`, optional `role`/`chunk`. Plans declare stream, context, max_history_ns, lifecycle transitions,
+lifecycle_origins, relative_features and named targets with kind/horizon_ns/feature. Replica jobs
+supply source/target/pin/role. Adapter jobs supply a sealed continuous reference, store, role and
+optional sorted lifecycle_path. The adapter preserves receipt availability and raw evidence,
+always emits unknown observation support, and accepts birth facts only from explicit evidence.
