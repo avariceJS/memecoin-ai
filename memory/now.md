@@ -12,7 +12,7 @@ Eliza for bounded nonsecret assistance and verify findings. Runtime dependencies
 ## Active operating mode
 
 - **Mac 1 active:** `192.168.31.66`, `/Users/root1/Developer/memecoin-research`, branch
-  `research/mac1-active`. Open this checkout in a Mac 1 Codex session; the old Mac 2 session does
+  `research/active` (from canonical integrated `main`). Open this checkout in a Mac 1 Codex session; the old Mac 2 session does
   not change execution host automatically. Mac 2 is **standby/inactive**; no new research or
   acquisition there without an explicit worker assignment.
 - Handoff receipt: `docs/evidence/brain-single-host-handoff-2026-10-08.json`. Full Git history and
@@ -23,11 +23,29 @@ Eliza for bounded nonsecret assistance and verify findings. Runtime dependencies
   Migrated real source/snapshot/generation verified and standalone prediction works locally.
 - Owner `/Users/root1/Desktop/memecoin-ai` remains clean at `a594474`; before/after fences match:
   revision 33 paused, no busy jobs, runtime08, champion, source STOP/config/universe unchanged.
-  No production switch, credential transfer or provider requests. No GitHub push/main merge.
+  No production switch, credential transfer or provider requests. Git consolidation is recorded below.
 - Recovery package/manifests/logs: Mac 1 `/Users/root1/Developer/.memecoin-migration-20261008`,
   Mac 2 `work/host-migration-20261008`. Frozen old-host paths remain evidence; use explicit local
   transport locators/new declarations, never rewrite sealed files or restart expired campaigns.
   Reactivation procedure and stable ownership rules: `docs/operator-runtime.md`.
+
+## Git consolidation
+
+- Canonical `main` combines the prior main, all 32 subsequent research commits and 22 unique
+  Observatory commits. Integration code: `fb04468`; receipt:
+  `docs/evidence/brain-git-consolidation-2026-10-08.json`.
+- Active development uses `research/active` on Mac 1. Both old branch refs are retained and fully
+  absorbed. Mac 2 remains standby; it provides authenticated GitHub transport for this publication.
+  Mac 1 origin/upstream is configured; noninteractive GitHub authentication there is not verified.
+- No textual merge conflicts. Scoped UI rules/guard/helper policy were reconciled; core research
+  and two-host tools are unchanged. UI adapter, web code, pins and published bytes are unchanged.
+  Observatory is historical evidence, not current Brain telemetry; CC02 visual acceptance is pending.
+- Mac 1 checks: core 1,146 passed / 24 optional skips; full ML environment 1,217 passed / two skips
+  (Playwright browser acceptance and actual CUDA). UI Python 39, frontend 44; lint/type checks,
+  smoke, Python/frontend builds, workflow and portable real-generation prediction passed.
+  Node 24.5 dependency-engine/PostCSS/chunk warnings remain; no visual acceptance is claimed.
+- Production fence still matches the verified handoff: owner HEAD/config/champion/STOP unchanged.
+  Logs are in `work/git-consolidation-20261008` on both hosts. No deployment or provider requests.
 
 ## Completed sparse/event-time stage
 
