@@ -13,20 +13,24 @@ This document owns source roles, data admission, coverage, and acquisition desig
 | Helius / secondary RPCs | Diagnostics or explicitly qualified cross-checks | Configured access does not prove plan, completeness, or independent agreement |
 
 Alchemy endpoint qualification (2026-10-09) measured bounded read-only behavior on two
-independent project accounts. The Free Solana account is published at 30M CU/month and 300 CU/s;
-our direct tests verified `getSlot` and a two-method JSON-RPC batch, but `getSignaturesForAddress`
-returned HTTP 429 in 41/56 calls across two low-throughput phases. The Free account's current CU
-usage was not exposed. PAYG returned 228/228 calls without provider errors (up to 33.68 calls/s in
-the tested phase); the delayed usage meter moved by 5,520 CU: 180 `getSlot` calls at 20 CU each and
-48 `getSignaturesForAddress` calls at 40 CU each. At the published $0.525/M CU rate, the measured
+independent project accounts. The Free Solana account is published at 30M CU/month and 300 CU/s.
+Earlier direct probes verified `getSlot` and a two-method JSON-RPC batch, but
+`getSignaturesForAddress` returned HTTP 429 in 41/56 calls across two low-throughput phases. A later
+isolated sequential raw capture returned HTTP 200 for both pages, with 571/412 ms end-to-end
+latencies and no 429. This shows Free can support bounded raw development capture, but the earlier
+429 pattern remains a measured bulk-ingestion risk. Its account-level usage meter was not available
+to this workspace. PAYG returned 228/228 calls without provider errors (up to 33.68 calls/s in the
+tested phase); the delayed usage meter moved by 5,520 CU: 180 `getSlot` calls at 20 CU each and 48
+`getSignaturesForAddress` calls at 40 CU each. At the published $0.525/M CU rate, the measured
 increment estimates $0.002898. PAYG 10,000 CU/s is a published base throughput, not a locally
-saturated limit. PAYG's MCP transport did not expose JSON-RPC batch testing. Use Free for development
-and basic low-volume RPC when healthy; use PAYG for bounded indexed signature qualification while
-Free exhibits the measured 429 pattern. Both results qualify endpoint behavior only, not source
-coverage, archive retention, independent reconciliation, or market-process completeness. Keep
-budgets per account and campaign; never treat the two accounts as one quota.
+saturated limit. PAYG's MCP transport did not expose JSON-RPC batch testing. A later two-call PAYG
+MCP cursor probe was not reflected in the refreshed 5,760-CU account meter through 22:14 UTC; its
+increment is unreconciled, so no zero-cost or request-count-based CU claim is made for that probe.
+Use Free for bounded development when healthy; choose PAYG for larger indexed acquisition when its
+observed reliability or throughput advantage is needed. Meter and budget each account independently.
 
-Receipt: [`alchemy-endpoint-qualification-2026-10-09.json`](evidence/alchemy-endpoint-qualification-2026-10-09.json).
+Receipts: [`alchemy-endpoint-qualification-2026-10-09.json`](evidence/alchemy-endpoint-qualification-2026-10-09.json)
+and [`alchemy-free-raw-cursor-qualification-2026-10-09.json`](evidence/alchemy-free-raw-cursor-qualification-2026-10-09.json).
 Published plan/method references: [pricing plans](https://www.alchemy.com/docs/reference/pricing-plans),
 [compute-unit costs](https://www.alchemy.com/docs/reference/compute-unit-costs),
 [throughput](https://www.alchemy.com/docs/reference/throughput),
@@ -36,12 +40,123 @@ Measurements are specific to this bounded test date and do not establish sustain
 
 A separate 2026-10-09 PAYG probe returned 10 finalized signatures in descending slot order for one
 known pool (slots 454,538,107 through 453,121,085). This qualifies the small response shape only.
-Two 1,000-row MCP results could not be parsed as complete arrays, and two additional probe attempts
-have unresolved response/accounting state. No retry was issued. Alchemy's usage summary remained at
-5,520 CU but was only fresh through 21:36 UTC, so it could not reconcile the attempts. The
+Two 1,000-row MCP results could not be parsed as complete arrays; of two small-page attempts, one
+was parsed and one summary was lost at the local tool boundary. No retry was issued. The later account
+meter moved from 5,520 to 5,680 CU, exactly matching four requests at the published 40 CU method
+cost (estimated $0.000084). The
 [`probe receipt`](evidence/alchemy-signature-page-probe-2026-10-09.json) records the result and
 limitations. Use a direct capture transport with atomic raw sealing and preflighted hashing for
 future cursor qualification; the current MCP result surface is not a raw capture interface.
+
+A follow-up bounded test stored the exact MCP result text for two sequential 10-row pages in ignored
+`work/`, set mode 0600 and hashed both files. The result arrays contain 20 unique finalized
+signatures with descending slots and no duplicate signature; the slot at the page boundary was
+shared because distinct transactions can occupy one slot. The saved receipt omits the exact `before`
+signature values, so request-to-page cursor lineage remains unverified. This qualifies local result
+retention and observed response shape, not a verifiable cursor chain, HTTP wire capture or archive
+completeness. The usage summary later reconciled the meter from 5,680 to 5,760 CU, exactly +80 CU
+for two calls; estimated cost at the published method rate is $0.000042. Receipt:
+[`alchemy-signature-cursor-qualification-2026-10-09.json`](evidence/alchemy-signature-cursor-qualification-2026-10-09.json).
+
+The saved result was replayed through `signature_capture.publish` into the generic observation store.
+It yielded 20 real provider-returned finalized signature events. The modality is transaction-reference
+activity for one address, with slot and an RPC-reported transaction-success indicator; it is not
+decoded swaps, volume, price, or a market-wide process. `blockTime` supplies chain event time; local
+receipt time supplies point-in-time availability. The importer deliberately adds no enrollment or
+support interval because neither an event-time membership declaration nor a queried event-time scope
+was supplied. A first attempt to derive enrollment from the last receipt time produced 10 sparse rows;
+that snapshot was rejected as semantically invalid. There are therefore no real experience examples,
+objective targets, or real-source fit/evaluation from this capture. The machine receipt binds the
+observation source and records that cursor lineage was not verified because exact `before` values
+were not sealed. This proves the bounded positive-reference adapter only; it does not prove cursor
+completeness, full retention, independent reconciliation, or that no other event occurred.
+
+A bounded follow-up used the Free endpoint directly with a no-retry HTTP capture. Both five-row
+pages returned HTTP 200 (571/412 ms); the raw response bodies were sealed at mode 0600 before JSON
+decoding, and the second request cursor hash matched the first page's last signature. The direct
+capture imported 10 finalized address references with raw-response provenance. It still emitted no
+enrollment/support facts and cannot yield a valid historical snapshot by itself. Its 30M-CU account
+meter is not available through the current account-summary tool. See
+[`alchemy-free-raw-cursor-qualification-2026-10-09.json`](evidence/alchemy-free-raw-cursor-qualification-2026-10-09.json).
+
+The same Free capture path subsequently accepted one maximum-limit request: 1,000 finalized refs,
+HTTP 200 in 819 ms, with a 224 KB response body sealed and replayed into 1,000 observation facts.
+This is one response-size check, not sustained rate qualification or an archive guarantee. The
+importer still withheld enrollment and support because the result contains no independent membership
+or event-scope evidence. See
+[`alchemy-free-max-page-qualification-2026-10-09.json`](evidence/alchemy-free-max-page-qualification-2026-10-09.json).
+
+A separate no-retry Free capture requested one finalized slot plus explicit adjacent boundary
+witnesses. The in-range block response was complete (7.08 MB), while the left witness failed at the
+transport layer and the right witness succeeded. Offline publication and replica replay verified
+the single captured block and preserved the boundary failure. The range has unresolved lineage;
+provider exhaustiveness, interval completeness and market-process coverage are not established.
+The Free account usage delta was unavailable, so no CU cost was inferred. Receipt:
+[`alchemy-free-block-range-2026-10-09.json`](evidence/alchemy-free-block-range-2026-10-09.json).
+
+A selected PAYG app completed a bounded 300-request series: 270 `getSlot` requests at concurrency
+4/8 and 30 sequential 10-row `getSignaturesForAddress` cursor pages. All returned successfully;
+the 300 page rows were unique, slot-ordered, and cursor-linked in the live probe. MCP call latency
+for the 30 pages was 290 ms median / 401 ms p95; the two `getSlot` phases measured 345-346 ms median
+and 860-906 ms p95. These are MCP-end-to-end timings, not raw HTTP or provider-only latency. The
+PAYG usage meter moved 5,840 -> 18,520 CU (+12,680) after its delayed update. The method
+time-series attributed 11,400 CU to 570 `getSlot` calls and 1,280 CU to 32
+`getSignaturesForAddress` calls, reconciling those method totals. The separate `getTransaction`
+MCP requests did not appear in the `SUPERNODE_CU` method breakdown, so their CU cost remains
+unreconciled; no zero-cost inference is made. At the published $0.525 / million CU rate, the
+measured CU increment is approximately $0.006657; the account summary rounded MTD USD to $0.01.
+No HTTP 429 or JSON-RPC error appeared in this bounded series. MCP has no raw JSON-RPC batch surface,
+so PAYG batch behavior remains unmeasured. The Free direct HTTP page test processed 1,000 rows in
+819 ms, while earlier Free phases had 41 HTTP 429s / 56 calls; PAYG is therefore the resource for
+indexed work when Free throttling becomes an observed bottleneck, not a universal throughput claim.
+See [`alchemy-payg-read-only-performance-2026-10-09.json`](evidence/alchemy-payg-read-only-performance-2026-10-09.json).
+
+Free transaction retrieval was exercised on two complete bodies and then on a further 16
+success-status finalized signatures evenly spread over one already sealed 1,000-row page. The first
+probes showed that the endpoint requires `maxSupportedTransactionVersion=1`; one bounded request
+timed out without retry. The later 16 JSONParsed responses all returned HTTP 200, complete, in
+528 ms median / 1,046 ms p95. Four PAYG MCP transaction probes returned truncated text and are not
+treated as captures. The decoder now accepts version 1 only when account keys resolve from the
+transaction itself and no address lookup tables are present.
+
+The expanded sample found a concrete IDL drift. All 33 candidate Buy/Sell events had exactly eight
+bytes beyond the older pinned event layout. The official Pump IDL update at commit
+[`8cda1fa`](https://github.com/pump-fun/pump-public-docs/commit/8cda1fa30ea658b20909d8aedf002047119388d2)
+adds the trailing `creator_fee_unclaimed: u64` field. `memecoin_pumpswap.schema` now pins that file
+hash and the decoder parses all 33 event payloads exactly. The 16 transactions remain quarantined:
+all candidates have unreviewed remaining accounts and unqualified Token-2022 paths, with one
+additional event/transfer mismatch. They have no training or execution eligibility. This is a
+bounded schema-update qualification, not complete market-event support. Receipt:
+[`alchemy-free-transaction-variant-qualification-2026-10-09.json`](evidence/alchemy-free-transaction-variant-qualification-2026-10-09.json)
+and [`alchemy-free-transaction-qualification-2026-10-09.json`](evidence/alchemy-free-transaction-qualification-2026-10-09.json).
+
+One finalized slot was then fetched with full `getBlock` transactions from Alchemy Free and an
+independent public Solana RPC. Both HTTP responses were complete and agreed on block identity,
+parent linkage, 1,132 transaction entries, and the ordered flattened sequence of 1,171 signatures.
+The full response hashes differ, as provider JSON representations may differ. This is single-slot
+cross-provider consistency evidence, not proof that either RPC's list is exhaustive, not a bracketed
+slot range, and not market-process support. The Free CU meter was unavailable. Receipt:
+[`alchemy-public-block-cross-provider-2026-10-09.json`](evidence/alchemy-public-block-cross-provider-2026-10-09.json).
+
+`signature_capture.publish_verified_values` now emits a versioned qualification receipt whose sole
+capability is `observed_values`. The registered verifier replays sealed raw response pages and
+reconciles every normalized signature reference, process/schema/decoder pins and conserved
+resolved-vs-unresolved-time accounting. It checks role and protected entity identity before page
+payload access. It never grants population coverage, support or completeness, and a values-only
+source still cannot be indexed as market experience without independent enrollment. This allows
+positive, available facts to be retained without turning omitted history or an empty capture into a
+zero label. No real transaction objective target or
+source-backed training example has resulted from the signature-reference captures.
+
+Qualification has a read-only replay verifier that compares regenerated positive facts against the
+existing immutable observation source using disk-backed scratch storage. It checks the source's
+recorded chunk and refuses missing schema/rule dependencies instead of recreating them. The
+`replicate_verified_values` path copies the source and verified-source shards/catalog pages, import
+manifest, qualification receipt, schema/rules and only the raw capture files declared by the
+receipt. The destination is fully revalidated; an integration test removes the original store and
+capture directory before replaying from the replica. This establishes a portable single-capture
+dependency closure, not distributed object storage or high-throughput worker capacity. Raw capture
+files remain local inputs to verification, and implementation pins intentionally reject code drift.
 
 ## Data funnel
 
@@ -461,5 +576,13 @@ interval, complete request/cursor accounting, explicit failure/unsupported range
 provenance, and an independently reconciled coverage boundary. Provider disappearance is not a
 lifecycle event. The existing real sparse source `81f7c74b…4b10c3e0` has 170/170 support facts
 marked `unknown`; its 38,705 retained events prove neither complete event counts nor inactivity.
-The 2026-10-09 Alchemy qualification exercises RPC availability, metering, batch behavior on Free,
-and bounded concurrency; it did not reconcile any market event process or certify completeness.
+The 2026-10-09 Alchemy work qualifies bounded RPC behavior, positive signature references,
+transaction response capture, one-slot block response consistency across two providers, and a
+replicable block-inventory receipt. It does not reconcile a market event process or certify provider,
+range, or market-process completeness. The range inventory producer accepts only a validated,
+expiring request plan with explicit witnesses and request/byte/time budgets; it records reservations
+before dispatch, never retries, and exposes no automatic witness search or range expansion. Its
+current real plan remains the frozen one-slot Alchemy Free probe. The generic inventory verifier is
+offline and can label a slot skipped only from successful enumeration plus a qualified parent/hash
+chain; an absent provider record alone is unknown. These are finalized block inventory facts, not
+activity support or lifecycle evidence.

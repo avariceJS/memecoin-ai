@@ -204,6 +204,32 @@ def movement(node, roles, kind, pre, post):
     )
 
 
+def _supported_transaction_version(tx):
+    version = tx.get("version")
+    if version in ("legacy", 0):
+        return True
+    if type(version) is not int or version != 1 or not isinstance(tx.get("meta"), dict):
+        return False
+    try:
+        message = tx["transaction"]["message"]
+        lookups = message.get("addressTableLookups", [])
+        keys = message["accountKeys"]
+        loaded = tx["meta"].get("loadedAddresses") or {}
+    except (KeyError, TypeError):
+        return False
+    if not isinstance(lookups, list) or lookups or not isinstance(keys, list) or not keys:
+        return False
+    # Version 1 is admitted only when every key is in the transaction message itself.
+    # Do not guess index resolution for lookup-table accounts or provider-specific projections.
+    if any(
+        not isinstance(key, (str, dict))
+        or (isinstance(key, dict) and key.get("source", "transaction") != "transaction")
+        for key in keys
+    ):
+        return False
+    return isinstance(loaded, dict) and not loaded.get("writable") and not loaded.get("readonly")
+
+
 def decode(tx, schema=SCHEMA):
     result = dict(
         swaps=[],
@@ -215,7 +241,7 @@ def decode(tx, schema=SCHEMA):
     )
     if tx is None:
         return dict(result, status="unavailable")
-    if tx.get("version") not in ("legacy", 0) or not isinstance(tx.get("meta"), dict):
+    if not _supported_transaction_version(tx):
         return dict(result, status="unsupported_transaction")
     if tx["meta"].get("err") is not None:
         return dict(result, status="failed_transaction")

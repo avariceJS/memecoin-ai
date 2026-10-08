@@ -116,12 +116,58 @@ def fixture():
 def test_valid_integer_reconciliation_and_no_training_permission():
     tx, ev = fixture()
     r = decode(tx)
-    assert event_payload(ev)["exact"]
+    parsed_event = event_payload(ev)
+    assert parsed_event["exact"]
+    assert parsed_event["fields"]["creator_fee_unclaimed"] == 0
     assert r["status"] == "reconciled_candidate"
     assert r["vault_balance_reconciled"]
     assert r["swaps"][0]["movement"]["external_quote_fees"] == 2
     assert r["swaps"][0]["movement"]["quote_user_amount"] == 53
     assert not r["training_eligible"] and not r["execution_supported"]
+
+
+def test_version_one_static_account_transaction_uses_same_strict_decode():
+    tx, _ = fixture()
+    tx["version"] = 1
+    tx["transaction"]["message"]["addressTableLookups"] = []
+    r = decode(tx)
+    assert r["status"] == "reconciled_candidate"
+    assert r["vault_balance_reconciled"]
+    assert not r["training_eligible"] and not r["execution_supported"]
+
+
+def test_version_one_json_parsed_static_account_keys_are_resolved():
+    tx, _ = fixture()
+    tx["version"] = 1
+    tx["transaction"]["message"]["accountKeys"] = [
+        dict(pubkey=key, source="transaction")
+        for key in tx["transaction"]["message"]["accountKeys"]
+    ]
+    tx["transaction"]["message"]["addressTableLookups"] = []
+    r = decode(tx)
+    assert r["status"] == "reconciled_candidate"
+    assert r["vault_balance_reconciled"]
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda tx: tx["transaction"]["message"].update(
+            addressTableLookups=[dict(accountKey="lookup", writableIndexes=[0], readonlyIndexes=[])]
+        ),
+        lambda tx: tx["transaction"]["message"].update(
+            accountKeys=[dict(pubkey="lookup", source="lookupTable")]
+        ),
+        lambda tx: tx["meta"].update(loadedAddresses=dict(writable=["lookup"], readonly=[])),
+        lambda tx: tx["transaction"]["message"].update(accountKeys=[object()]),
+    ],
+)
+def test_version_one_lookup_or_unresolved_account_keys_stay_unsupported(mutate):
+    tx, _ = fixture()
+    tx["version"] = 1
+    tx["transaction"]["message"]["addressTableLookups"] = []
+    mutate(tx)
+    assert decode(tx)["status"] == "unsupported_transaction"
 
 
 @pytest.mark.parametrize(
@@ -167,7 +213,7 @@ def test_corrupted_trace_never_qualifies(mutation):
     assert not r["training_eligible"]
 
 
-def test_new_event_tail_is_not_silently_accepted():
+def test_additional_unknown_event_tail_is_not_silently_accepted():
     tx, ev = fixture()
     ins = tx["meta"]["innerInstructions"][0]["instructions"]
     ins[-1]["data"] = encode58(ev + bytes(8))

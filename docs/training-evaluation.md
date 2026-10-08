@@ -947,3 +947,32 @@ claim. Observation indexes support multiple nonoverlapping enrollment intervals 
 or support that cross an interval boundary; a focused sparse test proves target history does not
 cross a re-enrollment gap. No real market-event source was qualified by this synthetic episode,
 and no learning or execution result was measured.
+
+### Positive values qualification (2026-10-09)
+
+`qualification-observed-values-v2` is an independent capability for immutable positive facts. Its
+registered Solana signature verifier replays sealed provider response bodies, checks the exact
+normalized source, and accounts for captured rows, event-time-resolved rows and rows lacking
+supported event time. Its only grant is `observed_values`; it does not create membership, support,
+population coverage, complete support or an exact-zero target. Point-in-time availability remains
+the local response receipt time; historical `blockTime` is the event time and is never used to
+backdate availability. A value-only source cannot be indexed into a market experience without
+independent enrollment. The 1,000-row Free fixture exercises verifier scale at one maximum-size page;
+it does not qualify archive retention, market transaction decoding or complete event counts.
+
+The real Alchemy signature captures therefore remain positive address-reference observations under
+unknown support. They do not create objective-eligible count labels or a real-source fit. A bounded
+16-transaction sample exposed an 8-byte event-layout drift; the pinned official Pump IDL update
+resolved it, and all 33 candidate events now parse exactly. The transactions remain quarantined on
+remaining-account and Token-2022 semantics, with one additional transfer mismatch, so they do not
+provide market-event supervision. The synthetic lower-bound objective remains usable when a
+producer supplies a valid positive bound and its availability/role gates pass; no source completeness
+or learning gain follows from these receipts. See [`brain-source-architecture.md`](brain-source-architecture.md)
+and the linked Alchemy receipts.
+
+The bounded finalized block-inventory path adds positive full-block observations with request,
+response, receipt-time and replica provenance. A single Free slot capture plus adjacent witnesses
+did not close lineage because the left witness failed. It therefore supplies no exact-zero or
+market-count supervision. No fresh independent baseline comparison was registered or run: there
+are no qualified real event-count targets yet. The previously studied September cohort remains
+ineligible as a fresh holdout.

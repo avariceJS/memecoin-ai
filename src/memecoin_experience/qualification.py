@@ -20,6 +20,8 @@ from .storage import PIN, atomic_json, canonical, digest, safe_path
 STATUSES = {"complete", "partial", "unknown", "failed", "stopped", "unsupported"}
 COUNT_KEYS = {"captured", "decoded", "rejected", "qualified", "unresolved"}
 CAPABILITIES = {"complete_support", "observation_support", "population_coverage"}
+OBSERVED_VALUE_CAPABILITY = "observed_values"
+OBSERVED_VALUE_VERIFIERS = {"solana_address_signatures_v1"}
 SCOPE_PAGE_SIZE = 512
 RULES = {
     "event_identity_rule": "event-identity-rule-v1",
@@ -913,6 +915,204 @@ def load_receipt(store, pin):
         tuple(dependency_stats),
     )
     return value
+
+
+def _observed_values_code_pin(verifier_id):
+    """Bind the v2 dispatcher and its one registered capture verifier implementation."""
+    if verifier_id not in OBSERVED_VALUE_VERIFIERS:
+        raise ValueError("qualification_observed_values_verifier_unregistered")
+    verifier_path = safe_path(__file__).with_name("signature_capture.py")
+    return digest(
+        {
+            "verifier_id": verifier_id,
+            "qualification_module_sha256": _module_implementation_pin(__file__),
+            "capture_verifier_module_sha256": _module_implementation_pin(verifier_path),
+        }
+    )
+
+
+def _observed_values_accounting(value):
+    if (
+        not isinstance(value, dict)
+        or set(value) != {"captured", "observed", "unresolved"}
+        or any(type(n) is not int or n < 0 for n in value.values())
+        or value["captured"] != value["observed"] + value["unresolved"]
+        or value["observed"] < 1
+    ):
+        raise ValueError("qualification_observed_values_accounting")
+    return value
+
+
+def _checked_observed_values_envelope(value, *, store):
+    required = {
+        "version",
+        "process_contract",
+        "process_contract_pin",
+        "entity",
+        "source_pin",
+        "import_pin",
+        "capture_set_pin",
+        "capture_receipt_pin",
+        "decoder_pin",
+        "verifier_id",
+        "qualification_code_pin",
+        "inputs",
+        "role",
+        "available_ns",
+        "accounting_unit",
+        "accounting",
+        "capabilities",
+        "verification",
+    }
+    if (
+        not isinstance(value, dict)
+        or set(value) != required
+        or value["version"] != "qualification-observed-values-v2"
+    ):
+        raise ValueError("qualification_observed_values_schema")
+    process_contract(value["process_contract"], store=store)
+    process_pin = value["process_contract_pin"]
+    if not isinstance(process_pin, str) or not PIN.fullmatch(process_pin):
+        raise ValueError("qualification_observed_values_process_pin")
+    if digest(value["process_contract"]) != process_pin:
+        raise ValueError("qualification_observed_values_process_pin")
+    process = value["process_contract"]
+    entity(value["entity"])
+    namespace = process["entity_namespace"].rstrip("/")
+    if value["entity"] != namespace and not value["entity"].startswith(namespace + "/"):
+        raise ValueError("qualification_observed_values_namespace")
+    pins = (
+        "source_pin",
+        "import_pin",
+        "capture_set_pin",
+        "capture_receipt_pin",
+        "decoder_pin",
+        "qualification_code_pin",
+    )
+    if any(not isinstance(value[k], str) or not PIN.fullmatch(value[k]) for k in pins):
+        raise ValueError("qualification_observed_values_pin")
+    if (
+        value["role"] not in {"train", "research_evaluation"}
+        or type(value["available_ns"]) is not int
+        or value["available_ns"] < 0
+        or value["accounting_unit"] != "provider_signature_rows"
+        or value["verifier_id"] not in OBSERVED_VALUE_VERIFIERS
+    ):
+        raise ValueError("qualification_observed_values_contract")
+    accounting = _observed_values_accounting(value["accounting"])
+    capabilities = value["capabilities"]
+    if capabilities != [OBSERVED_VALUE_CAPABILITY]:
+        raise ValueError("qualification_observed_values_capability")
+    code_pin = _observed_values_code_pin(value["verifier_id"])
+    if value["qualification_code_pin"] != code_pin:
+        raise ValueError("qualification_observed_values_code_pin")
+    verification = value["verification"]
+    if (
+        not isinstance(verification, dict)
+        or set(verification)
+        != {"verifier_id", "verifier_code_pin", "input_pin", "process_contract_pin", "result_pin"}
+        or verification["verifier_id"] != value["verifier_id"]
+        or verification["verifier_code_pin"] != code_pin
+        or verification["input_pin"] != value["import_pin"]
+        or verification["process_contract_pin"] != process_pin
+        or not isinstance(verification["result_pin"], str)
+        or not PIN.fullmatch(verification["result_pin"])
+    ):
+        raise ValueError("qualification_observed_values_verification")
+    schema_pin = process["payload_schema_pin"]
+    rule_pins = [process[name]["pin"] for name in RULES]
+    expected_inputs = sorted(
+        {
+            value["source_pin"],
+            value["import_pin"],
+            value["capture_set_pin"],
+            value["capture_receipt_pin"],
+            value["decoder_pin"],
+            process_pin,
+            schema_pin,
+            code_pin,
+            *rule_pins,
+        }
+    )
+    if value["inputs"] != expected_inputs:
+        raise ValueError("qualification_observed_values_inputs")
+    return accounting
+
+
+def _observed_values_verifier_result(value, *, store, source_store, capture_root):
+    """Execute the statically registered capture verifier; never emits support/coverage facts."""
+    if value["verifier_id"] not in OBSERVED_VALUE_VERIFIERS:
+        raise ValueError("qualification_observed_values_verifier_unregistered")
+    from . import signature_capture
+
+    return signature_capture._verify_observed_values_capture(
+        value,
+        store=store,
+        source_store=source_store,
+        capture_root=capture_root,
+    )
+
+
+def checked_observed_values_receipt(value, *, store, source_store, capture_root):
+    """Validate v2 positive-fact receipt separately from all population/scope v1 readers."""
+    accounting = _checked_observed_values_envelope(value, store=store)
+    # Role/source metadata is checked before opening observation payloads. Entity is checked
+    # above before the verifier reads raw capture pages or source facts.
+    from .observations import Source
+
+    source = Source(source_store, value["source_pin"], role=value["role"])
+    if source.manifest["binding"]["cutoff_ns"] != value["available_ns"]:
+        raise ValueError("qualification_observed_values_availability")
+    result = _observed_values_verifier_result(
+        value, store=store, source_store=source_store, capture_root=capture_root
+    )
+    if (
+        result["accounting"] != accounting
+        or result["entity"] != value["entity"]
+        or result["source_pin"] != value["source_pin"]
+        or result["import_pin"] != value["import_pin"]
+        or result["capture_set_pin"] != value["capture_set_pin"]
+        or result["capture_receipt_pin"] != value["capture_receipt_pin"]
+        or result["decoder_pin"] != value["decoder_pin"]
+        or result["process_contract_pin"] != value["process_contract_pin"]
+        or result["role"] != value["role"]
+        or result["available_ns"] != value["available_ns"]
+        or digest(result) != value["verification"]["result_pin"]
+    ):
+        raise ValueError("qualification_observed_values_verifier_result")
+    return value
+
+
+def publish_observed_values_receipt(store, receipt, *, source_store, capture_root):
+    """Run the registered verifier and publish only a capability for exact observed values."""
+    value = json.loads(canonical(receipt))
+    _checked_observed_values_envelope(value, store=store)
+    result = _observed_values_verifier_result(
+        value, store=store, source_store=source_store, capture_root=capture_root
+    )
+    value["verification"]["result_pin"] = digest(result)
+    checked_observed_values_receipt(
+        value, store=store, source_store=source_store, capture_root=capture_root
+    )
+    value = json.loads(canonical(value))
+    root = safe_path(store) / "qualification-observed-values-v2"
+    root.mkdir(parents=True, exist_ok=True)
+    pin = digest(value)
+    atomic_json(root / f"{pin}.json", value)
+    return pin
+
+
+def load_observed_values_receipt(store, pin, *, source_store, capture_root):
+    if not isinstance(pin, str) or not PIN.fullmatch(pin):
+        raise ValueError("qualification_observed_values_receipt_pin")
+    value = json.loads(
+        (safe_path(store) / "qualification-observed-values-v2" / f"{pin}.json").read_text()
+    )
+    if digest(value) != pin:
+        raise ValueError("qualification_observed_values_receipt_checksum")
+    return checked_observed_values_receipt(
+        value, store=store, source_store=source_store, capture_root=capture_root
+    )
 
 
 @lru_cache(maxsize=128)

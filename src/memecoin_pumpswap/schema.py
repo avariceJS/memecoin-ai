@@ -2,10 +2,10 @@
 
 SCHEMA = {
     "provenance": {
-        "commit": "cb188ce08b5069196eef1f3e4a0c43b70099793b",
-        "url": "https://raw.githubusercontent.com/pump-fun/pump-public-docs/cb188ce08b5069196eef1f3e4a0c43b70099793b/idl/pump_amm.json",
-        "sha256": "2091433899b07d003d98118ae6cd3c628960fd393b40710b6e15bce6d0e7f2d1",
-        "received_ns": 1791106195473849000,
+        "commit": "8cda1fa30ea658b20909d8aedf002047119388d2",
+        "url": "https://raw.githubusercontent.com/pump-fun/pump-public-docs/8cda1fa30ea658b20909d8aedf002047119388d2/idl/pump_amm.json",
+        "sha256": "b7d8c57a4d9c4dd0109a9ab893052352333252d4eedced10ac091d4d66cab89b",
+        "received_ns": 1791500131441126000,
     },
     "address": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
     "events": {
@@ -53,6 +53,7 @@ SCHEMA = {
             ("base_supply", "u64"),
             ("holder_rewards_bps", "u64"),
             ("holder_rewards", "u64"),
+            ("creator_fee_unclaimed", "u64"),
         ],
         "SellEvent": [
             ("timestamp", "i64"),
@@ -87,6 +88,7 @@ SCHEMA = {
             ("base_supply", "u64"),
             ("holder_rewards_bps", "u64"),
             ("holder_rewards", "u64"),
+            ("creator_fee_unclaimed", "u64"),
         ],
     },
     "instructions": {

@@ -10,6 +10,44 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - One bounded PAYG `getSignaturesForAddress` page and MCP pagination/accounting limits:
   `alchemy-signature-page-probe-2026-10-09.json` (one parsed 10-row page, no raw response, no
   coverage or zero-activity claim; subsequent ambiguous attempts are disclosed in the receipt).
+- Two sequential PAYG signature pages with local raw-result files, cursor reconciliation and hashes:
+  `alchemy-signature-cursor-qualification-2026-10-09.json`; raw MCP text is in ignored `work/`, not
+  Git. The delayed meter reconciled +80 CU. Their 20 returned refs replay into generic observations;
+  no enrollment/support interval is inferred, and cursor lineage remains unverified. A snapshot
+  produced from an earlier receipt-time-derived membership attempt is explicitly rejected.
+- Two sequential direct Free-account HTTP signature pages with response bodies sealed before JSON
+  parsing, exact cursor-hash lineage and the offline generic observation import:
+  `alchemy-free-raw-cursor-qualification-2026-10-09.json`; raw bodies remain in ignored `work/` and
+  account-level Free CU usage is not exposed by the current workspace meter.
+- One Free-account direct HTTP request at the Solana RPC maximum page limit (1,000 rows), then
+  raw-imported to the observation store with unknown support:
+  `alchemy-free-max-page-qualification-2026-10-09.json`; this is response-size/capture qualification,
+  not archive completeness or training evidence.
+- Bounded PAYG behavior comparison: `alchemy-payg-read-only-performance-2026-10-09.json` records a
+  selected-app 300-request series, cursor-paged signature behavior, latency/concurrency and the
+  reconciled +12,680 CU meter delta for 570 `getSlot` plus 32 `getSignaturesForAddress` calls.
+  PAYG MCP does not expose raw batch transport or a complete `getTransaction` body.
+- Free `getTransaction` version/encoding and direct raw-body probes:
+  `alchemy-free-transaction-qualification-2026-10-09.json`. Two complete version-1 transaction
+  bodies are retained under ignored `work/`; a candidate was recognized but quarantined while its
+  event schema and account/token paths remained unresolved.
+- Follow-up Free `getTransaction` sample:
+  `alchemy-free-transaction-variant-qualification-2026-10-09.json` records 16 complete JSONParsed
+  bodies, 33 event payloads reconciled exactly after pinning the official Pump IDL update, and
+  continued quarantine for remaining-account and Token-2022 semantics. The raw bodies stay in
+  ignored `work/`; this does not establish event-process coverage or training eligibility.
+- One finalized `getBlock` response was independently re-read from Alchemy Free and a public Solana
+  RPC. Both complete responses had the same block identity, 1,132 transactions, and ordered
+  flattened signer sequence (1,171 signatures). The sanitized receipt
+  `alchemy-public-block-cross-provider-2026-10-09.json` retains response hashes and the ordered
+  sequence hash. This checks one slot's response consistency only; it does not prove exhaustive RPC
+  transaction lists, slot-range coverage, market-process coverage, or zero activity. Free CU delta
+  was unavailable.
+- One no-retry Free bounded range capture requested one finalized block with explicit neighboring
+  witnesses. The requested block was complete; the left witness failed at transport and lineage
+  remains unresolved. Offline inventory publication and replica replay succeeded, but interval and
+  provider completeness, market-process support, zero activity and CU cost were not established:
+  `alchemy-free-block-range-2026-10-09.json`.
 - Sensing schedule, multistream point-in-time episode, enrollment re-entry and account-budget
   dry-run tests are in `tests/test_experience_sensing.py` and `tests/test_experience_sparse.py`;
   schedule resource measurements are synthetic and small.

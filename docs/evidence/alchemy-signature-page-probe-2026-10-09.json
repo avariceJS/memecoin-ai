@@ -31,10 +31,13 @@
   },
   "accounting": {
     "meter_before_mtd_cu": 5520,
-    "meter_after_mtd_cu": 5520,
-    "meter_data_through_utc": "2026-10-08T21:36:00Z",
-    "observed_delta_cu": null,
-    "reason": "meter freshness did not advance beyond the probe window; these attempts cannot be reconciled from the available summary"
+    "meter_after_mtd_cu": 5680,
+    "meter_data_through_utc": "2026-10-08T21:55:00Z",
+    "observed_delta_cu": 160,
+    "method_cost_cu": 40,
+    "reconciled_attempts": 4,
+    "estimated_increment_usd": 0.000084,
+    "reason": "four bounded getSignaturesForAddress calls × published 40 CU match the refreshed account meter"
   },
   "qualification": {
     "provider_response_shape": "qualified for one 10-row response",
@@ -46,7 +49,7 @@
   },
   "limitations": [
     "MCP response text does not preserve a raw provider receipt suitable for replay",
-    "the account usage summary was stale during these calls, so incremental CU cost is unresolved",
+    "the meter refreshed later than the requests; the delayed 160 CU delta now reconciles all four calls",
     "no signature-page attempt establishes a complete market observation process"
   ]
 }
