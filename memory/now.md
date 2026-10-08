@@ -160,3 +160,16 @@ Start from `docs/INDEX.md` for canonical architecture, source, training and oper
   reviewed the next horizon: scheduled offline multistream sensing with point-in-time availability,
   followed by budget-admission dry-run. Cache invalidation still stats all fixture dependencies;
   large-scope throughput remains unqualified.
+
+## Brain Senses Wave 2 — offline episode prototype (2026-10-09)
+
+- Added uncommitted `memecoin_experience.sensing`: paged arrival-independent schedules, wrapper
+  reconciliation to the same receipt-verified synthetic source fixtures, streaming multistream
+  episode snapshots, and simulation-only budget decisions. No provider, credential, or protected
+  payload access; no real-source completeness path.
+- A synthetic two-process integration case covers quiet origins, as-of arrival, complete zero,
+  `(decision,maturity]` event boundaries, replay, and snapshot identity after observation replication.
+  Focused suites passed 53 tests. A 1,025-origin schedule used three 512-row pages and measured
+  0.041 s / 278,257 bytes traced peak on Python 3.13.6 arm64 in one local run; no scale inference.
+- Current index boundary rejects repeated population enrollment intervals. Full `make check` and
+  `make smoke` remain for root integration review. No commit made.

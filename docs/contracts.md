@@ -16,6 +16,10 @@ Domain-specific behavior belongs in the architecture, data, training/evaluation,
 - Sparse point-in-time origins use arrival/availability as decision time and retain event time
   separately. Historical replay uses event-time decisions and explicitly permits later receipts
   up to its fit cutoff; it must never be reported as online-causal experience.
+- An explicit sensing schedule is independent of source arrivals. Its page pin is treated as known
+  at the scheduled decision; every observation/support dependency retains its own valid time and
+  availability and must be available by that decision. Reserve the scheduled-origin frame from
+  event values so a quiet origin remains a real decision row.
 
 ## Identity, revisions, and storage
 

@@ -413,6 +413,18 @@ it is not the canonical event store. The current materializer is local and singl
 partitioning and immutable source/snapshot identity provide the boundary for later distributed
 materializers; there is no cluster scheduler or object-store publication implementation here.
 
+`memecoin_experience.sensing` extends this local architecture without changing `sparse.materialize`.
+It seals an arrival-independent schedule in content-addressed pages, then reconciles wrapper event
+and support facts to the exact receipt-verified synthetic fixture pins on publication and use.
+`materialize_episode` streams scheduled origins through `storage.build`; input history is as-of,
+quiet origins remain, and the final context frame carries per-stream support state and masks. Count
+targets use `(decision,maturity]` and preserve the full horizon; exact price returns require unique
+qualified observations at both the scheduled origin and endpoint. The dry-run budget interface
+returns evidence-pinned decisions only and cannot dispatch. One local schedule measurement processed
+1,025 origins into three 512-row pages in 0.041 s with 278,257 bytes traced peak (Python 3.13.6,
+arm64); this is not a throughput claim. Repeated population enrollment intervals fail closed at the
+current observation-index boundary.
+
 `sparse.materialize` projects one selected stream plus lifecycle facts into existing generic v2
 snapshots. It accepts short histories, preserves event spacing, age, padding masks and known gap
 coverage, and never forward-fills prices. Multiple source streams are representable today; joined
