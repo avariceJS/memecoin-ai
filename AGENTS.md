@@ -38,6 +38,39 @@ is available from historical Git commits.
 - Keep `memory/now.md` short and dated. Do not recreate the old append-only narrative memory bank;
   Git history and immutable evidence hold the detailed chronology.
 
+## Model routing and planning
+
+- Luna High is the primary long-running agent and handles ordinary engineering within settled
+  contracts: implementation, local features, debugging, tests, CLI/tooling, recovery, bounded
+  refactoring, profiling, qualification, and integration of accepted decisions. Do not escalate
+  routine work merely because it is nontrivial or lengthy.
+- Route architecture, shared contracts, ML/data semantics, objectives and representations,
+  temporal/causal correctness, evaluation methodology, sampling/population decisions, high-impact
+  changes, and consequential ambiguity to Sol High before dependent implementation. Route by
+  decision type, uncertainty, blast radius, and cost of error, not by Luna's subjective confidence.
+  Once the decision is settled and execution is bounded, return implementation to Luna. If a
+  local task reveals a foundational assumption, stop that dependent branch and escalate the
+  decision while continuing independent work.
+- Sol High is the primary decision-maker and may escalate to Astra High only for costly
+  fundamental uncertainty, strong mutually exclusive options, contradictory evidence, major
+  project-direction changes, or substantial hidden scientific/causal/leakage risk. Astra is not
+  for routine implementation, debugging, or log reading. Sol adjudicates Astra's input and returns
+  a bounded implementation brief to Luna.
+- For lengthy work, Luna remains the lead. At the start of a major direction, Sol defines the
+  nearest decision horizon and separates stable independent work, evidence-dependent work, and
+  architecture/research decisions. Plan only the next useful horizon in detail; revisit it at
+  meaningful evidence boundaries, not after every small milestone. A prior roadmap is not a
+  commitment when new evidence changes the path.
+- Escalate with a compact dossier: goal, relevant facts and evidence locators, what was checked,
+  viable options, constraints, uncertainty, and the exact decision required. Use an isolated clean
+  context when possible; include only the dossier and rules needed for the decision. Return the
+  decision, rationale, interfaces/invariants, scope, acceptance evidence, and limitations to Luna.
+  Treat model output as fallible input and retain the integrator's responsibility for verification.
+- This routing authorizes specialist delegation for these purposes. Keep delegated work bounded,
+  avoid overlapping edits, and use only the requested model tier when available; report capability
+  limits instead of silently substituting. Routing does not relax project authorization, evidence,
+  testing, provenance, temporal-correctness, recovery, or protected-data requirements.
+
 ## Engineering and authorization boundaries
 
 - Do not change production behavior, champion, promotion gates, AUTO, paper ledgers, datasets,
