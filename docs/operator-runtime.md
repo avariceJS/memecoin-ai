@@ -67,7 +67,7 @@ inactive worker; two-host execution remains the supported future scale-out path.
 completion and exact verified pins belong in `memory/now.md`, not assumptions about hostname.
 
 - Mac 1 research checkout: `/Users/root1/Developer/memecoin-research`, branch
-  `research/mac1-active`. Run development, offline research and research orchestration here.
+  `research/active`. Run development, offline research and research orchestration here.
 - Mac 1 owner checkout: `/Users/root1/Desktop/memecoin-ai`. Its source/operator state, deployment
   pointer, runtime bundles, champion and paper ledgers remain separate. Never merge research
   `work/` into owner `work/`, update the owner checkout as part of a research sync, or use production
@@ -99,6 +99,15 @@ state, fast-forward an isolated worker branch to an agreed commit, rebuild/check
 and transfer only required pinned inputs through verified incoming storage. Allocate independent
 research ownership/output paths and non-overlapping acquisition reservations. Return sealed outputs
 for Mac 1 verification. Owner runtime and credentials stay on Mac 1; activation is not promotion.
+
+## Integrated Observatory UI
+
+`apps/control-center` is a separate React read-only Observatory over its immutable historical
+projection (baseline `6a7e079`). It is included in canonical main alongside the current operator
+and Brain, but is not deployed and is not a replacement for Control Center on the owner runtime.
+No current market, sparse generation, live source or champion feed has been added. Missing
+capabilities remain unavailable. Use the app README for opt-in loopback development and tests.
+CC02 visual rejection/reconstruction state and pinned evidence remain explicit.
 
 ## LLM workers
 

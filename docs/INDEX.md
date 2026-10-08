@@ -30,9 +30,24 @@ Root `README.md` is developer setup only. `memory/now.md` is the only active pro
 memory. `memory/evaluation.md` is a compatibility pointer for the operator's historical report
 renderer; add no second evaluation history there.
 
+## Control Center UI ownership
+
+The integrated read-only Observatory is in `apps/control-center/`; start with its English
+[`README`](../apps/control-center/README.md) and [`onboarding`](control-center/ONBOARDING.md).
+Its adapter is distinct from the production operator UI and displays historical pinned evidence,
+not current research/runtime state. Root canonical documents remain authoritative for Brain,
+source, evaluation and host policy. Scoped UI agent rules do not constrain unrelated core work.
+
+Imported `docs/control-center/` phase reports, design notes, UI memory history, screenshots and
+JSON receipts are preserved historical UI records (some retain their original Russian wording).
+Their previous host/branch/model/core-stage instructions are superseded by current onboarding.
+CC02 visual reconstruction remains pending; consolidation is not visual acceptance. No new core
+source or production control interface is authorized by importing these artifacts.
+
 ## Historical Pointers and Review Artifacts
 
-All Markdown in the current tree is English. The seven legacy protocol paths below are concise
+Active canonical Markdown is English; historical UI records are classified above.
+The seven legacy protocol paths below are concise
 archival pointers, not the hash-bound protocol inputs. Their exact original bytes remain in Git at
 `b3bb5e3350d8ae8b713ae034f0556289997fb0ec` and earlier history. Historical reproduction must
 checkout the recorded experiment commit and verify its original protocol hash. Do not run the old

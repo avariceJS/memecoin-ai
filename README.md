@@ -24,3 +24,10 @@ software behavior only; it does not establish market quality or trading edge.
 
 Do not overwrite existing `work/`, datasets, runs, model artifacts, or owner runtime. Read
 [`AGENTS.md`](AGENTS.md) before project work.
+
+## Read-only Observatory UI
+
+The integrated [Control Center app](apps/control-center/README.md) displays pinned historical
+engineering evidence, not current production state. `make check` includes its isolated Python
+boundary tests. After `npm --prefix apps/control-center/web ci`, run `make cc-web-check` for
+TypeScript, web tests and build. UI dependencies remain separate from the stdlib runtime.

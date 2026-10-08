@@ -11,6 +11,7 @@ check:
 	$(VENV)/ruff format --check src tests tools
 	$(VENV)/mypy src/memecoin_ai src/memecoin_registry src/memecoin_research src/memecoin_runner/contracts.py src/memecoin_runner/ledger.py src/memecoin_runner/scoring.py src/memecoin_sampling src/memecoin_collector src/memecoin_operational
 	$(VENV)/pytest -q
+	$(MAKE) cc-python-check
 
 test:
 	$(VENV)/pytest -q
@@ -38,3 +39,16 @@ ml-check:
 runner-check:
 	$(MLVENV)/mypy --python-version 3.13 src/memecoin_runner
 	$(MLVENV)/pytest tests/runner -q
+
+# Read-only Observatory checks; frontend dependencies stay separate from the stdlib runtime.
+.PHONY: cc-python-check cc-web-check
+cc-python-check:
+	$(VENV)/ruff check apps/control-center/adapter apps/control-center/scripts apps/control-center/tests
+	$(VENV)/ruff format --check apps/control-center/adapter apps/control-center/scripts apps/control-center/tests
+	$(VENV)/python -m unittest discover -s apps/control-center/tests -q
+	$(VENV)/python apps/control-center/adapter/export_snapshot.py --check
+
+cc-web-check:
+	npm --prefix apps/control-center/web run check
+	npm --prefix apps/control-center/web test
+	npm --prefix apps/control-center/web run build
