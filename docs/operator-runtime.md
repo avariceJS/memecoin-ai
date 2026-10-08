@@ -60,13 +60,32 @@ were not complete. Runtime09 was equivalent to runtime08 and did not contain Wat
 release requires a new pinned manifest plus the ordinary owner-host readiness, Pause, switch,
 health/PID/pin, and rollback checks. Do not infer deployment from a code commit.
 
-## Two-host boundary
+## Operating mode and host boundaries
 
-- Mac 1 owns production source/operator state and the deployment pointer.
-- Mac 2 is a worker checkout for isolated code/research and sealed artifact processing.
+Current policy is **single-host active development/research on Mac 1**. Mac 2 is a standby,
+inactive worker; two-host execution remains the supported future scale-out path. Migration
+completion and exact verified pins belong in `memory/now.md`, not assumptions about hostname.
+
+- Mac 1 research checkout: `/Users/root1/Developer/memecoin-research`, branch
+  `research/mac1-active`. Run development, offline research and research orchestration here.
+- Mac 1 owner checkout: `/Users/root1/Desktop/memecoin-ai`. Its source/operator state, deployment
+  pointer, runtime bundles, champion and paper ledgers remain separate. Never merge research
+  `work/` into owner `work/`, update the owner checkout as part of a research sync, or use production
+  services/credentials merely because they are local. New acquisition still needs its own approved
+  envelope, quota accounting and fresh owner fence; local transport does not waive these checks.
+- Research has its own `.venv`, optional `work/ml-venv`, artifacts and generation ownership. Do not
+  reuse a production virtualenv, change LaunchAgents, start another canonical source writer or
+  relaunch an expired campaign while preparing the research host.
+- Mac 2 checkout `/Users/sl-aleksandr/Developer/memecoin-worker` retains its history and artifacts
+  as a standby copy. No autonomous research, dispatch or acquisition starts there while inactive.
 - Transfer immutable captures, shards, datasets, or model bundles through a new incoming path;
-  verify manifest hashes and provenance before admission.
+  verify file inventories, manifest hashes and provenance before admission. Preserve failed runs,
+  STOP/recovery histories and uncommitted user files. Do not delete the sending copy upon cutover.
+- Frozen declarations may contain historical absolute paths. Preserve their bytes and identity;
+  use explicit new transport locators for portable sources/snapshots and new declarations for new
+  runs. Never rewrite sealed JSON or create fake old-host directory symlinks to make it appear local.
 - Do not synchronize mutable SQLite/WAL through cloud folders or run a second canonical writer.
+  Transfer stopped research state with all companion files; inspect writers before and after.
 - Account quotas are provider/account/IP scoped, not multiplied by machine count. Deduplicate
   request ranges across workers and reconcile reservations before resuming after a partition.
 - Worker checkout intentionally has no owner `work/`, LaunchAgents, or credentials. Never restore
@@ -74,6 +93,12 @@ health/PID/pin, and rollback checks. Do not infer deployment from a code commit.
 
 Bootstrap entrypoint: `tools/bootstrap_worker.command`. The full workflow formerly at
 `two-mac-workflow.md` is retained as a short compatibility pointer; current boundaries are here.
+
+To reactivate Mac 2: explicitly assign a bounded worker task, inspect both hosts and worker dirty
+state, fast-forward an isolated worker branch to an agreed commit, rebuild/check local dependencies,
+and transfer only required pinned inputs through verified incoming storage. Allocate independent
+research ownership/output paths and non-overlapping acquisition reservations. Return sealed outputs
+for Mac 1 verification. Owner runtime and credentials stay on Mac 1; activation is not promotion.
 
 ## LLM workers
 

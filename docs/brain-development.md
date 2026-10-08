@@ -161,7 +161,8 @@ domains; see [`contracts.md`](contracts.md).
 
 ## Owner and worker hosts
 
-Mac 1 is the owner/control host for production/source/operator state. Mac 2 has a worker checkout
-and can process sealed research artifacts. No shared mutable database or production credentials
-are transferred to the worker. The current release topology and exact dated owner status are in
+Mac 1 is the active development/research host as well as the owner/control host, using separate
+research and production checkouts, environments and state directories. Mac 2 is an inactive standby
+worker; the two-host path remains available for explicit future scale-out. No shared mutable database
+or production credentials are transferred to the worker. Current paths and exact dated status are in
 [`operator-runtime.md`](operator-runtime.md) and [`memory/now.md`](../memory/now.md).

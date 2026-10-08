@@ -9,6 +9,15 @@ No demonstrated executable edge. No promotion, signing, real-money trading, prot
 reserved holdout payload access. Preserve user-owned untracked `.codex/`. Grok is disabled; use
 Eliza for bounded nonsecret assistance and verify findings. Runtime dependencies remain stdlib.
 
+## Operating-mode migration in progress
+
+User selected single-host active development/research on Mac 1; Mac 2 is becoming standby.
+Destination: `/Users/root1/Developer/memecoin-research`, branch `research/mac1-active`.
+Do not treat the transfer as complete until the verified handoff receipt is recorded here.
+Mac 1 is currently reachable at **192.168.31.66**; the previous `172.22.124.203` timed out.
+Owner `/Users/root1/Desktop/memecoin-ai` is clean at `a594474`, operator revision 33 paused,
+runtime08 and champion unchanged. Research files will not be merged into owner state.
+
 ## Completed sparse/event-time stage
 
 - Code: `f9a0c1f` observation foundation; `86c33da` qualification checkpoint recovery;
