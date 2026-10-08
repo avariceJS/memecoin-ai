@@ -34,6 +34,15 @@ Published plan/method references: [pricing plans](https://www.alchemy.com/docs/r
 [`getSignaturesForAddress`](https://www.alchemy.com/docs/chains/solana/solana-api-endpoints/get-signatures-for-address).
 Measurements are specific to this bounded test date and do not establish sustained throughput.
 
+A separate 2026-10-09 PAYG probe returned 10 finalized signatures in descending slot order for one
+known pool (slots 454,538,107 through 453,121,085). This qualifies the small response shape only.
+Two 1,000-row MCP results could not be parsed as complete arrays, and two additional probe attempts
+have unresolved response/accounting state. No retry was issued. Alchemy's usage summary remained at
+5,520 CU but was only fresh through 21:36 UTC, so it could not reconcile the attempts. The
+[`probe receipt`](evidence/alchemy-signature-page-probe-2026-10-09.json) records the result and
+limitations. Use a direct capture transport with atomic raw sealing and preflighted hashing for
+future cursor qualification; the current MCP result surface is not a raw capture interface.
+
 ## Data funnel
 
 Every layer has a distinct denominator:
@@ -422,8 +431,10 @@ targets use `(decision,maturity]` and preserve the full horizon; exact price ret
 qualified observations at both the scheduled origin and endpoint. The dry-run budget interface
 returns evidence-pinned decisions only and cannot dispatch. One local schedule measurement processed
 1,025 origins into three 512-row pages in 0.041 s with 278,257 bytes traced peak (Python 3.13.6,
-arm64); this is not a throughput claim. Repeated population enrollment intervals fail closed at the
-current observation-index boundary.
+arm64); this is not a throughput claim. The observation index and sparse materializer now preserve
+multiple nonoverlapping enrollment intervals per entity; events, support and lifecycle facts must
+belong to exactly one interval, and history/targets cannot cross the gap. This is property-tested,
+not a large-scale throughput claim.
 
 `sparse.materialize` projects one selected stream plus lifecycle facts into existing generic v2
 snapshots. It accepts short histories, preserves event spacing, age, padding masks and known gap

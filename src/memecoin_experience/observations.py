@@ -253,9 +253,10 @@ class Source:
         db = sqlite3.connect(path)
         try:
             db.executescript("""pragma cache_size=-8192; pragma temp_store=FILE;
-            create table members(entity text primary key,start integer,end integer,
+            create table members(entity text,start integer,end integer,
               available integer,
-              payload text);
+              payload text,
+              primary key(entity,start,end));
             create table events(entity text,stream text,t integer,available integer,
               id text,rank integer,
               payload text,
@@ -304,14 +305,19 @@ class Source:
                     )
                 if n % 4096 == 0:
                     db.commit()
-            for table, lo, hi in (
-                ("events", "t", "t"),
-                ("lifecycle", "t", "t"),
-                ("support", "start", "end-1"),
+            overlaps = db.execute("""select 1 from (
+                select entity,start,lag(end) over(partition by entity order by start) prior_end
+                from members) where prior_end is not null and start<prior_end limit 1""").fetchone()
+            if overlaps:
+                raise ValueError("observation_overlapping_enrollment")
+            for table, condition in (
+                ("events", "r.t>=m.start and r.t<m.end"),
+                ("lifecycle", "r.t>=m.start and r.t<m.end"),
+                ("support", "r.start>=m.start and r.end<=m.end"),
             ):
                 missing = db.execute(
-                    f"select 1 from {table} r left join members m on r.entity=m.entity "
-                    f"where m.entity is null or r.{lo}<m.start or r.{hi}>=m.end limit 1"
+                    f"select 1 from {table} r where not exists (select 1 from members m "
+                    f"where m.entity=r.entity and {condition}) limit 1"
                 ).fetchone()
                 if missing:
                     raise ValueError("observation_outside_enrollment")
@@ -327,6 +333,7 @@ class Source:
                 "create index lifecycle_transition on lifecycle "
                 "(entity,json_extract(payload,'$.transition'),t)"
             )
+            db.execute("create index member_intervals on members(entity,start,end)")
             db.execute("create index event_arrivals on events(entity,stream,available,id)")
             db.execute("create index lifecycle_arrivals on lifecycle(entity,available,id)")
             db.execute("create unique index event_ids on events(entity,stream,id)")

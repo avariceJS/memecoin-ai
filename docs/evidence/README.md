@@ -7,6 +7,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
 ## Brain and operator
 
 - Alchemy Free/PAYG endpoint behavior, metered CU reconciliation and bounded errors: `alchemy-endpoint-qualification-2026-10-09.json` (no secrets; endpoint behavior only, no completeness claim).
+- One bounded PAYG `getSignaturesForAddress` page and MCP pagination/accounting limits:
+  `alchemy-signature-page-probe-2026-10-09.json` (one parsed 10-row page, no raw response, no
+  coverage or zero-activity claim; subsequent ambiguous attempts are disclosed in the receipt).
+- Sensing schedule, multistream point-in-time episode, enrollment re-entry and account-budget
+  dry-run tests are in `tests/test_experience_sensing.py` and `tests/test_experience_sparse.py`;
+  schedule resource measurements are synthetic and small.
 - Git consolidation: `brain-git-consolidation-2026-10-08.json`
   (research/UI ancestry, compatibility fixes, full Mac 1 regression and unchanged production fence).
 

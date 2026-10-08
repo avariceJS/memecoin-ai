@@ -368,3 +368,99 @@ def test_unrelated_growth_reuses_materialized_history(tmp_path):
     b = Snapshot(tmp_path / "snapshots", second["snapshot"])
     assert first["snapshot"] != second["snapshot"]
     assert list(a.parts) == list(b.parts)[: len(a.parts)]
+
+
+def test_reenrollment_intervals_remain_distinct_and_do_not_join_history(tmp_path):
+    entity = "test/market/reentered"
+    base = dict(entity=entity, evidence=["a" * 64])
+    rows = [
+        dict(base, kind="enrollment", start_ns=0, end_ns=4 * NS, available_ns=0),
+        dict(base, kind="enrollment", start_ns=10 * NS, end_ns=20 * NS, available_ns=10 * NS),
+        dict(
+            base,
+            kind="event",
+            stream="ticks",
+            id="first-life",
+            event_ns=1 * NS,
+            available_ns=1 * NS,
+            values=[10.0],
+        ),
+        dict(
+            base,
+            kind="event",
+            stream="ticks",
+            id="second-life",
+            event_ns=11 * NS,
+            available_ns=11 * NS,
+            values=[20.0],
+        ),
+        dict(
+            base,
+            kind="support",
+            stream="ticks",
+            start_ns=0,
+            end_ns=4 * NS,
+            available_ns=4 * NS,
+            status="complete",
+        ),
+        dict(
+            base,
+            kind="support",
+            stream="ticks",
+            start_ns=10 * NS,
+            end_ns=20 * NS,
+            available_ns=20 * NS,
+            status="complete",
+        ),
+    ]
+    s = source(tmp_path, sorted(rows, key=observations.key))
+    db = s.index(tmp_path / "reentered-index.sqlite")
+    try:
+        assert db.execute("select count(*) from members").fetchone()[0] == 2
+        samples = list(sparse.samples(db, s, plan()))
+    finally:
+        db.close()
+    assert [row["decision_ns"] for row in samples] == [1 * NS, 11 * NS]
+    assert all(row["target_status"][1] == "censored" for row in samples)
+    assert [row["target_details"][1]["lower_bound"] for row in samples] == [0, 0]
+
+
+@pytest.mark.parametrize("invalid", ["event_in_gap", "overlap", "support_crosses_gap"])
+def test_reenrollment_rejects_unowned_or_overlapping_facts(tmp_path, invalid):
+    entity = "test/market/reentered"
+    base = dict(entity=entity, evidence=["a" * 64])
+    rows = [
+        dict(base, kind="enrollment", start_ns=0, end_ns=4 * NS, available_ns=0),
+        dict(base, kind="enrollment", start_ns=10 * NS, end_ns=20 * NS, available_ns=10 * NS),
+    ]
+    if invalid == "event_in_gap":
+        rows.append(
+            dict(
+                base,
+                kind="event",
+                stream="ticks",
+                id="gap-event",
+                event_ns=5 * NS,
+                available_ns=5 * NS,
+                values=[10.0],
+            )
+        )
+    elif invalid == "overlap":
+        rows.append(
+            dict(base, kind="enrollment", start_ns=3 * NS, end_ns=12 * NS, available_ns=3 * NS)
+        )
+    else:
+        rows.append(
+            dict(
+                base,
+                kind="support",
+                stream="ticks",
+                start_ns=2 * NS,
+                end_ns=11 * NS,
+                available_ns=11 * NS,
+                status="complete",
+            )
+        )
+    s = source(tmp_path, sorted(rows, key=observations.key))
+    with pytest.raises(ValueError, match="observation_(outside_enrollment|overlapping_enrollment)"):
+        s.index(tmp_path / "invalid-reentered-index.sqlite")

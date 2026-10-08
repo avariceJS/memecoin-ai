@@ -1,3 +1,4 @@
+import json
 import math
 import struct
 import time
@@ -44,14 +45,29 @@ def _process(store, name, stream, field, unit):
     return contract, qualification.process_contract_pin(contract, store=store)
 
 
-def _verified_member(store, process, process_pin, entity, field, values):
+def _verified_member(
+    store,
+    process,
+    process_pin,
+    entity,
+    field,
+    values,
+    *,
+    start=0,
+    end=101,
+    available=101,
+    fixture_available=None,
+    closed_through=None,
+):
+    closed_through = end if closed_through is None else closed_through
+    fixture_available = available if fixture_available is None else fixture_available
     fixture = dict(
         version="synthetic-qualification-fixture-v1",
         entity=entity,
-        start_ns=0,
-        end_ns=101,
-        available_ns=101,
-        closed_through_ns=101,
+        start_ns=start,
+        end_ns=end,
+        available_ns=fixture_available,
+        closed_through_ns=closed_through,
         events=[dict(id=f"{field}-{t}", event_ns=t, values=[value]) for t, value in values],
         unresolved_events=[],
         rejected_events=[],
@@ -62,14 +78,16 @@ def _verified_member(store, process, process_pin, entity, field, values):
     counts = dict(
         captured=len(values), decoded=len(values), rejected=0, qualified=len(values), unresolved=0
     )
+    status = "complete" if closed_through == end else "partial"
+    capabilities = CAPS if status == "complete" else ["observation_support", "population_coverage"]
     member = dict(
         entity=entity,
-        start_ns=0,
-        end_ns=101,
-        available_ns=101,
-        status="complete",
+        start_ns=start,
+        end_ns=end,
+        available_ns=available,
+        status=status,
         counts=counts,
-        capabilities=CAPS,
+        capabilities=capabilities,
         evidence=sorted(["a" * 64, input_pin]),
         verification=None,
     )
@@ -96,7 +114,7 @@ def _receipt(store, pop_pin, process, process_pin, scope_pin, members):
         scope_pin=scope_pin,
         role="train",
         accounting_unit="candidate_process_records",
-        available_ns=101,
+        available_ns=max(m["available_ns"] for m in members),
         counts=counts,
         capabilities=CAPS,
     )
@@ -122,7 +140,7 @@ def _destination(process, process_pin):
 
 
 def _build_fixture(tmp_path):
-    entity_a, entity_b = "chain/market/A", "chain/market/B"
+    entity_a, entity_b, entity_c = "chain/market/A", "chain/market/B", "chain/market/C"
     population_store = tmp_path / "population"
     population_pin = catalog.publish(
         population_store,
@@ -130,12 +148,33 @@ def _build_fixture(tmp_path):
         [
             dict(entity=e, start_ns=0, end_ns=200, known_ns=20, attributes={}, evidence=["a" * 64])
             for e in (entity_a, entity_b)
+        ]
+        + [
+            dict(
+                entity=entity_c,
+                start_ns=start,
+                end_ns=end,
+                known_ns=start,
+                attributes={},
+                evidence=["a" * 64],
+            )
+            for start, end in ((0, 50), (70, 200))
+        ]
+        + [
+            dict(
+                entity="chain/market/D",
+                start_ns=0,
+                end_ns=200,
+                known_ns=0,
+                attributes={},
+                evidence=["a" * 64],
+            )
         ],
         cutoff_ns=200,
         definition=dict(role="train", selection="synthetic sensing episode"),
     )
     receipt_store = tmp_path / "qualification"
-    processes, pins, receipt_pins = [], [], []
+    processes, pins, receipt_pins, qualified_members = [], [], [], []
     fixture_values = {
         "trades": [(2, 1.0), (12, 2.0), (31, 3.0), (95, 4.0), (96, 5.0), (100, 6.0)],
         "prices": [(2, 1.0), (12, 2.0), (30, 4.0), (100, 8.0)],
@@ -150,6 +189,41 @@ def _build_fixture(tmp_path):
                 receipt_store, process, process_pin, entity_a, field, fixture_values[stream]
             ),
             _verified_member(receipt_store, process, process_pin, entity_b, field, [(2, 1.0)]),
+            _verified_member(
+                receipt_store,
+                process,
+                process_pin,
+                entity_c,
+                field,
+                [(2, 1.0), (12, 2.0)],
+                start=0,
+                end=50,
+                available=50,
+            ),
+            _verified_member(
+                receipt_store,
+                process,
+                process_pin,
+                entity_c,
+                field,
+                [(72, 1.0), (82, 2.0), (84, 3.0)],
+                start=70,
+                end=200,
+                available=200,
+            ),
+            _verified_member(
+                receipt_store,
+                process,
+                process_pin,
+                "chain/market/D",
+                field,
+                [(2, 1.0), (12, 2.0), (31, 3.0)],
+                start=0,
+                end=200,
+                available=200,
+                fixture_available=60,
+                closed_through=60,
+            ),
         ]
         scope_pin = qualification.publish_scope(
             receipt_store,
@@ -166,6 +240,7 @@ def _build_fixture(tmp_path):
         processes.append(process)
         pins.append(process_pin)
         receipt_pins.append(receipt_pin)
+        qualified_members.append(members)
     streams = {
         process["stream"]: dict(
             process=process["name"],
@@ -185,22 +260,33 @@ def _build_fixture(tmp_path):
             dict(
                 kind="enrollment",
                 entity=member["entity"],
-                start_ns=0,
-                end_ns=200,
-                available_ns=20,
+                start_ns=member["start_ns"],
+                end_ns=member["end_ns"],
+                available_ns=member["known_ns"],
                 evidence=[population_pin],
             )
         )
-    for process, process_pin, receipt_pin in zip(processes, pins, receipt_pins, strict=True):
+    for process, process_pin, receipt_pin, members in zip(
+        processes, pins, receipt_pins, qualified_members, strict=True
+    ):
         field = "price" if process["stream"] == "prices" else "count"
-        for member in (entity_a, entity_b):
+        for member_row in members:
+            member = member_row["entity"]
+            verification = member_row["verification"]
+            fixture = json.loads(
+                (
+                    receipt_store
+                    / "qualification-synthetic-fixtures"
+                    / f"{verification['input_pin']}.json"
+                ).read_text()
+            )
             assertion = dict(
                 receipt_pin=receipt_pin,
                 scope_pin=qualification.load_receipt(receipt_store, receipt_pin)["scope_pin"],
                 population_pin=population_pin,
                 entity=member,
-                start_ns=0,
-                end_ns=101,
+                start_ns=member_row["start_ns"],
+                end_ns=member_row["end_ns"],
             )
             rows.append(
                 qualification.observation_fact(
@@ -211,35 +297,22 @@ def _build_fixture(tmp_path):
                     destination_schema=_destination(process, process_pin),
                 )
             )
-            for t, value in fixture_values[process["stream"]] if member == entity_a else [(2, 1.0)]:
+            for event in fixture["events"]:
                 rows.append(
                     dict(
                         kind="event",
                         entity=member,
                         stream=process["stream"],
-                        id=f"{field}-{t}",
-                        event_ns=t,
-                        available_ns=101,
+                        id=event["id"],
+                        event_ns=event["event_ns"],
+                        available_ns=fixture["available_ns"],
                         evidence=sorted(
                             [
                                 receipt_pin,
-                                next(
-                                    p["input_pin"]
-                                    for m in qualification._scope_members(
-                                        receipt_store,
-                                        qualification._scope_manifest(
-                                            receipt_store,
-                                            qualification.load_receipt(receipt_store, receipt_pin)[
-                                                "scope_pin"
-                                            ],
-                                        ),
-                                    )
-                                    if m["entity"] == member
-                                    for p in [m["verification"]]
-                                ),
+                                verification["input_pin"],
                             ]
                         ),
-                        values=[value],
+                        values=event["values"],
                     )
                 )
     observation_store = tmp_path / "observations"
@@ -280,6 +353,9 @@ def test_two_process_sensing_episode_is_reconciled_asof_and_replayable(tmp_path)
                 dict(entity="chain/market/A", decision_ns=95),
                 dict(entity="chain/market/A", decision_ns=101),
                 dict(entity="chain/market/B", decision_ns=20),
+                dict(entity="chain/market/C", decision_ns=20),
+                dict(entity="chain/market/C", decision_ns=80),
+                dict(entity="chain/market/D", decision_ns=10),
             ]
         ),
         population_store=f["population_store"],
@@ -318,7 +394,7 @@ def test_two_process_sensing_episode_is_reconciled_asof_and_replayable(tmp_path)
             raw[i : i + snapshot.schema["context"] * width]
             for i in range(0, len(raw), snapshot.schema["context"] * width)
         )
-    assert len(rows) == 4
+    assert len(rows) == 7
     quiet = next(r for r in rows if r["pool"].endswith("/A") and r["decision_ns"] == 20)
     quiet_row = rows.index(quiet)
     assert all(
@@ -362,7 +438,16 @@ def test_two_process_sensing_episode_is_reconciled_asof_and_replayable(tmp_path)
     assert (
         ready["input_start_ns"] == 0
     )  # support interval dependency is purged from its valid-time start
-    assert first["accounting"] == {"schedule_origins": 4, "quiet_origins": 3}
+    assert first["accounting"] == {"schedule_origins": 7, "quiet_origins": 6}
+    reentered = next(r for r in rows if r["pool"].endswith("/C") and r["decision_ns"] == 80)
+    assert reentered["target_status"][count_index] == "observed"
+    reentered_row = rows.index(reentered)
+    assert target_values[reentered_row][count_index] == 2.0
+    partial = next(r for r in rows if r["pool"].endswith("/D"))
+    assert partial["target_status"][count_index] == "censored"
+    assert math.isnan(target_values[rows.index(partial)][count_index])
+    assert partial["target_details"][count_index]["lower_bound"] == 1
+    assert partial["target_details"][count_index]["lower_bound_available_ns"] == 60
     replay = sensing.materialize_episode(
         f["observation_store"],
         f["wrapper"]["source_pin"],

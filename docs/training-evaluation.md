@@ -931,8 +931,11 @@ available at its allowed time; stale-origin substitution is rejected. Target mat
 full requested horizon. A schedule page is explicitly treated as available at its decision time.
 
 The synthetic end-to-end test binds two process streams to separate receipts, retains quiet origins,
-checks a zero count and event-window boundaries, and confirms replay gives the same snapshot pin
-after source replication. The dry-run budget function uses request identities, a reservation ledger,
+checks a zero count, a positive partial lower bound that remains censored with a masked target,
+event-window boundaries, and replay identity after source replication. A repeated-enrollment entity
+proves the snapshot does not bridge the interval gap. This checks the snapshot contract that the
+existing opt-in censor objective consumes; no model fit on this sensing snapshot was performed. The
+dry-run budget function uses request identities, a reservation ledger,
 unit-matched cost evidence and verified account entitlement; usage without an entitlement blocks.
 Ambiguous or unpriced outstanding attempts block the shared account pending reconciliation. It
 records decisions only and has no dispatch path.
@@ -940,6 +943,7 @@ records decisions only and has no dispatch path.
 Measured synthetic schedule profile: 1,025 sorted origins, 512 rows/page, three sealed pages;
 0.041 s and 278,257 bytes peak traced Python allocation in one local run (Python 3.13.6, arm64).
 This measures only schedule publication at this fixture size; it is not a throughput or capacity
-claim. The observation index supports one enrollment interval per entity, so a sensing source with
-repeated enrollment intervals fails closed. No real provider source, account, credential or market
-payload was used, and no learning or execution result was measured.
+claim. Observation indexes support multiple nonoverlapping enrollment intervals and reject events
+or support that cross an interval boundary; a focused sparse test proves target history does not
+cross a re-enrollment gap. No real market-event source was qualified by this synthetic episode,
+and no learning or execution result was measured.

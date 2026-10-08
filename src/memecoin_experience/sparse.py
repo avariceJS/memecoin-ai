@@ -214,14 +214,21 @@ def samples(db, source, plan, counts=None):
     names = [c["name"] for c in source.schema["streams"][stream]["features"]]
     relative = {names.index(n) for n in plan["relative_features"]}
     point = source.schema["availability"] == "point_in_time"
-    for entity, start, end, enrolled_at, _ in db.execute("select * from members order by entity"):
+    for entity, start, end, enrolled_at, _ in db.execute(
+        "select * from members order by entity,start"
+    ):
         counts["enrolled_entities"] += 1
         clock = "available" if point else "t"
-        query = f"select {clock},id,'event',t from events where entity=? and stream=?"
-        args = [entity, stream]
+        query = (
+            f"select {clock},id,'event',t from events where entity=? and stream=? and t>=? and t<?"
+        )
+        args = [entity, stream, start, end]
         if plan["lifecycle_origins"]:
-            query += f" union all select {clock},id,'lifecycle',t from lifecycle where entity=?"
-            args.append(entity)
+            query += (
+                f" union all select {clock},id,'lifecycle',t from lifecycle "
+                "where entity=? and t>=? and t<?"
+            )
+            args.extend([entity, start, end])
         query += " order by 1,3,2"
         # Stable sample ids sort event before lifecycle at equal timestamps.
         for decision, anchor_id, kind, event_at in db.execute(query, args):
@@ -282,16 +289,16 @@ def samples(db, source, plan, counts=None):
             dependency(anchor)
             current = anchor["values"] if kind == "event" else [None] * len(names)
 
-            def life_values(at, entity=entity, known=known, dependency=dependency):
+            def life_values(at, entity=entity, start=start, known=known, dependency=dependency):
                 result = []
                 for transition in plan["lifecycle"]:
                     # Predicate uses event AND knowledge clocks. Never infer terminal state.
                     r = db.execute(
                         "select payload from lifecycle "
-                        "where entity=? and t<=? "
+                        "where entity=? and t>=? and t<=? "
                         "and available<=? and json_extract(payload,'$.transition')=? "
                         "order by t desc,id desc limit 1",
-                        (entity, at, known, transition),
+                        (entity, start, at, known, transition),
                     ).fetchone()
                     if r:
                         fact = json.loads(r[0])

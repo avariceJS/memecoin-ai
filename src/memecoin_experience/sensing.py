@@ -218,15 +218,13 @@ def _expected_source_rows(
                 available_ns=member["known_ns"],
                 evidence=[population_pin],
             )
-            try:
-                db.execute(
-                    "insert into expected_enrollment values(?,?)",
-                    (member["entity"], canonical(enrollment).decode()),
-                )
-            except sqlite3.IntegrityError as exc:
-                raise ValueError(
-                    "sensing_population_multiple_enrollment_intervals_unsupported"
-                ) from exc
+            db.execute(
+                "insert into expected_enrollment values(?,?)",
+                (
+                    canonical([member["entity"], member["start_ns"], member["end_ns"]]).decode(),
+                    canonical(enrollment).decode(),
+                ),
+            )
         for ref in receipt_refs:
             receipt = qualification.load_receipt(qualification_store, ref["receipt_pin"])
             process, process_pin = receipt["process_contract"], receipt["process_contract_pin"]
@@ -393,7 +391,8 @@ def publish_source(
                 if kind == "lifecycle":
                     raise ValueError("sensing_lifecycle_requires_independent_evidence")
                 if kind == "enrollment":
-                    key, table = row["entity"], "expected_enrollment"
+                    key = canonical([row["entity"], row["start_ns"], row["end_ns"]]).decode()
+                    table = "expected_enrollment"
                 elif kind == "event":
                     key = canonical(
                         [row["entity"], row["stream"], row["event_ns"], row["id"]]
@@ -593,7 +592,9 @@ def materialize_episode(
                 entity = origin["entity"]
                 decision = origin["decision_ns"]
                 member = db.execute(
-                    "select start,end,available from members where entity=?", (entity,)
+                    "select start,end,available from members where entity=? "
+                    "and start<=? and end>? and available<=? order by start desc limit 1",
+                    (entity, decision, decision, decision),
                 ).fetchone()
                 if member is None or not member[0] <= decision < member[1] or member[2] > decision:
                     raise ValueError("sensing_schedule_origin_outside_available_population")
@@ -757,7 +758,9 @@ def materialize_episode(
                             targets.append(None)
                             continue
                         member = db.execute(
-                            "select end from members where entity=?", (entity,)
+                            "select end from members where entity=? and start<=? and end>? "
+                            "order by start desc limit 1",
+                            (entity, decision, decision),
                         ).fetchone()
                         if member is None:
                             raise ValueError("sensing_schedule_nonmember")
@@ -825,7 +828,9 @@ def materialize_episode(
                     maturity = decision + horizon
                     maturity_values.append(maturity)
                     member = db.execute(
-                        "select end from members where entity=?", (entity,)
+                        "select end from members where entity=? and start<=? and end>? "
+                        "order by start desc limit 1",
+                        (entity, decision, decision),
                     ).fetchone()
                     if member is None:
                         raise ValueError("sensing_schedule_nonmember")

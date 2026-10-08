@@ -46,6 +46,9 @@ Domain-specific behavior belongs in the architecture, data, training/evaluation,
   fitting and record source membership, pool/mint identity, and exposure.
 - Failed/unsupported markets remain in the original enrollment denominator; do not replace them
   after observing their outcomes.
+- A population entity may have multiple nonoverlapping enrollment intervals. Every event, lifecycle
+  fact and support interval must belong to exactly one enrollment interval; feature history and
+  target windows stop at its boundaries and cannot bridge an unobserved gap.
 - Sparse endpoint returns require an exact unique observed future endpoint and a positive observed
   origin value, not uninterrupted intervening events. In arrival mode the origin value may be old;
   its age is explicit and it is not a newly observed decision-time mark. No exact endpoint means
