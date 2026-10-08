@@ -20,6 +20,8 @@ def compose(store, pins):
         raise ValueError("experience_composition_inputs")
     store = safe_path(store)
     snapshots = [Snapshot(store, pin) for pin in sorted(pins)]
+    if any("admission" in s.manifest["binding"] for s in snapshots):
+        raise ValueError("experience_compose_before_admission")
     schema = snapshots[0].schema
     role = snapshots[0].manifest["binding"].get("role", "train")
     if any(

@@ -23,6 +23,8 @@ def replicate(source, target, pin):
             for i, entry in enumerate(snapshot.parts):
                 origin, _ = snapshot.partition(i)
                 yield origin, entry
+                if "admission" in entry:
+                    yield object_path(source, entry["admission"]), dict(pin=entry["admission"])
 
         for origin, entry in objects():
             destination = object_path(target, entry["pin"])

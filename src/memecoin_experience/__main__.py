@@ -19,6 +19,10 @@ def main():
     builder = commands.add_parser("build")
     builder.add_argument("--plan", required=True, type=Path)
     builder.add_argument("--store", required=True, type=Path)
+    admission = commands.add_parser("admit")
+    admission.add_argument("--store", required=True, type=Path)
+    admission.add_argument("--snapshot", required=True)
+    admission.add_argument("--plan", required=True, type=Path)
     inspector = commands.add_parser("inspect")
     inspector.add_argument("--store", required=True, type=Path)
     inspector.add_argument("--snapshot", required=True)
@@ -46,7 +50,11 @@ def main():
     predictor.add_argument("--pin", required=True)
     predictor.add_argument("--frames", required=True, type=Path)
     args = parser.parse_args()
-    if args.action == "pipeline":
+    if args.action == "admit":
+        from .admission import create
+
+        result = create(args.store, args.snapshot, **json.loads(args.plan.read_text()))
+    elif args.action == "pipeline":
         from .pipeline import run
 
         result = run(args.root, json.loads(args.plan.read_text()))

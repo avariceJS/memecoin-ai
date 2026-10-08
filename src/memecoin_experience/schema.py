@@ -81,7 +81,8 @@ def membership(row, plan, schema):
             if row["input_start_ns"] < start:
                 return "purged", [False] * len(schema["targets"])
             return role, [
-                s == "observed"
+                row.get("_admission", "eligible") == "eligible"
+                and s == "observed"
                 and t < end
                 and (schema["availability"] == "historical_replay" or a < end)
                 for s, t, a in zip(

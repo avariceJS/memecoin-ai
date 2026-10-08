@@ -33,7 +33,8 @@ NAMESPACE = "geckoterminal/usd/base/5min/first-qualified-receipt"
 
 
 def source_plan(plan):
-    if set(plan) != {"role", "cutoff_ns", "start_s", "end_s", "selection", "pools"}:
+    required = {"role", "cutoff_ns", "start_s", "end_s", "selection", "pools"}
+    if not required <= set(plan) or set(plan) - required - {"intervals"}:
         raise ValueError("experience_export_plan")
     if plan["role"] not in {"train", "research_evaluation"}:
         raise ValueError("experience_reserved_source")
@@ -58,7 +59,30 @@ def source_plan(plan):
         ):
             raise ValueError("experience_export_enrollment")
         seen.add(pool["pool"])
+    if "intervals" in plan:
+        if not isinstance(plan["intervals"], dict) or set(plan["intervals"]) != seen:
+            raise ValueError("experience_export_intervals")
+        for intervals in plan["intervals"].values():
+            previous = plan["start_s"]
+            if not isinstance(intervals, list):
+                raise ValueError("experience_export_intervals")
+            for pair in intervals:
+                if (
+                    not isinstance(pair, list)
+                    or len(pair) != 2
+                    or any(type(t) is not int or t % BAR for t in pair)
+                    or not previous <= pair[0] < pair[1] <= plan["end_s"]
+                ):
+                    raise ValueError("experience_export_intervals")
+                previous = pair[1]
     return plan
+
+
+def selected(plan, pool, t):
+    return any(
+        start <= t < end
+        for start, end in plan.get("intervals", {}).get(pool, [[plan["start_s"], plan["end_s"]]])
+    )
 
 
 def qualify_capture(path, pool):
@@ -91,7 +115,16 @@ def qualify_capture(path, pool):
         )
     ):
         return [], "unsupported_namespace"
-    payload = json.loads((path / "response.bin").read_text())
+    if receipt.get("http_status", 200) != 200:
+        return [], "http_failure"
+    if receipt.get("status", "received") not in {"received", "completed"}:
+        return [], "capture_failure"
+    try:
+        payload = json.loads((path / "response.bin").read_text())
+    except (ValueError, UnicodeError):
+        return [], "malformed_payload"
+    if not isinstance(payload, dict):
+        return [], "malformed_payload"
     metadata = payload.get("meta")
     if not isinstance(metadata, dict) or any(
         not isinstance(metadata.get(side), dict)
@@ -99,6 +132,15 @@ def qualify_capture(path, pool):
         for side in ("base", "quote")
     ):
         return [], "mint_mismatch"
+    try:
+        raw = payload["data"]["attributes"]["ohlcv_list"]
+    except (KeyError, TypeError):
+        return [], "malformed_payload"
+    if not isinstance(raw, list) or any(
+        not isinstance(r, list) or len(r) != 6 or any(type(v) not in (int, float) for v in r)
+        for r in raw
+    ):
+        return [], "bar_schema_or_alignment"
     try:
         return bars(path, pool["pool"]), "qualified"
     except ValueError as exc:
@@ -188,7 +230,7 @@ def export(index, output, plan):
                             ):
                                 raise ValueError("experience_index_raw_mismatch")
                             count += 1
-                            if not plan["start_s"] <= row["open_s"] < plan["end_s"]:
+                            if not selected(plan, row["pool"], row["open_s"]):
                                 continue
                             old = spool.execute(
                                 "select av,pin,payload from rows where pool=? and t=?",
@@ -234,7 +276,12 @@ def export(index, output, plan):
                 n = spool.execute(
                     "select count(*) from rows where pool=?", (pool["pool"],)
                 ).fetchone()[0]
-                expected = (plan["end_s"] - plan["start_s"]) // BAR
+                expected = sum(
+                    (end - start) // BAR
+                    for start, end in plan.get("intervals", {}).get(
+                        pool["pool"], [[plan["start_s"], plan["end_s"]]]
+                    )
+                )
                 coverage.append(
                     dict(
                         pool=pool["pool"],
@@ -321,7 +368,7 @@ def source(reference, cutoff, *, role="train"):
         for row in checked_rows((json.loads(line) for line in stream), cutoff):
             if (
                 row["pool"] not in pools
-                or not plan["start_s"] <= row["open_s"] < plan["end_s"]
+                or not selected(plan, row["pool"], row["open_s"])
                 or raw_rows(row["capture_sha"], row["pool"]).get(row["open_s"]) != row
             ):
                 raise ValueError("experience_raw_row_mismatch")

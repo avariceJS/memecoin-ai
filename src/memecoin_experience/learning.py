@@ -45,6 +45,7 @@ def recipe(config):
         checkpoint_every=100,
         cpu_threads=1,
         model_kind="gru-quantiles-v1",
+        normalization="legacy_variance_floor_v1",
     )
     if set(config) - set(defaults):
         raise ValueError("experience_training_config")
@@ -68,6 +69,8 @@ def recipe(config):
         raise ValueError("experience_training_config")
     from .models import KINDS
 
+    if c["normalization"] not in {"legacy_variance_floor_v1", "constant_feature_scale_one_v1"}:
+        raise ValueError("experience_training_config")
     if c["model_kind"] not in KINDS:
         raise ValueError("experience_training_config")
     return c
@@ -163,7 +166,7 @@ def batches(snapshot, plan, role, batch, *, seed=None, epoch=0, cursor=(0, 0), w
         yield packed((len(snapshot.parts), 0))
 
 
-def prepare(snapshot, plan, output, batch):
+def prepare(snapshot, plan, output, batch, normalization="legacy_variance_floor_v1"):
     """Train-only Welford statistics and exact empirical quantiles via disposable disk sort."""
     names, horizons = feature_names(snapshot.schema), target_names(snapshot.schema)
     counts = np.zeros(len(names), dtype=np.int64)
@@ -229,14 +232,23 @@ def prepare(snapshot, plan, output, batch):
         path.unlink(missing_ok=True)
     if any(not population[r + "_usable"] for r in ("train", "validation", "test")):
         raise ValueError("experience_empty_role")
+    scale = np.maximum(np.sqrt(m2 / np.maximum(counts, 1)), 1e-6)
+    if normalization == "constant_feature_scale_one_v1":
+        scale[m2 == 0] = 1.0
+    elif normalization != "legacy_variance_floor_v1":
+        raise ValueError("experience_normalization")
     return dict(
         mean=means.tolist(),
-        scale=np.maximum(np.sqrt(m2 / np.maximum(counts, 1)), 1e-6).tolist(),
+        scale=scale.tolist(),
         feature_observations=counts.tolist(),
         baseline=baseline,
         population=dict(population),
         denominators=dict(denominators),
-        normalization="train_usable_decision_frames_population_variance",
+        normalization=(
+            "train_usable_decision_frames_population_variance"
+            if normalization == "legacy_variance_floor_v1"
+            else normalization
+        ),
         sampling=(
             "uniform_usable_origin_once_per_epoch_catalog_partition_row_shuffle"
             if "partition_pages" in snapshot.manifest
@@ -387,7 +399,7 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
                 raise ValueError("experience_statistics_binding")
         else:
             # statistics.json without a final binding is an uncommitted derived file.
-            stats = prepare(snapshot, plan, output, config["batch"])
+            stats = prepare(snapshot, plan, output, config["batch"], config["normalization"])
             if ancestor is not None:
                 stats.update(
                     mean=ancestor.stats["mean"],

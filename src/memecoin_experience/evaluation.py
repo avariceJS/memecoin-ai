@@ -27,7 +27,16 @@ from .storage import (
 
 
 def register(
-    root, artifact, artifact_pin, *, start_s, end_s, pools=None, scope="retrospective", cohorts=None
+    root,
+    artifact,
+    artifact_pin,
+    *,
+    start_s,
+    end_s,
+    pools=None,
+    scope="retrospective",
+    cohorts=None,
+    input_admission=None,
 ):
     from .predict import Predictor
 
@@ -68,6 +77,10 @@ def register(
         data_role="research_evaluation",
         production_eligible=False,
     )
+    if input_admission is not None:
+        from .admission import validate_policy
+
+        protocol["input_admission"] = validate_policy(input_admission)
     if cohorts is not None:
         from memecoin_population.evaluation import contract
 
@@ -143,6 +156,15 @@ def score(
         raise ValueError("experience_evaluation_population_cutoff")
     if ("cohorts" in protocol) != (population_store is not None):
         raise ValueError("experience_evaluation_population_transport")
+    admission = snapshot.manifest["binding"].get("admission")
+    if (
+        (admission is None) != ("input_admission" not in protocol)
+        or admission is not None
+        and (
+            admission["policy"] != protocol["input_admission"] or admission["selection"] is not None
+        )
+    ):
+        raise ValueError("experience_evaluation_admission_protocol")
     if snapshot.schema != protocol["schema"] or model.spec["schema"] != snapshot.schema:
         raise ValueError("experience_evaluation_schema")
     output = safe_path(output)
@@ -219,6 +241,8 @@ def score(
                             support[row["pool"]] += 1
                             usable_support[row["pool"]] += int(any(mask))
                         population["usable"] += int(any(mask))
+                        if admission is not None:
+                            population["admission/" + row["_admission"]] += 1
                         for name, status, valid in zip(
                             target_names(snapshot.schema), row["target_status"], mask, strict=True
                         ):

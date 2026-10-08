@@ -203,3 +203,43 @@ def test_null_mint_metadata_quarantines_one_capture(tmp_path):
     report = export(index, tmp_path / "export", plan)
     assert report["counts"]["mint_mismatch"] == 1
     assert report["bars"] == 0
+
+
+def test_per_entity_intervals_preserve_denominator_and_payload_boundary(tmp_path):
+    index, _, plan = fixture(tmp_path)
+    entity = plan["pools"][0]["pool"]
+    plan["pools"].append(dict(pool="unsupported", base_mint="D", quote_mint="E"))
+    plan["intervals"] = {
+        entity: [[300300, 300900], [303000, 303600]],
+        "unsupported": [[303000, 303600]],
+    }
+    report = export(index, tmp_path / "out", plan)
+    assert report["bars"] == 4
+    assert sum(c["expected_slots"] for c in report["coverage"]) == 6
+    assert sum(c["missing_slots"] for c in report["coverage"]) == 2
+    rows = list(source(dict(path=str(tmp_path / "out"), pin=report["pin"]), 10**18))
+    assert [r["open_s"] for r in rows] == [300300, 300600, 303000, 303300]
+    plan["intervals"][entity] = [[300300, 300900], [300600, 301200]]
+    with pytest.raises(ValueError, match="intervals"):
+        export(index, tmp_path / "bad", plan)
+
+
+@pytest.mark.parametrize("payload", [b"not json", b"[]", b'{"meta":{},"data":null}'])
+def test_malformed_and_failed_captures_are_quarantined(tmp_path, payload):
+    from memecoin_experience.continuous import qualify_capture
+    from memecoin_experience.storage import atomic_json, seal_files
+
+    _, cap, plan = fixture(tmp_path)
+    (cap / "manifest.json").unlink()
+    (cap / "response.bin").write_bytes(payload)
+    receipt = json.loads((cap / "receipt.json").read_text())
+    receipt["response_sha256"] = file_hash(cap / "response.bin")
+    atomic_json(cap / "receipt.json", receipt, replace=True)
+    seal_files(cap)
+    rows, reason = qualify_capture(cap, plan["pools"][0])
+    assert not rows and reason in {"malformed_payload", "mint_mismatch"}
+    (cap / "manifest.json").unlink()
+    receipt["http_status"] = 404
+    atomic_json(cap / "receipt.json", receipt, replace=True)
+    seal_files(cap)
+    assert qualify_capture(cap, plan["pools"][0]) == ([], "http_failure")

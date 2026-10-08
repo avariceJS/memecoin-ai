@@ -259,3 +259,20 @@ Each fact supplies a complete attribute map for its valid interval; later knowle
 map for lookup, not field-wise merging across unrelated producers. Explicit `unknown` request
 outcomes route to reconciliation, not another acquisition suggestion. Capture completeness and
 qualified grid support remain distinct: qualified counts cannot exceed a known denominator.
+
+### Independent birth population acquisition
+
+`tools/population_campaign.py` freezes public keyless acquisition from previously captured birth
+metadata, excludes prior/protected cohorts and their known base mints, and separates train/evaluation
+mints before price requests. The population is an authority/calendar-page prefix, with graduation
+and decoder-support bias; it is not a complete market census. Unsupported, empty and failed requests
+remain enrolled. No replacement based on returned prices, survival or current liquidity.
+
+Acquisition reserves each request durably before network IO, seals raw responses, enforces pacing,
+expiry/storage/request limits, and requires a caller-owned live owner fence. Sealed requests recover
+without another GET; ambiguous reservations and provider failures stop without automatic retry.
+A transient failed owner check occurs before reservation: later readiness checks may resume only
+unrequested work. Continuous export additionally supports optional per-entity disjoint `intervals`;
+coverage denominators use these intervals, avoiding invented missing history before market birth.
+HTTP failures, malformed payloads, namespace/mint failures and invalid bars stay quarantined in
+source accounting. Integrity failures still abort publication.

@@ -334,4 +334,7 @@ class Snapshot:
 
             if entry["bounds"] != bounds(rows):
                 raise ValueError("experience_partition_bounds")
+        from .admission import apply
+
+        apply(self, entry, rows)
         return path, rows

@@ -44,7 +44,7 @@ def checked_rows(rows, cutoff):
         yield row
 
 
-def experiences(rows, cutoff, context=8, *, horizons=HORIZONS):
+def experiences(rows, cutoff, context=8, *, horizons=HORIZONS, stable=False):
     """Emit all context-ready origins, including incomplete labels. Memory O(context)."""
     if type(context) is not int or not 1 <= context <= 256:
         raise ValueError("experience_context")
@@ -54,6 +54,10 @@ def experiences(rows, cutoff, context=8, *, horizons=HORIZONS):
         or len(set(horizons)) != len(horizons)
     ):
         raise ValueError("experience_horizons")
+    from .numerics import features as stable_features
+    from .numerics import log_ratio
+
+    producer = stable_features if stable else features
     for pool, stream in itertools.groupby(checked_rows(rows, cutoff), key=lambda r: r["pool"]):
         future = deque(itertools.islice(stream, max(horizons) + 1))
         past, frames = deque(maxlen=8), deque(maxlen=context)
@@ -66,7 +70,7 @@ def experiences(rows, cutoff, context=8, *, horizons=HORIZONS):
             previous = row["open_s"]
             past.append(row)
             dependencies = [(r["open_s"], r["available_ns"], r["capture_sha"]) for r in past]
-            values = features(list(past))
+            values = producer(list(past))
             if any(v is not None and not math.isfinite(v) for v in values):
                 raise ValueError("experience_nonfinite_feature")
             frames.append((values, dependencies))
@@ -78,9 +82,21 @@ def experiences(rows, cutoff, context=8, *, horizons=HORIZONS):
                     needed = [lookup.get(row["open_s"] + BAR * i) for i in range(1, horizon + 1)]
                     valid = all(r is not None for r in needed)
                     ratio = needed[-1]["ohlcv"][3] / row["ohlcv"][3] if valid else None
-                    if ratio is not None and (ratio <= 0 or not math.isfinite(ratio)):
+                    if (
+                        not stable
+                        and ratio is not None
+                        and (ratio <= 0 or not math.isfinite(ratio))
+                    ):
                         raise ValueError("experience_nonfinite_target")
-                    targets.append(math.log(ratio) if valid else None)
+                    targets.append(
+                        (
+                            log_ratio(needed[-1]["ohlcv"][3], row["ohlcv"][3])
+                            if stable
+                            else math.log(ratio)
+                        )
+                        if valid
+                        else None
+                    )
                     if targets[-1] is not None and not math.isfinite(targets[-1]):
                         raise ValueError("experience_nonfinite_target")
                     maturity = (row["open_s"] + (horizon + 1) * BAR) * NS

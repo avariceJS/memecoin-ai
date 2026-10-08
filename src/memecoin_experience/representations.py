@@ -6,11 +6,11 @@ from pathlib import Path
 from memecoin_brain import data
 from memecoin_brain.source import BAR, NS
 
-from . import records
+from . import numerics, records
 from .schema import validate
 
 
-def ohlcv_schema(context=8, horizons=(1, 3)):
+def ohlcv_schema(context=8, horizons=(1, 3), *, stable=False):
     if type(context) is not int or not 1 <= context <= 256:
         raise ValueError("experience_context")
     if (
@@ -20,7 +20,7 @@ def ohlcv_schema(context=8, horizons=(1, 3)):
     ):
         raise ValueError("experience_horizons")
     implementation = hashlib.sha256()
-    for module in (data, records):
+    for module in (data, records, numerics) if stable else (data, records):
         implementation.update(Path(module.__file__).read_bytes())
     implementation.update(Path(__file__).read_bytes())
     return validate(
@@ -49,7 +49,9 @@ def ohlcv_schema(context=8, horizons=(1, 3)):
                 for h in horizons
             ],
             representation=dict(
-                name="ohlcv-sequence", version="2", code_sha=implementation.hexdigest()
+                name="ohlcv-sequence",
+                version="3" if stable else "2",
+                code_sha=implementation.hexdigest(),
             ),
             availability="historical_replay",
         )
@@ -58,9 +60,12 @@ def ohlcv_schema(context=8, horizons=(1, 3)):
 
 def ohlcv_samples(rows, cutoff, schema):
     horizons = tuple(int(t["kind"].split("@")[1][:-1]) // BAR for t in schema["targets"])
-    if schema != ohlcv_schema(schema["context"], horizons):
+    stable = schema["representation"]["version"] == "3"
+    if schema != ohlcv_schema(schema["context"], horizons, stable=stable):
         raise ValueError("experience_representation_implementation")
-    for row in records.experiences(rows, cutoff, schema["context"], horizons=horizons):
+    for row in records.experiences(
+        rows, cutoff, schema["context"], horizons=horizons, stable=stable
+    ):
         yield dict(
             id=row["id"],
             pool=row["pool"],

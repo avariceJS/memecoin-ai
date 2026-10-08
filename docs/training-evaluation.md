@@ -666,3 +666,29 @@ one CUDA skip. Sets overlap. New cases cover temporal metadata ambiguity/unknown
 compaction/replication/corruption, sparse worker partitions, stream identity, count semantics,
 required diversity gates, zero-support cohorts, pipeline resume, checkpoint-journal corruption,
 uncheckpointed step replay, partial-horizon objective mass and portable artifact binding.
+
+### Input-only admission views
+
+`python -m memecoin_experience admit --store STORE --snapshot PIN --plan JSON` creates an
+immutable eligibility view. The JSON contains `policy` and optional `selection`. Current policy:
+`{"name":"causal_activity_v1","min_positive_volume_fraction":0.25,"min_context_volume_usd":100}`.
+It reads only OHLCV input frames with explicit USD/indicator semantics; it cannot inspect targets,
+future support, survival or current liquidity. These thresholds define a research objective, not
+proof that rejected markets are worthless or that accepted prices are executable.
+
+Views retain every physical row and target status. One byte per row records eligibility/reason in
+a separately hashed object, bound to the original partition and policy implementation. Feature and
+target columns are shared; training, normalization, diversity and exposure consume the same mask.
+Optional fixed entity selection applies before a declared decision timestamp, allowing narrower
+training with identical later validation/test populations. Compose raw snapshots before admission;
+composing or stacking admitted views fails explicitly. Replication includes mask objects.
+
+Evaluation of an admitted view requires the same input policy in its preregistration; entity
+selection is prohibited for evaluation views. Always report structural and input-qualified support
+separately. This is admission, not resampling or equal market weighting.
+
+OHLCV producer version 3 (`ohlcv_schema(..., stable=True)`) uses stable log ratios for extreme
+positive finite prices and an overflow-safe past volume average. Version 2 remains the default.
+The opt-in training recipe `normalization="constant_feature_scale_one_v1"` gives exactly constant
+features scale 1 instead of amplifying later unseen variation by 1e6; other scales retain the 1e-6
+floor. These choices are included in representation/recipe identities. Legacy defaults are retained.
