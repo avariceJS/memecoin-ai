@@ -8,45 +8,32 @@ Build a large Solana learning system with growing useful corpus, deliberate trai
 reproducible generations and independent evaluation. Two Macs are an initial stage. Preserve
 provenance, temporal correctness and recovery; no demonstrated executable trading edge.
 
-## Paused independent-population campaign — explicit user request
+## Independent-population campaign resumed and captured
 
-- **Do not resume until the user asks.** Safe stop at 2026-10-08 09:28:35 UTC. Acquisition,
-  its supervisor and the waiting trainer exited; capture lock is free. No training started.
-- Root: `work/brain-diverse-campaign-20261008/`. `pause-state.json` pins the plan, stopped ledger,
-  STOP and last sealed capture. 1,142 attempted requests: 1,141 received and one terminal transport
-  timeout (ordinal 925, never retried). No unresolved reservations. **86 requests remain.**
-- Frozen acquisition at `a994c9e`: 307 birth-enrolled pools (170 May–August train; 137 September
-  evaluation), cross-role base mints disjoint, prior/protected cohorts excluded before price IO.
-  Plan pin `d872e0d8d8266b2dd22b1c2a8ef7e505a12b6f93ccdf82df9b7b6f206d7e7de8`.
-  Original expiry: **2026-10-08 15:58:12 UTC**. No GET retries; never extend/overwrite frozen plans.
-- Current `capture/STOP.json` is `user_requested_pause`. Preserve it and pause evidence in history
-  when explicitly resuming. Recheck owner fence, ledger/capture hashes and expiry first. If expired,
-  use a new explicit continuation envelope for only unrequested jobs, linked to the original plan;
-  do not silently reuse/alter the expired envelope or rewrite previous outcomes.
-- Mac 1 is `192.168.31.68`, same pinned `.66` SSH host key. The guard required operator revision 33
-  paused, source STOP and unchanged source/config hashes before every GET. Transient unreadable
-  owner processes stopped before reservation; fresh checks resumed only unrequested work.
-- The timeout was reconciled explicitly at `4781ba5`: sealed prefix verified, original STOP archived
-  under `capture/recoveries/`, recovery receipt retained, failed request stayed terminal. A later
-  tested hardening reconstructs missing STOP after terminal DB commit and verifies prior failure
-  reviews. Provider stops and unknown reservations cannot use transport reconciliation.
-- `e6ec88b`: immutable causal admission masks, stable OHLCV v3, optional constant-feature scale 1,
-  preregistered quality evaluation. `73363fe`: role-separated source qualification, population
-  audits, owned generations and paired mint bootstrap. `e7477e0`: undeclared source intervals stay
-  unknown in population coverage. No real learning-gain result yet.
-- Frozen `learning-code/` at `73363fe` and `learning-source.json` are ready for the completed
-  acquisition. Three recipes: narrow/broad fresh training plus rounded row-draw compute control.
-  `control/` preserves acquisition/waiting/owner-guard/coverage helper scripts; **do not launch the
-  waiting trainer while paused**. `learning-supervisor02.log` records cancellation on STOP.
-- `evaluation-access.json` discloses one early raw response-shape/token-metadata/count inspection.
-  Recipes/cohort were fixed before all requests. Historical replay, not pristine blind or prospective
-  evaluation. No promotion, protected payload access, production changes or claimed learning gains.
-- Checks at `4781ba5`: `make check` 1,128 passed / 23 optional skips; smoke passed. Optional ML suite:
-  38 passed / one CUDA skip. Subsequent recovery crash regressions: 13 focused tests passed; sets
-  overlap. Final hardening is not covered by another full suite yet.
-- Eliza GLM/Qwen provided bounded source/admission/recovery/evaluation reviews; Kimi summarized
-  partial training inventory. Findings and numbers were checked locally. Recovery crash-window
-  findings were fixed; several unsupported helper claims were rejected. Grok remains disabled.
+- User resumed on 2026-10-08; Mac 1 is now `172.22.124.203` (same pinned `.66` SSH key).
+  Read-only fence passed: source stopped and unchanged, operator revision 33 paused, no busy jobs.
+- Root `work/brain-diverse-campaign-20261008/`. All 1,228 requests completed: 1,227 received,
+  one terminal timeout (ordinal 925, never retried). All 307 enrollments remain. Prior pause and
+  transport STOP bytes are archived unchanged; `user-resume01.json` binds the checked 1,142-prefix
+  and new transport locator. `capture/complete.json` is durable; no new acquisition is needed.
+- Frozen first learning run at `73363fe` is **infeasible**, not a successful experiment: original
+  Aug 8/11/15 splits have zero usable validation/test. Train source: 38,705 qualified in-window
+  bars, 8,792 context-ready rows, 8,627 originally usable train rows. All three models failed
+  support gates before fitting. Frozen harness nevertheless qualified the evaluation source;
+  no model scores exist. Preserve `learning/result.json` and `qualification.initial.json`.
+- Calendar support inventory used only the train-role snapshot: May 3,833 / June 157 / July 1,171 /
+  August 3,505 admitted rows with observed targets (before temporal boundary purges). Next explicit
+  learning declaration will use May–June train, July validation, August descriptive test; September
+  independent-mint evaluation remains retrospective and already source-qualified. Keep the original
+  capture plan, recipes and failed run immutable. No policy/model tuning from evaluation scores.
+- Current work adds separate hash-bound learning declarations, pre-fit split support checks,
+  no-candidate evaluation gating and independent reconciliation. Focused synthetic integration
+  passes, including changed-declaration rejection and no-context/empty-role reports. Full checks
+  are running. A pre-existing flaky operator test matched `b09` inside a random SHA; changed it
+  to assert the complete semantic admission contract, without production changes.
+- Frozen data/source archives, original access disclosure, all failed/empty market denominators
+  remain in this root. No promotion, protected payload access or provider retries. Grok disabled;
+  Eliza Qwen supplied a bounded counter/off-by-one inventory, checked against implementation.
 
 ## Current research state
 
@@ -88,7 +75,7 @@ provenance, temporal correctness and recovery; no demonstrated executable tradin
 
 ## Owner and protected boundary
 
-- Mac 1 is `192.168.31.68`, accessed as `root1` using the previously pinned SSH host key for its
+- Mac 1 is `172.22.124.203`, accessed as `root1` using the previously pinned SSH host key for its
   old `.66` address; strict host-key verification remained enabled.
 - Read-only owner check at 2026-10-08 05:22:19 UTC: operator revision 33, paused, expired,
   domain_stop=false; source STOP present. Configs, deployment pointer, universe and source range

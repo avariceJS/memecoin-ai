@@ -708,3 +708,17 @@ micro and equal-mint descriptive differences. It is conditional on one trainer s
 historical cohort; it does not establish prospective performance, causal value of diversity alone,
 execution quality or statistical independence across correlated mints. Empty roles/horizons and
 infeasible controls are recorded as failures, never successful models or zero losses.
+
+A later recipe uses `--learning-plan JSON` and a new run root. The
+`population-learning-plan-v1` declaration binds the original acquisition pin, complete protocol,
+reason and evidence pins. It is saved before conversion/fitting, cannot relabel acquisition roles
+or silently replace an existing run, and explicitly loses the pre-acquisition recipe claim.
+Check support across whole calendar cohorts before reserving expensive compute: the harness now
+reports empty train/validation/test roles before fitting and never opens evaluation payloads when
+no candidates completed. An already accessed evaluation cohort remains retrospective on reuse.
+
+`tools/population_campaign_report.py --campaign ROOT --root RUN --output JSON` independently
+reconciles the terminal ledger and sealed captures, qualified source/bar/context counts including
+zero-support entities, per-pool persisted contexts, admission/split counts, committed row draws,
+model artifacts and paired evaluation summaries. It performs no requests, fitting or selection.
+Infeasible runs remain explicit reports; an empty comparison list is not evidence of improvement.

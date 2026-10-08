@@ -644,7 +644,17 @@ def test_expected_deadline_admits_a_new_budget(tmp_path):
     assert admission["category"] == "source_stop_or_deadline"
     assert admission["stop_sha"] == sha(old / "STOP")
     assert admission["incident_sha"] == sha(old / name)
-    assert "b09" not in json.dumps(admission).lower()
+    # Arbitrary SHA-256 values can contain "b09"; assert the semantic contract instead.
+    assert admission == {
+        "kind": "expected_source_deadline",
+        "not_a_resume": True,
+        "reason": "source_worker_failure",
+        "category": "source_stop_or_deadline",
+        "incident_name": name,
+        "incident_ns": now,
+        "stop_sha": sha(old / "STOP"),
+        "incident_sha": sha(old / name),
+    }
     assert (old / "STOP").read_bytes() == raw
     assert sha(old / "index.sqlite") == index_hash
     assert current_source(root) == source

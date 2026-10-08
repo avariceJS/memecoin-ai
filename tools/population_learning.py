@@ -170,19 +170,68 @@ def compare(outputs, cases, *, draws=2000, seed=20261008):
     )
 
 
-def run(campaign, root):
+def learning_protocol(plan, declaration):
+    """A revised research recipe is a new declaration; acquisition history is immutable."""
+    if declaration is None:
+        return plan["protocol"]
+    from memecoin_experience.learning import recipe
+    from memecoin_experience.storage import PIN
+
+    if (
+        set(declaration) != {"version", "acquisition", "protocol", "reason", "evidence"}
+        or declaration["version"] != "population-learning-plan-v1"
+        or declaration["acquisition"] != digest(plan)
+        or not isinstance(declaration["reason"], str)
+        or not declaration["reason"].strip()
+        or not isinstance(declaration["evidence"], list)
+        or not declaration["evidence"]
+        or any(not isinstance(p, str) or not PIN.fullmatch(p) for p in declaration["evidence"])
+    ):
+        raise ValueError("population_learning_declaration")
+    protocol = declaration["protocol"]
+    if (
+        set(protocol) != set(plan["protocol"])
+        or protocol["models"] != ["narrow_fresh", "broad_fresh", "narrow_compute_control"]
+        or any(protocol[k] != plan["protocol"][k] for k in ("scope", "population_bias"))
+        or not protocol["baseline_pools"]
+        or len(set(protocol["baseline_pools"])) != len(protocol["baseline_pools"])
+        or not set(protocol["baseline_pools"])
+        <= {c["pool"] for c in plan["cases"] if c["role"] == "train"}
+    ):
+        raise ValueError("population_learning_protocol")
+    split_plan(protocol["split"])
+    representations.ohlcv_schema(protocol["context"], tuple(protocol["horizons"]), stable=True)
+    admission.validate_policy(protocol["quality"])
+    recipe(dict(protocol["config"], normalization=protocol["normalization"]))
+    evaluation_window = protocol["evaluation"]
+    if (
+        set(evaluation_window) != {"start_s", "end_s"}
+        or any(type(t) is not int for t in evaluation_window.values())
+        or not protocol["split"]["test_end_s"]
+        <= evaluation_window["start_s"]
+        < evaluation_window["end_s"]
+    ):
+        raise ValueError("population_learning_evaluation_window")
+    return protocol
+
+
+def run(campaign, root, *, declaration=None):
     campaign, root = campaign.absolute(), root.absolute()
     root.mkdir(parents=True, exist_ok=True)
     plan = load(campaign / "plan.json")
     corpus.roles(plan)
-    protocol = plan["protocol"]
+    protocol = learning_protocol(plan, declaration)
     split = split_plan(protocol["split"])
     binding = dict(
         acquisition=digest(plan), code=code_identity(), harness=file_hash(Path(__file__))
     )
+    if declaration is not None:
+        binding["learning_plan"] = digest(declaration)
     if (campaign / "evaluation-access.json").exists():
         binding["prior_evaluation_access"] = load(campaign / "evaluation-access.json")
     atomic_json(root / "binding.json", binding)
+    if declaration is not None:
+        atomic_json(root / "learning-plan.json", declaration)
     populations = {
         role: corpus.population(root / "population", plan, role)
         for role in ("train", "research_evaluation")
@@ -233,6 +282,16 @@ def run(campaign, root):
     atomic_json(root / "prepared.json", prepared)
     outcomes, artifacts = {}, {}
     for name in protocol["models"]:
+        empty = [
+            role
+            for role in ("train", "validation", "test")
+            if not counts[name].get(role + "_usable", 0)
+        ]
+        if empty:
+            outcomes[name] = dict(
+                status="infeasible", reason="experience_empty_role", empty_roles=empty
+            )
+            continue
         config = dict(protocol["config"], normalization=protocol["normalization"])
         if name == "narrow_compute_control":
             if not 1 <= control_epochs <= 500:
@@ -271,6 +330,16 @@ def run(campaign, root):
         outcomes[name] = {k: outcome[k] for k in ("status", "generation", "artifact", "job")}
         _, artifacts[name] = generations.get(root / "generations", outcome["generation"])
     atomic_json(root / "training.json", outcomes)
+    if not artifacts:
+        result = dict(
+            binding=binding,
+            training=outcomes,
+            train_source=source,
+            evaluation="not_opened_no_candidates",
+            production_eligible=False,
+        )
+        atomic_json(root / "result.json", result)
+        return result
     # Candidates/quality strata fixed before the evaluation-role source is opened.
     registered_path = root / "registered.json"
     if registered_path.exists():
@@ -337,7 +406,7 @@ def run(campaign, root):
         scores=scores,
         scope=protocol["scope"],
         population_bias=protocol["population_bias"],
-        recipe_fixed_before_acquisition=True,
+        recipe_fixed_before_acquisition=declaration is None,
         production_eligible=False,
     )
     atomic_json(root / "result.json", result)
@@ -348,5 +417,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--campaign", required=True, type=Path)
     parser.add_argument("--root", required=True, type=Path)
+    parser.add_argument("--learning-plan", type=Path)
     args = parser.parse_args()
-    print(json.dumps(run(args.campaign, args.root), sort_keys=True))
+    print(
+        json.dumps(
+            run(
+                args.campaign,
+                args.root,
+                declaration=load(args.learning_plan) if args.learning_plan else None,
+            ),
+            sort_keys=True,
+        )
+    )

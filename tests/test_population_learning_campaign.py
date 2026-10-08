@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from test_population_acquisition import plan
 
-from memecoin_experience.storage import atomic_json
+from memecoin_experience.storage import atomic_json, digest
 from memecoin_population.acquisition import capture
 
 
@@ -20,7 +20,7 @@ def module():
     return value
 
 
-def test_campaign_end_to_end_and_repeat(tmp_path):
+def test_campaign_end_to_end_and_repeat(tmp_path, monkeypatch):
     pytest.importorskip("torch")
     p = plan()
     p.update(created_ns=10**17, expires_ns=10**18, max_requests=4)
@@ -116,6 +116,56 @@ def test_campaign_end_to_end_and_repeat(tmp_path):
         prepared["counts"]["broad_fresh"]["test_usable"]
         == prepared["counts"]["narrow_fresh"]["test_usable"]
     )
+    # Reconciliation independently checks the terminal ledger, context funnel and actual draws.
+    monkeypatch.syspath_prepend(str(Path(__file__).parents[1] / "tools"))
+    from population_campaign_report import report
+
+    receipt = report(campaign, root)
+    assert receipt["acquisition"]["requests"] == 4
+    assert receipt["acquisition"]["outcomes"] == {"received": 3, "unsupported": 1}
+    assert receipt["sources"]["research_evaluation"]["funnel"]["per_pool"]["D"] == {}
+    assert receipt["candidates"]["broad_fresh"]["rows_seen"] > 0
+    assert receipt == report(campaign, root)
+    original = json.loads((root / "result.json").read_text())
+    changed = json.loads(json.dumps(original))
+    changed["scores"]["structural"]["paired"]["comparisons"][0]["micro_difference"] += 1
+    (root / "result.json").write_text(json.dumps(changed))
+    with pytest.raises(ValueError, match="population_report_comparison"):
+        report(campaign, root)
+    (root / "result.json").write_text(json.dumps(original))
+    declaration = dict(
+        version="population-learning-plan-v1",
+        acquisition=digest(p),
+        protocol=json.loads(json.dumps(p["protocol"])),
+        reason="Synthetic split revision",
+        evidence=["a" * 64],
+    )
+    declaration["protocol"]["split"].update(train_end_s=12000, validation_end_s=21000)
+    revised = runner.run(campaign, tmp_path / "revised", declaration=declaration)
+    assert revised["binding"]["learning_plan"] == digest(declaration)
+    assert revised["recipe_fixed_before_acquisition"] is False
+    assert report(campaign, tmp_path / "revised")["protocol"] == declaration["protocol"]
+    assert json.loads((campaign / "plan.json").read_text()) == p
+    with pytest.raises(ValueError, match="experience_immutable_conflict"):
+        runner.run(campaign, root, declaration=declaration)
+    assert not (root / "learning-plan.json").exists()
+    invalid = dict(declaration, acquisition="b" * 64)
+    with pytest.raises(ValueError, match="population_learning_declaration"):
+        runner.run(campaign, tmp_path / "invalid", declaration=invalid)
+    declaration["protocol"]["split"].update(
+        train_end_s=9000, validation_end_s=9001, test_end_s=9002
+    )
+    failed = runner.run(campaign, tmp_path / "unsupported", declaration=declaration)
+    assert failed["evaluation"] == "not_opened_no_candidates"
+    assert not (tmp_path / "unsupported/research_evaluation-source").exists()
+    assert not (tmp_path / "unsupported/generations").exists()
+    assert (
+        report(campaign, tmp_path / "unsupported")["evaluation_state"] == "not_opened_no_candidates"
+    )
+    declaration["protocol"]["context"] = 256
+    empty = runner.run(campaign, tmp_path / "empty", declaration=declaration)
+    assert empty["evaluation"] == "not_opened_no_candidates"
+    assert report(campaign, tmp_path / "empty")["raw_snapshot"] is None
     # A registered all-structural score cannot silently receive an admitted view.
     from memecoin_experience import evaluation
 
