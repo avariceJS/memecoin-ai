@@ -217,3 +217,21 @@ Relevant implementation: `src/memecoin_ai/{sources,storage,collection,observatio
 
 Common implementations and validity boundaries are in [`contracts.md`](contracts.md). Current
 benchmark populations and ML conclusions are in [`training-evaluation.md`](training-evaluation.md).
+
+## Population and coverage facts
+
+`memecoin_population` is an opt-in research data plane independent of provider, cadence and model.
+Population enrollment precedes download support: namespaced entities carry valid intervals,
+knowledge timestamps, evidence pins and extensible categorical attributes. Immutable paged fact
+snapshots append parents; compaction retains all historical facts. SQLite indexes are disposable
+views. Overlapping metadata with equal knowledge timestamps is ambiguous and fails closed.
+Enrollment is a union of declared intervals, not inferred survival; correction/retraction requires
+an explicit new population definition. Protected entities and research/train roles remain gated.
+
+Coverage facts distinguish capture from qualification, bind a full stream contract and use explicit
+units, expected counts (nullable for event streams), observed counts and failure/unknown states.
+Sparse plans join declared population intervals with arbitrary stream tiles. Hash selection is
+stable as population grows and independent of downloaded support. Worker partitions are disjoint;
+they are work descriptions, not a distributed executor or authority to retry charged requests.
+Changing a stream/grid contract requires reprojecting existing captures into new cells. A missing
+cell never proves that a provider request has not previously been charged.

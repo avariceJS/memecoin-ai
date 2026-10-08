@@ -151,7 +151,12 @@ def main():
         from .learning import train
 
         plan = json.loads(args.plan.read_text())
-        if not {"split", "config"} <= set(plan) or set(plan) - {"split", "config", "parent"}:
+        if not {"split", "config"} <= set(plan) or set(plan) - {
+            "split",
+            "config",
+            "parent",
+            "diversity",
+        }:
             raise ValueError("experience_train_plan_schema")
         report = train(
             args.store,
@@ -160,6 +165,7 @@ def main():
             plan=plan["split"],
             config=plan["config"],
             parent=plan.get("parent"),
+            diversity=plan.get("diversity"),
         )
         result = {k: report[k] for k in ("status", "steps", "rows_seen", "parameters")}
         result["artifact"] = str(args.output / "artifact")

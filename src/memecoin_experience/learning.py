@@ -9,6 +9,7 @@ import random
 import sqlite3
 import tempfile
 from collections import Counter
+from contextlib import ExitStack
 from pathlib import Path
 
 import numpy as np
@@ -320,7 +321,7 @@ def save_checkpoint(path, state):
         Path(name).unlink(missing_ok=True)
 
 
-def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None):
+def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None, diversity=None):
     """Research-only job. stop_after is an absolute one-shot test interrupt; omit on resume."""
     output, plan, config = safe_path(output), split_plan(plan), recipe(config or {})
     output.mkdir(parents=True, exist_ok=True)
@@ -360,6 +361,12 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
             cuda=torch.version.cuda,
         ),
     )
+    audit = None
+    if diversity is not None:
+        from memecoin_population.exposure import validate
+
+        audit = validate(diversity, pin, plan, snapshot.schema)
+        binding["diversity"] = diversity["pin"]
     if config["device"] == "cuda":
         workspace = os.environ.get("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
         if workspace not in {":4096:8", ":16:8"}:
@@ -369,7 +376,7 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
         if not torch.cuda.is_available():
             raise ValueError("experience_cuda_unavailable")
         binding["environment"]["accelerator"] = torch.cuda.get_device_name()
-    with lock(output / ".training.lock"):
+    with lock(output / ".training.lock"), ExitStack() as resources:
         atomic_json(output / "recipe.json", binding)
         stats_path = safe_path(output / "statistics.json")
         bound_path = safe_path(output / "binding.json")
@@ -398,6 +405,11 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
             if report["binding"] != binding:
                 raise ValueError("experience_artifact_binding")
             return report
+        journal = None
+        if audit is not None:
+            from memecoin_population.exposure import Journal
+
+            journal = resources.enter_context(Journal(diversity, output, audit))
         torch.set_num_threads(config["cpu_threads"])
         torch.manual_seed(config["seed"])
         torch.use_deterministic_algorithms(True)
@@ -432,6 +444,9 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
             if config["device"] == "cuda":
                 torch.cuda.set_rng_state_all(state["cuda_rng"])
 
+        if journal is not None:
+            journal.verify(state["steps"], state.get("exposure_head"), state["rows_seen"])
+
         def save():
             state.update(
                 model=model.state_dict(),
@@ -451,6 +466,7 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
                 seed=config["seed"],
                 epoch=state["epoch"],
                 cursor=state["cursor"],
+                with_metadata=journal is not None,
             ):
                 tx, ty, tm = tensors(x, y, mask, stats, config["device"])
                 optimizer.zero_grad()
@@ -463,6 +479,10 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
                 state.update(
                     cursor=cursor, steps=state["steps"] + 1, rows_seen=state["rows_seen"] + len(ids)
                 )
+                if journal is not None:
+                    state["exposure_head"] = journal.record(
+                        state["steps"], state["epoch"], ids, mask
+                    )
                 if state["steps"] % config["checkpoint_every"] == 0:
                     save()
                 if stop_after is not None and state["steps"] >= stop_after:
@@ -496,7 +516,17 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
             ancestors=([parent["pin"], *ancestor.report["ancestors"]] if ancestor else []),
             seen_end_s=max(plan["test_end_s"], ancestor.report["seen_end_s"] if ancestor else 0),
         )
+        if journal is not None:
+            report["exposure"] = journal.finish(
+                state["steps"], state["rows_seen"], output / "exposure-report"
+            )
         staging = Path(tempfile.mkdtemp(prefix=".artifact-", dir=output))
+        if audit is not None:
+            atomic_json(staging / "diversity.json", audit)
+            atomic_json(
+                staging / "diversity-manifest.json",
+                json.loads(safe_path(Path(diversity["path"]) / "manifest.json").read_text()),
+            )
         save_checkpoint(staging / "weights.pt", {k: v.cpu() for k, v in model.state_dict().items()})
         atomic_json(staging / "model.json", spec)
         atomic_json(staging / "report.json", report)

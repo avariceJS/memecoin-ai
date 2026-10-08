@@ -167,6 +167,7 @@ def code_identity():
 
     files = [
         *Path(__file__).parent.glob("*.py"),
+        *(Path(__file__).parent.parent / "memecoin_population").glob("*.py"),
         *(Path(m.__file__) for m in (data, source, admission, contracts, ml_data)),
     ]
     return {f"{p.parent.name}/{p.name}": file_hash(p) for p in sorted(files)}

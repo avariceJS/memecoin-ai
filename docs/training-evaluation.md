@@ -574,3 +574,21 @@ Source modules: `src/memecoin_operator/learning.py`, `src/memecoin_curriculum/{d
 `src/memecoin_ml/{data,models,training}.py`. Exact code/data/protocol hashes are inside receipts.
 For reproduction, checkout the recorded source commit and use its immutable protocol bytes;
 do not rerun old experiments from current code or overwrite sealed output roots.
+
+## Diversity and committed optimizer exposure
+
+`memecoin_population.diversity.audit` pins population, snapshot, split, representation, optional
+coverage plan and a declared policy. Generic marginal/cross axes separate enrollment entity-time,
+available rows, usable origins and per-target support. Unknown metadata remains explicit.
+`at_decision` uses only knowledge available at the origin; `at_cutoff` is descriptive retrospective
+stratification, never a model input. Entropy/Simpson effective counts measure concentration, not
+independent samples or learned capability. Explicit report/require gates do not resample rows.
+
+Training/generation plans accept optional `diversity: {path, pin}`. A required failing audit blocks
+training before optimizer work. The artifact binds a portable audit report and its original manifest.
+The full-pass objective is unchanged: a batch averages masked quantile loss per present horizon,
+then averages present horizons. This is not a globally uniform per-label objective. Per-step exposure
+records both actual row/target draws and the mass this batch objective assigns to each declared
+stratum. Journal heads are checkpoint-bound; identical replay is idempotent. Large group aggregates
+live in disk-backed sidecars, not checkpoints. Exposure means committed optimizer inputs, not
+physical retried compute, gradient magnitude or causal influence on the selected best checkpoint.

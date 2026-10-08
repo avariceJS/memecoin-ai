@@ -8,7 +8,19 @@ from .records import split_plan
 from .storage import Snapshot, atomic_json, code_identity, digest, file_hash, lock, safe_path
 
 
-def run(root, *, name, owner, store, snapshot, split, config, parent=None, stop_after=None):
+def run(
+    root,
+    *,
+    name,
+    owner,
+    store,
+    snapshot,
+    split,
+    config,
+    parent=None,
+    stop_after=None,
+    diversity=None,
+):
     """Same declaration resumes; changing recipe/data/parent requires a new generation name."""
     from .learning import recipe, train
 
@@ -30,6 +42,8 @@ def run(root, *, name, owner, store, snapshot, split, config, parent=None, stop_
         parent=parent["pin"] if parent else None,
         code=code_identity(),
     )
+    if diversity is not None:
+        declaration["diversity"] = diversity["pin"]
     identity = digest(declaration)
     root = safe_path(root)
     root.mkdir(parents=True, exist_ok=True)
@@ -61,6 +75,7 @@ def run(root, *, name, owner, store, snapshot, split, config, parent=None, stop_
                 config=config,
                 parent=parent,
                 stop_after=stop_after,
+                diversity=diversity,
             )
         except Exception as exc:
             atomic_json(
@@ -121,6 +136,7 @@ def get(root, identity):
                 ("code", "code"),
             )
         )
+        or binding.get("diversity") != declaration.get("diversity")
         or record["rows_seen"] != model.report["rows_seen"]
         or record["seen_end_s"] != model.report["seen_end_s"]
     ):
