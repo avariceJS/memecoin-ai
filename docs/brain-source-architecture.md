@@ -287,3 +287,12 @@ planned half-open request windows; full-bar receipt causality is enforced indepe
 The population coverage adapter publishes a cell only when the source declares every eligible bar
 open in it. Cells crossing undeclared per-entity gaps remain unknown; they are not relabeled as
 observed zero/partial coverage merely because they lie within the export's global calendar bounds.
+
+A sealed transport failure can be reconciled explicitly with
+`python -m memecoin_population reconcile-transport-stop --job JSON` (`root`, exact `stop_pin`,
+nonempty review `reason`). This is never invoked automatically. Under the capture lock it verifies
+the entire attempted prefix against the frozen plan, ledger, outcomes, receipts and sealed captures;
+reserved/unsealed requests and provider stops fail closed. It writes a recovery receipt and moves
+the original STOP bytes into immutable history. Original budgets/expiry remain in force. The failed
+request remains terminal and counted; a later guarded capture invocation sends only previously
+unrequested jobs. Crash recovery of the reconciliation itself is idempotent.

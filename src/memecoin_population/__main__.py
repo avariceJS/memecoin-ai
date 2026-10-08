@@ -22,6 +22,7 @@ def main():
             "audit",
             "universe",
             "continuous-coverage",
+            "reconcile-transport-stop",
         ),
     )
     parser.add_argument(
@@ -35,6 +36,10 @@ def main():
     if args.action == "publish":
         with Path(job.pop("rows_path")).open() as f:
             result = catalog.publish(rows=(json.loads(line) for line in f), **job)
+    elif args.action == "reconcile-transport-stop":
+        from .recovery import reconcile_transport_stop
+
+        result = reconcile_transport_stop(**job)
     elif args.action == "work":
         for row in planning.work(**job):
             print(canonical(row).decode())
