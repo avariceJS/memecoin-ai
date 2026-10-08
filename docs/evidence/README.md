@@ -6,6 +6,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- Single-host operating-mode handoff: `brain-single-host-handoff-2026-10-08.json`
+  (Mac 1 isolated active research checkout, verified research payload transfer, unchanged owner;
+  Mac 2 retained as inactive standby).
+
 - Sparse/event-time foundation, real train-role conversion and synthetic load:
   `brain-sparse-experience-2026-10-08.json` (typed observation support/lifecycle, 2,000 synthetic
   entities, 170 real train-role markets, CPU/exposure/replica qualification; no learning-gain claim).

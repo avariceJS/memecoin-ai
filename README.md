@@ -6,6 +6,10 @@ See [`docs/INDEX.md`](docs/INDEX.md) for the agent entrypoint and canonical know
 
 ## Development
 
+Active development/research runs on Mac 1 in a checkout separate from owner production state.
+Mac 2 is standby. See [operating mode and host boundaries](docs/operator-runtime.md#operating-mode-and-host-boundaries)
+for canonical paths, artifact handoff and future worker reactivation.
+
 Python 3.11+; runtime dependencies use the standard library.
 
 ```sh

@@ -9,14 +9,25 @@ No demonstrated executable edge. No promotion, signing, real-money trading, prot
 reserved holdout payload access. Preserve user-owned untracked `.codex/`. Grok is disabled; use
 Eliza for bounded nonsecret assistance and verify findings. Runtime dependencies remain stdlib.
 
-## Operating-mode migration in progress
+## Active operating mode
 
-User selected single-host active development/research on Mac 1; Mac 2 is becoming standby.
-Destination: `/Users/root1/Developer/memecoin-research`, branch `research/mac1-active`.
-Do not treat the transfer as complete until the verified handoff receipt is recorded here.
-Mac 1 is currently reachable at **192.168.31.66**; the previous `172.22.124.203` timed out.
-Owner `/Users/root1/Desktop/memecoin-ai` is clean at `a594474`, operator revision 33 paused,
-runtime08 and champion unchanged. Research files will not be merged into owner state.
+- **Mac 1 active:** `192.168.31.66`, `/Users/root1/Developer/memecoin-research`, branch
+  `research/mac1-active`. Open this checkout in a Mac 1 Codex session; the old Mac 2 session does
+  not change execution host automatically. Mac 2 is **standby/inactive**; no new research or
+  acquisition there without an explicit worker assignment.
+- Handoff receipt: `docs/evidence/brain-single-host-handoff-2026-10-08.json`. Full Git history and
+  178,401 research files (4,745,125,891 bytes) transferred and hash-verified; stopped SQLite/WAL
+  companion files preserved. All Mac 2 originals, virtualenvs and user `.codex/config.toml` remain.
+- New isolated `.venv` and `work/ml-venv` installed on Mac 1 from pins. At `99980a2`, Mac 1 passed
+  1,146 core tests / 24 skips, 60 ML tests / one CUDA skip, lint/format/mypy/smoke and both pip checks.
+  Migrated real source/snapshot/generation verified and standalone prediction works locally.
+- Owner `/Users/root1/Desktop/memecoin-ai` remains clean at `a594474`; before/after fences match:
+  revision 33 paused, no busy jobs, runtime08, champion, source STOP/config/universe unchanged.
+  No production switch, credential transfer or provider requests. No GitHub push/main merge.
+- Recovery package/manifests/logs: Mac 1 `/Users/root1/Developer/.memecoin-migration-20261008`,
+  Mac 2 `work/host-migration-20261008`. Frozen old-host paths remain evidence; use explicit local
+  transport locators/new declarations, never rewrite sealed files or restart expired campaigns.
+  Reactivation procedure and stable ownership rules: `docs/operator-runtime.md`.
 
 ## Completed sparse/event-time stage
 
@@ -68,9 +79,9 @@ object storage, rich qualified on-chain/order-flow and packed multistream views 
   Do not restart its expired acquisition envelope. Original infeasible `learning/` stays unchanged;
   `learning02/` completed three candidates. Broader neural data helped neural controls but lost to
   empirical quantile baselines. September is studied, not fresh evaluation.
-- Mac 1: **172.22.124.203**, user `root1`, same strict pinned SSH key as old `.66` address.
-  Last read-only fence: 2026-10-08 10:57:24 UTC, revision 33 paused/no busy jobs. No owner access or
-  runtime mutation in the sparse stage. Recheck owner before any later operational action.
+- Mac 1: **192.168.31.66**, user `root1`, strict existing pinned SSH key. The prior
+  `172.22.124.203` address timed out. Migration before/after read-only fences agree; recheck owner
+  before any later operational action. No runtime mutation in the sparse or migration stage.
 - Last recorded champion: `9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920`, runtime08.
   Paid Alchemy account capacity remains unverified; no provider request in this stage.
 
