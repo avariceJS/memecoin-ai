@@ -190,8 +190,13 @@ accounts must have exact pre/post settlement for `reconciled_diagnostic_only`; o
 instruction/event transfer facts remain alongside an explicit quarantined, partial-settlement state.
 It does not estimate wallet-net price or claim market/range completeness. The preselected 50-row
 development replay matched 50/50: 12 had exact all-account settlement and 38 were quarantined for
-unknown other account effects. A disjoint 50-row audit remains sealed until the implementation is
-committed, and its result can qualify only this strict per-transaction gate, not the 1,255-row class.
+unknown other account effects. After freezing the implementation at `c41f30b`, the one-time disjoint
+50-row audit matched 50/50: all six event/transfer/fee-equation checks passed, 10 had exact
+all-account settlement, and 40 were quarantined for unknown other account effects. This qualifies
+the strict per-transaction gate and quarantine behavior on this sample only, not the 1,255-row class
+or any market/range process. Fee equations remain empirical hypotheses. Receipts:
+[`development replay`](evidence/helius-pumpswap-sell23-development-qualification-2026-10-09.json),
+[`sealed audit`](evidence/helius-pumpswap-sell23-audit-qualification-2026-10-09.json).
 
 One finalized slot was then fetched with full `getBlock` transactions from Alchemy Free and an
 independent public Solana RPC. Both HTTP responses were complete and agreed on block identity,

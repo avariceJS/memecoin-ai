@@ -97,7 +97,9 @@ standby. No Grok.
   transfers, fee destinations, and signed pool balance deltas. Its fee formulas remain empirical
   hypotheses; no training/execution admission or market coverage claim. Fresh dev replay: 50/50
   matched, 12 all-account exact, 38 quarantined for unknown touched-account settlement; audit sample
-  remains sealed until freeze/commit. Selector reproduces dev/audit manifests byte-for-byte.
+  after freeze/commit matched 50/50: 10 all-account exact, 40 quarantined; six checks pass across
+  both samples. Receipts in `docs/evidence/helius-pumpswap-sell23-*-qualification-2026-10-09.json`.
+  Selector reproduces dev/audit manifests byte-for-byte; the audit does not qualify the 1,255 class.
 - Positive signature references and bounded block agreement do not prove enrollment, support,
   market coverage, executed swaps or lifecycle. No real source fit or learning gain has been
   established. `partial_count_lower_bound_pinball_v1` is opt-in and excludes zero/unavailable
