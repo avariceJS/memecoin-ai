@@ -21,6 +21,13 @@ def test_three_day_slot_sample_is_seeded_stratified_and_nonoverlapping() -> None
     assert len(first["windows"]) == 144
     assert first["design"]["selected_slots"] == 2_880
     assert first["frame"]["utc_strata_are_approximate"] is True
+    assert len(first["signature_only_slots"]) == 144
+    assert all(
+        start <= slot < end
+        for slot in first["signature_only_slots"]
+        for start, end in first["slot_ranges"]
+        if start <= slot < end
+    )
     assert all(
         right[0] >= left[1]
         for left, right in zip(first["slot_ranges"], first["slot_ranges"][1:], strict=False)

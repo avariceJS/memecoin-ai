@@ -141,3 +141,22 @@ def test_captured_byte_cap_stops_before_next_request_reservation(tmp_path: Path)
     assert json.loads((output / "STOP").read_text())["reason"] == (
         "captured_response_byte_cap_before_request"
     )
+
+
+def test_signature_only_cross_check_is_limited_to_pinned_slots(tmp_path: Path) -> None:
+    helius = FakeBlockRPC()
+    public = FakeBlockRPC()
+    result = run_once(
+        tmp_path / "pilot",
+        slot_ranges=[[100, 103]],
+        request_cap=10,
+        signature_sample_slots=[101],
+        clients={"helius-free": helius, "solana-public": public},
+    )
+
+    assert result["completed"] == 10
+    assert helius.calls == public.calls == 5
+    rows = result["comparison"]["windows"][0]["slots_compared"]
+    assert rows[0]["providers"]["helius-free"]["full_matches_signatures_only"] is None
+    assert rows[1]["providers"]["helius-free"]["full_matches_signatures_only"] is True
+    assert rows[2]["providers"]["helius-free"]["full_matches_signatures_only"] is None

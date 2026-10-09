@@ -71,7 +71,9 @@ def _parse_ranges(values: list[str]) -> list[list[int]]:
     return ranges
 
 
-def _build_operations(slot_ranges: list[list[int]]) -> list[dict[str, Any]]:
+def _build_operations(
+    slot_ranges: list[list[int]], signature_sample_slots: set[int] | None = None
+) -> list[dict[str, Any]]:
     operations: list[dict[str, Any]] = []
     for provider in PROVIDERS:
         for start, end in slot_ranges:
@@ -87,6 +89,12 @@ def _build_operations(slot_ranges: list[list[int]]) -> list[dict[str, Any]]:
         for start, end in slot_ranges:
             for slot in range(start, end):
                 for detail in DETAILS:
+                    if (
+                        detail == "signatures"
+                        and signature_sample_slots is not None
+                        and slot not in signature_sample_slots
+                    ):
+                        continue
                     options: dict[str, Any] = {
                         "commitment": "finalized",
                         "encoding": "json",
@@ -112,6 +120,7 @@ def _plan(
     request_cap: int,
     helius_pace: float,
     sampling_metadata: dict[str, Any] | None = None,
+    signature_sample_slots: list[int] | None = None,
     max_captured_bytes: int = 30_000_000_000,
     helius_total_credit_cap: int = 75_000,
     helius_daily_credit_cap: int = 25_000,
@@ -126,7 +135,14 @@ def _plan(
         raise ValueError("helius_daily_credit_cap_outside_bound")
     if not helius_daily_credit_cap <= helius_total_credit_cap <= 1_000_000:
         raise ValueError("helius_total_credit_cap_outside_bound")
-    operations = _build_operations(slot_ranges)
+    sample_set = set(signature_sample_slots) if signature_sample_slots is not None else None
+    if sample_set is not None:
+        if len(sample_set) != len(signature_sample_slots or []):
+            raise ValueError("duplicate_signature_sample_slot")
+        selected_slots = {slot for start, end in slot_ranges for slot in range(start, end)}
+        if not sample_set <= selected_slots:
+            raise ValueError("signature_sample_outside_selected_slots")
+    operations = _build_operations(slot_ranges, sample_set)
     per_provider = {
         provider: sum(op["provider"] == provider for op in operations) for provider in PROVIDERS
     }
@@ -171,6 +187,9 @@ def _plan(
         },
         operations=operations,
         sampling_metadata=sampling_metadata,
+        signature_sample_slots=(
+            sorted(signature_sample_slots) if signature_sample_slots is not None else None
+        ),
         scope="provider-returned finalized slots only; no global ledger completeness claim",
     )
 
@@ -538,6 +557,7 @@ def run_once(
     request_cap: int = MAX_REQUESTS_PER_PROVIDER,
     helius_pace: float = 0.25,
     sampling_metadata: dict[str, Any] | None = None,
+    signature_sample_slots: list[int] | None = None,
     max_captured_bytes: int = 30_000_000_000,
     helius_total_credit_cap: int = 75_000,
     helius_daily_credit_cap: int = 25_000,
@@ -548,6 +568,7 @@ def run_once(
         request_cap,
         helius_pace,
         sampling_metadata,
+        signature_sample_slots,
         max_captured_bytes,
         helius_total_credit_cap,
         helius_daily_credit_cap,
@@ -716,12 +737,16 @@ def main() -> int:
             sampling_metadata = (
                 _read(args.sampling_metadata) if args.sampling_metadata is not None else None
             )
+            signature_sample_slots = (
+                sampling_metadata.get("signature_only_slots") if sampling_metadata else None
+            )
             summary = run_once(
                 args.root,
                 slot_ranges=_parse_ranges(args.slot_range),
                 request_cap=args.request_cap_per_provider,
                 helius_pace=args.helius_pace_seconds,
                 sampling_metadata=sampling_metadata,
+                signature_sample_slots=signature_sample_slots,
                 max_captured_bytes=args.max_captured_bytes,
                 helius_total_credit_cap=args.helius_total_credit_cap,
                 helius_daily_credit_cap=args.helius_daily_credit_cap,

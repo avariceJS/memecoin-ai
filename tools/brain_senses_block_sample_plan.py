@@ -75,6 +75,7 @@ def build_sample(
     for left, right in zip(ranges, ranges[1:], strict=False):
         if left[1] > right[0]:
             raise ValueError("sample_windows_overlap")
+    signature_only_slots = sorted(rng.randrange(start, end) for start, end in ranges)
     return {
         "schema_version": 1,
         "created_ns": time.time_ns(),
@@ -107,11 +108,16 @@ def build_sample(
             "selected_slots": days * STRATA_PER_DAY * WINDOWS_PER_STRATUM * SLOTS_PER_WINDOW,
             "selected_windows": len(windows),
             "diagnostic_windows": 0,
+            "expected_requests_per_provider": (
+                len(windows)
+                + days * STRATA_PER_DAY * WINDOWS_PER_STRATUM * SLOTS_PER_WINDOW
+                + len(signature_only_slots)
+            ),
             "providers": ["helius-free", "solana-public"],
             "methods_per_selected_slot": [
                 "getBlock transactionDetails=full",
-                "getBlock transactionDetails=signatures",
             ],
+            "signature_only_cross_check": "one seeded random slot per selected window",
             "enumeration": "getBlocks over each sampled window at both providers",
             "estimator_scope": (
                 "random windows only; source agreement over the selected finalized-slot range, "
@@ -120,6 +126,7 @@ def build_sample(
         },
         "windows": windows,
         "slot_ranges": ranges,
+        "signature_only_slots": signature_only_slots,
     }
 
 
