@@ -293,10 +293,10 @@ documentation](https://www.alchemy.com/docs/solana/account-archive) describes pa
 returning the latest finalized account write at or before S. It claims account-write history since
 July 2025 and excludes vote accounts and per-slot bookkeeping sysvars. These are provider claims,
 not locally qualified results. The interface is slot-granular and does not identify a write's
-transaction position within a slot. The current `getAccountInfo` method reference lists 10 compute
-units, but the archive's paid-plan entitlement and actual account meter are not verified here.
-Alchemy also documents `simulateTransactionsAtSlot` as a
-counterfactual runtime simulation over archived state, up to five ordered transactions per request;
+transaction position within a slot. The current [`getAccountInfo` method reference](https://www.alchemy.com/docs/chains/solana/solana-api-endpoints/get-account-info)
+lists 10 compute units, but the archive's paid-plan entitlement and actual account meter are not
+verified here. Alchemy also documents [`simulateTransactionsAtSlot`](https://www.alchemy.com/docs/chains/solana/solana-api-endpoints/simulate-transactions-at-slot)
+as a counterfactual runtime simulation over archived state, up to five ordered transactions per request;
 this is not an actual execution trace or proof that a complete same-slot transaction prefix can be
 replayed faithfully. In this research checkout, `MEMECOIN_ALCHEMY_PAYG_HTTP_URL` is absent, and the
 available Alchemy MCP `getAccountInfo` interface exposes no historical-slot parameter. No archive
