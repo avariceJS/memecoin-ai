@@ -489,6 +489,70 @@ def test_scheduler_bootstrap_restart_frontier_and_campaign_caps(
     assert after_cap.calls == []
 
 
+def test_scheduler_head_is_provenance_but_code_and_config_bindings_stay_strict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "strict-schedule-binding"
+    start = datetime(2026, 10, 10, 12, 10, tzinfo=UTC)
+    args = dict(
+        schedule_id="strict-binding-test",
+        interval_hours=1,
+        frame_width_cap=10,
+        selection_count=2,
+        seed_base="strict-binding-seed",
+        request_budget_per_epoch=8,
+        raw_byte_budget_per_epoch=128_000_000,
+        stored_byte_budget_per_epoch=128_000_000,
+        max_total_requests=20,
+        max_total_raw_bytes=1_000_000_000,
+        max_total_stored_bytes=1_000_000_000,
+    )
+    first_client = FakeRPC(anchors=[100])
+    schedule_v2.run_bucket(root, **args, now=start, clients={"helius-free": first_client})
+    assert len(first_client.calls) == 1
+
+    real_run = schedule_v2.subprocess.run
+
+    def moved_head(command: list[str], **kwargs: Any) -> Any:
+        if command == ["git", "rev-parse", "HEAD"]:
+            return SimpleNamespace(stdout="docs-only-later-head\n")
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(schedule_v2.subprocess, "run", moved_head)
+    no_rpc = FakeRPC()
+    resumed = schedule_v2.run_bucket(root, **args, now=start, clients={"helius-free": no_rpc})
+    assert resumed["epoch"]["status"] == "bootstrap_complete"
+    assert no_rpc.calls == []
+
+    changed_config_client = FakeRPC()
+    with pytest.raises(ValueError, match="schedule_binding_changed"):
+        schedule_v2.run_bucket(
+            root,
+            **dict(args, selection_count=3),
+            now=start + timedelta(hours=1),
+            clients={"helius-free": changed_config_client},
+        )
+    assert changed_config_client.calls == []
+
+    original_bindings = schedule_v2._source_bindings
+
+    def changed_code_bindings() -> dict[str, str]:
+        bindings = original_bindings()
+        bindings["tools/brain_senses_block_epoch_v2.py"] = "0" * 64
+        return bindings
+
+    monkeypatch.setattr(schedule_v2, "_source_bindings", changed_code_bindings)
+    changed_source_client = FakeRPC()
+    with pytest.raises(ValueError, match="schedule_binding_changed"):
+        schedule_v2.run_bucket(
+            root,
+            **args,
+            now=start + timedelta(hours=1),
+            clients={"helius-free": changed_source_client},
+        )
+    assert changed_source_client.calls == []
+
+
 def test_campaign_counts_outstanding_response_reservations_and_schedule_lock(
     tmp_path: Path,
 ) -> None:

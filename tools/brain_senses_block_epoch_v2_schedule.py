@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import fcntl
 import hashlib
 import shutil
@@ -18,8 +19,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from memecoin_ai.domain import canonical  # noqa: E402
-from memecoin_ai.sources import verify_capture_storage_codec  # noqa: E402
+from memecoin_ai.domain import canonical, digest  # noqa: E402
+from memecoin_ai.sources import Capture, verify_capture_storage_codec  # noqa: E402
 from tools.brain_senses_block_epoch_schedule import BUCKET_RE, utc_bucket  # noqa: E402
 from tools.brain_senses_block_epoch_v2 import (  # noqa: E402
     MAX_GET_BLOCKS_WIDTH,
@@ -30,9 +31,42 @@ from tools.brain_senses_block_epoch_v2 import (  # noqa: E402
 )
 from tools.brain_senses_program_watch import _create, _read, _replace  # noqa: E402
 
+SCHEDULE_SOURCE = Path(__file__).resolve()
+BEHAVIOR_SOURCE_PATHS = (
+    "tools/brain_senses_block_epoch_v2.py",
+    "tools/brain_senses_block_provider_pilot.py",
+    "tools/brain_senses_program_watch.py",
+    "src/memecoin_ai/sources.py",
+    "src/memecoin_ai/domain.py",
+)
+
 
 def _hash_object(value: dict[str, Any]) -> str:
     return hashlib.sha256(canonical(value).encode()).hexdigest()
+
+
+def _source_bindings() -> dict[str, str]:
+    paths = (SCHEDULE_SOURCE, *(REPO_ROOT / path for path in BEHAVIOR_SOURCE_PATHS))
+    return {
+        str(path.relative_to(REPO_ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in paths
+    }
+
+
+def _git_blob(commit: str, relative_path: str) -> bytes:
+    result = subprocess.run(
+        ["git", "show", f"{commit}:{relative_path}"],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+    )
+    return result.stdout
+
+
+def _historical_behavior_bindings(commit: str) -> dict[str, str]:
+    return {
+        path: hashlib.sha256(_git_blob(commit, path)).hexdigest() for path in BEHAVIOR_SOURCE_PATHS
+    }
 
 
 def _bucket_time(bucket: str) -> datetime:
@@ -108,6 +142,7 @@ def _schedule_manifest(
         "max_response_bytes": MAX_RESPONSE_BYTES,
         "scheduler_source_version": "brain_senses_block_epoch_v2_schedule.py@2",
         "scheduler_source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "behavior_source_sha256": _source_bindings(),
         "scheduler_source_commit": subprocess.run(
             ["git", "rev-parse", "HEAD"],
             cwd=REPO_ROOT,
@@ -121,6 +156,214 @@ def _schedule_manifest(
         "inventory_rule": "exact_finalized_getblocks_frame_then_sample_only_returned_members",
         "created_ns": time.time_ns(),
     }
+
+
+def _legacy_schedule_config_matches(existing: dict[str, Any], expected: dict[str, Any]) -> bool:
+    ignored = {
+        "created_ns",
+        "scheduler_source_commit",
+        "scheduler_source_sha256",
+        "behavior_source_sha256",
+    }
+    return {key: value for key, value in existing.items() if key not in ignored} == {
+        key: value for key, value in expected.items() if key not in ignored
+    }
+
+
+def _verify_legacy_bootstrap(root_base: Path, existing: dict[str, Any]) -> dict[str, Any]:
+    """Verify the exact one-request bootstrap before a source compatibility migration."""
+    epochs_root = root_base / "epochs"
+    epoch_root = epochs_root / "20261009T220000Z"
+    plan_path = epoch_root / "epoch-plan.json"
+    summary_path = epoch_root / "epoch-summary.json"
+    frontier_path = root_base / "frontier-v2.json"
+    reservation_path = epoch_root / "requests" / "000000000001.json"
+    result_path = epoch_root / "request-results" / "000000000001.json"
+    if not all(
+        path.is_file()
+        for path in (plan_path, summary_path, frontier_path, reservation_path, result_path)
+    ):
+        raise ValueError("compatibility_migration_bootstrap_evidence_missing")
+    all_reservations = sorted(epochs_root.glob("*/requests/*.json"))
+    if all_reservations != [reservation_path]:
+        raise ValueError("compatibility_migration_unexpected_request_history")
+    plan = _read(plan_path)
+    summary = _read(summary_path)
+    frontier = _read(frontier_path)
+    reservation = _read(reservation_path)
+    result = _read(result_path)
+    expected_request_hash = hashlib.sha256(
+        canonical(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getSlot",
+                "params": [{"commitment": "finalized"}],
+            }
+        ).encode()
+    ).hexdigest()
+    current_sources = _source_bindings()
+    if (
+        plan.get("schedule_id") != existing.get("schedule_id")
+        or plan.get("schedule_sha256") != _hash_object(existing)
+        or plan.get("code_commit") != existing.get("scheduler_source_commit")
+        or plan.get("code_sha256") != current_sources["tools/brain_senses_block_epoch_v2.py"]
+        or plan.get("bootstrap") is not True
+        or summary.get("status") != "bootstrap_complete"
+        or summary.get("request_reservations") != 1
+        or summary.get("advance_to") != 455028552
+        or frontier.get("next_start") != 455028552
+        or frontier.get("last_applied_bucket") != "20261009T220000Z"
+        or reservation.get("method") != "getSlot"
+        or reservation.get("provider") != PROVIDER
+        or reservation.get("sequence") != 1
+        or reservation.get("request_sha256") != expected_request_hash
+        or result.get("status") != "captured"
+        or result.get("result_status") != "parsed"
+        or result.get("slot_value") != 455028551
+    ):
+        raise ValueError("compatibility_migration_bootstrap_binding_mismatch")
+    capture_dir = epoch_root / result["capture_path"]
+    capture = Capture.load(capture_dir)
+    if digest(capture.response) != result.get("response_sha256"):
+        raise ValueError("compatibility_migration_capture_hash_mismatch")
+    receipt_path = capture_dir / "receipt.json"
+    if not receipt_path.is_file():
+        raise ValueError("compatibility_migration_capture_receipt_missing")
+    return {
+        "plan_sha256": hashlib.sha256(plan_path.read_bytes()).hexdigest(),
+        "summary_sha256": hashlib.sha256(summary_path.read_bytes()).hexdigest(),
+        "frontier_sha256": hashlib.sha256(frontier_path.read_bytes()).hexdigest(),
+        "reservation_sha256": hashlib.sha256(reservation_path.read_bytes()).hexdigest(),
+        "result_sha256": hashlib.sha256(result_path.read_bytes()).hexdigest(),
+        "capture_response_sha256": result["response_sha256"],
+        "capture_receipt_sha256": hashlib.sha256(receipt_path.read_bytes()).hexdigest(),
+        "request_count": 1,
+        "frontier_next_start": 455028552,
+    }
+
+
+def _validate_compatibility_migration(
+    root_base: Path, existing: dict[str, Any], expected: dict[str, Any]
+) -> None:
+    migration_path = root_base / "schedule-migrations" / "0001.json"
+    if not migration_path.is_file():
+        raise ValueError("schedule_binding_changed")
+    if sorted(path.name for path in migration_path.parent.glob("*.json")) != ["0001.json"]:
+        raise ValueError("schedule_binding_changed")
+    migration = _read(migration_path)
+    original_scheduler = _git_blob(
+        existing["scheduler_source_commit"], "tools/brain_senses_block_epoch_v2_schedule.py"
+    )
+    expected_diff = "".join(
+        difflib.unified_diff(
+            original_scheduler.decode("utf-8").splitlines(keepends=True),
+            SCHEDULE_SOURCE.read_text().splitlines(keepends=True),
+            fromfile=(
+                f"{existing['scheduler_source_commit']}:{SCHEDULE_SOURCE.relative_to(REPO_ROOT)}"
+            ),
+            tofile=f"approved-current:{SCHEDULE_SOURCE.relative_to(REPO_ROOT)}",
+        )
+    )
+    if (
+        not _legacy_schedule_config_matches(existing, expected)
+        or migration.get("original_scheduler_source_commit")
+        != existing.get("scheduler_source_commit")
+        or migration.get("original_manifest_sha256") != _hash_object(existing)
+        or migration.get("original_scheduler_source_sha256")
+        != existing.get("scheduler_source_sha256")
+        or migration.get("approved_scheduler_source_sha256")
+        != expected.get("scheduler_source_sha256")
+        or migration.get("approved_source_bindings") != _source_bindings()
+        or migration.get("bootstrap_behavior_source_sha256")
+        != _historical_behavior_bindings(existing["scheduler_source_commit"])
+        or migration.get("scheduler_compatibility_diff") != expected_diff
+        or migration.get("bootstrap_evidence") != _verify_legacy_bootstrap(root_base, existing)
+    ):
+        raise ValueError("schedule_binding_changed")
+
+
+def migrate_legacy_schedule_binding(root_base: Path, expected: dict[str, Any]) -> dict[str, Any]:
+    """Append one reviewed, no-RPC source migration for the 2026-10-09 pilot."""
+    root_base.mkdir(parents=True, exist_ok=True, mode=0o700)
+    lock_path = root_base / ".schedule-v2.lock"
+    with lock_path.open("a") as lock_file:
+        try:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise ValueError("inventory_first_schedule_already_active") from exc
+        schedule_path = root_base / "schedule-v2.json"
+        if not schedule_path.is_file():
+            raise ValueError("compatibility_migration_schedule_missing")
+        existing = _read(schedule_path)
+        migration_dir = root_base / "schedule-migrations"
+        migration_path = migration_dir / "0001.json"
+        if migration_path.exists():
+            _validate_compatibility_migration(root_base, existing, expected)
+            return _read(migration_path)
+        if not _legacy_schedule_config_matches(existing, expected):
+            raise ValueError("schedule_binding_changed")
+        bootstrap = _verify_legacy_bootstrap(root_base, existing)
+        old_scheduler = _git_blob(
+            existing["scheduler_source_commit"], "tools/brain_senses_block_epoch_v2_schedule.py"
+        )
+        old_hash = hashlib.sha256(old_scheduler).hexdigest()
+        if old_hash != existing.get("scheduler_source_sha256"):
+            raise ValueError("compatibility_migration_original_source_hash_mismatch")
+        historical_behavior = _historical_behavior_bindings(existing["scheduler_source_commit"])
+        current_behavior = {path: _source_bindings()[path] for path in BEHAVIOR_SOURCE_PATHS}
+        if historical_behavior != current_behavior:
+            raise ValueError("compatibility_migration_behavior_source_changed")
+        current_scheduler = SCHEDULE_SOURCE.read_bytes()
+        diff = "".join(
+            difflib.unified_diff(
+                old_scheduler.decode("utf-8").splitlines(keepends=True),
+                current_scheduler.decode("utf-8").splitlines(keepends=True),
+                fromfile=(
+                    f"{existing['scheduler_source_commit']}:{SCHEDULE_SOURCE.relative_to(REPO_ROOT)}"
+                ),
+                tofile=f"approved-current:{SCHEDULE_SOURCE.relative_to(REPO_ROOT)}",
+            )
+        )
+        if not diff:
+            raise ValueError("compatibility_migration_diff_missing")
+        migration = {
+            "schema_version": 1,
+            "migration_id": "scheduler-head-provenance-only-20261010",
+            "original_manifest_sha256": _hash_object(existing),
+            "original_scheduler_source_commit": existing["scheduler_source_commit"],
+            "original_scheduler_source_sha256": old_hash,
+            "approved_scheduler_source_sha256": expected["scheduler_source_sha256"],
+            "bootstrap_behavior_source_sha256": historical_behavior,
+            "approved_source_bindings": _source_bindings(),
+            "bootstrap_evidence": bootstrap,
+            "compatibility_only_changes": [
+                "scheduler_source_commit is provenance, not a moving-HEAD compatibility check",
+                "only the recorded scheduler hash transition is accepted; "
+                "config/source pins stay strict",
+                "interrupted epochs resume their saved plan under the current "
+                "approved source bindings",
+            ],
+            "scheduler_compatibility_diff": diff,
+            "no_rpc_validation": {
+                "validated": True,
+                "checks": [
+                    "docs-only HEAD movement preserves schedule compatibility",
+                    "schedule config and behavior source mismatches fail closed",
+                    "interrupted epoch resumes from saved plan without repeating reservations",
+                    "bootstrap and absence of later reservations verified read-only",
+                ],
+                "test_nodes": [
+                    "tests/test_brain_senses_block_epoch_v2.py::test_scheduler_head_is_provenance_but_code_and_config_bindings_stay_strict",
+                    "tests/test_brain_senses_block_epoch_v2.py::test_scheduler_bootstrap_restart_frontier_and_campaign_caps",
+                ],
+            },
+            "created_ns": time.time_ns(),
+        }
+        migration_dir.mkdir(mode=0o700, exist_ok=True)
+        _create(migration_path, migration)
+        _validate_compatibility_migration(root_base, existing, expected)
+        return migration
 
 
 def _usage(epochs_root: Path) -> dict[str, int]:
@@ -191,6 +434,7 @@ def _reconcile_prior_epochs(
     current_bucket: str,
     frontier: dict[str, Any],
     frontier_path: Path,
+    schedule_hash: str,
     clients: dict[str, Any] | None,
 ) -> None:
     for epoch in (
@@ -207,7 +451,15 @@ def _reconcile_prior_epochs(
         plan_path = epoch / "epoch-plan.json"
         if not plan_path.exists():
             continue
-        summary = run_epoch(epoch, _read(plan_path), clients=clients)
+        plan = _read(plan_path)
+        if (
+            plan.get("epoch_id") != epoch.name
+            or plan.get("bucket") != epoch.name
+            or plan.get("schedule_sha256") != schedule_hash
+            or plan.get("code_sha256") != _source_bindings()["tools/brain_senses_block_epoch_v2.py"]
+        ):
+            raise ValueError("interrupted_epoch_source_binding_changed")
+        summary = run_epoch(epoch, plan, clients=clients)
         _apply_terminal(frontier, epoch.name, summary)
         _replace(frontier_path, frontier)
 
@@ -256,8 +508,12 @@ def _run_bucket_locked(
     if schedule_path.exists():
         existing = _read(schedule_path)
         expected = dict(manifest, created_ns=existing.get("created_ns"))
-        if existing != expected:
-            raise ValueError("schedule_binding_changed")
+        current_compatible = dict(existing)
+        current_compatible.pop("scheduler_source_commit", None)
+        expected_compatible = dict(expected)
+        expected_compatible.pop("scheduler_source_commit", None)
+        if current_compatible != expected_compatible:
+            _validate_compatibility_migration(root_base, existing, expected)
         manifest = existing
     else:
         _create(schedule_path, manifest)
@@ -274,7 +530,9 @@ def _run_bucket_locked(
     if existing_plan_path.exists():
         plan = _read(existing_plan_path)
     else:
-        _reconcile_prior_epochs(epochs_root, bucket, frontier, frontier_path, clients)
+        _reconcile_prior_epochs(
+            epochs_root, bucket, frontier, frontier_path, schedule_hash, clients
+        )
         usage = _usage(epochs_root)
         if (
             len([p for p in epochs_root.iterdir() if p.is_dir() and BUCKET_RE.fullmatch(p.name)])
@@ -343,6 +601,10 @@ def _run_bucket_locked(
         plan["previous_applied_bucket"] = last_bucket
         plan["missed_schedule_buckets"] = missed
         plan["frontier_persisted_ns"] = frontier.get("updated_ns")
+    if plan.get("schedule_sha256") != _hash_object(manifest):
+        raise ValueError("epoch_schedule_identity_mismatch")
+    if plan.get("code_sha256") != _source_bindings()["tools/brain_senses_block_epoch_v2.py"]:
+        raise ValueError("epoch_source_binding_changed")
     result = run_epoch(epoch_root, plan, clients=clients)
     _apply_terminal(frontier, bucket, result)
     _replace(frontier_path, frontier)
@@ -393,7 +655,32 @@ def main(argv: list[str] | None = None, *, clients: dict[str, Any] | None = None
     parser.add_argument("--max-epochs", required=True, type=int)
     parser.add_argument("--minimum-free-disk-bytes", required=True, type=int)
     parser.add_argument("--capture-storage-codec", required=True, choices=("raw", "zstd"))
+    parser.add_argument(
+        "--migrate-legacy-compatibility-binding",
+        action="store_true",
+        help="append the approved no-RPC source migration for the pinned 2026-10-09 pilot",
+    )
     args = parser.parse_args(argv)
+    if args.migrate_legacy_compatibility_binding:
+        expected = _schedule_manifest(
+            schedule_id=args.schedule_id,
+            interval_hours=args.interval_hours,
+            frame_width_cap=args.frame_width_cap,
+            selection_count=args.selection_count,
+            seed_base=args.seed_base,
+            request_budget_per_epoch=args.request_budget_per_epoch,
+            raw_byte_budget_per_epoch=args.raw_byte_budget_per_epoch,
+            stored_byte_budget_per_epoch=args.stored_byte_budget_per_epoch,
+            max_total_requests=args.max_total_requests,
+            max_total_raw_bytes=args.max_total_raw_bytes,
+            max_total_stored_bytes=args.max_total_stored_bytes,
+            max_epochs=args.max_epochs,
+            minimum_free_disk_bytes=args.minimum_free_disk_bytes,
+            capture_storage_codec=args.capture_storage_codec,
+        )
+        result = migrate_legacy_schedule_binding(args.root_base, expected)
+        print(canonical(result), flush=True)
+        return 0
     result = run_bucket(
         args.root_base,
         schedule_id=args.schedule_id,

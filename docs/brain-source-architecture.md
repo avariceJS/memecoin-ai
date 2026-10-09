@@ -788,8 +788,16 @@ The pair64 campaign remains stopped; its raw captures are retained. Watch-v3's 1
 epochs have STOP records; no future bucket may bridge either stopped epoch. The inventory-first v2
 pilot has begun in `work/brain-senses-live-helius-inventory-v2-16-hourly-20261010/`: bootstrap at
 22:43Z on 2026-10-09 observed finalized slot 455028551 and committed frontier 455028552. No block
-body has yet been requested and no v2 LaunchAgent is loaded. At 22:45Z there were about 70 GiB
-free. The next eligible frame is the real 23:00Z bucket; do not backdate or bridge a missed bucket.
+body has yet been requested and no v2 LaunchAgent is loaded. The 23:00Z invocation on 2026-10-09
+failed preflight with `schedule_binding_changed`, before another request reservation. The scheduler
+compared the original source commit with moving repository HEAD, although its behavior code and
+locked configuration were unchanged. A reviewed compatibility fix treats commit as provenance,
+keeps source/config hashes strict, and records a one-time append-only hash-bound migration with the
+original manifest, bootstrap evidence and exact scheduler diff. The original schedule manifest and
+bootstrap epoch remain immutable. The migration is accepted only after no-RPC validation and a
+read-only check that the bootstrap is still the sole reservation and frontier is 455028552. Record
+the missed bucket; invoke only the current real bucket, never backdate or replay the bootstrap. At
+22:45Z there were about 70 GiB free; recheck disk before any request.
 
 The next finalized-block process is a new versioned sensor. It must pin a finalized numeric slot
 frame, seed, selection rule, provider and request/byte budgets before acquisition; capture and hash
@@ -813,10 +821,11 @@ selection plans; ambiguous requests stop without replay. Committed-frame failure
 an explicit unknown/gap outcome, while failed anchors preserve the frontier. Structural counts are
 qualified only when the full response validator, account/instruction resolution, normalization,
 and ordered-signature cross-check all pass. These are no-RPC fixture results, not market
-completeness. The scheduler pins source/config identity, serializes campaign writes, accounts for
-outstanding worst-case response reservations, and checks disk headroom before each request. Helius
-charge units remain unknown; request counts are recorded separately. The focused suite has 13
-passing tests. Sol selected a Helius-only hourly pilot with 16 sampled
+completeness. The scheduler pins immutable source/config identity, records commit as provenance,
+serializes campaign writes, accounts for outstanding worst-case response reservations, and checks
+disk headroom before each request. Interrupted epochs must match their saved plan and current
+approved source hashes before recovery. Helius charge units remain unknown; request counts are
+recorded separately. The focused suite has 14 passing tests. Sol selected a Helius-only hourly pilot with 16 sampled
 produced slots, a 20,000-slot frame cap, zstd storage, and a 50 GiB pre-request free-space floor.
 Each frame allows 34 reservations, 256 MB raw and 128 MB stored; the campaign allows 25 epochs
 (one bootstrap plus at most 24 frames), 817 reservations, 4 GB raw and 1 GB stored. The rough
