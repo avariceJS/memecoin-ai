@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>ai.memecoin.brain.senses.block-epochs</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/opt/homebrew/opt/python@3.13/bin/python3.13</string>
+		<string>/Users/root1/Developer/memecoin-research/tools/brain_senses_block_epoch_schedule.py</string>
+		<string>--root-base</string>
+		<string>/Users/root1/Developer/memecoin-research/work/brain-senses-live-block-epochs</string>
+		<string>--window-slots</string>
+		<string>20</string>
+		<string>--interval-hours</string>
+		<string>6</string>
+	</array>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PYTHONDONTWRITEBYTECODE</key>
+		<string>1</string>
+		<key>PYTHONPATH</key>
+		<string>/Users/root1/Developer/memecoin-research/src</string>
+		<key>MEMECOIN_SOLANA_PUBLIC_RATE_LEDGER</key>
+		<string>/Users/root1/Developer/memecoin-research/work/brain-senses-public-rate-ledger.json</string>
+	</dict>
+	<key>WorkingDirectory</key>
+	<string>/Users/root1/Developer/memecoin-research</string>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StartInterval</key>
+	<integer>21600</integer>
+	<key>ThrottleInterval</key>
+	<integer>60</integer>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>StandardOutPath</key>
+	<string>/Users/root1/Developer/memecoin-research/work/brain-senses-live-block-epochs/scheduler.out.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/root1/Developer/memecoin-research/work/brain-senses-live-block-epochs/scheduler.err.log</string>
+</dict>
+</plist>
