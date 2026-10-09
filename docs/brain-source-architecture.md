@@ -13,7 +13,7 @@ a full redesign.
 
 | Source | Current role | Limitation |
 |---|---|---|
-| Alchemy indexed Solana RPC | Historical transactions, birth discovery, address-indexed backfill | An indexed transaction is not a decoded market observation; coverage/pagination must be proven |
+| Alchemy indexed Solana RPC | Historical transactions, birth discovery, address-indexed backfill; its paid Account Archive is a documented historical account-state path | Neither an indexed transaction nor the unqualified Account Archive proves decoded market semantics, transaction-position state, or coverage |
 | GeckoTerminal | Current and historical OHLCV used by Brain's price forecasts | Provider bars are revisions with their own receipt/availability time; coverage can be sparse/stale |
 | Public Solana RPC | Structural controls and bounded read-only verification | It is not a complete archive or independent proof of another provider's dataset |
 | Helius | Independent indexed RPC and standard WSS cross-checks | A configured endpoint does not prove account plan, completeness, or independent agreement |
@@ -286,6 +286,28 @@ configuration evidence. Those states are explicitly `historical_extension_state_
 and the 15:00Z candidate count is a different population from the fresh 1,166-ref audit census.
 Do not infer extension state from the 2026-10-01 fixtures or a later account fetch. Receipt:
 [`Token-2022 development evidence census`](evidence/pumpswap-buy-exact-v1-token2022-dev-census-2026-10-10.json.zst).
+
+Provider-capability survey update (2026-10-10): Alchemy's current [Solana Account Archive
+documentation](https://www.alchemy.com/docs/solana/account-archive) describes paid-plan historical
+`getAccountInfo` reads (`slot`, `lastUpdateBeforeSlot`, `firstUpdateAfterSlot`), with `slot: S`
+returning the latest finalized account write at or before S. It claims account-write history since
+July 2025 and excludes vote accounts and per-slot bookkeeping sysvars. These are provider claims,
+not locally qualified results. The interface is slot-granular and does not identify a write's
+transaction position within a slot. Alchemy also documents `simulateTransactionsAtSlot` as a
+counterfactual runtime simulation over archived state, up to five ordered transactions per request;
+this is not an actual execution trace or proof that a complete same-slot transaction prefix can be
+replayed faithfully. In this research checkout, `MEMECOIN_ALCHEMY_PAYG_HTTP_URL` is absent, and the
+available Alchemy MCP `getAccountInfo` interface exposes no historical-slot parameter. No archive
+query or paid request was made. Therefore `historical_extension_state_unavailable` remains the
+correct state for the 1,234 captured references: it means unavailable in their evidence and
+qualified acquisition path, not that no provider offers historical account data. Any future
+qualification first needs verified account entitlement, endpoint, method cost and coverage for the
+sample, then immutable raw captures and ordered same-slot replay/reconciliation evidence. The first
+potentially useful subset is mint fee-term state where complete evidence can prove no earlier
+same-slot write changed the terms; the 1,233 sibling-touching references still need all ordered
+effects and withheld-balance reconciliation. If same-slot ordering cannot be established, preserve
+`same_slot_intermediate_state_unknown`. Do not change the quarantined economic decoder before that
+gate.
 
 One finalized slot was then fetched with full `getBlock` transactions from Alchemy Free and an
 independent public Solana RPC. Both HTTP responses were complete and agreed on block identity,
