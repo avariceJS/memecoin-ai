@@ -429,6 +429,71 @@ def _signature_list(value: Any, detail: str) -> list[str] | None:
     return signatures
 
 
+def _transaction_map(block: dict[str, Any]) -> dict[str, dict[str, Any]] | None:
+    transactions = block.get("transactions")
+    if not isinstance(transactions, list):
+        return None
+    mapped: dict[str, dict[str, Any]] = {}
+    for row in transactions:
+        tx = row.get("transaction") if isinstance(row, dict) else None
+        signatures = (tx or {}).get("signatures") if isinstance(tx, dict) else None
+        if (
+            not isinstance(signatures, list)
+            or not signatures
+            or not isinstance(signatures[0], str)
+            or signatures[0] in mapped
+        ):
+            return None
+        mapped[signatures[0]] = row
+    return mapped
+
+
+def _json_diff_paths(left: Any, right: Any, path: str = "") -> list[str]:
+    if left == right:
+        return []
+    if isinstance(left, dict) and isinstance(right, dict):
+        paths: list[str] = []
+        for key in sorted(set(left) | set(right)):
+            child = f"{path}.{key}" if path else str(key)
+            if key not in left or key not in right:
+                paths.append(child)
+            else:
+                paths.extend(_json_diff_paths(left[key], right[key], child))
+        return paths
+    return [path or "$"]
+
+
+def _transaction_comparison(
+    left: dict[str, Any] | None, right: dict[str, Any] | None
+) -> dict[str, Any]:
+    if left is None or right is None:
+        return dict(status="unknown_unpaired_or_unparseable", paired=0, exact=0, differing=0)
+    a, b = _transaction_map(left), _transaction_map(right)
+    if a is None or b is None:
+        return dict(status="unknown_transaction_signature_shape", paired=0, exact=0, differing=0)
+    common = a.keys() & b.keys()
+    exact = 0
+    diff_paths: dict[str, int] = {}
+    differing = 0
+    for signature in common:
+        paths = _json_diff_paths(a[signature], b[signature])
+        if not paths:
+            exact += 1
+            continue
+        differing += 1
+        for path in paths:
+            diff_paths[path] = diff_paths.get(path, 0) + 1
+    return dict(
+        status="paired_transaction_maps",
+        paired=len(common),
+        exact=exact,
+        differing=differing,
+        helius_only=len(a.keys() - b.keys()),
+        public_only=len(b.keys() - a.keys()),
+        difference_paths=dict(sorted(diff_paths.items())),
+    )
+
+
 def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) -> dict[str, Any]:
     by_key = {
         (row["provider"], row["method"], row.get("slot"), row["detail"]): row for row in results
@@ -455,10 +520,12 @@ def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) ->
         slot_rows: list[dict[str, Any]] = []
         for slot in range(start, end):
             per_provider: dict[str, dict[str, Any]] = {}
+            full_values: dict[str, Any] = {}
             for provider in PROVIDERS:
                 full_row = by_key.get((provider, "getBlock", slot, "full"))
                 sig_row = by_key.get((provider, "getBlock", slot, "signatures"))
                 full = _block_result(root, full_row) if full_row else None
+                full_values[provider] = full
                 sigs = _block_result(root, sig_row) if sig_row else None
                 full_signatures = _signature_list(full, "full") if isinstance(full, dict) else None
                 signature_only = (
@@ -520,10 +587,15 @@ def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) ->
                 and a["parent_slot"] == b["parent_slot"]
                 and a["previous_blockhash"] == b["previous_blockhash"]
             )
+            transaction_comparison = _transaction_comparison(
+                full_values.get(PROVIDERS[0]),
+                full_values.get(PROVIDERS[1]),
+            )
             slot_rows.append(
                 dict(
                     slot=slot,
                     providers=per_provider,
+                    transaction_comparison=transaction_comparison,
                     cross_provider_signature_count_equal=signature_equivalent,
                     cross_provider_signature_order_equal=signature_order_equal,
                     cross_provider_block_identity_equal=block_identity_equivalent,

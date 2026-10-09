@@ -7,7 +7,11 @@ from typing import Any
 
 from memecoin_ai.domain import canonical
 from memecoin_ai.sources import Capture
-from tools.brain_senses_block_provider_pilot import MAX_RESPONSE_BYTES, run_once
+from tools.brain_senses_block_provider_pilot import (
+    MAX_RESPONSE_BYTES,
+    _transaction_comparison,
+    run_once,
+)
 
 
 class FakeBlockRPC:
@@ -160,3 +164,29 @@ def test_signature_only_cross_check_is_limited_to_pinned_slots(tmp_path: Path) -
     assert rows[0]["providers"]["helius-free"]["full_matches_signatures_only"] is None
     assert rows[1]["providers"]["helius-free"]["full_matches_signatures_only"] is True
     assert rows[2]["providers"]["helius-free"]["full_matches_signatures_only"] is None
+
+
+def test_transaction_comparison_reports_nested_difference_paths() -> None:
+    left = {
+        "transactions": [{"transaction": {"signatures": ["sig"]}, "meta": {"logMessages": ["one"]}}]
+    }
+    right = {
+        "transactions": [
+            {
+                "transaction": {"signatures": ["sig"]},
+                "meta": {"logMessages": ["one", "Log truncated"]},
+            }
+        ]
+    }
+
+    result = _transaction_comparison(left, right)
+
+    assert result == {
+        "status": "paired_transaction_maps",
+        "paired": 1,
+        "exact": 0,
+        "differing": 1,
+        "helius_only": 0,
+        "public_only": 0,
+        "difference_paths": {"meta.logMessages": 1},
+    }
