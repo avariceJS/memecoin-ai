@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import fcntl
 import hashlib
 import shutil
@@ -13,13 +14,12 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from memecoin_ai.domain import canonical
-from memecoin_ai.sources import verify_capture_storage_codec
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from memecoin_ai.domain import canonical  # noqa: E402
+from memecoin_ai.sources import verify_capture_storage_codec  # noqa: E402
 from tools.brain_senses_block_epoch_schedule import BUCKET_RE, utc_bucket  # noqa: E402
 from tools.brain_senses_block_epoch_v2 import (  # noqa: E402
     MAX_GET_BLOCKS_WIDTH,
@@ -207,11 +207,7 @@ def _reconcile_prior_epochs(
         plan_path = epoch / "epoch-plan.json"
         if not plan_path.exists():
             continue
-        summary_path = epoch / "epoch-summary.json"
-        if summary_path.exists() or (epoch / "STOP").exists():
-            summary = run_epoch(epoch, _read(plan_path), clients=clients)
-        else:
-            summary = run_epoch(epoch, _read(plan_path), clients=clients)
+        summary = run_epoch(epoch, _read(plan_path), clients=clients)
         _apply_terminal(frontier, epoch.name, summary)
         _replace(frontier_path, frontier)
 
@@ -363,3 +359,63 @@ def run_bucket(root_base: Path, **kwargs: Any) -> dict[str, Any]:
         except BlockingIOError as exc:
             raise ValueError("inventory_first_schedule_already_active") from exc
         return _run_bucket_locked(root_base, **kwargs)
+
+
+def _parse_now(value: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("--now must be an ISO 8601 timestamp") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise argparse.ArgumentTypeError("--now must include a timezone")
+    return parsed.astimezone(UTC)
+
+
+def main(argv: list[str] | None = None, *, clients: dict[str, Any] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Run one inventory-first finalized-block Senses schedule bucket."
+    )
+    parser.add_argument("--root-base", required=True, type=Path)
+    parser.add_argument("--schedule-id", required=True)
+    parser.add_argument(
+        "--now", type=_parse_now, help="ISO 8601 timestamp with timezone (default: current UTC)"
+    )
+    parser.add_argument("--interval-hours", required=True, type=int)
+    parser.add_argument("--frame-width-cap", required=True, type=int)
+    parser.add_argument("--selection-count", required=True, type=int)
+    parser.add_argument("--seed-base", required=True)
+    parser.add_argument("--request-budget-per-epoch", required=True, type=int)
+    parser.add_argument("--raw-byte-budget-per-epoch", required=True, type=int)
+    parser.add_argument("--stored-byte-budget-per-epoch", required=True, type=int)
+    parser.add_argument("--max-total-requests", required=True, type=int)
+    parser.add_argument("--max-total-raw-bytes", required=True, type=int)
+    parser.add_argument("--max-total-stored-bytes", required=True, type=int)
+    parser.add_argument("--max-epochs", required=True, type=int)
+    parser.add_argument("--minimum-free-disk-bytes", required=True, type=int)
+    parser.add_argument("--capture-storage-codec", required=True, choices=("raw", "zstd"))
+    args = parser.parse_args(argv)
+    result = run_bucket(
+        args.root_base,
+        schedule_id=args.schedule_id,
+        interval_hours=args.interval_hours,
+        frame_width_cap=args.frame_width_cap,
+        selection_count=args.selection_count,
+        seed_base=args.seed_base,
+        request_budget_per_epoch=args.request_budget_per_epoch,
+        raw_byte_budget_per_epoch=args.raw_byte_budget_per_epoch,
+        stored_byte_budget_per_epoch=args.stored_byte_budget_per_epoch,
+        max_total_requests=args.max_total_requests,
+        max_total_raw_bytes=args.max_total_raw_bytes,
+        max_total_stored_bytes=args.max_total_stored_bytes,
+        max_epochs=args.max_epochs,
+        minimum_free_disk_bytes=args.minimum_free_disk_bytes,
+        capture_storage_codec=args.capture_storage_codec,
+        now=args.now,
+        clients=clients,
+    )
+    print(canonical(result), flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

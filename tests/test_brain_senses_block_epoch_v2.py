@@ -646,3 +646,86 @@ def test_failed_anchor_keeps_frontier_and_next_epoch_exposes_accumulated_frame(
         [101, 105, {"commitment": "finalized"}],
     )
     assert accumulated["frontier"]["next_start"] == 106
+
+
+def test_scheduler_cli_help_and_explicit_configuration(monkeypatch, capsys, tmp_path: Path) -> None:
+    with pytest.raises(SystemExit) as help_exit:
+        schedule_v2.main(["--help"])
+    assert help_exit.value.code == 0
+    help_output = capsys.readouterr().out
+    assert "--root-base" in help_output
+    assert "--minimum-free-disk-bytes" in help_output
+    assert "--capture-storage-codec" in help_output
+    assert "--max-total-stored-bytes" in help_output
+
+    stopped = {"status": "campaign_stopped", "reason": "fixture_budget_stop"}
+    observed: dict[str, Any] = {}
+
+    def fake_run_bucket(root_base: Path, **kwargs: Any) -> dict[str, Any]:
+        observed["root_base"] = root_base
+        observed.update(kwargs)
+        return stopped
+
+    monkeypatch.setattr(schedule_v2, "run_bucket", fake_run_bucket)
+    argv = [
+        "--root-base",
+        str(tmp_path / "campaign"),
+        "--schedule-id",
+        "cli-fixture",
+        "--now",
+        "2026-10-14T10:30:00+03:00",
+        "--interval-hours",
+        "2",
+        "--frame-width-cap",
+        "20",
+        "--selection-count",
+        "4",
+        "--seed-base",
+        "cli-seed",
+        "--request-budget-per-epoch",
+        "12",
+        "--raw-byte-budget-per-epoch",
+        "64000000",
+        "--stored-byte-budget-per-epoch",
+        "64000000",
+        "--max-total-requests",
+        "120",
+        "--max-total-raw-bytes",
+        "640000000",
+        "--max-total-stored-bytes",
+        "640000000",
+        "--max-epochs",
+        "24",
+        "--minimum-free-disk-bytes",
+        "32000000",
+        "--capture-storage-codec",
+        "raw",
+    ]
+    exit_code = schedule_v2.main(argv)
+    assert exit_code == 0
+    assert observed == {
+        "root_base": tmp_path / "campaign",
+        "schedule_id": "cli-fixture",
+        "now": datetime(2026, 10, 14, 7, 30, tzinfo=UTC),
+        "interval_hours": 2,
+        "frame_width_cap": 20,
+        "selection_count": 4,
+        "seed_base": "cli-seed",
+        "request_budget_per_epoch": 12,
+        "raw_byte_budget_per_epoch": 64_000_000,
+        "stored_byte_budget_per_epoch": 64_000_000,
+        "max_total_requests": 120,
+        "max_total_raw_bytes": 640_000_000,
+        "max_total_stored_bytes": 640_000_000,
+        "max_epochs": 24,
+        "minimum_free_disk_bytes": 32_000_000,
+        "capture_storage_codec": "raw",
+        "clients": None,
+    }
+    assert capsys.readouterr().out == canonical(stopped) + "\n"
+
+    observed.clear()
+    exit_code = schedule_v2.main(argv[:4] + argv[6:])
+    assert exit_code == 0
+    assert observed["now"] is None
+    assert capsys.readouterr().out == canonical(stopped) + "\n"

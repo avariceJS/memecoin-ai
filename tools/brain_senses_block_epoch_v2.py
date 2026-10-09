@@ -14,18 +14,17 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
-from memecoin_ai.domain import canonical, digest
-from memecoin_ai.sources import (
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from memecoin_ai.domain import canonical, digest  # noqa: E402
+from memecoin_ai.sources import (  # noqa: E402
     Capture,
     ReadOnlyRPC,
     TransportSourceError,
     verify_capture_storage_codec,
 )
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
 from tools.brain_senses_block_provider_pilot import (  # noqa: E402
     MAX_RESPONSE_BYTES,
     _durable_capture,
