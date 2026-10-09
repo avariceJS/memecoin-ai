@@ -79,6 +79,14 @@ contain large exact payloads, so open only the named artifact needed for a speci
   pairs matched block identity/signature order. Of 36,852 transaction pairs, 79 differences were
   log-only, and offline replay confirmed Helius's explicit truncation marker in each. Stored zstd
   was 576,376,420 bytes; anchor-to-summary qualification took about 23.5 minutes.
+- Frozen PumpSwap sell23 full-transaction legacy-token ledger v2 qualification:
+  `helius-pumpswap-sell23-ledger-v2-development-qualification-2026-10-09.json` and
+  `helius-pumpswap-sell23-ledger-v2-audit-qualification-2026-10-09.json`. Fresh disjoint samples
+  contain exact full settlements and explicitly censored native-close settlements; they are
+  diagnostic only and do not qualify the full sell population or establish market completeness.
+- Frozen v2 replay of all 1,255 eligible sell23 candidates in the selected 512 full blocks:
+  `helius-pumpswap-sell23-ledger-v2-capture-census-2026-10-09.json`. All candidates matched;
+  410 full settlements, 843 censored native settlements, and two unsupported token instructions.
 - Offline replay of the historical Helius full-block captures after the empty-base58 fix:
   `helius-historical-instruction-normalization-audit-2026-10-09.json`. All 2,880 stored full
   responses now normalize and parse; all are present in their captured Helius inventories. The

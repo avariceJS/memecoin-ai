@@ -198,6 +198,32 @@ or any market/range process. Fee equations remain empirical hypotheses. Receipts
 [`development replay`](evidence/helius-pumpswap-sell23-development-qualification-2026-10-09.json),
 [`sealed audit`](evidence/helius-pumpswap-sell23-audit-qualification-2026-10-09.json).
 
+A frozen `pumpswap_sell23_full_transaction_settlement_v2` adds a full ordered legacy SPL Token
+account ledger: sibling transaction transfers, mint/burn, account initialization and closure are
+included for target-touched accounts. A missing opening balance is exact zero only after an ordered
+successful initializer; unsupported token effects remain unknown. `SyncNative` is never a balancing
+residual: until ordered lamport funding, rent reserve and close effects are independently
+reconciled, wrapped-SOL settlement after SyncNative is censored. A fresh 50-row development sample
+matched 50/50 (18 exact full target-account settlements, 31 exact trade-transfer diagnostics with
+censored native-close settlement, one unsupported token instruction); all six event/transfer/fee
+equations passed on the 49 transactions with qualified target transfer facts. Its disjoint sealed
+50-row audit matched 50/50: 20 exact full target-account settlements and 30 censored native closes;
+all six equations passed 50/50. These are diagnostic-only samples, with no wallet-net price,
+training or execution admission, and no qualification of the 1,255-row class or range completeness.
+Fee formulas remain empirical hypotheses. See [v2 development](evidence/helius-pumpswap-sell23-ledger-v2-development-qualification-2026-10-09.json)
+and [v2 audit](evidence/helius-pumpswap-sell23-ledger-v2-audit-qualification-2026-10-09.json).
+Instruction semantics follow the [legacy Token interface](https://github.com/solana-program/token/blob/main/interface/src/instruction.rs),
+[SyncNative documentation](https://solana.com/docs/tokens/basics/sync-native), and
+[Close Account documentation](https://solana.com/docs/tokens/basics/close-account).
+
+A subsequent offline census applied the frozen ledger to every one of the 1,255 eligible `sell23`
+transactions in the 512 captured Helius full blocks. All 1,255 were found: 410 had exact full
+target-account settlement, 843 had exact trade-transfer facts but censored native settlement, and
+two remained quarantined for unsupported token instructions. All six event/transfer/fee equations
+passed on the 1,253 qualified transfer records. This is a census only of that declared class in
+those captured blocks; it does not establish global PumpSwap or market-process completeness.
+Receipt: [v2 captured-class census](evidence/helius-pumpswap-sell23-ledger-v2-capture-census-2026-10-09.json).
+
 One finalized slot was then fetched with full `getBlock` transactions from Alchemy Free and an
 independent public Solana RPC. Both HTTP responses were complete and agreed on block identity,
 parent linkage, 1,132 transaction entries, and the ordered flattened sequence of 1,171 signatures.

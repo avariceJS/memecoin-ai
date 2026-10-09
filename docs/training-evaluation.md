@@ -970,6 +970,22 @@ producer supplies a valid positive bound and its availability/role gates pass; n
 or learning gain follows from these receipts. See [`brain-source-architecture.md`](brain-source-architecture.md)
 and the linked Alchemy receipts.
 
+A frozen PumpSwap sell23 ledger v2 now scopes full-transaction legacy-token account effects. On fresh
+disjoint 50-row development/audit samples, 18/20 had exact full touched-account settlement; 31/30
+had exact event/CPI trade-transfer facts but censored native-account settlement after SyncNative;
+one development item remained unsupported. All six transaction equations passed on every item with
+qualified transfer facts (49/49 development, 50/50 audit). These rows remain diagnostic only: no
+wallet-net price, training label, or execution support is published. SyncNative residuals do not
+become exact without an independent lamport/rent/lifecycle ledger. Receipts:
+[`v2 development`](evidence/helius-pumpswap-sell23-ledger-v2-development-qualification-2026-10-09.json),
+[`v2 audit`](evidence/helius-pumpswap-sell23-ledger-v2-audit-qualification-2026-10-09.json).
+The frozen contract was then replayed over all 1,255 eligible sell23 candidates in the 512 captured
+Helius blocks: 410 exact full target-account settlements, 843 trade-transfer records with censored
+native settlement, and two unsupported instructions; the six equations passed on all 1,253 records
+with qualified transfer facts. This captured-class census does not supply market-complete supervision
+or expand training eligibility. Receipt:
+[`v2 captured-class census`](evidence/helius-pumpswap-sell-ledger-v2-capture-census-2026-10-09.json).
+
 The bounded finalized block-inventory path adds full-block observations with request, response,
 receipt-time and replica provenance. A single Free slot capture plus adjacent witnesses did not
 close lineage because the left witness failed, and remains unresolved. A later two-slot bilateral

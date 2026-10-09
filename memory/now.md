@@ -94,12 +94,17 @@ standby. No Grok.
   evidence, reconciliation and quarantine before they can be called supported. Existing exception
   counts and paths are in `docs/brain-source-architecture.md`.
 - A narrow pinned PumpSwap `sell23` diagnostic reconciles exact event fields, checked CPI-subtree
-  transfers, fee destinations, and signed pool balance deltas. Its fee formulas remain empirical
-  hypotheses; no training/execution admission or market coverage claim. Fresh dev replay: 50/50
-  matched, 12 all-account exact, 38 quarantined for unknown touched-account settlement; audit sample
-  after freeze/commit matched 50/50: 10 all-account exact, 40 quarantined; six checks pass across
-  both samples. Receipts in `docs/evidence/helius-pumpswap-sell23-*-qualification-2026-10-09.json`.
-  Selector reproduces dev/audit manifests byte-for-byte; the audit does not qualify the 1,255 class.
+  transfers, fee destinations, and signed pool balance deltas. Frozen ledger v2 adds full-transaction
+  legacy-token account lifecycle and sibling effects. SyncNative cannot balance unexplained residuals;
+  WSOL settlement after SyncNative is censored until lamport funding/rent/close effects are proven.
+  Fresh disjoint dev/audit both matched 50/50: dev 18 exact full settlements, 31 trade-transfer facts
+  with censored native-close settlement, one unsupported instruction; audit 20 exact and 30 censored.
+  All six event/transfer/fee equations passed on 49/49 qualified dev transfers and 50/50 audit.
+  Diagnostic only: no wallet-net price, training/execution admission or coverage claim. Reports in
+  `docs/evidence/helius-pumpswap-sell23-ledger-v2-*-qualification-2026-10-09.json`; prior v1 reports
+  remain historical. Frozen v2 then censused all 1,255 eligible sell23s in 512 captured Helius full
+  blocks: 410 exact full settlements, 843 censored native settlements, two unsupported instructions;
+  equations pass on 1,253 qualified transfers. This is captured-class evidence, not global completeness.
 - Positive signature references and bounded block agreement do not prove enrollment, support,
   market coverage, executed swaps or lifecycle. No real source fit or learning gain has been
   established. `partial_count_lower_bound_pinball_v1` is opt-in and excludes zero/unavailable
@@ -114,6 +119,9 @@ standby. No Grok.
   compact, then rerun `make check`. `make smoke` is synthetic-only and is not evidence of edge.
 - Compiled transaction normalization has fail-closed static/lookup-address resolution, valid empty
   base58 decoding and exact SPL `TransferChecked` wire decoding; Token-2022 effects remain
-  quarantined. Finish the current two-provider audit without replay after freeze/commit. Review the
-  new 512/64 wave at six-hour and daily boundaries; renew up to two additional days only after each
-  storage/coverage review. Do not call Senses complete or begin Cortex.
+  quarantined. Ledger v2 is frozen at `a5b9b02`; audit was read once after freeze. Next, run an
+  adapt the same diagnostic to buyExact25 with fresh disjoint development/audit samples. The v2
+  census covers all captured eligible sell23 candidates only. Keep Helius 512/hour and Alchemy
+  64/hour stable through temporal reviews; pair64 root was running (680 MB at ~20m, 73 GiB free at
+  latest check).
+  Do not call Senses complete or begin Cortex.
