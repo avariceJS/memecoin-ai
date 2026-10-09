@@ -14,7 +14,7 @@ standby. No Grok.
 
 - Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; verify
   `git status` and HEAD at entry. Do not push. Production checkout remains untouched.
-- Disk has about 69.8 GiB free at current review. No external research volume is mounted. Helius Free
+- Disk has about 70 GiB free at current review. No external research volume is mounted. Helius Free
   plan info is available, but its account usage meter is not. Alchemy MCP returned an aggregate
   team meter of 18,680 CU / rounded $0.01 MTD; it is not attributable to this epoch or the Free app.
   No paid request was made in this session.
@@ -26,10 +26,10 @@ standby. No Grok.
   watchers v2/v3 are unloaded; logs, STOP records, and raw captures remain. Helius watch v3 is the
   only remaining scheduled prospective sensor in this set: a capped sparse address-reference stream.
   Its 18:00Z root used 1,100 attempts (1,099 captures, one failure), recorded STOP with pending
-  references, and is marked already attempted; no later epoch exists as of 2026-10-09 21:58Z. The
+  references, and is marked already attempted; no later epoch exists as of 2026-10-09 22:17Z. The
   LaunchAgent is loaded on a five-minute interval but idle between scheduler invocations. It must not
   replay or imply continuity. The resulting gap is explicit; this stream is not market/trade
-  completeness.
+  completeness. The finalized-block epoch schedulers are not loaded.
 
 ## Senses facts
 
@@ -82,14 +82,29 @@ standby. No Grok.
   buyExact census failed before emitting results. It is no longer a valid unopened audit source.
 - No fresh independent model comparison, real-source fit, calibrated execution result, market edge,
   or profit claim. Sensing still lacks broad market/process completeness; do not call Senses complete.
+- Recovery milestone `d6a9562` makes `start_epoch` resume durable anchors and a hash-bound selection
+  without replay, reconstructs STOP for an ambiguous anchor, and rejects a changed persisted
+  selection. The new anchor-before-window and crash-boundary fixtures are no-RPC. Focused tests:
+  34 passed; Ruff and `git diff --check` passed. Trail of Bits baseline/patch runtime validation
+  completed with no findings or gaps in ignored `work/senses-recovery-ppv-v2/results/`.
+- This is not yet autonomous scheduler recovery: `brain_senses_block_epoch_schedule.py` deliberately
+  marks any attempted bucket `bucket_already_attempted_no_replay`, so it does not call the new
+  `start_epoch` recovery path. Do not claim persistent block-sensor continuity or run a live pilot.
+- Sol settled the next process as inventory-first: freeze finalized numeric frame, seed, rule and
+  budgets; capture/hash finalized `getBlocks`; sample only returned produced slots before bodies;
+  never replace failed selected members; inventory errors/ambiguity stop as `inventory_unknown`.
+  This is provider-reported produced-slot coverage, not independent global discovery. The existing
+  numeric-frame sampler remains historical and must not be relabelled.
 
 ## Next decision horizon
 
-1. Implement the Sol-settled recovery seam for a prospective selected-slot full-block sensor. First
-   prove restart, duplicate-reservation prevention, STOP reconstruction and gap accounting with
-   no-RPC fixtures. Do not resume the exhausted v3 epoch or bridge its gap.
-2. Review the recovery diff and focused tests, then plan a small finite consecutive-epoch live pilot
-   with explicit request/credit, response-byte, stored-byte, disk-floor and Alchemy account limits.
-   Unload the exhausted v3 schedule before installing any new live schedule.
-3. After the sensor pilot, ask Sol for a concrete Token-2022 transfer-fee/hook/account-settlement
+1. Implement a versioned inventory-first prospective epoch and scheduler integration. The scheduler
+   must resume only the same immutable epoch plan/journal, reconcile prior reservations against
+   finite caps, and preserve STOP/gap states. Add no-RPC checks for inventory reservation/restart,
+   deterministic reselection, failed-inventory STOP, no replacement after body failure, and receipt
+   accounting. Do not enable a LaunchAgent yet.
+2. Then freeze a short Helius-only consecutive-epoch pilot with request/response/stored-byte/disk
+   floors and duration limits. Before installing that schedule, unload exhausted watch-v3; do not
+   bridge its gaps. Verify actual LaunchAgent runs and recovery before extending the cadence.
+3. After pilot evidence, ask Sol for a concrete Token-2022 transfer-fee/hook/account-settlement
    contract before decoder work on the 1,168 Token-2022 quote candidates. No Cortex.

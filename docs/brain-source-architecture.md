@@ -771,6 +771,36 @@ uncertainty, actual billing evidence, durable raw bytes, and available storage.
 
 ## Prospective provider epochs (2026-10-09)
 
+**Current runtime status (2026-10-10):** the 64/hour and 512/hour finalized-block schedulers, the
+legacy public/Helius block schedulers, and decode watchers are unloaded or stopped. The pair64
+campaign remains stopped; its raw captures are retained. Helius watch-v3 is the only loaded
+prospective service in this group: its LaunchAgent polls every five minutes and is idle between
+invocations. Its 12:00Z and 18:00Z epochs both have STOP records; there is no later epoch yet. A
+future bucket is a new observation and must not bridge either stopped epoch. Disk had about 70 GiB
+free at the current review. Verify LaunchAgent and disk state before any new schedule.
+
+The next finalized-block process is a new versioned sensor. It must pin a finalized numeric slot
+frame, seed, selection rule, provider and request/byte budgets before acquisition; capture and hash
+the finalized `getBlocks` inventory for that exact frame; then select only from the inventory's
+returned produced-block slots before requesting any block body. Retain the inventory denominator,
+every selected member, all failures, and each member's full/signature-check outcome. Never replace
+a selected member after a failed or incomplete body request. An unavailable, failed or ambiguous
+inventory ends the epoch as `inventory_unknown` with an explicit gap; do not retry a charged attempt
+or publish an empty result as zero activity. This proves only selected structural-reference
+coverage inside the provider-reported produced-slot inventory, not independent chain inventory,
+economic-process, pool, or market completeness. Solana's [`getBlocks` RPC contract](https://solana.com/docs/rpc/http/getblocks)
+defines an inclusive range and returns confirmed block slots; pin `finalized` explicitly.
+
+The prior seeded numeric-slot selector is a historical experiment with a different selection frame;
+do not relabel its receipts as inventory-first coverage. Commit `d6a9562` adds no-RPC recovery for
+durable epoch anchors and persisted selections, including ambiguous-anchor STOP reconstruction.
+However, the existing hourly scheduler still rejects any attempted bucket instead of calling that
+recovery path. Thus restart is a tested local primitive, not an accepted autonomous collector
+recovery yet. Before a new LaunchAgent is enabled, its scheduler must resume only an identical,
+hash-bound plan and journal, account for prior reservations against finite caps, and pass no-RPC
+restart, deterministic reselection, failed-inventory STOP, no-replacement, and receipt-accounting
+checks. Alchemy pairing stays disabled until an account-level limit is verifiable.
+
 The prior public and Helius program-address watches stopped on failed requests and remain immutable.
 Neither cursor is resumed. Helius watch v2 made a fresh head query and attempted 1,000 signature
 references plus 1,000 transaction bodies; 999 bodies were captured, one request failed, and a later
