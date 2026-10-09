@@ -652,6 +652,58 @@ for this wave, not durable Brain caps. Preserve the prospective public signature
 and report only sampled-block agreement; scale subsequent waves from measured discrepancy yield,
 uncertainty, actual billing evidence, durable raw bytes, and available storage.
 
+## Prospective provider epochs (2026-10-09)
+
+The prior public and Helius program-address watches stopped on failed requests and remain immutable.
+Neither cursor is resumed. Helius watch v2 made a fresh head query and attempted 1,000 signature
+references plus 1,000 transaction bodies; 999 bodies were captured, one request failed, and a later
+runtime restart wrote a terminal `ValueError` STOP. The account-bound source state is not resumed.
+LaunchAgent `ai.memecoin.brain.senses.helius-watch-v3` starts a new current-head epoch each six-hour
+UTC bucket in `work/brain-senses-live-helius-watch-v3/`. Each root links to the previous STOP and
+last receipt, carries no cursor across roots, reserves each request before I/O, and stops after 1,100
+request reservations, an error, or its bucket boundary. A failed epoch is not retried; the next
+scheduled bucket starts a fresh query. At most 4,400 watch requests/day are planned, a campaign
+bound rather than an architecture limit. This is a sparse provider address-index stream with
+unknown completeness, not full program history or a block-range truth source. A fresh current-head
+query is a separate observation, not a retry or a bridge across the old gap.
+
+The paired finalized-block sensor runs a seeded 64-slot epoch each UTC hour through
+`ai.memecoin.brain.senses.block-epochs`, with raw reservations and receipts under
+`work/brain-senses-live-helius-hourly-20261009/`. Every selected Helius block is checked against its
+signatures-only response and the range's `getBlocks` inventory. Four times per day (UTC hours 0, 6,
+12, 18), the same selected range also requests public RPC; all other hourly epochs use Helius alone.
+This yields up to 1,536 Helius sampled slots/day (about 0.48% of the measured slot rate), roughly
+3,120 standard credits/day, and up to 256 paired public slots/day. At the first scheduled capture's
+4.8 MB per full block, Helius raw growth is provisionally about 7.4 GB/day / 22 GB per 72-hour
+campaign; this is a campaign design estimate to reconcile against actual bytes and failures. The
+1M monthly Free allowance and 10 RPC RPS are source-plan limits, not a Brain coverage goal. The
+72-hour root has a finite campaign stop, 4,608 Helius slots, 768 public paired slot attempts,
+20,000 Helius credit reservations, and 32 GiB aggregate raw-response cap; these are this wave's
+bounds and do not constrain future sampling. Buckets are idempotent: an attempted bucket is never
+replayed. Missed intervals remain unknown. Public RPC
+requests use the shared 1 request/s gate. The first six-hour scheduled range
+`[454865291,454865311)` captured all 20 Helius full blocks
+and all 20 Helius full-block results parsed. Public returned 11/20 full blocks; eight full requests
+received HTTP 429 and one timed out. Its sampled signatures-only request received HTTP 429 and its
+`getBlocks` enumeration failed at transport. All 11 paired blocks had the same identity and ordered
+signatures. Of 13,716 paired transactions, 13,651 matched exactly; 65 differences were only
+`meta.logMessages`, each with Helius's explicit `Log truncated` marker. Helius returned 4,033
+PumpSwap structural instruction references (3,510 in successful and 523 in failed transactions);
+the public sample returned 2,304 references from its 11 full blocks. These counts are not economic
+trades. Public failures remain unknown. This is source/range-bounded observation, not global market
+coverage or a lifecycle claim. Receipt:
+[`helius-public-prospective-block-epoch-2026-10-09.json`](evidence/helius-public-prospective-block-epoch-2026-10-09.json).
+
+The first paired window wrote 152.6 MB to disk (96.8 MB Helius, 55.8 MB public) including only 11
+public full blocks. Helius watch v2 had captured 1,001 request results / 17.7 MB at its terminal
+checkpoint; v3 is capped at 4,400 requests/day, which projects to 0.09 GB/day at 20.3 KB/request.
+Combined with the expanded hourly sensor and up to 256 public paired full blocks/day, current
+provision is approximately 8.7 GB/day / 261 GB per 30 days if all measured rates persist. The 85
+GiB free at the last disk check can hold the active
+campaigns; it cannot hold that projected rate for a month, so acquisition roots must be measured
+and reviewed during this 72-hour wave, with long-lived raw retention moved to added storage before
+continuing at that rate. Recompute from actual capture bytes before extension.
+
 The 2026-10-09 `brain-experience-v3` contract carries typed native coordinates alongside independent
 UTC availability. Origins, dependency extents, target windows, maturity and role intervals name a
 pinned coordinate domain. Historical slot replay may leave `decision_ns` null; it cannot qualify as

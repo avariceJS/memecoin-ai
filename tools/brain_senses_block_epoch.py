@@ -8,6 +8,7 @@ import fcntl
 import hashlib
 import os
 import platform
+import random
 import subprocess
 import sys
 import time
@@ -103,10 +104,20 @@ def start_epoch(
     *,
     window_slots: int = 20,
     old_epoch_root: Path | None = None,
+    providers: tuple[str, ...] = PROVIDERS,
+    slots_per_hour_estimate: int | None = None,
+    sampling_seed: str | None = None,
+    signature_check_all_slots: bool = False,
     clients: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not 1 <= window_slots <= MAX_WINDOW_SLOTS:
         raise ValueError("window_size_outside_bound")
+    if (
+        not providers
+        or len(set(providers)) != len(providers)
+        or any(provider not in PROVIDERS for provider in providers)
+    ):
+        raise ValueError("invalid_provider_set")
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(root, 0o700)
     for name in ("requests", "request-results", "captures", "events"):
@@ -128,16 +139,19 @@ def start_epoch(
         "code_commit": commit,
         "code_sha256": _sha(script_path),
         "python_version": platform.python_version(),
-        "providers": list(PROVIDERS),
+        "providers": list(providers),
         "anchor": {"method": "getSlot", "commitment": "finalized"},
         "window_slots": window_slots,
+        "slots_per_hour_estimate": slots_per_hour_estimate,
+        "sampling_seed": sampling_seed,
+        "signature_check_all_slots": signature_check_all_slots,
         "max_capture_response_bytes": MAX_CAPTURE_BYTES,
         "retry_policy": (
-            "no retries; preserve failures and stop before paired capture if anchor incomplete"
+            "no retries; preserve anchor failures and do not dispatch blocks after anchor failure"
         ),
         "previous_epoch_root": str(old_epoch_root) if old_epoch_root else None,
         "gap_policy": "new epoch only; never bridge or infer slot coverage from the old epoch",
-        "scope": "fresh finalized anchor and one bounded paired block window",
+        "scope": "fresh finalized anchor and one bounded provider-specific block window",
     }
     if plan_path.exists():
         if _read(plan_path) != plan:
@@ -152,7 +166,7 @@ def start_epoch(
     own_clients = clients is None
     if own_clients:
         clients = {}
-        for provider in PROVIDERS:
+        for provider in providers:
             endpoint, alias = _provider_endpoint(provider)
             clients[provider] = ReadOnlyRPC(
                 endpoint,
@@ -164,7 +178,7 @@ def start_epoch(
             )
     try:
         anchors: dict[str, dict[str, Any]] = {}
-        for sequence, provider in enumerate(PROVIDERS, start=1):
+        for sequence, provider in enumerate(providers, start=1):
             anchors[provider] = _anchor_once(root, provider, sequence, clients[provider])
         if any(row["status"] != "captured" for row in anchors.values()):
             failed = [provider for provider, row in anchors.items() if row["status"] != "captured"]
@@ -176,9 +190,23 @@ def start_epoch(
             _create(root / "epoch-summary.json", summary)
             return summary
 
-        anchor_slots = {provider: anchors[provider]["slot"] for provider in PROVIDERS}
+        anchor_slots = {provider: anchors[provider]["slot"] for provider in providers}
         common_tip = min(anchor_slots.values())
-        slot_range = [max(1, common_tip - window_slots + 1), common_tip + 1]
+        if sampling_seed is not None:
+            invalid_sampling_frame = (
+                not sampling_seed
+                or not slots_per_hour_estimate
+                or slots_per_hour_estimate < window_slots
+            )
+            if invalid_sampling_frame:
+                raise ValueError("invalid_hourly_sampling_frame")
+            lower = max(1, common_tip - slots_per_hour_estimate + 1)
+            upper = common_tip - window_slots + 1
+            window_start = random.Random(sampling_seed).randint(lower, upper)
+        else:
+            lower = upper = None
+            window_start = max(1, common_tip - window_slots + 1)
+        slot_range = [window_start, window_start + window_slots]
         old_gap = None
         if old_epoch_root is not None:
             old_stop = old_epoch_root / "STOP"
@@ -206,36 +234,56 @@ def start_epoch(
             "anchor_plan_sha256": _sha(plan_path),
             "anchors": anchors,
             "common_tip_slot": common_tip,
-            "anchor_slot_difference": abs(anchor_slots[PROVIDERS[0]] - anchor_slots[PROVIDERS[1]]),
-            "paired_window_slot_range_exclusive": slot_range,
+            "anchor_slot_difference": (
+                abs(anchor_slots[providers[0]] - anchor_slots[providers[1]])
+                if len(providers) > 1
+                else None
+            ),
+            "selected_slot_range_exclusive": slot_range,
+            "selection_frame": {
+                "start_inclusive": lower,
+                "end_exclusive": (upper + window_slots) if upper is not None else None,
+                "slots_per_hour_estimate": slots_per_hour_estimate,
+                "sampling_seed": sampling_seed,
+                "selection": "uniform_seeded_contiguous_window_within_recent_hour"
+                if sampling_seed is not None
+                else "latest_finalized_slots",
+            },
             "old_epoch_gap": old_gap,
         }
         _create(root / "window-plan.json", window_metadata)
-        signature_slot = slot_range[0] + (slot_range[1] - slot_range[0]) // 2
+        signature_slots = (
+            list(range(*slot_range))
+            if signature_check_all_slots
+            else [slot_range[0] + (slot_range[1] - slot_range[0]) // 2]
+        )
         paired = run_once(
             root / "paired-block-capture",
             slot_ranges=[slot_range],
-            request_cap=MAX_WINDOW_SLOTS + 2,
-            helius_pace=0.25,
+            request_cap=MAX_WINDOW_SLOTS * 2 + 2,
+            helius_pace=0.35,
             sampling_metadata=window_metadata,
-            signature_sample_slots=[signature_slot],
+            signature_sample_slots=signature_slots,
+            providers=providers,
             max_captured_bytes=MAX_CAPTURE_BYTES,
             helius_total_credit_cap=MAX_WINDOW_SLOTS * 2 + 10,
             helius_daily_credit_cap=MAX_WINDOW_SLOTS * 2 + 10,
             clients=clients,
         )
+        block_capture = {
+            "completed": paired["completed"],
+            "attempts": paired["attempts"],
+            "helius_credit_reservations": paired["helius_credit_reservations"],
+            "captured_response_bytes": paired["captured_response_bytes"],
+            "outcomes": paired["outcomes"],
+        }
         summary = {
-            "status": "paired_window_attempted",
+            "status": "provider_window_attempted",
             "anchors": anchors,
             "window_plan_sha256": _sha(root / "window-plan.json"),
             "slot_range": slot_range,
-            "paired_capture": {
-                "completed": paired["completed"],
-                "attempts": paired["attempts"],
-                "helius_credit_reservations": paired["helius_credit_reservations"],
-                "captured_response_bytes": paired["captured_response_bytes"],
-                "outcomes": paired["outcomes"],
-            },
+            "providers": list(providers),
+            "block_capture": block_capture,
             "gap": old_gap,
             "claim": "new bounded finalized block observation; does not close prior epoch gap",
         }
@@ -268,7 +316,7 @@ def main() -> int:
                 old_epoch_root=args.old_epoch_root,
             )
             print(canonical(summary), flush=True)
-            return 0 if summary["status"] == "paired_window_attempted" else 1
+            return 0 if summary["status"] == "provider_window_attempted" else 1
         except Exception as exc:
             if not (args.root / "STOP").exists():
                 _create(

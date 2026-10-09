@@ -1,0 +1,106 @@
+{
+  "audit_mode": "offline_only_no_provider_requests",
+  "availability_semantics": "Each raw response receipt_ns is actual local receipt time. BlockTime is event time. This capture is prospective at response receipt and does not claim that a historical response was available at an earlier decision time.",
+  "capture_code_commit": "52ebe9c765f7539565c36792797f451d9e8e3f14",
+  "capture_script_sha256": "1c6367060d581ed062c01f4d6f5506057586256b878e8ae6cd720a98d7e5aec1",
+  "captured_utc_date": "2026-10-09",
+  "gap_from_prior_epoch": null,
+  "helius": {
+    "account_meter_available": false,
+    "anchor_requests": 1,
+    "expected_standard_credit_reservations": 23,
+    "paired_block_requests": 22,
+    "parsed_full_blocks": 20,
+    "provider_null_full_blocks": 0,
+    "pump_structural_references": 4033,
+    "references_in_failed_transactions": 523,
+    "references_in_successful_transactions": 3510,
+    "unknown_full_blocks": 0
+  },
+  "limits": [
+    "Public RPC failures are unknown and never zero.",
+    "The 20-slot Helius observation is source-bounded to this named range.",
+    "Instruction references are structural; exact economic trade count remains null.",
+    "No global provider completeness, lifecycle, or inactivity claim."
+  ],
+  "offline_audit_code_commit": "34f4d3de23caa76dfd3824e97d1a22542365a2f4",
+  "paired_capture_root_disk_bytes": 152696938,
+  "paired_transactions": {
+    "difference_paths": {
+      "meta.logMessages": 65
+    },
+    "different_trees": 65,
+    "exact_tree_matches": 13651,
+    "paired_transactions": 13716
+  },
+  "plan_sha256": "1405b327f9ea02661b44a6efed3a6a5b52ebf6beb325f127f414dcc4c16ed5a4",
+  "provider_throughput_and_latency": {
+    "helius-free": {
+      "effective_requests_per_second": 0.7870941742437599,
+      "elapsed_seconds": 27.950912,
+      "latency_ms": {
+        "median": 822.114,
+        "n": 22,
+        "p95": 1075.565
+      },
+      "methods": {
+        "getBlock": 21,
+        "getBlocks": 1
+      },
+      "outcomes": {
+        "parsed": 22
+      },
+      "requests": 22,
+      "response_bytes": 96795417
+    },
+    "solana-public": {
+      "effective_requests_per_second": 0.3971909142000644,
+      "elapsed_seconds": 55.388981,
+      "latency_ms": {
+        "median": 778.516,
+        "n": 11,
+        "p95": 1331.587
+      },
+      "methods": {
+        "getBlock": 21,
+        "getBlocks": 1
+      },
+      "outcomes": {
+        "parsed": 11,
+        "request_failed": 11
+      },
+      "requests": 22,
+      "response_bytes": 55793808
+    }
+  },
+  "public_independent_comparison": {
+    "anchor_requests": 1,
+    "failure_counts": {
+      "429": 9,
+      "connection": 1,
+      "timeout": 1
+    },
+    "paired_block_identities": 11,
+    "paired_block_requests": 22,
+    "paired_ordered_signature_lists": 11,
+    "parsed_full_blocks": 11,
+    "unknown_full_blocks": 9,
+    "window_enumeration_equal": 0
+  },
+  "range": {
+    "common_tip_slot": 454865310,
+    "end_exclusive": 454865311,
+    "helius_anchor_slot": 454865310,
+    "public_anchor_slot": 454865311,
+    "selected_slots": 20,
+    "start_inclusive": 454865291
+  },
+  "raw_response_bytes": {
+    "helius-free": 96795417,
+    "solana-public": 55793808
+  },
+  "schema_version": 1,
+  "scope": "One scheduled prospective finalized-slot window. Provider response and structural PumpSwap instruction-reference comparison only; not economic swap semantics, unsampled-slot completeness, or market inactivity.",
+  "source_epoch_id": "20261009T120000Z",
+  "verified_helius_log_truncated_marker_count": 65
+}

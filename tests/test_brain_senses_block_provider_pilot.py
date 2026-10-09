@@ -11,6 +11,8 @@ from tools.brain_senses_block_epoch import start_epoch
 from tools.brain_senses_block_provider_audit import audit
 from tools.brain_senses_block_provider_pilot import (
     MAX_RESPONSE_BYTES,
+    _build_operations,
+    _structural_response_validation,
     _transaction_comparison,
     run_once,
 )
@@ -47,9 +49,14 @@ class FakeBlockRPC:
                         {
                             "transaction": {
                                 "signatures": [signature],
-                                "message": {"accountKeys": [], "instructions": []},
+                                "message": {"accountKeys": ["payer"], "instructions": []},
                             },
-                            "meta": {"err": None, "innerInstructions": []},
+                            "version": "legacy",
+                            "meta": {
+                                "err": None,
+                                "innerInstructions": [],
+                                "loadedAddresses": {"writable": [], "readonly": []},
+                            },
                         }
                         for signature in signatures
                     ],
@@ -72,6 +79,18 @@ class FakeEpochRPC(FakeBlockRPC):
         request = canonical({"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
         response = canonical({"jsonrpc": "2.0", "id": 1, "result": 100}).encode()
         return Capture("fixture", method, request, now, now, response)
+
+
+def test_64_slot_hourly_window_fits_full_and_signature_request_budget() -> None:
+    operations = _build_operations(
+        [[1_000, 1_064]],
+        signature_sample_slots=set(range(1_000, 1_064)),
+        providers=("helius-free",),
+    )
+
+    assert len(operations) == 129
+    assert sum(operation["method"] == "getBlock" for operation in operations) == 128
+    assert sum(operation["method"] == "getBlocks" for operation in operations) == 1
 
 
 def test_same_slot_block_pilot_compares_slot_sets_and_full_transactions(tmp_path: Path) -> None:
@@ -224,6 +243,32 @@ def test_transaction_comparison_reports_nested_difference_paths() -> None:
     }
 
 
+def test_structural_response_count_fails_closed_without_inner_instruction_evidence() -> None:
+    block = {
+        "blockhash": "hash-100",
+        "previousBlockhash": "hash-99",
+        "parentSlot": 99,
+        "transactions": [
+            {
+                "transaction": {
+                    "signatures": ["sig"],
+                    "message": {"accountKeys": ["payer"], "instructions": []},
+                },
+                "version": "legacy",
+                "meta": {
+                    "err": None,
+                    "innerInstructions": None,
+                    "loadedAddresses": {"writable": [], "readonly": []},
+                },
+            }
+        ],
+    }
+
+    assert "transaction_0_instruction_coverage_missing" in _structural_response_validation(
+        block, 100
+    )
+
+
 def test_offline_provider_audit_summarizes_paired_receipts(tmp_path: Path) -> None:
     root = tmp_path / "pilot"
     run_once(
@@ -262,9 +307,9 @@ def test_block_epoch_anchors_both_providers_before_new_paired_window(tmp_path: P
         clients={"helius-free": helius, "solana-public": public},
     )
 
-    assert result["status"] == "paired_window_attempted"
+    assert result["status"] == "provider_window_attempted"
     assert result["slot_range"] == [99, 101]
-    assert result["paired_capture"]["helius_credit_reservations"] == 4
+    assert result["block_capture"]["helius_credit_reservations"] == 4
     assert helius.calls == public.calls == 5  # getSlot, getBlocks, two full, one signatures
     assert (
         json.loads((tmp_path / "epoch" / "window-plan.json").read_text())["anchors"]["helius-free"][
@@ -273,3 +318,61 @@ def test_block_epoch_anchors_both_providers_before_new_paired_window(tmp_path: P
         == 100
     )
     assert result["gap"]["last_receipt_ns_in_old_epoch"] == 123456789
+
+
+def test_helius_only_window_reproducibly_checks_every_selected_slot(tmp_path: Path) -> None:
+    helius = FakeEpochRPC()
+
+    result = start_epoch(
+        tmp_path / "helius-only-epoch",
+        window_slots=2,
+        providers=("helius-free",),
+        slots_per_hour_estimate=24,
+        sampling_seed="fixed-hour-stratum",
+        signature_check_all_slots=True,
+        clients={"helius-free": helius},
+    )
+
+    assert result["status"] == "provider_window_attempted"
+    assert result["slot_range"][1] - result["slot_range"][0] == 2
+    assert result["block_capture"]["helius_credit_reservations"] == 5
+    assert result["block_capture"]["attempts"] == 5
+    assert helius.calls == 6  # finalized anchor, then range + two full + two signatures
+    summary = json.loads(
+        (tmp_path / "helius-only-epoch" / "paired-block-capture" / "summary.json").read_text()
+    )
+    assert summary["comparison"]["windows"][0]["enumerated_slot_count"] == 2
+    assert all(
+        row["providers"]["helius-free"]["full_matches_signatures_only"]
+        for row in summary["comparison"]["windows"][0]["slots_compared"]
+    )
+    single_audit = audit(tmp_path / "helius-only-epoch" / "paired-block-capture")
+    assert single_audit["providers"]["helius-free"]["requests"] == 5
+    assert (
+        single_audit["block_comparison"]["blocks_by_provider"]["helius-free"]["parsed_full_blocks"]
+        == 2
+    )
+    assert single_audit["block_comparison"]["signature_only_cross_checks_equal"] == 2
+    assert (
+        single_audit["block_comparison"]["inventory_qualification"]["helius-free"][
+            "provider_inventory_self_consistent"
+        ]
+        == 2
+    )
+    assert all(
+        row["providers"]["helius-free"]["structural_reference_qualification"]
+        == "exact_over_stored_full_response"
+        and row["providers"]["helius-free"]["provider_inventory_self_consistent"]
+        for row in summary["comparison"]["windows"][0]["slots_compared"]
+    )
+
+    replica = start_epoch(
+        tmp_path / "helius-only-epoch-replica",
+        window_slots=2,
+        providers=("helius-free",),
+        slots_per_hour_estimate=24,
+        sampling_seed="fixed-hour-stratum",
+        signature_check_all_slots=True,
+        clients={"helius-free": FakeEpochRPC()},
+    )
+    assert replica["slot_range"] == result["slot_range"]

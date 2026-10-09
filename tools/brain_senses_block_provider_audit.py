@@ -29,11 +29,12 @@ def _sha(path: Path) -> str:
 
 def audit(root: Path) -> dict[str, Any]:
     plan = _read(root / "plan.json")
+    providers = tuple(plan.get("providers", PROVIDERS))
     results = [_read(path) for path in sorted((root / "request-results").glob("*.json"))]
     comparison = _compare(root, plan, results)
     provider_rows: dict[str, list[dict[str, Any]]] = {
         provider: [row for row in results if row.get("provider") == provider]
-        for provider in PROVIDERS
+        for provider in providers
     }
 
     provider_stats: dict[str, dict[str, Any]] = {}
@@ -85,18 +86,40 @@ def audit(root: Path) -> dict[str, Any]:
             "pump_success_transaction_references": 0,
             "pump_failed_transaction_references": 0,
         }
-        for provider in PROVIDERS
+        for provider in providers
+    }
+    inventory_qualification: dict[str, dict[str, int]] = {
+        provider: {
+            "exact_over_stored_full_response": 0,
+            "provider_inventory_self_consistent": 0,
+            "enumeration_contains_slot": 0,
+            "exact_zero_with_self_consistent_inventory": 0,
+            "unknown": 0,
+        }
+        for provider in providers
     }
     actual_hour_counts: Counter[str] = Counter()
-    selected_block_times: dict[str, list[int]] = {provider: [] for provider in PROVIDERS}
+    selected_block_times: dict[str, list[int]] = {provider: [] for provider in providers}
     for slot_row in slot_rows:
         transaction = slot_row.get("transaction_comparison", {})
         paired_transactions += int(transaction.get("paired", 0))
         exact_transactions += int(transaction.get("exact", 0))
         differing_transactions += int(transaction.get("differing", 0))
         diff_paths.update(transaction.get("difference_paths", {}))
-        for provider in PROVIDERS:
+        for provider in providers:
             item = slot_row["providers"][provider]
+            if item.get("structural_reference_qualification") == "exact_over_stored_full_response":
+                inventory_qualification[provider]["exact_over_stored_full_response"] += 1
+            else:
+                inventory_qualification[provider]["unknown"] += 1
+            if item.get("provider_inventory_self_consistent") is True:
+                inventory_qualification[provider]["provider_inventory_self_consistent"] += 1
+                if item.get("program_references", {}).get("structural_reference_count") == 0:
+                    inventory_qualification[provider][
+                        "exact_zero_with_self_consistent_inventory"
+                    ] += 1
+            if item.get("enumeration_contains_slot") is True:
+                inventory_qualification[provider]["enumeration_contains_slot"] += 1
             if item["full_status"] == "parsed":
                 blocks_by_provider[provider]["parsed_full_blocks"] += 1
                 refs = item.get("program_references")
@@ -184,7 +207,7 @@ def audit(root: Path) -> dict[str, Any]:
         ),
         "helius_account_meter_available": False,
         "captured_response_bytes": {
-            provider: provider_stats[provider]["response_bytes"] for provider in PROVIDERS
+            provider: provider_stats[provider]["response_bytes"] for provider in providers
         },
         "root_disk_bytes": disk_bytes,
         "providers": provider_stats,
@@ -215,6 +238,7 @@ def audit(root: Path) -> dict[str, Any]:
                 "difference_paths": dict(sorted(diff_paths.items())),
             },
             "blocks_by_provider": blocks_by_provider,
+            "inventory_qualification": inventory_qualification,
             "observed_utc_hours": dict(sorted(actual_hour_counts.items())),
             "selected_block_time_bounds_utc": {
                 provider: {

@@ -70,6 +70,14 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - Precommitted follow-up sample: `helius-public-block-sample-precommit-2026-10-09.json` pins the
   seed, integer-slot windows, signature-only subset, estimated time strata, and wave-specific
   request/credit/byte bounds before any sample request. The plan contains no raw chain payloads.
+- First scheduled Helius/public finalized-block window:
+  `helius-public-prospective-block-epoch-2026-10-09.json`. It records a 20-slot prospective
+  sample, 20/20 Helius full responses, 11/20 public full responses, and the exact error accounting;
+  public failures remain unknown, and Helius exact counts are response-bounded structural
+  instruction references. A broader seeded 64-slot/hour prospective verifier is a separate
+  campaign under `work/brain-senses-live-helius-hourly-20261009/`; per-slot Helius signatures-only
+  self-checks are enabled, with independent public comparisons at six-hour UTC intervals. Its
+  campaign-specific size and request estimates are in `docs/brain-source-architecture.md`.
 - Sensing schedule, multistream point-in-time episode, enrollment re-entry and account-budget
   dry-run tests are in `tests/test_experience_sensing.py` and `tests/test_experience_sparse.py`;
   schedule resource measurements are synthetic and small.

@@ -72,10 +72,12 @@ def _parse_ranges(values: list[str]) -> list[list[int]]:
 
 
 def _build_operations(
-    slot_ranges: list[list[int]], signature_sample_slots: set[int] | None = None
+    slot_ranges: list[list[int]],
+    signature_sample_slots: set[int] | None = None,
+    providers: tuple[str, ...] = PROVIDERS,
 ) -> list[dict[str, Any]]:
     operations: list[dict[str, Any]] = []
-    for provider in PROVIDERS:
+    for provider in providers:
         for start, end in slot_ranges:
             operations.append(
                 dict(
@@ -124,7 +126,14 @@ def _plan(
     max_captured_bytes: int = 30_000_000_000,
     helius_total_credit_cap: int = 75_000,
     helius_daily_credit_cap: int = 25_000,
+    providers: tuple[str, ...] = PROVIDERS,
 ) -> dict[str, Any]:
+    if (
+        not providers
+        or len(set(providers)) != len(providers)
+        or any(provider not in PROVIDERS for provider in providers)
+    ):
+        raise ValueError("invalid_provider_set")
     if not 1 <= request_cap <= MAX_REQUESTS_PER_PROVIDER:
         raise ValueError("request_cap_outside_hard_bound")
     if not 0.25 <= helius_pace <= 10:
@@ -142,9 +151,9 @@ def _plan(
         selected_slots = {slot for start, end in slot_ranges for slot in range(start, end)}
         if not sample_set <= selected_slots:
             raise ValueError("signature_sample_outside_selected_slots")
-    operations = _build_operations(slot_ranges, sample_set)
+    operations = _build_operations(slot_ranges, sample_set, providers)
     per_provider = {
-        provider: sum(op["provider"] == provider for op in operations) for provider in PROVIDERS
+        provider: sum(op["provider"] == provider for op in operations) for provider in providers
     }
     if any(value > request_cap for value in per_provider.values()):
         raise ValueError("planned_requests_exceed_provider_cap")
@@ -157,11 +166,11 @@ def _plan(
         code_commit=commit,
         code_sha256=_sha(Path(__file__)),
         python_version=platform.python_version(),
-        providers=list(PROVIDERS),
+        providers=list(providers),
         slot_ranges=slot_ranges,
-        request_caps={provider: request_cap for provider in PROVIDERS},
+        request_caps={provider: request_cap for provider in providers},
         wave_limits={
-            "max_captured_response_bytes_both_providers": max_captured_bytes,
+            "max_captured_response_bytes": max_captured_bytes,
             "helius_expected_credit_reservations_total": helius_total_credit_cap,
             "helius_expected_credit_reservations_per_utc_day": helius_daily_credit_cap,
             "helius_expected_credits_per_standard_rpc_request": 1,
@@ -412,6 +421,96 @@ def _pump_invocations(block: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _structural_response_validation(block: Any, expected_slot: int) -> list[str]:
+    """Return invariant failures that prevent an exact count over this full response."""
+    failures: list[str] = []
+    if not isinstance(block, dict):
+        return ["block_result_not_object"]
+    if not isinstance(block.get("blockhash"), str) or not block["blockhash"]:
+        failures.append("blockhash_missing")
+    if not isinstance(block.get("previousBlockhash"), str) or not block["previousBlockhash"]:
+        failures.append("previous_blockhash_missing")
+    if type(block.get("parentSlot")) is not int or block["parentSlot"] >= expected_slot:
+        failures.append("parent_slot_invalid")
+    transactions = block.get("transactions")
+    if not isinstance(transactions, list):
+        failures.append("transaction_list_missing")
+        return failures
+    seen_signatures: set[str] = set()
+    for index, entry in enumerate(transactions):
+        label = f"transaction_{index}"
+        if not isinstance(entry, dict):
+            failures.append(f"{label}_not_object")
+            continue
+        transaction = entry.get("transaction")
+        message = transaction.get("message") if isinstance(transaction, dict) else None
+        meta = entry.get("meta")
+        if not isinstance(transaction, dict) or not isinstance(message, dict):
+            failures.append(f"{label}_message_missing")
+            continue
+        version = entry.get("version")
+        if not (version == "legacy" or (type(version) is int and version in (0, 1))):
+            failures.append(f"{label}_unsupported_version")
+        signatures = transaction.get("signatures")
+        if (
+            not isinstance(signatures, list)
+            or not signatures
+            or any(not isinstance(signature, str) or not signature for signature in signatures)
+        ):
+            failures.append(f"{label}_signatures_invalid")
+        elif signatures[0] in seen_signatures:
+            failures.append(f"{label}_duplicate_signature")
+        else:
+            seen_signatures.add(signatures[0])
+        if not isinstance(meta, dict) or "err" not in meta:
+            failures.append(f"{label}_meta_status_missing")
+            continue
+        account_keys = message.get("accountKeys")
+        loaded = meta.get("loadedAddresses")
+        if not isinstance(account_keys, list) or not isinstance(loaded, dict):
+            failures.append(f"{label}_account_resolution_missing")
+            continue
+        if not isinstance(loaded.get("writable"), list) or not isinstance(
+            loaded.get("readonly"), list
+        ):
+            failures.append(f"{label}_loaded_addresses_invalid")
+            continue
+        keys = _transaction_keys(entry)
+        if not keys or any(not isinstance(key, str) or not key for key in keys):
+            failures.append(f"{label}_account_resolution_invalid")
+        outer = message.get("instructions")
+        inner = meta.get("innerInstructions")
+        if not isinstance(outer, list) or not isinstance(inner, list):
+            failures.append(f"{label}_instruction_coverage_missing")
+            continue
+        instruction_lists = [outer]
+        for group in inner:
+            if not isinstance(group, dict) or not isinstance(group.get("instructions"), list):
+                failures.append(f"{label}_inner_instruction_group_invalid")
+                continue
+            instruction_lists.append(group["instructions"])
+        for instructions in instruction_lists:
+            for instruction in instructions:
+                if not isinstance(instruction, dict):
+                    failures.append(f"{label}_instruction_invalid")
+                    continue
+                program_id = instruction.get("programId")
+                if program_id is None:
+                    program_index = instruction.get("programIdIndex")
+                    if type(program_index) is not int or not 0 <= program_index < len(keys):
+                        failures.append(f"{label}_program_id_unresolved")
+                account_indices = instruction.get("accounts")
+                if account_indices is not None and (
+                    not isinstance(account_indices, list)
+                    or any(
+                        type(key_index) is not int or not 0 <= key_index < len(keys)
+                        for key_index in account_indices
+                    )
+                ):
+                    failures.append(f"{label}_instruction_accounts_unresolved")
+    return failures
+
+
 def _signature_list(value: Any, detail: str) -> list[str] | None:
     if not isinstance(value, dict):
         return None
@@ -499,13 +598,14 @@ def _transaction_comparison(
 
 
 def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) -> dict[str, Any]:
+    providers = tuple(plan.get("providers", PROVIDERS))
     by_key = {
         (row["provider"], row["method"], row.get("slot"), row["detail"]): row for row in results
     }
     windows: list[dict[str, Any]] = []
     for start, end in plan["slot_ranges"]:
         enumeration: dict[str, set[int] | None] = {}
-        for provider in PROVIDERS:
+        for provider in providers:
             row = next(
                 (
                     r
@@ -525,7 +625,7 @@ def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) ->
         for slot in range(start, end):
             per_provider: dict[str, dict[str, Any]] = {}
             full_values: dict[str, Any] = {}
-            for provider in PROVIDERS:
+            for provider in providers:
                 full_row = by_key.get((provider, "getBlock", slot, "full"))
                 sig_row = by_key.get((provider, "getBlock", slot, "signatures"))
                 full = _block_result(root, full_row) if full_row else None
@@ -535,12 +635,30 @@ def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) ->
                 signature_only = (
                     _signature_list(sigs, "signatures") if isinstance(sigs, dict) else None
                 )
+                structural = _pump_invocations(full) if isinstance(full, dict) else None
+                validation_failures = (
+                    _structural_response_validation(full, slot)
+                    if isinstance(full, dict)
+                    else ["full_block_unavailable"]
+                )
+                if structural is not None and structural["unresolved_instruction_shapes"]:
+                    validation_failures.append("instruction_program_resolution_incomplete")
+                exact_count = not validation_failures
+                enumeration_contains_slot = (
+                    slot in enumeration[provider] if enumeration[provider] is not None else None
+                )
+                self_consistency = (
+                    full_signatures == signature_only
+                    if full_signatures is not None and signature_only is not None
+                    else None
+                )
+                inventory_consistent = (
+                    exact_count and enumeration_contains_slot is True and self_consistency is True
+                )
                 per_provider[provider] = dict(
                     full_status=full_row.get("result_status") if full_row else "not_run",
                     signatures_status=sig_row.get("result_status") if sig_row else "not_run",
-                    enumeration_contains_slot=(slot in enumeration[provider])
-                    if enumeration[provider] is not None
-                    else None,
+                    enumeration_contains_slot=enumeration_contains_slot,
                     full_transaction_count=len(full.get("transactions", []))
                     if isinstance(full, dict) and isinstance(full.get("transactions"), list)
                     else None,
@@ -558,44 +676,81 @@ def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) ->
                         if full_signatures is not None
                         else None
                     ),
-                    full_matches_signatures_only=(
-                        full_signatures == signature_only
-                        if full_signatures is not None and signature_only is not None
-                        else None
-                    ),
+                    full_matches_signatures_only=(self_consistency),
                     blockhash=full.get("blockhash") if isinstance(full, dict) else None,
                     block_time_seconds=full.get("blockTime") if isinstance(full, dict) else None,
                     parent_slot=full.get("parentSlot") if isinstance(full, dict) else None,
                     previous_blockhash=full.get("previousBlockhash")
                     if isinstance(full, dict)
                     else None,
-                    program_references=_pump_invocations(full) if isinstance(full, dict) else None,
+                    program_references=structural,
+                    structural_reference_qualification=(
+                        "exact_over_stored_full_response" if exact_count else "unknown"
+                    ),
+                    structural_reference_validation_failures=validation_failures,
+                    provider_inventory_self_consistent=(
+                        inventory_consistent if full is not None else None
+                    ),
+                    independent_corroboration=(
+                        "not_requested" if len(providers) == 1 else "pending"
+                    ),
                     full_response_bytes=full_row.get("response_bytes") if full_row else None,
                     signatures_response_bytes=sig_row.get("response_bytes") if sig_row else None,
                 )
-            a, b = (per_provider[provider] for provider in PROVIDERS)
-            both_full = (
-                a["full_signature_count"] is not None and b["full_signature_count"] is not None
-            )
-            signature_equivalent = (
-                both_full and a["full_signature_count"] == b["full_signature_count"]
-            )
-            signature_order_equal = (
-                both_full
-                and a["full_signature_list_sha256"] is not None
-                and a["full_signature_list_sha256"] == b["full_signature_list_sha256"]
-            )
-            # Full transaction list identities are compared from raw responses below.
-            block_identity_equivalent = (
-                both_full
-                and a["blockhash"] == b["blockhash"]
-                and a["parent_slot"] == b["parent_slot"]
-                and a["previous_blockhash"] == b["previous_blockhash"]
-            )
-            transaction_comparison = _transaction_comparison(
-                full_values.get(PROVIDERS[0]),
-                full_values.get(PROVIDERS[1]),
-            )
+            paired = len(providers) == 2
+            if paired:
+                a, b = (per_provider[provider] for provider in providers)
+                both_full = (
+                    a["full_signature_count"] is not None and b["full_signature_count"] is not None
+                )
+                signature_equivalent = (
+                    both_full and a["full_signature_count"] == b["full_signature_count"]
+                )
+                signature_order_equal = (
+                    both_full
+                    and a["full_signature_list_sha256"] is not None
+                    and a["full_signature_list_sha256"] == b["full_signature_list_sha256"]
+                )
+                block_identity_equivalent = (
+                    both_full
+                    and a["blockhash"] == b["blockhash"]
+                    and a["parent_slot"] == b["parent_slot"]
+                    and a["previous_blockhash"] == b["previous_blockhash"]
+                )
+                transaction_comparison = _transaction_comparison(
+                    full_values.get(providers[0]), full_values.get(providers[1])
+                )
+            else:
+                both_full = per_provider[providers[0]]["full_status"] == "parsed"
+                signature_equivalent = signature_order_equal = block_identity_equivalent = None
+                transaction_comparison = dict(
+                    status="single_provider_no_cross_provider_comparison",
+                    paired=0,
+                    exact=0,
+                    differing=0,
+                    difference_paths={},
+                )
+            if paired:
+                for provider in providers:
+                    item = per_provider[provider]
+                    other = per_provider[providers[1] if provider == providers[0] else providers[0]]
+                    if (
+                        item["structural_reference_qualification"]
+                        != "exact_over_stored_full_response"
+                        or other["structural_reference_qualification"]
+                        != "exact_over_stored_full_response"
+                    ):
+                        item["independent_corroboration"] = "unavailable_or_unqualified"
+                    elif (
+                        item["blockhash"] == other["blockhash"]
+                        and item["parent_slot"] == other["parent_slot"]
+                        and item["previous_blockhash"] == other["previous_blockhash"]
+                        and item["full_signature_list_sha256"]
+                        == other["full_signature_list_sha256"]
+                    ):
+                        item["independent_corroboration"] = "matching_independent_block_response"
+                    else:
+                        item["independent_corroboration"] = "provider_disagreement"
             slot_rows.append(
                 dict(
                     slot=slot,
@@ -605,12 +760,18 @@ def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) ->
                     cross_provider_signature_order_equal=signature_order_equal,
                     cross_provider_block_identity_equal=block_identity_equivalent,
                     comparison_status=(
-                        "paired_full_blocks" if both_full else "unknown_unpaired_or_incomplete"
+                        ("paired_full_blocks" if both_full else "unknown_unpaired_or_incomplete")
+                        if paired
+                        else (
+                            "single_provider_full_response"
+                            if both_full
+                            else "unknown_unparsed_or_missing"
+                        )
                     ),
                 )
             )
-        left = enumeration[PROVIDERS[0]]
-        right = enumeration[PROVIDERS[1]]
+        left = enumeration[providers[0]]
+        right = enumeration[providers[1]] if len(providers) == 2 else None
         windows.append(
             dict(
                 slot_range=[start, end],
@@ -618,9 +779,13 @@ def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) ->
                     provider: (
                         None if enumeration[provider] is None else sorted(enumeration[provider])
                     )
-                    for provider in PROVIDERS
+                    for provider in providers
                 },
                 enumeration_equal=left == right if left is not None and right is not None else None,
+                enumerated_slot_count=None if left is None else len(left),
+                enumerated_slots_within_selected_range=(
+                    None if left is None else all(start <= slot < end for slot in left)
+                ),
                 slots_compared=slot_rows,
             )
         )
@@ -638,6 +803,7 @@ def run_once(
     max_captured_bytes: int = 30_000_000_000,
     helius_total_credit_cap: int = 75_000,
     helius_daily_credit_cap: int = 25_000,
+    providers: tuple[str, ...] = PROVIDERS,
     clients: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     plan = _plan(
@@ -649,6 +815,7 @@ def run_once(
         max_captured_bytes,
         helius_total_credit_cap,
         helius_daily_credit_cap,
+        providers,
     )
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(root, 0o700)
@@ -686,19 +853,19 @@ def run_once(
     own_clients = clients is None
     if own_clients:
         clients = {}
-        for provider in PROVIDERS:
+        for provider in providers:
             endpoint, alias = _provider_endpoint(provider)
             clients[provider] = ReadOnlyRPC(
                 endpoint, alias, timeout=45, max_bytes=MAX_RESPONSE_BYTES, keep_alive=True
             )
-    last_attempt: dict[str, int] = {provider: 0 for provider in PROVIDERS}
+    last_attempt: dict[str, int] = {provider: 0 for provider in providers}
     outcomes: dict[str, int] = {}
     try:
         operations = plan["operations"]
         while state["completed"] < len(operations):
             seq = state["next_sequence"]
             operation = operations[state["completed"]]
-            if seq > request_cap * len(PROVIDERS):
+            if seq > request_cap * len(providers):
                 _create(root / "STOP", dict(reason="aggregate_request_cap", time_ns=time.time_ns()))
                 break
             if captured_bytes + MAX_RESPONSE_BYTES > max_captured_bytes:
