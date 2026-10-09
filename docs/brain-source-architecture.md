@@ -18,6 +18,10 @@ a full redesign.
 | Public Solana RPC | Structural controls and bounded read-only verification | It is not a complete archive or independent proof of another provider's dataset |
 | Helius | Independent indexed RPC and standard WSS cross-checks | A configured endpoint does not prove account plan, completeness, or independent agreement |
 
+Alchemy Free and PAYG share one provider family. Read-only block verification can select the PAYG
+endpoint through `MEMECOIN_ALCHEMY_PAYG_HTTP_URL`; the current research `.env.local` has no PAYG
+endpoint, so no paid acquisition is currently configured. Helius remains a separate provider family.
+
 The user-provided Helius RPC credential is configured only in ignored, mode-0600 `.env.local` under
 `MEMECOIN_HELIUS_RPC_URL`; LaunchAgent arguments, Git and logs contain no key. Read-only Helius MCP
 plan info and current pricing confirm Free at 1M credits/month and 10 standard RPC requests/s;
@@ -265,6 +269,15 @@ Raw/provenance support is useful, but the current decoder set does not cover eve
 historical IDL profiles reconciled a small set of old transactions; newer payload suffixes and
 Token-2022 remaining-account semantics remain incomplete. CPMM decoding does not generalize to
 CLMM/DLMM/Meteora.
+
+The versioned compiled-transaction normalizer resolves static keys followed by loaded writable and
+loaded readonly addresses, preserves instruction bytes/index paths and key provenance, and fails
+closed when lookup addresses, account indexes, message versions, or CPI stack evidence are missing
+or inconsistent. It decodes only the exact SPL `TransferChecked` wire form (tag 12, u64 amount,
+decimals); Token-2022 transfer-fee/hook economic effects stay quarantined. This is a resolved
+instruction layer, not yet an economically reconciled swap. The layout follows [Solana RPC JSON
+structures](https://solana.com/docs/rpc/json-structures) and the [official SPL token instruction
+implementation](https://github.com/solana-program/token/blob/main/interface/src/instruction.rs).
 
 An early indexed query failed because the request omitted `maxSupportedTransactionVersion=0`.
 That was a client request bug, not evidence that the provider lacked historical data. Later
@@ -703,28 +716,57 @@ trades. Public failures remain unknown. This is source/range-bounded observation
 coverage or a lifecycle claim. Receipt:
 [`helius-public-prospective-block-epoch-2026-10-09.json`](evidence/helius-public-prospective-block-epoch-2026-10-09.json).
 
-For the following independent verification horizon, Sol approved a 72-hour seeded sample of 256
-Helius slots/hour, paired with 16 randomly selected public-RPC slots/hour spread through each hour.
-This is about four times the current Helius sampling breadth and approximately 12,500 standard
-credits/day at current request accounting, before any later evidence-based widening. It remains
-sampled coverage. The new wave must account credits against the shared Free allowance with a reserve
-while the live account meter is unavailable, preserve unknown public failures, and review success,
-discrepancy yield, and disk after 24 hours. A measured three-block lossless zstd probe reduced
-4.3–5.0 MB responses to 0.57–0.61 MB; this is a sizing estimate, not a guarantee. Future block raw
-captures can opt into zstd while receipts retain original response hash/length and stored-object
-hash/length, codec/version, request identity, and receipt time. Existing raw roots stay unchanged;
-decoders must verify the stored checksum and decompressed original hash before parsing. These
-per-wave credit and sample sizes are not durable quota ceilings.
+The 64-slot/hour wave and the 1,000-credit verifier are bounded experiments, not coverage ceilings.
+The first public-RPC epoch received HTTP 429 on 120/128 full-block attempts, so public stays a sparse
+availability sentinel. A separate 32-slot same-slot Helius Free/Alchemy Free calibration qualified
+all 32 blocks on both sources after the empty-base58 decoder correction. Inventories and block
+identity/signature order agreed. Of 39,318 paired transactions, 38 differed only in
+`meta.logMessages`, each with Helius's explicit `Log truncated` marker. Receipt:
+[`alchemy-free-helius-same-slot-calibration-2026-10-09.json`](evidence/alchemy-free-helius-same-slot-calibration-2026-10-09.json).
+
+Next run one **24-hour** independent-verification wave at 512 Helius slots per finalized hour.
+Select sixteen seeded contiguous 32-slot windows, one in each equal slot stratum of the hour; make
+one full-frame finalized `getBlocks` inventory per provider, then request Helius full bodies plus
+signatures-only self-checks for all 512 selected slots. Pair Alchemy Free on two seeded slots in each
+selected window (32/hour, 768 total), using the same immutable window manifest. Persist both the
+primary inclusion probabilities and the conditional pair-sample probabilities. A selected provider
+count is exact only with successful inventory, non-null full body, complete parser and ordered
+signature self-check. Inventory absence means no produced block per that provider, not economic
+zero. Other produced slots retain unknown structural counts; compare only successfully paired,
+qualified bodies.
+
+Expected Helius use is 24,624 standard RPC reservations for 12,288 selected slots (full and
+signatures-only calls plus 24 range inventories and 24 anchors); the wave cap is 26,000 reservations.
+Alchemy Free adds 1,584 separate provider attempts (32 full/signature pairs plus inventory and
+anchor per hour). The shared one-day Helius research envelope is 36,000 local reservations; it
+counts this campaign, the active 64-slot campaign, Helius watch-v3, and same-day historical/calibration
+requests from their durable request ledgers. Before the wave the ledgers showed 4,463 Helius
+reservations today (3,168 historical, 130 hourly, 1,100 watch, 65 calibration). Projected full-day
+usage is about 32,144 for the new wave, active block campaign and watch before any completed
+same-day historical/calibration calls. A per-epoch scan recounts current-day ledgers before adding
+the next Helius reservation. These are local request reservations under the published one-credit
+standard-call assumption; the Helius account meter is unavailable, so they are not invoice credits.
+The cap belongs to this campaign day and is not a recurring daily allowance or Brain ceiling.
+
+The denser calibration stored 36.49 MB / 32 Helius slots and 36.33 MB / 32 Alchemy slots, including
+inventories and signature checks: about 1.14 MB per provider/slot. Use this measured distribution,
+not the earlier three-block probe, for planning: roughly 14.9 GB compressed over 24 hours, with an
+18 GiB campaign storage cap and a 30 GiB free-disk floor. A 72-hour extension at the same rate would
+exceed available headroom alongside the historical and active 64-slot roots. The scheduler checks
+stored-byte and free-disk budgets before every hourly epoch; stop the new broad wave first when its
+campaign envelope or floor is approached, preserve other prospective sensors, and re-estimate after
+the 24-hour evidence boundary. Raw response hashes/lengths, stored-object hashes/lengths, codec,
+request identity and receipt time remain in durable receipts; decompress and verify before parsing.
 
 The first paired window wrote 152.6 MB to disk (96.8 MB Helius, 55.8 MB public) including only 11
 public full blocks. Helius watch v2 had captured 1,001 request results / 17.7 MB at its terminal
 checkpoint; v3 is capped at 4,400 requests/day, which projects to 0.09 GB/day at 20.3 KB/request.
-Combined with the expanded hourly sensor and up to 256 public paired full blocks/day, current
-provision is approximately 8.7 GB/day / 261 GB per 30 days if all measured rates persist. The 85
-GiB free at the last disk check can hold the active
-campaigns; it cannot hold that projected rate for a month, so acquisition roots must be measured
-and reviewed during this 72-hour wave, with long-lived raw retention moved to added storage before
-continuing at that rate. Recompute from actual capture bytes before extension.
+At the new measured rate, 512 Helius slots/hour plus 32 Alchemy pairs/hour is about 14.9 GB/day
+stored; a seven-day continuation would need about 104 GB before the smaller watch stream. The latest
+76 GiB free can support this as a one-day wave alongside the current roots while maintaining the
+30 GiB floor, but not a week of indefinite retention. Recompute from actual bytes after the wave;
+keep the existing prospective collector running while capacity remains and add archival storage only
+if measured free capacity makes it necessary.
 
 The 2026-10-09 `brain-experience-v3` contract carries typed native coordinates alongside independent
 UTC availability. Origins, dependency extents, target windows, maturity and role intervals name a

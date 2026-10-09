@@ -67,6 +67,17 @@ contain large exact payloads, so open only the named artifact needed for a speci
   only because Helius explicitly truncated `meta.logMessages`. Raw provider bodies and the corrected
   full comparison remain under ignored `work/`; this is a non-random qualification pilot, not broad
   completeness evidence. The follow-up sample is deliberately larger than this first pilot.
+- Same-slot Helius Free/Alchemy Free calibration across 32 recent finalized slots:
+  `alchemy-free-helius-same-slot-calibration-2026-10-09.json`. All 32 paired blocks qualified
+  after fixing the valid empty-base58 instruction case; 38 transaction-tree differences were
+  limited to Helius logs with an explicit `Log truncated` marker. At this denser sample, lossless
+  zstd stored about 1.14 MB/provider/slot, so it supersedes the three-block compression estimate
+  for sizing the next wave. Captures remain under ignored `work/`.
+- Offline replay of the historical Helius full-block captures after the empty-base58 fix:
+  `helius-historical-instruction-normalization-audit-2026-10-09.json`. All 2,880 stored full
+  responses now normalize and parse; all are present in their captured Helius inventories. The
+  precommitted root has only 144 full/signatures-only self-checks, so only those 144 qualify as exact
+  selected-block counts under the current contract; no historical availability claim is made.
 - Precommitted follow-up sample: `helius-public-block-sample-precommit-2026-10-09.json` pins the
   seed, integer-slot windows, signature-only subset, estimated time strata, and wave-specific
   request/credit/byte bounds before any sample request. The plan contains no raw chain payloads.
