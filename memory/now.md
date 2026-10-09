@@ -54,10 +54,11 @@ standby. No Grok.
   HTTP 429s/timeouts remain unknown. The 13,716 paired transactions had 65 log-only differences,
   each explicitly truncated by Helius. Helius showed 4,033 PumpSwap structural references; none
   imply executed swaps. See `docs/evidence/helius-public-prospective-block-epoch-2026-10-09.json`.
-- Existing prospective campaign is separate and unchanged: 64 seeded Helius slots/hour for 72h,
-  Helius signature self-check per selected slot, public paired only at UTC 00/06/12/18, and its own
-  20,000-credit/32-GiB wave bounds. First window used 129 Helius reservations, captured 64/64
-  Helius blocks, while public had 123 failed attempts among 129; failures remain unknown.
+- Existing prospective 64-slot Helius/public campaign: its 12:00Z epoch used 258 requests / 129
+  Helius reservations, parsed 135 and failed 123 (public transport); failures remain unknown. Its
+  13:00Z and 14:00Z scheduled invocations exited `ValueError`, with only the exception class logged
+  and no epoch roots created. Do not rely on this lane until its scheduler binding/recovery is
+  diagnosed. Its 20,000-credit/32-GiB campaign limits remain local bounds.
 - First independent-verification epoch completed under LaunchAgent
   `ai.memecoin.brain.senses.independent-verifier-512`: 512/512 selected Helius blocks passed full vs
   signatures-only self-check and qualified exact structural-reference counts (69,311 total; one
@@ -77,12 +78,26 @@ standby. No Grok.
   availability, <45-minute qualification time, 18GiB campaign storage cap, 30GiB free-disk floor.
   Shared cap36k reservations includes prior Helius roots. After each healthy day, renew for two more
   24h waves with an intervening review; 512/h and daily credit caps are wave controls, not ceilings.
+  Pair64 epoch `20261009T150000Z` completed around 15:25Z and scheduler exited 0: all 512/512
+  selected Helius full/signature slots qualified across 16 strata; 1,154 attempts/completions, 1,025
+  Helius reservations, 1,153 parsed and one Alchemy `getBlocks` inventory failure (no retry). 64
+  Alchemy same-slot pairs were captured, but this summary does not retain independent pair-agreement
+  detail; compare them offline before claiming cross-provider match. Raw response bytes 3.012GB,
+  stored 695.2MB, epoch folder ~680MB, 73GiB free. `epoch-summary.json` and schedule result are
+  durable in ignored `work/`; status is `provider_window_attempted`, not global completeness.
+  LaunchAgent is calendar-scheduled hourly (Minute=0, RunAtLoad=false), now idle after clean exit and
+  will resume on the next hour. Keep the existing 24h wave under daily gate; do not renew without
+  review.
 - Helius address-watch v2 stopped after 1,001 requests: 999 transaction bodies captured, one failed;
   a restart recorded terminal `ValueError` and STOP. Do not resume its cursor. New watch v3 uses
   fresh six-hour UTC roots, parent STOP/last-receipt links, no inherited cursor, and a 1,100-request
   cap per epoch; the hourly block sample is the prospective evidence path, while this watch is a
-  sparse address-index sensor, not full population coverage.
-- Latest disk check: 75 GiB free after the first broad epoch; no external research volume is mounted.
+  sparse address-index sensor, not full population coverage. Its 12:00Z v3 epoch finished cleanly
+  at the 1,100-attempt cap: 1,099 captures, one failed, explicit STOP `stop_or_budget_during_page`,
+  completeness unknown; it is not resumable. Helius and public decode exception-watcher LaunchAgents
+  repeatedly log `ValueError` (class only, no message); inspect their recovery before relying on them.
+  Program-watch v2/v3 and old Helius-watch jobs are stopped with last exit 0.
+- Latest disk check after pair64 epoch: 73 GiB free; no external research volume is mounted.
   The active 64/h raw block campaign is ~6.6GB/day and Helius watch ~0.09GB/day. At 64 Alchemy
   pairs/hour the next Helius wave projects ~14.7GB/day stored. Helius 1,000-credit and 20,000/day
   values are qualification bounds, not durable ceilings.
@@ -112,16 +127,17 @@ standby. No Grok.
 
 ## Verification and next decision horizon
 
-- Focused Ruff, format, mypy (`--follow-imports=skip`), and PumpSwap checks passed (30 tests); fresh
-  dev replay used zero RPC. The latest full `make check` reached 1,352 passed
-  / 25 skipped but failed three `tests/tools/test_agent_context.py` cases because this file plus
-  `AGENTS.md` exceeded the context packet's mandatory 23,500-character budget. Keep this state note
-  compact, then rerun `make check`. `make smoke` is synthetic-only and is not evidence of edge.
+- Focused Ruff/format/mypy (`--follow-imports=skip`) and PumpSwap checks passed after v2 update
+  (36 tests); sample replays and captured-class census used zero RPC. The last full `make check`
+  reached 1,352 passed / 25 skipped but failed three `tests/tools/test_agent_context.py` cases on
+  the mandatory packet budget; it was not rerun in this checkpoint. `make smoke` is synthetic-only
+  and is not evidence of edge.
 - Compiled transaction normalization has fail-closed static/lookup-address resolution, valid empty
   base58 decoding and exact SPL `TransferChecked` wire decoding; Token-2022 effects remain
-  quarantined. Ledger v2 is frozen at `a5b9b02`; audit was read once after freeze. Next, run an
-  adapt the same diagnostic to buyExact25 with fresh disjoint development/audit samples. The v2
-  census covers all captured eligible sell23 candidates only. Keep Helius 512/hour and Alchemy
-  64/hour stable through temporal reviews; pair64 root was running (680 MB at ~20m, 73 GiB free at
-  latest check).
+  quarantined. Ledger v2 is frozen at `a5b9b02`; census tool is `d2f39b5`; evidence/state is
+  `d36ff9a`. Next: offline audit the 64 captured Alchemy same-slot pairs, inspect recovery of the
+  hourly public/Helius scheduler and failing decode watchers, and observe the next pair64 scheduled
+  epoch. Then adapt the diagnostic to buyExact25 with fresh disjoint development/audit samples.
+  The v2 census covers all captured eligible sell23 candidates only. Keep the current pair64 wave
+  under its existing daily and disk gates; no renewal or Cortex start until later review.
   Do not call Senses complete or begin Cortex.
