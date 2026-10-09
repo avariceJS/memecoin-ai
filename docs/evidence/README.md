@@ -201,3 +201,4 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   disclosures are retained. Payloads: `work/brain-diverse-campaign-20261008/`.
 - `pumpswap-buy-exact-v1-attempt-census-2026-10-10.json`: offline structural attempt census for the pinned v1 instruction in the captured 512-block Helius class; no settlement or completeness claim.
 - `pumpswap-buy-exact-v1-development-qualification-2026-10-10.json`: complete replay of the frozen 62-ref dual-legacy development population, with exact token-account ledger facts; still diagnostic-only and not the sealed audit.
+- `pumpswap-buy-exact-v1-audit-failure-2026-10-10.json`: preserved one-time 13:00Z census failure after all 512 payloads were processed but before report publication; no outcomes accepted and no reuse permitted.

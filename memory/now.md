@@ -54,26 +54,30 @@ standby. No Grok.
 - `buy_exact_quote_in` v1 now has a tracked source-bound attempt/suffix census receipt. It is
   structural only: 12,120 candidate transactions / 12,143 refs across 507 slots; 1,377 refs meet
   the pinned 25-byte/two-account documented suffix candidate shape. Failed transactions remain
-  attempts. This census itself makes no settlement or admission claim. The 13:00Z archive
-  remains unopened for this class and is reserved for one-time sealed audit after implementation,
-  plan, and acceptance checks are frozen. `buy_exact_quote_in_v2`, Token-2022 effects and unverified
-  payload/suffix layouts remain out of scope/quarantined.
+  attempts. This census itself makes no settlement or admission claim. The 13:00Z archive was
+  opened by a frozen buyExact census attempt on 2026-10-10, but report construction failed on an
+  optional source-receipt field after processing the 512 blocks. No report/outcomes were emitted or
+  accepted. Failure receipt:
+  `docs/evidence/pumpswap-buy-exact-v1-audit-failure-2026-10-10.json`. Treat the archive as consumed
+  for this audit: do not rerun or tune against it; obtain a new disjoint source.
+  `buy_exact_quote_in_v2`, Token-2022 effects and unverified payload/suffix
+  layouts remain out of scope/quarantined.
 - Frozen development replay currently covers all 62 successful dual-legacy refs in the 15:00Z
   captured class: 62 exact BuyEvent/transfer fact sets and exact full ordered ledgers for all six
   touched token accounts. Unit checks preserved 9/6 decimal pairs (61) and 6/9 (one); values are
   atomic units only. Fee-flow and gross/net equations remain empirical hypotheses. The 13:00Z
-  Helius full-block set is still unread for this buyExact class; its metadata-only manifest binds
-  512 slots and proves disjointness from 15:00Z.
+  Helius full-block set has a metadata manifest proving disjointness from 15:00Z, but its attempted
+  buyExact census failed before emitting results. It is no longer a valid unopened audit source.
 - No fresh independent model comparison, real-source fit, calibrated execution result, market edge,
   or profit claim. Sensing still lacks broad market/process completeness; do not call Senses complete.
 
 ## Next decision horizon
 
-1. Commit the bounded buyExact v1 diagnostic, replay tool and development receipt; freeze a one-time
-   13:00Z acceptance plan and source bindings before reading its transaction payloads.
-2. Run the sealed audit once with all class denominators and per-ref exact/partial/unsupported
-   reasons. Do not tune on audit; if it exposes a code defect, quarantine the result and seek a new
+1. Commit the buyExact census receipt adapter fix. Preserve the 13:00Z failed attempt; bind a fresh
+   disjoint full-block source and one-pass acceptance plan before decoding it.
+2. Run that sealed audit once with all class denominators and per-ref exact/partial/unsupported
+   reasons. Do not tune on audit; if it exposes a code defect, quarantine the result and seek another
    independent source before any requalification.
-3. Decide separately whether the capped v3 address-reference stream should be replaced with a
-   recoverable prospective sensor that preserves explicit gaps and charged attempts. Do not restart
-   the exhausted epoch. No Cortex.
+3. Decide whether the capped v3 address-reference stream should be replaced with a recoverable
+   prospective sensor that preserves explicit gaps and charged attempts. The LaunchAgent is loaded
+   but idle between scheduler invocations; do not restart the exhausted epoch. No Cortex.

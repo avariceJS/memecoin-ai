@@ -39,6 +39,16 @@ def _json(path: Path) -> Any:
     return json.loads(path.read_text())
 
 
+def _source_receipt_metadata(audit_receipt: dict[str, Any]) -> dict[str, Any]:
+    """Preserve optional provenance fields across receipt schema generations."""
+    return {
+        "provider_audit_code_commit": audit_receipt.get(
+            "audit_code_commit", audit_receipt.get("git_commit")
+        ),
+        "provider_audit_analysis_sha256": audit_receipt.get("analysis_sha256"),
+    }
+
+
 def _is_candidate_transaction(tx: dict[str, Any]) -> bool:
     """Cheaply detect a PumpSwap discriminator without normalizing unrelated transactions."""
     message = tx.get("transaction", {}).get("message", {})
@@ -270,8 +280,7 @@ def census(
             "provider_audit_receipt": str(audit_receipt_path),
             "provider_audit_receipt_sha256": _sha256(audit_receipt_path.read_bytes()),
             "source_binding_kind": binding_kind,
-            "provider_audit_code_commit": audit_receipt["audit_code_commit"],
-            "provider_audit_analysis_sha256": audit_receipt["analysis_sha256"],
+            **_source_receipt_metadata(audit_receipt),
             "expected_full_block_slots": expected_slots,
             "observed_full_block_slots": len(slot_rows),
             "captures": captures_receipts,

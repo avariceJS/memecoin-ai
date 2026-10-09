@@ -235,8 +235,8 @@ refs, 78 failed attempts). Another 25 refs had a structurally valid pair but fai
 transaction-wide readonly check for the fee wallet. Three-account suffix predecessors and
 four/seven-account suffixes remain unresolved; 24/26-byte payloads remain unverified. This is not
 an economic fill decoder, transaction settlement, completeness, exact-zero, wallet-net price, or
-training/execution admission. The 13:00Z archive remains sealed for a one-time independent audit;
-freeze implementation and selection rules before opening it. Receipt:
+training/execution admission. The planned 13:00Z independent audit was consumed by a failed census
+attempt; future qualification must use a new disjoint source. Receipt:
 [`buyExact v1 attempt census`](evidence/pumpswap-buy-exact-v1-attempt-census-2026-10-10.json).
 
 The frozen development predicate selected all 62 successful refs in that captured census whose
@@ -250,8 +250,14 @@ accounts in all 62 transactions. Observed mint decimal pairs were 9/6 in 61 and 
 remain integer atomic units and no UI conversion is made. Gross/net and fee-flow equations matched
 all 62, but remain empirical diagnostic hypotheses. This is narrow development evidence only, with
 no wallet-net price, training, execution, or market-completeness admission. Its deterministic plan
-and replay receipt also bind a metadata-only manifest for 512 disjoint 13:00Z Helius full blocks;
-that archive has not been opened for this buyExact audit. Receipt:
+and replay receipt also bind a metadata-only manifest for 512 disjoint 13:00Z Helius full blocks.
+That source was opened once by the frozen structural census on 2026-10-10. All 512 block payloads
+were processed, but report construction failed because the source binding receipt uses `git_commit`
+and omits optional `audit_code_commit` and `analysis_sha256` fields. No census output was published,
+no per-reference outcomes were accepted, and no economic replay began. Preserve the failed attempt;
+do not rerun or tune on this archive. Corrected code requires a new disjoint source and a new frozen
+plan. Receipt: [`buyExact v1 failed audit attempt`](evidence/pumpswap-buy-exact-v1-audit-failure-2026-10-10.json).
+Development receipt:
 [`buyExact v1 development`](evidence/pumpswap-buy-exact-v1-development-qualification-2026-10-10.json).
 
 One finalized slot was then fetched with full `getBlock` transactions from Alchemy Free and an
