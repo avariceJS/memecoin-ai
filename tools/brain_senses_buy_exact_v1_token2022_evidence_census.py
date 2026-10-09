@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 from collections import Counter
 from datetime import UTC, datetime
@@ -377,7 +378,15 @@ def census(
             "historical extension state, completeness, or exact-zero claim"
         ),
         "created_at_utc": datetime.now(UTC).isoformat(),
-        "code_commit": os.environ.get("BRAIN_SENSES_CODE_COMMIT"),
+        "code_commit": os.environ.get("BRAIN_SENSES_CODE_COMMIT")
+        or subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip(),
+        "tool_sha256": _sha256(Path(__file__).read_bytes()),
         "source": {
             "capture_root": str(capture_root),
             "capture_plan_sha256": census_data["source"]["plan_sha256"],
