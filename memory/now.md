@@ -1,110 +1,57 @@
 # Current Project State
 
-**As of:** 2026-10-10 Europe/Moscow. Start from `docs/INDEX.md`; verify live state before acting.
+**As of:** 2026-10-10 Europe/Moscow. Read `docs/INDEX.md`, then verify Git and runtime before
+acting.
 
-## Goal and boundaries
+## Boundaries
 
-Build a scalable, reproducible Solana learning system. No demonstrated executable edge. Do not
-promote/deploy, sign transactions, use real money, access frozen F01/D43 or reserved holdouts, or
-start Cortex before Senses is objectively complete. Keep production
-`/Users/root1/Desktop/memecoin-ai` and credentials untouched. Mac 1 is the research host; Mac 2 is
-standby. No Grok.
+Build scalable, point-in-time Solana market experience; no demonstrated trading edge. Keep
+`/Users/root1/Desktop/memecoin-ai`, real money/signing, protected F01/D43 and reserved holdouts,
+promotions, and remote pushes untouched. Do not start Cortex before Senses is objectively ready.
 
-## Current host state
+## Host and prospective runtime
 
-- Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; verify
-  `git status` and HEAD at entry. Do not push. Production checkout remains untouched.
-- Disk has about 70 GiB free at current review. No external research volume is mounted. Helius Free
-  plan info is available, but its account usage meter is not. Alchemy MCP returned an aggregate
-  team meter of 18,680 CU / rounded $0.01 MTD; it is not attributable to this epoch or the Free app.
-  No paid request was made in this session.
-- Pair64 `512/hour` and legacy `64/hour` block campaigns have immutable `CAMPAIGN_STOP` records and
-  their LaunchAgents are unloaded. Do not resume either campaign. The 2026-10-09 15:00Z pair64 raw
-  root remains in ignored `work/`; latest audit receipt is
+- Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`.
+  Production checkout is separate and unchanged.
+- About 70 GiB free at last check. Helius account usage meter is unavailable. Alchemy MCP responds,
+  but its aggregate team CU meter is not an account/app limit. No paid request was made.
+- Pair64 and older finalized-block campaigns are stopped/unloaded. The 2026-10-09 15:00Z captures
+  and tracked offline audit receipt remain in place. The audit confirms bounded 64-slot provider
+  response agreement; Alchemy `getBlocks` failed, so its inventory and unsampled slots remain
+  unknown. See `docs/brain-source-architecture.md` and
   `docs/evidence/helius-alchemy-pair64-offline-audit-2026-10-09.json`.
-- The repeated-failure decode watchers, terminal old Helius address watcher, and Public RPC program
-  watchers v2/v3 are unloaded; logs, STOP records, and raw captures remain. Helius watch v3 is the
-  only remaining scheduled prospective sensor in this set: a capped sparse address-reference stream.
-  Its 18:00Z root used 1,100 attempts (1,099 captures, one failure), recorded STOP with pending
-  references, and is marked already attempted; no later epoch exists as of 2026-10-09 22:17Z. The
-  LaunchAgent is loaded on a five-minute interval but idle between scheduler invocations. It must not
-  replay or imply continuity. The resulting gap is explicit; this stream is not market/trade
-  completeness. The finalized-block epoch schedulers are not loaded.
+- Helius address watch-v3 is the only loaded prospective sensor in this group; it runs on a
+  five-minute schedule and is idle between invocations. The 12:00Z and 18:00Z roots have STOP
+  records; do not bridge those gaps. Unload it before enabling the new block sensor.
+- Disk and LaunchAgent state were checked 2026-10-10 01:17 Moscow: ~70 GiB free; no v2 block
+  LaunchAgent. Recheck before runtime changes.
 
 ## Senses facts
 
-- Helius qualified 512/512 selected pair64 full blocks against signatures-only checks across 16
-  strata. Alchemy captured and self-checked 64/64 preselected same-slot pairs; block identity and
-  ordered signatures matched 64/64. Of 80,467 paired transactions, 80,321 trees matched; all 146
-  differences were only `meta.logMessages` and had Helius's explicit `Log truncated` marker.
-  Alchemy's one `getBlocks` inventory request failed and was not retried; its inventory and
-  unsampled slots remain unknown. This is bounded provider-response agreement, not global discovery
-  or economic agreement.
-- Pair64 accounted for 1,154 block requests plus two anchors, 1,025 Helius block reservations, one
-  Alchemy inventory failure, 3.012 GB raw response bytes and 695.247 MB zstd-stored block responses.
-  It used no paid requests or retries. Local receipt times bind availability to capture; no
-  historical availability is asserted. Helius reported 13,390 produced slots in its bounded frame.
-- The scheduler failure was a persisted-key mismatch in v2 campaign preflight. The comparison now
-  uses the exact written keys; focused tests and a no-RPC dry-run passed. The pair64 result and the
-  paused collection decision are recorded in `docs/brain-source-architecture.md`.
-- PumpSwap sell23 ledger v2 remains diagnostic-only: captured-class census 1,255 candidates, 410
-  exact full target-account settlements, 843 censored native settlements, two unsupported token
-  instructions; all six transfer/event/fee equations passed for 1,253 qualified transfers. No
-  wallet-net price, training admission, execution quality, or market completeness claim.
-- `buy_exact_quote_in` v1 now has a tracked source-bound attempt/suffix census receipt. It is
-  structural only: 12,120 candidate transactions / 12,143 refs across 507 slots; 1,377 refs meet
-  the pinned 25-byte/two-account documented suffix candidate shape. Failed transactions remain
-  attempts. This census itself makes no settlement or admission claim. The 13:00Z archive was
-  opened by a frozen buyExact census attempt on 2026-10-10, but report construction failed on an
-  optional source-receipt field after processing the 512 blocks. No report/outcomes were emitted or
-  accepted. Failure receipt:
-  `docs/evidence/pumpswap-buy-exact-v1-audit-failure-2026-10-10.json`. Treat the archive as consumed
-  for this audit: do not rerun or tune against it; obtain a new disjoint source.
-  `buy_exact_quote_in_v2`, Token-2022 effects and unverified payload/suffix
-  layouts remain out of scope/quarantined.
-- Fresh one-shot audit source in ignored `work/brain-senses-buyexact-audit-helius-20261010/`:
-  512/512 Helius Free finalized full blocks and 512/512 exact signatures-only self-checks; slot set
-  is disjoint from both 15:00Z development and failed 13:00Z audit sets. It used 1,026 reservations
-  including anchor, 2.244 GB raw responses and 495.794 MB zstd block responses; no request failed or
-  retried. New v1 census: 563,802 transactions, 15,215 refs (11,012 successful, 4,203 failed),
-  510 reference slots, zero normalization errors. Seven successful dual-legacy refs were selected
-  by the frozen predicate and replayed once: all seven had exact instruction/event/transfer facts,
-  three exact full-account ledgers, four censored native close-after-SyncNative settlements. Of
-  1,175 successful 25-byte/two-account suffix candidates, 1,166 used Token-2022 quote, seven were
-  dual legacy, and two involved Token-2022 base. No training, execution, wallet-net price, fee
-  schedule, market-completeness, exact-zero or edge claim. Tracked receipt:
-  `docs/evidence/pumpswap-buy-exact-v1-audit-qualification-2026-10-10.json`.
-- Frozen development replay currently covers all 62 successful dual-legacy refs in the 15:00Z
-  captured class: 62 exact BuyEvent/transfer fact sets and exact full ordered ledgers for all six
-  touched token accounts. Unit checks preserved 9/6 decimal pairs (61) and 6/9 (one); values are
-  atomic units only. Fee-flow and gross/net equations remain empirical hypotheses. The 13:00Z
-  Helius full-block set has a metadata manifest proving disjointness from 15:00Z, but its attempted
-  buyExact census failed before emitting results. It is no longer a valid unopened audit source.
-- No fresh independent model comparison, real-source fit, calibrated execution result, market edge,
-  or profit claim. Sensing still lacks broad market/process completeness; do not call Senses complete.
-- Recovery milestone `d6a9562` makes `start_epoch` resume durable anchors and a hash-bound selection
-  without replay, reconstructs STOP for an ambiguous anchor, and rejects a changed persisted
-  selection. The new anchor-before-window and crash-boundary fixtures are no-RPC. Focused tests:
-  34 passed; Ruff and `git diff --check` passed. Trail of Bits baseline/patch runtime validation
-  completed with no findings or gaps in ignored `work/senses-recovery-ppv-v2/results/`.
-- This is not yet autonomous scheduler recovery: `brain_senses_block_epoch_schedule.py` deliberately
-  marks any attempted bucket `bucket_already_attempted_no_replay`, so it does not call the new
-  `start_epoch` recovery path. Do not claim persistent block-sensor continuity or run a live pilot.
-- Sol settled the next process as inventory-first: freeze finalized numeric frame, seed, rule and
-  budgets; capture/hash finalized `getBlocks`; sample only returned produced slots before bodies;
-  never replace failed selected members; inventory errors/ambiguity stop as `inventory_unknown`.
-  This is provider-reported produced-slot coverage, not independent global discovery. The existing
-  numeric-frame sampler remains historical and must not be relabelled.
+- `1380b99` adds a separate inventory-first finalized-block epoch and scheduler. It pins source,
+  schedule and budgets; captures inventory before sampling; never replaces a selected slot; records
+  failed/unknown states; resumes durable responses without replay; and enforces campaign locks,
+  outstanding byte reservations and per-request disk floor. Helius charge units are unverified and
+  are not equated to request counts. It has 12 passing no-RPC recovery/failure tests, Ruff and
+  `git diff --check`. No live run or LaunchAgent yet.
+- Previous 512-slot/hour Helius/Alchemy epoch: 512/512 Helius selected bodies self-check; 64/64
+  Alchemy same-slot pairs match block identity and ordered signatures. Of 80,467 paired transactions,
+  146 differences were exclusively Helius `meta.logMessages` truncation with explicit markers.
+  This is sampled payload agreement, not independent discovery or economic agreement.
+- PumpSwap sell23 remains diagnostic: 1,255 candidates, 410 exact full account settlements, 843
+  censored native settlements, two unsupported token instructions. No wallet-net price or admission.
+- PumpSwap buyExact25 v1 has a new one-shot 512-block audit receipt; seven dual-legacy refs had
+  exact event/transfer facts, while Token-2022 settlement/layouts remain quarantined. No training,
+  execution or edge claim. Details and limitations are in `docs/training-evaluation.md`.
+- Senses is not complete: broad market/process completeness, lifecycle, provider-independent
+  discovery, and prospective continuity remain limited. Preserve unknown, gap, censored, failed,
+  stopped, unsupported and immature states; never convert these to zero.
 
-## Next decision horizon
+## Next horizon
 
-1. Implement a versioned inventory-first prospective epoch and scheduler integration. The scheduler
-   must resume only the same immutable epoch plan/journal, reconcile prior reservations against
-   finite caps, and preserve STOP/gap states. Add no-RPC checks for inventory reservation/restart,
-   deterministic reselection, failed-inventory STOP, no replacement after body failure, and receipt
-   accounting. Do not enable a LaunchAgent yet.
-2. Then freeze a short Helius-only consecutive-epoch pilot with request/response/stored-byte/disk
-   floors and duration limits. Before installing that schedule, unload exhausted watch-v3; do not
-   bridge its gaps. Verify actual LaunchAgent runs and recovery before extending the cadence.
-3. After pilot evidence, ask Sol for a concrete Token-2022 transfer-fee/hook/account-settlement
-   contract before decoder work on the 1,168 Token-2022 quote candidates. No Cortex.
+1. Finish review of `1380b99`, add the bounded scheduler CLI/service entry point, then run a finite
+   Helius-only prospective pilot. Before enabling it, unload watch-v3; verify actual LaunchAgent
+   execution, continuity, failures, bytes and recovery. Keep caps under measured disk/provider
+   constraints; do not claim global completeness.
+2. After pilot evidence, ask Sol to settle a concrete Token-2022 fee/hook/account-settlement
+   contract before decoder work. Continue Senses; no Cortex.

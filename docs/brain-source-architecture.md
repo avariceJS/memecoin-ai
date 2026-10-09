@@ -792,14 +792,21 @@ economic-process, pool, or market completeness. Solana's [`getBlocks` RPC contra
 defines an inclusive range and returns confirmed block slots; pin `finalized` explicitly.
 
 The prior seeded numeric-slot selector is a historical experiment with a different selection frame;
-do not relabel its receipts as inventory-first coverage. Commit `d6a9562` adds no-RPC recovery for
-durable epoch anchors and persisted selections, including ambiguous-anchor STOP reconstruction.
-However, the existing hourly scheduler still rejects any attempted bucket instead of calling that
-recovery path. Thus restart is a tested local primitive, not an accepted autonomous collector
-recovery yet. Before a new LaunchAgent is enabled, its scheduler must resume only an identical,
-hash-bound plan and journal, account for prior reservations against finite caps, and pass no-RPC
-restart, deterministic reselection, failed-inventory STOP, no-replacement, and receipt-accounting
-checks. Alchemy pairing stays disabled until an account-level limit is verifiable.
+do not relabel its receipts as inventory-first coverage. Commit `d6a9562` added recovery to the old
+numeric sampler, but its legacy scheduler still rejects attempted buckets. Commit `1380b99` adds a
+separate versioned inventory-first epoch and scheduler: it journals bootstrap/finalized anchors,
+commits a half-open numeric frame before inventory I/O, samples only the captured ordered
+`getBlocks` members, and never replaces a failed selection. Restart reuses saved responses and
+selection plans; ambiguous requests stop without replay. Committed-frame failures advance through
+an explicit unknown/gap outcome, while failed anchors preserve the frontier. Structural counts are
+qualified only when the full response validator, account/instruction resolution, normalization,
+and ordered-signature cross-check all pass. These are no-RPC fixture results, not market
+completeness. The scheduler pins source/config identity, serializes campaign writes, accounts for
+outstanding worst-case response reservations, and checks disk headroom before each request. Helius
+charge units remain unknown; request counts are recorded separately. The focused suite has 12
+passing tests. No LaunchAgent uses v2 yet; the next step is a bounded Helius-only runtime pilot
+after rechecking actual disk/runtime state and unloading watch-v3. Alchemy pairing stays disabled
+until an account-level limit is verifiable.
 
 The prior public and Helius program-address watches stopped on failed requests and remain immutable.
 Neither cursor is resumed. Helius watch v2 made a fresh head query and attempted 1,000 signature
