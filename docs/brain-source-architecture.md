@@ -276,6 +276,17 @@ The one-shot capture used 1,026 Helius reservations including its anchor, return
 495.8 MB zstd-stored block bodies; the Helius account meter remains unavailable. Receipt:
 [`buyExact v1 fresh captured-class audit`](evidence/pumpswap-buy-exact-v1-audit-qualification-2026-10-10.json).
 
+An offline development evidence census of the opened 15:00Z archive replayed all 1,234 successful
+25-byte/two-account legacy-base/Token-2022-quote refs in that captured census across 298 slots. Each
+subtree carried one legacy-token and three Token-2022 token instructions with 10-byte checked-form
+wire payloads. In 1,233 refs, another transaction instruction touched a target token account outside
+the target subtree; the single isolated path still lacks bank-time mint/account extension and fee
+configuration evidence. Those states are explicitly `historical_extension_state_unavailable` for all
+1,234 refs. This is a development census only: it does not qualify an amount decoder or settlement,
+and the 15:00Z candidate count is a different population from the fresh 1,166-ref audit census.
+Do not infer extension state from the 2026-10-01 fixtures or a later account fetch. Receipt:
+[`Token-2022 development evidence census`](evidence/pumpswap-buy-exact-v1-token2022-dev-census-2026-10-10.json.zst).
+
 One finalized slot was then fetched with full `getBlock` transactions from Alchemy Free and an
 independent public Solana RPC. Both HTTP responses were complete and agreed on block identity,
 parent linkage, 1,132 transaction entries, and the ordered flattened sequence of 1,171 signatures.

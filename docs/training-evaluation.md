@@ -970,6 +970,12 @@ producer supplies a valid positive bound and its availability/role gates pass; n
 or learning gain follows from these receipts. See [`brain-source-architecture.md`](brain-source-architecture.md)
 and the linked Alchemy receipts.
 
+PumpSwap v1 `buy_exact_quote_in` Token-2022 references also remain outside learning admission. The
+offline development census found 1,234 quote-side refs, but historical mint/account extensions and
+bank-time fee configuration are unavailable for every row, and 1,233 have outside-subtree touches to
+target token accounts. No amount decoder, exact label or objective change follows from this census.
+See the [captured-class contract and receipt](brain-source-architecture.md).
+
 A frozen PumpSwap sell23 ledger v2 now scopes full-transaction legacy-token account effects. On fresh
 disjoint 50-row development/audit samples, 18/20 had exact full touched-account settlement; 31/30
 had exact event/CPI trade-transfer facts but censored native-account settlement after SyncNative;
