@@ -3,6 +3,7 @@
 import math
 import re
 
+from . import coordinate_samples
 from .records import contract
 
 DENSE = "dense-sequence-f64-v1"
@@ -13,7 +14,7 @@ def validate(schema):
         if schema != contract(schema["context"]):
             raise ValueError("experience_schema")
         return schema
-    required = {
+    required_v2 = {
         "schema",
         "layout",
         "context",
@@ -22,9 +23,15 @@ def validate(schema):
         "representation",
         "availability",
     }
+    required = (
+        required_v2
+        if isinstance(schema, dict) and schema.get("schema") == "brain-experience-v2"
+        else required_v2
+        | {"coordinate_domain", "coordinate_domain_pin", "coordinate_domains", "sample_contract"}
+    )
     if (
         set(schema) != required
-        or schema["schema"] != "brain-experience-v2"
+        or schema["schema"] not in {"brain-experience-v2", "brain-experience-v3"}
         or schema["layout"] != DENSE
         or type(schema["context"]) is not int
         or not 1 <= schema["context"] <= 65536
@@ -34,6 +41,13 @@ def validate(schema):
         or not re.fullmatch(r"[0-9a-f]{64}", schema["representation"]["code_sha"])
     ):
         raise ValueError("experience_schema")
+    if schema["schema"] == "brain-experience-v3":
+        coordinate_samples.validate_domain(
+            schema["coordinate_domain"], schema["coordinate_domain_pin"]
+        )
+        coordinate_samples.domain_registry(schema)
+        if schema["sample_contract"] != coordinate_samples.SAMPLE_CONTRACT:
+            raise ValueError("experience_coordinate_schema_contract")
     for field in ("features", "targets"):
         columns = schema[field]
         required = {"name", "unit", "modality"} if field == "features" else {"name", "unit", "kind"}
@@ -71,6 +85,8 @@ def membership(row, plan, schema):
 
     if schema["schema"] == "brain-experience-v1":
         return legacy(row, plan)
+    if schema["schema"] == "brain-experience-v3":
+        return coordinate_samples.membership(row, schema, plan)
     for role, start, end in (
         ("train", plan["train_start_s"], plan["train_end_s"]),
         ("validation", plan["train_end_s"], plan["validation_end_s"]),
@@ -98,6 +114,28 @@ def membership(row, plan, schema):
 def checked_samples(rows, schema, cutoff):
     """Structural/time/provenance gate. Domain qualification belongs to the pinned producer."""
     validate(schema)
+    if schema["schema"] == "brain-experience-v3":
+        previous = None
+        for row in rows:
+            from memecoin_brain.source import EXCLUDED
+
+            if (
+                row.get("pool") in EXCLUDED
+                or str(row.get("pool", "")).rsplit("/", 1)[-1] in EXCLUDED
+            ):
+                raise ValueError("experience_protected_pool")
+            coordinate_samples.validate_sample(row, schema, cutoff)
+            key = (
+                row["pool"],
+                row["origin"]["coordinate"],
+                tuple(row["origin"]["position"]),
+                row["id"],
+            )
+            if previous is not None and key <= previous:
+                raise ValueError("experience_coordinate_order_or_duplicate")
+            previous = key
+            yield row
+        return
     if schema["schema"] != "brain-experience-v2" or type(cutoff) is not int or cutoff < 0:
         raise ValueError("experience_sample_schema")
     previous = None

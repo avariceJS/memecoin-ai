@@ -15,6 +15,12 @@ NS = 10**9
 
 
 def validate_plan(plan, source):
+    if source.schema["version"] == "market-observations-v2" and any(
+        stream["coordinate_domain"]["kind"] != "utc_unix_ns"
+        or stream["coordinate_domain"]["unit"] != "ns"
+        for stream in source.schema["streams"].values()
+    ):
+        raise ValueError("sparse_non_utc_coordinate")
     required = {
         "stream",
         "context",

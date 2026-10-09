@@ -101,6 +101,8 @@ def run(
                 rows_seen=report["rows_seen"],
                 production_eligible=False,
             )
+            if "seen_end_coordinate" in report:
+                generation["seen_end_coordinate"] = report["seen_end_coordinate"]
             atomic_json(root / "generations" / (identity + ".json"), generation)
             outcome.update(generation=identity, artifact=generation["artifact"])
         atomic_json(attempts / f"{attempt:08d}-outcome.json", outcome)

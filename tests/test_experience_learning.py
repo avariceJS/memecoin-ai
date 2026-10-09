@@ -148,6 +148,7 @@ def test_exact_cpu_resume_immutable_result_and_binding(tmp_path):
     assert all(torch.equal(v, other[k]) for k, v in weights.items())
     assert report["rows_seen"] == 2 * report["statistics"]["population"]["train_usable"]
     assert report["production_eligible"] is False
+    assert report["seen_end_s"] == PLAN["test_end_s"]
     pin_before = file_hash(first / "artifact/manifest.json")
     assert train(store, pin, first, plan=PLAN, config=CONFIG) == report
     assert file_hash(first / "artifact/manifest.json") == pin_before

@@ -164,9 +164,9 @@ def test_offline_range_inventory_ledgers_all_statuses_and_replicates(tmp_path):
     assert receipt["ledger_counts"] == {
         "complete": 2,
         "failed": 1,
-        "skipped": 0,
+        "skipped": 1,
         "stopped": 1,
-        "unknown": 2,
+        "unknown": 1,
         "unsupported": 1,
     }
     assert "observation_sources" not in receipt
@@ -179,11 +179,20 @@ def test_offline_range_inventory_ledgers_all_statuses_and_replicates(tmp_path):
         ledger.extend(rows)
     assert [(row["slot"], row["status"]) for row in ledger] == [
         (10, "complete"),
-        (11, "unknown"),
+        (11, "skipped"),
         (12, "complete"),
         (13, "failed"),
         (14, "unsupported"),
         (15, "unknown"),
+        (16, "stopped"),
+    ]
+    assert [(row["slot"], row["transport_status"]) for row in ledger] == [
+        (10, "captured_result"),
+        (11, "captured_null_result"),
+        (12, "captured_result"),
+        (13, "failed"),
+        (14, "unsupported"),
+        (15, "captured_null_result"),
         (16, "stopped"),
     ]
     assert all("event_ns" not in row and "zero" not in row for row in ledger)
@@ -215,7 +224,65 @@ def test_absent_getblocks_entry_alone_stays_unknown_not_skipped(tmp_path):
             (store / "qualification-block-inventory-pages" / f"{ref['pin']}.json").read_text()
         )
     ]
-    assert next(row for row in pages if row["slot"] == 11)["reason"] == "getblock_null_result"
+    unresolved = next(row for row in pages if row["slot"] == 11)
+    assert unresolved["reason"] == "getblock_null_result"
+    assert unresolved["transport_status"] == "captured_null_result"
+    assert unresolved["observation_disposition"] == "block_presence_unresolved"
+
+
+def test_explicit_null_getblock_is_skipped_only_with_enumeration_and_parent_bridge(tmp_path):
+    root = tmp_path / "fixture"
+    _fixture(
+        root,
+        start=10,
+        end=12,
+        listed=[10],
+        body_by_slot={10: _block(10, 9, "hash-9")},
+        boundary_right_slot=12,
+        boundary_right_body=_block(12, 10, "hash-10"),
+    )
+    store = tmp_path / "store"
+    pin = block_inventory.publish_finalized_block_inventory(store, root)
+    receipt = block_inventory.load_finalized_block_inventory(store, pin)
+    skipped = next(row for row in _read_ledger(store, receipt) if row["slot"] == 11)
+    assert skipped["status"] == "skipped"
+    assert skipped["transport_status"] == "captured_null_result"
+    assert skipped["observation_disposition"] == "block_absent_confirmed"
+    assert skipped["lineage_status"] == "linked"
+    assert len(skipped["evidence"]) == 5
+    assert skipped["proof_available_ns"] is not None
+
+
+@pytest.mark.parametrize(
+    ("capture_kwargs", "status", "transport"),
+    [
+        ({"errors": {11: dict(code=-32000, message="fixture failure")}}, "failed", "failed"),
+        ({"stopped": (11,)}, "stopped", "stopped"),
+    ],
+)
+def test_lineage_skip_disposition_does_not_erase_failed_or_stopped_transport(
+    tmp_path, capture_kwargs, status, transport
+):
+    root = tmp_path / "fixture"
+    _fixture(
+        root,
+        start=10,
+        end=12,
+        listed=[10],
+        body_by_slot={10: _block(10, 9, "hash-9")},
+        boundary_right_slot=12,
+        boundary_right_body=_block(12, 10, "hash-10"),
+        **capture_kwargs,
+    )
+    store = tmp_path / "store"
+    pin = block_inventory.publish_finalized_block_inventory(store, root)
+    receipt = block_inventory.load_finalized_block_inventory(store, pin)
+    row = next(row for row in _read_ledger(store, receipt) if row["slot"] == 11)
+    assert row["status"] == status
+    assert row["transport_status"] == transport
+    assert row["observation_disposition"] == "block_absent_confirmed"
+    assert row["proof_available_ns"] is not None
+    assert len(row["evidence"]) == (5 if status == "failed" else 4)
 
 
 def test_getblocks_error_preserves_positive_per_slot_block_facts(tmp_path):
@@ -342,11 +409,14 @@ def test_partial_enumeration_or_parent_conflict_is_localized(tmp_path, mutation)
         assert affected["enumeration_relation"] == "not_listed"
 
 
-def test_duplicate_enumeration_is_rejected(tmp_path):
+def test_duplicate_enumeration_is_failed_without_inference(tmp_path):
     root = tmp_path / "fixture"
     _fixture(root, start=10, end=12, listed=[10, 10], body_by_slot={10: _block(10, 9, "hash-9")})
-    with pytest.raises(ValueError, match="enumeration_shape"):
-        block_inventory.publish_finalized_block_inventory(tmp_path / "store", root)
+    pin = block_inventory.publish_finalized_block_inventory(tmp_path / "store", root)
+    receipt = block_inventory.load_finalized_block_inventory(tmp_path / "store", pin)
+    assert receipt["enumeration_status"] == "failed"
+    assert receipt["ledger_counts"]["unknown"] == 1
+    assert receipt["ledger_counts"]["complete"] == 1
 
 
 def test_range_is_half_open_bounded_and_slot_time_is_not_converted(tmp_path):

@@ -113,7 +113,27 @@ def _censor_bounds(row, schema, role, plan):
     """Return identified positive lower bounds for right-censored process counts."""
     bounds = [0.0] * len(target_names(schema))
     mask = [False] * len(bounds)
-    if role not in {"train", "validation", "test"} or schema.get("schema") != "brain-experience-v2":
+    if role not in {"train", "validation", "test"} or schema.get("schema") not in {
+        "brain-experience-v2",
+        "brain-experience-v3",
+    }:
+        return bounds, mask
+    if schema.get("schema") == "brain-experience-v3":
+        from .coordinate_samples import eligibility
+
+        allowed = eligibility(row, schema, plan, role)["lower_bound_mask"]
+        for i, (target, detail) in enumerate(
+            zip(schema["targets"], row["target_details"], strict=True)
+        ):
+            lower = detail.get("lower_bound")
+            if (
+                target["kind"].startswith("observed_process_count@")
+                and allowed[i]
+                and type(lower) in (int, float)
+                and math.isfinite(lower)
+                and lower > 0
+            ):
+                bounds[i], mask[i] = float(lower), True
         return bounds, mask
     role_start, role_end = {
         "train": (plan["train_start_s"], plan["train_end_s"]),
@@ -186,17 +206,37 @@ def batches(
             )
         return (*core, ids, next_cursor)
 
-    intervals = {
-        "train": (plan["train_start_s"], plan["train_end_s"]),
-        "validation": (plan["train_end_s"], plan["validation_end_s"]),
-        "test": (plan["validation_end_s"], plan["test_end_s"]),
-    }
-    if role not in intervals:
+    if role not in {"train", "validation", "test"}:
         raise ValueError("experience_batch_role")
-    start_ns, end_ns = (t * 10**9 for t in intervals[role])
+    if snapshot.schema.get("schema") == "brain-experience-v3":
+        from .coordinate_samples import domain_registry, role_intervals
+
+        if plan["coordinate_domain_pin"] != snapshot.schema["coordinate_domain_pin"] or plan[
+            "coordinate_domain_pins"
+        ] != sorted(domain_registry(snapshot.schema)):
+            raise ValueError("experience_coordinate_split_domain")
+
+        intervals = role_intervals(plan, role)
+    else:
+        old_intervals = {
+            "train": (plan["train_start_s"], plan["train_end_s"]),
+            "validation": (plan["train_end_s"], plan["validation_end_s"]),
+            "test": (plan["validation_end_s"], plan["test_end_s"]),
+        }
+        intervals = [tuple(v * 10**9 for v in old_intervals[role])]
+    if snapshot.schema.get("schema") != "brain-experience-v3":
+        start_ns, end_ns = intervals[0]
     for position, index in partition_indices(snapshot, seed, epoch, cursor[0]):
         extent = snapshot.parts[index].get("bounds")
-        if extent and (extent["last_ns"] < start_ns or extent["first_ns"] >= end_ns):
+        if extent and snapshot.schema.get("schema") == "brain-experience-v3":
+            if extent["coordinate_domain_pin"] != plan["coordinate_domain_pin"]:
+                raise ValueError("experience_coordinate_partition_domain")
+            if not any(
+                extent["last_coordinate"] >= start and extent["first_coordinate"] < end
+                for start, end in intervals
+            ):
+                continue
+        elif extent and (extent["last_ns"] < start_ns or extent["first_ns"] >= end_ns):
             # Authenticated bounds exclude payloads that this role cannot use.
             continue
         path, rows = snapshot.partition(index)
@@ -283,7 +323,7 @@ def prepare(
             for h, valid, status in zip(horizons, mask, row["target_status"], strict=True):
                 denominators[f"{role}/{h}/{status}"] += 1
                 denominators[f"{role}/{h}/usable"] += int(valid)
-            if snapshot.schema.get("schema") == "brain-experience-v2":
+            if snapshot.schema.get("schema") in {"brain-experience-v2", "brain-experience-v3"}:
                 target_details = row.get("target_details")
                 if target_details is None and not any(
                     target["kind"].startswith("observed_process_count@")
@@ -301,9 +341,10 @@ def prepare(
                         strict=True,
                     )
                 ):
-                    if (
-                        target["kind"].startswith("observed_process_count@")
-                        and status == "censored"
+                    if target["kind"].startswith("observed_process_count@") and status == (
+                        "lower_bound"
+                        if snapshot.schema["schema"] == "brain-experience-v3"
+                        else "censored"
                     ):
                         lower = detail.get("lower_bound")
                         bucket = (
@@ -655,6 +696,13 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
     snapshot = Snapshot(store, pin)
     if snapshot.manifest["binding"].get("role", "train") != "train":
         raise ValueError("experience_reserved_snapshot")
+    if snapshot.schema.get("schema") == "brain-experience-v3":
+        from .coordinate_samples import domain_registry
+
+        if plan["coordinate_domain_pin"] != snapshot.schema["coordinate_domain_pin"] or plan[
+            "coordinate_domain_pins"
+        ] != sorted(domain_registry(snapshot.schema)):
+            raise ValueError("experience_coordinate_split_domain")
     spec = model_spec(snapshot.schema, config["width"], config["model_kind"])
     ancestor = None
     if parent is not None:
@@ -684,6 +732,13 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
             cuda=torch.version.cuda,
         ),
     )
+    if snapshot.schema.get("schema") == "brain-experience-v3":
+        from .coordinate_samples import ELIGIBILITY_POLICY
+
+        binding.update(
+            coordinate_schema_pin=digest(snapshot.schema),
+            eligibility_policy_pin=ELIGIBILITY_POLICY,
+        )
     audit = None
     if diversity is not None:
         from memecoin_population.exposure import validate
@@ -885,8 +940,19 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
             production_eligible=False,
             evaluation_scope="descriptive_temporal_research_no_edge_claim",
             ancestors=([parent["pin"], *ancestor.report["ancestors"]] if ancestor else []),
-            seen_end_s=max(plan["test_end_s"], ancestor.report["seen_end_s"] if ancestor else 0),
+            seen_end_s=(
+                max(
+                    plan["test_end_s"],
+                    (ancestor.report.get("seen_end_s") or 0) if ancestor else 0,
+                )
+                if snapshot.schema.get("schema") != "brain-experience-v3"
+                else (ancestor.report.get("seen_end_s") if ancestor else None)
+            ),
         )
+        if snapshot.schema.get("schema") == "brain-experience-v3":
+            report["seen_end_coordinate"] = max(
+                (end for start, end in plan["roles"]["test"]["intervals"]), default=None
+            )
         if journal is not None:
             report["exposure"] = journal.finish(
                 state["steps"], state["rows_seen"], output / "exposure-report"

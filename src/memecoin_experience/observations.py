@@ -30,8 +30,9 @@ from .storage import (
 
 def contract(value):
     if (
-        set(value) != {"version", "role", "availability", "streams"}
-        or value["version"] != "market-observations-v1"
+        not isinstance(value, dict)
+        or set(value) != {"version", "role", "availability", "streams"}
+        or value["version"] not in {"market-observations-v1", "market-observations-v2"}
         or value["role"] not in {"train", "research_evaluation"}
         or value["availability"] not in {"historical_replay", "point_in_time"}
         or not isinstance(value["streams"], dict)
@@ -43,13 +44,56 @@ def contract(value):
             not isinstance(name, str)
             or not name
             or len(name) > 128
-            or set(stream) != {"process", "features"}
+            or set(stream)
+            != (
+                {"process", "features"}
+                if value["version"] == "market-observations-v1"
+                else {
+                    "process",
+                    "features",
+                    "coordinate_domain",
+                    "coordinate_domain_pin",
+                    "identity_rule",
+                    "position_rule",
+                    "event_order_rule",
+                }
+            )
             or not isinstance(stream["process"], str)
             or not stream["process"]
             or not isinstance(stream["features"], list)
             or not stream["features"]
         ):
             raise ValueError("observation_stream")
+        if value["version"] == "market-observations-v2":
+            domain = stream["coordinate_domain"]
+            if (
+                not isinstance(domain, dict)
+                or set(domain) != {"version", "name", "network", "kind", "unit"}
+                or domain["version"] != "typed-coordinate-domain-v1"
+                or any(
+                    not isinstance(domain[k], str) or not domain[k] or len(domain[k]) > 128
+                    for k in ("name", "network", "kind", "unit")
+                )
+                or not isinstance(stream["coordinate_domain_pin"], str)
+                or not PIN.fullmatch(stream["coordinate_domain_pin"])
+                or digest(domain) != stream["coordinate_domain_pin"]
+            ):
+                raise ValueError("observation_coordinate_domain")
+            for rule_name, rule_version in (
+                ("identity_rule", "observation-identity-rule-v1"),
+                ("position_rule", "observation-position-rule-v1"),
+                ("event_order_rule", "observation-event-order-rule-v1"),
+            ):
+                rule = stream[rule_name]
+                if (
+                    not isinstance(rule, dict)
+                    or set(rule) != {"version", "name"}
+                    or rule["version"] != rule_version
+                    or not isinstance(rule["name"], str)
+                    or not rule["name"]
+                    or len(rule["name"]) > 128
+                ):
+                    raise ValueError("observation_stream_rule")
         names = []
         for col in stream["features"]:
             if set(col) != {"name", "unit", "modality"} or any(
@@ -66,7 +110,11 @@ def checked(row, schema, cutoff):
     common = {"kind", "entity", "available_ns", "evidence"}
     fields = {
         "enrollment": {"start_ns", "end_ns"},
-        "event": {"stream", "id", "event_ns", "values"},
+        "event": (
+            {"stream", "id", "event_ns", "values"}
+            if schema["version"] == "market-observations-v1"
+            else {"stream", "id", "coordinate", "position", "coordinate_domain_pin", "values"}
+        ),
         "support": {"stream", "start_ns", "end_ns", "status"},
         "lifecycle": {"id", "event_ns", "transition"},
     }
@@ -83,11 +131,13 @@ def checked(row, schema, cutoff):
         or any(not isinstance(p, str) or not PIN.fullmatch(p) for p in row["evidence"])
     ):
         raise ValueError("observation_evidence")
+    if schema["version"] == "market-observations-v2" and kind != "event":
+        raise ValueError("observation_coordinate_event_only")
     if kind in {"enrollment", "support"}:
         a, b = row["start_ns"], row["end_ns"]
         if any(type(t) is not int for t in (a, b)) or not 0 <= a < b <= MAX_TIME:
             raise ValueError("observation_interval")
-    else:
+    elif kind == "lifecycle" or schema["version"] == "market-observations-v1":
         if (
             type(row["event_ns"]) is not int
             or not 0 <= row["event_ns"] <= at
@@ -95,6 +145,21 @@ def checked(row, schema, cutoff):
             or not row["id"]
         ):
             raise ValueError("observation_event_time")
+    else:
+        stream = schema["streams"].get(row.get("stream"))
+        coordinate, position = row.get("coordinate"), row.get("position")
+        if (
+            stream is None
+            or row["coordinate_domain_pin"] != stream["coordinate_domain_pin"]
+            or type(coordinate) is not int
+            or not 0 <= coordinate < 2**63
+            or not isinstance(position, list)
+            or not 1 <= len(position) <= 16
+            or any(type(part) is not int or not 0 <= part < 2**31 for part in position)
+            or not isinstance(row["id"], str)
+            or not row["id"]
+        ):
+            raise ValueError("observation_coordinate")
     if kind in {"event", "support"} and row["stream"] not in schema["streams"]:
         raise ValueError("observation_stream")
     if kind == "event":
@@ -129,7 +194,8 @@ def key(row):
         row["entity"],
         row["kind"],
         row.get("stream", ""),
-        row.get("event_ns", row.get("start_ns")),
+        row.get("coordinate", row.get("event_ns", row.get("start_ns"))),
+        tuple(row.get("position", ())),
         row.get("id", ""),
     )
 
@@ -169,9 +235,21 @@ def publish(store, rows, *, schema, cutoff, sources, chunk=4096):
                 previous = key(row)
                 yield row
 
-        for _, stream in itertools.groupby(
-            valid(), key=lambda r: (*key(r)[:3], key(r)[3] // (86400 * 10**9))
-        ):
+        def partition_key(row):
+            k = key(row)
+            if row["kind"] != "event":
+                coordinate = row.get("start_ns", 0)
+                width = 86400 * 10**9
+            elif schema["version"] == "market-observations-v2":
+                domain = schema["streams"][row["stream"]]["coordinate_domain"]
+                coordinate = row["coordinate"]
+                width = 86400 * 10**9 if domain["kind"] == "utc_unix_ns" else 4096
+            else:
+                coordinate = row["event_ns"]
+                width = 86400 * 10**9
+            return (*k[:3], coordinate // width)
+
+        for _, stream in itertools.groupby(valid(), key=partition_key):
             while batch := list(itertools.islice(stream, chunk)):
                 stage = Path(tempfile.mkdtemp(prefix="observations-", dir=store / "staging"))
                 try:
@@ -250,6 +328,12 @@ class Source:
 
     def index(self, path):
         """Disposable query index; bounded cache, sealed facts remain the source of truth."""
+        if self.schema["version"] == "market-observations-v2" and any(
+            s["coordinate_domain"]["kind"] != "utc_unix_ns"
+            or s["coordinate_domain"]["unit"] != "ns"
+            for s in self.schema["streams"].values()
+        ):
+            raise ValueError("observation_non_utc_coordinate_index")
         db = sqlite3.connect(path)
         try:
             db.executescript("""pragma cache_size=-8192; pragma temp_store=FILE;
@@ -284,9 +368,14 @@ class Source:
                     group = (e, row["stream"])
                     event_rank = event_rank + 1 if group == event_group else 0
                     event_group = group
+                    event_coordinate = row.get("event_ns", row.get("coordinate"))
+                    indexed_row = row
+                    if "event_ns" not in row:
+                        indexed_row = dict(row, event_ns=event_coordinate)
+                    payload = canonical(dict(indexed_row, _source_shard=shard)).decode()
                     db.execute(
                         "insert into events values(?,?,?,?,?,?,?)",
-                        (e, row["stream"], row["event_ns"], a, row["id"], event_rank, payload),
+                        (e, row["stream"], event_coordinate, a, row["id"], event_rank, payload),
                     )
                 elif k == "lifecycle":
                     db.execute(

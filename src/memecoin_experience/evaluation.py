@@ -26,6 +26,227 @@ from .storage import (
 )
 
 
+def register_coordinate(
+    root,
+    artifact,
+    artifact_pin,
+    *,
+    split_plan,
+    pools,
+    scope="retrospective",
+):
+    """Register evaluation over native coordinate intervals with a separate UTC cutoff."""
+    from .coordinate_samples import domain_registry
+    from .predict import Predictor
+    from .records import split_plan as validate_plan
+
+    plan = validate_plan(split_plan)
+    now_ns = time.time_ns()
+    pools = sorted(pools)
+    if (
+        plan.get("version") != "coordinate-split-plan-v1"
+        or scope not in {"retrospective", "preregistered_forward_replay"}
+        or not plan["roles"]["test"]["intervals"]
+        or not pools
+        or len(set(pools)) != len(pools)
+        or any(
+            not isinstance(pool, str) or not pool or pool.rsplit("/", 1)[-1] in EXCLUDED
+            for pool in pools
+        )
+    ):
+        raise ValueError("experience_coordinate_evaluation_protocol")
+    model = Predictor(artifact, artifact_pin)
+    schema = model.spec["schema"]
+    if (
+        schema.get("schema") != "brain-experience-v3"
+        or schema.get("coordinate_domain_pin") != plan["coordinate_domain_pin"]
+        or sorted(domain_registry(schema)) != plan["coordinate_domain_pins"]
+    ):
+        raise ValueError("experience_coordinate_evaluation_domain")
+    seen_end = model.report.get("seen_end_coordinate")
+    if seen_end is None or any(start < seen_end for start, _ in plan["roles"]["test"]["intervals"]):
+        raise ValueError("experience_coordinate_evaluation_seen_interval")
+    if scope == "preregistered_forward_replay" and (
+        schema["availability"] != "point_in_time"
+        or plan["roles"]["test"]["knowledge_cutoff_ns"] >= now_ns
+    ):
+        raise ValueError("experience_coordinate_evaluation_not_prospective")
+    protocol = dict(
+        version="brain-native-coordinate-evaluation-v1",
+        candidate=artifact_pin,
+        schema=schema,
+        coordinate_domain_pin=plan["coordinate_domain_pin"],
+        split_plan=plan,
+        pools=pools,
+        scope=scope,
+        registered_ns=now_ns,
+        metrics="native_coordinate_macro_pinball_coverage_v1",
+        quantiles=model.spec["quantiles"],
+        data_role="research_evaluation",
+        production_eligible=False,
+    )
+    pin = digest(protocol)
+    root = safe_path(root)
+    root.mkdir(parents=True, exist_ok=True)
+    atomic_json(root / (pin + ".json"), protocol)
+    return dict(protocol=pin, **protocol)
+
+
+def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact, output, batch):
+    import numpy as np
+
+    from .coordinate_samples import domain_registry
+    from .learning import batches
+    from .predict import Predictor
+
+    protocol = json.loads(safe_path(Path(protocol_root) / (protocol_pin + ".json")).read_text())
+    if (
+        digest(protocol) != protocol_pin
+        or protocol.get("version") != "brain-native-coordinate-evaluation-v1"
+        or protocol.get("production_eligible") is not False
+        or protocol.get("scope") not in {"retrospective", "preregistered_forward_replay"}
+        or protocol.get("data_role") != "research_evaluation"
+        or protocol.get("metrics") != "native_coordinate_macro_pinball_coverage_v1"
+        or type(protocol.get("registered_ns")) is not int
+        or protocol["registered_ns"] < 0
+        or not isinstance(protocol.get("pools"), list)
+        or not protocol["pools"]
+        or len(set(protocol["pools"])) != len(protocol["pools"])
+        or any(
+            not isinstance(pool, str) or not pool or pool.rsplit("/", 1)[-1] in EXCLUDED
+            for pool in protocol["pools"]
+        )
+    ):
+        raise ValueError("experience_coordinate_evaluation_protocol_pin")
+    snapshot = Snapshot(store, snapshot_pin)
+    if (
+        snapshot.schema != protocol["schema"]
+        or snapshot.schema.get("schema") != "brain-experience-v3"
+        or snapshot.manifest["binding"].get("role") != "research_evaluation"
+    ):
+        raise ValueError("experience_coordinate_evaluation_snapshot")
+    plan = protocol["split_plan"]
+    from .records import split_plan as validate_plan
+
+    plan = validate_plan(plan)
+    if (
+        plan != protocol["split_plan"]
+        or plan["coordinate_domain_pin"] != snapshot.schema["coordinate_domain_pin"]
+        or plan["coordinate_domain_pins"] != sorted(domain_registry(snapshot.schema))
+        or snapshot.manifest["binding"]["cutoff_ns"] < plan["roles"]["test"]["knowledge_cutoff_ns"]
+    ):
+        raise ValueError("experience_coordinate_evaluation_binding")
+    model = Predictor(artifact, protocol["candidate"])
+    seen_end = model.report.get("seen_end_coordinate")
+    if (
+        model.spec["schema"] != snapshot.schema
+        or model.spec["quantiles"] != protocol["quantiles"]
+        or protocol["coordinate_domain_pin"] != snapshot.schema["coordinate_domain_pin"]
+        or seen_end is None
+        or any(start < seen_end for start, _ in plan["roles"]["test"]["intervals"])
+        or protocol["scope"] == "preregistered_forward_replay"
+        and (
+            snapshot.schema["availability"] != "point_in_time"
+            or protocol["registered_ns"] >= plan["roles"]["test"]["knowledge_cutoff_ns"]
+        )
+    ):
+        raise ValueError("experience_coordinate_evaluation_candidate")
+    output = safe_path(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    binding = dict(
+        protocol=protocol_pin,
+        snapshot=snapshot_pin,
+        candidate=protocol["candidate"],
+        schema=protocol["schema"],
+        split_plan=protocol["split_plan"],
+        code=code_identity(),
+        batch=batch,
+    )
+    with lock(output.parent / ("." + output.name + ".evaluation.lock")):
+        if output.exists():
+            verify_files(output)
+            result = json.loads((output / "report.json").read_text())
+            if result["binding"] != binding:
+                raise ValueError("experience_coordinate_evaluation_binding")
+            return result
+        stage = Path(tempfile.mkdtemp(prefix=".coordinate-evaluation-", dir=output.parent))
+        try:
+            target_names_v3 = target_names(snapshot.schema)
+            totals = np.zeros((len(target_names_v3), 3), dtype=np.float64)
+            population = Counter()
+            pools = set(protocol["pools"])
+            with (stage / "predictions.jsonl").open("wb") as stream:
+                for x, y, mask, metadata, _ in batches(
+                    snapshot, plan, "test", batch, with_metadata=True
+                ):
+                    for row in metadata:
+                        if row["pool"] not in pools:
+                            raise ValueError("experience_coordinate_evaluation_enrollment")
+                    prediction = model.predict(x)
+                    population["test"] += len(metadata)
+                    for row, pred, truth, valid in zip(metadata, prediction, y, mask, strict=True):
+                        stream.write(
+                            canonical(
+                                dict(
+                                    id=row["id"],
+                                    entity=row["pool"],
+                                    origin=row["origin"],
+                                    decision_ns=row["decision_ns"],
+                                    input_available_ns=row["input_available_ns"],
+                                    target_status=row["target_status"],
+                                    target_available_ns=row["target_available_ns"],
+                                    prediction=pred.tolist(),
+                                    target_mask=valid.tolist(),
+                                )
+                            )
+                            + b"\n"
+                        )
+                        for h, selected in enumerate(valid):
+                            if not selected:
+                                continue
+                            error = truth[h] - pred[h]
+                            quantiles = np.asarray(protocol["quantiles"])
+                            totals[h] += [
+                                1,
+                                np.maximum(quantiles * error, (quantiles - 1) * error).mean(),
+                                int(pred[h, 0] <= truth[h] <= pred[h, -1]),
+                            ]
+                stream.flush()
+                os.fsync(stream.fileno())
+            if not np.any(totals[:, 0]):
+                raise ValueError("experience_coordinate_empty_evaluation")
+            report = dict(
+                status="completed",
+                binding=binding,
+                scope=protocol["scope"],
+                coordinate_domain_pin=protocol["coordinate_domain_pin"],
+                test_intervals=plan["roles"]["test"]["intervals"],
+                population=dict(population),
+                metrics=[
+                    dict(
+                        target=name,
+                        n=int(values[0]),
+                        pinball=float(values[1] / values[0]) if values[0] else None,
+                        coverage=float(values[2] / values[0]) if values[0] else None,
+                    )
+                    for name, values in zip(target_names_v3, totals, strict=True)
+                ],
+                availability="coordinate_replay; no slot_to_utc_conversion",
+                uncertainty="not_estimated; adjacent native-coordinate origins may depend",
+                execution="not_evaluated",
+                production_eligible=False,
+            )
+            atomic_json(stage / "protocol.json", protocol)
+            atomic_json(stage / "report.json", report)
+            seal_files(stage)
+            os.rename(stage, output)
+            sync_dir(output.parent)
+            return report
+        finally:
+            if stage.exists():
+                shutil.rmtree(stage)
+
+
 def register(
     root,
     artifact,
@@ -119,6 +340,10 @@ def score(
     ):
         raise ValueError("experience_evaluation_reference")
     protocol = json.loads(safe_path(Path(protocol_root) / (protocol_pin + ".json")).read_text())
+    if protocol.get("version") == "brain-native-coordinate-evaluation-v1":
+        return _score_coordinate(
+            protocol_root, protocol_pin, store, snapshot_pin, artifact, output, batch
+        )
     if (
         digest(protocol) != protocol_pin
         or protocol.get("version") != "brain-research-evaluation-v1"

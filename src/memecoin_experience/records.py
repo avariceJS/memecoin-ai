@@ -130,6 +130,10 @@ def experiences(rows, cutoff, context=8, *, horizons=HORIZONS, stable=False):
 
 
 def split_plan(plan):
+    if isinstance(plan, dict) and plan.get("version") == "coordinate-split-plan-v1":
+        from .coordinate_samples import validate_split_plan
+
+        return validate_split_plan(plan)
     required = {"train_start_s", "train_end_s", "validation_end_s", "test_end_s"}
     if set(plan) != required or any(type(plan[k]) is not int for k in required):
         raise ValueError("experience_split_schema")

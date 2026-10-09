@@ -153,7 +153,7 @@ def write_partition(store, rows, schema):
             sync_dir(target.parent)
         from .composition import bounds
 
-        return dict(pin=pin, count=len(rows), statuses=dict(counts), bounds=bounds(rows))
+        return dict(pin=pin, count=len(rows), statuses=dict(counts), bounds=bounds(rows, schema))
     finally:
         if staging.exists():
             shutil.rmtree(staging)
@@ -252,13 +252,15 @@ def build(
             else checked_samples(counted(), schema, cutoff)
         )
         # Stable pool/day boundaries let later snapshots share completed historical partitions.
-        for _, group in itertools.groupby(
-            records,
-            key=lambda r: (
+        group_key = (
+            (lambda r: r["pool"])
+            if schema["schema"] == "brain-experience-v3"
+            else lambda r: (
                 r["pool"],
                 (r["origin_s"] if "origin_s" in r else r["decision_ns"] // 10**9) // 86400,
-            ),
-        ):
+            )
+        )
+        for _, group in itertools.groupby(records, key=group_key):
             while batch := list(itertools.islice(group, chunk)):
                 part = write_partition(store, batch, schema)
                 i = parts.count
@@ -332,7 +334,7 @@ class Snapshot:
         if "bounds" in entry:
             from .composition import bounds
 
-            if entry["bounds"] != bounds(rows):
+            if entry["bounds"] != bounds(rows, self.schema):
                 raise ValueError("experience_partition_bounds")
         from .admission import apply
 

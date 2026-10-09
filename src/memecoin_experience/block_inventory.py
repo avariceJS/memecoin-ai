@@ -122,7 +122,10 @@ def _capture(root: Path, row: dict, previous_received: int | None):
     if capture.source_alias.startswith("synthetic-"):
         if provenance is not None:
             raise ValueError("block_inventory_synthetic_provenance")
-    elif capture.source_alias == "alchemy-free-finalized-block-range-v1":
+    elif capture.source_alias in {
+        "alchemy-free-finalized-block-range-v1",
+        "solana-public-finalized-block-range-v1",
+    }:
         if not isinstance(provenance, dict) or set(provenance) != {
             "version",
             "endpoint_origin",
@@ -137,10 +140,18 @@ def _capture(root: Path, row: dict, previous_received: int | None):
             raise ValueError("block_inventory_http_provenance")
         status = provenance["http_status"]
         headers = provenance["response_headers"]
+        expected_origin, expected_account = (
+            (
+                "https://solana-mainnet.g.alchemy.com",
+                "alchemy-free-local",
+            )
+            if capture.source_alias == "alchemy-free-finalized-block-range-v1"
+            else ("https://api.mainnet-beta.solana.com", "public-rpc")
+        )
         if (
             provenance["version"] != "solana-http-provenance-v1"
-            or provenance["endpoint_origin"] != "https://solana-mainnet.g.alchemy.com"
-            or provenance["account_alias"] != "alchemy-free-local"
+            or provenance["endpoint_origin"] != expected_origin
+            or provenance["account_alias"] != expected_account
             or status is not None
             and (type(status) is not int or not 100 <= status <= 599)
             or not isinstance(headers, dict)
@@ -225,6 +236,7 @@ def _validate(root: Path, *, expected_receipt: dict | None = None, page_dir: Pat
     boundary_rows = {}
     enumeration = None
     capture_pins = []
+    capture_received_ns = {}
     capture_kinds = set()
     account_aliases = set()
     provenance_by_path = {}
@@ -234,6 +246,8 @@ def _validate(root: Path, *, expected_receipt: dict | None = None, page_dir: Pat
             "synthetic_solana_jsonrpc_capture_v1"
             if provenance is None
             else "alchemy_free_http_capture_v1"
+            if cap.source_alias == "alchemy-free-finalized-block-range-v1"
+            else "solana_public_http_capture_v1"
         )
         capture_kinds.add(kind)
         if provenance is not None:
@@ -250,6 +264,7 @@ def _validate(root: Path, *, expected_receipt: dict | None = None, page_dir: Pat
             raise ValueError("block_inventory_capture_byte_bound")
         capture_pin = _capture_content_pin(path)
         capture_pins.append({"path": relative, "pin": capture_pin})
+        capture_received_ns[capture_pin] = cap.received_ns
         if index == 0:
             enumeration = (relative, request, capture_pin)
         elif row["purpose"] == "slot":
@@ -293,8 +308,10 @@ def _validate(root: Path, *, expected_receipt: dict | None = None, page_dir: Pat
             or any(type(slot) is not int or not start <= slot < end for slot in listed)
             or listed != sorted(set(listed))
         ):
-            raise ValueError("block_inventory_enumeration_shape")
-        enum_status = "complete"
+            enum_status = "failed"
+            listed = []
+        else:
+            enum_status = "complete"
     else:
         enum_status = response_state
         listed = []
@@ -310,18 +327,38 @@ def _validate(root: Path, *, expected_receipt: dict | None = None, page_dir: Pat
         db.execute("pragma temp_store=FILE")
         db.execute(
             "create table ledger(slot integer primary key,status text,reason text,"
-            "enumeration_relation text,lineage_status text,evidence text)"
+            "enumeration_relation text,transport_status text,observation_disposition text,"
+            "lineage_status text,evidence text)"
         )
         for slot in range(start, end):
             if slot in manifest["stopped_slots"]:
-                status, reason, relation = "stopped", "acquisition_stopped", "unavailable"
+                relation = (
+                    "listed"
+                    if slot in listed_set
+                    else "unlisted"
+                    if enum_status == "complete"
+                    else "unavailable"
+                )
+                status, reason = "stopped", "acquisition_stopped"
+                transport = "stopped"
             elif enum_status != "complete":
                 status, reason, relation = "unknown", f"enumeration_{enum_status}", "unavailable"
+                transport = "not_attempted"
             else:
                 status, reason, relation = "unknown", "unresolved_or_unlisted", "unlisted"
+                transport = "not_attempted"
             db.execute(
-                "insert into ledger values(?,?,?,?,?,?)",
-                (slot, status, reason, relation, "unresolved", "[]"),
+                "insert into ledger values(?,?,?,?,?,?,?,?)",
+                (
+                    slot,
+                    status,
+                    reason,
+                    relation,
+                    transport,
+                    "block_presence_unresolved",
+                    "unresolved",
+                    "[]",
+                ),
             )
 
         valid_blocks = {}
@@ -337,7 +374,9 @@ def _validate(root: Path, *, expected_receipt: dict | None = None, page_dir: Pat
             state, body = _response(cap, provenance_by_path[relative])
             if state in {"failed", "unsupported"}:
                 db.execute(
-                    "update ledger set status=?,reason=?,enumeration_relation=?,evidence=? "
+                    "update ledger set status=?,reason=?,enumeration_relation=?,"
+                    "transport_status=?,observation_disposition='block_presence_unresolved',"
+                    "evidence=? "
                     "where slot=?",
                     (
                         state,
@@ -347,6 +386,7 @@ def _validate(root: Path, *, expected_receipt: dict | None = None, page_dir: Pat
                         else "unlisted"
                         if enum_status == "complete"
                         else "unavailable",
+                        state,
                         canonical([pin, enum_pin]).decode(),
                         slot,
                     ),
@@ -355,7 +395,9 @@ def _validate(root: Path, *, expected_receipt: dict | None = None, page_dir: Pat
             if body is None:
                 db.execute(
                     "update ledger set status='unknown',reason='getblock_null_result',"
-                    "enumeration_relation=?,evidence=? where slot=?",
+                    "enumeration_relation=?,transport_status='captured_null_result',"
+                    "observation_disposition='block_presence_unresolved',"
+                    "evidence=? where slot=?",
                     (
                         "listed"
                         if slot in listed_set
@@ -377,7 +419,22 @@ def _validate(root: Path, *, expected_receipt: dict | None = None, page_dir: Pat
                 or not 0 <= body["parentSlot"] < slot
                 or not isinstance(body.get("transactions"), list)
             ):
-                raise ValueError("block_inventory_full_block_shape")
+                db.execute(
+                    "update ledger set status='failed',reason='invalid_full_block_result',"
+                    "enumeration_relation=?,transport_status='failed',"
+                    "observation_disposition='block_presence_unresolved',evidence=? "
+                    "where slot=?",
+                    (
+                        "listed"
+                        if slot in listed_set
+                        else "unlisted"
+                        if enum_status == "complete"
+                        else "unavailable",
+                        canonical([pin, enum_pin]).decode(),
+                        slot,
+                    ),
+                )
+                continue
             valid_blocks[slot] = (
                 body["blockhash"],
                 body["previousBlockhash"],
@@ -386,7 +443,9 @@ def _validate(root: Path, *, expected_receipt: dict | None = None, page_dir: Pat
             )
             db.execute(
                 "update ledger set status='complete',reason='full_finalized_block',"
-                "enumeration_relation=?,lineage_status='unresolved',evidence=? where slot=?",
+                "enumeration_relation=?,transport_status='captured_result',"
+                "observation_disposition='block_present',lineage_status='unresolved',"
+                "evidence=? where slot=?",
                 (
                     "listed"
                     if slot in listed_set
@@ -461,7 +520,7 @@ def _validate(root: Path, *, expected_receipt: dict | None = None, page_dir: Pat
                         "update ledger set lineage_status='conflict' where slot=?", (child_slot,)
                     )
                 continue
-            parent_slot, parent_hash, _, _, parent_pin, _ = parent
+            parent_slot, parent_hash, _, _, _, _ = parent
             intervening = any(
                 parent_slot < row[0] < child_slot for row in parsed if row[0] != child_slot
             )
@@ -481,36 +540,84 @@ def _validate(root: Path, *, expected_receipt: dict | None = None, page_dir: Pat
             if any(gap in listed_set for gap in gaps):
                 continue
             for gap in gaps:
-                status = db.execute("select status from ledger where slot=?", (gap,)).fetchone()[0]
-                attempted = gap in slot_capture_rows
-                if status == "unknown" and not attempted:
-                    db.execute(
-                        "update ledger set status='skipped',reason='parent_link_gap',"
-                        "lineage_status='linked',evidence=? where slot=?",
-                        (canonical([parent_pin, child_pin, enum_pin]).decode(), gap),
-                    )
+                row = db.execute(
+                    "select status,transport_status,evidence from ledger where slot=?", (gap,)
+                ).fetchone()
+                status, transport, prior_evidence = row
+                eligible_null = (
+                    gap in slot_capture_rows
+                    and transport == "captured_null_result"
+                    and gap not in listed_set
+                )
+                chain_pins = [child_pin]
+                cursor = child
+                while cursor[5] != "left":
+                    parent_row = qualified.get(cursor[3])
+                    if parent_row is None:
+                        raise ValueError("block_inventory_linked_chain_dependency")
+                    chain_pins.append(parent_row[4])
+                    cursor = parent_row
+                proof_pins = set(json.loads(prior_evidence))
+                proof_pins.update(chain_pins)
+                proof_pins.add(enum_pin)
+                if gap in slot_capture_rows:
+                    proof_pins.add(slot_capture_rows[gap][2])
+                serialized_proof_pins = canonical(sorted(proof_pins)).decode()
+                if status not in {"complete", "skipped"}:
+                    may_resolve = gap not in slot_capture_rows or eligible_null
+                    if status == "unknown" and may_resolve:
+                        db.execute(
+                            "update ledger set status='skipped',reason='parent_link_gap',"
+                            "observation_disposition='block_absent_confirmed',"
+                            "lineage_status='linked',evidence=? where slot=?",
+                            (serialized_proof_pins, gap),
+                        )
+                    else:
+                        db.execute(
+                            "update ledger set observation_disposition='block_absent_confirmed',"
+                            "lineage_status='linked',evidence=? where slot=?",
+                            (serialized_proof_pins, gap),
+                        )
 
         counts = {status: 0 for status in sorted(STATUSES)}
         page_refs = []
         page_rows = []
+        ledger_rows = []
         for row in db.execute(
-            "select slot,status,reason,enumeration_relation,lineage_status,evidence "
+            "select slot,status,reason,enumeration_relation,transport_status,"
+            "observation_disposition,"
+            "lineage_status,evidence "
             "from ledger order by slot"
         ):
             status = row[1]
             if status not in STATUSES:
                 raise ValueError("block_inventory_ledger_status")
             counts[status] += 1
-            page_rows.append(
-                dict(
-                    slot=row[0],
-                    status=status,
-                    reason=row[2],
-                    enumeration_relation=row[3],
-                    lineage_status=row[4],
-                    evidence=json.loads(row[5]),
-                )
+            ledger_row = dict(
+                slot=row[0],
+                status=status,
+                reason=row[2],
+                enumeration_relation=row[3],
+                transport_status=row[4],
+                observation_disposition=row[5],
+                lineage_status=row[6],
+                evidence=json.loads(row[7]),
             )
+            if (
+                ledger_row["observation_disposition"] == "block_absent_confirmed"
+                and ledger_row["lineage_status"] == "linked"
+            ):
+                if not ledger_row["evidence"] or any(
+                    pin not in capture_received_ns for pin in ledger_row["evidence"]
+                ):
+                    raise ValueError("block_inventory_absence_dependencies")
+                ledger_row["proof_available_ns"] = max(
+                    capture_received_ns[pin] for pin in ledger_row["evidence"]
+                )
+            else:
+                ledger_row["proof_available_ns"] = None
+            page_rows.append(ledger_row)
+            ledger_rows.append(ledger_row)
             if len(page_rows) == LEDGER_PAGE_SIZE:
                 page_refs.append(_seal_page(page_rows, page_dir, expected_receipt, len(page_refs)))
                 page_rows = []
@@ -541,6 +648,7 @@ def _validate(root: Path, *, expected_receipt: dict | None = None, page_dir: Pat
         capture_pins=capture_pins,
         ledger_counts=counts,
         ledger_pages=page_refs,
+        ledger_rows=ledger_rows,
         enumeration_pin=enum_pin,
         enumeration_status=enum_status,
     )
@@ -690,7 +798,7 @@ def publish_finalized_block_inventory(store, capture_root):
         if sum(counts.values()) != interval_size:
             raise ValueError("block_inventory_slot_reconciliation")
         receipt = dict(
-            version="solana-finalized-block-inventory-v1",
+            version="solana-finalized-block-inventory-v3",
             source_kind=result["source_kind"],
             source_account_alias=result["source_account_alias"],
             interval=dict(
@@ -700,7 +808,7 @@ def publish_finalized_block_inventory(store, capture_root):
             ),
             time_basis="slot_only_no_unix_time_conversion",
             process=dict(
-                version="finalized-block-inventory-process-v1",
+                version="finalized-block-inventory-process-v3",
                 enumeration_method="getBlocks",
                 block_method="getBlock",
                 block_options=BLOCK_OPTIONS,
@@ -711,7 +819,7 @@ def publish_finalized_block_inventory(store, capture_root):
             trust_model="provider_asserted_jsonrpc_not_cryptographic_exhaustiveness_proof_v1",
             process_pin=digest(
                 dict(
-                    version="finalized-block-inventory-process-v1",
+                    version="finalized-block-inventory-process-v3",
                     enumeration_method="getBlocks",
                     block_method="getBlock",
                     block_options=BLOCK_OPTIONS,
@@ -733,6 +841,7 @@ def publish_finalized_block_inventory(store, capture_root):
                 counts[s] for s in ("failed", "stopped", "unknown", "unsupported")
             ),
             complete_definition="captured_full_block_only_no_interval_claim",
+            ledger_schema="slot-observation-ledger-v3",
             resource_bounds=dict(
                 max_range_slots=MAX_RANGE_SLOTS,
                 max_capture_file_bytes=MAX_CAPTURE_FILE_BYTES,
@@ -743,7 +852,7 @@ def publish_finalized_block_inventory(store, capture_root):
                 max_capture_bundle_files=MAX_CAPTURE_BUNDLE_FILES,
                 ledger_page_size=LEDGER_PAGE_SIZE,
             ),
-            verifier_id="solana_block_range_inventory_v1",
+            verifier_id="solana_block_range_inventory_v3",
             verifier_code_pin=_module_pin(),
             enumeration_status=result["enumeration_status"],
             capabilities=[CAPABILITY],
@@ -783,6 +892,7 @@ def load_finalized_block_inventory(store, pin):
         "accounted_slots",
         "unresolved_slots",
         "complete_definition",
+        "ledger_schema",
         "resource_bounds",
         "verifier_id",
         "verifier_code_pin",
@@ -791,24 +901,31 @@ def load_finalized_block_inventory(store, pin):
     }
     if (
         set(receipt) != required
-        or receipt["version"] != "solana-finalized-block-inventory-v1"
+        or receipt["version"] != "solana-finalized-block-inventory-v3"
         or receipt["source_kind"]
-        not in {"synthetic_solana_jsonrpc_capture_v1", "alchemy_free_http_capture_v1"}
+        not in {
+            "synthetic_solana_jsonrpc_capture_v1",
+            "alchemy_free_http_capture_v1",
+            "solana_public_http_capture_v1",
+        }
         or receipt["source_account_alias"]
         != (
             "alchemy-free-local"
             if receipt["source_kind"] == "alchemy_free_http_capture_v1"
+            else "public-rpc"
+            if receipt["source_kind"] == "solana_public_http_capture_v1"
             else None
         )
         or receipt["trust_model"]
         != "provider_asserted_jsonrpc_not_cryptographic_exhaustiveness_proof_v1"
         or receipt["time_basis"] != "slot_only_no_unix_time_conversion"
         or receipt["capabilities"] != [CAPABILITY]
-        or receipt["verifier_id"] != "solana_block_range_inventory_v1"
+        or receipt["verifier_id"] != "solana_block_range_inventory_v3"
         or receipt["verifier_code_pin"] != _module_pin()
         or receipt["enumeration_status"] not in {"complete", "failed", "unsupported", "unknown"}
         or receipt["accounting_unit"] != "slot_numbers"
         or receipt["complete_definition"] != "captured_full_block_only_no_interval_claim"
+        or receipt["ledger_schema"] != "slot-observation-ledger-v3"
         or receipt["resource_bounds"]
         != dict(
             max_range_slots=MAX_RANGE_SLOTS,
@@ -823,7 +940,7 @@ def load_finalized_block_inventory(store, pin):
         or receipt["process_pin"] != digest(receipt["process"])
         or receipt["process"]
         != dict(
-            version="finalized-block-inventory-process-v1",
+            version="finalized-block-inventory-process-v3",
             enumeration_method="getBlocks",
             block_method="getBlock",
             block_options=BLOCK_OPTIONS,
