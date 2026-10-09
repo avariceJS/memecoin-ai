@@ -23,8 +23,8 @@
     "Instruction references are structural; exact economic trade count remains null.",
     "No global provider completeness, lifecycle, or inactivity claim."
   ],
-  "offline_audit_code_commit": "34f4d3de23caa76dfd3824e97d1a22542365a2f4",
-  "paired_capture_root_disk_bytes": 152696938,
+  "offline_audit_code_commit": "b15e605fdaaa2f69f79ea5faf9cc1e76222bc9c8",
+  "paired_capture_root_disk_bytes": 152788573,
   "paired_transactions": {
     "difference_paths": {
       "meta.logMessages": 65
@@ -102,5 +102,22 @@
   "schema_version": 1,
   "scope": "One scheduled prospective finalized-slot window. Provider response and structural PumpSwap instruction-reference comparison only; not economic swap semantics, unsampled-slot completeness, or market inactivity.",
   "source_epoch_id": "20261009T120000Z",
-  "verified_helius_log_truncated_marker_count": 65
+  "verified_helius_log_truncated_marker_count": 65,
+  "structural_reference_qualification": {
+    "helius-free": {
+      "exact_over_stored_full_response": 20,
+      "provider_inventory_self_consistent": 1,
+      "getBlocks_enumeration_contains_selected_slot": 20,
+      "exact_zero_with_self_consistent_inventory": 0,
+      "status": "response-bounded exact structural counts; only one slot received signatures-only self-check in this initial epoch"
+    },
+    "solana-public": {
+      "exact_over_stored_full_response": 11,
+      "provider_inventory_self_consistent": 0,
+      "getBlocks_enumeration_contains_selected_slot": 0,
+      "unknown_full_responses": 9,
+      "status": "11 response-bounded counts; range enumeration and signature-list self-check unavailable"
+    },
+    "zero_semantics": "No exact zero in this selected range; future exact-zero classification requires exact structural validation plus a complete provider getBlocks inventory and same-provider ordered-signature-list match."
+  }
 }
