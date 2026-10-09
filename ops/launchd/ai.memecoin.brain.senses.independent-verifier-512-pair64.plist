@@ -50,6 +50,8 @@
 		<string>/Users/root1/Developer/memecoin-research/work/brain-senses-helius-alchemy-free-calibration-20261009</string>
 		<string>--shared-helius-reservation-root</string>
 		<string>/Users/root1/Developer/memecoin-research/work/brain-senses-live-helius-alchemy-512-20261009</string>
+		<string>--shared-helius-reservation-root</string>
+		<string>/Users/root1/Developer/memecoin-research/work/brain-senses-pumpswap-account-probe-20261009</string>
 		<string>--public-crosscheck-hours</string>
 	</array>
 	<key>EnvironmentVariables</key>
