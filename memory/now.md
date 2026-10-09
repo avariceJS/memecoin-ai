@@ -1,56 +1,101 @@
 # Current Project State
 
-**As of:** 2026-10-09 Europe/Moscow. Start from `docs/INDEX.md`; verify source claims against the linked receipt.
+**As of:** 2026-10-09 Europe/Moscow. Start from `docs/INDEX.md`; check linked receipts for evidence.
 
 ## Goal and boundaries
 
-Build a scalable, reproducible Solana learning system. No demonstrated executable edge. Do not promote/deploy, sign transactions, use real money, access protected F01/D43 or reserved holdout payloads, or begin the Cortex block after Senses closure. Preserve production `/Users/root1/Desktop/memecoin-ai`; Mac 2 remains standby. No Grok. Keep credentials outside Git, docs and ordinary logs.
+Build a scalable, reproducible Solana learning system. No demonstrated executable edge. Do not
+promote/deploy, sign transactions, use real money, access frozen F01/D43 or reserved holdouts, or
+start Cortex before Senses is objectively complete. Keep production
+`/Users/root1/Desktop/memecoin-ai` and credentials untouched. Mac 1 is the research host; Mac 2 is
+standby. No Grok.
 
 ## Active state
 
-- Research checkout `/Users/root1/Developer/memecoin-research`, branch `research/active`; current local HEAD `cd5433b`, 29 commits ahead of origin before this state update. Do not push. Production checkout `/Users/root1/Desktop/memecoin-ai` and runtime are untouched.
-- Production owner was clean at the handoff fence; no runtime, champion, config, STOP or protected data changed in this work.
-- Mac 1 is the active research host; Mac 2 is standby. See `docs/two-mac-workflow.md` before host work.
+- Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; verify
+  live `git status` and HEAD. Do not push. Production checkout/runtime remain unchanged.
+- The sensing priority is prospective, broad real-market capture and economic event qualification.
+  Existing archive, source, qualification and evaluation limits are in
+  [`brain-source-architecture.md`](../docs/brain-source-architecture.md) and
+  [`training-evaluation.md`](../docs/training-evaluation.md). Do not reread the whole archive.
+- Current capabilities preserve event time, receipt/availability, exact/unknown/gap/failed/stopped/
+  unsupported/pending/censored states and never infer death or zero from provider disappearance.
+  Native slot coordinates are not converted into UTC decision time. Details live in the canonical
+  source and evaluation documents above.
+- No fresh independent model comparison, calibrated execution result, market edge or profit claim.
 
-## Existing Brain capability
+## Providers and durable evidence
 
-- Paged experience, snapshots, training generations, population/diversity accounting and event-time observation contracts are established. Existing real train source `81f7c74b…4b10c3e0` has 170/170 markets with `unknown` support; absence from the provider does not prove zero activity or death.
-- Opt-in `partial_count_lower_bound_pinball_v1` consumes exact counts and positive qualified censored lower bounds with a one-sided per-quantile hinge. Zero bounds and unavailable bounds remain excluded. Synthetic fit/resume/evaluation is engineering-only; no learning gain. See `docs/training-evaluation.md` and `docs/evidence/brain-censoring-objective-2026-10-08.json`.
-- September cohort is studied, not a fresh holdout. No registered fresh independent comparison has been run.
+- Alchemy Free/PAYG are one provider family; Helius is independent. Helius is configured only in
+  ignored mode-0600 `.env.local`; no key goes in Git, launch arguments or logs. Published Helius
+  Free allowance is 1M credits/month and 10 RPC RPS; MCP confirms these plan limits but exposes no
+  account usage meter. Alchemy Free and Helius endpoints are configured. PAYG selection is supported
+  but its endpoint is absent; no paid request has been made.
+- The three-range 50-slot pilot found matching slot/block identities and ordered signatures. Of
+  56,615 paired transactions, 120 differed only in Helius logs marked `Log truncated`. Each provider
+  returned 7,953 PumpSwap structural instruction references, not economic trades. See
+  `docs/evidence/helius-public-block-provider-pilot-2026-10-09.json`.
+- A new 32-slot Helius Free/Alchemy Free calibration completed 65 calls/provider (65 expected
+  Helius credits), with no failures. All inventories and block identities/signature order matched;
+  39,280 transaction trees matched and 38 differences were only explicitly truncated Helius logs.
+  After fixing valid empty base58 instruction data, both providers qualified 32/32 structural counts.
+  Stored zstd averaged 1.14 MB/provider/slot including inventory and signature checks; see
+  `docs/evidence/alchemy-free-helius-same-slot-calibration-2026-10-09.json`.
+- A larger precommitted three-day retrieval selected 2,880 slots / 144 twenty-slot windows with
+  3,168 Helius calls and a 30 GB raw bound. Helius phase is complete; public phase is still running
+  (latest observed 2,091/3,168 public requests: 460 captured, 1,631 failed); root is about 16.3 GB.
+  The provider process remains active. Offline replay after the empty-base58
+  fix parsed/normalized all 2,880 Helius full responses and matched the stored inventory for all;
+  only 144 had the committed full/signatures-only self-check, so only those qualify as exact selected
+  counts. No historical availability claim. See
+  `docs/evidence/helius-historical-instruction-normalization-audit-2026-10-09.json`.
+- The first prospective 20-slot Helius/public window had 20/20 Helius full responses and 11/20
+  public full responses. All 11 paired blocks agreed on identity and ordered signatures; public
+  HTTP 429s/timeouts remain unknown. The 13,716 paired transactions had 65 log-only differences,
+  each explicitly truncated by Helius. Helius showed 4,033 PumpSwap structural references; none
+  imply executed swaps. See `docs/evidence/helius-public-prospective-block-epoch-2026-10-09.json`.
+- Existing prospective campaign is separate and unchanged: 64 seeded Helius slots/hour for 72h,
+  Helius signature self-check per selected slot, public paired only at UTC 00/06/12/18, and its own
+  20,000-credit/32-GiB wave bounds. First window used 129 Helius reservations, captured 64/64
+  Helius blocks, while public had 123 failed attempts among 129; failures remain unknown.
+- Sol approved a separate 24h follow-up at 512 Helius slots/hour in 16 seeded contiguous 32-slot
+  windows and 32 same-manifest Alchemy Free pairs/hour (768 pairs/day). Expected Helius reservations
+  are 24,624 (including hourly inventories and anchors); wave cap26,000. Shared daily research cap is
+  36,000 locally accounted standard requests across the new wave and active Helius roots; it is not
+  a recurring or architectural limit. New wave stored cap18GiB, per-epoch free-space guard preserves
+  30GiB. The denser calibration projects ~14.9GB stored for 24h; a 72h run is not safe alongside
+  current roots. Request/byte/disk checks run before each epoch; stop this broad wave first.
+- Helius address-watch v2 stopped after 1,001 requests: 999 transaction bodies captured, one failed;
+  a restart recorded terminal `ValueError` and STOP. Do not resume its cursor. New watch v3 uses
+  fresh six-hour UTC roots, parent STOP/last-receipt links, no inherited cursor, and a 1,100-request
+  cap per epoch; the hourly block sample is the prospective evidence path, while this watch is a
+  sparse address-index sensor, not full population coverage.
+- Latest disk check: 76 GiB free; no external research volume is mounted. The historical root may
+  add up to its 30-GB cap; the active 64/h raw campaign is ~6.6GB/day and Helius watch is ~0.09GB/day.
+  New-wave 1.14MB/provider/slot measurement projects ~14.9GB/day; its one-day cap and floor guard
+  account for all active roots. Helius 1,000-credit and 20,000/day values are qualification bounds,
+  not durable ceilings.
 
-## Brain Senses — current capability
+## Economic semantics and learning
 
-- `memecoin_experience.qualification` binds versioned process contracts, receipt/scope/population pins, code/decoder identity and exact fixture rows. The real block path separately verifies a bounded finalized-slot inventory under provider trust; it does not establish universal provider completeness or a market-process verifier.
-- `memecoin_experience.sensing` seals arrival-independent paged schedules, reconciles a multistream source to receipts on publication and consumption, then streams point-in-time episodes into generic v2 snapshots. Input events/support obey availability; quiet origins remain. Status channels preserve complete, unknown, failed, stopped, unsupported and unasserted gap. No provider disappearance becomes lifecycle/death.
-- Counts use `(decision,maturity]`. Complete process support gives exact values including zero; incomplete or enrollment-truncated windows keep a lower bound in metadata and a masked target. Exact price returns require unique exact observations at both endpoints. A synthetic two-process episode now includes positive partial censoring and an entity re-enrolled across a gap. Sparse history/targets do not bridge nonoverlapping enrollment intervals.
-- `budget_dry_run` binds requests, account units/entitlement, evidence and ledger state; ambiguous attempts poison the account pending reconciliation. It has no transport or dispatch path.
-- One schedule-only profile processed 1,025 rows into three pages in 0.041 s / 278,257 traced bytes on Python 3.13.6 arm64. This does not establish episode, large-source or 100M scale.
-- `brain-experience-v3` adds typed native-coordinate origins, per-domain dependency purging and target maturity, with UTC availability separate; no slot/time conversion is inferred. Historical replay may retain `decision_ns=null`; point-in-time schemas require an actual decision. v1/v2 contracts remain compatible. v3 snapshot composition, replication, objective batching and registered evaluation use the shared path.
-- The current Senses priority remains real capture and economic event qualification; the earlier “Senses architecture complete / Cortex next” statement below is superseded by this active stage.
+- PumpSwap decoder pins the official updated IDL, including the eight-byte
+  `creator_fee_unclaimed: u64` tail. New remaining-account and Token-2022 shapes still require
+  evidence, reconciliation and quarantine before they can be called supported. Existing exception
+  counts and paths are in `docs/brain-source-architecture.md`.
+- Positive signature references and bounded block agreement do not prove enrollment, support,
+  market coverage, executed swaps or lifecycle. No real source fit or learning gain has been
+  established. `partial_count_lower_bound_pinball_v1` is opt-in and excludes zero/unavailable
+  bounds; see `docs/training-evaluation.md`.
 
-## Alchemy and real source boundary (2026-10-09)
+## Verification and next decision horizon
 
-- Published Free plan: 30M CU/month, 300 CU/s. Free returned a two-method batch and basic RPC, but `getSignaturesForAddress` had 41 HTTP 429s in 56 calls across bounded low-throughput phases. Free meter was not exposed.
-- Existing PAYG: 228/228 bounded calls succeeded; delayed meter reconciled 5,520 CU (180 `getSlot` ×20 and 48 `getSignaturesForAddress` ×40), estimated $0.002898. Peak 33.68 calls/s is a test phase, not saturation. Use Free for healthy development; PAYG for qualified indexed work when Free blocks throughput/capability. Keep budgets per account.
-- A separate PAYG pool-address probe returned one 10-row finalized signature page, descending slots 454,538,107→453,121,085. MCP could not expose two large-page results as complete JSON; one small-page summary was lost at the local hashing boundary. No retry was issued. The delayed meter reconciled 5,520→5,680 CU: four requests ×40 CU, estimated $0.000084. Receipt: `docs/evidence/alchemy-signature-page-probe-2026-10-09.json`.
-- A follow-up two-page PAYG result stored/hashes both 10-row finalized arrays under ignored `work/`; zero duplicate signatures and ordered slots. Meter reconciled 5,680→5,760 CU (+80; estimated $0.000042). Offline replay yields 20 positive observation facts. Exact `before` signatures were not bound to the saved request receipt, so cursor lineage is unverified. The importer now emits no enrollment/support interval without independent event-time scope. An earlier receipt-time-derived 10-row snapshot was rejected as invalid. No real experience examples, objective targets, or fit. Receipt: `docs/evidence/alchemy-signature-cursor-qualification-2026-10-09.json`.
-- Direct Free HTTP capture then returned two five-row pages (HTTP 200, 571/412 ms; no retries), sealed exact response bodies locally before parsing and verified the second request cursor against page one's final signature. The importer preserves raw-response provenance and emits 10 positive address refs; still zero enrollment/support facts and no snapshot/targets. Free CU MTD is not exposed in the workspace; no usage was inferred from request count. Receipt: `docs/evidence/alchemy-free-raw-cursor-qualification-2026-10-09.json`. A later two-call PAYG MCP probe did not change the visible meter through 22:14 UTC; that delta remains unreconciled.
-- One direct Free maximum-limit request then returned/imported 1,000 finalized refs in 819 ms (224 KB raw HTTP body, no retry). It proves bounded capture/import at 1,000 rows, not archive completeness or sustained throughput. No membership/support facts. Receipt: `docs/evidence/alchemy-free-max-page-qualification-2026-10-09.json`.
-- Selected PAYG app: a 300-request measured series completed without RPC errors/429s: 270 `getSlot` at concurrency 4/8 and 30 sequential 10-row `getSignaturesForAddress` pages (300 unique refs, cursor-linked and slot ordered in memory; pages 290 ms median / 401 ms p95). A 300-call preselection warm-up also ran. Delayed meter moved 5,840→18,520 CU (+12,680); method series reconciles 570 `getSlot` calls to 11,400 CU and 32 signature calls to 1,280 CU. Marginal measured CU equals about $0.006657 at the published PAYG rate; the usage API rounds MTD USD to $0.01. Four later PAYG `getTransaction` responses are not attributed in the meter method series, so their cost is unresolved. MCP does not expose raw JSON-RPC batching. Receipt: `docs/evidence/alchemy-payg-read-only-performance-2026-10-09.json`.
-- `qualification-observed-values-v2` now separately qualifies positive facts. Its registered verifier replays sealed raw capture pages using disk-backed scratch, compares rows read-only against the pinned source, and matches process/schema/decoder/source pins, roles and exact resolved/unresolved event-time accounting. It grants only `observed_values`, never support, population coverage or completeness. `replicate_verified_values` copies the source, verification receipt, import manifest, schema/rules and declared capture files to a second store, then revalidates there. A test removes both origin store and capture directory before replay from the replica. The event-only source still fails experience indexing absent independently evidenced enrollment. The maximum-size test covers 1,000 rows in one page; it does not establish broad-store throughput.
-- Free `getTransaction` follow-up sampled 16 evenly spaced finalized successes from the already captured 1,000-row page: 16/16 HTTP 200, complete `jsonParsed`, no retries, p50 527 ms / p95 1,046 ms. Across 33 candidate event payloads, the previous Pump IDL omitted an 8-byte tail; the official Oct 7 IDL adds `creator_fee_unclaimed: u64`, now pinned in `memecoin_pumpswap.schema`, and all 33 parse exactly. The 16 transactions remain quarantined for unreviewed remaining accounts and unqualified Token-2022 paths; one also has an event/transfer mismatch. No training/exec eligibility. Free CU delta is unavailable and no request-count cost was inferred. Receipt: `docs/evidence/alchemy-free-transaction-variant-qualification-2026-10-09.json`.
-- One real Free finalized-block inventory run captured the requested slot, but its left boundary witness failed with `URLError`; lineage remains unresolved. Offline inventory publication and replica replay succeeded. The range producer accepts a pinned bounded plan, persists exact request reservations before I/O, and records budget/expiry STOP without dispatch or retry. Receipt `docs/evidence/alchemy-free-block-range-2026-10-09.json`; raw bodies remain only under ignored `work/`.
-- A later bilateral finalized range `[454538109,454538111)` reconciled two slots and 2,066 transaction comparisons. It yielded 147 structural PumpSwap instruction references (98 in successful transactions, 49 in failed transactions), one exact H=1 target of 87, and one pending target. The v3 snapshot `13738f36…a046814` replicated and the shared training batch admitted one exact row. It has no independent split; no fit, prospective availability claim, or learning-gain comparison. Receipt: `docs/evidence/brain-native-slot-experience-2026-10-09.json`.
-- Qualified in reality: bounded Free/PAYG RPC behavior and method-level PAYG metering; positive signature references; sampled complete Free transaction responses; two-slot provider response agreement and native-coordinate objective plumbing; and the existing GeckoTerminal OHLCV/price lane. Not qualified: exhaustive provider response coverage, complete economic-market event semantics, historical availability, broad population support, or market inactivity/death. PAYG MCP transaction output is not full HTTP wire capture. These are current empirical source limits; provider absence is never lifecycle death.
-- New prospective PumpSwap program-address collector runs as a research LaunchAgent on public RPC from immutable root `work/brain-senses-live-public-20261009-v2`; code is pinned to `d68871a`. At sequence 833 it had 833 reserved/captured requests, 832 transaction manifests, and 16.96 MB raw JSON responses. The address-index cursor was still unset during initial bounded catch-up; this is not complete-history evidence. Alchemy Free returned zero while public returned five nearby signatures in the earlier canary; this remains an observed provider/index discrepancy.
-- Commit-bound read-only exception watcher `8ca460c` replayed through sequence 809 under the corrected decoder: 808 transactions; 540 quarantined, 115 failed on-chain, 153 with no supported swap. It recorded 130 v1 `buy_exact_quote_in` cases whose gross debit, pool credit, net amount and fee transfers reconciled diagnostically; 31 remained event/transfer mismatches. Aggregate blockers still include 534 unreviewed remaining-account shapes and 459 Token-2022 paths. Admission remains closed; see `docs/brain-source-architecture.md`.
-- Helius credential remains only in ignored mode-0600 `.env.local`. Helius Free plan info is verified at 1M credits/month and 10 RPC RPS; actual account credit meter remains unavailable. The old address-signature collector is stopped at 4,350 reserved/captured attempts, with three transport failures and durable STOP; do not resume its backlog as a completeness path. The prior 20,000/day value was a run bound, not a permanent cap.
-- Helius/public block pilot (commit `1647b57`, corrected signatures-only parser `5892104`): three separated finalized ranges, 50 slots, 103 requests/provider, all parsed, expected 103 Helius credits (actual meter unavailable). Slot inventories, block identities and ordered signatures matched across all 50 slots; full/signatures-only lists matched for all 100 provider-slot pairs. Of 56,615 paired transactions, 56,495 exact trees matched; 120 differed only in Helius `meta.logMessages`, which included explicit `Log truncated`. Each provider showed 7,953 PumpSwap structural references (192 in failed transactions); these are not economic swap facts. Full blocks averaged about 4.3 MB/provider. The sample finds a meaningful Helius response truncation class but is not random or broad completeness evidence. Receipt: `docs/evidence/helius-public-block-provider-pilot-2026-10-09.json`.
-- Public prospective program watch v3 is running under LaunchAgent `ai.memecoin.brain.senses.program-watch-v3`; request sequence observed at 653, raw root about 12.8 MB. It shares a durable global 1 request/s public RPC gate with manual research calls. The prior public v2 attempt remains stopped on transport failure; failure/gap stays unknown. Helius and public block/raw decode watches remain separate.
-- Disk has about 92 GiB available. The block pilot consumed about 414 MB of paired raw capture; average full block was 4.3 MB per provider. This is bounded-sample storage, not a sustainable daily-growth estimate. Measure the wider sample and prospective steady-state separately.
-
-## Verification and next wave
-
-- Senses verification before the latest RPC work: `make check` 1,331 passed /25 optional skips; Control Center 39 passed; mypy passed. Corrected block-pilot focused checks: 2 passed; full `make check` has not been rerun after the latest additions. `make smoke` previously passed synthetic-only. These checks establish plumbing, not learning gain or broad-source completeness.
-- Sol-directed three-day sample plan is pinned in `docs/evidence/helius-public-block-sample-precommit-2026-10-09.json`. It selects 2,880 slots across 144 random 20-slot windows/24 equal slot strata per day, with one signature-only cross-check/window; expected Helius reservations are 3,168 and paired body bytes project to about 24.8 GB from the first pilot's full-block mean. UTC alignment is approximate and will be audited from observed blockTime. Wave-only stops: 30 GB paired raw, 75,000 Helius expected credits total, 25,000/day, 4 Helius RPS; public uses shared 1 RPS gate. These are not permanent caps. This wave is running from `work/brain-senses-live-helius-public-stratified-20261006-09`; at last check it had 329/3,168 Helius reservations completed, 878.9 MB raw responses, no failures/null blocks, and had not yet reached public operations. No retries. The offline audit now records nested transaction difference paths. Finish the paired sample and audit selected-slot blockTime, missing/null/error rates, exact transaction differences, raw bytes and credit reservations. Alchemy remains a separately labeled comparator, not independent evidence from Helius.
-- The sensing block remains open: prospective capture, broad cross-provider comparison, pool/universe discovery, economic transaction semantics, lifecycle and broad real corpus remain unfinished. Do not infer historical availability from event time, call instruction references executed swaps, or infer death from provider disappearance. Do not begin Cortex yet.
+- Focused sensing checks passed after this change. The latest full `make check` reached 1,352 passed
+  / 25 skipped but failed three `tests/tools/test_agent_context.py` cases because this file plus
+  `AGENTS.md` exceeded the context packet's mandatory 23,500-character budget. Keep this state note
+  compact, then rerun `make check`. `make smoke` is synthetic-only and is not evidence of edge.
+- Compiled transaction normalization has fail-closed static/lookup-address resolution, valid empty
+  base58 decoding and exact SPL `TransferChecked` wire decoding; Token-2022 effects remain
+  quarantined. Re-audit the historical captures and finish the current two-provider audit without
+  replay. Launch the independent 512/32 Helius↔Alchemy Free wave under its own root after tests and
+  commit; review actual bytes, provider failures and discrepancy yield at 24h. Do not call Senses
+  complete or begin Cortex.
