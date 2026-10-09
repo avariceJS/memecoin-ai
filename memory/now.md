@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 02:35 Europe/Moscow. Read `docs/INDEX.md`, then verify Git and runtime
+**As of:** 2026-10-10 02:37 Europe/Moscow. Read `docs/INDEX.md`, then verify Git and runtime
 before acting.
 
 ## Boundaries
@@ -12,7 +12,7 @@ promotions, and remote pushes untouched. Do not start Cortex before Senses is ob
 ## Host and prospective runtime
 
 - Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`, HEAD
-  `6370ff4`; worktree clean. Production remains untouched.
+  `8b5e6db` at last pre-handoff check. Production remains untouched.
 - About 70 GiB free at 23:32Z. No v2 LaunchAgent or collector process is active. Pair64, older block
   schedulers and watchers remain stopped/unloaded; Helius watch-v3 roots retain STOP records and
   must not be bridged. No Helius request has run since the first v2 frame.
@@ -20,6 +20,11 @@ promotions, and remote pushes untouched. Do not start Cortex before Senses is ob
   limit. Paid-tier Solana method filters were accepted; seven-day `solana-mainnet/getAccountInfo`
   time series was empty. The research checkout has no Alchemy Free/PAYG HTTP endpoint. No Account
   Archive query or paid request was made; MCP `getAccountInfo` has no historical-slot parameter.
+- One no-RPC archive control is frozen in
+  `docs/evidence/alchemy-account-archive-mint-control-plan-2026-10-10.json`. It pins three max
+  historical mint reads for one development reference at slot 454901149 / tx index 1012. A captured
+  1,023-tx Helius block has no writable quote-mint occurrence; full and signature-only response
+  hashes/signature order were verified. Provider-response scope only; no query yet.
 - Inventory-first Helius v2 bootstrap at 22:43Z observed finalized slot 455028551, frontier
   455028552, one `getSlot` reservation, 43 raw / 56 zstd bytes, no body. A preflight at 23:00Z
   failed before I/O because it compared moving Git HEAD. The same real UTC bucket completed at
@@ -57,9 +62,8 @@ promotions, and remote pushes untouched. Do not start Cortex before Senses is ob
 1. Run two more real hourly v2 frames one-shot, review all request/byte/self-check accounting, then
    decide whether to install the campaign's LaunchAgent. Check actual UTC, disk and runtime first;
    keep the 50 GiB floor and 20,000-slot cap.
-2. At no-RPC boundary, freeze a tiny dev control around the single isolated no-sibling reference
-   found in the census (slot 454901149, transaction index 1012). Do not query until account
-   entitlement, archive endpoint, price/limits and same-slot behavior are verified; preserve
-   `same_slot_intermediate_state_unknown` if ordering is not proved.
+2. If the owner exposes the Alchemy paid endpoint in research runtime, verify entitlement, account
+   limit, billing and slot coverage before running the frozen 3-read control. Otherwise leave it
+   unqueried; preserve `same_slot_intermediate_state_unknown` where ordering is unproved.
 3. Only after provider/recovery gates, continue Token-2022 state qualification under Sol's frozen
    semantics. No Cortex.
