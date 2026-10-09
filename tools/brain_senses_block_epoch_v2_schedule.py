@@ -39,6 +39,7 @@ BEHAVIOR_SOURCE_PATHS = (
     "src/memecoin_ai/sources.py",
     "src/memecoin_ai/domain.py",
 )
+FIRST_APPROVED_SCHEDULER_COMMIT = "9eeca1e535fe364ae6f88844286d347b8e876146"
 
 
 def _hash_object(value: dict[str, Any]) -> str:
@@ -170,7 +171,9 @@ def _legacy_schedule_config_matches(existing: dict[str, Any], expected: dict[str
     }
 
 
-def _verify_legacy_bootstrap(root_base: Path, existing: dict[str, Any]) -> dict[str, Any]:
+def _verify_legacy_bootstrap(
+    root_base: Path, existing: dict[str, Any], *, require_bootstrap_only: bool = True
+) -> dict[str, Any]:
     """Verify the exact one-request bootstrap before a source compatibility migration."""
     epochs_root = root_base / "epochs"
     epoch_root = epochs_root / "20261009T220000Z"
@@ -185,7 +188,9 @@ def _verify_legacy_bootstrap(root_base: Path, existing: dict[str, Any]) -> dict[
     ):
         raise ValueError("compatibility_migration_bootstrap_evidence_missing")
     all_reservations = sorted(epochs_root.glob("*/requests/*.json"))
-    if all_reservations != [reservation_path]:
+    if reservation_path not in all_reservations or (
+        require_bootstrap_only and all_reservations != [reservation_path]
+    ):
         raise ValueError("compatibility_migration_unexpected_request_history")
     plan = _read(plan_path)
     summary = _read(summary_path)
@@ -243,28 +248,61 @@ def _verify_legacy_bootstrap(root_base: Path, existing: dict[str, Any]) -> dict[
     }
 
 
+def _scheduler_diff(old_source: bytes, new_source: bytes, old_label: str) -> str:
+    relative_path = str(SCHEDULE_SOURCE.relative_to(REPO_ROOT))
+    return "".join(
+        difflib.unified_diff(
+            old_source.decode("utf-8").splitlines(keepends=True),
+            new_source.decode("utf-8").splitlines(keepends=True),
+            fromfile=f"{old_label}:{relative_path}",
+            tofile=f"approved-current:{relative_path}",
+        )
+    )
+
+
 def _validate_compatibility_migration(
     root_base: Path, existing: dict[str, Any], expected: dict[str, Any]
 ) -> None:
     migration_path = root_base / "schedule-migrations" / "0001.json"
     if not migration_path.is_file():
         raise ValueError("schedule_binding_changed")
-    if sorted(path.name for path in migration_path.parent.glob("*.json")) != ["0001.json"]:
+    migration_names = sorted(path.name for path in migration_path.parent.glob("*.json"))
+    if migration_names not in (["0001.json"], ["0001.json", "0002.json"]):
         raise ValueError("schedule_binding_changed")
     migration = _read(migration_path)
     original_scheduler = _git_blob(
         existing["scheduler_source_commit"], "tools/brain_senses_block_epoch_v2_schedule.py"
     )
-    expected_diff = "".join(
-        difflib.unified_diff(
-            original_scheduler.decode("utf-8").splitlines(keepends=True),
-            SCHEDULE_SOURCE.read_text().splitlines(keepends=True),
-            fromfile=(
-                f"{existing['scheduler_source_commit']}:{SCHEDULE_SOURCE.relative_to(REPO_ROOT)}"
-            ),
-            tofile=f"approved-current:{SCHEDULE_SOURCE.relative_to(REPO_ROOT)}",
+    second_path = migration_path.parent / "0002.json"
+    second = _read(second_path) if second_path.is_file() else None
+    first_approved_source = (
+        _git_blob(
+            second["previous_approved_source_commit"],
+            "tools/brain_senses_block_epoch_v2_schedule.py",
         )
+        if second
+        else SCHEDULE_SOURCE.read_bytes()
     )
+    first_approved_hash = hashlib.sha256(first_approved_source).hexdigest()
+    expected_first_diff = _scheduler_diff(
+        original_scheduler,
+        first_approved_source,
+        existing["scheduler_source_commit"],
+    )
+    expected_second_diff = (
+        _scheduler_diff(
+            first_approved_source,
+            SCHEDULE_SOURCE.read_bytes(),
+            second["previous_approved_source_commit"],
+        )
+        if second
+        else None
+    )
+    current_bindings = _source_bindings()
+    first_bindings = migration.get("approved_source_bindings", {})
+    source_path = str(SCHEDULE_SOURCE.relative_to(REPO_ROOT))
+    current_helpers = {key: value for key, value in current_bindings.items() if key != source_path}
+    first_helpers = {key: value for key, value in first_bindings.items() if key != source_path}
     if (
         not _legacy_schedule_config_matches(existing, expected)
         or migration.get("original_scheduler_source_commit")
@@ -272,13 +310,34 @@ def _validate_compatibility_migration(
         or migration.get("original_manifest_sha256") != _hash_object(existing)
         or migration.get("original_scheduler_source_sha256")
         != existing.get("scheduler_source_sha256")
-        or migration.get("approved_scheduler_source_sha256")
-        != expected.get("scheduler_source_sha256")
-        or migration.get("approved_source_bindings") != _source_bindings()
+        or migration.get("approved_scheduler_source_sha256") != first_approved_hash
+        or first_approved_hash != first_bindings.get(str(SCHEDULE_SOURCE.relative_to(REPO_ROOT)))
+        or migration.get("approved_source_bindings") is None
+        or first_helpers
+        != _historical_behavior_bindings(
+            second["previous_approved_source_commit"]
+            if second
+            else existing["scheduler_source_commit"]
+        )
+        or (second is not None and current_helpers != first_helpers)
         or migration.get("bootstrap_behavior_source_sha256")
         != _historical_behavior_bindings(existing["scheduler_source_commit"])
-        or migration.get("scheduler_compatibility_diff") != expected_diff
-        or migration.get("bootstrap_evidence") != _verify_legacy_bootstrap(root_base, existing)
+        or migration.get("scheduler_compatibility_diff") != expected_first_diff
+        or migration.get("bootstrap_evidence")
+        != _verify_legacy_bootstrap(root_base, existing, require_bootstrap_only=False)
+        or (second is None and current_bindings != first_bindings)
+        or (
+            second is not None
+            and (
+                second.get("previous_migration_sha256")
+                != hashlib.sha256(migration_path.read_bytes()).hexdigest()
+                or second.get("previous_approved_scheduler_source_sha256") != first_approved_hash
+                or second.get("approved_scheduler_source_sha256")
+                != expected.get("scheduler_source_sha256")
+                or second.get("approved_source_bindings") != current_bindings
+                or second.get("scheduler_compatibility_diff") != expected_second_diff
+            )
+        )
     ):
         raise ValueError("schedule_binding_changed")
 
@@ -364,6 +423,95 @@ def migrate_legacy_schedule_binding(root_base: Path, expected: dict[str, Any]) -
         _create(migration_path, migration)
         _validate_compatibility_migration(root_base, existing, expected)
         return migration
+
+
+def advance_legacy_scheduler_binding(root_base: Path, expected: dict[str, Any]) -> dict[str, Any]:
+    """Append the reviewed recovery-validator correction after migration 0001."""
+    root_base.mkdir(parents=True, exist_ok=True, mode=0o700)
+    lock_path = root_base / ".schedule-v2.lock"
+    with lock_path.open("a") as lock_file:
+        try:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise ValueError("inventory_first_schedule_already_active") from exc
+        schedule_path = root_base / "schedule-v2.json"
+        first_path = root_base / "schedule-migrations" / "0001.json"
+        second_path = root_base / "schedule-migrations" / "0002.json"
+        if not schedule_path.is_file() or not first_path.is_file():
+            raise ValueError("compatibility_migration_predecessor_missing")
+        existing, first = _read(schedule_path), _read(first_path)
+        if second_path.exists():
+            _validate_compatibility_migration(root_base, existing, expected)
+            return _read(second_path)
+        previous_source = _git_blob(
+            FIRST_APPROVED_SCHEDULER_COMMIT,
+            "tools/brain_senses_block_epoch_v2_schedule.py",
+        )
+        previous_hash = hashlib.sha256(previous_source).hexdigest()
+        previous_bindings = first.get("approved_source_bindings", {})
+        previous_path = str(SCHEDULE_SOURCE.relative_to(REPO_ROOT))
+        if (
+            not _legacy_schedule_config_matches(existing, expected)
+            or first.get("original_scheduler_source_commit")
+            != existing.get("scheduler_source_commit")
+            or first.get("original_manifest_sha256") != _hash_object(existing)
+            or first.get("original_scheduler_source_sha256")
+            != existing.get("scheduler_source_sha256")
+            or previous_hash != first.get("approved_scheduler_source_sha256")
+            or previous_bindings.get(previous_path) != previous_hash
+            or {key: value for key, value in previous_bindings.items() if key != previous_path}
+            != _historical_behavior_bindings(FIRST_APPROVED_SCHEDULER_COMMIT)
+            or _verify_legacy_bootstrap(root_base, existing, require_bootstrap_only=False)
+            != first.get("bootstrap_evidence")
+        ):
+            raise ValueError("compatibility_migration_predecessor_mismatch")
+        current_bindings = _source_bindings()
+        current_helpers = {
+            key: value for key, value in current_bindings.items() if key != previous_path
+        }
+        previous_helpers = {
+            key: value for key, value in previous_bindings.items() if key != previous_path
+        }
+        if current_helpers != previous_helpers:
+            raise ValueError("compatibility_migration_behavior_source_changed")
+        diff = _scheduler_diff(
+            previous_source, SCHEDULE_SOURCE.read_bytes(), FIRST_APPROVED_SCHEDULER_COMMIT
+        )
+        if not diff:
+            raise ValueError("compatibility_migration_diff_missing")
+        second = {
+            "schema_version": 1,
+            "migration_id": "scheduler-recovery-validator-20261010",
+            "previous_migration_sha256": hashlib.sha256(first_path.read_bytes()).hexdigest(),
+            "previous_approved_source_commit": FIRST_APPROVED_SCHEDULER_COMMIT,
+            "previous_approved_scheduler_source_sha256": previous_hash,
+            "approved_scheduler_source_sha256": expected["scheduler_source_sha256"],
+            "approved_source_bindings": current_bindings,
+            "bootstrap_evidence": first["bootstrap_evidence"],
+            "compatibility_only_changes": [
+                "validate the original bootstrap evidence independently of "
+                "later epoch reservations",
+                "keep the original bootstrap hashes and schedule identity immutable",
+                "retain the same source/config/request behavior and recovery rules",
+            ],
+            "scheduler_compatibility_diff": diff,
+            "no_rpc_validation": {
+                "validated": True,
+                "checks": [
+                    "completed frame journal replays from saved summary without an RPC",
+                    "bootstrap receipt remains hash-bound after a later epoch is added",
+                    "source/config mismatches remain fail-closed",
+                ],
+                "test_nodes": [
+                    "tests/test_brain_senses_block_epoch_v2.py::test_scheduler_bootstrap_restart_frontier_and_campaign_caps",
+                    "tests/test_brain_senses_block_epoch_v2.py::test_scheduler_head_is_provenance_but_code_and_config_bindings_stay_strict",
+                ],
+            },
+            "created_ns": time.time_ns(),
+        }
+        _create(second_path, second)
+        _validate_compatibility_migration(root_base, existing, expected)
+        return second
 
 
 def _usage(epochs_root: Path) -> dict[str, int]:
@@ -660,8 +808,13 @@ def main(argv: list[str] | None = None, *, clients: dict[str, Any] | None = None
         action="store_true",
         help="append the approved no-RPC source migration for the pinned 2026-10-09 pilot",
     )
+    parser.add_argument(
+        "--advance-legacy-source-binding",
+        action="store_true",
+        help="append the reviewed recovery-validator correction to migration 0001",
+    )
     args = parser.parse_args(argv)
-    if args.migrate_legacy_compatibility_binding:
+    if args.migrate_legacy_compatibility_binding or args.advance_legacy_source_binding:
         expected = _schedule_manifest(
             schedule_id=args.schedule_id,
             interval_hours=args.interval_hours,
@@ -678,7 +831,11 @@ def main(argv: list[str] | None = None, *, clients: dict[str, Any] | None = None
             minimum_free_disk_bytes=args.minimum_free_disk_bytes,
             capture_storage_codec=args.capture_storage_codec,
         )
-        result = migrate_legacy_schedule_binding(args.root_base, expected)
+        result = (
+            advance_legacy_scheduler_binding(args.root_base, expected)
+            if args.advance_legacy_source_binding
+            else migrate_legacy_schedule_binding(args.root_base, expected)
+        )
         print(canonical(result), flush=True)
         return 0
     result = run_bucket(

@@ -553,6 +553,56 @@ def test_scheduler_head_is_provenance_but_code_and_config_bindings_stay_strict(
     assert changed_source_client.calls == []
 
 
+def test_completed_epoch_recovery_returns_saved_summary_without_rpc(tmp_path: Path) -> None:
+    root = tmp_path / "completed-epoch-recovery"
+    start = datetime(2026, 10, 10, 12, 10, tzinfo=UTC)
+    args = dict(
+        schedule_id="completed-recovery-test",
+        interval_hours=1,
+        frame_width_cap=10,
+        selection_count=1,
+        seed_base="completed-recovery-seed",
+        request_budget_per_epoch=8,
+        raw_byte_budget_per_epoch=128_000_000,
+        stored_byte_budget_per_epoch=128_000_000,
+        max_total_requests=20,
+        max_total_raw_bytes=1_000_000_000,
+        max_total_stored_bytes=1_000_000_000,
+    )
+    schedule_v2.run_bucket(
+        root,
+        **args,
+        now=start,
+        clients={"helius-free": FakeRPC(anchors=[100])},
+    )
+    frame_client = FakeRPC(anchors=[105], inventory=[101, 102, 103, 104, 105])
+    first = schedule_v2.run_bucket(
+        root,
+        **args,
+        now=start + timedelta(hours=1),
+        clients={"helius-free": frame_client},
+    )
+    assert first["epoch"]["status"] == "frame_complete"
+    assert len(frame_client.calls) == 4
+
+    class NoRPC:
+        calls = 0
+
+        def fetch(self, *_: Any) -> Capture:
+            self.calls += 1
+            raise AssertionError("completed epoch attempted another RPC")
+
+    no_rpc = NoRPC()
+    recovered = schedule_v2.run_bucket(
+        root,
+        **args,
+        now=start + timedelta(hours=1),
+        clients={"helius-free": no_rpc},
+    )
+    assert recovered["epoch"] == first["epoch"]
+    assert no_rpc.calls == 0
+
+
 def test_campaign_counts_outstanding_response_reservations_and_schedule_lock(
     tmp_path: Path,
 ) -> None:
