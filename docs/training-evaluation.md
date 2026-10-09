@@ -970,9 +970,43 @@ producer supplies a valid positive bound and its availability/role gates pass; n
 or learning gain follows from these receipts. See [`brain-source-architecture.md`](brain-source-architecture.md)
 and the linked Alchemy receipts.
 
-The bounded finalized block-inventory path adds positive full-block observations with request,
-response, receipt-time and replica provenance. A single Free slot capture plus adjacent witnesses
-did not close lineage because the left witness failed. It therefore supplies no exact-zero or
-market-count supervision. No fresh independent baseline comparison was registered or run: there
-are no qualified real event-count targets yet. The previously studied September cohort remains
-ineligible as a fresh holdout.
+The bounded finalized block-inventory path adds full-block observations with request, response,
+receipt-time and replica provenance. A single Free slot capture plus adjacent witnesses did not
+close lineage because the left witness failed, and remains unresolved. A later two-slot bilateral
+replay yields one exact target for the narrow structural instruction-reference count below; this
+does not supply a qualified economic market-event count. No fresh independent baseline comparison
+was registered or run. The previously studied September cohort remains ineligible as a fresh
+holdout.
+
+### Native-coordinate sensing and v3 objective integration (2026-10-09)
+
+`brain-experience-v3` adds typed native-coordinate origins, dependency ranges, target windows and
+maturity while retaining UTC availability as a separate knowledge clock. Split plans specify role
+extents per declared domain and a monotone UTC cutoff. No implicit coordinate conversion or
+cross-domain alignment is permitted. Actual point-in-time schemas require an actual `decision_ns`;
+historical replay may keep it null and is not an online forecast. v1/v2 schemas, exact-label masks,
+dense f64 partition storage and existing training contracts remain compatible. Coordinate-aware
+compose, replication, batching, and evaluation paths are available for v3.
+
+The existing opt-in `partial_count_lower_bound_pinball_v1` objective now admits validated positive
+bounds from v3 under the same coordinate purging and UTC availability gates. Exact labels remain in
+the exact mask; a bound is retained separately and zero/ineligible bounds add no objective mass.
+Unknown, failed, stopped, unsupported, pending and evidenced skipped-slot cases remain separate in
+the source/target records. This does not turn a provider's absent response into an exact zero, and it
+does not establish a count distribution from censored-only labels.
+
+An offline real replay tied to the two-slot dual-provider finalized-block receipt published and
+replicated a two-row v3 snapshot. It contains one exact H=1 target of 87 recognized PumpSwap
+instruction references and one pending target; the shared native-coordinate batch path admits one
+exact row. The reference-count process is structural: transaction status is retained, and these
+references are not qualified economic swaps. The episode is too small for a temporal split, model
+fit, independent evaluation or baseline comparison. `decision_ns` stays null. Receipt:
+[`brain-native-slot-experience-2026-10-09.json`](evidence/brain-native-slot-experience-2026-10-09.json).
+
+Verification after integration: `make check` passed (1,319 passed, 25 optional skips; Control
+Center 39 passed; mypy clean), `make smoke` passed synthetic-only, and the focused native-coordinate,
+learning, sparse, generation and target suite passed (87 passed, one CUDA-only skip). Tests include
+fractional-count rejection and separation of pending maturity from incomplete support. No model fit
+or learning gain was claimed. Fresh independent comparisons remain infeasible until a prospective
+or otherwise valid independent source supplies enough mature, eligible examples; historical event
+times are not backdated into decision times.

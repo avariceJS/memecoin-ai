@@ -58,6 +58,11 @@ Domain-specific behavior belongs in the architecture, data, training/evaluation,
   the named process and exact entity/interval member in its pinned population scope. Historical event
   time does not backdate member availability. Unknown, partial, failed, stopped, unsupported or
   absent assertions cannot establish zero; lifecycle changes require their own evidence.
+- `brain-experience-v3` origins, dependencies, target windows, maturity and split extents carry a
+  pinned native coordinate domain. UTC `available_ns` remains an independent knowledge clock. Never
+  compare or convert slots, block heights, event sequence numbers or UTC timestamps without an
+  explicit evidenced mapping. Point-in-time v3 requires a real decision timestamp; retrospective
+  replay may leave it null and cannot claim online forecast availability.
 - Hash and accounting checks establish byte identity and internal consistency, not provider truth or
   semantic completeness. Keep machine validation distinct from domain source qualification.
 - `market-observations-v1` has no `partial` support value. When projecting a partial assertion, map it

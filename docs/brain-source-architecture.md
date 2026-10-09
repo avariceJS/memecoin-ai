@@ -578,11 +578,35 @@ lifecycle event. The existing real sparse source `81f7c74b…4b10c3e0` has 170/1
 marked `unknown`; its 38,705 retained events prove neither complete event counts nor inactivity.
 The 2026-10-09 Alchemy work qualifies bounded RPC behavior, positive signature references,
 transaction response capture, one-slot block response consistency across two providers, and a
-replicable block-inventory receipt. It does not reconcile a market event process or certify provider,
-range, or market-process completeness. The range inventory producer accepts only a validated,
-expiring request plan with explicit witnesses and request/byte/time budgets; it records reservations
-before dispatch, never retries, and exposes no automatic witness search or range expansion. Its
-current real plan remains the frozen one-slot Alchemy Free probe. The generic inventory verifier is
-offline and can label a slot skipped only from successful enumeration plus a qualified parent/hash
-chain; an absent provider record alone is unknown. These are finalized block inventory facts, not
-activity support or lifecycle evidence.
+replicable block-inventory receipt. A later two-slot finalized interval matches provider-reported
+block identities and transaction projections and produces one exact next-slot count for a narrowly
+defined structural PumpSwap instruction-reference process. It is not a qualified economic trade or
+market-activity process: references in failed transactions remain references, not executed swaps.
+The first left-witness attempt failed and remains recorded; the successful bounded replay does not
+erase it. The range inventory producer accepts only a validated, expiring request plan with explicit
+witnesses and request/byte/time budgets; it records reservations before dispatch, never retries, and
+exposes no automatic witness search or range expansion. The generic inventory verifier is offline
+and can label a slot skipped only from successful enumeration plus a qualified parent/hash chain; an
+absent provider record alone is unknown. These are finalized block inventory facts, not universal
+provider guarantees or lifecycle evidence.
+
+The 2026-10-09 `brain-experience-v3` contract carries typed native coordinates alongside independent
+UTC availability. Origins, dependency extents, target windows, maturity and role intervals name a
+pinned coordinate domain. Historical slot replay may leave `decision_ns` null; it cannot qualify as
+point-in-time forecasting. There is no slot-to-UTC conversion or implicit alignment across domains.
+Snapshots remain dense f64 partitions, with coordinate-aware publication, replication, composition,
+batches, objective eligibility and registered evaluation. Legacy v1/v2 contracts are unchanged.
+Provider errors/stops, unresolved support, explicit skipped-slot proofs, unsupported instruction
+traces, pending windows and exact zeros retain separate states; only a qualified complete support
+window or a verifiable skipped-slot absence can certify an exact zero for the declared reference
+process.
+
+The real v3 replay is bounded to two adjacent finalized slots: 2,066 transaction comparisons,
+147 recognized instruction-reference facts (98 in successful transactions, 49 in failed ones), one
+matured H=1 target with count 87, and one pending target. Shared training batches admit the one
+matured exact row. The two-row episode cannot form independent train/validation/test sets; no fit or
+learning-gain comparison was run. Cross-provider agreement and ancestry prove consistency within
+these captured responses, not that either provider returned every transaction in the global ledger.
+No current real source qualifies complete market trades, market inactivity, lifecycle death, or
+historical availability. Expanding to another provider or modality requires its own semantic and
+coverage evidence; the architecture does not infer cross-domain joins.

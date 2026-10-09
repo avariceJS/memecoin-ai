@@ -43,6 +43,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   sequence hash. This checks one slot's response consistency only; it does not prove exhaustive RPC
   transaction lists, slot-range coverage, market-process coverage, or zero activity. Free CU delta
   was unavailable.
+- Two adjacent finalized slots were reconciled across provider-reported block identities and
+  transaction projections, then replayed through a v3 coordinate-native experience snapshot and
+  shared training batch: `brain-native-slot-experience-2026-10-09.json`. One H=1 count (87 structural
+  instruction references) matured; the next stayed pending. The two rows cannot form independent
+  splits or support a fit. Provider agreement is bounded response consistency, not global ledger or
+  market-process completeness; raw payloads and identities remain outside this receipt.
 - One no-retry Free bounded range capture requested one finalized block with explicit neighboring
   witnesses. The requested block was complete; the left witness failed at transport and lineage
   remains unresolved. Offline inventory publication and replica replay succeeded, but interval and

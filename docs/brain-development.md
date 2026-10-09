@@ -11,9 +11,11 @@ must represent meaningful increases in useful corpus, training compute, and vali
 not a new checkpoint from a tiny fit. The two Macs are the first compute stage. The architecture
 must allow later GPU and data-center capacity without losing provenance or safety.
 
-The user reports two Macs, paid Alchemy with high RPC throughput, strong research/coding models,
-and willingness to expand storage/compute. The exact provider plan and limits have not been audited.
-Do not infer a quota or start paid work from that report alone.
+The user reports two Macs, paid Alchemy, strong research/coding models, and willingness to expand
+storage/compute. Alchemy Free published limits and a bounded PAYG read-only series have now been
+checked; account choices and receipts are recorded in
+[`brain-source-architecture.md`](brain-source-architecture.md). Continue to measure metered work per
+account and research task; request count alone is not a CU estimate.
 
 ## Current system
 
@@ -38,7 +40,10 @@ parent artifact. Warm starts freeze the parent's normalization and initialize a 
 resume remains the identical-job operation. A standalone predictor and separately registered
 candidate/enrollment/window evaluation consume these artifacts. No serving runtime is switched.
 
-Real qualified observations remain USD OHLCV and evidenced births. The sparse observation layer
+Real qualified observations include USD OHLCV, evidenced births, and a tightly scoped finalized-slot
+instruction-reference count sample. This on-chain sample verifies two adjacent slots and one next-slot
+count; it does not qualify economic swaps, a complete market event process, provider exhaustiveness,
+or lifecycle death. The sparse observation layer
 separates immutable typed event/lifecycle/support facts from representation snapshots; it no longer
 requires long consecutive bar runs to emit experience. Synthetic flow/count objectives exercise
 short and zero-event histories under explicit observation completeness. They are not new qualified
@@ -112,9 +117,10 @@ The component map is:
 - `memecoin_paper`: virtual accounting, projections, supervision, and audit.
 - `memecoin_operator`: durable jobs/commands, Control Center, deployment checks, and Watch Market.
 
-The new research pipeline connects the qualified bar lane end to end. Raw-chain event history
-is still not a broad qualified feature stream; the current AUTO trainer remains separate and
-bounded; Watch Market is not installed on the owner runtime.
+The new research pipeline connects the qualified bar lane end to end and v3 can preserve native slot
+coordinates alongside UTC availability without implicit clock conversion. Raw-chain event history is
+still not a broad qualified feature stream; the current AUTO trainer remains separate and bounded;
+Watch Market is not installed on the owner runtime.
 
 ## Learning path today
 
