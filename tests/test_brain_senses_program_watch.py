@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 from memecoin_ai.domain import canonical, digest
-from memecoin_ai.sources import Capture
+from memecoin_ai.sources import Capture, HTTPSourceError
 from tools.brain_senses_decode_watch import run_once
 from tools.brain_senses_program_watch import _record_source_epoch, poll_once
 
@@ -106,6 +106,21 @@ def test_program_watch_new_epoch_does_not_inherit_parent_cursor(tmp_path: Path) 
     assert manifest["parent_last_receipt_ns"] == 987654321
     assert manifest["cursor_inheritance"] == "none"
     assert "old gaps remain unknown" in manifest["first_query_policy"]
+
+
+def test_program_watch_preserves_sanitized_http_failure_status(tmp_path: Path) -> None:
+    class HTTPFailRPC(FakeRPC):
+        def fetch(self, method: str, params: list[object]) -> Capture:
+            self.calls.append((method, params))
+            raise HTTPSourceError(429)
+
+    root = tmp_path / "watch"
+    poll_once(root, HTTPFailRPC([], {}), pace_seconds=0)
+    failure = json.loads((root / "request-results" / "000000000001.json").read_text())
+
+    assert failure["error_class"] == "HTTPSourceError"
+    assert failure["http_status"] == 429
+    assert json.loads((root / "STOP").read_text())["reason"] == "signature_query_failed_no_retry"
 
 
 def test_decode_watch_is_incremental_commit_bound_and_never_admits(tmp_path: Path) -> None:

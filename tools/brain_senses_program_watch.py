@@ -22,7 +22,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from memecoin_ai.domain import canonical, digest
-from memecoin_ai.sources import Capture, ReadOnlyRPC
+from memecoin_ai.sources import Capture, HTTPSourceError, ReadOnlyRPC, TransportSourceError
 from memecoin_pumpswap.schema import SCHEMA
 
 NS = 1_000_000_000
@@ -156,13 +156,20 @@ def _reserve(root: Path, seq: int, method: str, params: list[Any], scheduled_ns:
 
 
 def _finish(
-    path: Path, status: str, *, capture: Capture | None = None, error: str | None = None
+    path: Path, status: str, *, capture: Capture | None = None, error: Exception | None = None
 ) -> None:
     stem = path.stem
     root = path.parent.parent
     result: dict[str, Any] = dict(
-        sequence=int(stem), status=status, received_ns=time.time_ns(), error_class=error
+        sequence=int(stem),
+        status=status,
+        received_ns=time.time_ns(),
+        error_class=type(error).__name__ if error is not None else None,
     )
+    if isinstance(error, HTTPSourceError):
+        result["http_status"] = error.status
+    elif isinstance(error, TransportSourceError):
+        result["transport_category"] = error.reason
     if capture is not None:
         capture_root = root / "captures" / stem
         capture.save(capture_root)
@@ -200,7 +207,7 @@ def _request(
         _finish(reservation, "captured", capture=capture)
         return capture, capture.request_started_ns
     except Exception as exc:
-        _finish(reservation, "failed", error=type(exc).__name__)
+        _finish(reservation, "failed", error=exc)
         return None, time.time_ns()
 
 
