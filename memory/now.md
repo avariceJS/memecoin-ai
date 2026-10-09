@@ -58,23 +58,33 @@ standby. No Grok.
   Helius signature self-check per selected slot, public paired only at UTC 00/06/12/18, and its own
   20,000-credit/32-GiB wave bounds. First window used 129 Helius reservations, captured 64/64
   Helius blocks, while public had 123 failed attempts among 129; failures remain unknown.
-- Sol approved a separate 24h follow-up at 512 Helius slots/hour in 16 seeded contiguous 32-slot
-  windows and 32 same-manifest Alchemy Free pairs/hour (768 pairs/day). Expected Helius reservations
-  are 24,624 (including hourly inventories and anchors); wave cap26,000. Shared daily research cap is
-  36,000 locally accounted standard requests across the new wave and active Helius roots; it is not
-  a recurring or architectural limit. New wave stored cap18GiB, per-epoch free-space guard preserves
-  30GiB. The denser calibration projects ~14.9GB stored for 24h; a 72h run is not safe alongside
-  current roots. Request/byte/disk checks run before each epoch; stop this broad wave first.
+- First independent-verification epoch completed under LaunchAgent
+  `ai.memecoin.brain.senses.independent-verifier-512`: 512/512 selected Helius blocks passed full vs
+  signatures-only self-check and qualified exact structural-reference counts (69,311 total; one
+  structural zero, not economic zero). Helius inventory listed 13,399 produced slots in its bounded
+  frame. Alchemy Free captured 32 same-slot full/signature pairs and matched block identity/order
+  32/32, but its range inventory failed at transport and was not retried; Alchemy population coverage
+  remains unknown. Among 36,852 paired transactions, 79 log-only differences each had Helius's
+  explicit `Log truncated` marker on raw replay. See
+  `docs/evidence/helius-alchemy-stratified-512-first-epoch-2026-10-09.json`.
+- The epoch used 1,026 Helius attempts including anchor (account meter unavailable), 66 Alchemy Free
+  attempts (65 captured, one failed), and no retries/paid requests. It stored 576,376,420 B from
+  2,355,735,101 raw bytes, taking 1,411 seconds through qualification. A same-size day projects
+  13.83GB stored. Sol directs a complete 24h Helius 512-slot/hour cycle with Alchemy widened to 64
+  slots/hour after this epoch; expected Helius use is 24,624/day. The immutable first root was closed
+  after its qualified epoch; a new pair64 root is scheduled at the next UTC hour with a fresh 24h
+  contract. Six-hour review gates: Alchemy availability, <45-minute qualification time, 18GiB campaign
+  storage cap, 30GiB free-disk floor. Shared cap36k reservations includes the prior first epoch and
+  all active Helius roots. These caps apply to this bounded wave, not to long-term quota/coverage.
 - Helius address-watch v2 stopped after 1,001 requests: 999 transaction bodies captured, one failed;
   a restart recorded terminal `ValueError` and STOP. Do not resume its cursor. New watch v3 uses
   fresh six-hour UTC roots, parent STOP/last-receipt links, no inherited cursor, and a 1,100-request
   cap per epoch; the hourly block sample is the prospective evidence path, while this watch is a
   sparse address-index sensor, not full population coverage.
-- Latest disk check: 76 GiB free; no external research volume is mounted. The historical root may
-  add up to its 30-GB cap; the active 64/h raw campaign is ~6.6GB/day and Helius watch is ~0.09GB/day.
-  New-wave 1.14MB/provider/slot measurement projects ~14.9GB/day; its one-day cap and floor guard
-  account for all active roots. Helius 1,000-credit and 20,000/day values are qualification bounds,
-  not durable ceilings.
+- Latest disk check: 75 GiB free after the first broad epoch; no external research volume is mounted.
+  The active 64/h raw block campaign is ~6.6GB/day and Helius watch ~0.09GB/day. At 64 Alchemy
+  pairs/hour the next Helius wave projects ~14.7GB/day stored. Helius 1,000-credit and 20,000/day
+  values are qualification bounds, not durable ceilings.
 
 ## Economic semantics and learning
 

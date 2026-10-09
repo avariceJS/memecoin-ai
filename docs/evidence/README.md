@@ -73,6 +73,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   limited to Helius logs with an explicit `Log truncated` marker. At this denser sample, lossless
   zstd stored about 1.14 MB/provider/slot, so it supersedes the three-block compression estimate
   for sizing the next wave. Captures remain under ignored `work/`.
+- First prospective 512-slot/hour Helius epoch with Alchemy same-slot pairs:
+  `helius-alchemy-stratified-512-first-epoch-2026-10-09.json`. Helius qualified all 512 selected
+  structural counts; Alchemy's range inventory failed once and remains incomplete. All 32 captured
+  pairs matched block identity/signature order. Of 36,852 transaction pairs, 79 differences were
+  log-only, and offline replay confirmed Helius's explicit truncation marker in each. Stored zstd
+  was 576,376,420 bytes; anchor-to-summary qualification took about 23.5 minutes.
 - Offline replay of the historical Helius full-block captures after the empty-base58 fix:
   `helius-historical-instruction-normalization-audit-2026-10-09.json`. All 2,880 stored full
   responses now normalize and parse; all are present in their captured Helius inventories. The
