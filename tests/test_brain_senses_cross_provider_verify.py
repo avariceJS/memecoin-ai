@@ -14,8 +14,11 @@ from tools.brain_senses_cross_provider_verify import _json_differences, run_once
 class FakeRPC:
     source_alias = "helius-free"
 
-    def __init__(self, tx: dict[str, Any], *, fail: bool = False) -> None:
+    def __init__(
+        self, tx: dict[str, Any], *, source_alias: str = "helius-free", fail: bool = False
+    ) -> None:
         self.tx = tx
+        self.source_alias = source_alias
         self.fail = fail
         self.calls = 0
 
@@ -29,7 +32,9 @@ class FakeRPC:
         return Capture(self.source_alias, method, request, now, now, response)
 
 
-def _public_root(tmp_path: Path) -> tuple[Path, dict[str, Any]]:
+def _public_root(
+    tmp_path: Path, *, source_alias: str = "solana-public"
+) -> tuple[Path, dict[str, Any]]:
     import platform
 
     from memecoin_ai.sources import Capture
@@ -48,7 +53,7 @@ def _public_root(tmp_path: Path) -> tuple[Path, dict[str, Any]]:
     params = [signature, {"encoding": "jsonParsed", "commitment": "finalized"}]
     request = canonical({"jsonrpc": "2.0", "id": 1, "method": "getTransaction", "params": params})
     response = canonical({"jsonrpc": "2.0", "id": 1, "result": tx}).encode()
-    capture = Capture("solana-public", "getTransaction", request, 100, 200, response)
+    capture = Capture(source_alias, "getTransaction", request, 100, 200, response)
     capture_rel = f"captures/{signature_hash}"
     capture.save(root / capture_rel)
     status_dir = root / "transactions" / signature_hash
@@ -62,7 +67,7 @@ def _public_root(tmp_path: Path) -> tuple[Path, dict[str, Any]]:
     (status_dir / "status.json").write_text(canonical(status) + "\n")
     binding = {
         "schema_version": 1,
-        "source_alias": "solana-public",
+        "source_alias": source_alias,
         "address": SCHEMA["address"],
         "collector_code_sha256": hashlib.sha256(
             Path(brain_senses_program_watch.__file__).read_bytes()
@@ -80,7 +85,9 @@ def _public_root(tmp_path: Path) -> tuple[Path, dict[str, Any]]:
 
 
 def test_json_comparison_distinguishes_missing_from_null() -> None:
-    assert _json_differences({"x": None}, {}) == ["/x:missing_in_helius"]
+    assert _json_differences(
+        {"x": None}, {}, left_name="solana-public", right_name="helius-free"
+    ) == ["/x:missing_in_helius-free"]
     assert _json_differences({"x": None}, {"x": None}) == []
     assert _json_differences({"x": None}, {"x": 0}) == ["/x:value"]
 
@@ -155,7 +162,7 @@ def test_paired_verifier_stops_on_ambiguous_reserved_request(tmp_path: Path) -> 
     output.mkdir()
     for name in ("requests", "request-results", "captures", "observations", "events"):
         (output / name).mkdir()
-    plan = _build_plan(public_root, 40, 50, 20261009, 1, 0)
+    plan = _build_plan(public_root, 40, 50, 20261009, 1, 0, 1000, "helius-free")
     _create(output / "plan.json", plan)
     _create(output / "requests" / "000000000001.json", {"sequence": 1})
     rpc = FakeRPC(tx)
@@ -174,3 +181,25 @@ def test_paired_verifier_stops_on_ambiguous_reserved_request(tmp_path: Path) -> 
     else:
         raise AssertionError("ambiguous reservation must stop without retry")
     assert rpc.calls == 0
+
+
+def test_reverse_verifier_accepts_helius_frame_and_public_target(tmp_path: Path) -> None:
+    frame_root, tx = _public_root(tmp_path, source_alias="helius-free")
+    output = tmp_path / "reverse-paired"
+    rpc = FakeRPC(tx, source_alias="solana-public")
+    result = run_once(
+        frame_root,
+        output,
+        slot_start=40,
+        slot_end=50,
+        seed=7,
+        random_count=1,
+        target_count=0,
+        request_cap=3,
+        target_provider="solana-public",
+        pace_seconds=0.25,
+        rpc_client=rpc,
+    )
+    assert result["completed"] == 1
+    assert result["hard_request_cap"] == 3
+    assert result["coverage"].startswith("conditional_on_pinned_helius-free")
