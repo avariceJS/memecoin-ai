@@ -8,7 +8,7 @@ from typing import Any
 from memecoin_ai.domain import canonical
 from memecoin_ai.sources import Capture, HTTPSourceError
 from tools.brain_senses_block_epoch import start_epoch
-from tools.brain_senses_block_provider_audit import audit
+from tools.brain_senses_block_provider_audit import _helius_log_truncation_summary, audit
 from tools.brain_senses_block_provider_pilot import (
     MAX_RESPONSE_BYTES,
     _build_operations,
@@ -19,9 +19,10 @@ from tools.brain_senses_block_provider_pilot import (
 
 
 class FakeBlockRPC:
-    def __init__(self, *, fail_first: bool = False) -> None:
+    def __init__(self, *, fail_first: bool = False, log_messages: list[str] | None = None) -> None:
         self.calls = 0
         self.fail_first = fail_first
+        self.log_messages = log_messages
 
     def fetch(self, method: str, params: list[object]) -> Capture:
         self.calls += 1
@@ -59,6 +60,11 @@ class FakeBlockRPC:
                                 "err": None,
                                 "innerInstructions": [],
                                 "loadedAddresses": {"writable": [], "readonly": []},
+                                **(
+                                    {"logMessages": self.log_messages}
+                                    if self.log_messages is not None
+                                    else {}
+                                ),
                             },
                         }
                         for signature in signatures
@@ -297,6 +303,37 @@ def test_transaction_comparison_reports_nested_difference_paths() -> None:
     }
 
 
+def test_helius_truncation_audit_requires_explicit_marker_for_log_only_difference() -> None:
+    helius = {
+        "transactions": [
+            {
+                "transaction": {"signatures": ["sig"]},
+                "meta": {"logMessages": ["Program log", "Log truncated"]},
+            }
+        ]
+    }
+    alchemy = {
+        "transactions": [
+            {"transaction": {"signatures": ["sig"]}, "meta": {"logMessages": ["Program log"]}}
+        ]
+    }
+
+    result = _helius_log_truncation_summary(helius, alchemy)
+
+    assert result == {
+        "status": "compared",
+        "paired_transactions": 1,
+        "exact_transactions": 0,
+        "different_transactions": 1,
+        "log_messages_only_differences": 1,
+        "explicit_helius_truncation_markers": 1,
+        "log_messages_differences_without_marker": 0,
+        "other_differences": 0,
+        "unpaired_helius_transactions": 0,
+        "unpaired_other_transactions": 0,
+    }
+
+
 def test_structural_response_count_fails_closed_without_inner_instruction_evidence() -> None:
     block = {
         "blockhash": "hash-100",
@@ -338,11 +375,55 @@ def test_offline_provider_audit_summarizes_paired_receipts(tmp_path: Path) -> No
     assert result["completed_requests"] == 10
     assert result["helius_expected_credit_reservations"] == 5
     assert result["block_comparison"]["paired_block_identities"] == 2
-    assert result["block_comparison"]["transaction_comparison"] == {
+    transaction_comparison = result["block_comparison"]["transaction_comparison"]
+    assert {
+        key: transaction_comparison[key]
+        for key in (
+            "paired_transactions",
+            "exact_tree_matches",
+            "different_trees",
+            "difference_paths",
+        )
+    } == {
         "paired_transactions": 4,
         "exact_tree_matches": 4,
         "different_trees": 0,
         "difference_paths": {},
+    }
+    assert (
+        transaction_comparison["helius_log_truncation_audit"]["audited_differing_slot_pairs"] == 0
+    )
+
+
+def test_offline_provider_audit_replays_only_differences_and_counts_truncation_markers(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "truncated-log-pilot"
+    run_once(
+        root,
+        slot_ranges=[[100, 102]],
+        request_cap=10,
+        clients={
+            "helius-free": FakeBlockRPC(log_messages=["Program log", "Log truncated"]),
+            "solana-public": FakeBlockRPC(log_messages=["Program log"]),
+        },
+    )
+
+    result = audit(root)
+
+    truncation = result["block_comparison"]["transaction_comparison"]["helius_log_truncation_audit"]
+    assert truncation["audited_differing_slot_pairs"] == 2
+    assert truncation["totals_over_replayed_differences"] == {
+        "different_transactions": 4,
+        "exact_transactions": 0,
+        "explicit_helius_truncation_markers": 4,
+        "log_messages_differences_without_marker": 0,
+        "log_messages_only_differences": 4,
+        "other_differences": 0,
+        "paired_transactions": 4,
+        "unpaired_helius_transactions": 0,
+        "unpaired_other_transactions": 0,
+        "unknown_transaction_maps": 0,
     }
 
 
@@ -489,20 +570,18 @@ def test_stratified_epoch_pairs_alchemy_on_a_recorded_provider_subset(tmp_path: 
     assert helius.calls == 34  # finalized anchor, inventory, and full/signature pairs
     assert alchemy.calls == 18  # anchor, inventory, and eight full/signature pairs
     paired_summary = json.loads(
-        (
-            tmp_path
-            / "paired-stratified-epoch"
-            / "paired-block-capture"
-            / "summary.json"
-        ).read_text()
+        (tmp_path / "paired-stratified-epoch" / "paired-block-capture" / "summary.json").read_text()
     )
     rows = paired_summary["comparison"]["windows"][0]["slots_compared"]
     assert len(rows) == 16
-    assert sum(
-        row["providers"]["alchemy-free"]["observation_status"]
-        == "qualified_structural_reference_count"
-        for row in rows
-    ) == 8
+    assert (
+        sum(
+            row["providers"]["alchemy-free"]["observation_status"]
+            == "qualified_structural_reference_count"
+            for row in rows
+        )
+        == 8
+    )
     assert all(
         row["providers"]["helius-free"]["observation_status"]
         == "qualified_structural_reference_count"

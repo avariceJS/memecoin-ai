@@ -96,9 +96,7 @@ def campaign_usage(root_base: Path) -> dict[str, int]:
     }
 
 
-def shared_helius_reservations_for_utc_day(
-    roots: tuple[Path, ...], utc_day: str
-) -> dict[str, Any]:
+def shared_helius_reservations_for_utc_day(roots: tuple[Path, ...], utc_day: str) -> dict[str, Any]:
     day_start = int(datetime.strptime(utc_day, "%Y-%m-%d").replace(tzinfo=UTC).timestamp())
     day_end = day_start + 86_400
     by_root: dict[str, int] = {}
@@ -115,9 +113,7 @@ def shared_helius_reservations_for_utc_day(
                 request = _read(request_path)
             except (OSError, ValueError, TypeError):
                 continue
-            if request.get("provider") == "helius-free" or (
-                watch_root and request.get("method")
-            ):
+            if request.get("provider") == "helius-free" or (watch_root and request.get("method")):
                 count += int(
                     request.get("credit_reservation")
                     or request.get("expected_credit_reservation")
@@ -206,12 +202,15 @@ def run_bucket(
                 for key, expected in (
                     ("paired_provider", paired_provider),
                     ("paired_slots_per_stratum", paired_slots_per_stratum),
-                    ("helius_credit_cap", helius_credit_cap),
+                    ("max_helius_credit_reservations", helius_credit_cap),
                     ("max_new_raw_bytes", max_new_raw_bytes),
                     ("max_new_stored_bytes", max_new_stored_bytes),
                     ("max_single_epoch_raw_bytes", max_single_epoch_raw_bytes),
                     ("max_single_epoch_stored_bytes", max_single_epoch_stored_bytes),
-                    ("expected_epoch_stored_bytes", expected_epoch_stored_bytes),
+                    (
+                        "max_single_epoch_expected_stored_bytes",
+                        expected_epoch_stored_bytes,
+                    ),
                     ("minimum_free_disk_bytes", minimum_free_disk_bytes),
                     ("shared_helius_daily_credit_cap", shared_helius_daily_credit_cap),
                     (
@@ -339,9 +338,7 @@ def run_bucket(
             > int(campaign["max_new_raw_bytes"])
             or usage["stored_bytes"]
             + int(
-                campaign.get(
-                    "max_single_epoch_expected_stored_bytes", EXPECTED_EPOCH_STORED_BYTES
-                )
+                campaign.get("max_single_epoch_expected_stored_bytes", EXPECTED_EPOCH_STORED_BYTES)
             )
             > int(campaign.get("max_new_stored_bytes", campaign["max_new_raw_bytes"]))
             or (

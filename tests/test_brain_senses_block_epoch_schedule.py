@@ -175,10 +175,12 @@ def test_new_campaign_can_bind_256_stratified_helius_slots_and_compressed_storag
 def test_independent_verification_campaign_binds_512_helius_and_32_alchemy_pairs(
     tmp_path: Path, monkeypatch
 ):
+    current_time = {"value": datetime(2026, 10, 12, 12, 0, tzinfo=UTC)}
+
     class FrozenDateTime(datetime):
         @classmethod
         def now(cls, tz=None):
-            return datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
+            return current_time["value"]
 
     captured = {}
 
@@ -195,8 +197,7 @@ def test_independent_verification_campaign_binds_512_helius_and_32_alchemy_pairs
         tmp_path / "helius-historical-active",
     )
 
-    result = scheduler.run_bucket(
-        root,
+    campaign_args = dict(
         window_slots=512,
         interval_hours=1,
         campaign_hours=24,
@@ -215,6 +216,7 @@ def test_independent_verification_campaign_binds_512_helius_and_32_alchemy_pairs
         shared_helius_daily_credit_cap=36_000,
         shared_helius_reservation_roots=shared_roots,
     )
+    result = scheduler.run_bucket(root, **campaign_args)
 
     campaign = json.loads((root / "campaign.json").read_text())
     assert result["status"] == "epoch_finished"
@@ -231,3 +233,12 @@ def test_independent_verification_campaign_binds_512_helius_and_32_alchemy_pairs
     assert captured["paired_provider"] == "alchemy-free"
     assert captured["paired_slots_per_stratum"] == 2
     assert captured["providers"] == ("helius-free", "alchemy-free")
+
+    current_time["value"] += timedelta(hours=1)
+    next_result = scheduler.run_bucket(root, **campaign_args)
+
+    assert next_result["status"] == "epoch_finished"
+
+    changed_args = dict(campaign_args, expected_epoch_stored_bytes=800 * 1024**2 + 1)
+    with pytest.raises(ValueError, match="campaign_binding_changed"):
+        scheduler.run_bucket(root, **changed_args)

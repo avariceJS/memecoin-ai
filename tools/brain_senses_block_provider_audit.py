@@ -20,11 +20,122 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from tools.brain_senses_block_provider_pilot import PROVIDERS, _compare, _read  # noqa: E402
+from tools.brain_senses_block_provider_pilot import (  # noqa: E402
+    PROVIDERS,
+    _block_result,
+    _compare,
+    _json_diff_paths,
+    _read,
+    _transaction_map,
+)
 
 
 def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _helius_log_truncation_summary(helius_block: Any, other_block: Any) -> dict[str, Any]:
+    helius_transactions = _transaction_map(helius_block) if isinstance(helius_block, dict) else None
+    other_transactions = _transaction_map(other_block) if isinstance(other_block, dict) else None
+    if helius_transactions is None or other_transactions is None:
+        return {
+            "status": "unknown_transaction_map",
+            "paired_transactions": 0,
+            "exact_transactions": 0,
+            "different_transactions": 0,
+            "log_messages_only_differences": 0,
+            "explicit_helius_truncation_markers": 0,
+            "log_messages_differences_without_marker": 0,
+            "other_differences": 0,
+            "unpaired_helius_transactions": 0,
+            "unpaired_other_transactions": 0,
+        }
+
+    common = helius_transactions.keys() & other_transactions.keys()
+    exact = log_only = marked = unmarked = other_differences = 0
+    for signature in common:
+        helius_tx = helius_transactions[signature]
+        paths = _json_diff_paths(helius_tx, other_transactions[signature])
+        if not paths:
+            exact += 1
+        elif paths == ["meta.logMessages"]:
+            log_only += 1
+            logs = (helius_tx.get("meta") or {}).get("logMessages")
+            explicit_marker = isinstance(logs, list) and any(
+                isinstance(line, str) and "Log truncated" in line for line in logs
+            )
+            if explicit_marker:
+                marked += 1
+            else:
+                unmarked += 1
+        else:
+            other_differences += 1
+
+    different = log_only + other_differences
+    return {
+        "status": "compared",
+        "paired_transactions": len(common),
+        "exact_transactions": exact,
+        "different_transactions": different,
+        "log_messages_only_differences": log_only,
+        "explicit_helius_truncation_markers": marked,
+        "log_messages_differences_without_marker": unmarked,
+        "other_differences": other_differences,
+        "unpaired_helius_transactions": len(helius_transactions.keys() - other_transactions.keys()),
+        "unpaired_other_transactions": len(other_transactions.keys() - helius_transactions.keys()),
+    }
+
+
+def _audit_helius_truncation_markers(
+    root: Path,
+    providers: tuple[str, ...],
+    results: list[dict[str, Any]],
+    comparison: dict[str, Any],
+) -> dict[str, Any] | None:
+    if "helius-free" not in providers or len(providers) < 2:
+        return None
+    other_provider = next(provider for provider in providers if provider != "helius-free")
+    by_key = {
+        (row["provider"], row["method"], row.get("slot"), row.get("detail")): row for row in results
+    }
+    totals: Counter[str] = Counter()
+    per_slot: dict[int, dict[str, Any]] = {}
+    for window in comparison["windows"]:
+        for slot_row in window["slots_compared"]:
+            if not slot_row.get("transaction_comparison", {}).get("differing"):
+                continue
+            slot = slot_row["slot"]
+            helius_row = by_key.get(("helius-free", "getBlock", slot, "full"))
+            other_row = by_key.get((other_provider, "getBlock", slot, "full"))
+            summary = _helius_log_truncation_summary(
+                _block_result(root, helius_row) if helius_row else None,
+                _block_result(root, other_row) if other_row else None,
+            )
+            per_slot[slot] = summary
+            for key in (
+                "paired_transactions",
+                "exact_transactions",
+                "different_transactions",
+                "log_messages_only_differences",
+                "explicit_helius_truncation_markers",
+                "log_messages_differences_without_marker",
+                "other_differences",
+                "unpaired_helius_transactions",
+                "unpaired_other_transactions",
+            ):
+                totals[key] += int(summary.get(key, 0))
+            totals["unknown_transaction_maps"] += int(summary["status"] != "compared")
+
+    return {
+        "compared_against": other_provider,
+        "only_differing_slot_pairs_replayed": True,
+        "audited_differing_slot_pairs": len(per_slot),
+        "totals_over_replayed_differences": dict(sorted(totals.items())),
+        "per_slot": {str(slot): per_slot[slot] for slot in sorted(per_slot)},
+        "scope": (
+            "explicit Helius Log truncated markers; not provider completeness or economic semantics"
+        ),
+    }
 
 
 def audit(root: Path) -> dict[str, Any]:
@@ -75,6 +186,7 @@ def audit(root: Path) -> dict[str, Any]:
         }
 
     slot_rows = [row for window in comparison["windows"] for row in window["slots_compared"]]
+    helius_truncation = _audit_helius_truncation_markers(root, providers, results, comparison)
     paired_transactions = exact_transactions = differing_transactions = 0
     diff_paths: Counter[str] = Counter()
     blocks_by_provider: dict[str, dict[str, int]] = {
@@ -236,6 +348,7 @@ def audit(root: Path) -> dict[str, Any]:
                 "exact_tree_matches": exact_transactions,
                 "different_trees": differing_transactions,
                 "difference_paths": dict(sorted(diff_paths.items())),
+                "helius_log_truncation_audit": helius_truncation,
             },
             "blocks_by_provider": blocks_by_provider,
             "inventory_qualification": inventory_qualification,
