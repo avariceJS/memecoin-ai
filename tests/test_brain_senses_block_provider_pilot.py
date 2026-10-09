@@ -29,7 +29,7 @@ class FakeBlockRPC:
                     blockhash=f"hash-{slot}",
                     parentSlot=slot - 1,
                     previousBlockhash=f"hash-{slot - 1}",
-                    transactions=signatures,
+                    signatures=signatures,
                 )
             else:
                 value = dict(

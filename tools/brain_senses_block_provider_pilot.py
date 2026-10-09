@@ -219,7 +219,10 @@ def _result_for(
                 row["block_time_seconds"] = value.get("blockTime")
                 row["transaction_count"] = len(txs) if isinstance(txs, list) else None
                 if operation["detail"] == "signatures":
-                    row["signature_count"] = len(txs) if isinstance(txs, list) else None
+                    signature_rows = value.get("signatures")
+                    row["signature_count"] = (
+                        len(signature_rows) if isinstance(signature_rows, list) else None
+                    )
             else:
                 row["result_status"] = "result_shape_unknown"
         except Exception as exc:
@@ -358,16 +361,20 @@ def _pump_invocations(block: dict[str, Any]) -> dict[str, Any]:
 
 
 def _signature_list(value: Any, detail: str) -> list[str] | None:
-    if not isinstance(value, dict) or not isinstance(value.get("transactions"), list):
+    if not isinstance(value, dict):
+        return None
+    if detail == "signatures":
+        signatures = value.get("signatures")
+        if not isinstance(signatures, list) or any(not isinstance(sig, str) for sig in signatures):
+            return None
+        return signatures
+    if not isinstance(value.get("transactions"), list):
         return None
     signatures: list[str] = []
     for item in value["transactions"]:
-        if detail == "signatures":
-            signature = item if isinstance(item, str) else None
-        else:
-            tx = item.get("transaction") if isinstance(item, dict) else None
-            values = (tx or {}).get("signatures") or []
-            signature = values[0] if values and isinstance(values[0], str) else None
+        tx = item.get("transaction") if isinstance(item, dict) else None
+        values = (tx or {}).get("signatures") or []
+        signature = values[0] if values and isinstance(values[0], str) else None
         if signature is None:
             return None
         signatures.append(signature)
@@ -618,7 +625,23 @@ def main() -> int:
                 request_cap=args.request_cap_per_provider,
                 helius_pace=args.helius_pace_seconds,
             )
-            print(canonical(summary), flush=True)
+            print(
+                canonical(
+                    {
+                        key: summary[key]
+                        for key in (
+                            "plan_sha256",
+                            "operation_count",
+                            "completed",
+                            "attempts",
+                            "helius_credit_reservations",
+                            "outcomes",
+                            "claims",
+                        )
+                    }
+                ),
+                flush=True,
+            )
             return 0
         except Exception as exc:
             if not (args.root / "STOP").exists():
