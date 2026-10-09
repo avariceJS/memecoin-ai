@@ -872,14 +872,19 @@ disk headroom before each request. Interrupted epochs must match their saved pla
 approved source hashes before recovery. Helius charge units remain unknown; request counts are
 recorded separately. The focused suite has 15 passing tests. Sol selected a Helius-only hourly pilot with 16 sampled
 produced slots, a 20,000-slot frame cap, zstd storage, and a 50 GiB pre-request free-space floor.
-Each frame allows 34 reservations, 256 MB raw and 128 MB stored; the campaign allows 25 epochs
-(one bootstrap plus at most 24 frames), 817 reservations, 4 GB raw and 1 GB stored. The rough
-measured projection is 84 MB raw and 34 requests per frame, about 2.0 GB raw across 24 frames;
-stored bytes are projected near 0.46 GB using the mixed-provider pair64 ratio, not a guarantee.
-Run three real hourly frames after bootstrap as one-shot invocations and inspect their complete
-accounting and structural self-checks. Bootstrap and the 23:00Z frame are complete; two frames
-remain before the first checkpoint. Only then enable the hourly LaunchAgent on the same locked
-campaign, if healthy. Invoke with the research `src/` import path explicitly (or the research
+Each frame allows 34 reservations (one finalized-slot anchor, one inventory, and paired
+full/signature responses for 16 blocks), 256 MB raw and 128 MB stored. The immutable campaign
+manifest allows 25 epoch directories, 817 epoch requests, 4 GB raw and 1 GB stored; these request
+limits are inconsistent. Twenty-four full frames use 816 requests, leaving one request, which can
+begin a partial frame because the scheduler does not preflight all 34 request slots before sending
+that frame's anchor. Do not install a LaunchAgent against this schedule. The first frame used
+71,939,096 raw bytes and 15,335,264 zstd bytes; one frame does not establish sustained size or
+latency tails. Generic Helius method credit prices are known, but the connected key's active plan
+and remaining balance are not available through the MCP account tools. After the first frame, two
+more future hourly frames are to be run manually under the unchanged manifest; then the finite
+campaign will be stopped and reviewed. Any successor needs a new schedule version, an all-in
+quota/request/byte budget, and a full-frame request preflight before I/O. Invoke with the research
+`src/` import path explicitly (or the research
 environment that installs it editable); a shell Python without it imported an older installed
 package from the separate production checkout and failed before I/O. Before each invocation,
 recheck the actual UTC bucket, disk, and runtime state.
