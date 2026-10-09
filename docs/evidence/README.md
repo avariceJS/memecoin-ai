@@ -103,6 +103,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - Frozen v2 replay of all 1,255 eligible sell23 candidates in the selected 512 full blocks:
   `helius-pumpswap-sell23-ledger-v2-capture-census-2026-10-09.json`. All candidates matched;
   410 full settlements, 843 censored native settlements, and two unsupported token instructions.
+- Frozen v2 offline replay of all 67 eligible sell23 candidates in the first 16-block prospective
+  inventory-first frame: `helius-pumpswap-sell23-ledger-v2-inventory-frame-census-2026-10-10.json`.
+  Thirteen had exact full target-account settlement and 54 censored native-close settlements; all
+  six equations passed. This remains a selected-frame captured-class result.
 - Offline replay of the historical Helius full-block captures after the empty-base58 fix:
   `helius-historical-instruction-normalization-audit-2026-10-09.json`. All 2,880 stored full
   responses now normalize and parse; all are present in their captured Helius inventories. The

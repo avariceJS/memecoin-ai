@@ -224,6 +224,14 @@ passed on the 1,253 qualified transfer records. This is a census only of that de
 those captured blocks; it does not establish global PumpSwap or market-process completeness.
 Receipt: [v2 captured-class census](evidence/helius-pumpswap-sell23-ledger-v2-capture-census-2026-10-09.json).
 
+The first prospective inventory-first Helius frame was also replayed offline through the frozen
+ledger. All 67 eligible `sell23` candidates in its 16 selected full blocks matched: 13 had exact
+full target-account settlement and 54 had censored native-close settlement. All six transfer/fee
+equations passed on all 67. This extends the diagnostic to one fresh prospective selected-block
+sample only; it is not an audit of the decoder, a complete process/population census, wallet-net
+price, or training/execution admission. Receipt:
+[inventory-frame census](evidence/helius-pumpswap-sell23-ledger-v2-inventory-frame-census-2026-10-10.json).
+
 The pinned v1 `buy_exact_quote_in` path now has an offline structural attempt census over those same
 512 Helius full-block captures: 642,312 transactions, 12,120 unique candidate transactions, and
 12,143 instruction references across 507 slots, with no normalization failures. Of these refs,
