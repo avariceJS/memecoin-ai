@@ -247,6 +247,18 @@ training/execution admission. The planned 13:00Z independent audit was consumed 
 attempt; future qualification must use a new disjoint source. Receipt:
 [`buyExact v1 attempt census`](evidence/pumpswap-buy-exact-v1-attempt-census-2026-10-10.json).
 
+The official [Pump AMM IDL pinned at commit `8cda1fa`](https://github.com/pump-fun/pump-public-docs/blob/8cda1fa30ea658b20909d8aedf002047119388d2/idl/pump_amm.json)
+binds 23 fixed `buy_exact_quote_in` accounts and the `spendable_quote_in`,
+`min_base_amount_out`, and `track_volume` arguments. Its docs identify the optional cashback
+WSOL accumulator ATA at `remaining_accounts[0]`. A source survey of the exact official
+`@pump-fun/pump-swap-sdk@1.14.0` NPM artifact (published 2026-02-17; integrity and local tarball
+hash in the receipt) found the same instruction in generated IDL types but no explicit
+high-level exact-quote builder implementation in `src/sdk`. This does not identify the builder
+used by any capture or assign observed suffix positions. Cashback, pool-state, fee-recipient,
+Token-2022, and other remaining-account variants still require source- and account-bound
+qualification; no economic decoder change follows from this survey. Receipt:
+[`buyExact SDK builder source survey`](evidence/pumpswap-buy-exact-sdk-builder-source-survey-2026-10-10.json).
+
 The frozen development predicate selected all 62 successful refs in that captured census whose
 payload is the pinned 25-byte shape, two-account suffix passes the source-bound checks, and both
 base and quote use legacy SPL Token. The other 1,237 successful structural candidates include
