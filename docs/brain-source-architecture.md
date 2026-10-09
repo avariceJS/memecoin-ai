@@ -181,6 +181,18 @@ bounded schema-update qualification, not complete market-event support. Receipt:
 [`alchemy-free-transaction-variant-qualification-2026-10-09.json`](evidence/alchemy-free-transaction-variant-qualification-2026-10-09.json)
 and [`alchemy-free-transaction-qualification-2026-10-09.json`](evidence/alchemy-free-transaction-qualification-2026-10-09.json).
 
+A narrow PumpSwap `sell` diagnostic now covers the pinned 24-byte instruction and 21-account prefix
+with the evidenced fee-recipient/quote-ATA suffix, legacy SPL Token transfers, exact `SellEvent`,
+and the strict CPI descendant subtree. It reconciles checked transfer amounts, exact pool signed
+balance deltas, fee-recipient destinations, and empirical fee equations. Those fee equations remain
+diagnostic hypotheses; the result has no training or execution eligibility. All touched token
+accounts must have exact pre/post settlement for `reconciled_diagnostic_only`; otherwise exact
+instruction/event transfer facts remain alongside an explicit quarantined, partial-settlement state.
+It does not estimate wallet-net price or claim market/range completeness. The preselected 50-row
+development replay matched 50/50: 12 had exact all-account settlement and 38 were quarantined for
+unknown other account effects. A disjoint 50-row audit remains sealed until the implementation is
+committed, and its result can qualify only this strict per-transaction gate, not the 1,255-row class.
+
 One finalized slot was then fetched with full `getBlock` transactions from Alchemy Free and an
 independent public Solana RPC. Both HTTP responses were complete and agreed on block identity,
 parent linkage, 1,132 transaction entries, and the ordered flattened sequence of 1,171 signatures.
@@ -748,18 +760,20 @@ summary. Repeating this exact epoch 24 times projects 13.83 GB stored/day. The d
 calibration projected 14.9 GB/day, so retain 18 GiB/day storage capacity and 30 GiB free-space floor
 until more epochs replace the estimate. Current disk had 75 GiB free after this epoch.
 
-Sol's next wave keeps Helius at 512 selected slots/hour for one full diurnal cycle and pairs Alchemy
-Free on four slots in each of the 16 Helius windows (64/hour). Start with six hourly epochs and keep
-that pair breadth only while transport availability, CPU qualification (<45 minutes/epoch), and
-free-space headroom remain stable. The first epoch took about 23.5 minutes including qualification.
-The one-day Helius bound remains 26,000 for this campaign, with a shared 36,000 locally accounted
-standard-request envelope across same-day Helius roots; expected Helius use is 24,624 for the full
-cycle, before the separately active sensors. Fresh inventory calls are new observations, not retries.
-These campaign limits are not recurring quota or Brain ceilings. Every epoch records the primary
-and conditional pair inclusion probabilities, provider-specific request results, immutable raw and
-stored hashes, codec, and receipt times. Recalculate storage and error rates at each evidence
-boundary; preserve the active 64-slot collector and Helius watch if the broad wave reaches its cap
-or disk floor.
+Sol's current wave keeps Helius at 512 selected slots/hour for a full diurnal cycle and pairs Alchemy
+Free on four slots in each of the 16 Helius windows (64/hour). The first epoch took about 23.5
+minutes including qualification. Its expected Helius use is 24,624 for the day, before other
+sensors; the 26,000 campaign cap and 36,000 shared local reservation envelope are per-wave guards,
+not recurring quota or Brain ceilings. At the daily evidence boundary, review completeness,
+provider discrepancies, failures, CPU time, bytes, and disk headroom; if guards remain healthy,
+renew the same 24-hour wave twice, reviewing between days. Do not autoextend without those reviews.
+Helius coverage is intentionally wide because its independent comparison can expose gaps hidden by
+Alchemy-family agreement. Every epoch records inclusion probabilities, request outcomes, immutable
+raw/stored hashes, codec, and receipt times. Fresh inventories are new observations, not retries.
+The 512/hour sample is itself a current collection rate, not a permanent coverage ceiling; raise it
+when measured discrepancies or uncertainty show material benefit and storage/recovery remain sound.
+Preserve the separate 64-slot prospective collector and Helius watch if a broad wave reaches its
+campaign cap or disk floor.
 
 The first paired window wrote 152.6 MB to disk (96.8 MB Helius, 55.8 MB public) including only 11
 public full blocks. Helius watch v2 had captured 1,001 request results / 17.7 MB at its terminal

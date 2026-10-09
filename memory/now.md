@@ -72,10 +72,11 @@ standby. No Grok.
   2,355,735,101 raw bytes, taking 1,411 seconds through qualification. A same-size day projects
   13.83GB stored. Sol directs a complete 24h Helius 512-slot/hour cycle with Alchemy widened to 64
   slots/hour after this epoch; expected Helius use is 24,624/day. The immutable first root was closed
-  after its qualified epoch; a new pair64 root is scheduled at the next UTC hour with a fresh 24h
-  contract. Six-hour review gates: Alchemy availability, <45-minute qualification time, 18GiB campaign
-  storage cap, 30GiB free-disk floor. Shared cap36k reservations includes the prior first epoch and
-  all active Helius roots. These caps apply to this bounded wave, not to long-term quota/coverage.
+  after its qualified epoch; the fresh pair64 root began at 15:00 UTC under LaunchAgent
+  `ai.memecoin.brain.senses.independent-verifier-512-pair64`. Six-hour review gates: Alchemy
+  availability, <45-minute qualification time, 18GiB campaign storage cap, 30GiB free-disk floor.
+  Shared cap36k reservations includes prior Helius roots. After each healthy day, renew for two more
+  24h waves with an intervening review; 512/h and daily credit caps are wave controls, not ceilings.
 - Helius address-watch v2 stopped after 1,001 requests: 999 transaction bodies captured, one failed;
   a restart recorded terminal `ValueError` and STOP. Do not resume its cursor. New watch v3 uses
   fresh six-hour UTC roots, parent STOP/last-receipt links, no inherited cursor, and a 1,100-request
@@ -92,6 +93,11 @@ standby. No Grok.
   `creator_fee_unclaimed: u64` tail. New remaining-account and Token-2022 shapes still require
   evidence, reconciliation and quarantine before they can be called supported. Existing exception
   counts and paths are in `docs/brain-source-architecture.md`.
+- A narrow pinned PumpSwap `sell23` diagnostic reconciles exact event fields, checked CPI-subtree
+  transfers, fee destinations, and signed pool balance deltas. Its fee formulas remain empirical
+  hypotheses; no training/execution admission or market coverage claim. Fresh dev replay: 50/50
+  matched, 12 all-account exact, 38 quarantined for unknown touched-account settlement; audit sample
+  remains sealed until freeze/commit. Selector reproduces dev/audit manifests byte-for-byte.
 - Positive signature references and bounded block agreement do not prove enrollment, support,
   market coverage, executed swaps or lifecycle. No real source fit or learning gain has been
   established. `partial_count_lower_bound_pinball_v1` is opt-in and excludes zero/unavailable
@@ -99,13 +105,13 @@ standby. No Grok.
 
 ## Verification and next decision horizon
 
-- Focused sensing checks passed after this change. The latest full `make check` reached 1,352 passed
+- Focused Ruff, format, mypy (`--follow-imports=skip`), and PumpSwap checks passed (30 tests); fresh
+  dev replay used zero RPC. The latest full `make check` reached 1,352 passed
   / 25 skipped but failed three `tests/tools/test_agent_context.py` cases because this file plus
   `AGENTS.md` exceeded the context packet's mandatory 23,500-character budget. Keep this state note
   compact, then rerun `make check`. `make smoke` is synthetic-only and is not evidence of edge.
 - Compiled transaction normalization has fail-closed static/lookup-address resolution, valid empty
   base58 decoding and exact SPL `TransferChecked` wire decoding; Token-2022 effects remain
-  quarantined. Re-audit the historical captures and finish the current two-provider audit without
-  replay. Launch the independent 512/32 Helius↔Alchemy Free wave under its own root after tests and
-  commit; review actual bytes, provider failures and discrepancy yield at 24h. Do not call Senses
-  complete or begin Cortex.
+  quarantined. Finish the current two-provider audit without replay after freeze/commit. Review the
+  new 512/64 wave at six-hour and daily boundaries; renew up to two additional days only after each
+  storage/coverage review. Do not call Senses complete or begin Cortex.
