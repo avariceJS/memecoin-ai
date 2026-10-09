@@ -31,7 +31,17 @@ def utc_bucket(now: datetime, interval_hours: int = 6) -> str:
     return utc.replace(hour=hour, minute=0, second=0, microsecond=0).strftime("%Y%m%dT%H0000Z")
 
 
-def run_bucket(root_base: Path, *, window_slots: int = 20, interval_hours: int = 6) -> dict:
+def select_parent(previous_epochs: list[Path], initial_parent_root: Path | None) -> Path | None:
+    return sorted(previous_epochs)[-1] if previous_epochs else initial_parent_root
+
+
+def run_bucket(
+    root_base: Path,
+    *,
+    window_slots: int = 20,
+    interval_hours: int = 6,
+    initial_parent_root: Path | None = None,
+) -> dict:
     now = datetime.now(UTC)
     bucket = utc_bucket(now, interval_hours)
     root_base.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -55,10 +65,11 @@ def run_bucket(root_base: Path, *, window_slots: int = 20, interval_hours: int =
             for path in root_base.iterdir()
             if path.is_dir() and BUCKET_RE.fullmatch(path.name) and path != root
         )
+        parent = select_parent(previous, initial_parent_root)
         summary = start_epoch(
             root,
             window_slots=window_slots,
-            old_epoch_root=previous[-1] if previous else None,
+            old_epoch_root=parent,
         )
         event = {
             "status": "epoch_finished",
@@ -76,6 +87,7 @@ def main() -> int:
     parser.add_argument("--root-base", type=Path, required=True)
     parser.add_argument("--window-slots", type=int, default=20)
     parser.add_argument("--interval-hours", type=int, default=6)
+    parser.add_argument("--initial-parent-root", type=Path)
     args = parser.parse_args()
     if not 1 <= args.window_slots <= 64:
         parser.error("window_slots_outside_bound")
@@ -84,6 +96,7 @@ def main() -> int:
             args.root_base,
             window_slots=args.window_slots,
             interval_hours=args.interval_hours,
+            initial_parent_root=args.initial_parent_root,
         )
         from memecoin_ai.domain import canonical
 

@@ -1,8 +1,9 @@
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
-from tools.brain_senses_block_epoch_schedule import utc_bucket
+from tools.brain_senses_block_epoch_schedule import select_parent, utc_bucket
 
 
 def test_utc_bucket_uses_utc_not_host_local_clock() -> None:
@@ -16,3 +17,9 @@ def test_utc_bucket_requires_aware_time_and_supported_interval() -> None:
         utc_bucket(datetime(2026, 10, 9, 12, 0))
     with pytest.raises(ValueError, match="unsupported_interval_hours"):
         utc_bucket(datetime(2026, 10, 9, 12, 0, tzinfo=UTC), 5)
+
+
+def test_schedule_links_latest_scheduled_epoch_or_bootstrap_epoch() -> None:
+    initial = Path("initial")
+    assert select_parent([], initial) == initial
+    assert select_parent([Path("later"), Path("earlier")], initial) == Path("later")
