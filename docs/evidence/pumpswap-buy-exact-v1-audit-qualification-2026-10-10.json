@@ -1,0 +1,233 @@
+{
+  "acquisition": {
+    "capture_elapsed_seconds": 962.639,
+    "capture_request_throughput_per_second": 1.0648,
+    "compressed_block_bytes_zstd": 495794142,
+    "epoch_folder_bytes": 528841525,
+    "failed_requests": 0,
+    "free_disk_bytes_after_capture": 74925600768,
+    "helius_account_meter": "unavailable; reservation count is not a reconciled credit bill",
+    "helius_reservations": 1026,
+    "raw_response_bytes": 2244351275,
+    "requests": 1026,
+    "retries": 0
+  },
+  "census": {
+    "candidate_instruction_references": 15215,
+    "candidate_transactions": 15168,
+    "failed_candidate_transactions": 4203,
+    "full_block_transactions": 563802,
+    "normalization_errors": 0,
+    "path": "work/brain-senses-buyexact-audit-helius-20261010/buyexact-census.json",
+    "program_pair_breakdown": [
+      {
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "references": 1166
+      },
+      {
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "quote_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "references": 7
+      },
+      {
+        "base_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "references": 1
+      },
+      {
+        "base_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "quote_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "references": 1
+      }
+    ],
+    "reference_slots": 510,
+    "sha256": "c4a303a411a273bd716b1319384eef708ad6e0c5c29579f5a46c9a4869d2db3c",
+    "successful_candidate_transactions": 10965,
+    "successful_validated_25byte_two_account_fee_pair_refs": 1175,
+    "tool_sha256": "525f906f5645086bf12443aba966e1e85e014856d7f199f941face6c145de2a2"
+  },
+  "economic_replay": {
+    "censor_reason": "native_close_after_sync_amount_unknown",
+    "execution_admission": "none",
+    "per_reference_summary": [
+      {
+        "censored_reasons": {},
+        "ledger_status": "exact",
+        "path": [
+          3
+        ],
+        "settlement_state": "exact",
+        "signature_sha256": "8c2c289262cceb261e37ff372220630d110c96ceea7c4479ace6f9596fea78d1",
+        "slot": 454996953,
+        "trade_fact_state": "exact_instruction_event_transfer_facts_diagnostic_only",
+        "transaction_index": 811
+      },
+      {
+        "censored_reasons": {},
+        "ledger_status": "exact",
+        "path": [
+          3,
+          3
+        ],
+        "settlement_state": "exact",
+        "signature_sha256": "38ccfab0f0c131b2a47180c068f4336e24f473e5d3264de114c9365b63b6b150",
+        "slot": 455006149,
+        "trade_fact_state": "exact_instruction_event_transfer_facts_diagnostic_only",
+        "transaction_index": 109
+      },
+      {
+        "censored_reasons": {
+          "native_close_after_sync_amount_unknown": 1
+        },
+        "ledger_status": "censored_partial",
+        "path": [
+          6
+        ],
+        "settlement_state": "censored_partial",
+        "signature_sha256": "4db707bf598628e10da71c6e46d1a844f246263e9dd5435b09798da4fb66972a",
+        "slot": 455007456,
+        "trade_fact_state": "exact_instruction_event_transfer_facts_diagnostic_only",
+        "transaction_index": 765
+      },
+      {
+        "censored_reasons": {
+          "native_close_after_sync_amount_unknown": 1
+        },
+        "ledger_status": "censored_partial",
+        "path": [
+          6
+        ],
+        "settlement_state": "censored_partial",
+        "signature_sha256": "271999281854241c83eb749bed16c08cfc321ced40dfa176fa3b18d9af04f9f9",
+        "slot": 455007456,
+        "trade_fact_state": "exact_instruction_event_transfer_facts_diagnostic_only",
+        "transaction_index": 767
+      },
+      {
+        "censored_reasons": {
+          "native_close_after_sync_amount_unknown": 1
+        },
+        "ledger_status": "censored_partial",
+        "path": [
+          6
+        ],
+        "settlement_state": "censored_partial",
+        "signature_sha256": "1880296bd1e7141d07343f669fe9d2b819a27c1a8e3608a213e0617910c4c116",
+        "slot": 455007456,
+        "trade_fact_state": "exact_instruction_event_transfer_facts_diagnostic_only",
+        "transaction_index": 825
+      },
+      {
+        "censored_reasons": {
+          "native_close_after_sync_amount_unknown": 1
+        },
+        "ledger_status": "censored_partial",
+        "path": [
+          0,
+          7
+        ],
+        "settlement_state": "censored_partial",
+        "signature_sha256": "51399650f1a3bbe27436a92e09b09fea2f6939d0e051d1eb037271ada6e6269f",
+        "slot": 455008002,
+        "trade_fact_state": "exact_instruction_event_transfer_facts_diagnostic_only",
+        "transaction_index": 407
+      },
+      {
+        "censored_reasons": {},
+        "ledger_status": "exact",
+        "path": [
+          4
+        ],
+        "settlement_state": "exact",
+        "signature_sha256": "bbfd226ab862093091840954b825ecaa25c5de5089d5bf71d09c6441cbb6e67f",
+        "slot": 455008600,
+        "trade_fact_state": "exact_instruction_event_transfer_facts_diagnostic_only",
+        "transaction_index": 368
+      }
+    ],
+    "plan_sha256": "ae5caa90e379233aa3979d35ad8869de746ca188e8b2a4217921c7188f4df320",
+    "replay_path": "work/brain-senses-buyexact-audit-helius-20261010/buyexact-replay.json",
+    "replay_sha256": "82e6f15e6716497475e2603e398f7435c2806d524a21554af89fb5cb06257282",
+    "selected_refs": 7,
+    "settlement_states": {
+      "censored_partial": 4,
+      "exact": 3
+    },
+    "source_manifest_sha256": "8803c8eb03aad8cf5ebffc194f076eefe4e2bf45181b574f43849c08f2017b08",
+    "trade_fact_states": {
+      "exact_instruction_event_transfer_facts_diagnostic_only": 7
+    },
+    "training_admission": "none",
+    "unique_transactions": 7,
+    "wallet_net_price": "none"
+  },
+  "experiment": "pumpswap_buy_exact_v1_fresh_captured_class_sealed_audit",
+  "frozen_protocol_plan": {
+    "path": "work/brain-senses-buyexact-audit-helius-20261010/buyexact-audit-plan.json",
+    "sha256": "0a9f4ebecf2f7ee9f9e8dfdfab1449b636eaa88bbcd2cb11c6a758116ea7bae4"
+  },
+  "implementation_code_sha256": {
+    "src/memecoin_pumpswap/buy_exact_v1.py": "028998b1860bf9528cdfd20c7d94223c605e934f05b89ebd3835796233a2dccb",
+    "src/memecoin_pumpswap/economic_buy_exact_v1.py": "8ff85c50ff7a5c6825852de523e83a09dfc3fd9c7f77b0d83d93a3fe2170d176",
+    "src/memecoin_pumpswap/legacy_token_ledger.py": "65d59ab27488513d814b12cc9eff08b004d24e3ae008f7ede80bd7432545c8e8",
+    "src/memecoin_pumpswap/normalize.py": "7253588560626c6f45ed65ebfd802200f20e79e2daec88fadb93d34731e84643",
+    "tools/brain_senses_block_epoch.py": "6f293c5125d23120d49c7af3ffeae0b286684ff389c5f3ea2725ba0524e50b2c",
+    "tools/brain_senses_block_provider_pilot.py": "c2a56de9e0f3ef740967345908dca2a120022e11434ce9ec4ca8251e095ebe3f",
+    "tools/brain_senses_buy_exact_v1_census.py": "525f906f5645086bf12443aba966e1e85e014856d7f199f941face6c145de2a2",
+    "tools/brain_senses_buy_exact_v1_dev_replay.py": "4c56fa4dc8ba2256f53d04430ecfd2340b96eccb17b091a6c376f9fb2b6012cf",
+    "tools/brain_senses_census_pumpswap_sell_ledger.py": "6f48d1534f21809681b94500bfd0c8647186316b8641b7cf215ce1a866ed7eb2",
+    "work/pumpswap-buy-exact-v1-audit-runner.py": "f04dbb00add7821bdb6fea6d8b622edda32cd89c2514bed0c064020808bb5edb"
+  },
+  "implementation_commit": "de545729cd102f38704b3248c5d4f20002562dc4",
+  "limitations": [
+    "Helius selected-slot captured class only; same provider family as development source, though all selected slots are disjoint.",
+    "No global transaction or market-process completeness claim.",
+    "Most v1 refs and the remaining-account layouts are not qualified.",
+    "Token-2022 effects remain quarantined; fee equations remain diagnostic hypotheses.",
+    "Censored native account settlement remains censored; no wallet-net price, training/execution admission, zero-activity claim, or trading edge is inferred."
+  ],
+  "preflight_history": {
+    "corrected_plan_sha256": "ae5caa90e379233aa3979d35ad8869de746ca188e8b2a4217921c7188f4df320",
+    "economic_replay_started": false,
+    "failure": "development_plan_token_program_scope_mismatch",
+    "first_plan_sha256": "b729e2fea5a85f73ae497094a5179d56a0671098b79264f5213ffd9df4bdf725",
+    "replay_succeeded_once": true,
+    "selection_or_decoder_changed": false
+  },
+  "schema_version": 1,
+  "sell23_source_validation": {
+    "eligible_candidates": 1694,
+    "matched_candidates": 1694,
+    "outcomes": {
+      "reconciled_diagnostic_only": 316,
+      "reconciled_trade_with_censored_account_settlement": 1378
+    },
+    "scope": "census of the declared sell23 structural candidate class in these captured full blocks; not global PumpSwap completeness, economic market coverage, or training eligibility",
+    "selected_full_blocks_verified": 512
+  },
+  "source": {
+    "anchor_slot": 455010185,
+    "block_capture_plan_sha256": "0cc288f1a4b4fdffb3ffc2bd48af52cd45a4f521f768093de2d1408c0bdeefc8",
+    "capture_root": "work/brain-senses-buyexact-audit-helius-20261010/epoch/paired-block-capture",
+    "disjoint_from_13z_failed_audit_slots": true,
+    "disjoint_from_15z_dev_slots": true,
+    "provider": "helius-free",
+    "selected_frame_exclusive": [
+      454996786,
+      455010186
+    ],
+    "selected_slots": 512,
+    "selected_slots_per_stratum": 32,
+    "signature_self_checks": 512,
+    "signature_self_checks_equal": 512,
+    "source_binding_receipt": "work/brain-senses-buyexact-audit-helius-20261010/sell23-source-replay.json",
+    "source_binding_receipt_sha256": "6540e566d443514376cdc723825fc14be63e9e91a5ba289d237456f2d259d573",
+    "source_manifest": "work/brain-senses-buyexact-audit-helius-20261010/source-manifest.json",
+    "source_manifest_sha256": "0ef03ade37feb7a2cfb14557365b95194cdd39eed629769ba3a86c0bc301ce7c",
+    "status": "512/512 full blocks parsed; all selected-slot signatures-only hashes matched",
+    "strata": 16,
+    "window_plan_sha256": "238450ae81a4242263ab7bea9047dafca9cb831a432857383054a1e9fe68ca90"
+  },
+  "status": "completed_diagnostic_only"
+}

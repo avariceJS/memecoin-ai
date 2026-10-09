@@ -260,6 +260,22 @@ plan. Receipt: [`buyExact v1 failed audit attempt`](evidence/pumpswap-buy-exact-
 Development receipt:
 [`buyExact v1 development`](evidence/pumpswap-buy-exact-v1-development-qualification-2026-10-10.json).
 
+A new Helius Free epoch was then captured for the frozen one-pass audit: 512/512 selected full
+blocks parsed, 512/512 signature-only checks matched the full-response signature hashes, and the
+slot set is disjoint from both the 15:00Z development source and the failed 13:00Z source. The
+fresh class census covered 563,802 transactions and 15,215 v1 instruction references (11,012 in
+successful transactions, 4,203 failed attempts), with zero normalization failures. Among 1,175
+successful 25-byte/two-account documented-suffix candidates, 1,166 used legacy base plus Token-2022
+quote, seven used legacy Token on both sides, and two involved Token-2022 on the base side. The
+frozen predicate replayed all seven dual-legacy refs once: all seven had exact instruction/event/
+transfer facts; three had exact full target-account settlement and four remained censored after
+SyncNative/native close. The fee equations remain hypotheses. This qualifies only those seven
+diagnostic rows; the 1,168 Token-2022-involving refs and all other layouts remain quarantined, with
+no wallet-net price, training/execution admission, economic zero, market completeness, or edge claim.
+The one-shot capture used 1,026 Helius reservations including its anchor, returned 2.244 GB raw and
+495.8 MB zstd-stored block bodies; the Helius account meter remains unavailable. Receipt:
+[`buyExact v1 fresh captured-class audit`](evidence/pumpswap-buy-exact-v1-audit-qualification-2026-10-10.json).
+
 One finalized slot was then fetched with full `getBlock` transactions from Alchemy Free and an
 independent public Solana RPC. Both HTTP responses were complete and agreed on block identity,
 parent linkage, 1,132 transaction entries, and the ordered flattened sequence of 1,171 signatures.

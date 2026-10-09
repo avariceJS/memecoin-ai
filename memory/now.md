@@ -14,7 +14,7 @@ standby. No Grok.
 
 - Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; verify
   `git status` and HEAD at entry. Do not push. Production checkout remains untouched.
-- Disk has 70 GiB free at current review. No external research volume is mounted. Helius Free
+- Disk has about 69.8 GiB free at current review. No external research volume is mounted. Helius Free
   plan info is available, but its account usage meter is not. Alchemy MCP returned an aggregate
   team meter of 18,680 CU / rounded $0.01 MTD; it is not attributable to this epoch or the Free app.
   No paid request was made in this session.
@@ -26,8 +26,8 @@ standby. No Grok.
   watchers v2/v3 are unloaded; logs, STOP records, and raw captures remain. Helius watch v3 is the
   only remaining scheduled prospective sensor in this set: a capped sparse address-reference stream.
   Its 18:00Z root used 1,100 attempts (1,099 captures, one failure), recorded STOP with pending
-  references, and is marked already attempted; no later epoch exists as of 2026-10-09 21:09Z. The
-  LaunchAgent is loaded but not running between five-minute scheduler invocations. It must not
+  references, and is marked already attempted; no later epoch exists as of 2026-10-09 21:58Z. The
+  LaunchAgent is loaded on a five-minute interval but idle between scheduler invocations. It must not
   replay or imply continuity. The resulting gap is explicit; this stream is not market/trade
   completeness.
 
@@ -62,6 +62,18 @@ standby. No Grok.
   for this audit: do not rerun or tune against it; obtain a new disjoint source.
   `buy_exact_quote_in_v2`, Token-2022 effects and unverified payload/suffix
   layouts remain out of scope/quarantined.
+- Fresh one-shot audit source in ignored `work/brain-senses-buyexact-audit-helius-20261010/`:
+  512/512 Helius Free finalized full blocks and 512/512 exact signatures-only self-checks; slot set
+  is disjoint from both 15:00Z development and failed 13:00Z audit sets. It used 1,026 reservations
+  including anchor, 2.244 GB raw responses and 495.794 MB zstd block responses; no request failed or
+  retried. New v1 census: 563,802 transactions, 15,215 refs (11,012 successful, 4,203 failed),
+  510 reference slots, zero normalization errors. Seven successful dual-legacy refs were selected
+  by the frozen predicate and replayed once: all seven had exact instruction/event/transfer facts,
+  three exact full-account ledgers, four censored native close-after-SyncNative settlements. Of
+  1,175 successful 25-byte/two-account suffix candidates, 1,166 used Token-2022 quote, seven were
+  dual legacy, and two involved Token-2022 base. No training, execution, wallet-net price, fee
+  schedule, market-completeness, exact-zero or edge claim. Tracked receipt:
+  `docs/evidence/pumpswap-buy-exact-v1-audit-qualification-2026-10-10.json`.
 - Frozen development replay currently covers all 62 successful dual-legacy refs in the 15:00Z
   captured class: 62 exact BuyEvent/transfer fact sets and exact full ordered ledgers for all six
   touched token accounts. Unit checks preserved 9/6 decimal pairs (61) and 6/9 (one); values are
@@ -73,11 +85,11 @@ standby. No Grok.
 
 ## Next decision horizon
 
-1. Commit the buyExact census receipt adapter fix. Preserve the 13:00Z failed attempt; bind a fresh
-   disjoint full-block source and one-pass acceptance plan before decoding it.
-2. Run that sealed audit once with all class denominators and per-ref exact/partial/unsupported
-   reasons. Do not tune on audit; if it exposes a code defect, quarantine the result and seek another
-   independent source before any requalification.
-3. Decide whether the capped v3 address-reference stream should be replaced with a recoverable
-   prospective sensor that preserves explicit gaps and charged attempts. The LaunchAgent is loaded
-   but idle between scheduler invocations; do not restart the exhausted epoch. No Cortex.
+1. Implement the Sol-settled recovery seam for a prospective selected-slot full-block sensor. First
+   prove restart, duplicate-reservation prevention, STOP reconstruction and gap accounting with
+   no-RPC fixtures. Do not resume the exhausted v3 epoch or bridge its gap.
+2. Review the recovery diff and focused tests, then plan a small finite consecutive-epoch live pilot
+   with explicit request/credit, response-byte, stored-byte, disk-floor and Alchemy account limits.
+   Unload the exhausted v3 schedule before installing any new live schedule.
+3. After the sensor pilot, ask Sol for a concrete Token-2022 transfer-fee/hook/account-settlement
+   contract before decoder work on the 1,168 Token-2022 quote candidates. No Cortex.
