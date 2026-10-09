@@ -560,6 +560,7 @@ def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) ->
                         else None
                     ),
                     blockhash=full.get("blockhash") if isinstance(full, dict) else None,
+                    block_time_seconds=full.get("blockTime") if isinstance(full, dict) else None,
                     parent_slot=full.get("parentSlot") if isinstance(full, dict) else None,
                     previous_blockhash=full.get("previousBlockhash")
                     if isinstance(full, dict)

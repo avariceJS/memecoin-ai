@@ -7,6 +7,7 @@ from typing import Any
 
 from memecoin_ai.domain import canonical
 from memecoin_ai.sources import Capture
+from tools.brain_senses_block_provider_audit import audit
 from tools.brain_senses_block_provider_pilot import (
     MAX_RESPONSE_BYTES,
     _transaction_comparison,
@@ -189,4 +190,27 @@ def test_transaction_comparison_reports_nested_difference_paths() -> None:
         "helius_only": 0,
         "public_only": 0,
         "difference_paths": {"meta.logMessages": 1},
+    }
+
+
+def test_offline_provider_audit_summarizes_paired_receipts(tmp_path: Path) -> None:
+    root = tmp_path / "pilot"
+    run_once(
+        root,
+        slot_ranges=[[100, 102]],
+        request_cap=10,
+        clients={"helius-free": FakeBlockRPC(), "solana-public": FakeBlockRPC()},
+    )
+
+    result = audit(root)
+
+    assert result["audit_mode"] == "offline_only_no_provider_requests"
+    assert result["completed_requests"] == 10
+    assert result["helius_expected_credit_reservations"] == 5
+    assert result["block_comparison"]["paired_block_identities"] == 2
+    assert result["block_comparison"]["transaction_comparison"] == {
+        "paired_transactions": 4,
+        "exact_tree_matches": 4,
+        "different_trees": 0,
+        "difference_paths": {},
     }
