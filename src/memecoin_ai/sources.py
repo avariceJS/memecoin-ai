@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import fcntl
 import http.client
+import json
+import os
 import socket
 import ssl
 import time
@@ -33,6 +36,50 @@ READ_METHODS = frozenset(
 
 class SourceError(RuntimeError):
     pass
+
+
+def _reserve_shared_request_start(path: Path, interval_ns: int = 1_000_000_000) -> None:
+    """Serialize request start times across local processes using one durable ledger."""
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    lock_path = path.with_name(path.name + ".lock")
+    with lock_path.open("a") as lock:
+        os.chmod(lock_path, 0o600)
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if path.exists():
+            try:
+                value = json.loads(path.read_text())
+                next_allowed_ns = value["next_allowed_ns"]
+            except (OSError, KeyError, TypeError, ValueError) as exc:
+                raise SourceError("shared request gate ledger is invalid") from exc
+            if type(next_allowed_ns) is not int or next_allowed_ns < 0:
+                raise SourceError("shared request gate ledger is invalid")
+        else:
+            next_allowed_ns = 0
+        wait_ns = max(0, next_allowed_ns - time.time_ns())
+        if wait_ns:
+            time.sleep(wait_ns / 1_000_000_000)
+        reserved_ns = time.time_ns()
+        row = {
+            "schema_version": 1,
+            "interval_ns": interval_ns,
+            "next_allowed_ns": reserved_ns + interval_ns,
+        }
+        temp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+        try:
+            with temp.open("x") as stream:
+                stream.write(canonical(row) + "\n")
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.chmod(temp, 0o600)
+            os.replace(temp, path)
+            fd = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+        finally:
+            if temp.exists():
+                temp.unlink()
 
 
 class HTTPSourceError(SourceError):
@@ -270,6 +317,7 @@ class ReadOnlyRPC:
         transport: Transport = http_transport,
         clock: Callable[[], int] = time.time_ns,
         keep_alive: bool = False,
+        shared_start_gate: Path | None = None,
     ) -> None:
         url = urlsplit(endpoint)
         if url.scheme != "https" or not url.hostname or url.username or url.password:
@@ -283,6 +331,10 @@ class ReadOnlyRPC:
         integer(max_bytes, "max_bytes", 1)
         self._endpoint = endpoint
         self.source_alias = source_alias
+        if shared_start_gate is None and source_alias == "solana-public":
+            configured_gate = os.environ.get("MEMECOIN_SOLANA_PUBLIC_RATE_LEDGER")
+            shared_start_gate = Path(configured_gate) if configured_gate else None
+        self.shared_start_gate = shared_start_gate
         self.timeout = timeout
         self.max_bytes = max_bytes
         if keep_alive and transport is not http_transport:
@@ -312,6 +364,8 @@ class ReadOnlyRPC:
     def fetch(self, method: str, params: list[object]) -> Capture:
         if method not in READ_METHODS:
             raise ValidationError("RPC method is not in the read-only allowlist")
+        if self.shared_start_gate is not None:
+            _reserve_shared_request_start(self.shared_start_gate)
         request = canonical({"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
         start = self.clock()
         body = self.transport(self._endpoint, request.encode(), self.timeout, self.max_bytes)

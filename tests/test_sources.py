@@ -61,6 +61,33 @@ def test_network_identity_is_read_only_and_response_is_preserved():
     assert cap.result() == "synthetic-genesis"
 
 
+def test_shared_public_rpc_gate_serializes_calls_across_clients(tmp_path, monkeypatch):
+    import memecoin_ai.sources as sources
+
+    now = [0]
+    waits = []
+
+    def sleep(seconds):
+        waits.append(seconds)
+        now[0] += int(seconds * 1_000_000_000)
+
+    monkeypatch.setattr(sources.time, "time_ns", lambda: now[0])
+    monkeypatch.setattr(sources.time, "sleep", sleep)
+    gate = tmp_path / "public-rate-ledger.json"
+    response = b'{"jsonrpc":"2.0","id":1,"result":123}'
+    for _ in range(2):
+        rpc = ReadOnlyRPC(
+            "https://api.mainnet-beta.solana.com",
+            "solana-public",
+            transport=lambda *args: response,
+            clock=lambda: 100,
+            shared_start_gate=gate,
+        )
+        assert rpc.fetch("getSlot", []).result() == 123
+    assert waits == [1.0]
+    assert json.loads(gate.read_text())["next_allowed_ns"] == 2_000_000_000
+
+
 def test_http_error_status_without_credential_leak(monkeypatch):
     import urllib.error
     import urllib.request
