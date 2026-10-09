@@ -25,7 +25,17 @@ from memecoin_ai.domain import canonical, digest
 from memecoin_ai.sources import Capture, ReadOnlyRPC
 from memecoin_pumpswap.decoder import decode, decode58
 from memecoin_pumpswap.schema import SCHEMA
-from tools.brain_senses_program_watch import _create, _provider_endpoint, _read, _replace
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from tools.brain_senses_program_watch import (  # noqa: E402
+    _create,
+    _provider_endpoint,
+    _read,
+    _replace,
+)
 
 STOP = False
 MAX_CREDITS = 1000
