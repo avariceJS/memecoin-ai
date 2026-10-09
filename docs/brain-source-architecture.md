@@ -305,11 +305,15 @@ correct state for the 1,234 captured references: it means unavailable in their e
 qualified acquisition path, not that no provider offers historical account data. Any future
 qualification first needs verified account entitlement, endpoint, method cost and coverage for the
 sample, then immutable raw captures and ordered same-slot replay/reconciliation evidence. The first
-potentially useful subset is mint fee-term state where complete evidence can prove no earlier
-same-slot write changed the terms; the 1,233 sibling-touching references still need all ordered
-effects and withheld-balance reconciliation. If same-slot ordering cannot be established, preserve
+potentially useful subset is mint fee-term state where a complete provider-returned slot transaction
+sequence proves no writable same-slot mint occurrence before or after the target; the 1,233
+sibling-touching references still need all ordered effects and withheld-balance reconciliation. If
+same-slot ordering cannot be established, preserve
 `same_slot_intermediate_state_unknown`. Do not change the quarantined economic decoder before that
-gate.
+gate. One no-RPC development control is frozen from an already captured Helius full-block response;
+it tests mint bytes only and remains blocked on account entitlement, endpoint, price/limits and
+archive coverage. Its three-call cap, source hashes, provider-response scope and acceptance checks
+are in the [`Account Archive mint control plan`](evidence/alchemy-account-archive-mint-control-plan-2026-10-10.json).
 
 One finalized slot was then fetched with full `getBlock` transactions from Alchemy Free and an
 independent public Solana RPC. Both HTTP responses were complete and agreed on block identity,

@@ -90,6 +90,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   provider-returned inventory denominator, 16/16 selected structural self-checks and explicit raw /
   zstd accounting. The captured-class instruction references are not economic swaps; account-level
   charge units and global completeness remain unknown. Raw captures stay in ignored `work/`.
+- Frozen no-RPC Alchemy Account Archive mint-state control plan:
+  `alchemy-account-archive-mint-control-plan-2026-10-10.json`. It pins one already captured
+  Token-2022 development reference and at most three historical reads, but has not been run because
+  research-runtime entitlement, endpoint, account limit and actual billing remain unverified. It
+  does not qualify fee math or account settlement.
 - Frozen PumpSwap sell23 full-transaction legacy-token ledger v2 qualification:
   `helius-pumpswap-sell23-ledger-v2-development-qualification-2026-10-09.json` and
   `helius-pumpswap-sell23-ledger-v2-audit-qualification-2026-10-09.json`. Fresh disjoint samples
