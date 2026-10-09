@@ -583,6 +583,7 @@ def main() -> int:
     parser.add_argument("--daily-request-cap", type=int, default=20_000)
     parser.add_argument("--max-pages", type=int, default=4)
     parser.add_argument("--page-limit", type=int, default=1000)
+    parser.add_argument("--stop-after-seconds", type=float)
     parser.add_argument("--parent-epoch-root", type=Path)
     parser.add_argument("--once", action="store_true")
     args = parser.parse_args()
@@ -592,6 +593,8 @@ def main() -> int:
         parser.error("request/page bound outside safe range")
     if not 1 <= args.page_limit <= 1000:
         parser.error("page limit outside safe range")
+    if args.stop_after_seconds is not None and not 1 <= args.stop_after_seconds <= 21_600:
+        parser.error("stop-after interval outside six-hour epoch bound")
     args.root.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(args.root, 0o700)
     with (args.root / ".collector.lock").open("a") as lock:
@@ -612,9 +615,20 @@ def main() -> int:
             max_bytes=8_000_000,
             keep_alive=True,
         )
+        deadline = (
+            time.monotonic() + args.stop_after_seconds
+            if args.stop_after_seconds is not None
+            else None
+        )
         try:
             while not STOP:
                 if (args.root / "STOP").exists():
+                    break
+                if deadline is not None and time.monotonic() >= deadline:
+                    _create(
+                        args.root / "STOP",
+                        dict(reason="scheduled_epoch_boundary", time_ns=time.time_ns()),
+                    )
                     break
                 try:
                     result = poll_once(
@@ -648,7 +662,17 @@ def main() -> int:
                     return 1
                 if args.once:
                     break
-                time.sleep(args.poll_seconds)
+                sleep_seconds = args.poll_seconds
+                if deadline is not None:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        _create(
+                            args.root / "STOP",
+                            dict(reason="scheduled_epoch_boundary", time_ns=time.time_ns()),
+                        )
+                        break
+                    sleep_seconds = min(sleep_seconds, remaining)
+                time.sleep(sleep_seconds)
         finally:
             client.close()
     return 0
