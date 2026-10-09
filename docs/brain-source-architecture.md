@@ -224,6 +224,21 @@ passed on the 1,253 qualified transfer records. This is a census only of that de
 those captured blocks; it does not establish global PumpSwap or market-process completeness.
 Receipt: [v2 captured-class census](evidence/helius-pumpswap-sell23-ledger-v2-capture-census-2026-10-09.json).
 
+The pinned v1 `buy_exact_quote_in` path now has an offline structural attempt census over those same
+512 Helius full-block captures: 642,312 transactions, 12,120 unique candidate transactions, and
+12,143 instruction references across 507 slots, with no normalization failures. Of these refs,
+8,422 came from successful transactions and 3,698 from failed transactions; failed rows remain
+attempt-only. A source-bound attempt inspector recognizes the pinned 25-byte IDL shape only when
+the trailing boolean is 0/1, and validates the documented two-account fee/quote-ATA suffix as a
+candidate. It found 1,377 such 25-byte/two-account suffix candidates (1,299 successful-transaction
+refs, 78 failed attempts). Another 25 refs had a structurally valid pair but failed the conservative
+transaction-wide readonly check for the fee wallet. Three-account suffix predecessors and
+four/seven-account suffixes remain unresolved; 24/26-byte payloads remain unverified. This is not
+an economic fill decoder, transaction settlement, completeness, exact-zero, wallet-net price, or
+training/execution admission. The 13:00Z archive remains sealed for a one-time independent audit;
+freeze implementation and selection rules before opening it. Receipt:
+[`buyExact v1 attempt census`](evidence/pumpswap-buy-exact-v1-attempt-census-2026-10-10.json).
+
 One finalized slot was then fetched with full `getBlock` transactions from Alchemy Free and an
 independent public Solana RPC. Both HTTP responses were complete and agreed on block identity,
 parent linkage, 1,132 transaction entries, and the ordered flattened sequence of 1,171 signatures.

@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-09 Europe/Moscow. Start from `docs/INDEX.md`; verify live state before acting.
+**As of:** 2026-10-10 Europe/Moscow. Start from `docs/INDEX.md`; verify live state before acting.
 
 ## Goal and boundaries
 
@@ -12,9 +12,8 @@ standby. No Grok.
 
 ## Current host state
 
-- Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; code
-  milestone `abfc531` is committed. Do not push. Pair64 receipt/docs and current handoff are being
-  finalized against the committed audit code.
+- Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; verify
+  `git status` and HEAD at entry. Do not push. Production checkout remains untouched.
 - Disk has 70 GiB free at current review. No external research volume is mounted. Helius Free
   plan info is available, but its account usage meter is not. Alchemy MCP returned an aggregate
   team meter of 18,680 CU / rounded $0.01 MTD; it is not attributable to this epoch or the Free app.
@@ -26,9 +25,11 @@ standby. No Grok.
 - The repeated-failure decode watchers, terminal old Helius address watcher, and Public RPC program
   watchers v2/v3 are unloaded; logs, STOP records, and raw captures remain. Helius watch v3 is the
   only remaining scheduled prospective sensor in this set: a capped sparse address-reference stream.
-  Its 18:00Z root used 1,100 attempts (1,099 captures, one failure), raw response bodies totalled
-  23.446 MB within a 42,216 KiB root, then it recorded STOP with pending references. The next
-  six-hour epoch is fresh and cannot bridge that gap; it does not prove market or trade completeness.
+  Its 18:00Z root used 1,100 attempts (1,099 captures, one failure), recorded STOP with pending
+  references, and is marked already attempted; no later epoch exists as of 2026-10-09 21:09Z. The
+  LaunchAgent is loaded but not running between five-minute scheduler invocations. It must not
+  replay or imply continuity. The resulting gap is explicit; this stream is not market/trade
+  completeness.
 
 ## Senses facts
 
@@ -50,24 +51,23 @@ standby. No Grok.
   exact full target-account settlements, 843 censored native settlements, two unsupported token
   instructions; all six transfer/event/fee equations passed for 1,253 qualified transfers. No
   wallet-net price, training admission, execution quality, or market completeness claim.
-- Existing v1 `buy_exact_quote_in` checks are diagnostic-only. Fresh development and sealed audit
-  qualification are still required. Unknown layouts, Token-2022 effects, unexplained lamport/rent/
-  close effects, and unsupported remaining accounts stay quarantined. Event, receipt, availability,
-  and decision times remain distinct; unknown is not zero.
-- Preliminary offline v1-discriminator census through the compiled-instruction normalizer: 512/512
-  pair64 Helius full blocks, 642,312 transactions, zero normalization failures; 12,120 candidate
-  transactions / 12,143 instruction refs across 507 slots (8,422 succeeded, 3,698 failed). Ref data
-  lengths were 24: 2,046; 25: 9,605; 26: 492. This is only a reference census; no fills were inferred,
-  and `buy_exact_quote_in_v2` was not included. Sol directs development on 15:00Z pair64 and allows
-  the unread 13:00Z epoch as sealed audit if disjointness/provenance are bound before opening.
+- `buy_exact_quote_in` v1 now has a tracked source-bound attempt/suffix census receipt. It is
+  structural only: 12,120 candidate transactions / 12,143 refs across 507 slots; 1,377 refs meet
+  the pinned 25-byte/two-account documented suffix candidate shape. Failed transactions remain
+  attempts. No settlement, economic qualification, or admission is implemented. The 13:00Z archive
+  remains unopened for this class and is reserved for one-time sealed audit after implementation,
+  plan, and acceptance checks are frozen. `buy_exact_quote_in_v2`, Token-2022 effects and unverified
+  payload/suffix layouts remain out of scope/quarantined.
 - No fresh independent model comparison, real-source fit, calibrated execution result, market edge,
   or profit claim. Sensing still lacks broad market/process completeness; do not call Senses complete.
 
 ## Next decision horizon
 
-1. Finish the provider-audit/scheduler milestone and bind its receipt to committed source.
-2. Use the 15:00Z pair64 archive to inspect deterministic development cases by instruction length,
-   invocation location, tx result, and multi-reference/sibling patterns; include v2 in a separate
-   census. Implement only source-confirmed layouts under Sol's attempt/fill contract.
-3. Freeze code, selection rule, checks, and the unread 13:00Z archive hash before a one-time sealed
-   audit. Do not tune on that audit; keep all unknowns/censoring explicit. No Cortex.
+1. Freeze a deterministic bounded v1 development sample from the 15:00Z pair64 archive and inspect
+   full ordered transaction effects; settle only source-supported outcomes under Sol's
+   attempt/fill contract.
+2. Before opening 13:00Z for buyExact, bind its untouched raw-manifest hash and prove disjointness;
+   freeze implementation, selection, expected checks, and failure policy. Do not tune on audit.
+3. Decide separately whether the capped v3 address-reference stream should be replaced with a
+   recoverable prospective sensor that preserves explicit gaps and charged attempts. Do not restart
+   the exhausted epoch. No Cortex.

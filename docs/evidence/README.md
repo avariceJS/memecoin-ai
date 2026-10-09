@@ -199,3 +199,4 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   split and three CPU fits at `24ae9ae`. Broader data beats neural controls but loses to empirical
   train quantiles; source/context/admission/exposure denominators, paired mint intervals and access
   disclosures are retained. Payloads: `work/brain-diverse-campaign-20261008/`.
+- `pumpswap-buy-exact-v1-attempt-census-2026-10-10.json`: offline structural attempt census for the pinned v1 instruction in the captured 512-block Helius class; no settlement or completeness claim.
