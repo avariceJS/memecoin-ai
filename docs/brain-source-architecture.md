@@ -640,10 +640,17 @@ were a feasibility selection, not a probability sample or broad-completeness res
 recovered about 159 structural references per full-block request and averaged 4.3 MB per full block
 per provider, substantially improving request efficiency over one `getTransaction` per signature.
 Receipt: [`helius-public-block-provider-pilot-2026-10-09.json`](evidence/helius-public-block-provider-pilot-2026-10-09.json).
-Next: use a precommitted, stratified finalized-slot sample across three UTC days, preserve the
-prospective public signature watch independently, and report only sampled-block agreement. The sample
-is not a permanent request/credit ceiling; scale it based on measured discrepancy yield, uncertainty,
-actual billed credits, durable raw bytes, and available storage.
+The next wave is precommitted in
+[`helius-public-block-sample-precommit-2026-10-09.json`](evidence/helius-public-block-sample-precommit-2026-10-09.json):
+2,880 selected slots across three days, 24 equal slot-number strata/day, 144 random 20-slot windows,
+and one seeded signatures-only cross-check per window. UTC-hour alignment is an approximation from
+a short measured slot-rate interval and will be audited from captured blockTime. It expects 3,168
+calls/credits per provider on current published pricing and about 24.8 GB paired from the pilot's
+full-block mean alone. This wave stops at 30 GB paired raw responses, 75,000 expected Helius credit
+reservations total, 25,000/day, or 4 Helius RPS; public calls share the 1 RPS gate. These are bounds
+for this wave, not durable Brain caps. Preserve the prospective public signature watch independently
+and report only sampled-block agreement; scale subsequent waves from measured discrepancy yield,
+uncertainty, actual billing evidence, durable raw bytes, and available storage.
 
 The 2026-10-09 `brain-experience-v3` contract carries typed native coordinates alongside independent
 UTC availability. Origins, dependency extents, target windows, maturity and role intervals name a

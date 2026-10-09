@@ -67,6 +67,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
   only because Helius explicitly truncated `meta.logMessages`. Raw provider bodies and the corrected
   full comparison remain under ignored `work/`; this is a non-random qualification pilot, not broad
   completeness evidence. The follow-up sample is deliberately larger than this first pilot.
+- Precommitted follow-up sample: `helius-public-block-sample-precommit-2026-10-09.json` pins the
+  seed, integer-slot windows, signature-only subset, estimated time strata, and wave-specific
+  request/credit/byte bounds before any sample request. The plan contains no raw chain payloads.
 - Sensing schedule, multistream point-in-time episode, enrollment re-entry and account-budget
   dry-run tests are in `tests/test_experience_sensing.py` and `tests/test_experience_sparse.py`;
   schedule resource measurements are synthetic and small.
