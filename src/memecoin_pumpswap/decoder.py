@@ -432,12 +432,14 @@ def decode(tx, schema=SCHEMA):
     if mismatches:
         result["errors"].append(dict(category="vault_delta_mismatch", accounts=mismatches))
     result["status"] = (
-        "reconciled_candidate"
+        "unsupported_instruction"
+        if result["unknown_instructions"] and not result["swaps"] and not result["errors"]
+        else "reconciled_candidate"
         if result["vault_balance_reconciled"]
         and not result["unknown_instructions"]
         and all(not s["blockers"] for s in result["swaps"])
         else "quarantined"
-        if result["swaps"] or result["errors"]
+        if result["swaps"] or result["errors"] or result["unknown_instructions"]
         else "no_supported_swap"
     )
     return result

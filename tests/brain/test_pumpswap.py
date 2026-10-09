@@ -216,6 +216,16 @@ def test_exact_quote_v1_unexplained_transfer_stays_quarantined(corruption):
     assert "economic_fee_semantics_diagnostic_only" not in swap["blockers"]
 
 
+def test_unknown_pumpswap_instruction_is_not_reported_as_no_supported_swap():
+    tx, _ = fixture()
+    tx["transaction"]["message"]["instructions"][0]["data"] = encode58(b"unknown-revision")
+
+    result = decode(tx)
+
+    assert result["unknown_instructions"] == [[0]]
+    assert result["status"] == "unsupported_instruction"
+
+
 def test_version_one_static_account_transaction_uses_same_strict_decode():
     tx, _ = fixture()
     tx["version"] = 1

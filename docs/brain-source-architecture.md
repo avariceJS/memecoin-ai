@@ -45,6 +45,9 @@ program-address index, not a pool census. At the first decoder census boundary (
 41 were failed on-chain transactions, 63 had no supported PumpSwap swap, and 175 remained
 quarantined. Coverage and completeness are unknown. Do not admit these rows as exact market activity
 or zero until independently reconciled.
+An unrecognized PumpSwap instruction discriminator is explicitly surfaced as
+`unsupported_instruction`, never summarized as `no_supported_swap`; recognized rows with unresolved
+semantics remain quarantined.
 
 The commit-bound read-only exception watcher records decoder/schema pins, transaction-shape classes,
 representative signature hashes, raw-capture links, receipt/event times and new-class alerts. It
