@@ -85,6 +85,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   and all 146 contain its explicit truncation marker. Alchemy inventory failed once; its unsampled
   slot coverage remains unknown. The receipt binds the ignored raw root and complete offline audit
   hash; it does not claim transaction discovery completeness or economic agreement.
+- First real Helius-only inventory-first v2 frame after the scheduler binding migration:
+  `helius-inventory-v2-first-frame-2026-10-09.json`. It records 34 successful requests, a 9,261-slot
+  provider-returned inventory denominator, 16/16 selected structural self-checks and explicit raw /
+  zstd accounting. The captured-class instruction references are not economic swaps; account-level
+  charge units and global completeness remain unknown. Raw captures stay in ignored `work/`.
 - Frozen PumpSwap sell23 full-transaction legacy-token ledger v2 qualification:
   `helius-pumpswap-sell23-ledger-v2-development-qualification-2026-10-09.json` and
   `helius-pumpswap-sell23-ledger-v2-audit-qualification-2026-10-09.json`. Fresh disjoint samples

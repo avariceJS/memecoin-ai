@@ -788,16 +788,25 @@ The pair64 campaign remains stopped; its raw captures are retained. Watch-v3's 1
 epochs have STOP records; no future bucket may bridge either stopped epoch. The inventory-first v2
 pilot has begun in `work/brain-senses-live-helius-inventory-v2-16-hourly-20261010/`: bootstrap at
 22:43Z on 2026-10-09 observed finalized slot 455028551 and committed frontier 455028552. No block
-body has yet been requested and no v2 LaunchAgent is loaded. The 23:00Z invocation on 2026-10-09
-failed preflight with `schedule_binding_changed`, before another request reservation. The scheduler
-compared the original source commit with moving repository HEAD, although its behavior code and
-locked configuration were unchanged. A reviewed compatibility fix treats commit as provenance,
-keeps source/config hashes strict, and records a one-time append-only hash-bound migration with the
-original manifest, bootstrap evidence and exact scheduler diff. The original schedule manifest and
-bootstrap epoch remain immutable. The migration is accepted only after no-RPC validation and a
-read-only check that the bootstrap is still the sole reservation and frontier is 455028552. Record
-the missed bucket; invoke only the current real bucket, never backdate or replay the bootstrap. At
-22:45Z there were about 70 GiB free; recheck disk before any request.
+body had been requested at the initial check and no v2 LaunchAgent was loaded. The first 23:00Z
+preflight failed with `schedule_binding_changed` before another reservation. The scheduler compared
+the original source commit with moving repository HEAD although behavior code and locked
+configuration were unchanged. The same real 23:00Z bucket later completed at 23:17Z without
+backdating or repeating bootstrap. Two append-only, hash-bound migration records preserve the
+original manifest, bootstrap evidence and exact scheduler diffs; one fixes the provenance binding,
+the second corrects bootstrap verification after the frontier advances. Both preserve strict source,
+configuration, request and recovery bindings. The original schedule manifest and bootstrap epoch
+remain unchanged.
+
+The first frame covered numeric slots `[455028552,455037817)`: 9,261 provider-returned produced-slot
+members, 16 sampled blocks, and 16/16 full/signature self-checks. It used 34 captured requests,
+71,939,096 raw bytes and 15,335,264 zstd bytes over an 18.2-second receipt span. Structural replay
+counted 2,203 PumpSwap instruction references in selected blocks (1,943 in successful and 260 in
+failed transactions); these are not economic swaps or exact activity. Four numeric positions were
+absent from the provider's returned inventory. The selection does not establish global slot,
+transaction, market or process completeness, and no exact economic zero is allowed. Helius charge
+units and account usage remain unverified. Current free disk is about 70 GiB; no v2 LaunchAgent is
+loaded. Receipt: [`helius-inventory-v2-first-frame-2026-10-09.json`](evidence/helius-inventory-v2-first-frame-2026-10-09.json).
 
 The next finalized-block process is a new versioned sensor. It must pin a finalized numeric slot
 frame, seed, selection rule, provider and request/byte budgets before acquisition; capture and hash
@@ -825,16 +834,19 @@ completeness. The scheduler pins immutable source/config identity, records commi
 serializes campaign writes, accounts for outstanding worst-case response reservations, and checks
 disk headroom before each request. Interrupted epochs must match their saved plan and current
 approved source hashes before recovery. Helius charge units remain unknown; request counts are
-recorded separately. The focused suite has 14 passing tests. Sol selected a Helius-only hourly pilot with 16 sampled
+recorded separately. The focused suite has 15 passing tests. Sol selected a Helius-only hourly pilot with 16 sampled
 produced slots, a 20,000-slot frame cap, zstd storage, and a 50 GiB pre-request free-space floor.
 Each frame allows 34 reservations, 256 MB raw and 128 MB stored; the campaign allows 25 epochs
 (one bootstrap plus at most 24 frames), 817 reservations, 4 GB raw and 1 GB stored. The rough
 measured projection is 84 MB raw and 34 requests per frame, about 2.0 GB raw across 24 frames;
 stored bytes are projected near 0.46 GB using the mixed-provider pair64 ratio, not a guarantee.
-Run bootstrap and three real hourly frames as one-shot invocations and inspect their complete
-accounting and structural self-checks. Bootstrap is complete; three frames remain before the first
-checkpoint. Only then enable the hourly LaunchAgent on the same locked campaign, if healthy. Before
-each invocation, recheck the actual UTC bucket, disk, and runtime state.
+Run three real hourly frames after bootstrap as one-shot invocations and inspect their complete
+accounting and structural self-checks. Bootstrap and the 23:00Z frame are complete; two frames
+remain before the first checkpoint. Only then enable the hourly LaunchAgent on the same locked
+campaign, if healthy. Invoke with the research `src/` import path explicitly (or the research
+environment that installs it editable); a shell Python without it imported an older installed
+package from the separate production checkout and failed before I/O. Before each invocation,
+recheck the actual UTC bucket, disk, and runtime state.
 Missed intervals stay in the same slot-coordinate frame only within the 20,000-slot cap; larger
 intervals seal as unknown gaps. Alchemy pairing stays disabled until an account-level limit is
 verifiable.
