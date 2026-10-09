@@ -8,7 +8,7 @@ from pathlib import Path
 from memecoin_ai.domain import canonical, digest
 from memecoin_ai.sources import Capture
 from tools.brain_senses_decode_watch import run_once
-from tools.brain_senses_program_watch import poll_once
+from tools.brain_senses_program_watch import _record_source_epoch, poll_once
 
 
 class FakeRPC:
@@ -93,6 +93,19 @@ def test_program_watch_stops_on_ambiguous_reserved_request(tmp_path: Path) -> No
     else:
         raise AssertionError("ambiguous reservation must stop without retry")
     assert rpc.calls == []
+
+
+def test_program_watch_new_epoch_does_not_inherit_parent_cursor(tmp_path: Path) -> None:
+    parent = tmp_path / "old"
+    (parent / "request-results").mkdir(parents=True)
+    (parent / "STOP").write_text('{"reason":"old_transport_failure"}\n')
+    (parent / "request-results" / "000000000001.json").write_text('{"received_ns":987654321}\n')
+
+    manifest = _record_source_epoch(tmp_path / "new", "helius-free", parent)
+
+    assert manifest["parent_last_receipt_ns"] == 987654321
+    assert manifest["cursor_inheritance"] == "none"
+    assert "old gaps remain unknown" in manifest["first_query_policy"]
 
 
 def test_decode_watch_is_incremental_commit_bound_and_never_admits(tmp_path: Path) -> None:

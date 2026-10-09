@@ -99,6 +99,41 @@ def _provider_endpoint(provider: str) -> tuple[str, str]:
     return value, provider
 
 
+def _record_source_epoch(root: Path, provider: str, parent_root: Path | None) -> dict[str, Any]:
+    """Pin a fresh address-index observation without inheriting an old cursor."""
+    path = root / "source-epoch.json"
+    if path.exists():
+        return _read(path)
+    if any((root / "requests").glob("*.json")):
+        raise ValueError("source_epoch_missing_for_existing_requests")
+    parent_stop = parent_root / "STOP" if parent_root is not None else None
+    parent_results = parent_root / "request-results" if parent_root is not None else None
+    previous_receipts = []
+    if parent_results is not None and parent_results.exists():
+        for result_path in parent_results.glob("*.json"):
+            result = _read(result_path)
+            receipt_ns = result.get("receipt_ns") or result.get("received_ns")
+            if isinstance(receipt_ns, int):
+                previous_receipts.append(receipt_ns)
+    manifest = {
+        "schema_version": 1,
+        "epoch_id": root.name,
+        "provider": provider,
+        "created_ns": time.time_ns(),
+        "parent_epoch_root": str(parent_root) if parent_root else None,
+        "parent_stop": _read(parent_stop) if parent_stop and parent_stop.exists() else None,
+        "parent_last_receipt_ns": max(previous_receipts, default=None),
+        "cursor_inheritance": "none",
+        "first_query_policy": (
+            "fresh current-head observation with no before/until cursor; "
+            "overlap is recorded and old gaps remain unknown"
+        ),
+        "completeness": "unknown",
+    }
+    _create(path, manifest)
+    return manifest
+
+
 def _reserve(root: Path, seq: int, method: str, params: list[Any], scheduled_ns: int) -> Path:
     request = dict(jsonrpc="2.0", id=1, method=method, params=params)
     body = canonical(request).encode()
@@ -541,6 +576,7 @@ def main() -> int:
     parser.add_argument("--daily-request-cap", type=int, default=20_000)
     parser.add_argument("--max-pages", type=int, default=4)
     parser.add_argument("--page-limit", type=int, default=1000)
+    parser.add_argument("--parent-epoch-root", type=Path)
     parser.add_argument("--once", action="store_true")
     args = parser.parse_args()
     if not 5 <= args.poll_seconds <= 3600 or not 0.25 <= args.pace_seconds <= 10:
@@ -559,6 +595,7 @@ def main() -> int:
             return 2
         signal.signal(signal.SIGTERM, _stop)
         signal.signal(signal.SIGINT, _stop)
+        _record_source_epoch(args.root, args.provider, args.parent_epoch_root)
         _reconcile_daily_count(args.root)
         rpc_endpoint, source_alias = _provider_endpoint(args.provider)
         client = ReadOnlyRPC(
