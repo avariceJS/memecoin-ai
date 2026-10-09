@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 from typing import Any
 
 from memecoin_ai.domain import canonical
 from memecoin_ai.sources import Capture
-from tools.brain_senses_block_provider_pilot import run_once
+from tools.brain_senses_block_provider_pilot import MAX_RESPONSE_BYTES, run_once
 
 
 class FakeBlockRPC:
@@ -99,3 +100,44 @@ def test_block_pilot_failure_is_accounted_once_and_never_retried(tmp_path: Path)
     assert second["completed"] == 6
     assert helius.calls == public.calls == 3
     assert len(list((output / "requests").glob("*.json"))) == 6
+
+
+def test_helius_daily_credit_cap_stops_before_next_reserved_request(tmp_path: Path) -> None:
+    helius = FakeBlockRPC()
+    public = FakeBlockRPC()
+    output = tmp_path / "pilot"
+    result = run_once(
+        output,
+        slot_ranges=[[100, 102]],
+        request_cap=10,
+        helius_total_credit_cap=1,
+        helius_daily_credit_cap=1,
+        clients={"helius-free": helius, "solana-public": public},
+    )
+
+    assert result["attempts"] == 1
+    assert result["helius_credit_reservations"] == 1
+    assert helius.calls == 1
+    assert public.calls == 0
+    assert json.loads((output / "STOP").read_text())["reason"] == "helius_wave_credit_cap"
+
+
+def test_captured_byte_cap_stops_before_next_request_reservation(tmp_path: Path) -> None:
+    helius = FakeBlockRPC()
+    public = FakeBlockRPC()
+    output = tmp_path / "pilot"
+    result = run_once(
+        output,
+        slot_ranges=[[100, 102]],
+        request_cap=10,
+        max_captured_bytes=MAX_RESPONSE_BYTES,
+        clients={"helius-free": helius, "solana-public": public},
+    )
+
+    assert result["attempts"] == 1
+    assert result["captured_response_bytes"] < MAX_RESPONSE_BYTES
+    assert helius.calls == 1
+    assert public.calls == 0
+    assert json.loads((output / "STOP").read_text())["reason"] == (
+        "captured_response_byte_cap_before_request"
+    )

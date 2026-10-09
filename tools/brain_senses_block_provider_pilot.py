@@ -38,7 +38,9 @@ from tools.brain_senses_program_watch import (  # noqa: E402
 STOP = False
 PROVIDERS = ("helius-free", "solana-public")
 DETAILS = ("signatures", "full")
-MAX_REQUESTS_PER_PROVIDER = 1000
+MAX_REQUESTS_PER_PROVIDER = 10_000
+MAX_SLOT_RANGES = 160
+MAX_TOTAL_SLOTS = 3_200
 MAX_RESPONSE_BYTES = 32_000_000
 PUMP_PROGRAM = SCHEMA["address"]
 
@@ -57,10 +59,15 @@ def _parse_ranges(values: list[str]) -> list[list[int]]:
         if start < 1 or end <= start or end - start > 256:
             raise ValueError("slot_range_outside_pilot_bound")
         ranges.append([start, end])
-    if not ranges or len(ranges) > 8:
-        raise ValueError("pilot_requires_1_to_8_slot_ranges")
+    if not ranges or len(ranges) > MAX_SLOT_RANGES:
+        raise ValueError("pilot_range_count_outside_bound")
     if len({tuple(pair) for pair in ranges}) != len(ranges):
         raise ValueError("duplicate_slot_range")
+    ordered = sorted(ranges)
+    if any(left[1] > right[0] for left, right in zip(ordered, ordered[1:], strict=False)):
+        raise ValueError("overlapping_slot_ranges")
+    if sum(end - start for start, end in ranges) > MAX_TOTAL_SLOTS:
+        raise ValueError("pilot_total_slots_outside_bound")
     return ranges
 
 
@@ -100,11 +107,25 @@ def _build_operations(slot_ranges: list[list[int]]) -> list[dict[str, Any]]:
     return operations
 
 
-def _plan(slot_ranges: list[list[int]], request_cap: int, helius_pace: float) -> dict[str, Any]:
+def _plan(
+    slot_ranges: list[list[int]],
+    request_cap: int,
+    helius_pace: float,
+    sampling_metadata: dict[str, Any] | None = None,
+    max_captured_bytes: int = 30_000_000_000,
+    helius_total_credit_cap: int = 75_000,
+    helius_daily_credit_cap: int = 25_000,
+) -> dict[str, Any]:
     if not 1 <= request_cap <= MAX_REQUESTS_PER_PROVIDER:
         raise ValueError("request_cap_outside_hard_bound")
     if not 0.25 <= helius_pace <= 10:
         raise ValueError("helius_pace_outside_bound")
+    if not MAX_RESPONSE_BYTES <= max_captured_bytes <= 100_000_000_000:
+        raise ValueError("captured_byte_cap_outside_bound")
+    if not 1 <= helius_daily_credit_cap <= 1_000_000:
+        raise ValueError("helius_daily_credit_cap_outside_bound")
+    if not helius_daily_credit_cap <= helius_total_credit_cap <= 1_000_000:
+        raise ValueError("helius_total_credit_cap_outside_bound")
     operations = _build_operations(slot_ranges)
     per_provider = {
         provider: sum(op["provider"] == provider for op in operations) for provider in PROVIDERS
@@ -123,6 +144,13 @@ def _plan(slot_ranges: list[list[int]], request_cap: int, helius_pace: float) ->
         providers=list(PROVIDERS),
         slot_ranges=slot_ranges,
         request_caps={provider: request_cap for provider in PROVIDERS},
+        wave_limits={
+            "max_captured_response_bytes_both_providers": max_captured_bytes,
+            "helius_expected_credit_reservations_total": helius_total_credit_cap,
+            "helius_expected_credit_reservations_per_utc_day": helius_daily_credit_cap,
+            "helius_expected_credits_per_standard_rpc_request": 1,
+            "helius_actual_billing_meter_available": False,
+        },
         expected_requests=per_provider,
         helius_pace_seconds=helius_pace,
         public_shared_rate_ledger_env="MEMECOIN_SOLANA_PUBLIC_RATE_LEDGER",
@@ -142,6 +170,7 @@ def _plan(slot_ranges: list[list[int]], request_cap: int, helius_pace: float) ->
             "public": "unmetered public RPC request count; shared 1 request/second start gate",
         },
         operations=operations,
+        sampling_metadata=sampling_metadata,
         scope="provider-returned finalized slots only; no global ledger completeness claim",
     )
 
@@ -506,11 +535,23 @@ def run_once(
     root: Path,
     *,
     slot_ranges: list[list[int]],
-    request_cap: int = 1000,
+    request_cap: int = MAX_REQUESTS_PER_PROVIDER,
     helius_pace: float = 0.25,
+    sampling_metadata: dict[str, Any] | None = None,
+    max_captured_bytes: int = 30_000_000_000,
+    helius_total_credit_cap: int = 75_000,
+    helius_daily_credit_cap: int = 25_000,
     clients: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    plan = _plan(slot_ranges, request_cap, helius_pace)
+    plan = _plan(
+        slot_ranges,
+        request_cap,
+        helius_pace,
+        sampling_metadata,
+        max_captured_bytes,
+        helius_total_credit_cap,
+        helius_daily_credit_cap,
+    )
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(root, 0o700)
     for name in ("requests", "request-results", "captures", "observations", "events"):
@@ -531,6 +572,19 @@ def run_once(
     if state_path.exists() and _read(state_path).get("plan_sha256") != _sha(plan_path):
         raise ValueError("block_pilot_state_plan_mismatch")
     _replace(state_path, state)
+    captured_bytes = sum(
+        int(_read(path).get("response_bytes") or 0)
+        for path in (root / "request-results").glob("*.json")
+    )
+    helius_reservations = [
+        _read(path)
+        for path in (root / "requests").glob("*.json")
+        if _read(path).get("provider") == "helius-free"
+    ]
+    helius_reservations_by_day: dict[str, int] = {}
+    for reservation in helius_reservations:
+        day = time.strftime("%Y-%m-%d", time.gmtime(reservation["reserved_ns"] / 1_000_000_000))
+        helius_reservations_by_day[day] = helius_reservations_by_day.get(day, 0) + 1
     own_clients = clients is None
     if own_clients:
         clients = {}
@@ -549,16 +603,51 @@ def run_once(
             if seq > request_cap * len(PROVIDERS):
                 _create(root / "STOP", dict(reason="aggregate_request_cap", time_ns=time.time_ns()))
                 break
+            if captured_bytes + MAX_RESPONSE_BYTES > max_captured_bytes:
+                _create(
+                    root / "STOP",
+                    dict(
+                        reason="captured_response_byte_cap_before_request",
+                        captured_response_bytes=captured_bytes,
+                        cap=max_captured_bytes,
+                        time_ns=time.time_ns(),
+                    ),
+                )
+                break
             if STOP:
                 break
+            if operation["provider"] == "helius-free":
+                today = time.strftime("%Y-%m-%d", time.gmtime())
+                reserved_today = helius_reservations_by_day.get(today, 0)
+                if len(helius_reservations) >= helius_total_credit_cap or (
+                    reserved_today >= helius_daily_credit_cap
+                ):
+                    _create(
+                        root / "STOP",
+                        dict(
+                            reason="helius_wave_credit_cap",
+                            expected_credit_reservations_total=len(helius_reservations),
+                            expected_credit_reservations_today=reserved_today,
+                            time_ns=time.time_ns(),
+                        ),
+                    )
+                    break
             pace = helius_pace if operation["provider"] == "helius-free" else 0.25
             wait = pace - (time.time_ns() - last_attempt[operation["provider"]]) / 1_000_000_000
             if wait > 0:
                 time.sleep(wait)
             row = _result_for(root, seq, operation, clients[operation["provider"]])
             last_attempt[operation["provider"]] = time.time_ns()
+            if operation["provider"] == "helius-free":
+                reservation = _read(root / "requests" / f"{seq:012d}.json")
+                helius_reservations.append(reservation)
+                day = time.strftime(
+                    "%Y-%m-%d", time.gmtime(reservation["reserved_ns"] / 1_000_000_000)
+                )
+                helius_reservations_by_day[day] = helius_reservations_by_day.get(day, 0) + 1
             status = row.get("result_status") or row["status"]
             outcomes[status] = outcomes.get(status, 0) + 1
+            captured_bytes += int(row.get("response_bytes") or 0)
             state = _recover(root, plan, plan_path)
             _replace(state_path, state)
         results = [_read(path) for path in sorted((root / "request-results").glob("*.json"))]
@@ -582,6 +671,7 @@ def run_once(
                 )
             },
             newly_completed=outcomes,
+            captured_response_bytes=captured_bytes,
             comparison=comparison,
             claims=(
                 "bounded provider-returned block inventories; no global ledger or "
@@ -605,8 +695,12 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--slot-range", action="append", required=True, metavar="START:END")
-    parser.add_argument("--request-cap-per-provider", type=int, default=1000)
+    parser.add_argument("--request-cap-per-provider", type=int, default=MAX_REQUESTS_PER_PROVIDER)
     parser.add_argument("--helius-pace-seconds", type=float, default=0.25)
+    parser.add_argument("--sampling-metadata", type=Path)
+    parser.add_argument("--max-captured-bytes", type=int, default=30_000_000_000)
+    parser.add_argument("--helius-total-credit-cap", type=int, default=75_000)
+    parser.add_argument("--helius-daily-credit-cap", type=int, default=25_000)
     args = parser.parse_args()
     args.root.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(args.root, 0o700)
@@ -619,11 +713,18 @@ def main() -> int:
         signal.signal(signal.SIGTERM, _signal)
         signal.signal(signal.SIGINT, _signal)
         try:
+            sampling_metadata = (
+                _read(args.sampling_metadata) if args.sampling_metadata is not None else None
+            )
             summary = run_once(
                 args.root,
                 slot_ranges=_parse_ranges(args.slot_range),
                 request_cap=args.request_cap_per_provider,
                 helius_pace=args.helius_pace_seconds,
+                sampling_metadata=sampling_metadata,
+                max_captured_bytes=args.max_captured_bytes,
+                helius_total_credit_cap=args.helius_total_credit_cap,
+                helius_daily_credit_cap=args.helius_daily_credit_cap,
             )
             print(
                 canonical(
@@ -635,6 +736,7 @@ def main() -> int:
                             "completed",
                             "attempts",
                             "helius_credit_reservations",
+                            "captured_response_bytes",
                             "outcomes",
                             "claims",
                         )
