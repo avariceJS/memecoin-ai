@@ -4,13 +4,16 @@ import fcntl
 import http.client
 import json
 import os
+import shutil
 import socket
 import ssl
+import subprocess
 import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -36,6 +39,39 @@ READ_METHODS = frozenset(
 
 class SourceError(RuntimeError):
     pass
+
+
+@lru_cache(maxsize=1)
+def _zstd_executable() -> tuple[str, str]:
+    executable = shutil.which("zstd")
+    if executable is None:
+        raise SourceError("zstd executable is required for compressed capture storage")
+    result = subprocess.run([executable, "--version"], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise SourceError("zstd version query failed")
+    return executable, result.stdout.strip()
+
+
+def verify_capture_storage_codec(codec: str) -> None:
+    if codec == "raw":
+        return
+    if codec == "zstd":
+        _zstd_executable()
+        return
+    raise ValueError("unsupported capture storage codec")
+
+
+def _atomic_write(path: Path, payload: bytes) -> None:
+    temp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with temp.open("xb") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp, path)
+    finally:
+        if temp.exists():
+            temp.unlink()
 
 
 def _reserve_shared_request_start(path: Path, interval_ns: int = 1_000_000_000) -> None:
@@ -105,22 +141,71 @@ class Capture:
     received_ns: int
     response: bytes
 
-    def save(self, path: Path) -> None:
+    def save(self, path: Path, *, storage_codec: str = "raw") -> None:
+        verify_capture_storage_codec(storage_codec)
         path.mkdir(parents=True, exist_ok=False)
-        metadata = {
-            "schema_version": 1,
+        metadata: dict[str, object] = {
+            "schema_version": 1 if storage_codec == "raw" else 2,
             **{k: v for k, v in asdict(self).items() if k != "response"},
             "response_sha256": digest(self.response),
+            "response_bytes": len(self.response),
             "semantics": "HTTP receipt now; not historical market availability",
         }
-        (path / "response.json").write_bytes(self.response)
-        (path / "receipt.json").write_text(canonical(metadata) + "\n")
+        if storage_codec == "raw":
+            _atomic_write(path / "response.json", self.response)
+        else:
+            executable, version = _zstd_executable()
+            stored = subprocess.run(
+                [executable, "--quiet", "--fast=3", "--stdout"],
+                input=self.response,
+                capture_output=True,
+                check=False,
+            )
+            if stored.returncode != 0:
+                raise SourceError("zstd capture compression failed")
+            compressed = stored.stdout
+            _atomic_write(path / "response.json.zst", compressed)
+            metadata["storage"] = {
+                "codec": "zstd",
+                "codec_version": version,
+                "path": "response.json.zst",
+                "sha256": digest(compressed),
+                "bytes": len(compressed),
+            }
+        _atomic_write(path / "receipt.json", (canonical(metadata) + "\n").encode())
 
     @classmethod
     def load(cls, path: Path) -> Capture:
         metadata = strict_json((path / "receipt.json").read_text())
-        body = (path / "response.json").read_bytes()
-        if metadata.get("schema_version") != 1 or digest(body) != metadata["response_sha256"]:
+        if metadata.get("schema_version") == 1:
+            body = (path / "response.json").read_bytes()
+        elif metadata.get("schema_version") == 2:
+            storage = metadata.get("storage")
+            if (
+                not isinstance(storage, dict)
+                or storage.get("codec") != "zstd"
+                or storage.get("path") != "response.json.zst"
+                or not isinstance(storage.get("codec_version"), str)
+            ):
+                raise SourceError("capture storage metadata mismatch")
+            stored = (path / "response.json.zst").read_bytes()
+            if len(stored) != storage.get("bytes") or digest(stored) != storage.get("sha256"):
+                raise SourceError("compressed capture checksum mismatch")
+            executable, _ = _zstd_executable()
+            decoded = subprocess.run(
+                [executable, "--quiet", "--decompress", "--stdout"],
+                input=stored,
+                capture_output=True,
+                check=False,
+            )
+            if decoded.returncode != 0:
+                raise SourceError("compressed capture decompression failed")
+            body = decoded.stdout
+        else:
+            raise SourceError("capture checksum/schema mismatch")
+        if digest(body) != metadata["response_sha256"] or metadata.get(
+            "response_bytes", len(body)
+        ) != len(body):
             raise SourceError("capture checksum/schema mismatch")
         request = strict_json(metadata["request_json"])
         if request.get("method") != metadata["method"] or request.get("id") != 1:

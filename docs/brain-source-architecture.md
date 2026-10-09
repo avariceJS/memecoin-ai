@@ -3,6 +3,12 @@
 **Status:** raw Solana history and qualified OHLCV are separate, partially connected lanes.
 This document owns source roles, data admission, coverage, and acquisition design.
 
+**Scale target:** the Brain is intended to grow across very large market populations, long-lived
+prospective history, multiple venues/modalities, and future worker/GPU scale-out. Today's OHLCV,
+small slot samples, narrow venue paths, small models, and one-host limits are evidence fixtures,
+not target boundaries; data contracts, provenance, recovery, and representations must extend without
+a full redesign.
+
 ## Source roles
 
 | Source | Current role | Limitation |
@@ -693,6 +699,19 @@ the public sample returned 2,304 references from its 11 full blocks. These count
 trades. Public failures remain unknown. This is source/range-bounded observation, not global market
 coverage or a lifecycle claim. Receipt:
 [`helius-public-prospective-block-epoch-2026-10-09.json`](evidence/helius-public-prospective-block-epoch-2026-10-09.json).
+
+For the following independent verification horizon, Sol approved a 72-hour seeded sample of 256
+Helius slots/hour, paired with 16 randomly selected public-RPC slots/hour spread through each hour.
+This is about four times the current Helius sampling breadth and approximately 12,500 standard
+credits/day at current request accounting, before any later evidence-based widening. It remains
+sampled coverage. The new wave must account credits against the shared Free allowance with a reserve
+while the live account meter is unavailable, preserve unknown public failures, and review success,
+discrepancy yield, and disk after 24 hours. A measured three-block lossless zstd probe reduced
+4.3–5.0 MB responses to 0.57–0.61 MB; this is a sizing estimate, not a guarantee. Future block raw
+captures can opt into zstd while receipts retain original response hash/length and stored-object
+hash/length, codec/version, request identity, and receipt time. Existing raw roots stay unchanged;
+decoders must verify the stored checksum and decompressed original hash before parsing. These
+per-wave credit and sample sizes are not durable quota ceilings.
 
 The first paired window wrote 152.6 MB to disk (96.8 MB Helius, 55.8 MB public) including only 11
 public full blocks. Helius watch v2 had captured 1,001 request results / 17.7 MB at its terminal

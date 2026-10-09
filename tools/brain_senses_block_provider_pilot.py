@@ -21,7 +21,13 @@ from pathlib import Path
 from typing import Any
 
 from memecoin_ai.domain import canonical, digest
-from memecoin_ai.sources import Capture, HTTPSourceError, ReadOnlyRPC, TransportSourceError
+from memecoin_ai.sources import (
+    Capture,
+    HTTPSourceError,
+    ReadOnlyRPC,
+    TransportSourceError,
+    verify_capture_storage_codec,
+)
 from memecoin_pumpswap.schema import SCHEMA
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -127,6 +133,7 @@ def _plan(
     helius_total_credit_cap: int = 75_000,
     helius_daily_credit_cap: int = 25_000,
     providers: tuple[str, ...] = PROVIDERS,
+    capture_storage_codec: str = "raw",
 ) -> dict[str, Any]:
     if (
         not providers
@@ -144,6 +151,7 @@ def _plan(
         raise ValueError("helius_daily_credit_cap_outside_bound")
     if not helius_daily_credit_cap <= helius_total_credit_cap <= 1_000_000:
         raise ValueError("helius_total_credit_cap_outside_bound")
+    verify_capture_storage_codec(capture_storage_codec)
     sample_set = set(signature_sample_slots) if signature_sample_slots is not None else None
     if sample_set is not None:
         if len(sample_set) != len(signature_sample_slots or []):
@@ -180,6 +188,7 @@ def _plan(
         helius_pace_seconds=helius_pace,
         public_shared_rate_ledger_env="MEMECOIN_SOLANA_PUBLIC_RATE_LEDGER",
         max_response_bytes=MAX_RESPONSE_BYTES,
+        capture_storage_codec=capture_storage_codec,
         commitment="finalized",
         enumerate_method="getBlocks inclusive slot ranges",
         block_methods={
@@ -203,9 +212,10 @@ def _plan(
     )
 
 
-def _durable_capture(capture: Capture, path: Path) -> None:
-    capture.save(path)
-    for name in ("response.json", "receipt.json"):
+def _durable_capture(capture: Capture, path: Path, *, storage_codec: str) -> None:
+    capture.save(path, storage_codec=storage_codec)
+    response_name = "response.json.zst" if storage_codec == "zstd" else "response.json"
+    for name in (response_name, "receipt.json"):
         with (path / name).open("rb") as stream:
             os.fsync(stream.fileno())
     fd = os.open(path, os.O_RDONLY)
@@ -221,7 +231,12 @@ def _durable_capture(capture: Capture, path: Path) -> None:
 
 
 def _result_for(
-    root: Path, sequence: int, operation: dict[str, Any], client: Any
+    root: Path,
+    sequence: int,
+    operation: dict[str, Any],
+    client: Any,
+    *,
+    storage_codec: str,
 ) -> dict[str, Any]:
     request = dict(jsonrpc="2.0", id=1, method=operation["method"], params=operation["params"])
     body = canonical(request).encode()
@@ -246,7 +261,7 @@ def _result_for(
     try:
         capture = client.fetch(operation["method"], operation["params"])
         rel = f"captures/{operation['provider']}/{sequence:012d}"
-        _durable_capture(capture, root / rel)
+        _durable_capture(capture, root / rel, storage_codec=storage_codec)
         row: dict[str, Any] = dict(
             sequence=sequence,
             provider=operation["provider"],
@@ -804,6 +819,7 @@ def run_once(
     helius_total_credit_cap: int = 75_000,
     helius_daily_credit_cap: int = 25_000,
     providers: tuple[str, ...] = PROVIDERS,
+    capture_storage_codec: str = "raw",
     clients: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     plan = _plan(
@@ -816,6 +832,7 @@ def run_once(
         helius_total_credit_cap,
         helius_daily_credit_cap,
         providers,
+        capture_storage_codec,
     )
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(root, 0o700)
@@ -901,7 +918,13 @@ def run_once(
             wait = pace - (time.time_ns() - last_attempt[operation["provider"]]) / 1_000_000_000
             if wait > 0:
                 time.sleep(wait)
-            row = _result_for(root, seq, operation, clients[operation["provider"]])
+            row = _result_for(
+                root,
+                seq,
+                operation,
+                clients[operation["provider"]],
+                storage_codec=capture_storage_codec,
+            )
             last_attempt[operation["provider"]] = time.time_ns()
             if operation["provider"] == "helius-free":
                 reservation = _read(root / "requests" / f"{seq:012d}.json")
@@ -966,6 +989,7 @@ def main() -> int:
     parser.add_argument("--max-captured-bytes", type=int, default=30_000_000_000)
     parser.add_argument("--helius-total-credit-cap", type=int, default=75_000)
     parser.add_argument("--helius-daily-credit-cap", type=int, default=25_000)
+    parser.add_argument("--capture-storage-codec", choices=("raw", "zstd"), default="raw")
     args = parser.parse_args()
     args.root.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(args.root, 0o700)
@@ -994,6 +1018,7 @@ def main() -> int:
                 max_captured_bytes=args.max_captured_bytes,
                 helius_total_credit_cap=args.helius_total_credit_cap,
                 helius_daily_credit_cap=args.helius_daily_credit_cap,
+                capture_storage_codec=args.capture_storage_codec,
             )
             print(
                 canonical(

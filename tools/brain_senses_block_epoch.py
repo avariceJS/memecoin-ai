@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from memecoin_ai.domain import canonical, digest
-from memecoin_ai.sources import Capture, ReadOnlyRPC
+from memecoin_ai.sources import Capture, ReadOnlyRPC, verify_capture_storage_codec
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -108,10 +108,12 @@ def start_epoch(
     slots_per_hour_estimate: int | None = None,
     sampling_seed: str | None = None,
     signature_check_all_slots: bool = False,
+    capture_storage_codec: str = "raw",
     clients: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not 1 <= window_slots <= MAX_WINDOW_SLOTS:
         raise ValueError("window_size_outside_bound")
+    verify_capture_storage_codec(capture_storage_codec)
     if (
         not providers
         or len(set(providers)) != len(providers)
@@ -146,6 +148,7 @@ def start_epoch(
         "sampling_seed": sampling_seed,
         "signature_check_all_slots": signature_check_all_slots,
         "max_capture_response_bytes": MAX_CAPTURE_BYTES,
+        "capture_storage_codec": capture_storage_codec,
         "retry_policy": (
             "no retries; preserve anchor failures and do not dispatch blocks after anchor failure"
         ),
@@ -269,6 +272,7 @@ def start_epoch(
             helius_total_credit_cap=MAX_WINDOW_SLOTS * 2 + 10,
             helius_daily_credit_cap=MAX_WINDOW_SLOTS * 2 + 10,
             clients=clients,
+            capture_storage_codec=capture_storage_codec,
         )
         block_capture = {
             "completed": paired["completed"],
@@ -300,6 +304,7 @@ def main() -> int:
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--old-epoch-root", type=Path)
     parser.add_argument("--window-slots", type=int, default=20)
+    parser.add_argument("--capture-storage-codec", choices=("raw", "zstd"), default="raw")
     args = parser.parse_args()
     args.root.mkdir(parents=True, exist_ok=True, mode=0o700)
     with (args.root / ".epoch.lock").open("a") as lock:
@@ -314,6 +319,7 @@ def main() -> int:
                 args.root,
                 window_slots=args.window_slots,
                 old_epoch_root=args.old_epoch_root,
+                capture_storage_codec=args.capture_storage_codec,
             )
             print(canonical(summary), flush=True)
             return 0 if summary["status"] == "provider_window_attempted" else 1

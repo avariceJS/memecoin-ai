@@ -83,6 +83,7 @@ def run_bucket(
     initial_parent_root: Path | None = None,
     slots_per_day_estimate: int = 321_661,
     campaign_hours: int = 72,
+    capture_storage_codec: str = "raw",
 ) -> dict:
     now = datetime.now(UTC)
     bucket = utc_bucket(now, interval_hours)
@@ -105,6 +106,7 @@ def run_bucket(
                 ("schedule_interval_hours", interval_hours),
                 ("campaign_hours", campaign_hours),
                 ("slots_per_day_estimate", slots_per_day_estimate),
+                ("capture_storage_codec", capture_storage_codec),
             )
         ):
             raise ValueError("campaign_binding_changed")
@@ -124,6 +126,7 @@ def run_bucket(
             "providers": ["helius-free"],
             "public_crosscheck_utc_hours": [0, 6, 12, 18],
             "signature_check": "all selected slots per requested provider",
+            "capture_storage_codec": capture_storage_codec,
             "helius_expected_credits_per_window": 2 * window_slots + 2,
             "helius_expected_credits_total": (
                 (2 * window_slots + 2) * (campaign_hours // interval_hours)
@@ -196,6 +199,7 @@ def run_bucket(
             slots_per_hour_estimate=(slots_per_day_estimate + 23) // 24,
             sampling_seed=seed,
             signature_check_all_slots=True,
+            capture_storage_codec=capture_storage_codec,
         )
         event = {
             "status": "epoch_finished",
@@ -218,6 +222,7 @@ def main() -> int:
     parser.add_argument("--initial-parent-root", type=Path)
     parser.add_argument("--slots-per-day-estimate", type=int, default=321_661)
     parser.add_argument("--campaign-hours", type=int, default=72)
+    parser.add_argument("--capture-storage-codec", choices=("raw", "zstd"), default="raw")
     args = parser.parse_args()
     if not 1 <= args.window_slots <= 64:
         parser.error("window_slots_outside_bound")
@@ -229,6 +234,7 @@ def main() -> int:
             initial_parent_root=args.initial_parent_root,
             slots_per_day_estimate=args.slots_per_day_estimate,
             campaign_hours=args.campaign_hours,
+            capture_storage_codec=args.capture_storage_codec,
         )
         from memecoin_ai.domain import canonical
 

@@ -1,9 +1,10 @@
 import json
+import shutil
 
 import pytest
 
 from memecoin_ai.domain import ValidationError
-from memecoin_ai.sources import ReadOnlyRPC, SourceError, probe_rpc
+from memecoin_ai.sources import Capture, ReadOnlyRPC, SourceError, probe_rpc
 
 
 def client(response=b'{"jsonrpc":"2.0","id":1,"result":123}'):
@@ -59,6 +60,25 @@ def test_network_identity_is_read_only_and_response_is_preserved():
     cap = client(body).fetch("getGenesisHash", [])
     assert cap.response == body
     assert cap.result() == "synthetic-genesis"
+
+
+@pytest.mark.skipif(shutil.which("zstd") is None, reason="zstd executable unavailable")
+def test_zstd_capture_round_trip_keeps_original_receipt_and_detects_damage(tmp_path):
+    body = b'{"jsonrpc":"2.0","id":1,"result":{"rows":[' + b'"market",' * 20_000 + b"null]}}"
+    cap = client(body).fetch("getBlock", [123, {"transactionDetails": "full"}])
+    root = tmp_path / "compressed"
+    cap.save(root, storage_codec="zstd")
+    receipt = json.loads((root / "receipt.json").read_text())
+    assert receipt["schema_version"] == 2
+    assert receipt["response_bytes"] == len(body)
+    assert receipt["storage"]["codec"] == "zstd"
+    assert receipt["storage"]["bytes"] < len(body)
+    assert Capture.load(root) == cap
+
+    compressed_path = root / "response.json.zst"
+    compressed_path.write_bytes(compressed_path.read_bytes()[:-1] + b"x")
+    with pytest.raises(SourceError, match="compressed capture checksum"):
+        Capture.load(root)
 
 
 def test_shared_public_rpc_gate_serializes_calls_across_clients(tmp_path, monkeypatch):
