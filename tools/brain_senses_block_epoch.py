@@ -184,7 +184,10 @@ def start_epoch(
             old_stop = old_epoch_root / "STOP"
             old_results = old_epoch_root / "request-results"
             old_last_receipt = max(
-                (_read(path).get("receipt_ns", 0) for path in old_results.glob("*.json")),
+                (
+                    _read(path).get("receipt_ns") or _read(path).get("received_ns") or 0
+                    for path in old_results.glob("*.json")
+                ),
                 default=None,
             )
             old_gap = {

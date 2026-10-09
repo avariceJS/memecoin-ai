@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from memecoin_ai.domain import canonical
-from memecoin_ai.sources import Capture
+from memecoin_ai.sources import Capture, HTTPSourceError
 from tools.brain_senses_block_epoch import start_epoch
 from tools.brain_senses_block_provider_audit import audit
 from tools.brain_senses_block_provider_pilot import (
@@ -117,6 +117,25 @@ def test_block_pilot_failure_is_accounted_once_and_never_retried(tmp_path: Path)
     assert second["completed"] == 6
     assert helius.calls == public.calls == 3
     assert len(list((output / "requests").glob("*.json"))) == 6
+
+
+def test_block_pilot_preserves_sanitized_http_status_for_failure(tmp_path: Path) -> None:
+    class HTTPFailRPC(FakeBlockRPC):
+        def fetch(self, method: str, params: list[object]) -> Capture:
+            self.calls += 1
+            raise HTTPSourceError(429)
+
+    helius = HTTPFailRPC()
+    result = run_once(
+        tmp_path / "pilot",
+        slot_ranges=[[100, 101]],
+        request_cap=3,
+        clients={"helius-free": helius, "solana-public": FakeBlockRPC()},
+    )
+
+    failure = json.loads((tmp_path / "pilot" / "request-results" / "000000000001.json").read_text())
+    assert result["outcomes"]["request_failed"] == 3
+    assert failure["http_status"] == 429
 
 
 def test_helius_daily_credit_cap_stops_before_next_reserved_request(tmp_path: Path) -> None:
@@ -231,10 +250,15 @@ def test_offline_provider_audit_summarizes_paired_receipts(tmp_path: Path) -> No
 def test_block_epoch_anchors_both_providers_before_new_paired_window(tmp_path: Path) -> None:
     helius = FakeEpochRPC()
     public = FakeEpochRPC()
+    old_epoch = tmp_path / "old-epoch"
+    (old_epoch / "request-results").mkdir(parents=True)
+    (old_epoch / "STOP").write_text('{"reason":"old_epoch_stopped"}\n')
+    (old_epoch / "request-results" / "000000000001.json").write_text('{"received_ns":123456789}\n')
 
     result = start_epoch(
         tmp_path / "epoch",
         window_slots=2,
+        old_epoch_root=old_epoch,
         clients={"helius-free": helius, "solana-public": public},
     )
 
@@ -248,3 +272,4 @@ def test_block_epoch_anchors_both_providers_before_new_paired_window(tmp_path: P
         ]
         == 100
     )
+    assert result["gap"]["last_receipt_ns_in_old_epoch"] == 123456789

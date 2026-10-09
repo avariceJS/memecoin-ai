@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from memecoin_ai.domain import canonical, digest
-from memecoin_ai.sources import Capture, ReadOnlyRPC
+from memecoin_ai.sources import Capture, HTTPSourceError, ReadOnlyRPC, TransportSourceError
 from memecoin_pumpswap.schema import SCHEMA
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -288,6 +288,10 @@ def _result_for(
             error_class=type(exc).__name__,
             receipt_ns=time.time_ns(),
         )
+        if isinstance(exc, HTTPSourceError):
+            row["http_status"] = exc.status
+        elif isinstance(exc, TransportSourceError):
+            row["transport_category"] = exc.reason
     _create(root / "request-results" / f"{sequence:012d}.json", row)
     return row
 
