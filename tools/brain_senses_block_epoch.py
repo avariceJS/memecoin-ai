@@ -155,6 +155,193 @@ def _anchor_once(root: Path, provider: str, sequence: int, client: Any) -> dict[
     return result
 
 
+def _recover_anchor(root: Path, provider: str, sequence: int, client: Any) -> dict[str, Any]:
+    """Reuse a durable anchor outcome; an unresolved reservation is never replayed."""
+    name = f"{sequence:012d}.json"
+    reservation_path = root / "requests" / name
+    result_path = root / "request-results" / name
+    if not reservation_path.exists():
+        if result_path.exists():
+            raise ValueError("epoch_anchor_result_without_reservation")
+        return _anchor_once(root, provider, sequence, client)
+    reservation = _read(reservation_path)
+    params = [{"commitment": "finalized"}]
+    request_body = canonical(
+        {"jsonrpc": "2.0", "id": 1, "method": "getSlot", "params": params}
+    ).encode()
+    if (
+        reservation.get("sequence") != sequence
+        or reservation.get("provider") != provider
+        or reservation.get("method") != "getSlot"
+        or reservation.get("params") != params
+        or reservation.get("request_sha256") != hashlib.sha256(request_body).hexdigest()
+    ):
+        raise ValueError("epoch_anchor_request_identity_mismatch")
+    if not result_path.exists():
+        _create(
+            root / "STOP",
+            dict(
+                reason="ambiguous_epoch_anchor_requires_manual_reconciliation",
+                sequence=sequence,
+                provider=provider,
+                time_ns=time.time_ns(),
+            ),
+        )
+        raise ValueError("ambiguous_epoch_anchor_requires_manual_reconciliation")
+    result = _read(result_path)
+    if (
+        result.get("sequence") != sequence
+        or result.get("provider") != provider
+        or result.get("method") != "getSlot"
+    ):
+        raise ValueError("epoch_anchor_result_identity_mismatch")
+    if result.get("status") == "captured":
+        capture = Capture.load(root / result["capture_path"])
+        if digest(capture.response) != result.get("response_sha256"):
+            raise ValueError("epoch_anchor_capture_hash_mismatch")
+        if capture.result() != result.get("slot"):
+            raise ValueError("epoch_anchor_capture_result_mismatch")
+    return result
+
+
+def _validate_window_lineage(
+    root: Path,
+    window: dict[str, Any],
+    *,
+    plan_path: Path,
+    anchors: dict[str, dict[str, Any]],
+    window_slots: int,
+    slots_per_hour_estimate: int | None,
+    sampling_seed: str | None,
+    signature_check_all_slots: bool,
+    stratum_count: int,
+    paired_provider: str | None,
+    paired_slots_per_stratum: int,
+    old_epoch_root: Path | None,
+) -> None:
+    """Recompute the pinned selection so edits cannot redirect a resumed request plan."""
+    if (
+        window.get("epoch_id") != root.name
+        or window.get("anchor_plan_sha256") != _sha(plan_path)
+        or window.get("anchors") != anchors
+    ):
+        raise ValueError("epoch_window_selection_lineage_mismatch")
+    common_tip = min(row["slot"] for row in anchors.values())
+    if sampling_seed is not None:
+        if (
+            not sampling_seed
+            or not slots_per_hour_estimate
+            or slots_per_hour_estimate < window_slots // max(1, stratum_count)
+        ):
+            raise ValueError("invalid_hourly_sampling_frame")
+        lower = max(1, common_tip - slots_per_hour_estimate + 1)
+        upper = common_tip + 1
+        if stratum_count:
+            selected_windows, selected_slots, probabilities = stratified_slot_windows(
+                lower,
+                upper,
+                window_slots=window_slots,
+                stratum_count=stratum_count,
+                seed=sampling_seed,
+            )
+            slot_range = [lower, upper]
+        else:
+            start = random.Random(sampling_seed).randint(lower, upper - window_slots)
+            slot_range = [start, start + window_slots]
+            selected_windows, probabilities = [], {}
+            selected_slots = list(range(*slot_range))
+        selection_name = (
+            "seeded_equal_slot_strata_with_contiguous_windows"
+            if stratum_count
+            else "uniform_seeded_contiguous_window_within_recent_hour"
+        )
+    else:
+        lower = upper = None
+        slot_start = max(1, common_tip - window_slots + 1)
+        slot_range = [slot_start, slot_start + window_slots]
+        selected_windows, probabilities = [], {}
+        selected_slots = list(range(*slot_range))
+        selection_name = "latest_finalized_slots"
+
+    provider_full: dict[str, list[int]] | None = None
+    provider_signatures: dict[str, list[int]] | None = None
+    paired_probabilities: dict[str, str] = {}
+    if paired_provider is not None:
+        if not selected_windows or paired_slots_per_stratum < 1:
+            raise ValueError("paired_provider_requires_stratified_subsampling")
+        provider_full = {"helius-free": selected_slots}
+        paired_slots: list[int] = []
+        pair_rng = random.Random(f"{sampling_seed}:paired:{paired_provider}")
+        for sampled_window in selected_windows:
+            start, end = sampled_window["selected_slot_range_exclusive"]
+            candidates = list(range(start, end))
+            if paired_slots_per_stratum > len(candidates):
+                raise ValueError("paired_slots_exceed_selected_stratum")
+            selected_for_provider = sorted(pair_rng.sample(candidates, paired_slots_per_stratum))
+            paired_slots.extend(selected_for_provider)
+            conditional = Fraction(paired_slots_per_stratum, len(candidates))
+            for slot in selected_for_provider:
+                probability = Fraction(probabilities[str(slot)]) * conditional
+                paired_probabilities[str(slot)] = (
+                    f"{probability.numerator}/{probability.denominator}"
+                )
+        provider_full[paired_provider] = sorted(paired_slots)
+        provider_signatures = {provider: list(slots) for provider, slots in provider_full.items()}
+
+    frame = {
+        "start_inclusive": lower,
+        "end_exclusive": upper,
+        "slots_per_hour_estimate": slots_per_hour_estimate,
+        "sampling_seed": sampling_seed,
+        "stratum_count": stratum_count,
+        "selection": selection_name,
+        "selected_windows": selected_windows,
+        "slot_inclusion_probabilities": probabilities,
+    }
+    expected = {
+        "common_tip_slot": common_tip,
+        "selected_slot_range_exclusive": slot_range,
+        "full_sample_slots": selected_slots,
+        "signature_only_slots": (
+            selected_slots
+            if signature_check_all_slots
+            else [selected_slots[len(selected_slots) // 2]]
+        ),
+        "provider_full_sample_slots": provider_full,
+        "provider_signature_sample_slots": provider_signatures,
+        "paired_selection_probabilities": paired_probabilities,
+        "selection_frame": frame,
+    }
+    if any(window.get(key) != value for key, value in expected.items()):
+        raise ValueError("epoch_window_selection_recomputation_mismatch")
+    old_gap = window.get("old_epoch_gap")
+    if old_epoch_root is None:
+        expected_gap = None
+    else:
+        old_stop = old_epoch_root / "STOP"
+        old_results = old_epoch_root / "request-results"
+        old_last_receipt = max(
+            (
+                _read(path).get("receipt_ns") or _read(path).get("received_ns") or 0
+                for path in old_results.glob("*.json")
+            ),
+            default=None,
+        )
+        expected_gap = {
+            "old_epoch_stop": _read(old_stop) if old_stop.exists() else None,
+            "last_receipt_ns_in_old_epoch": old_last_receipt,
+            "first_new_anchor_request_ns": min(
+                row["request_started_ns"] for row in anchors.values()
+            ),
+            "claim": (
+                "unobserved interval between source epochs; "
+                "no slot-range completeness inference"
+            ),
+        }
+    if old_gap != expected_gap:
+        raise ValueError("epoch_gap_lineage_mismatch")
+
+
 def start_epoch(
     root: Path,
     *,
@@ -236,14 +423,19 @@ def start_epoch(
         "scope": "fresh finalized anchor and one bounded provider-specific block window",
     }
     if plan_path.exists():
-        if _read(plan_path) != plan:
+        existing_plan = _read(plan_path)
+        comparable_plan = dict(plan)
+        comparable_plan["created_ns"] = existing_plan.get("created_ns")
+        if existing_plan != comparable_plan:
             raise ValueError("epoch_plan_changed")
+        plan = existing_plan
     else:
         _create(plan_path, plan)
     if (root / "STOP").exists():
         raise ValueError("epoch_stopped")
-    if any(any((root / name).glob("*.json")) for name in ("requests", "request-results")):
-        raise ValueError("epoch_anchor_attempts_already_exist")
+    summary_path = root / "epoch-summary.json"
+    if summary_path.exists():
+        return _read(summary_path)
 
     own_clients = clients is None
     if own_clients:
@@ -261,7 +453,7 @@ def start_epoch(
     try:
         anchors: dict[str, dict[str, Any]] = {}
         for sequence, provider in enumerate(providers, start=1):
-            anchors[provider] = _anchor_once(root, provider, sequence, clients[provider])
+            anchors[provider] = _recover_anchor(root, provider, sequence, clients[provider])
         if any(row["status"] != "captured" for row in anchors.values()):
             failed = [provider for provider, row in anchors.items() if row["status"] != "captured"]
             _create(
@@ -272,138 +464,167 @@ def start_epoch(
             _create(root / "epoch-summary.json", summary)
             return summary
 
-        anchor_slots = {provider: anchors[provider]["slot"] for provider in providers}
-        common_tip = min(anchor_slots.values())
-        if sampling_seed is not None:
-            invalid_sampling_frame = (
-                not sampling_seed
-                or not slots_per_hour_estimate
-                or slots_per_hour_estimate < window_slots // max(1, stratum_count)
+        window_path = root / "window-plan.json"
+        if window_path.exists():
+            window_metadata = _read(window_path)
+            _validate_window_lineage(
+                root,
+                window_metadata,
+                plan_path=plan_path,
+                anchors=anchors,
+                window_slots=window_slots,
+                slots_per_hour_estimate=slots_per_hour_estimate,
+                sampling_seed=sampling_seed,
+                signature_check_all_slots=signature_check_all_slots,
+                stratum_count=stratum_count,
+                paired_provider=paired_provider,
+                paired_slots_per_stratum=paired_slots_per_stratum,
+                old_epoch_root=old_epoch_root,
             )
-            if invalid_sampling_frame:
-                raise ValueError("invalid_hourly_sampling_frame")
-            lower = max(1, common_tip - slots_per_hour_estimate + 1)
-            upper = common_tip + 1
-            selected_windows: list[dict[str, Any]] = []
-            inclusion_probabilities: dict[str, str] = {}
-            if stratum_count:
-                (
-                    selected_windows,
-                    selected_slots,
-                    inclusion_probabilities,
-                ) = stratified_slot_windows(
-                    lower,
-                    upper,
-                    window_slots=window_slots,
-                    stratum_count=stratum_count,
-                    seed=sampling_seed,
-                )
-                window_start = lower
-                slot_range = [lower, upper]
-            else:
-                latest_start = upper - window_slots
-                window_start = random.Random(sampling_seed).randint(lower, latest_start)
-                slot_range = [window_start, window_start + window_slots]
-                selected_slots = list(range(*slot_range))
+            slot_range = window_metadata["selected_slot_range_exclusive"]
+            selected_slots = window_metadata["full_sample_slots"]
+            selected_windows = window_metadata["selection_frame"].get("selected_windows", [])
+            inclusion_probabilities = window_metadata["selection_frame"].get(
+                "slot_inclusion_probabilities", {}
+            )
+            old_gap = window_metadata.get("old_epoch_gap")
+            provider_full_sample_slots = window_metadata.get("provider_full_sample_slots")
+            provider_signature_sample_slots = window_metadata.get(
+                "provider_signature_sample_slots"
+            )
         else:
-            lower = upper = None
-            window_start = max(1, common_tip - window_slots + 1)
-            slot_range = [window_start, window_start + window_slots]
-            selected_windows = []
-            selected_slots = list(range(*slot_range))
-            inclusion_probabilities = {}
-        provider_full_sample_slots: dict[str, list[int]] | None = None
-        provider_signature_sample_slots: dict[str, list[int]] | None = None
-        paired_selection_probabilities: dict[str, str] = {}
-        if paired_provider is not None:
-            if not selected_windows or paired_slots_per_stratum < 1:
-                raise ValueError("paired_provider_requires_stratified_subsampling")
-            provider_full_sample_slots = {"helius-free": selected_slots}
-            paired_slots: list[int] = []
-            pair_rng = random.Random(f"{sampling_seed}:paired:{paired_provider}")
-            for window in selected_windows:
-                start, end = window["selected_slot_range_exclusive"]
-                candidates = list(range(start, end))
-                if paired_slots_per_stratum > len(candidates):
-                    raise ValueError("paired_slots_exceed_selected_stratum")
-                selected_for_provider = sorted(
-                    pair_rng.sample(candidates, paired_slots_per_stratum)
+            anchor_slots = {provider: anchors[provider]["slot"] for provider in providers}
+            common_tip = min(anchor_slots.values())
+            if sampling_seed is not None:
+                invalid_sampling_frame = (
+                    not sampling_seed
+                    or not slots_per_hour_estimate
+                    or slots_per_hour_estimate < window_slots // max(1, stratum_count)
                 )
-                paired_slots.extend(selected_for_provider)
-                conditional_probability = Fraction(
-                    paired_slots_per_stratum, len(candidates)
-                )
-                for slot in selected_for_provider:
-                    primary_probability = Fraction(inclusion_probabilities[str(slot)])
-                    combined_probability = primary_probability * conditional_probability
-                    paired_selection_probabilities[str(slot)] = (
-                        f"{combined_probability.numerator}/{combined_probability.denominator}"
+                if invalid_sampling_frame:
+                    raise ValueError("invalid_hourly_sampling_frame")
+                lower = max(1, common_tip - slots_per_hour_estimate + 1)
+                upper = common_tip + 1
+                selected_windows: list[dict[str, Any]] = []
+                inclusion_probabilities: dict[str, str] = {}
+                if stratum_count:
+                    (
+                        selected_windows,
+                        selected_slots,
+                        inclusion_probabilities,
+                    ) = stratified_slot_windows(
+                        lower,
+                        upper,
+                        window_slots=window_slots,
+                        stratum_count=stratum_count,
+                        seed=sampling_seed,
                     )
-            provider_full_sample_slots[paired_provider] = sorted(paired_slots)
-            provider_signature_sample_slots = {
-                provider: list(slots) for provider, slots in provider_full_sample_slots.items()
+                    window_start = lower
+                    slot_range = [lower, upper]
+                else:
+                    latest_start = upper - window_slots
+                    window_start = random.Random(sampling_seed).randint(lower, latest_start)
+                    slot_range = [window_start, window_start + window_slots]
+                    selected_slots = list(range(*slot_range))
+            else:
+                lower = upper = None
+                window_start = max(1, common_tip - window_slots + 1)
+                slot_range = [window_start, window_start + window_slots]
+                selected_windows = []
+                selected_slots = list(range(*slot_range))
+                inclusion_probabilities = {}
+            provider_full_sample_slots: dict[str, list[int]] | None = None
+            provider_signature_sample_slots: dict[str, list[int]] | None = None
+            paired_selection_probabilities: dict[str, str] = {}
+            if paired_provider is not None:
+                if not selected_windows or paired_slots_per_stratum < 1:
+                    raise ValueError("paired_provider_requires_stratified_subsampling")
+                provider_full_sample_slots = {"helius-free": selected_slots}
+                paired_slots: list[int] = []
+                pair_rng = random.Random(f"{sampling_seed}:paired:{paired_provider}")
+                for window in selected_windows:
+                    start, end = window["selected_slot_range_exclusive"]
+                    candidates = list(range(start, end))
+                    if paired_slots_per_stratum > len(candidates):
+                        raise ValueError("paired_slots_exceed_selected_stratum")
+                    selected_for_provider = sorted(
+                        pair_rng.sample(candidates, paired_slots_per_stratum)
+                    )
+                    paired_slots.extend(selected_for_provider)
+                    conditional_probability = Fraction(
+                        paired_slots_per_stratum, len(candidates)
+                    )
+                    for slot in selected_for_provider:
+                        primary_probability = Fraction(inclusion_probabilities[str(slot)])
+                        combined_probability = primary_probability * conditional_probability
+                        paired_selection_probabilities[str(slot)] = (
+                            f"{combined_probability.numerator}/{combined_probability.denominator}"
+                        )
+                provider_full_sample_slots[paired_provider] = sorted(paired_slots)
+                provider_signature_sample_slots = {
+                    provider: list(slots) for provider, slots in provider_full_sample_slots.items()
+                }
+            old_gap = None
+            if old_epoch_root is not None:
+                old_stop = old_epoch_root / "STOP"
+                old_results = old_epoch_root / "request-results"
+                old_last_receipt = max(
+                    (
+                        _read(path).get("receipt_ns") or _read(path).get("received_ns") or 0
+                        for path in old_results.glob("*.json")
+                    ),
+                    default=None,
+                )
+                old_gap = {
+                    "old_epoch_stop": _read(old_stop) if old_stop.exists() else None,
+                    "last_receipt_ns_in_old_epoch": old_last_receipt,
+                    "first_new_anchor_request_ns": min(
+                        row["request_started_ns"] for row in anchors.values()
+                    ),
+                    "claim": (
+                        "unobserved interval between source epochs; "
+                        "no slot-range completeness inference"
+                    ),
+                }
+            window_metadata = {
+                "epoch_id": root.name,
+                "anchor_plan_sha256": _sha(plan_path),
+                "anchors": anchors,
+                "common_tip_slot": common_tip,
+                "anchor_slot_difference": (
+                    abs(anchor_slots[providers[0]] - anchor_slots[providers[1]])
+                    if len(providers) > 1
+                    else None
+                ),
+                "selected_slot_range_exclusive": slot_range,
+                "full_sample_slots": selected_slots,
+                "signature_only_slots": (
+                    selected_slots
+                    if signature_check_all_slots
+                    else [selected_slots[len(selected_slots) // 2]]
+                ),
+                "provider_full_sample_slots": provider_full_sample_slots,
+                "provider_signature_sample_slots": provider_signature_sample_slots,
+                "paired_selection_probabilities": paired_selection_probabilities,
+                "selection_frame": {
+                    "start_inclusive": lower,
+                    "end_exclusive": upper,
+                    "slots_per_hour_estimate": slots_per_hour_estimate,
+                    "sampling_seed": sampling_seed,
+                    "stratum_count": stratum_count,
+                    "selection": (
+                        "seeded_equal_slot_strata_with_contiguous_windows"
+                        if stratum_count
+                        else "uniform_seeded_contiguous_window_within_recent_hour"
+                        if sampling_seed is not None
+                        else "latest_finalized_slots"
+                    ),
+                    "selected_windows": selected_windows,
+                    "slot_inclusion_probabilities": inclusion_probabilities,
+                },
+                "old_epoch_gap": old_gap,
             }
-        old_gap = None
-        if old_epoch_root is not None:
-            old_stop = old_epoch_root / "STOP"
-            old_results = old_epoch_root / "request-results"
-            old_last_receipt = max(
-                (
-                    _read(path).get("receipt_ns") or _read(path).get("received_ns") or 0
-                    for path in old_results.glob("*.json")
-                ),
-                default=None,
-            )
-            old_gap = {
-                "old_epoch_stop": _read(old_stop) if old_stop.exists() else None,
-                "last_receipt_ns_in_old_epoch": old_last_receipt,
-                "first_new_anchor_request_ns": min(
-                    row["request_started_ns"] for row in anchors.values()
-                ),
-                "claim": (
-                    "unobserved interval between source epochs; "
-                    "no slot-range completeness inference"
-                ),
-            }
-        window_metadata = {
-            "epoch_id": root.name,
-            "anchor_plan_sha256": _sha(plan_path),
-            "anchors": anchors,
-            "common_tip_slot": common_tip,
-            "anchor_slot_difference": (
-                abs(anchor_slots[providers[0]] - anchor_slots[providers[1]])
-                if len(providers) > 1
-                else None
-            ),
-            "selected_slot_range_exclusive": slot_range,
-            "full_sample_slots": selected_slots,
-            "signature_only_slots": (
-                selected_slots
-                if signature_check_all_slots
-                else [selected_slots[len(selected_slots) // 2]]
-            ),
-            "provider_full_sample_slots": provider_full_sample_slots,
-            "provider_signature_sample_slots": provider_signature_sample_slots,
-            "paired_selection_probabilities": paired_selection_probabilities,
-            "selection_frame": {
-                "start_inclusive": lower,
-                "end_exclusive": upper,
-                "slots_per_hour_estimate": slots_per_hour_estimate,
-                "sampling_seed": sampling_seed,
-                "stratum_count": stratum_count,
-                "selection": (
-                    "seeded_equal_slot_strata_with_contiguous_windows"
-                    if stratum_count
-                    else "uniform_seeded_contiguous_window_within_recent_hour"
-                    if sampling_seed is not None
-                    else "latest_finalized_slots"
-                ),
-                "selected_windows": selected_windows,
-                "slot_inclusion_probabilities": inclusion_probabilities,
-            },
-            "old_epoch_gap": old_gap,
-        }
-        _create(root / "window-plan.json", window_metadata)
+            _create(root / "window-plan.json", window_metadata)
         signature_slots = window_metadata["signature_only_slots"]
         paired = run_once(
             root / "paired-block-capture",

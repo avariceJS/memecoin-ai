@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from memecoin_ai.domain import canonical
 from memecoin_ai.sources import Capture, HTTPSourceError
+from tools import brain_senses_block_epoch as block_epoch
+from tools import brain_senses_block_provider_pilot as block_pilot
 from tools.brain_senses_block_epoch import start_epoch
 from tools.brain_senses_block_provider_audit import _helius_log_truncation_summary, audit
 from tools.brain_senses_block_provider_pilot import (
@@ -196,6 +201,124 @@ def test_block_pilot_failure_is_accounted_once_and_never_retried(tmp_path: Path)
     assert second["completed"] == 6
     assert helius.calls == public.calls == 3
     assert len(list((output / "requests").glob("*.json"))) == 6
+
+
+def test_block_pilot_restarts_from_journal_without_duplicate_reservations(
+    tmp_path: Path, monkeypatch
+) -> None:
+    original_result_for = block_pilot._result_for
+    monkeypatch.setattr(block_pilot.time, "sleep", lambda _seconds: None)
+    # Exhaust every crash boundary after a durable result in this six-request fixture.
+    for crash_after in range(1, 6):
+        output = tmp_path / f"restartable-pilot-{crash_after}"
+        helius = FakeBlockRPC()
+        public = FakeBlockRPC()
+        dispatched = 0
+
+        def interrupt_at_boundary(
+            *args: Any, _crash_boundary: int = crash_after, **kwargs: Any
+        ) -> dict[str, Any]:
+            nonlocal dispatched
+            row = original_result_for(*args, **kwargs)
+            dispatched += 1
+            if dispatched == _crash_boundary:
+                raise KeyboardInterrupt
+            return row
+
+        monkeypatch.setattr(block_pilot, "_result_for", interrupt_at_boundary)
+        with pytest.raises(KeyboardInterrupt):
+            run_once(
+                output,
+                slot_ranges=[[100, 101]],
+                request_cap=3,
+                clients={"helius-free": helius, "solana-public": public},
+            )
+        assert len(list((output / "requests").glob("*.json"))) == crash_after
+
+        monkeypatch.setattr(block_pilot, "_result_for", original_result_for)
+        resumed = run_once(
+            output,
+            slot_ranges=[[100, 101]],
+            request_cap=3,
+            clients={"helius-free": helius, "solana-public": public},
+        )
+
+        requests = sorted((output / "requests").glob("*.json"))
+        results = sorted((output / "request-results").glob("*.json"))
+        assert resumed["completed"] == resumed["attempts"] == 6
+        assert len(requests) == len(results) == 6
+        assert [json.loads(path.read_text())["sequence"] for path in requests] == list(
+            range(1, 7)
+        )
+        assert [json.loads(path.read_text())["sequence"] for path in results] == list(
+            range(1, 7)
+        )
+        identities = {
+            (
+                row["provider"],
+                row["method"],
+                row.get("slot"),
+                row["detail"],
+                row["request_sha256"],
+            )
+            for row in (json.loads(path.read_text()) for path in requests)
+        }
+        assert len(identities) == 6
+        assert helius.calls == public.calls == 3
+
+
+def test_block_pilot_reconstructs_stop_for_unresolved_reservation(
+    tmp_path: Path, monkeypatch
+) -> None:
+    output = tmp_path / "ambiguous-pilot"
+    original_result_for = block_pilot._result_for
+
+    def interrupt_after_reservation(
+        root: Path, sequence: int, operation: dict[str, Any], client: Any, **kwargs: Any
+    ) -> dict[str, Any]:
+        request = dict(
+            jsonrpc="2.0", id=1, method=operation["method"], params=operation["params"]
+        )
+        body = canonical(request).encode()
+        block_pilot._create(
+            root / "requests" / f"{sequence:012d}.json",
+            dict(
+                sequence=sequence,
+                provider=operation["provider"],
+                method=operation["method"],
+                slot=operation.get("slot"),
+                slot_range=operation.get("slot_range"),
+                detail=operation["detail"],
+                request_sha256=hashlib.sha256(body).hexdigest(),
+                params_sha256=hashlib.sha256(canonical(operation["params"]).encode()).hexdigest(),
+                reserved_ns=time.time_ns(),
+                request_reservation=1,
+                credit_reservation=1 if operation["provider"] == "helius-free" else 0,
+            ),
+        )
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(block_pilot, "_result_for", interrupt_after_reservation)
+    with pytest.raises(KeyboardInterrupt):
+        run_once(
+            output,
+            slot_ranges=[[100, 101]],
+            request_cap=3,
+            clients={"helius-free": FakeBlockRPC(), "solana-public": FakeBlockRPC()},
+        )
+    monkeypatch.setattr(block_pilot, "_result_for", original_result_for)
+    helius = FakeBlockRPC()
+    with pytest.raises(ValueError, match="ambiguous_block_request_requires_manual_reconciliation"):
+        run_once(
+            output,
+            slot_ranges=[[100, 101]],
+            request_cap=3,
+            clients={"helius-free": helius, "solana-public": FakeBlockRPC()},
+        )
+    assert helius.calls == 0
+    assert json.loads((output / "STOP").read_text())["reason"] == (
+        "ambiguous_block_request_requires_manual_reconciliation"
+    )
 
 
 def test_block_pilot_preserves_sanitized_http_status_for_failure(tmp_path: Path) -> None:
@@ -453,6 +576,192 @@ def test_block_epoch_anchors_both_providers_before_new_paired_window(tmp_path: P
         == 100
     )
     assert result["gap"]["last_receipt_ns_in_old_epoch"] == 123456789
+
+
+def test_block_epoch_restart_reuses_anchor_and_pinned_selection_lineage(
+    tmp_path: Path, monkeypatch
+) -> None:
+    output = tmp_path / "restartable-epoch"
+    old_epoch = tmp_path / "previous-epoch"
+    (old_epoch / "request-results").mkdir(parents=True)
+    (old_epoch / "STOP").write_text('{"reason":"prior_stop"}\n')
+    (old_epoch / "request-results" / "000000000001.json").write_text(
+        '{"receipt_ns":12345}\n'
+    )
+    helius = FakeEpochRPC()
+    original_result_for = block_pilot._result_for
+    dispatched = 0
+
+    def interrupt_after_first_result(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        nonlocal dispatched
+        row = original_result_for(*args, **kwargs)
+        dispatched += 1
+        if dispatched == 1:
+            raise KeyboardInterrupt
+        return row
+
+    monkeypatch.setattr(block_pilot, "_result_for", interrupt_after_first_result)
+    with pytest.raises(KeyboardInterrupt):
+        start_epoch(
+            output,
+            window_slots=2,
+            old_epoch_root=old_epoch,
+            providers=("helius-free",),
+            slots_per_hour_estimate=24,
+            sampling_seed="restart-lineage-seed",
+            clients={"helius-free": helius},
+        )
+    first_window = json.loads((output / "window-plan.json").read_text())
+    first_reserved = sorted((output / "paired-block-capture" / "requests").glob("*.json"))
+    assert len(first_reserved) == 1
+    assert helius.calls == 2  # one anchor and the first, journaled inventory operation
+
+    monkeypatch.setattr(block_pilot, "_result_for", original_result_for)
+    result = start_epoch(
+        output,
+        window_slots=2,
+        old_epoch_root=old_epoch,
+        providers=("helius-free",),
+        slots_per_hour_estimate=24,
+        sampling_seed="restart-lineage-seed",
+        clients={"helius-free": helius},
+    )
+
+    requests = sorted((output / "paired-block-capture" / "requests").glob("*.json"))
+    assert result["status"] == "provider_window_attempted"
+    assert json.loads((output / "window-plan.json").read_text()) == first_window
+    results = list((output / "paired-block-capture" / "request-results").glob("*.json"))
+    assert len(requests) == len(results) == 4
+    assert [json.loads(path.read_text())["sequence"] for path in requests] == [1, 2, 3, 4]
+    assert helius.calls == 5  # no repeated anchor or inventory request
+    assert result["gap"]["last_receipt_ns_in_old_epoch"] == 12345
+    assert result["gap"]["claim"].startswith("unobserved interval")
+
+
+def test_block_epoch_reconstructs_stop_for_ambiguous_anchor_without_replay(tmp_path: Path) -> None:
+    output = tmp_path / "ambiguous-anchor-epoch"
+
+    class InterruptedAnchor:
+        calls = 0
+
+        def fetch(self, method: str, params: list[object]) -> Capture:
+            self.calls += 1
+            raise KeyboardInterrupt
+
+        def close(self) -> None:
+            return
+
+    interrupted = InterruptedAnchor()
+    with pytest.raises(KeyboardInterrupt):
+        start_epoch(
+            output,
+            window_slots=2,
+            providers=("helius-free",),
+            clients={"helius-free": interrupted},
+        )
+    retry_client = FakeEpochRPC()
+    with pytest.raises(
+        ValueError, match="ambiguous_epoch_anchor_requires_manual_reconciliation"
+    ):
+        start_epoch(
+            output,
+            window_slots=2,
+            providers=("helius-free",),
+            clients={"helius-free": retry_client},
+        )
+
+    assert retry_client.calls == 0
+    assert len(list((output / "requests").glob("*.json"))) == 1
+    assert json.loads((output / "STOP").read_text())["reason"] == (
+        "ambiguous_epoch_anchor_requires_manual_reconciliation"
+    )
+
+
+def test_block_epoch_resumes_after_durable_anchor_before_window_plan(
+    tmp_path: Path, monkeypatch
+) -> None:
+    output = tmp_path / "anchor-before-window-epoch"
+    helius = FakeEpochRPC()
+    original_anchor_once = block_epoch._anchor_once
+
+    def interrupt_after_anchor_result(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        original_anchor_once(*args, **kwargs)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(block_epoch, "_anchor_once", interrupt_after_anchor_result)
+    with pytest.raises(KeyboardInterrupt):
+        start_epoch(
+            output,
+            window_slots=2,
+            providers=("helius-free",),
+            sampling_seed="anchor-before-window-seed",
+            slots_per_hour_estimate=24,
+            signature_check_all_slots=True,
+            clients={"helius-free": helius},
+        )
+
+    assert len(list((output / "requests").glob("*.json"))) == 1
+    assert not (output / "window-plan.json").exists()
+    assert helius.calls == 1
+
+    monkeypatch.setattr(block_epoch, "_anchor_once", original_anchor_once)
+    result = start_epoch(
+        output,
+        window_slots=2,
+        providers=("helius-free",),
+        sampling_seed="anchor-before-window-seed",
+        slots_per_hour_estimate=24,
+        signature_check_all_slots=True,
+        clients={"helius-free": helius},
+    )
+
+    requests = sorted((output / "paired-block-capture" / "requests").glob("*.json"))
+    assert result["status"] == "provider_window_attempted"
+    window = json.loads((output / "window-plan.json").read_text())
+    assert window["selection_frame"]["sampling_seed"] == "anchor-before-window-seed"
+    assert len(requests) == 5
+    assert helius.calls == 6  # the durable anchor was reused, not repeated
+
+
+def test_block_epoch_rejects_modified_selection_before_resuming_requests(
+    tmp_path: Path, monkeypatch
+) -> None:
+    output = tmp_path / "tampered-selection-epoch"
+    helius = FakeEpochRPC()
+    original_result_for = block_pilot._result_for
+
+    def interrupt_after_first_result(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        original_result_for(*args, **kwargs)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(block_pilot, "_result_for", interrupt_after_first_result)
+    with pytest.raises(KeyboardInterrupt):
+        start_epoch(
+            output,
+            window_slots=2,
+            providers=("helius-free",),
+            slots_per_hour_estimate=24,
+            sampling_seed="tamper-detection-seed",
+            clients={"helius-free": helius},
+        )
+    monkeypatch.setattr(block_pilot, "_result_for", original_result_for)
+
+    window_path = output / "window-plan.json"
+    window = json.loads(window_path.read_text())
+    window["full_sample_slots"][0] += 1
+    window_path.write_text(json.dumps(window, sort_keys=True) + "\n")
+    calls_before_restart = helius.calls
+    with pytest.raises(ValueError, match="epoch_window_selection_recomputation_mismatch"):
+        start_epoch(
+            output,
+            window_slots=2,
+            providers=("helius-free",),
+            slots_per_hour_estimate=24,
+            sampling_seed="tamper-detection-seed",
+            clients={"helius-free": helius},
+        )
+
+    assert helius.calls == calls_before_restart
 
 
 def test_helius_only_window_reproducibly_checks_every_selected_slot(tmp_path: Path) -> None:
