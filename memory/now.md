@@ -8,7 +8,7 @@ Build a scalable, reproducible Solana learning system. No demonstrated executabl
 
 ## Active state
 
-- Research checkout `/Users/root1/Developer/memecoin-research`, branch `research/active`; native-coordinate v3 and bounded block sensing code committed locally as `fd748de` (parent `0aca980`, earlier Senses integration `93d620c`). Evidence/docs are synchronized in the pending docs commit. Do not push. Production checkout `/Users/root1/Desktop/memecoin-ai` and runtime are untouched.
+- Research checkout `/Users/root1/Developer/memecoin-research`, branch `research/active`; native-coordinate v3 and bounded block sensing code committed locally as `fd748de` (parent `0aca980`, earlier Senses integration `93d620c`); evidence/docs/memory follow-up is `d58c91d`. Do not push. Production checkout `/Users/root1/Desktop/memecoin-ai` and runtime are untouched.
 - Production owner was clean at the handoff fence; no runtime, champion, config, STOP or protected data changed in this work.
 - Mac 1 is the active research host; Mac 2 is standby. See `docs/two-mac-workflow.md` before host work.
 
