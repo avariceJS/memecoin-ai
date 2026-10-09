@@ -84,6 +84,13 @@ def _classify(tx: dict[str, Any], result: dict[str, Any]) -> tuple[str, dict[str
             for e in result.get("errors", [])
         }
     )
+    diagnostics = sorted(
+        {
+            swap["economic_diagnostic"].get("status", "missing_status")
+            for swap in result.get("swaps", [])
+            if isinstance(swap.get("economic_diagnostic"), dict)
+        }
+    )
     unknown = len(result.get("unknown_instructions", []))
     ix_programs: dict[str, int] = {}
     try:
@@ -98,6 +105,7 @@ def _classify(tx: dict[str, Any], result: dict[str, Any]) -> tuple[str, dict[str
         version=tx.get("version", "missing"),
         blockers=blockers,
         errors=errors,
+        economic_diagnostic_statuses=diagnostics,
         unknown_instruction_count=unknown,
         outer_program_counts=ix_programs,
     )
@@ -220,6 +228,11 @@ def _process_sequence(
         exception_shape=shape,
         blockers=shape["blockers"],
         errors=shape["errors"],
+        economic_diagnostics=[
+            swap["economic_diagnostic"]
+            for swap in result.get("swaps", [])
+            if isinstance(swap.get("economic_diagnostic"), dict)
+        ],
         swap_count=len(result.get("swaps", [])),
     )
     # The source transaction manifest is the authoritative signature-key mapping.

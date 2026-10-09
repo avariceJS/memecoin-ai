@@ -113,6 +113,52 @@ def fixture():
     return tx, ev
 
 
+def exact_quote_fixture():
+    tx, old_event = fixture()
+    parsed = event_payload(old_event)["fields"]
+    parsed.update(
+        quote_amount_in=53,
+        quote_amount_in_with_lp_fee=51,
+        user_quote_amount_in=50,
+        lp_fee=1,
+        protocol_fee=1,
+        coin_creator_fee=1,
+        buyback_fee=0,
+        ix_name="buy_exact_quote_in",
+    )
+    event = EVENT_TAG + bytes(SCHEMA["events"]["BuyEvent"])
+    for key, typ in SCHEMA["fields"]["BuyEvent"]:
+        value = parsed[key]
+        if typ == "pubkey":
+            part = (
+                bytes.fromhex("00" * 32)
+                if value == "11111111111111111111111111111111"
+                else bytes.fromhex("01" * 32)
+            )
+            if key in SCHEMA["instructions"]["buy_exact_quote_in"]["accounts"]:
+                part = (
+                    bytes([SCHEMA["instructions"]["buy_exact_quote_in"]["accounts"].index(key) + 1])
+                    * 32
+                )
+        elif typ == "string":
+            part = len(value).to_bytes(4, "little") + value.encode()
+        else:
+            part = int(value).to_bytes(
+                {"u64": 8, "i64": 8, "i128": 16, "bool": 1}[typ],
+                "little",
+                signed=typ.startswith("i"),
+            )
+        event += part
+    instruction = tx["transaction"]["message"]["instructions"][0]
+    instruction["data"] = encode58(
+        bytes(SCHEMA["instructions"]["buy_exact_quote_in"]["discriminator"])
+        + (53).to_bytes(8, "little")
+        + (100).to_bytes(8, "little")
+    )
+    tx["meta"]["innerInstructions"][0]["instructions"][-1]["data"] = encode58(event)
+    return tx
+
+
 def test_valid_integer_reconciliation_and_no_training_permission():
     tx, ev = fixture()
     r = decode(tx)
@@ -124,6 +170,50 @@ def test_valid_integer_reconciliation_and_no_training_permission():
     assert r["swaps"][0]["movement"]["external_quote_fees"] == 2
     assert r["swaps"][0]["movement"]["quote_user_amount"] == 53
     assert not r["training_eligible"] and not r["execution_supported"]
+
+
+def test_exact_quote_v1_fee_equation_is_diagnostic_only():
+    r = decode(exact_quote_fixture())
+    swap = r["swaps"][0]
+    diagnostic = swap["economic_diagnostic"]
+    assert diagnostic["contract"] == "pumpswap_v1_buy_exact_quote_in_fee_diagnostic_v1"
+    assert diagnostic["status"] == "reconciled_diagnostic_only"
+    assert diagnostic["quantities"] == {
+        "user_gross_quote_debit": 53,
+        "pool_quote_credit": 51,
+        "user_net_quote_pricing_amount": 50,
+        "lp_fee": 1,
+        "protocol_fee": 1,
+        "creator_fee": 1,
+        "buyback_fee": 0,
+    }
+    assert "economic_fee_semantics_diagnostic_only" in swap["blockers"]
+    assert r["status"] == "quarantined"
+    assert not r["training_eligible"] and not r["execution_supported"]
+
+
+@pytest.mark.parametrize("corruption", ["one_unit", "protocol_recipient", "extra_fee_transfer"])
+def test_exact_quote_v1_unexplained_transfer_stays_quarantined(corruption):
+    tx = exact_quote_fixture()
+    inner = tx["meta"]["innerInstructions"][0]["instructions"]
+    if corruption == "one_unit":
+        inner[1]["parsed"]["info"]["tokenAmount"]["amount"] = "50"
+    elif corruption == "protocol_recipient":
+        inner[2]["parsed"]["info"]["destination"] = "unknown-recipient"
+    else:
+        extra = copy.deepcopy(inner[1])
+        extra["parsed"]["info"]["destination"] = "unknown-recipient"
+        extra["parsed"]["info"]["tokenAmount"]["amount"] = "1"
+        inner.insert(-1, extra)
+    result = decode(tx)
+    swap = result["swaps"][0]
+    if corruption == "extra_fee_transfer":
+        assert result["status"] == "quarantined"
+        assert result["errors"]
+        return
+    assert swap["economic_diagnostic"]["status"] == "unexplained_mismatch"
+    assert "event_transfer_mismatch" in swap["blockers"]
+    assert "economic_fee_semantics_diagnostic_only" not in swap["blockers"]
 
 
 def test_version_one_static_account_transaction_uses_same_strict_decode():

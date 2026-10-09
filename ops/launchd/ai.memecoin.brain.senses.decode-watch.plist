@@ -11,7 +11,7 @@
 		<string>--source-root</string>
 		<string>/Users/root1/Developer/memecoin-research/work/brain-senses-live-public-20261009-v2</string>
 		<string>--root</string>
-		<string>/Users/root1/Developer/memecoin-research/work/brain-senses-live-public-20261009-v2-decode</string>
+		<string>/Users/root1/Developer/memecoin-research/work/brain-senses-live-public-20261009-v2-decode-v2</string>
 		<string>--poll-seconds</string>
 		<string>60</string>
 	</array>
@@ -36,8 +36,8 @@
 	<key>ProcessType</key>
 	<string>Background</string>
 	<key>StandardOutPath</key>
-	<string>/Users/root1/Developer/memecoin-research/work/brain-senses-live-public-20261009-v2-decode/watch.out.log</string>
+	<string>/Users/root1/Developer/memecoin-research/work/brain-senses-live-public-20261009-v2-decode-v2/watch.out.log</string>
 	<key>StandardErrorPath</key>
-	<string>/Users/root1/Developer/memecoin-research/work/brain-senses-live-public-20261009-v2-decode/watch.err.log</string>
+	<string>/Users/root1/Developer/memecoin-research/work/brain-senses-live-public-20261009-v2-decode-v2/watch.err.log</string>
 </dict>
 </plist>

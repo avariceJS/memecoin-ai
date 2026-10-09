@@ -204,6 +204,88 @@ def movement(node, roles, kind, pre, post):
     )
 
 
+def _diagnose_v1_buy_exact_quote_in(event, roles, movement_result):
+    """Observed v1 fee-flow equation; always diagnostic-only and explicitly gated."""
+    fields = event["fields"]
+    quote_mint = roles["quote_mint"]
+    user_account = roles["user_quote_token_account"]
+    pool_account = roles["pool_quote_token_account"]
+    protocol_account = roles["protocol_fee_recipient_token_account"]
+    creator_account = roles["coin_creator_vault_ata"]
+    quote_transfers = [t for t in movement_result["transfers"] if t["mint"] == quote_mint]
+    user_debit = sum(t["amount"] for t in quote_transfers if t["source"] == user_account) - sum(
+        t["amount"] for t in quote_transfers if t["destination"] == user_account
+    )
+    pool_credit = sum(
+        t["amount"] for t in quote_transfers if t["destination"] == pool_account
+    ) - sum(t["amount"] for t in quote_transfers if t["source"] == pool_account)
+    protocol_paid = sum(
+        t["amount"] for t in quote_transfers if t["destination"] == protocol_account
+    )
+    creator_paid = sum(t["amount"] for t in quote_transfers if t["destination"] == creator_account)
+    residual = [
+        t
+        for t in quote_transfers
+        if t["destination"] not in (pool_account, protocol_account, creator_account)
+    ]
+    buyback_paid = sum(t["amount"] for t in residual)
+    equations = dict(
+        gross_equals_event_quote_amount_in=user_debit == fields.get("quote_amount_in"),
+        pool_credit_equals_event_quote_amount_in_with_lp_fee=(
+            pool_credit == fields.get("quote_amount_in_with_lp_fee")
+        ),
+        net_pricing_amount_equals_pool_credit_less_lp=(
+            pool_credit - fields.get("lp_fee", 0) == fields.get("user_quote_amount_in")
+        ),
+        gross_less_pool_equals_protocol_and_creator=(
+            user_debit - pool_credit
+            == fields.get("protocol_fee", 0) + fields.get("coin_creator_fee", 0)
+        ),
+        protocol_recipient_plus_buyback_equals_protocol=(
+            protocol_paid + buyback_paid == fields.get("protocol_fee")
+        ),
+        creator_recipient_equals_creator_fee=(creator_paid == fields.get("coin_creator_fee")),
+        buyback_transfer_equals_event_buyback_fee=(buyback_paid == fields.get("buyback_fee")),
+        quote_token_program_supported=roles.get("quote_token_program") == TOKEN,
+        residual_fee_accounts_match_buyback=(
+            len(residual) == (1 if fields.get("buyback_fee", 0) > 0 else 0)
+        ),
+    )
+    return dict(
+        contract="pumpswap_v1_buy_exact_quote_in_fee_diagnostic_v1",
+        status="reconciled_diagnostic_only" if all(equations.values()) else "unexplained_mismatch",
+        quantities=dict(
+            user_gross_quote_debit=user_debit,
+            pool_quote_credit=pool_credit,
+            user_net_quote_pricing_amount=fields.get("user_quote_amount_in"),
+            lp_fee=fields.get("lp_fee"),
+            protocol_fee=fields.get("protocol_fee"),
+            creator_fee=fields.get("coin_creator_fee"),
+            buyback_fee=fields.get("buyback_fee"),
+        ),
+        source_event_fields={
+            key: fields.get(key)
+            for key in (
+                "quote_amount_in",
+                "quote_amount_in_with_lp_fee",
+                "user_quote_amount_in",
+                "lp_fee",
+                "protocol_fee",
+                "coin_creator_fee",
+                "buyback_fee",
+            )
+        },
+        equations=equations,
+        recipient_transfer_amounts=dict(
+            protocol_recipient=protocol_paid,
+            creator_vault=creator_paid,
+            buyback_residual=buyback_paid,
+            buyback_destination_count=len(residual),
+        ),
+        admission="none",
+    )
+
+
 def _supported_transaction_version(tx):
     version = tx.get("version")
     if version in ("legacy", 0):
@@ -322,13 +404,21 @@ def decode(tx, schema=SCHEMA):
                 args_ok = m["base_amount"] == amount and m["quote_user_amount"] >= limit
             if not args_ok:
                 raise ValueError("instruction_transfer_mismatch")
-            bfield, qfield = (
-                ("base_amount_in", "user_quote_amount_out")
-                if kind == "sell"
-                else ("base_amount_out", "user_quote_amount_in")
-            )
-            if fields[bfield] != m["base_amount"] or fields[qfield] != m["quote_user_amount"]:
-                swap["blockers"].append("event_transfer_mismatch")
+            if kind == "buy_exact_quote_in":
+                diagnostic = _diagnose_v1_buy_exact_quote_in(ev, roles, m)
+                swap["economic_diagnostic"] = diagnostic
+                if diagnostic["status"] == "reconciled_diagnostic_only":
+                    swap["blockers"].append("economic_fee_semantics_diagnostic_only")
+                else:
+                    swap["blockers"].append("event_transfer_mismatch")
+            else:
+                bfield, qfield = (
+                    ("base_amount_in", "user_quote_amount_out")
+                    if kind == "sell"
+                    else ("base_amount_out", "user_quote_amount_in")
+                )
+                if fields[bfield] != m["base_amount"] or fields[qfield] != m["quote_user_amount"]:
+                    swap["blockers"].append("event_transfer_mismatch")
         except (ValueError, KeyError, TypeError) as exc:
             category = str(exc) if isinstance(exc, ValueError) else "instruction_schema"
             result["errors"].append(dict(path=node["path"], category=category))
