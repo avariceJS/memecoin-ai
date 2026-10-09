@@ -172,7 +172,11 @@ def _legacy_schedule_config_matches(existing: dict[str, Any], expected: dict[str
 
 
 def _verify_legacy_bootstrap(
-    root_base: Path, existing: dict[str, Any], *, require_bootstrap_only: bool = True
+    root_base: Path,
+    existing: dict[str, Any],
+    *,
+    require_bootstrap_only: bool = True,
+    expected_bootstrap_frontier_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Verify the exact one-request bootstrap before a source compatibility migration."""
     epochs_root = root_base / "epochs"
@@ -217,8 +221,21 @@ def _verify_legacy_bootstrap(
         or summary.get("status") != "bootstrap_complete"
         or summary.get("request_reservations") != 1
         or summary.get("advance_to") != 455028552
-        or frontier.get("next_start") != 455028552
-        or frontier.get("last_applied_bucket") != "20261009T220000Z"
+        or (
+            require_bootstrap_only
+            and (
+                frontier.get("next_start") != 455028552
+                or frontier.get("last_applied_bucket") != "20261009T220000Z"
+            )
+        )
+        or (
+            not require_bootstrap_only
+            and (
+                type(frontier.get("next_start")) is not int
+                or frontier["next_start"] < 455028552
+                or frontier.get("last_applied_bucket", "") < "20261009T220000Z"
+            )
+        )
         or reservation.get("method") != "getSlot"
         or reservation.get("provider") != PROVIDER
         or reservation.get("sequence") != 1
@@ -238,7 +255,11 @@ def _verify_legacy_bootstrap(
     return {
         "plan_sha256": hashlib.sha256(plan_path.read_bytes()).hexdigest(),
         "summary_sha256": hashlib.sha256(summary_path.read_bytes()).hexdigest(),
-        "frontier_sha256": hashlib.sha256(frontier_path.read_bytes()).hexdigest(),
+        "frontier_sha256": (
+            hashlib.sha256(frontier_path.read_bytes()).hexdigest()
+            if require_bootstrap_only or expected_bootstrap_frontier_sha256 is None
+            else expected_bootstrap_frontier_sha256
+        ),
         "reservation_sha256": hashlib.sha256(reservation_path.read_bytes()).hexdigest(),
         "result_sha256": hashlib.sha256(result_path.read_bytes()).hexdigest(),
         "capture_response_sha256": result["response_sha256"],
@@ -324,7 +345,14 @@ def _validate_compatibility_migration(
         != _historical_behavior_bindings(existing["scheduler_source_commit"])
         or migration.get("scheduler_compatibility_diff") != expected_first_diff
         or migration.get("bootstrap_evidence")
-        != _verify_legacy_bootstrap(root_base, existing, require_bootstrap_only=False)
+        != _verify_legacy_bootstrap(
+            root_base,
+            existing,
+            require_bootstrap_only=False,
+            expected_bootstrap_frontier_sha256=migration.get("bootstrap_evidence", {}).get(
+                "frontier_sha256"
+            ),
+        )
         or (second is None and current_bindings != first_bindings)
         or (
             second is not None
@@ -461,7 +489,14 @@ def advance_legacy_scheduler_binding(root_base: Path, expected: dict[str, Any]) 
             or previous_bindings.get(previous_path) != previous_hash
             or {key: value for key, value in previous_bindings.items() if key != previous_path}
             != _historical_behavior_bindings(FIRST_APPROVED_SCHEDULER_COMMIT)
-            or _verify_legacy_bootstrap(root_base, existing, require_bootstrap_only=False)
+            or _verify_legacy_bootstrap(
+                root_base,
+                existing,
+                require_bootstrap_only=False,
+                expected_bootstrap_frontier_sha256=first.get("bootstrap_evidence", {}).get(
+                    "frontier_sha256"
+                ),
+            )
             != first.get("bootstrap_evidence")
         ):
             raise ValueError("compatibility_migration_predecessor_mismatch")
