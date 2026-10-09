@@ -11,6 +11,12 @@ must represent meaningful increases in useful corpus, training compute, and vali
 not a new checkpoint from a tiny fit. The two Macs are the first compute stage. The architecture
 must allow later GPU and data-center capacity without losing provenance or safety.
 
+The target is a continuously growing, multi-venue market corpus and learning system that can expand
+from thousands of markets to much larger populations, modalities, worker fleets and future model
+generations. Current host, provider, fixture, and model limits describe measured capability today;
+they do not set Brain's architectural scale boundary. Preserve stable data, provenance, recovery,
+and ownership contracts so scale can grow without replacing the sensing foundation.
+
 The user reports two Macs, paid Alchemy, strong research/coding models, and willingness to expand
 storage/compute. Alchemy Free published limits and a bounded PAYG read-only series have now been
 checked; account choices and receipts are recorded in
@@ -119,7 +125,8 @@ The component map is:
 
 The new research pipeline connects the qualified bar lane end to end and v3 can preserve native slot
 coordinates alongside UTC availability without implicit clock conversion. Raw-chain event history is
-still not a broad qualified feature stream; the current AUTO trainer remains separate and bounded;
+still not a broad qualified feature stream; a durable prospective collector and broad evolving pool
+population are the nearest sensing priorities. The current AUTO trainer remains separate and bounded;
 Watch Market is not installed on the owner runtime.
 
 ## Learning path today

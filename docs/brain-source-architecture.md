@@ -10,7 +10,45 @@ This document owns source roles, data admission, coverage, and acquisition desig
 | Alchemy indexed Solana RPC | Historical transactions, birth discovery, address-indexed backfill | An indexed transaction is not a decoded market observation; coverage/pagination must be proven |
 | GeckoTerminal | Current and historical OHLCV used by Brain's price forecasts | Provider bars are revisions with their own receipt/availability time; coverage can be sparse/stale |
 | Public Solana RPC | Structural controls and bounded read-only verification | It is not a complete archive or independent proof of another provider's dataset |
-| Helius / secondary RPCs | Diagnostics or explicitly qualified cross-checks | Configured access does not prove plan, completeness, or independent agreement |
+| Helius | Independent indexed RPC and standard WSS cross-checks | A configured endpoint does not prove account plan, completeness, or independent agreement |
+
+The user-provided Helius RPC credential is configured only in ignored, mode-0600 `.env.local` under
+`MEMECOIN_HELIUS_RPC_URL`; LaunchAgent arguments, Git and logs contain no key. Read-only Helius MCP
+plan info and current pricing confirm Free at 1M credits/month and 10 standard RPC requests/s;
+standard `getBlock`, `getBlocks`, `getSignaturesForAddress`, and `getTransaction` each cost one
+credit. Account-level usage is not exposed. Standard WSS is available; enhanced
+`transactionSubscribe` and mainnet LaserStream gRPC are not in Free. The old address-signature
+watch stopped after 4,350 reserved/captured requests, with three transport failures and a growing
+backlog; it is preserved as a stopped source run, not resumed as a per-signature completeness path.
+The 20,000/day setting was only that run's bound, not a Brain quota or architecture ceiling. Use
+Helius Free broadly where independent comparisons improve evidence, with per-wave credit, request,
+raw-byte, and recovery accounting. See [Helius plan pricing](https://www.helius.dev/pricing),
+[RPC rates](https://www.helius.dev/solana-rpc-nodes), and [Helius WebSocket capabilities](https://www.helius.dev/blog/laserstream-websockets).
+
+A 2026-10-09 bounded PumpSwap program-address request returned zero signatures from Alchemy Free,
+while public RPC returned five finalized references for the same address/limit/commitment shortly
+afterward. This is a provider/index discrepancy, not evidence of zero activity. The six-call public
+capture path preserved full `jsonParsed` transaction bodies and receipt times. It was a canary, not
+a qualified market process: one transaction failed, the samples do not establish a pool census or
+provider exhaustiveness, and the short canary source revision was not committed. See
+[`brain-senses-program-watch-2026-10-09.json`](evidence/brain-senses-program-watch-2026-10-09.json).
+The committed collector runs from a separate research LaunchAgent root. It journals each request
+before I/O, seals responses, paces calls, records explicit provider/error/cursor state, and stops on
+ambiguous reservations. Its observed population is transactions returned through the PumpSwap
+program-address index, not a pool census. At the first decoder census boundary (279 transactions),
+41 were failed on-chain transactions, 63 had no supported PumpSwap swap, and 175 remained
+quarantined. Coverage and completeness are unknown. Do not admit these rows as exact market activity
+or zero until independently reconciled.
+
+The commit-bound read-only exception watcher records decoder/schema pins, transaction-shape classes,
+representative signature hashes, raw-capture links, receipt/event times and new-class alerts. It
+never changes raw captures or admits facts. In the first census, 53 apparent `event_transfer_mismatch`
+cases exposed a v1 `buy_exact_quote_in` gross/net comparator defect. A bounded diagnostic now checks
+separate user gross debit, pool quote credit, event net pricing amount, and fee-transfer equations for
+that specific instruction. Successful arithmetic remains `economic_fee_semantics_diagnostic_only`;
+remaining-account and Token-2022 blockers stay independent. V2 has a separate account and fee
+retention layout and is not assigned the v1 equations. The official Pump [V2 trade contract](https://github.com/pump-fun/pump-public-docs/blob/main/docs/instructions/PUMP_SWAP_TRADE_V2.md)
+describes that layout and its fee behavior. No economic process is qualified yet.
 
 Alchemy endpoint qualification (2026-10-09) measured bounded read-only behavior on two
 independent project accounts. The Free Solana account is published at 30M CU/month and 300 CU/s.
@@ -589,6 +627,23 @@ exposes no automatic witness search or range expansion. The generic inventory ve
 and can label a slot skipped only from successful enumeration plus a qualified parent/hash chain; an
 absent provider record alone is unknown. These are finalized block inventory facts, not universal
 provider guarantees or lifecycle evidence.
+
+The 2026-10-09 Helius/public same-slot block pilot compared three separated finalized ranges (50
+slots). Both providers returned identical slot sets in all three ranges; block identity and ordered
+transaction signatures matched for all 50 slots, and each provider's full/signatures-only lists
+matched for all 100 provider-slot pairs. All 56,615 paired transactions were structurally comparable:
+56,495 exact JSON-tree matches and 120 differences, all confined to Helius `meta.logMessages` with
+an explicit `Log truncated` marker. The 103 Helius calls are expected to cost 103 standard credits;
+the account meter was unavailable. Both providers returned 7,953 PumpSwap structural instruction
+references (7,761 in successful and 192 in failed transactions), not economic swaps. The 50 slots
+were a feasibility selection, not a probability sample or broad-completeness result. Block capture
+recovered about 159 structural references per full-block request and averaged 4.3 MB per full block
+per provider, substantially improving request efficiency over one `getTransaction` per signature.
+Receipt: [`helius-public-block-provider-pilot-2026-10-09.json`](evidence/helius-public-block-provider-pilot-2026-10-09.json).
+Next: use a precommitted, stratified finalized-slot sample across three UTC days, preserve the
+prospective public signature watch independently, and report only sampled-block agreement. The sample
+is not a permanent request/credit ceiling; scale it based on measured discrepancy yield, uncertainty,
+actual billed credits, durable raw bytes, and available storage.
 
 The 2026-10-09 `brain-experience-v3` contract carries typed native coordinates alongside independent
 UTC availability. Origins, dependency extents, target windows, maturity and role intervals name a

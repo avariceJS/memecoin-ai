@@ -49,11 +49,24 @@ contain large exact payloads, so open only the named artifact needed for a speci
   instruction references) matured; the next stayed pending. The two rows cannot form independent
   splits or support a fit. Provider agreement is bounded response consistency, not global ledger or
   market-process completeness; raw payloads and identities remain outside this receipt.
+- Initial PumpSwap program-address watcher canary and provider discrepancy:
+  `brain-senses-program-watch-2026-10-09.json`. Alchemy Free returned an empty address-index page;
+  public RPC returned five nearby finalized references and a six-call capture sealed five full
+  transactions. This uses an intermediate uncommitted collector revision, remains unknown-coverage
+  evidence, and is not an economic-process qualification. The durable collector implementation is
+  in commit `d68871a`; its ongoing run will produce separate commit-bound evidence.
 - One no-retry Free bounded range capture requested one finalized block with explicit neighboring
   witnesses. The requested block was complete; the left witness failed at transport and lineage
   remains unresolved. Offline inventory publication and replica replay succeeded, but interval and
   provider completeness, market-process support, zero activity and CU cost were not established:
   `alchemy-free-block-range-2026-10-09.json`.
+- Helius/public finalized block comparison across three separated ranges and 50 slots:
+  `helius-public-block-provider-pilot-2026-10-09.json`. The 103 Helius calls are expected to cost
+  103 standard credits (account meter unavailable); all slot sets, block identities, ordered
+  signatures, and full/signatures-only lists agreed. Of 56,615 paired transactions, 120 differed
+  only because Helius explicitly truncated `meta.logMessages`. Raw provider bodies and the corrected
+  full comparison remain under ignored `work/`; this is a non-random qualification pilot, not broad
+  completeness evidence. The follow-up sample is deliberately larger than this first pilot.
 - Sensing schedule, multistream point-in-time episode, enrollment re-entry and account-budget
   dry-run tests are in `tests/test_experience_sensing.py` and `tests/test_experience_sparse.py`;
   schedule resource measurements are synthetic and small.
