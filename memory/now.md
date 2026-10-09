@@ -20,11 +20,10 @@ promotions, and remote pushes untouched. Do not start Cortex before Senses is ob
   response agreement; Alchemy `getBlocks` failed, so its inventory and unsampled slots remain
   unknown. See `docs/brain-source-architecture.md` and
   `docs/evidence/helius-alchemy-pair64-offline-audit-2026-10-09.json`.
-- Helius address watch-v3 is the only loaded prospective sensor in this group; it runs on a
-  five-minute schedule and is idle between invocations. The 12:00Z and 18:00Z roots have STOP
-  records; do not bridge those gaps. Unload it before enabling the new block sensor.
-- Disk and LaunchAgent state were checked 2026-10-10 01:17 Moscow: ~70 GiB free; no v2 block
-  LaunchAgent. Recheck before runtime changes.
+- Helius watch-v3 is now unloaded; its 12:00Z and 18:00Z roots have STOP records and must not be
+  bridged. No v2 LaunchAgent is loaded. The v2 campaign bootstrap ran at 22:43Z on 2026-10-09:
+  finalized slot 455028551, frontier 455028552, one `getSlot` reservation, 43 raw/56 zstd bytes.
+  It did not fetch a block body. About 70 GiB were free at 22:45Z; recheck before each request.
 
 ## Senses facts
 
@@ -34,7 +33,8 @@ promotions, and remote pushes untouched. Do not start Cortex before Senses is ob
   failed/unknown states; resumes durable responses without replay; and enforces campaign locks,
   outstanding byte reservations and per-request disk floor. Helius charge units are unverified and
   are not equated to request counts. It has 13 passing no-RPC recovery/failure/CLI tests, Ruff and
-  `git diff --check`. No live run or LaunchAgent yet.
+  `git diff --check`. Bootstrap is complete; no frame body or v2 LaunchAgent has run yet. The next
+  eligible real bucket is 2026-10-09 23:00Z.
 - Previous 512-slot/hour Helius/Alchemy epoch: 512/512 Helius selected bodies self-check; 64/64
   Alchemy same-slot pairs match block identity and ordered signatures. Of 80,467 paired transactions,
   146 differences were exclusively Helius `meta.logMessages` truncation with explicit markers.
@@ -50,7 +50,7 @@ promotions, and remote pushes untouched. Do not start Cortex before Senses is ob
 
 ## Next horizon
 
-1. Run a finite Helius-only prospective pilot through the new CLI. Sol's locked settings: hourly,
+1. Continue the finite Helius-only prospective pilot through the new CLI. Sol's locked settings: hourly,
    16 produced-slot samples, 20,000
    frame-width cap, 25 epochs including bootstrap, 817 reservations, 4 GB raw, 1 GB stored, 256/128
    MB per frame, zstd, and 50 GiB free-space floor. First run bootstrap plus three hourly frames as

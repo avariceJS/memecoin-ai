@@ -772,12 +772,13 @@ uncertainty, actual billing evidence, durable raw bytes, and available storage.
 ## Prospective provider epochs (2026-10-09)
 
 **Current runtime status (2026-10-10):** the 64/hour and 512/hour finalized-block schedulers, the
-legacy public/Helius block schedulers, and decode watchers are unloaded or stopped. The pair64
-campaign remains stopped; its raw captures are retained. Helius watch-v3 is the only loaded
-prospective service in this group: its LaunchAgent polls every five minutes and is idle between
-invocations. Its 12:00Z and 18:00Z epochs both have STOP records; there is no later epoch yet. A
-future bucket is a new observation and must not bridge either stopped epoch. Disk had about 70 GiB
-free at the current review. Verify LaunchAgent and disk state before any new schedule.
+legacy public/Helius block schedulers, decode watchers, and Helius watch-v3 are stopped or unloaded.
+The pair64 campaign remains stopped; its raw captures are retained. Watch-v3's 12:00Z and 18:00Z
+epochs have STOP records; no future bucket may bridge either stopped epoch. The inventory-first v2
+pilot has begun in `work/brain-senses-live-helius-inventory-v2-16-hourly-20261010/`: bootstrap at
+22:43Z on 2026-10-09 observed finalized slot 455028551 and committed frontier 455028552. No block
+body has yet been requested and no v2 LaunchAgent is loaded. At 22:45Z there were about 70 GiB
+free. The next eligible frame is the real 23:00Z bucket; do not backdate or bridge a missed bucket.
 
 The next finalized-block process is a new versioned sensor. It must pin a finalized numeric slot
 frame, seed, selection rule, provider and request/byte budgets before acquisition; capture and hash
@@ -804,15 +805,16 @@ and ordered-signature cross-check all pass. These are no-RPC fixture results, no
 completeness. The scheduler pins source/config identity, serializes campaign writes, accounts for
 outstanding worst-case response reservations, and checks disk headroom before each request. Helius
 charge units remain unknown; request counts are recorded separately. The focused suite has 13
-passing tests. No LaunchAgent uses v2 yet. Sol selected a Helius-only hourly pilot with 16 sampled
+passing tests. Sol selected a Helius-only hourly pilot with 16 sampled
 produced slots, a 20,000-slot frame cap, zstd storage, and a 50 GiB pre-request free-space floor.
 Each frame allows 34 reservations, 256 MB raw and 128 MB stored; the campaign allows 25 epochs
 (one bootstrap plus at most 24 frames), 817 reservations, 4 GB raw and 1 GB stored. The rough
 measured projection is 84 MB raw and 34 requests per frame, about 2.0 GB raw across 24 frames;
 stored bytes are projected near 0.46 GB using the mixed-provider pair64 ratio, not a guarantee.
-First run bootstrap and three real hourly frames as one-shot invocations and inspect their complete
-accounting and structural self-checks. Only then enable the hourly LaunchAgent on the same locked
-campaign, if healthy. Before the bootstrap, recheck actual disk/runtime state and unload watch-v3.
+Run bootstrap and three real hourly frames as one-shot invocations and inspect their complete
+accounting and structural self-checks. Bootstrap is complete; three frames remain before the first
+checkpoint. Only then enable the hourly LaunchAgent on the same locked campaign, if healthy. Before
+each invocation, recheck the actual UTC bucket, disk, and runtime state.
 Missed intervals stay in the same slot-coordinate frame only within the 20,000-slot cap; larger
 intervals seal as unknown gaps. Alchemy pairing stays disabled until an account-level limit is
 verifiable.
