@@ -139,6 +139,9 @@ def run_bucket(
             "completeness": "sampled finalized slots only; all unselected slots unknown",
         }
         _create(campaign_path, campaign)
+    campaign_stop_path = root_base / "CAMPAIGN_STOP"
+    if campaign_stop_path.exists():
+        return _read(campaign_stop_path)
     root = root_base / bucket
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     lock_path = root_base / ".schedule.lock"
@@ -156,7 +159,7 @@ def run_bucket(
             return event
         if time.time_ns() >= campaign["stops_accepting_new_epochs_ns"]:
             event = {"status": "campaign_window_expired", "bucket": bucket}
-            _create(root / f"campaign-expired-{time.time_ns()}.json", event)
+            _create(campaign_stop_path, event)
             return event
         usage = campaign_usage(root_base)
         providers_for_bucket = (
@@ -174,7 +177,7 @@ def run_bucket(
         )
         if cap_hit:
             event = {"status": "campaign_cap_reached", "usage": usage}
-            _create(root / f"campaign-cap-{time.time_ns()}.json", event)
+            _create(campaign_stop_path, event)
             return event
         previous = sorted(
             path

@@ -65,9 +65,7 @@ def run_epoch(root_base: Path, *, initial_parent: Path | None = None) -> dict:
         except BlockingIOError:
             return {"status": "epoch_scheduler_already_running", "bucket": bucket}
         if (root / "epoch-schedule.json").exists() or (root / "source-epoch.json").exists():
-            event = {"status": "epoch_already_attempted_no_replay", "bucket": bucket}
-            _create(root / f"schedule-skip-{time.time_ns()}.json", event)
-            return event
+            return {"status": "epoch_already_attempted_no_replay", "bucket": bucket}
         previous = [
             path
             for path in root_base.iterdir()
