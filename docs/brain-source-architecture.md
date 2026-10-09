@@ -803,10 +803,19 @@ qualified only when the full response validator, account/instruction resolution,
 and ordered-signature cross-check all pass. These are no-RPC fixture results, not market
 completeness. The scheduler pins source/config identity, serializes campaign writes, accounts for
 outstanding worst-case response reservations, and checks disk headroom before each request. Helius
-charge units remain unknown; request counts are recorded separately. The focused suite has 12
-passing tests. No LaunchAgent uses v2 yet; the next step is a bounded Helius-only runtime pilot
-after rechecking actual disk/runtime state and unloading watch-v3. Alchemy pairing stays disabled
-until an account-level limit is verifiable.
+charge units remain unknown; request counts are recorded separately. The focused suite has 13
+passing tests. No LaunchAgent uses v2 yet. Sol selected a Helius-only hourly pilot with 16 sampled
+produced slots, a 20,000-slot frame cap, zstd storage, and a 50 GiB pre-request free-space floor.
+Each frame allows 34 reservations, 256 MB raw and 128 MB stored; the campaign allows 25 epochs
+(one bootstrap plus at most 24 frames), 817 reservations, 4 GB raw and 1 GB stored. The rough
+measured projection is 84 MB raw and 34 requests per frame, about 2.0 GB raw across 24 frames;
+stored bytes are projected near 0.46 GB using the mixed-provider pair64 ratio, not a guarantee.
+First run bootstrap and three real hourly frames as one-shot invocations and inspect their complete
+accounting and structural self-checks. Only then enable the hourly LaunchAgent on the same locked
+campaign, if healthy. Before the bootstrap, recheck actual disk/runtime state and unload watch-v3.
+Missed intervals stay in the same slot-coordinate frame only within the 20,000-slot cap; larger
+intervals seal as unknown gaps. Alchemy pairing stays disabled until an account-level limit is
+verifiable.
 
 The prior public and Helius program-address watches stopped on failed requests and remain immutable.
 Neither cursor is resumed. Helius watch v2 made a fresh head query and attempted 1,000 signature

@@ -28,11 +28,12 @@ promotions, and remote pushes untouched. Do not start Cortex before Senses is ob
 
 ## Senses facts
 
-- `1380b99` adds a separate inventory-first finalized-block epoch and scheduler. It pins source,
+- `1380b99` adds a separate inventory-first finalized-block epoch and scheduler; `5348c45` adds
+  its one-bucket CLI. It pins source,
   schedule and budgets; captures inventory before sampling; never replaces a selected slot; records
   failed/unknown states; resumes durable responses without replay; and enforces campaign locks,
   outstanding byte reservations and per-request disk floor. Helius charge units are unverified and
-  are not equated to request counts. It has 12 passing no-RPC recovery/failure tests, Ruff and
+  are not equated to request counts. It has 13 passing no-RPC recovery/failure/CLI tests, Ruff and
   `git diff --check`. No live run or LaunchAgent yet.
 - Previous 512-slot/hour Helius/Alchemy epoch: 512/512 Helius selected bodies self-check; 64/64
   Alchemy same-slot pairs match block identity and ordered signatures. Of 80,467 paired transactions,
@@ -49,9 +50,11 @@ promotions, and remote pushes untouched. Do not start Cortex before Senses is ob
 
 ## Next horizon
 
-1. Finish review of `1380b99`, add the bounded scheduler CLI/service entry point, then run a finite
-   Helius-only prospective pilot. Before enabling it, unload watch-v3; verify actual LaunchAgent
-   execution, continuity, failures, bytes and recovery. Keep caps under measured disk/provider
-   constraints; do not claim global completeness.
+1. Run a finite Helius-only prospective pilot through the new CLI. Sol's locked settings: hourly,
+   16 produced-slot samples, 20,000
+   frame-width cap, 25 epochs including bootstrap, 817 reservations, 4 GB raw, 1 GB stored, 256/128
+   MB per frame, zstd, and 50 GiB free-space floor. First run bootstrap plus three hourly frames as
+   one-shot invocations; only enable the LaunchAgent on the same campaign after review. Unload
+   watch-v3 first; recheck runtime/disk; do not claim global completeness.
 2. After pilot evidence, ask Sol to settle a concrete Token-2022 fee/hook/account-settlement
    contract before decoder work. Continue Senses; no Cortex.
