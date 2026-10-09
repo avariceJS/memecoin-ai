@@ -54,20 +54,26 @@ standby. No Grok.
 - `buy_exact_quote_in` v1 now has a tracked source-bound attempt/suffix census receipt. It is
   structural only: 12,120 candidate transactions / 12,143 refs across 507 slots; 1,377 refs meet
   the pinned 25-byte/two-account documented suffix candidate shape. Failed transactions remain
-  attempts. No settlement, economic qualification, or admission is implemented. The 13:00Z archive
+  attempts. This census itself makes no settlement or admission claim. The 13:00Z archive
   remains unopened for this class and is reserved for one-time sealed audit after implementation,
   plan, and acceptance checks are frozen. `buy_exact_quote_in_v2`, Token-2022 effects and unverified
   payload/suffix layouts remain out of scope/quarantined.
+- Frozen development replay currently covers all 62 successful dual-legacy refs in the 15:00Z
+  captured class: 62 exact BuyEvent/transfer fact sets and exact full ordered ledgers for all six
+  touched token accounts. Unit checks preserved 9/6 decimal pairs (61) and 6/9 (one); values are
+  atomic units only. Fee-flow and gross/net equations remain empirical hypotheses. The 13:00Z
+  Helius full-block set is still unread for this buyExact class; its metadata-only manifest binds
+  512 slots and proves disjointness from 15:00Z.
 - No fresh independent model comparison, real-source fit, calibrated execution result, market edge,
   or profit claim. Sensing still lacks broad market/process completeness; do not call Senses complete.
 
 ## Next decision horizon
 
-1. Freeze a deterministic bounded v1 development sample from the 15:00Z pair64 archive and inspect
-   full ordered transaction effects; settle only source-supported outcomes under Sol's
-   attempt/fill contract.
-2. Before opening 13:00Z for buyExact, bind its untouched raw-manifest hash and prove disjointness;
-   freeze implementation, selection, expected checks, and failure policy. Do not tune on audit.
+1. Commit the bounded buyExact v1 diagnostic, replay tool and development receipt; freeze a one-time
+   13:00Z acceptance plan and source bindings before reading its transaction payloads.
+2. Run the sealed audit once with all class denominators and per-ref exact/partial/unsupported
+   reasons. Do not tune on audit; if it exposes a code defect, quarantine the result and seek a new
+   independent source before any requalification.
 3. Decide separately whether the capped v3 address-reference stream should be replaced with a
    recoverable prospective sensor that preserves explicit gaps and charged attempts. Do not restart
    the exhausted epoch. No Cortex.

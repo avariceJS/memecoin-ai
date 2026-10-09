@@ -239,6 +239,21 @@ training/execution admission. The 13:00Z archive remains sealed for a one-time i
 freeze implementation and selection rules before opening it. Receipt:
 [`buyExact v1 attempt census`](evidence/pumpswap-buy-exact-v1-attempt-census-2026-10-10.json).
 
+The frozen development predicate selected all 62 successful refs in that captured census whose
+payload is the pinned 25-byte shape, two-account suffix passes the source-bound checks, and both
+base and quote use legacy SPL Token. The other 1,237 successful structural candidates include
+Token-2022 on at least one side and remain quarantined. Offline replay of all 62 refs found one exact
+`BuyEvent` and four checked legacy token transfers per ref; user quote-account gross debit matched
+the event gross amount, pool quote credit matched its separate event field, and base credit matched
+the event amount and minimum. The full ordered ledger reconciled all six target-touched token
+accounts in all 62 transactions. Observed mint decimal pairs were 9/6 in 61 and 6/9 in one; amounts
+remain integer atomic units and no UI conversion is made. Gross/net and fee-flow equations matched
+all 62, but remain empirical diagnostic hypotheses. This is narrow development evidence only, with
+no wallet-net price, training, execution, or market-completeness admission. Its deterministic plan
+and replay receipt also bind a metadata-only manifest for 512 disjoint 13:00Z Helius full blocks;
+that archive has not been opened for this buyExact audit. Receipt:
+[`buyExact v1 development`](evidence/pumpswap-buy-exact-v1-development-qualification-2026-10-10.json).
+
 One finalized slot was then fetched with full `getBlock` transactions from Alchemy Free and an
 independent public Solana RPC. Both HTTP responses were complete and agreed on block identity,
 parent linkage, 1,132 transaction entries, and the ordered flattened sequence of 1,171 signatures.

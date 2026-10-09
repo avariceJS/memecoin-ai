@@ -109,7 +109,12 @@ def _read_block(zstd: str, capture_path: Path, receipt: dict[str, Any]) -> dict[
     return wrapper["result"]
 
 
-def census(root: Path, output: Path, expected_slots: int = 512) -> dict[str, Any]:
+def census(
+    root: Path,
+    output: Path,
+    expected_slots: int = 512,
+    source_binding_receipt: Path | None = None,
+) -> dict[str, Any]:
     root = root.resolve()
     output = output.resolve()
     if output.exists():
@@ -122,12 +127,22 @@ def census(root: Path, output: Path, expected_slots: int = 512) -> dict[str, Any
         raise ValueError("capture_plan_missing")
     plan_bytes = plan_path.read_bytes()
     plan_pin = _sha256(plan_bytes)
-    audit_receipt_path = (
+    audit_receipt_path = source_binding_receipt or (
         REPO_ROOT / "docs/evidence/helius-alchemy-pair64-offline-audit-2026-10-09.json"
     )
     audit_receipt = _json(audit_receipt_path)
-    if audit_receipt.get("bound_plan_sha256") != plan_pin:
-        raise ValueError("pair64_audit_plan_binding_mismatch")
+    if audit_receipt.get("bound_plan_sha256") == plan_pin:
+        binding_kind = "pair64_plan_bound_provider_audit"
+    else:
+        expected_capture_root = (root / "captures/helius-free").resolve()
+        receipt_capture_root = Path(audit_receipt.get("capture_root", "")).resolve()
+        if (
+            receipt_capture_root != expected_capture_root
+            or audit_receipt.get("selected_full_blocks_verified") != expected_slots
+            or audit_receipt.get("offline_replay") is not True
+        ):
+            raise ValueError("source_binding_receipt_does_not_bind_captured_blocks")
+        binding_kind = "captured_class_full_block_replay_receipt"
 
     captures = _capture_rows(root)
     if len(captures) != expected_slots:
@@ -254,6 +269,7 @@ def census(root: Path, output: Path, expected_slots: int = 512) -> dict[str, Any
             "plan_sha256": plan_pin,
             "provider_audit_receipt": str(audit_receipt_path),
             "provider_audit_receipt_sha256": _sha256(audit_receipt_path.read_bytes()),
+            "source_binding_kind": binding_kind,
             "provider_audit_code_commit": audit_receipt["audit_code_commit"],
             "provider_audit_analysis_sha256": audit_receipt["analysis_sha256"],
             "expected_full_block_slots": expected_slots,
@@ -325,8 +341,19 @@ def main() -> None:
     parser.add_argument("--capture-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--expected-slots", type=int, default=512)
+    parser.add_argument("--source-binding-receipt", type=Path)
     args = parser.parse_args()
-    print(json.dumps(census(args.capture_root, args.output, args.expected_slots), sort_keys=True))
+    print(
+        json.dumps(
+            census(
+                args.capture_root,
+                args.output,
+                args.expected_slots,
+                args.source_binding_receipt,
+            ),
+            sort_keys=True,
+        )
+    )
 
 
 if __name__ == "__main__":
