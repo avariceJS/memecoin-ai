@@ -79,6 +79,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   pairs matched block identity/signature order. Of 36,852 transaction pairs, 79 differences were
   log-only, and offline replay confirmed Helius's explicit truncation marker in each. Stored zstd
   was 576,376,420 bytes; anchor-to-summary qualification took about 23.5 minutes.
+- Offline replay of the later 512-Helius / 64-Alchemy pair64 epoch:
+  `helius-alchemy-pair64-offline-audit-2026-10-09.json`. All 64 selected pairs agree on block identity
+  and ordered signatures. Of 80,467 paired transactions, 146 differ only in Helius log messages,
+  and all 146 contain its explicit truncation marker. Alchemy inventory failed once; its unsampled
+  slot coverage remains unknown. The receipt binds the ignored raw root and complete offline audit
+  hash; it does not claim transaction discovery completeness or economic agreement.
 - Frozen PumpSwap sell23 full-transaction legacy-token ledger v2 qualification:
   `helius-pumpswap-sell23-ledger-v2-development-qualification-2026-10-09.json` and
   `helius-pumpswap-sell23-ledger-v2-audit-qualification-2026-10-09.json`. Fresh disjoint samples

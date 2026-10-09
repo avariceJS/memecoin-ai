@@ -806,15 +806,56 @@ when measured discrepancies or uncertainty show material benefit and storage/rec
 Preserve the separate 64-slot prospective collector and Helius watch if a broad wave reaches its
 campaign cap or disk floor.
 
-The first paired window wrote 152.6 MB to disk (96.8 MB Helius, 55.8 MB public) including only 11
-public full blocks. Helius watch v2 had captured 1,001 request results / 17.7 MB at its terminal
-checkpoint; v3 is capped at 4,400 requests/day, which projects to 0.09 GB/day at 20.3 KB/request.
-At the measured first-epoch rate, 512 Helius slots/hour plus 32 Alchemy pairs/hour is about 13.83
-GB/day stored. Sol's planned 64 Alchemy pairs/hour adds about 36 MB/hour, bringing the estimate to
-about 14.7 GB/day. This one-day wave is within the observed 75 GiB free while maintaining the 30 GiB
-floor, but this rate cannot be retained indefinitely without more capacity. Keep the prospective
-collectors running while their per-epoch disk guards pass; add archival storage only if measured free
-capacity makes it necessary.
+The subsequent `20261009T150000Z` pair64 epoch captured 512/512 Helius selected full blocks with
+matching signatures-only checks across 16 strata. Alchemy Free captured and self-checked all 64
+preselected same-slot pairs; all 64 block identities, ordered signatures, and structural-reference
+counts matched Helius. Across 80,467 paired transactions, 80,321 trees matched exactly. The other
+146 differed only at `meta.logMessages`; the offline audit replayed all 146 and found Helius's
+explicit `Log truncated` marker in each. Alchemy's single `getBlocks` inventory request failed and
+was not retried, so Alchemy inventory and its unsampled slots remain unknown. Helius reported 13,390
+produced slots in the bounded frame; this does not establish global discovery or economic trade
+completeness. Four Helius slots had exact zero **structural references** within that inventory; no
+economic zero was inferred. Receipt:
+[`helius-alchemy-pair64-offline-audit-2026-10-09.json`](evidence/helius-alchemy-pair64-offline-audit-2026-10-09.json).
+
+The pair64 epoch used 1,154 block requests plus two provider anchors: 1,025 Helius block requests
+(1,025 reservations; one more expected credit for the Helius anchor) and 129 Alchemy requests, of
+which one Alchemy inventory request failed. It made no retries or paid requests. Captured response
+bodies totalled 3,012,173,250 raw bytes including anchors, with 695,246,836 bytes zstd-stored for
+block responses and 86 raw anchor bytes; the epoch folder including its manifests, logs, and offline
+analysis is about 701 MB. Local receipt times
+are the first observed availability to this capture process; no decision was made and no historical
+availability is claimed. Helius's account-level usage meter remains unavailable.
+
+The 512-slot/hour campaign was stopped after this first pair64 epoch. Its `CAMPAIGN_STOP` records
+the evidence-gated pause, and its calendar LaunchAgent is unloaded; the old 64-slot Helius/public
+campaign is also stopped and unloaded. Repeating pair64 for a day would project about 72 GB raw and
+16.7 GB stored from the observed epoch, before other sensors, against 70 GiB free at review. Do not
+resume this rate automatically. A later finite wave must bind a fresh sample plan, explicit request
+and byte ceilings, disk headroom, meter state, and a review point; target unresolved discrepancies or
+strata instead of replaying the same sample.
+
+Both schedulers failed before starting new epochs because v2 campaign preflight compared two
+persisted field names that did not match their written keys (`max_helius_credit_reservations` and
+`max_single_epoch_expected_stored_bytes`). The bindings are fixed and the same campaign was
+re-exercised with a no-RPC scheduler fixture; no charged request was repeated. The old public and
+Helius decode watchers also repeatedly exited `ValueError` and were unloaded after their latest logs
+were preserved. They did not produce qualified anomaly coverage; a future decoder monitor must be
+bound to immutable block-epoch captures and emit explicit failures before it is relied on.
+
+Helius watch v3 remains the only scheduled prospective sensor in this set. It is a capped sparse
+program-address reference stream, not block or economic completeness. Its `20261009T180000Z` epoch
+reached 1,100 attempts (1,099 captured, one failed) and recorded STOP with pending signatures. Its
+captured response bodies total 23,446,112 raw bytes; the complete epoch root uses 42,216 KiB. The
+measured mean is about 21.3 KB/attempt; the 4,400-request/day schedule projects about 93.8 MB/day in
+response bodies. Current Helius billing docs price standard RPC at one credit for most methods, so
+the request-only projection is about 132,000 credits per 30 days before any data overage or other
+account traffic. Account usage remains unmetered here, so account-level headroom is unknown. The next
+six-hour epoch is a fresh observation and does not bridge the pending gap. The old Helius address
+watcher stopped at its runtime-exception STOP, and Public RPC watcher epochs v2/v3 stopped after
+query failures with no retry. Their LaunchAgents are unloaded and their raw captures, logs, and STOP
+records are retained. Public RPC remains a historical sparse control because HTTP 429 and timeout
+failures dominate its earlier sample; no Public RPC watcher is currently scheduled.
 
 The 2026-10-09 `brain-experience-v3` contract carries typed native coordinates alongside independent
 UTC availability. Origins, dependency extents, target windows, maturity and role intervals name a
