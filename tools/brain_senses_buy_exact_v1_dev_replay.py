@@ -120,28 +120,66 @@ def replay(census_path: Path, plan_path: Path, output: Path) -> dict[str, Any]:
     census_bytes = census_path.read_bytes()
     census = json.loads(census_bytes)
     plan = _read_json(plan_path)
-    if _sha(census_bytes) != plan.get("source_report_sha256"):
-        raise ValueError("development_plan_source_report_hash_mismatch")
-    if census.get("source", {}).get("plan_sha256") != plan.get("source_pair64_plan_sha256"):
-        raise ValueError("development_plan_pair64_plan_mismatch")
-    if (
-        plan.get("purpose")
-        != "buyExact v1 development replay selection; not audit or population completeness"
-    ):
+    purpose = plan.get("purpose")
+    development_purpose = (
+        "buyExact v1 development replay selection; not audit or population completeness"
+    )
+    audit_purpose = "buyExact v1 sealed audit selection; no tuning or completeness claim"
+    if purpose not in (development_purpose, audit_purpose):
         raise ValueError("unexpected_development_plan_purpose")
+    if purpose == development_purpose:
+        if _sha(census_bytes) != plan.get("source_report_sha256"):
+            raise ValueError("development_plan_source_report_hash_mismatch")
+        if census.get("source", {}).get("plan_sha256") != plan.get("source_pair64_plan_sha256"):
+            raise ValueError("development_plan_pair64_plan_mismatch")
+    elif census_path != Path(plan["audit_census_output_path"]).resolve():
+        raise ValueError("sealed_audit_census_output_path_mismatch")
     criteria = plan.get("criteria", {})
     if criteria.get("base_token_program") != TOKEN or criteria.get("quote_token_program") != TOKEN:
         raise ValueError("development_plan_token_program_scope_mismatch")
     expected_rows = _selected_rows(census)
-    supplied_rows = plan.get("selection_rows")
-    if not isinstance(supplied_rows, list) or len(expected_rows) != plan.get("row_count"):
-        raise ValueError("development_plan_denominator_mismatch")
-    expected_keys = [_row_key(r) for r in expected_rows]
-    supplied_keys = [_row_key(r) for r in supplied_rows]
-    if expected_keys != supplied_keys or len(set(supplied_keys)) != len(supplied_keys):
-        raise ValueError("development_plan_selection_not_census_predicate")
-    if plan.get("unique_transactions") != len({r["signature"] for r in supplied_rows}):
-        raise ValueError("development_plan_unique_transaction_count_mismatch")
+    if purpose == development_purpose:
+        supplied_rows = plan.get("selection_rows")
+        if not isinstance(supplied_rows, list) or len(expected_rows) != plan.get("row_count"):
+            raise ValueError("development_plan_denominator_mismatch")
+        expected_keys = [_row_key(r) for r in expected_rows]
+        supplied_keys = [_row_key(r) for r in supplied_rows]
+        if expected_keys != supplied_keys or len(set(supplied_keys)) != len(supplied_keys):
+            raise ValueError("development_plan_selection_not_census_predicate")
+        if plan.get("unique_transactions") != len({r["signature"] for r in supplied_rows}):
+            raise ValueError("development_plan_unique_transaction_count_mismatch")
+    else:
+        supplied_rows = expected_rows
+        manifest_path = Path(plan["unread_independent_audit_manifest_path"])
+        manifest_bytes = manifest_path.read_bytes()
+        if _sha(manifest_bytes) != plan.get("unread_independent_audit_manifest_sha256"):
+            raise ValueError("sealed_audit_manifest_hash_mismatch")
+        manifest = json.loads(manifest_bytes)
+        if (
+            manifest.get("scope")
+            != "metadata-only sealed raw capture manifest; no transaction payload read"
+        ):
+            raise ValueError("sealed_audit_manifest_scope_mismatch")
+        if Path(manifest["source_root"]).resolve() != Path(
+            census["source"]["root"]
+        ).resolve() or manifest.get("plan_sha256") != census["source"].get("plan_sha256"):
+            raise ValueError("sealed_audit_census_source_mismatch")
+        manifest_slots = set(manifest.get("slots_sorted", []))
+        if manifest_slots != {item["slot"] for item in census["source"]["captures"]}:
+            raise ValueError("sealed_audit_slot_manifest_mismatch")
+        manifest_rows = {row["receipt_path"]: row for row in manifest["helius_full_block_receipts"]}
+        for capture in census["source"]["captures"]:
+            receipt_path = Path(census["source"]["root"]) / capture["capture_receipt"]
+            manifest_row = manifest_rows.get(capture["capture_receipt"])
+            if (
+                manifest_row is None
+                or _sha(receipt_path.read_bytes()) != manifest_row["receipt_sha256"]
+                or manifest_row["slot"] != capture["slot"]
+                or manifest_row["response_sha256"] != capture["response_sha256"]
+                or manifest_row["compressed_sha256"] != capture["compressed_sha256"]
+                or manifest_row["received_ns"] != capture["receipt_ns"]
+            ):
+                raise ValueError("sealed_audit_capture_receipt_manifest_mismatch")
     zstd = shutil.which("zstd")
     if zstd is None:
         raise ValueError("zstd_cli_unavailable")
@@ -150,12 +188,27 @@ def replay(census_path: Path, plan_path: Path, output: Path) -> dict[str, Any]:
     source_plan_path = source_root / "plan.json"
     if _sha(source_plan_path.read_bytes()) != census["source"].get("plan_sha256"):
         raise ValueError("captured_pair64_plan_hash_mismatch")
-    audit_receipt_path = (
-        REPO_ROOT / "docs/evidence/helius-alchemy-pair64-offline-audit-2026-10-09.json"
-    )
+    audit_receipt_path = Path(census["source"]["provider_audit_receipt"])
     audit_receipt = _read_json(audit_receipt_path)
-    if audit_receipt.get("bound_plan_sha256") != census["source"].get("plan_sha256"):
-        raise ValueError("captured_pair64_audit_binding_mismatch")
+    audit_receipt_sha = _sha(audit_receipt_path.read_bytes())
+    if audit_receipt_sha != census["source"].get("provider_audit_receipt_sha256"):
+        raise ValueError("census_source_binding_receipt_hash_mismatch")
+    if audit_receipt.get("bound_plan_sha256") == census["source"].get("plan_sha256"):
+        source_binding_kind = "pair64_plan_bound_provider_audit"
+    else:
+        expected_capture_root = (source_root / "captures/helius-free").resolve()
+        receipt_capture_root = Path(audit_receipt.get("capture_root", "")).resolve()
+        if (
+            receipt_capture_root != expected_capture_root
+            or audit_receipt.get("selected_full_blocks_verified")
+            != census["source"].get("expected_full_block_slots")
+            or audit_receipt.get("offline_replay") is not True
+        ):
+            raise ValueError("census_source_binding_receipt_does_not_bind_full_blocks")
+        source_binding_kind = "captured_class_full_block_replay_receipt"
+    recorded_binding_kind = census["source"].get("source_binding_kind")
+    if recorded_binding_kind is not None and source_binding_kind != recorded_binding_kind:
+        raise ValueError("census_source_binding_kind_mismatch")
     captures_by_slot = {row["slot"]: row for row in census["source"]["captures"]}
     if len(captures_by_slot) != census["source"].get("expected_full_block_slots"):
         raise ValueError("census_full_block_manifest_invalid")
@@ -210,22 +263,29 @@ def replay(census_path: Path, plan_path: Path, output: Path) -> dict[str, Any]:
                 "fact": fact,
             }
         )
-    if len(facts) != plan["row_count"]:
+    if purpose == development_purpose and len(facts) != plan["row_count"]:
         raise ValueError("development_replay_incomplete_denominator")
+    if purpose == audit_purpose and len(facts) != len(expected_rows):
+        raise ValueError("sealed_audit_replay_incomplete_denominator")
     report = {
         "schema_version": 1,
         "contract": CONTRACT,
-        "status": "development_replay_only",
-        "scope": (
-            "all selected 15:00Z captured-class refs from the frozen plan; no audit, "
-            "completeness, or admission claim"
+        "status": "development_replay_only"
+        if purpose == development_purpose
+        else "sealed_audit_replay_only",
+        "scope": plan.get(
+            "scope",
+            "all predicate-selected captured-class refs; no completeness or admission claim",
         ),
         "source": {
             "census_report_path": str(census_path),
             "census_report_sha256": _sha(census_bytes),
             "development_plan_path": str(plan_path),
             "development_plan_sha256": _sha(plan_path.read_bytes()),
-            "source_pair64_plan_sha256": census["source"]["plan_sha256"],
+            "source_capture_plan_sha256": census["source"]["plan_sha256"],
+            "source_binding_receipt": str(audit_receipt_path),
+            "source_binding_receipt_sha256": audit_receipt_sha,
+            "source_binding_kind": source_binding_kind,
             "captured_slots_replayed": sorted(cache),
             "full_block_receipts_replayed": len(cache),
         },
