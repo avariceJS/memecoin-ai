@@ -127,6 +127,27 @@ def replay(census_path: Path, plan_path: Path, output: Path) -> dict[str, Any]:
     audit_purpose = "buyExact v1 sealed audit selection; no tuning or completeness claim"
     if purpose not in (development_purpose, audit_purpose):
         raise ValueError("unexpected_development_plan_purpose")
+    expected_commit = plan.get("implementation_commit")
+    if expected_commit is not None:
+        current_commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        if current_commit != expected_commit:
+            raise ValueError("implementation_commit_does_not_match_frozen_plan")
+        if plan.get("require_clean_worktree"):
+            status = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=REPO_ROOT,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            if status.strip():
+                raise ValueError("frozen_audit_requires_clean_worktree")
     if purpose == development_purpose:
         if _sha(census_bytes) != plan.get("source_report_sha256"):
             raise ValueError("development_plan_source_report_hash_mismatch")
