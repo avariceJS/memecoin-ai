@@ -9,8 +9,8 @@ EVENT_TAG = bytes.fromhex("e445a52e51cb9a1d")
 ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 
-def decode58(value):
-    if not isinstance(value, str) or not 1 <= len(value) <= 12000:
+def decode58(value: object) -> bytes:
+    if not isinstance(value, str) or len(value) > 12000:
         raise ValueError("base58_bound")
     n = 0
     for c in value:
@@ -20,7 +20,7 @@ def decode58(value):
     return bytes(len(value) - len(value.lstrip("1"))) + n.to_bytes((n.bit_length() + 7) // 8, "big")
 
 
-def encode58(value):
+def encode58(value: bytes) -> str:
     n, out = int.from_bytes(value, "big"), ""
     while n:
         n, k = divmod(n, 58)

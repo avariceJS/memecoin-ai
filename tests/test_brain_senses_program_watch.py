@@ -5,10 +5,23 @@ import json
 import time
 from pathlib import Path
 
+import pytest
+
 from memecoin_ai.domain import canonical, digest
 from memecoin_ai.sources import Capture, HTTPSourceError
 from tools.brain_senses_decode_watch import run_once
-from tools.brain_senses_program_watch import _record_source_epoch, poll_once
+from tools.brain_senses_program_watch import _provider_endpoint, _record_source_epoch, poll_once
+
+
+def test_alchemy_payg_endpoint_uses_separate_secret_and_family_validation(monkeypatch):
+    endpoint = "https://solana-mainnet.g.alchemy.com/v2/payg-credential"
+    monkeypatch.setenv("MEMECOIN_ALCHEMY_PAYG_HTTP_URL", endpoint)
+
+    assert _provider_endpoint("alchemy-payg") == (endpoint, "alchemy-payg")
+
+    monkeypatch.setenv("MEMECOIN_ALCHEMY_PAYG_HTTP_URL", "https://example.invalid/key")
+    with pytest.raises(ValueError, match="provider_endpoint_invalid"):
+        _provider_endpoint("alchemy-payg")
 
 
 class FakeRPC:

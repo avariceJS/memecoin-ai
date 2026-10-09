@@ -72,6 +72,7 @@ def _provider_endpoint(provider: str) -> tuple[str, str]:
         return "https://api.mainnet-beta.solana.com", provider
     env_name = {
         "alchemy-free": "MEMECOIN_ALCHEMY_FREE_HTTP_URL",
+        "alchemy-payg": "MEMECOIN_ALCHEMY_PAYG_HTTP_URL",
         "helius-free": "MEMECOIN_HELIUS_RPC_URL",
     }.get(provider)
     if env_name is None:
@@ -88,7 +89,7 @@ def _provider_endpoint(provider: str) -> tuple[str, str]:
     parsed = urlsplit(value)
     valid_host = (
         parsed.hostname == "solana-mainnet.g.alchemy.com"
-        if provider == "alchemy-free"
+        if provider in {"alchemy-free", "alchemy-payg"}
         else bool(
             parsed.hostname
             and (parsed.hostname.endswith(".helius-rpc.com") or parsed.hostname == "rpc.helius.xyz")
@@ -575,7 +576,7 @@ def main() -> int:
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument(
         "--provider",
-        choices=("alchemy-free", "helius-free", "solana-public"),
+        choices=("alchemy-free", "alchemy-payg", "helius-free", "solana-public"),
         default="alchemy-free",
     )
     parser.add_argument("--poll-seconds", type=float, default=15)

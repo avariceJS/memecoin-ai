@@ -28,6 +28,7 @@ from memecoin_ai.sources import (
     TransportSourceError,
     verify_capture_storage_codec,
 )
+from memecoin_pumpswap.normalize import NormalizationError, normalize_compiled_transaction
 from memecoin_pumpswap.schema import SCHEMA
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +44,7 @@ from tools.brain_senses_program_watch import (  # noqa: E402
 
 STOP = False
 PROVIDERS = ("helius-free", "solana-public")
+SUPPORTED_PROVIDERS = ("helius-free", "alchemy-free", "alchemy-payg", "solana-public")
 DETAILS = ("signatures", "full")
 MAX_REQUESTS_PER_PROVIDER = 10_000
 MAX_SLOT_RANGES = 160
@@ -81,9 +83,22 @@ def _build_operations(
     slot_ranges: list[list[int]],
     signature_sample_slots: set[int] | None = None,
     providers: tuple[str, ...] = PROVIDERS,
+    full_sample_slots: set[int] | None = None,
+    signature_sample_slots_by_provider: dict[str, set[int]] | None = None,
+    full_sample_slots_by_provider: dict[str, set[int]] | None = None,
 ) -> list[dict[str, Any]]:
     operations: list[dict[str, Any]] = []
     for provider in providers:
+        provider_full_slots = (
+            full_sample_slots_by_provider.get(provider)
+            if full_sample_slots_by_provider is not None
+            else full_sample_slots
+        )
+        provider_signature_slots = (
+            signature_sample_slots_by_provider.get(provider)
+            if signature_sample_slots_by_provider is not None
+            else signature_sample_slots
+        )
         for start, end in slot_ranges:
             operations.append(
                 dict(
@@ -96,11 +111,13 @@ def _build_operations(
             )
         for start, end in slot_ranges:
             for slot in range(start, end):
+                if provider_full_slots is not None and slot not in provider_full_slots:
+                    continue
                 for detail in DETAILS:
                     if (
                         detail == "signatures"
-                        and signature_sample_slots is not None
-                        and slot not in signature_sample_slots
+                        and provider_signature_slots is not None
+                        and slot not in provider_signature_slots
                     ):
                         continue
                     options: dict[str, Any] = {
@@ -129,16 +146,21 @@ def _plan(
     helius_pace: float,
     sampling_metadata: dict[str, Any] | None = None,
     signature_sample_slots: list[int] | None = None,
+    full_sample_slots: list[int] | None = None,
     max_captured_bytes: int = 30_000_000_000,
+    max_captured_stored_bytes: int | None = None,
     helius_total_credit_cap: int = 75_000,
     helius_daily_credit_cap: int = 25_000,
     providers: tuple[str, ...] = PROVIDERS,
     capture_storage_codec: str = "raw",
+    provider_signature_sample_slots: dict[str, list[int]] | None = None,
+    provider_full_sample_slots: dict[str, list[int]] | None = None,
 ) -> dict[str, Any]:
     if (
         not providers
         or len(set(providers)) != len(providers)
-        or any(provider not in PROVIDERS for provider in providers)
+        or len(providers) > 2
+        or any(provider not in SUPPORTED_PROVIDERS for provider in providers)
     ):
         raise ValueError("invalid_provider_set")
     if not 1 <= request_cap <= MAX_REQUESTS_PER_PROVIDER:
@@ -147,19 +169,81 @@ def _plan(
         raise ValueError("helius_pace_outside_bound")
     if not MAX_RESPONSE_BYTES <= max_captured_bytes <= 100_000_000_000:
         raise ValueError("captured_byte_cap_outside_bound")
+    if max_captured_stored_bytes is not None and not (
+        MAX_RESPONSE_BYTES <= max_captured_stored_bytes <= 100_000_000_000
+    ):
+        raise ValueError("stored_byte_cap_outside_bound")
     if not 1 <= helius_daily_credit_cap <= 1_000_000:
         raise ValueError("helius_daily_credit_cap_outside_bound")
     if not helius_daily_credit_cap <= helius_total_credit_cap <= 1_000_000:
         raise ValueError("helius_total_credit_cap_outside_bound")
     verify_capture_storage_codec(capture_storage_codec)
     sample_set = set(signature_sample_slots) if signature_sample_slots is not None else None
+    full_sample_set = set(full_sample_slots) if full_sample_slots is not None else None
+    provider_signature_sets = (
+        {provider: set(slots) for provider, slots in provider_signature_sample_slots.items()}
+        if provider_signature_sample_slots is not None
+        else None
+    )
+    provider_full_sets = (
+        {provider: set(slots) for provider, slots in provider_full_sample_slots.items()}
+        if provider_full_sample_slots is not None
+        else None
+    )
+    selected_slots = {slot for start, end in slot_ranges for slot in range(start, end)}
     if sample_set is not None:
         if len(sample_set) != len(signature_sample_slots or []):
             raise ValueError("duplicate_signature_sample_slot")
-        selected_slots = {slot for start, end in slot_ranges for slot in range(start, end)}
         if not sample_set <= selected_slots:
             raise ValueError("signature_sample_outside_selected_slots")
-    operations = _build_operations(slot_ranges, sample_set, providers)
+    if full_sample_set is not None:
+        if len(full_sample_set) != len(full_sample_slots or []):
+            raise ValueError("duplicate_full_sample_slot")
+        if not full_sample_set <= selected_slots:
+            raise ValueError("full_sample_outside_selected_slots")
+        if sample_set is not None and not sample_set <= full_sample_set:
+            raise ValueError("signature_sample_missing_full_block")
+    selected_slots = {slot for start, end in slot_ranges for slot in range(start, end)}
+    for name, sample_map in (
+        ("provider_signature", provider_signature_sets),
+        ("provider_full", provider_full_sets),
+    ):
+        if sample_map is None:
+            continue
+        original_map = (
+            provider_signature_sample_slots
+            if name == "provider_signature"
+            else provider_full_sample_slots
+        )
+        if original_map is not None and any(
+            len(set(values)) != len(values) for values in original_map.values()
+        ):
+            raise ValueError(f"{name}_sample_duplicate_slot")
+        if set(sample_map) != set(providers):
+            raise ValueError(f"{name}_sample_provider_mismatch")
+        if any(not values <= selected_slots for values in sample_map.values()):
+            raise ValueError(f"{name}_sample_outside_selected_slots")
+    if provider_signature_sets is not None:
+        if any(
+            not provider_signature_sets[provider]
+            <= (
+                provider_full_sets[provider]
+                if provider_full_sets is not None
+                else full_sample_set
+                if full_sample_set is not None
+                else selected_slots
+            )
+            for provider in providers
+        ):
+            raise ValueError("provider_signature_sample_missing_full_block")
+    operations = _build_operations(
+        slot_ranges,
+        sample_set,
+        providers,
+        full_sample_slots=full_sample_set,
+        signature_sample_slots_by_provider=provider_signature_sets,
+        full_sample_slots_by_provider=provider_full_sets,
+    )
     per_provider = {
         provider: sum(op["provider"] == provider for op in operations) for provider in providers
     }
@@ -176,9 +260,22 @@ def _plan(
         python_version=platform.python_version(),
         providers=list(providers),
         slot_ranges=slot_ranges,
+        full_sample_slots=(sorted(full_sample_set) if full_sample_set is not None else None),
+        signature_sample_slots=(sorted(sample_set) if sample_set is not None else None),
+        provider_full_sample_slots=(
+            {key: sorted(value) for key, value in sorted(provider_full_sets.items())}
+            if provider_full_sets is not None
+            else None
+        ),
+        provider_signature_sample_slots=(
+            {key: sorted(value) for key, value in sorted(provider_signature_sets.items())}
+            if provider_signature_sets is not None
+            else None
+        ),
         request_caps={provider: request_cap for provider in providers},
         wave_limits={
             "max_captured_response_bytes": max_captured_bytes,
+            "max_captured_stored_response_bytes": max_captured_stored_bytes,
             "helius_expected_credit_reservations_total": helius_total_credit_cap,
             "helius_expected_credit_reservations_per_utc_day": helius_daily_credit_cap,
             "helius_expected_credits_per_standard_rpc_request": 1,
@@ -205,9 +302,6 @@ def _plan(
         },
         operations=operations,
         sampling_metadata=sampling_metadata,
-        signature_sample_slots=(
-            sorted(signature_sample_slots) if signature_sample_slots is not None else None
-        ),
         scope="provider-returned finalized slots only; no global ledger completeness claim",
     )
 
@@ -262,6 +356,7 @@ def _result_for(
         capture = client.fetch(operation["method"], operation["params"])
         rel = f"captures/{operation['provider']}/{sequence:012d}"
         _durable_capture(capture, root / rel, storage_codec=storage_codec)
+        response_name = "response.json.zst" if storage_codec == "zstd" else "response.json"
         row: dict[str, Any] = dict(
             sequence=sequence,
             provider=operation["provider"],
@@ -273,6 +368,7 @@ def _result_for(
             capture_path=rel,
             response_sha256=digest(capture.response),
             response_bytes=len(capture.response),
+            stored_response_bytes=(root / rel / response_name).stat().st_size,
             request_started_ns=capture.request_started_ns,
             receipt_ns=capture.received_ns,
         )
@@ -395,11 +491,17 @@ def _transaction_keys(tx: dict[str, Any]) -> list[str | None]:
 
 def _pump_invocations(block: dict[str, Any]) -> dict[str, Any]:
     total = success = failed = unresolved = transactions = 0
+    normalization_failures: dict[str, int] = {}
     for entry in block.get("transactions") or []:
         tx = entry.get("transaction") if isinstance(entry, dict) else None
         message = (tx or {}).get("message") or {}
         keys = _transaction_keys(entry)
         meta = entry.get("meta") or {}
+        try:
+            normalize_compiled_transaction(entry)
+        except NormalizationError as exc:
+            normalization_failures[exc.category] = normalization_failures.get(exc.category, 0) + 1
+            unresolved += 1
         refs = 0
         instructions = message.get("instructions") or []
         all_instructions = list(instructions)
@@ -431,6 +533,7 @@ def _pump_invocations(block: dict[str, Any]) -> dict[str, Any]:
         references_in_successful_transactions=success,
         references_in_failed_transactions=failed,
         unresolved_instruction_shapes=unresolved,
+        compiled_transaction_normalization_failures=dict(sorted(normalization_failures.items())),
         economic_trade_count=None,
         exact_market_activity_claim=False,
     )
@@ -617,6 +720,15 @@ def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) ->
     by_key = {
         (row["provider"], row["method"], row.get("slot"), row["detail"]): row for row in results
     }
+    configured_provider_samples = plan.get("provider_full_sample_slots")
+    configured_sample = plan.get("full_sample_slots")
+    selected_slots = (
+        set().union(*(set(slots) for slots in configured_provider_samples.values()))
+        if isinstance(configured_provider_samples, dict)
+        else set(configured_sample)
+        if isinstance(configured_sample, list)
+        else None
+    )
     windows: list[dict[str, Any]] = []
     for start, end in plan["slot_ranges"]:
         enumeration: dict[str, set[int] | None] = {}
@@ -636,8 +748,13 @@ def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) ->
                 enumeration[provider] = None
             else:
                 enumeration[provider] = set(value)
+        sampled_slots_in_window = (
+            sorted(slot for slot in selected_slots if start <= slot < end)
+            if selected_slots is not None
+            else list(range(start, end))
+        )
         slot_rows: list[dict[str, Any]] = []
-        for slot in range(start, end):
+        for slot in sampled_slots_in_window:
             per_provider: dict[str, dict[str, Any]] = {}
             full_values: dict[str, Any] = {}
             for provider in providers:
@@ -670,6 +787,37 @@ def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) ->
                 inventory_consistent = (
                     exact_count and enumeration_contains_slot is True and self_consistency is True
                 )
+                provider_slots = (
+                    set(configured_provider_samples.get(provider, []))
+                    if isinstance(configured_provider_samples, dict)
+                    else selected_slots
+                )
+                if provider_slots is None:
+                    provider_slots = set(range(start, end))
+                if enumeration[provider] is None:
+                    observation_status = "unknown_inventory_unavailable"
+                elif not enumeration_contains_slot:
+                    observation_status = (
+                        "provider_inventory_discrepancy"
+                        if full_row is not None
+                        and full_row.get("status") == "captured"
+                        and full_row.get("result_status") == "parsed"
+                        else "no_produced_block_per_provider_inventory"
+                    )
+                elif slot not in (provider_slots or set()):
+                    observation_status = "block_known_full_body_not_sampled"
+                elif full_row is None:
+                    observation_status = "block_known_full_body_not_sampled"
+                elif full_row.get("status") != "captured":
+                    observation_status = "failed_full_body_request"
+                elif full_row.get("result_status") != "parsed":
+                    observation_status = "null_or_unparsed_full_body"
+                elif not exact_count:
+                    observation_status = "unknown_full_response_unresolved"
+                elif self_consistency is not True:
+                    observation_status = "unknown_signature_self_check"
+                else:
+                    observation_status = "qualified_structural_reference_count"
                 per_provider[provider] = dict(
                     full_status=full_row.get("result_status") if full_row else "not_run",
                     signatures_status=sig_row.get("result_status") if sig_row else "not_run",
@@ -699,6 +847,13 @@ def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) ->
                     if isinstance(full, dict)
                     else None,
                     program_references=structural,
+                    observation_status=observation_status,
+                    qualified_structural_reference_count=(
+                        structural["structural_reference_count"]
+                        if observation_status == "qualified_structural_reference_count"
+                        and structural is not None
+                        else None
+                    ),
                     structural_reference_qualification=(
                         "exact_over_stored_full_response" if exact_count else "unknown"
                     ),
@@ -801,6 +956,18 @@ def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) ->
                 enumerated_slots_within_selected_range=(
                     None if left is None else all(start <= slot < end for slot in left)
                 ),
+                sampled_slots=sampled_slots_in_window,
+                unselected_produced_slots={
+                    provider: (
+                        None
+                        if enumeration[provider] is None
+                        else sorted(enumeration[provider] - set(sampled_slots_in_window))
+                    )
+                    for provider in providers
+                },
+                unselected_slot_semantics=(
+                    "provider_inventory_knows_block_existed; structural_reference_count_unknown"
+                ),
                 slots_compared=slot_rows,
             )
         )
@@ -815,11 +982,15 @@ def run_once(
     helius_pace: float = 0.25,
     sampling_metadata: dict[str, Any] | None = None,
     signature_sample_slots: list[int] | None = None,
+    full_sample_slots: list[int] | None = None,
     max_captured_bytes: int = 30_000_000_000,
+    max_captured_stored_bytes: int | None = None,
     helius_total_credit_cap: int = 75_000,
     helius_daily_credit_cap: int = 25_000,
     providers: tuple[str, ...] = PROVIDERS,
     capture_storage_codec: str = "raw",
+    provider_signature_sample_slots: dict[str, list[int]] | None = None,
+    provider_full_sample_slots: dict[str, list[int]] | None = None,
     clients: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     plan = _plan(
@@ -828,11 +999,15 @@ def run_once(
         helius_pace,
         sampling_metadata,
         signature_sample_slots,
+        full_sample_slots,
         max_captured_bytes,
+        max_captured_stored_bytes,
         helius_total_credit_cap,
         helius_daily_credit_cap,
         providers,
         capture_storage_codec,
+        provider_signature_sample_slots,
+        provider_full_sample_slots,
     )
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(root, 0o700)
@@ -856,6 +1031,10 @@ def run_once(
     _replace(state_path, state)
     captured_bytes = sum(
         int(_read(path).get("response_bytes") or 0)
+        for path in (root / "request-results").glob("*.json")
+    )
+    captured_stored_bytes = sum(
+        int(_read(path).get("stored_response_bytes") or _read(path).get("response_bytes") or 0)
         for path in (root / "request-results").glob("*.json")
     )
     helius_reservations = [
@@ -892,6 +1071,20 @@ def run_once(
                         reason="captured_response_byte_cap_before_request",
                         captured_response_bytes=captured_bytes,
                         cap=max_captured_bytes,
+                        time_ns=time.time_ns(),
+                    ),
+                )
+                break
+            if (
+                max_captured_stored_bytes is not None
+                and captured_stored_bytes >= max_captured_stored_bytes
+            ):
+                _create(
+                    root / "STOP",
+                    dict(
+                        reason="stored_response_byte_cap_before_request",
+                        captured_stored_response_bytes=captured_stored_bytes,
+                        cap=max_captured_stored_bytes,
                         time_ns=time.time_ns(),
                     ),
                 )
@@ -936,8 +1129,25 @@ def run_once(
             status = row.get("result_status") or row["status"]
             outcomes[status] = outcomes.get(status, 0) + 1
             captured_bytes += int(row.get("response_bytes") or 0)
+            captured_stored_bytes += int(
+                row.get("stored_response_bytes") or row.get("response_bytes") or 0
+            )
             state = _recover(root, plan, plan_path)
             _replace(state_path, state)
+            if (
+                max_captured_stored_bytes is not None
+                and captured_stored_bytes > max_captured_stored_bytes
+            ):
+                _create(
+                    root / "STOP",
+                    dict(
+                        reason="stored_response_byte_cap_after_capture",
+                        captured_stored_response_bytes=captured_stored_bytes,
+                        cap=max_captured_stored_bytes,
+                        time_ns=time.time_ns(),
+                    ),
+                )
+                break
         results = [_read(path) for path in sorted((root / "request-results").glob("*.json"))]
         comparison = _compare(root, plan, results)
         summary = dict(
@@ -960,6 +1170,7 @@ def run_once(
             },
             newly_completed=outcomes,
             captured_response_bytes=captured_bytes,
+            stored_response_bytes=captured_stored_bytes,
             comparison=comparison,
             claims=(
                 "bounded provider-returned block inventories; no global ledger or "
@@ -983,10 +1194,17 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--slot-range", action="append", required=True, metavar="START:END")
+    parser.add_argument(
+        "--provider",
+        action="append",
+        choices=SUPPORTED_PROVIDERS,
+        help="Provider(s) to request; default remains the established Helius/public pair.",
+    )
     parser.add_argument("--request-cap-per-provider", type=int, default=MAX_REQUESTS_PER_PROVIDER)
     parser.add_argument("--helius-pace-seconds", type=float, default=0.25)
     parser.add_argument("--sampling-metadata", type=Path)
     parser.add_argument("--max-captured-bytes", type=int, default=30_000_000_000)
+    parser.add_argument("--max-captured-stored-bytes", type=int)
     parser.add_argument("--helius-total-credit-cap", type=int, default=75_000)
     parser.add_argument("--helius-daily-credit-cap", type=int, default=25_000)
     parser.add_argument("--capture-storage-codec", choices=("raw", "zstd"), default="raw")
@@ -1008,6 +1226,9 @@ def main() -> int:
             signature_sample_slots = (
                 sampling_metadata.get("signature_only_slots") if sampling_metadata else None
             )
+            full_sample_slots = (
+                sampling_metadata.get("full_sample_slots") if sampling_metadata else None
+            )
             summary = run_once(
                 args.root,
                 slot_ranges=_parse_ranges(args.slot_range),
@@ -1015,7 +1236,20 @@ def main() -> int:
                 helius_pace=args.helius_pace_seconds,
                 sampling_metadata=sampling_metadata,
                 signature_sample_slots=signature_sample_slots,
+                full_sample_slots=full_sample_slots,
+                provider_signature_sample_slots=(
+                    sampling_metadata.get("provider_signature_sample_slots")
+                    if sampling_metadata
+                    else None
+                ),
+                provider_full_sample_slots=(
+                    sampling_metadata.get("provider_full_sample_slots")
+                    if sampling_metadata
+                    else None
+                ),
+                providers=tuple(args.provider) if args.provider else PROVIDERS,
                 max_captured_bytes=args.max_captured_bytes,
+                max_captured_stored_bytes=args.max_captured_stored_bytes,
                 helius_total_credit_cap=args.helius_total_credit_cap,
                 helius_daily_credit_cap=args.helius_daily_credit_cap,
                 capture_storage_codec=args.capture_storage_codec,

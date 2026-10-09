@@ -49,7 +49,10 @@ class FakeBlockRPC:
                         {
                             "transaction": {
                                 "signatures": [signature],
-                                "message": {"accountKeys": ["payer"], "instructions": []},
+                                "message": {
+                                    "accountKeys": ["11111111111111111111111111111111"],
+                                    "instructions": [],
+                                },
                             },
                             "version": "legacy",
                             "meta": {
@@ -93,6 +96,38 @@ def test_64_slot_hourly_window_fits_full_and_signature_request_budget() -> None:
     assert sum(operation["method"] == "getBlocks" for operation in operations) == 1
 
 
+def test_full_sample_subset_keeps_single_hour_inventory_and_unknown_unsampled_bodies(
+    tmp_path: Path,
+):
+    slots = [100, 102]
+    operations = _build_operations(
+        [[100, 103]],
+        signature_sample_slots=set(slots),
+        providers=("helius-free",),
+        full_sample_slots=set(slots),
+    )
+    assert len(operations) == 5
+    assert sum(operation["method"] == "getBlocks" for operation in operations) == 1
+
+    result = run_once(
+        tmp_path / "sampled",
+        slot_ranges=[[100, 103]],
+        request_cap=5,
+        providers=("helius-free",),
+        signature_sample_slots=slots,
+        full_sample_slots=slots,
+        clients={"helius-free": FakeBlockRPC()},
+    )
+    window = result["comparison"]["windows"][0]
+    rows = {row["slot"]: row for row in window["slots_compared"]}
+    assert rows[100]["providers"]["helius-free"]["observation_status"] == (
+        "qualified_structural_reference_count"
+    )
+    assert rows[100]["providers"]["helius-free"]["qualified_structural_reference_count"] == 0
+    assert set(window["unselected_produced_slots"]["helius-free"]) == {101}
+    assert window["unselected_slot_semantics"].endswith("structural_reference_count_unknown")
+
+
 def test_same_slot_block_pilot_compares_slot_sets_and_full_transactions(tmp_path: Path) -> None:
     helius = FakeBlockRPC()
     public = FakeBlockRPC()
@@ -113,6 +148,25 @@ def test_same_slot_block_pilot_compares_slot_sets_and_full_transactions(tmp_path
         for row in window["slots_compared"]
         for provider in row["providers"].values()
     )
+
+
+def test_block_pilot_can_pair_helius_and_alchemy_provider_aliases(tmp_path: Path):
+    helius = FakeBlockRPC()
+    alchemy = FakeBlockRPC()
+    result = run_once(
+        tmp_path / "helius-alchemy",
+        slot_ranges=[[100, 102]],
+        request_cap=5,
+        providers=("helius-free", "alchemy-payg"),
+        clients={"helius-free": helius, "alchemy-payg": alchemy},
+    )
+
+    assert result["completed"] == 10
+    assert result["helius_credit_reservations"] == 5
+    assert helius.calls == alchemy.calls == 5
+    window = result["comparison"]["windows"][0]
+    assert window["enumeration_equal"] is True
+    assert all(row["cross_provider_signature_order_equal"] for row in window["slots_compared"])
 
 
 def test_block_pilot_failure_is_accounted_once_and_never_retried(tmp_path: Path) -> None:
@@ -365,7 +419,6 @@ def test_helius_only_window_reproducibly_checks_every_selected_slot(tmp_path: Pa
         and row["providers"]["helius-free"]["provider_inventory_self_consistent"]
         for row in summary["comparison"]["windows"][0]["slots_compared"]
     )
-
     replica = start_epoch(
         tmp_path / "helius-only-epoch-replica",
         window_slots=2,
@@ -376,3 +429,82 @@ def test_helius_only_window_reproducibly_checks_every_selected_slot(tmp_path: Pa
         clients={"helius-free": FakeEpochRPC()},
     )
     assert replica["slot_range"] == result["slot_range"]
+
+
+def test_helius_stratified_epoch_inventories_frame_but_fetches_only_sampled_windows(
+    tmp_path: Path,
+):
+    helius = FakeEpochRPC()
+
+    result = start_epoch(
+        tmp_path / "stratified-epoch",
+        window_slots=16,
+        providers=("helius-free",),
+        slots_per_hour_estimate=3_200,
+        sampling_seed="fixed-stratified-frame",
+        signature_check_all_slots=True,
+        stratum_count=8,
+        clients={"helius-free": helius},
+    )
+
+    window_plan = json.loads((tmp_path / "stratified-epoch" / "window-plan.json").read_text())
+    paired_summary = json.loads(
+        (tmp_path / "stratified-epoch" / "paired-block-capture" / "summary.json").read_text()
+    )
+    window = paired_summary["comparison"]["windows"][0]
+    assert len(window_plan["selection_frame"]["selected_windows"]) == 8
+    assert len(window_plan["full_sample_slots"]) == 16
+    assert len(window_plan["selection_frame"]["slot_inclusion_probabilities"]) > 16
+    assert result["block_capture"]["qualified_sample_slot_count"] == 16
+    assert len(window["slots_compared"]) == 16
+    assert window["enumerated_slot_count"] == 100
+    assert len(window["unselected_produced_slots"]["helius-free"]) == 84
+
+
+def test_stratified_epoch_pairs_alchemy_on_a_recorded_provider_subset(tmp_path: Path):
+    helius = FakeEpochRPC()
+    alchemy = FakeEpochRPC()
+
+    result = start_epoch(
+        tmp_path / "paired-stratified-epoch",
+        window_slots=16,
+        providers=("helius-free", "alchemy-free"),
+        slots_per_hour_estimate=3_200,
+        sampling_seed="fixed-paired-stratified-frame",
+        signature_check_all_slots=True,
+        stratum_count=8,
+        paired_provider="alchemy-free",
+        paired_slots_per_stratum=1,
+        clients={"helius-free": helius, "alchemy-free": alchemy},
+    )
+
+    window_plan = json.loads(
+        (tmp_path / "paired-stratified-epoch" / "window-plan.json").read_text()
+    )
+    provider_samples = window_plan["provider_full_sample_slots"]
+    assert len(provider_samples["helius-free"]) == 16
+    assert len(provider_samples["alchemy-free"]) == 8
+    assert len(window_plan["paired_selection_probabilities"]) == 8
+    assert result["block_capture"]["helius_credit_reservations"] == 33
+    assert helius.calls == 34  # finalized anchor, inventory, and full/signature pairs
+    assert alchemy.calls == 18  # anchor, inventory, and eight full/signature pairs
+    paired_summary = json.loads(
+        (
+            tmp_path
+            / "paired-stratified-epoch"
+            / "paired-block-capture"
+            / "summary.json"
+        ).read_text()
+    )
+    rows = paired_summary["comparison"]["windows"][0]["slots_compared"]
+    assert len(rows) == 16
+    assert sum(
+        row["providers"]["alchemy-free"]["observation_status"]
+        == "qualified_structural_reference_count"
+        for row in rows
+    ) == 8
+    assert all(
+        row["providers"]["helius-free"]["observation_status"]
+        == "qualified_structural_reference_count"
+        for row in rows
+    )

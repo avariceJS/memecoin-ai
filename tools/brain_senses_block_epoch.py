@@ -12,6 +12,7 @@ import random
 import subprocess
 import sys
 import time
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -22,7 +23,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from tools.brain_senses_block_provider_pilot import PROVIDERS, run_once  # noqa: E402
+from tools.brain_senses_block_provider_pilot import (  # noqa: E402
+    PROVIDERS,
+    SUPPORTED_PROVIDERS,
+    run_once,
+)
 from tools.brain_senses_program_watch import (  # noqa: E402
     _create,
     _provider_endpoint,
@@ -30,8 +35,59 @@ from tools.brain_senses_program_watch import (  # noqa: E402
     _sync_dir,
 )
 
-MAX_WINDOW_SLOTS = 64
-MAX_CAPTURE_BYTES = 1_000_000_000
+MAX_WINDOW_SLOTS = 512
+MAX_CAPTURE_BYTES = 2_000_000_000
+MAX_RPC_RESPONSE_BYTES = 32_000_000
+
+
+def stratified_slot_windows(
+    frame_start: int,
+    frame_end: int,
+    *,
+    window_slots: int,
+    stratum_count: int,
+    seed: str,
+) -> tuple[list[dict[str, Any]], list[int], dict[str, str]]:
+    """Select one uniform window per equal slot stratum and record exact inclusion odds."""
+    if frame_start < 1 or frame_end <= frame_start or not seed:
+        raise ValueError("invalid_stratified_frame")
+    if not 1 <= stratum_count <= window_slots or window_slots % stratum_count:
+        raise ValueError("invalid_stratified_window_shape")
+    frame_width = frame_end - frame_start
+    if frame_width < window_slots:
+        raise ValueError("stratified_frame_too_small")
+    window_width = window_slots // stratum_count
+    rng = random.Random(seed)
+    windows: list[dict[str, Any]] = []
+    inclusion_probabilities: dict[str, str] = {}
+    for index in range(stratum_count):
+        stratum_start = frame_start + frame_width * index // stratum_count
+        stratum_end = frame_start + frame_width * (index + 1) // stratum_count
+        latest_start = stratum_end - window_width
+        if latest_start < stratum_start:
+            raise ValueError("stratum_too_small_for_contiguous_window")
+        selected_start = rng.randint(stratum_start, latest_start)
+        candidate_count = latest_start - stratum_start + 1
+        windows.append(
+            {
+                "stratum": index,
+                "stratum_slot_range_exclusive": [stratum_start, stratum_end],
+                "selected_slot_range_exclusive": [selected_start, selected_start + window_width],
+                "candidate_start_count": candidate_count,
+            }
+        )
+        for slot in range(stratum_start, stratum_end):
+            first_start = max(stratum_start, slot - window_width + 1)
+            last_start = min(latest_start, slot)
+            included_start_count = max(0, last_start - first_start + 1)
+            probability = Fraction(included_start_count, candidate_count)
+            inclusion_probabilities[str(slot)] = (
+                f"{probability.numerator}/{probability.denominator}"
+            )
+    selected_slots = sorted(
+        slot for window in windows for slot in range(*window["selected_slot_range_exclusive"])
+    )
+    return windows, selected_slots, inclusion_probabilities
 
 
 def _sha(path: Path) -> str:
@@ -108,16 +164,37 @@ def start_epoch(
     slots_per_hour_estimate: int | None = None,
     sampling_seed: str | None = None,
     signature_check_all_slots: bool = False,
+    stratum_count: int = 0,
+    paired_provider: str | None = None,
+    paired_slots_per_stratum: int = 0,
+    max_capture_response_bytes: int = MAX_CAPTURE_BYTES,
+    max_capture_stored_bytes: int = 1_000_000_000,
     capture_storage_codec: str = "raw",
     clients: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not 1 <= window_slots <= MAX_WINDOW_SLOTS:
         raise ValueError("window_size_outside_bound")
+    if stratum_count < 0 or stratum_count > window_slots:
+        raise ValueError("stratum_count_outside_bound")
+    if stratum_count and window_slots % stratum_count:
+        raise ValueError("window_slots_must_divide_evenly_across_strata")
+    if paired_provider is not None and (
+        paired_provider not in providers or paired_provider == "helius-free"
+    ):
+        raise ValueError("invalid_paired_provider")
+    if paired_slots_per_stratum < 0 or (
+        paired_provider is None and paired_slots_per_stratum
+    ):
+        raise ValueError("invalid_paired_slots_per_stratum")
+    if not MAX_RPC_RESPONSE_BYTES <= max_capture_response_bytes <= 10_000_000_000:
+        raise ValueError("epoch_capture_response_cap_outside_bound")
+    if not MAX_RPC_RESPONSE_BYTES <= max_capture_stored_bytes <= 10_000_000_000:
+        raise ValueError("epoch_capture_stored_cap_outside_bound")
     verify_capture_storage_codec(capture_storage_codec)
     if (
         not providers
         or len(set(providers)) != len(providers)
-        or any(provider not in PROVIDERS for provider in providers)
+        or any(provider not in SUPPORTED_PROVIDERS for provider in providers)
     ):
         raise ValueError("invalid_provider_set")
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -147,7 +224,9 @@ def start_epoch(
         "slots_per_hour_estimate": slots_per_hour_estimate,
         "sampling_seed": sampling_seed,
         "signature_check_all_slots": signature_check_all_slots,
-        "max_capture_response_bytes": MAX_CAPTURE_BYTES,
+        "stratum_count": stratum_count,
+        "max_capture_response_bytes": max_capture_response_bytes,
+        "max_capture_stored_bytes": max_capture_stored_bytes,
         "capture_storage_codec": capture_storage_codec,
         "retry_policy": (
             "no retries; preserve anchor failures and do not dispatch blocks after anchor failure"
@@ -176,7 +255,7 @@ def start_epoch(
                 alias,
                 timeout=30,
                 # The same connections are used for finalized block bodies below.
-                max_bytes=MAX_CAPTURE_BYTES,
+                max_bytes=MAX_RPC_RESPONSE_BYTES,
                 keep_alive=True,
             )
     try:
@@ -199,17 +278,71 @@ def start_epoch(
             invalid_sampling_frame = (
                 not sampling_seed
                 or not slots_per_hour_estimate
-                or slots_per_hour_estimate < window_slots
+                or slots_per_hour_estimate < window_slots // max(1, stratum_count)
             )
             if invalid_sampling_frame:
                 raise ValueError("invalid_hourly_sampling_frame")
             lower = max(1, common_tip - slots_per_hour_estimate + 1)
-            upper = common_tip - window_slots + 1
-            window_start = random.Random(sampling_seed).randint(lower, upper)
+            upper = common_tip + 1
+            selected_windows: list[dict[str, Any]] = []
+            inclusion_probabilities: dict[str, str] = {}
+            if stratum_count:
+                (
+                    selected_windows,
+                    selected_slots,
+                    inclusion_probabilities,
+                ) = stratified_slot_windows(
+                    lower,
+                    upper,
+                    window_slots=window_slots,
+                    stratum_count=stratum_count,
+                    seed=sampling_seed,
+                )
+                window_start = lower
+                slot_range = [lower, upper]
+            else:
+                latest_start = upper - window_slots
+                window_start = random.Random(sampling_seed).randint(lower, latest_start)
+                slot_range = [window_start, window_start + window_slots]
+                selected_slots = list(range(*slot_range))
         else:
             lower = upper = None
             window_start = max(1, common_tip - window_slots + 1)
-        slot_range = [window_start, window_start + window_slots]
+            slot_range = [window_start, window_start + window_slots]
+            selected_windows = []
+            selected_slots = list(range(*slot_range))
+            inclusion_probabilities = {}
+        provider_full_sample_slots: dict[str, list[int]] | None = None
+        provider_signature_sample_slots: dict[str, list[int]] | None = None
+        paired_selection_probabilities: dict[str, str] = {}
+        if paired_provider is not None:
+            if not selected_windows or paired_slots_per_stratum < 1:
+                raise ValueError("paired_provider_requires_stratified_subsampling")
+            provider_full_sample_slots = {"helius-free": selected_slots}
+            paired_slots: list[int] = []
+            pair_rng = random.Random(f"{sampling_seed}:paired:{paired_provider}")
+            for window in selected_windows:
+                start, end = window["selected_slot_range_exclusive"]
+                candidates = list(range(start, end))
+                if paired_slots_per_stratum > len(candidates):
+                    raise ValueError("paired_slots_exceed_selected_stratum")
+                selected_for_provider = sorted(
+                    pair_rng.sample(candidates, paired_slots_per_stratum)
+                )
+                paired_slots.extend(selected_for_provider)
+                conditional_probability = Fraction(
+                    paired_slots_per_stratum, len(candidates)
+                )
+                for slot in selected_for_provider:
+                    primary_probability = Fraction(inclusion_probabilities[str(slot)])
+                    combined_probability = primary_probability * conditional_probability
+                    paired_selection_probabilities[str(slot)] = (
+                        f"{combined_probability.numerator}/{combined_probability.denominator}"
+                    )
+            provider_full_sample_slots[paired_provider] = sorted(paired_slots)
+            provider_signature_sample_slots = {
+                provider: list(slots) for provider, slots in provider_full_sample_slots.items()
+            }
         old_gap = None
         if old_epoch_root is not None:
             old_stop = old_epoch_root / "STOP"
@@ -243,43 +376,92 @@ def start_epoch(
                 else None
             ),
             "selected_slot_range_exclusive": slot_range,
+            "full_sample_slots": selected_slots,
+            "signature_only_slots": (
+                selected_slots
+                if signature_check_all_slots
+                else [selected_slots[len(selected_slots) // 2]]
+            ),
+            "provider_full_sample_slots": provider_full_sample_slots,
+            "provider_signature_sample_slots": provider_signature_sample_slots,
+            "paired_selection_probabilities": paired_selection_probabilities,
             "selection_frame": {
                 "start_inclusive": lower,
-                "end_exclusive": (upper + window_slots) if upper is not None else None,
+                "end_exclusive": upper,
                 "slots_per_hour_estimate": slots_per_hour_estimate,
                 "sampling_seed": sampling_seed,
-                "selection": "uniform_seeded_contiguous_window_within_recent_hour"
-                if sampling_seed is not None
-                else "latest_finalized_slots",
+                "stratum_count": stratum_count,
+                "selection": (
+                    "seeded_equal_slot_strata_with_contiguous_windows"
+                    if stratum_count
+                    else "uniform_seeded_contiguous_window_within_recent_hour"
+                    if sampling_seed is not None
+                    else "latest_finalized_slots"
+                ),
+                "selected_windows": selected_windows,
+                "slot_inclusion_probabilities": inclusion_probabilities,
             },
             "old_epoch_gap": old_gap,
         }
         _create(root / "window-plan.json", window_metadata)
-        signature_slots = (
-            list(range(*slot_range))
-            if signature_check_all_slots
-            else [slot_range[0] + (slot_range[1] - slot_range[0]) // 2]
-        )
+        signature_slots = window_metadata["signature_only_slots"]
         paired = run_once(
             root / "paired-block-capture",
             slot_ranges=[slot_range],
-            request_cap=MAX_WINDOW_SLOTS * 2 + 2,
+            request_cap=window_slots * 2 + 2,
             helius_pace=0.35,
             sampling_metadata=window_metadata,
             signature_sample_slots=signature_slots,
+            full_sample_slots=selected_slots,
+            provider_full_sample_slots=provider_full_sample_slots,
+            provider_signature_sample_slots=provider_signature_sample_slots,
             providers=providers,
-            max_captured_bytes=MAX_CAPTURE_BYTES,
-            helius_total_credit_cap=MAX_WINDOW_SLOTS * 2 + 10,
-            helius_daily_credit_cap=MAX_WINDOW_SLOTS * 2 + 10,
+            max_captured_bytes=max_capture_response_bytes,
+            max_captured_stored_bytes=max_capture_stored_bytes,
+            helius_total_credit_cap=window_slots * 2 + 10,
+            helius_daily_credit_cap=window_slots * 2 + 10,
             clients=clients,
             capture_storage_codec=capture_storage_codec,
         )
+        comparison_window = paired["comparison"]["windows"][0]
+        rows_by_slot = {row["slot"]: row for row in comparison_window["slots_compared"]}
+        target_provider = "helius-free" if "helius-free" in providers else providers[0]
+        stratum_coverage = []
+        for window in selected_windows:
+            selected_range = window["selected_slot_range_exclusive"]
+            stratum_rows = [rows_by_slot.get(slot) for slot in range(*selected_range)]
+            qualified_count = sum(
+                row is not None
+                and row["providers"][target_provider]["observation_status"]
+                == "qualified_structural_reference_count"
+                for row in stratum_rows
+            )
+            stratum_coverage.append(
+                {
+                    "stratum": window["stratum"],
+                    "selected_slot_range_exclusive": selected_range,
+                    "expected_selected_slots": selected_range[1] - selected_range[0],
+                    "qualified_slot_count": qualified_count,
+                    "status": (
+                        "all_selected_slots_qualified"
+                        if qualified_count == selected_range[1] - selected_range[0]
+                        else "partial_or_unknown_selected_support"
+                    ),
+                }
+            )
         block_capture = {
             "completed": paired["completed"],
             "attempts": paired["attempts"],
             "helius_credit_reservations": paired["helius_credit_reservations"],
             "captured_response_bytes": paired["captured_response_bytes"],
+            "stored_response_bytes": paired["stored_response_bytes"],
             "outcomes": paired["outcomes"],
+            "qualified_sample_slot_count": sum(
+                row["providers"][target_provider]["observation_status"]
+                == "qualified_structural_reference_count"
+                for row in comparison_window["slots_compared"]
+            ),
+            "stratum_coverage": stratum_coverage,
         }
         summary = {
             "status": "provider_window_attempted",
