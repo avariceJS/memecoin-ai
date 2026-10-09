@@ -7,6 +7,7 @@ from typing import Any
 
 from memecoin_ai.domain import canonical
 from memecoin_ai.sources import Capture
+from tools.brain_senses_block_epoch import start_epoch
 from tools.brain_senses_block_provider_audit import audit
 from tools.brain_senses_block_provider_pilot import (
     MAX_RESPONSE_BYTES,
@@ -60,6 +61,17 @@ class FakeBlockRPC:
 
     def close(self) -> None:
         return
+
+
+class FakeEpochRPC(FakeBlockRPC):
+    def fetch(self, method: str, params: list[object]) -> Capture:
+        if method != "getSlot":
+            return super().fetch(method, params)
+        self.calls += 1
+        now = time.time_ns()
+        request = canonical({"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
+        response = canonical({"jsonrpc": "2.0", "id": 1, "result": 100}).encode()
+        return Capture("fixture", method, request, now, now, response)
 
 
 def test_same_slot_block_pilot_compares_slot_sets_and_full_transactions(tmp_path: Path) -> None:
@@ -214,3 +226,25 @@ def test_offline_provider_audit_summarizes_paired_receipts(tmp_path: Path) -> No
         "different_trees": 0,
         "difference_paths": {},
     }
+
+
+def test_block_epoch_anchors_both_providers_before_new_paired_window(tmp_path: Path) -> None:
+    helius = FakeEpochRPC()
+    public = FakeEpochRPC()
+
+    result = start_epoch(
+        tmp_path / "epoch",
+        window_slots=2,
+        clients={"helius-free": helius, "solana-public": public},
+    )
+
+    assert result["status"] == "paired_window_attempted"
+    assert result["slot_range"] == [99, 101]
+    assert result["paired_capture"]["helius_credit_reservations"] == 4
+    assert helius.calls == public.calls == 5  # getSlot, getBlocks, two full, one signatures
+    assert (
+        json.loads((tmp_path / "epoch" / "window-plan.json").read_text())["anchors"]["helius-free"][
+            "slot"
+        ]
+        == 100
+    )
