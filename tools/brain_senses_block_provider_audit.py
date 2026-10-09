@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import platform
 import subprocess
+import sys
 import time
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
@@ -14,7 +15,12 @@ from pathlib import Path
 from typing import Any
 
 from memecoin_ai.domain import canonical
-from tools.brain_senses_block_provider_pilot import PROVIDERS, _compare, _read
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from tools.brain_senses_block_provider_pilot import PROVIDERS, _compare, _read  # noqa: E402
 
 
 def _sha(path: Path) -> str:
@@ -123,7 +129,7 @@ def audit(root: Path) -> dict[str, Any]:
         disk_bytes = None
     code_commit = subprocess.run(
         ["git", "rev-parse", "HEAD"],
-        cwd=Path(__file__).resolve().parents[1],
+        cwd=REPO_ROOT,
         check=True,
         capture_output=True,
         text=True,
