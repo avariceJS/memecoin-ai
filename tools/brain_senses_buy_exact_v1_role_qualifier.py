@@ -89,9 +89,58 @@ def _roles_from_raw(tx: dict[str, Any], path: list[int]) -> tuple[dict[str, str]
     return {role: result[role] for role in TARGET_ROLES}, wire.hex()
 
 
+def _validate_frame_binding(
+    report: dict[str, Any], epoch_root: Path, frame_receipt_path: Path
+) -> tuple[dict[str, Any], dict[str, Any], bytes, bytes, bytes]:
+    source = report.get("source")
+    if (
+        not isinstance(source, dict)
+        or Path(source.get("root", "")).resolve() != epoch_root.resolve()
+    ):
+        raise ValueError("census_report_epoch_root_mismatch")
+    frame_bytes = frame_receipt_path.read_bytes()
+    plan_bytes = (epoch_root / "epoch-plan.json").read_bytes()
+    summary_bytes = (epoch_root / "epoch-summary.json").read_bytes()
+    frame_receipt = json.loads(frame_bytes)
+    frame = frame_receipt.get("frame")
+    summary = json.loads(summary_bytes)
+    if not isinstance(frame, dict):
+        raise ValueError("frame_receipt_frame_missing")
+    if (
+        source.get("source_binding_kind") != "helius_v3_frame_receipt_bound_offline_replay"
+        or source.get("plan_sha256") != _sha(plan_bytes)
+        or source.get("provider_audit_receipt_sha256") != _sha(frame_bytes)
+        or frame.get("status") != "frame_complete"
+        or frame.get("reservation_status") != "reconciled"
+        or frame.get("request_statuses") != {"captured": frame.get("actual_requests")}
+        or frame.get("sampled_structural_checks", {}).get("passed") != 16
+        or frame.get("sampled_structural_checks", {}).get("total") != 16
+        or frame.get("plan_sha256") != _sha(plan_bytes)
+        or frame.get("summary_sha256") != _sha(summary_bytes)
+        or frame.get("forward_only", {}).get("missed_slot_backfill") is not False
+    ):
+        raise ValueError("sealed_frame_receipt_binding_mismatch")
+    if (
+        summary.get("epoch_id") != epoch_root.name
+        or summary.get("status") != "frame_complete"
+        or not isinstance(summary.get("selected_slots"), list)
+        or len(summary["selected_slots"]) != 16
+        or len(summary.get("structural_checks", [])) != 16
+        or any(
+            check.get("status") != "qualified_structural_reference_count"
+            for check in summary["structural_checks"]
+        )
+    ):
+        raise ValueError("sealed_epoch_summary_mismatch")
+    return frame_receipt, summary, frame_bytes, plan_bytes, summary_bytes
+
+
 def qualify(report_path: Path, epoch_root: Path, frame_receipt_path: Path) -> dict[str, Any]:
     report_bytes = report_path.read_bytes()
     report = json.loads(report_bytes)
+    frame_receipt, summary, frame_bytes, plan_bytes, summary_bytes = _validate_frame_binding(
+        report, epoch_root, frame_receipt_path
+    )
     candidates = [
         row
         for row in report["rows"]
@@ -118,6 +167,21 @@ def qualify(report_path: Path, epoch_root: Path, frame_receipt_path: Path) -> di
             "response_sha256": receipt["response_sha256"],
             "response_bytes": receipt["response_bytes"],
         })
+
+    selected_slots = set(summary["selected_slots"])
+    if set(by_slot) != selected_slots:
+        raise ValueError("full_block_captures_do_not_match_selected_slots")
+    report_captures = report.get("source", {}).get("captures", [])
+    report_capture_hashes = {
+        capture["slot"]: (capture["compressed_sha256"], capture["response_sha256"])
+        for capture in report_captures
+    }
+    actual_capture_hashes = {
+        slot: (receipt["storage"]["sha256"], receipt["response_sha256"])
+        for slot, (receipt, _, _) in by_slot.items()
+    }
+    if report_capture_hashes != actual_capture_hashes:
+        raise ValueError("census_report_capture_hash_set_mismatch")
 
     loaded_blocks: dict[int, dict[str, Any]] = {}
     pools: dict[str, dict[str, Any]] = {}
@@ -175,9 +239,6 @@ def qualify(report_path: Path, epoch_root: Path, frame_receipt_path: Path) -> di
 
     if len(pools) != 27 or status_counts != Counter({"success": 53, "failed": 6}):
         raise ValueError("pool_or_status_denominator_mismatch")
-    frame_bytes = frame_receipt_path.read_bytes()
-    plan_bytes = (epoch_root / "epoch-plan.json").read_bytes()
-    summary_bytes = (epoch_root / "epoch-summary.json").read_bytes()
     script_bytes = Path(__file__).read_bytes()
     return {
         "schema_version": 1,
