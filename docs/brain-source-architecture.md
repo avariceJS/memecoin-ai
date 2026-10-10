@@ -947,7 +947,9 @@ the schedule never renews itself. A fsynced invocation marker makes an unclean p
 detectable: the next invocation validates already captured journals locally, never repeats an
 ambiguous request, seals STOP, and unloads. Scheduler, wrapper, crash-boundary tests and differential
 review are qualified locally; real LaunchAgent installation and recovery remain pending the final
-v2 frame review.
+v2 frame review. The immutable v3 schedule manifest also binds its minute-05 local calendar trigger,
+UTC bucket semantics, no-`RunAtLoad`/no-`KeepAlive` settings, teardown policy and explicit no-renewal
+rule; the installed plist hash will be recorded in the runtime receipt.
 
 The prior public and Helius program-address watches stopped on failed requests and remain immutable.
 Neither cursor is resumed. Helius watch v2 made a fresh head query and attempted 1,000 signature

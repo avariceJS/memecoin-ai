@@ -858,6 +858,10 @@ def test_v3_missed_hour_is_anchor_only_and_never_backfilled(tmp_path: Path, monk
     result = schedule_v3.run_bucket(
         root, lineage_path=lineage_path, now=current, clients={"helius-free": client}
     )
+    service_policy = json.loads((root / "schedule-v3.json").read_text())["service_policy"]
+    assert service_policy["run_at_load"] is False
+    assert service_policy["keep_alive"] is False
+    assert service_policy["renewal"] == "none; new campaign ID and separate service launch required"
     assert result["epoch"]["status"] == "bootstrap_complete"
     assert [method for method, _ in client.calls] == ["getSlot"]
     context = json.loads(

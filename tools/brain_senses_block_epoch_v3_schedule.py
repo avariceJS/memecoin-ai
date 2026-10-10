@@ -143,6 +143,21 @@ def _read_manifest(root: Path, lineage: dict[str, Any]) -> dict[str, Any]:
         "max_total_stored_bytes": CAMPAIGN_STORED_BYTES,
         "minimum_free_disk_bytes": DISK_FLOOR_BYTES,
         "peak_write_margin_bytes": PEAK_WRITE_MARGIN_BYTES,
+        "service_policy": {
+            "supervisor": "macOS LaunchAgent",
+            "start_calendar_interval": {"minute": 5},
+            "run_at_load": False,
+            "keep_alive": False,
+            "schedule_timezone": "host-local calendar trigger; epoch buckets are UTC",
+            "terminal_action": "durable STOP then launchctl bootout exact service label",
+            "bootout_failure": (
+                "next calendar invocation checks STOP and retries teardown without RPC"
+            ),
+            "crash_recovery": (
+                "offline journal/artifact reconciliation then durable STOP; no request replay"
+            ),
+            "renewal": "none; new campaign ID and separate service launch required",
+        },
         "capture_storage_codec": "zstd",
         "retry_policy": (
             "never replay a durable reservation; ambiguous reservation seals and stops campaign"
