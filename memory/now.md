@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 02:50 Europe/Moscow. Verify Git, runtime and disk before acting.
+**As of:** 2026-10-10 03:47 Europe/Moscow. Verify Git, runtime and disk before acting.
 
 ## Boundaries
 
@@ -12,7 +12,7 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 
 - Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; clean at
   handoff. Verify current HEAD before acting. Production untouched.
-- About 70 GiB free. No Senses/Helius/Alchemy collector LaunchAgent or collector process is active.
+- About 69 GiB free. No Senses/Helius/Alchemy collector LaunchAgent or collector process is active.
   Previous public/Helius watchers and old schedulers remain stopped; Helius watch-v3 retains its
   explicit STOP and must not be resumed.
 - Helius inventory-first v2 has one complete prospective frame, `[455028552,455037817)`, with
@@ -20,11 +20,20 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   It retained 71,939,096 raw / 15,335,264 zstd bytes; 2,203 PumpSwap structural references are not
   economic swaps. Four numeric positions were absent from returned inventory. Receipt:
   `docs/evidence/helius-inventory-v2-first-frame-2026-10-09.json`.
+- The real `20261010T000000Z` invocation at 00:43Z captured one finalized-slot anchor, found a
+  23,699-slot range above the 20,000 cap, and sealed `oversized_frame` with no inventory/block
+  requests and no retries. The interval is an explicit gap, not zero or backfill. Never replay it.
+  Receipt: `docs/evidence/helius-inventory-v2-oversized-gap-2026-10-10.json`.
 - Campaign schedule has a request-cap defect: 817 total requests permits a partial next frame after
   24 complete 34-request frames. Do not install a LaunchAgent or edit the frozen manifest. Sol's
-  decision is to run exactly two more actual future hourly frames manually, then stop/review this
-  campaign. Any successor needs a new version and complete-frame request preflight. Helius RPC is
-  paused pending owner direction on credential rotation; no secret is recorded here.
+  decision is to run the next two actual future hourly frames manually, then stop/review this
+  campaign. Any successor needs a new version and complete-frame request preflight.
+- Owner authorized the current Helius key. It remains in `.env.local` and Codex MCP environment
+  configuration, both mode `0600`; collector CLI has no endpoint argument. The exact key was
+  redacted from local Codex/shell histories and SQLite thread history. Exact scans found no key in
+  reachable Git objects or active process arguments. macOS Unified Log query timed out; remote
+  platform logs and filesystem snapshots are outside this checkout's control. Never echo or pass a
+  credential in a command argument or shell command text.
 - Alchemy research HTTP endpoint/plan limits remain unverified. No paid Account Archive query was
   made. The frozen no-RPC control and its three-read ceiling are in
   `docs/evidence/alchemy-account-archive-mint-control-plan-2026-10-10.json`.
@@ -48,11 +57,10 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 
 ## Next horizon
 
-1. Check for owner steering, actual UTC bucket, Git, runtime and disk. After credential resolution,
-   run only the next future real hourly bucket, wait for completion, then the following bucket; no
-   backdating, retries or catch-up.
-2. Review all three frames offline, then write a terminal campaign STOP/superseded record. Do not
-   install a LaunchAgent under the current manifest or start a successor until account quota/billing
-   and a whole-frame budget are verified.
-3. Continue offline Senses work: source/coverage qualification and a new bounded buyExact decision
-   only after the outstanding provider/recovery horizon is resolved. No Cortex.
+1. Check actual UTC, Git, runtime and disk; run only the next two future buckets. No replay,
+   catch-up or retry of `20261010T000000Z`.
+2. Review evidence across the prospective campaign, append a terminal campaign STOP, then begin a
+   separately versioned successor with whole-frame request preflight, aggregate budget, account
+   quota measurement, and a tested LaunchAgent/service recovery path.
+3. Continue offline source/coverage and lifecycle qualification and revisit buyExact after this
+   provider/recovery horizon. No Cortex.

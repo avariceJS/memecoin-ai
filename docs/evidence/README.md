@@ -90,6 +90,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
   provider-returned inventory denominator, 16/16 selected structural self-checks and explicit raw /
   zstd accounting. The captured-class instruction references are not economic swaps; account-level
   charge units and global completeness remain unknown. Raw captures stay in ignored `work/`.
+- The next real scheduler bucket sealed as an oversized gap:
+  `helius-inventory-v2-oversized-gap-2026-10-10.json`. One `getSlot` anchor recorded a width above
+  the pinned cap; no inventory or block body was requested, and the bucket must not be replayed.
 - Frozen no-RPC Alchemy Account Archive mint-state control plan:
   `alchemy-account-archive-mint-control-plan-2026-10-10.json`. It pins one already captured
   Token-2022 development reference and at most three historical reads, but has not been run because

@@ -856,6 +856,21 @@ transaction, market or process completeness, and no exact economic zero is allow
 units and account usage remain unverified. Current free disk is about 70 GiB; no v2 LaunchAgent is
 loaded. Receipt: [`helius-inventory-v2-first-frame-2026-10-09.json`](evidence/helius-inventory-v2-first-frame-2026-10-09.json).
 
+The `20261010T000000Z` scheduler invocation occurred at 00:43Z. Its single captured `getSlot`
+anchor (43 raw / 56 zstd bytes) was 23,699 slots beyond the persisted frontier, above the frozen
+20,000-slot width cap. The epoch sealed as `oversized_frame` after that one request; it made no
+inventory or block-body requests and no retries. The numeric interval is an explicit unknown gap,
+not a backfill, empty inventory or economic zero. Its terminal journal and request hashes are bound
+by the [oversized-frame gap receipt](evidence/helius-inventory-v2-oversized-gap-2026-10-10.json).
+The next two actual hourly buckets remain the bounded continuation; do not replay this bucket.
+
+The inventory-first CLI accepts no endpoint argument. The running collector obtains the RPC endpoint
+from the protected local `.env.local` file or process environment; plans and request receipts retain
+the provider alias and payload hashes, not the endpoint. Transport errors redact endpoint details.
+Keep local credential files mode `0600` and out of Git. Do not place credentials in CLI arguments,
+inline shell assignments or saved command text. The Helius MCP configuration passes its key in the
+child environment; its command arguments do not contain the key.
+
 The next finalized-block process is a new versioned sensor. It must pin a finalized numeric slot
 frame, seed, selection rule, provider and request/byte budgets before acquisition; capture and hash
 the finalized `getBlocks` inventory for that exact frame; then select only from the inventory's
