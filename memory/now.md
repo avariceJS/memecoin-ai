@@ -1,12 +1,11 @@
 # Current Project State
 
-**As of:** 2026-10-10 13:25 UTC. Verify live Git, LaunchAgents, campaign state and disk before acting.
+**As of:** 2026-10-10 13:37 UTC. Verify live Git, LaunchAgents, campaign state and disk before acting.
 
 ## Boundaries and runtime
 
 - Continue Senses only. Research checkout `/Users/root1/Developer/memecoin-research`, branch
-  `research/active`; latest sensing evidence commit is `f8d68ac` (followed by measured-throughput
-  doc commit `3872d3d`). Production
+  `research/active`; current HEAD was `dfcee6d` at the 13:28Z check. Production
   `/Users/root1/Desktop/memecoin-ai` remains untouched. No trading,
   signing, paid upgrade, protected holdout access, push, backfill, or ambiguous-request retry.
 - c3 is permanently terminal after its reserved 11:00Z `getSlot` transport failure (205 attempts,
@@ -26,12 +25,13 @@
   about 73.06 GB. Preserve gaps; reconcile each scheduled epoch and stop on lease failure. The
   first-frame one-hour projection is 816 reservations, 1.40 GB raw and 0.316 GB stored per day;
   credit billing units remain unverified.
-- Helius key stays in ignored mode-0600 `.env.local`; user explicitly authorized continued use without
-  rotation. Exact-value scan at 12:30Z found its expected sole private-config occurrence, no matches
-  in 5,165 Git objects, 10,308 selected saved text/config/log files, or process command lines. The
-  prior process-list disclosure remains in the agent transcript. c4 arguments contain only paths;
-  RPC reads credentials in-process. Receipt:
-  `docs/evidence/helius-key-local-exposure-rescan-2026-10-10.json`.
+- Helius key remains in ignored mode-0600 `.env.local` and the two mode-0600 MCP configs; user
+  authorized no-rotation continuation. At 13:28Z exact-value scans found zero in 5,238 Git objects,
+  249,759 accessible saved text/runtime/evidence files, process arguments, and 1,285,040,709 bytes
+  of eight-hour Unified Log output. Three earlier Cursor-transcript copies were redacted and
+  revalidated; the historical process-list disclosure remains in the agent transcript. The c4
+  LaunchAgent arguments contain only paths and RPC reads credentials in-process. Receipt:
+  `docs/evidence/helius-key-local-exposure-rescan-post-redaction-2026-10-10.json`.
 - MCP: Alchemy ping and official Solana docs search worked; Helius documentation transport closed.
   No MCP provider RPC was performed.
 
@@ -61,6 +61,16 @@
   `docs/evidence/pumpswap-buy-exact-v1-c4-success-trace-2026-10-10.json.zst` (5,431,224 raw JSON /
   209,052 compressed bytes). Focused tests 4 passed and Ruff passed. `make check` currently fails on
   43 pre-existing Ruff E501 findings in existing qualifier tools; new files were clean.
+- The offline state-bracketing feasibility receipt covers all 140 Token-2022-base refs and all 16
+  full blocks/17,607 transactions. Counts: 137 exact role-matching descendant events, 3 absent or
+  unqualified; 139 rows have missing/partial token endpoints; 140 have outside-subtree target
+  touches; 5,421 other-transaction writable-potential occurrences. Ninety-one have no other-transaction
+  writable potential on either mint, but zero pass a mint-only bank-state bracket; zero pass the
+  full-account bracket. No acquisition control or state RPC. Receipt:
+  `docs/evidence/pumpswap-buy-exact-v1-c4-state-bracketing-feasibility-2026-10-10.json`.
+- Focused state-bracket tests: `4 passed`; Ruff clean for new tool/test. The manifest records raw
+  state/TLV, fee epoch, withheld amount, hook/confidential, native and lifecycle requirements while
+  qualifying none of their economic effects.
 - Exhaustive focused pytest coverage checks the frozen qualifier's message-header privilege
   partitions through 12 static keys, loaded address boundaries, and fail-closed invalid cases;
   `6 passed`. No Hypothesis dependency was added.
@@ -77,5 +87,6 @@
 3. Keep c4 on its loaded calendar schedule; next bucket is 14:05Z. Do not manually invoke, backfill,
    or retry. Preserve c4's finite lease and inspect the actual launchd/journal/capture/STOP state
    after each scheduled frame.
-4. After c4 terminal evidence, ask Sol for a separate sustainable prospective lease policy. Do not
-   install a successor or auto-renewal meanwhile. Continue independent Senses gates; do not start Cortex.
+4. Continue with Sol's offline state-source decision after this no-row feasibility result. Keep c4
+   running its unchanged finite scheduled lease and inspect every scheduled epoch; no successor or
+   auto-renewal until its finite terminal and a separate Sol policy. Do not start Cortex.

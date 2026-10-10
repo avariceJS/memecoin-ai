@@ -1280,9 +1280,10 @@ future architecture ceilings. The Helius key remains in mode-0600 private provid
 the collector reads its endpoint in-process; the key is absent from LaunchAgent arguments. MCP package
 configuration in Codex and Cursor is pinned to `helius-mcp@2.2.0`. Legacy `@latest` npm process
 listings exposed the inherited credential, so those five old processes were terminated; after
-cleanup, no exact-key process-list matches remained. The exact key was absent from targeted saved
-histories and a 262 MB two-hour Unified Log scan; one old Cursor config-history snapshot was
-redacted. Helius MCP authenticated, but did not expose credit usage or plan limits without a JWT
+cleanup, no exact-key process-list matches remained. An initial saved-history scan was incomplete;
+the later correction found three exact copies in two Cursor JSONL transcripts, redacted them in
+place, retained valid JSONL, and set both files to mode 0600. Helius MCP authenticated, but did not
+expose credit usage or plan limits without a JWT
 session; the MCP transport closed after legacy-process cleanup. This does not affect the separate
 collector LaunchAgent. The c3 activation receipt's initial process-argument field used an invalid
 macOS `sysctl` check and is superseded by the credential process-list remediation receipt. The
@@ -1302,6 +1303,14 @@ occurrence (mode 0600), with no exact match in 5,165 Git objects, 10,308 selecte
 text/config/log files, or current process command lines. It did not inspect provider-side systems,
 backups or remote services; the prior process-list disclosure remains in the agent-session
 transcript. Receipt: [`local Helius-key exposure rescan`](evidence/helius-key-local-exposure-rescan-2026-10-10.json).
+
+At 13:28Z, a post-redaction exact-value rescan found only the three expected mode-0600 private
+configuration occurrences (`.env.local`, Codex MCP config, and Cursor MCP config). It found zero
+matches in all 5,238 Git objects, 249,759 accessible saved text/runtime/evidence files, current
+process command lines, or 1,285,040,709 bytes emitted by an eight-hour Unified Log scan. The three
+historical Cursor transcript copies remain redacted. Remote provider logs and inaccessible service
+storage were not inspected. Receipt:
+[`post-redaction local Helius-key rescan`](evidence/helius-key-local-exposure-rescan-post-redaction-2026-10-10.json).
 
 Campaign 4 was prepared and its calendar LaunchAgent loaded idle at 11:28Z, with the first permitted
 bootstrap at 12:05Z. The activation-time disk check found 73,256,988,672 free bytes against
@@ -1361,6 +1370,20 @@ settlement. The artifact preserves 2,334 ordered target-touching instructions an
 role-matching descendant BuyEvents; three references have no such event. It admits no class,
 wallet-net price, fee schedule, training, or execution claim. Receipt:
 [`c4 successful-reference trace`](evidence/pumpswap-buy-exact-v1-c4-success-trace-2026-10-10.json.zst).
+
+Sol then authorized an offline state-bracketing feasibility census over those 140 Token-2022-base
+references. It revalidated all 16 receipt-hash-bound full blocks (17,607 transactions total) and
+recorded each reference's two mint roles, seven token-account roles, static/ALT provenance,
+transaction index, and every earlier/later same-slot transaction with writable potential. These
+privileges are possible-write indicators only. Of 140 rows, 137 have one exact role-matching
+descendant BuyEvent and three do not; 139 have at least one missing or partial token endpoint, and
+all 140 have an outside-subtree target-account touch. Ninety-one rows have no other-transaction
+writable potential on either mint, but zero pass the mint-only bank-state bracket after same-
+transaction mint touches and event association are checked. Zero pass the full-account bracket;
+no single-row acquisition control was emitted and no state RPC was made. The receipt lists required
+bank-time raw bytes, owners, lamports, TLVs, and extension dependencies without inferring their
+values. It establishes no fee, effect, settlement, decoder admission, or market completeness:
+[`c4 state-bracketing feasibility`](evidence/pumpswap-buy-exact-v1-c4-state-bracketing-feasibility-2026-10-10.json).
 
 The paired finalized-block sensor runs a seeded 64-slot epoch each UTC hour through
 `ai.memecoin.brain.senses.block-epochs`, with raw reservations and receipts under

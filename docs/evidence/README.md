@@ -31,6 +31,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `helius-key-local-exposure-rescan-2026-10-10.json` (zero matches in 5,165 Git objects, 10,308
   selected saved local text/config/log files, and process command lines; `.env.local` remains the
   sole mode-0600 occurrence; prior session transcript disclosure and remote-scope limits retained).
+- Helius exact-key post-redaction rescan:
+  `helius-key-local-exposure-rescan-post-redaction-2026-10-10.json` (zero matches in 5,238 Git
+  objects, 249,759 accessible saved text/runtime/evidence files, current process command lines, and
+  1.285 GB of recent Unified Log output; the three expected private mode-0600 configs remain the
+  only local exact-value matches).
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:
@@ -334,6 +339,11 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   target roles, declared token operands, and transaction endpoint availability/deltas. The 140
   Token-2022-base rows receive no economic equations; the single dual-legacy row's conditional
   ledger gate remains closed. Endpoint deltas are transaction-scoped and unattributed.
+- `pumpswap-buy-exact-v1-c4-state-bracketing-feasibility-2026-10-10.json`: exhaustive offline
+  same-slot writable-potential and archive-bracket census for the 140 Token-2022-base references;
+  records transaction order, static/ALT provenance, endpoint/event/sibling gates and bank-time state
+  requirements. No full-account or mint-only row passes, no acquisition control was emitted, and no
+  state RPC was made.
 - `pumpswap-buy-exact-v1-development-qualification-2026-10-10.json`: complete replay of the frozen 62-ref dual-legacy development population, with exact token-account ledger facts; still diagnostic-only and not the sealed audit.
 - `pumpswap-buy-exact-v1-audit-failure-2026-10-10.json`: preserved one-time 13:00Z census failure after all 512 payloads were processed but before report publication; no outcomes accepted and no reuse permitted.
 - `pumpswap-buy-exact-v1-audit-qualification-2026-10-10.json`: fresh disjoint 512-slot Helius Free captured-class census and one-pass replay of all seven successful dual-legacy refs; diagnostic-only, with four censored native settlements and Token-2022 still quarantined.
