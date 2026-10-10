@@ -242,6 +242,12 @@ def analyze(output_path: Path) -> dict[str, Any]:
             or summary.get("epoch_id") != config["epoch_id"]
             or plan.get("epoch_id") != config["epoch_id"]
             or plan.get("provider") != "helius-free"
+            or frame.get("start") != summary.get("start")
+            or frame.get("end_exclusive") != summary.get("end_exclusive")
+            or plan.get("start") != summary.get("start")
+            or selection.get("epoch_id") != config["epoch_id"]
+            or summary.get("selected_slots") != selection.get("selected_slots")
+            or summary.get("inclusion_probability") != selection.get("inclusion_probability")
         ):
             raise ValueError("sealed_frame_identity_or_status_invalid")
         epoch_manifest = _read(epoch_root / "selection-plan.json")
@@ -287,6 +293,21 @@ def analyze(output_path: Path) -> dict[str, Any]:
         ):
             raise ValueError("frame_receipt_source_binding_mismatch")
         selected_rows = _selected_block_rows(epoch_root, plan, summary)
+        receipt_sampling = receipt.get("coverage") or receipt.get("sampling")
+        if isinstance(receipt_sampling, dict):
+            replay_counts = {
+                "structural_instruction_references": sum(
+                    row["structural_references"] for row in selected_rows
+                ),
+                "transactions_with_reference": sum(
+                    row["transactions_with_reference"] for row in selected_rows
+                ),
+                "references_in_failed_transactions": sum(
+                    row["references_in_failed_transactions"] for row in selected_rows
+                ),
+            }
+            if any(receipt_sampling.get(key) != value for key, value in replay_counts.items()):
+                raise ValueError("selected_structural_yield_differs_from_frame_receipt")
         selected_slots = {row["slot"] for row in selected_rows}
         candidate_pools = _candidate_pool_counts(epoch_root / "captures", selected_slots)
         width = summary["end_exclusive"] - summary["start"]
@@ -360,6 +381,7 @@ def analyze(output_path: Path) -> dict[str, Any]:
                 else None
             ),
             "selected_block_yields": selected_rows,
+            "selected_yield_matches_frame_receipt": (isinstance(receipt_sampling, dict)),
             "source_receipt_raw_bytes": summary["captured_response_bytes"],
             "source_receipt_stored_bytes": summary["stored_response_bytes"],
             "source_frame_requests": summary["request_reservations"],
