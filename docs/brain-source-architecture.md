@@ -1815,3 +1815,46 @@ after both requests/frames reconcile to immutable captures, ledger/frontier/gap 
 times, and disk accounting. Then monitor read-only through the bounded lease and review the observed
 run before any longer renewal. This conditional procedure does not authorize Cortex or new economic
 claims.
+
+## Prospective Pump bonding-curve references (offline gate, 2026-10-10)
+
+Sol selected standard Helius WSS `logsSubscribe` filtered by the single Pump bonding-curve
+program ID at `finalized` as the next population-discovery horizon. The program ID is pinned to
+Pump's official source at commit `91db6800e55bf341696564bd30a08ed4e3fc7491`; the exact
+`docs/PUMP_PROGRAM_README.md` SHA-256 is
+`3532f985fcab38480392759a6c2f01015b7178b9f2c7dc0db8c9f85ce9f72571`. Solana's official
+`logsSubscribe` contract permits one address in `mentions`; Helius documents standard WSS as
+available across plans and, effective April 2026, streaming at 20 credits per decimal MB.
+References: [Pump source](https://github.com/pumpr-fun/pump-fun/blob/91db6800e55bf341696564bd30a08ed4e3fc7491/docs/PUMP_PROGRAM_README.md),
+[Solana `logsSubscribe`](https://solana.com/docs/rpc/websocket/logssubscribe), and
+[Helius WSS pricing and connection notes](https://www.helius.dev/blog/laserstream-websockets).
+
+The offline contract is `src/memecoin_collector/wss_reference.py`. It preserves each complete raw
+JSON-RPC message under an immutable sequence path, chains journal rows, verifies raw hashes and
+re-derived notification fields on recovery, keeps repeated `(slot, signature)` deliveries rather
+than deduplicating evidence, checks the acknowledged subscription ID, and seals interrupted
+sessions as terminal gaps with no resume. Slot is the only event coordinate. Receipt is measured
+when the full message arrives; availability is measured after the exact raw message is fsynced;
+decision time remains null. Malformed messages and failed transactions stay in their denominators.
+Before each receive, the future transport must reserve one maximum 4 MiB message, the remaining
+aggregate caps, and the disk floor; an oversized frame must be rejected from its WebSocket length
+header before payload read. No socket, provider request, credential load, or live evidence has been
+implemented in this offline milestone.
+
+The frozen *future* pilot envelope is at most four hours per session, one subscription, two
+sequential sessions at most, 128 MiB inbound message bytes, 64 MiB physically stored bytes, and a
+50 GiB free-disk floor. Reconnection creates a new window and an explicit gap: no catch-up or HTTP
+transaction retrieval. At 20 credits per decimal MB, 128 MiB implies an estimated 2,685 streaming
+credits (`ceil(128 * 2^20 / 1,000,000 * 20)`) before protocol/accounting overhead. This is not a
+hard billing ceiling. Activation still requires c4's normal terminal gates, account-level
+entitlement and headroom, a separately bounded overhead allowance or billing evidence, immutable
+session authorization, and a one-writer LaunchAgent review. Stop on cap, low disk, malformed
+transport state, or journal ambiguity. The present implementation does not enforce the two-session
+campaign-wide count; that belongs to the not-yet-activated service wrapper.
+
+This source yields only provider notifications delivered inside recorded connection windows. It
+does not establish complete Pump births, a pool/market census, economic execution, inactivity,
+absence, lifecycle or death. Comparison with selected captured blocks can measure only overlap in
+that selected scope. Focused offline validation: 9 tests, including 300 deterministic generated
+deliveries with duplicates, crash-prefix recovery, raw mutation, subscription mismatch and
+pre-read disk stop. No live provider, LaunchAgent, account budget, or long-run throughput was tested.
