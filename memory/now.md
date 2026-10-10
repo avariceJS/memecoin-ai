@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 22:29 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-10 22:30 UTC. Verify live runtime before any campaign or service decision.
 
 ## Boundaries and runtime
 
@@ -44,7 +44,8 @@
 - Interim c4 sizing at 10/24 natural frames: 706.3 MB raw / 161.8 MB stored; mean per frame
   70.63/16.18 MB; anchor-to-seal median 36.8 s, p95 165.2 s. Mean projection for 167 future frames
   is 11.79 GB raw / 2.70 GB stored, leaving no defensible margin under the provisional 12 GB raw
-  cap. Do not revise budget or activate service v1 before all 24 frame tails and terminal gates.
+  cap. Full-block request-start-to-receipt median/p95/max: 1.27/9.02/27.13 s (n=160). Do not revise
+  budget or activate service v1 before all 24 frame tails and terminal gates.
   Receipt: `docs/evidence/helius-inventory-v3-c4-midcampaign-sizing-2026-10-10T2222Z.json`.
 
 - Frozen buyExact tail2 dual-legacy development diagnostic (`f7ec8c0`): candidate `TransferChecked`

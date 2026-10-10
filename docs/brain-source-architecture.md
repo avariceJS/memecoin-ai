@@ -1856,8 +1856,11 @@ accounts for all 341 requests: 11 `getSlot` anchors, 10 `getBlocks` inventories,
 captures and 160 signature checks. All 341 provider charge units remain `unknown_unverified`. The
 replay measures 706.3 MB raw and 161.8 MB stored across completed frames; per-frame mean is 70.63 MB
 raw / 16.18 MB stored, with 19.9–165.2 seconds anchor-to-seal (median 36.8 seconds). At that mean,
-167 future frames project 11.79 GB raw and 2.70 GB stored. This interim projection is close to the raw
-cap and has no defensible tail margin; it does not revise the cap. Reconcile all 24 tails before
+167 future frames project 11.79 GB raw and 2.70 GB stored. Across 160 full-block calls, request-start
+to-receipt latency is 1.27 seconds median, 9.02 seconds p95, and 27.13 seconds maximum. The 160
+signature checks have 0.506 seconds p95; 10 inventories have 0.927 seconds p95; 11 anchors have
+5.67 seconds p95. This interim projection is close to the raw cap and has no defensible tail margin;
+it does not revise the cap. Reconcile all 24 tails before
 choosing an earlier hard STOP or reviewing a cap revision; never relax a live manifest. Confirm
 account credit/overage status if exposed; otherwise pin a conservative
 no-paid-overage request envelope (at most 5,719 requests), retain unknown provider charge units, and

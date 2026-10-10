@@ -76,9 +76,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
   predecessor jobs, key-free LaunchAgent arguments, and verified zero I/O at activation).
 - Campaign-4 interim sizing after ten natural frames:
   `helius-inventory-v3-c4-midcampaign-sizing-2026-10-10T2222Z.json` (source-hashed frame tails,
-  341 request methods, raw/stored bytes, anchor-to-seal timing, current free disk and a clearly
-  limited 167-frame mean projection; credits remain unknown and this does not change the 24-frame
-  lease or authorize service v1).
+  341 request methods, raw/stored bytes, per-method latency, current free disk and a clearly limited
+  167-frame mean projection; credits remain unknown and this does not change the 24-frame lease or
+  authorize service v1).
 - Campaign-4 scheduled bootstrap:
   `helius-inventory-v3-c4-bootstrap-2026-10-10.json` (one finalized anchor request, explicit
   uncovered interval with no backfill, byte/request reconciliation, unchanged c3 STOP, and the
