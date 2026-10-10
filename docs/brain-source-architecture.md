@@ -263,6 +263,39 @@ independent economic validation, global discovery completeness, wallet-net execu
 training/execution admission. No RPC was made. Receipt:
 [`c3 six-frame sell23 replay`](evidence/pumpswap-sell23-c3-six-frame-ledger-replay-2026-10-10.json).
 
+An offline native-close feasibility census then replayed all six c3 frames against that hash-bound
+replay and the unchanged qualifier source. It retained all 485 censored successes, 68 exact rows,
+and two failed references outside the successful denominator. Each censored row has a transaction-
+boundary lamport endpoint for its native token account, with zero pre/post delta, plus one legacy
+Token account creation/initialization, one explicit System funding transfer, one `SyncNative`, and
+one `CloseAccount`. The created account is Token-owned with 165 data bytes and 1,488,440 lamports
+of initial funding; the additional observed System transfer into the account ranges from 101,318
+to 1,404,978,552 lamports. The row manifest records these as source-flow candidates, not native
+trade proceeds. All 485 close destinations also have transaction-boundary lamport endpoints, but
+the transaction traces include other operations on those destinations. No row carries a pre/post
+token-balance endpoint for the closed account or the Rent sysvar in its message, so the historical
+rent-exempt reserve and resulting wrapped-token amount remain unqualified. The [official SPL Token
+documentation](https://www.solana-program.com/docs/token) describes `SyncNative` as deriving
+wrapped amount from lamports minus rent reserve, and `CloseAccount` as returning remaining SOL;
+this feasibility receipt does not infer the reserve or attribute destination deltas. No economic
+equation, wallet-net price, admission, RPC, or paid request resulted. Receipt:
+[`c3 native-close feasibility`](evidence/pumpswap-sell23-c3-native-close-feasibility-2026-10-10.json).
+
+A separate transaction-local gate follows that census. Its frozen predicate re-enumerates the same
+96 receipt-hash-verified c3 blocks and all 485 censored native-account rows. It checks every
+ordered instruction that touches the temporary account, including Associated Token setup, legacy
+Token initialization (including `InitializeImmutableOwner`), exact System create/funding effects,
+`SyncNative`, the frozen sell23 instruction/transfer, and `CloseAccount`. The gate reports the
+1,488,440-lamport account creation separately from other System credits and keeps lamports distinct
+from token atomic units. A row can be `source_account_flow_exact` while its close destination remains
+`destination_ambiguous`; destination sibling effects do not become an instruction-scoped credit.
+This result supports account-level conservation and existing qualified sell transfer facts only; it
+does not infer historical rent, wrapped-token amount from SyncNative, wallet proceeds, or admission.
+The implementation is frozen before a prospective audit: inspect all eligible sell23 native-close
+references in the first four completed scheduled c4 hourly frames after the freeze, including pass,
+fail, and unsupported rows. Do not add RPC calls, select later frames, or tune against the audit.
+Campaign STOP or too few eligible cases makes the audit inconclusive.
+
 The pinned v1 `buy_exact_quote_in` path now has an offline structural attempt census over those same
 512 Helius full-block captures: 642,312 transactions, 12,120 unique candidate transactions, and
 12,143 instruction references across 507 slots, with no normalization failures. Of these refs,
@@ -1311,6 +1344,15 @@ process command lines, or 1,285,040,709 bytes emitted by an eight-hour Unified L
 historical Cursor transcript copies remain redacted. Remote provider logs and inaccessible service
 storage were not inspected. Receipt:
 [`post-redaction local Helius-key rescan`](evidence/helius-key-local-exposure-rescan-post-redaction-2026-10-10.json).
+
+Before c4's next calendar collection, a 13:55Z exact-value rescan covered all 5,253 Git objects,
+253,570 accessible saved text/runtime/evidence files (23,476,338,195 bytes), 1,313,859,327 bytes of
+the last eight hours of macOS Unified Log output, and current process command lines; all had zero
+matches. The only three matches are in the expected mode-0600 `.env.local` and Codex/Cursor MCP
+configs. The c4 LaunchAgent remains loaded with path-only arguments, and the MCP server remains
+pinned with the credential in environment configuration. Provider-side and inaccessible remote
+storage are outside this scan. Receipt:
+[`pre-resume Helius-key rescan`](evidence/helius-key-pre-resume-exposure-rescan-2026-10-10.json).
 
 Campaign 4 was prepared and its calendar LaunchAgent loaded idle at 11:28Z, with the first permitted
 bootstrap at 12:05Z. The activation-time disk check found 73,256,988,672 free bytes against

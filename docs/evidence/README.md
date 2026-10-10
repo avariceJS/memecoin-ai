@@ -31,6 +31,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `helius-key-local-exposure-rescan-2026-10-10.json` (zero matches in 5,165 Git objects, 10,308
   selected saved local text/config/log files, and process command lines; `.env.local` remains the
   sole mode-0600 occurrence; prior session transcript disclosure and remote-scope limits retained).
+- Helius exact-key pre-resume exposure rescan:
+  `helius-key-pre-resume-exposure-rescan-2026-10-10.json` (zero matches in 5,253 Git objects,
+  253,570 saved text/runtime/evidence files, current process command lines, and 1.31 GB of recent
+  Unified Log output; only the three expected mode-0600 private configurations match).
 - Helius exact-key post-redaction rescan:
   `helius-key-local-exposure-rescan-post-redaction-2026-10-10.json` (zero matches in 5,238 Git
   objects, 249,759 accessible saved text/runtime/evidence files, current process command lines, and
@@ -75,6 +79,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `pumpswap-sell23-c3-six-frame-ledger-replay-2026-10-10.json` (frozen ledger v2 replay over 96
   completed selected blocks, per-frame and per-pool exact/censored/failed accounting, input/code
   hashes, and zero RPCs).
+- Campaign-3 sell23 native-close feasibility:
+  `pumpswap-sell23-c3-native-close-feasibility-2026-10-10.json` (485 censored rows replayed against
+  the six-frame source hashes; row-level lamport/token endpoint, create/fund/sync/close and sibling
+  instruction traces; no rent reserve inference, economic admission, or RPC).
 - Closed frozen Helius inventory-v2 pilot:
   `helius-inventory-v2-final-2026-10-10.json` (104 requests, reconciled raw/stored bytes, final
   anchor and inventory interval, and the inherited 00:00Z oversized-frame gap).
