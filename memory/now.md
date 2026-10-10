@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 04:26 UTC. Recheck Git, LaunchAgents, collector state and disk before acting.
+**As of:** 2026-10-10 05:07 UTC. Recheck Git, LaunchAgents, collector state and disk before acting.
 
 ## Boundaries
 
@@ -15,14 +15,15 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
   latest functional change is `Add receipt-bound Helius campaign 3 handoff`, followed by state-only
   memory commits. Verify actual HEAD and clean status. Production remains untouched. About 68.5 GiB
   free; raw captures stay under ignored `work/`.
-- Campaign 3 is a one-use, receipt-bound continuation. Its LaunchAgent is loaded and not running;
-  first scheduled trigger is 2026-10-10 05:05Z. It adopts c2 finalized anchor 455116880 only as
-  observed frontier 455116881, with both gaps inherited and no backfill/bootstrap request. C1 used
-  0 requests; c2 used 1 request / 43 raw / 56 stored bytes, all debited from original 72-hour lease.
-  C3 cap is 24 frame attempts / 816 effective requests. Receipt:
-  `docs/evidence/helius-inventory-v3-c3-handoff-activation-2026-10-10.json`.
+- Campaign 3 is a one-use, receipt-bound continuation. Its first scheduled frame at 05:05Z completed:
+  34/34 captured requests, 61,403,814 raw / 13,580,271 stored bytes, interval
+  `[455116881,455133322)`, and 16/16 selected-block structural checks. The new finalized anchor is
+  455133321. Both inherited gaps remain explicit; no backfill. The LaunchAgent remains loaded for
+  the next future trigger. C1 used 0 and c2 used 1/43/56; both count against the original lease.
+  C3 cap remains 24 frame attempts / 816 effective requests. Receipt:
+  `docs/evidence/helius-inventory-v3-c3-first-frame-2026-10-10.json`.
 - C2 and controller STOPs are immutable. Old public/Helius watchers, c1/c2 and the controller are
-  unloaded. Helius watch-v3 keeps its explicit STOP; do not resume it. The first c3 frame has not run.
+  unloaded. Helius watch-v3 keeps its explicit STOP; do not resume it.
 - Helius credential is authorized without rotation. Private `.env.local`, Codex and Cursor config
   files are mode `0600`; collector reads its RPC endpoint in-process and LaunchAgents pass paths
   only. Codex/Cursor configs pin `helius-mcp@2.2.0`. Five legacy `@latest` npm processes that
@@ -54,10 +55,10 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
 
 ## Next horizon
 
-1. At/after 05:05Z, inspect c3 status and captured evidence offline. Require new finalized upper
-   anchor, forward start 455116881, full request/byte reconciliation and 16/16 checks. Never retry
-   an ambiguous request; seal and stop on mismatch or gap.
-2. Let the finite 24-attempt campaign run independently. Track gaps, request/byte totals, latency,
+1. At/after the next scheduled frame, inspect c3 status and evidence offline. Require a new finalized
+   anchor, monotonic forward interval, full accounting and 16/16 checks. Never retry an ambiguous
+   request; seal and stop on mismatch or gap.
+2. Let the finite campaign reach its 24-attempt cap independently. Track gaps, request/byte totals, latency,
    disk headroom, selector concentration and terminal STOP; reconcile retained files to journals.
 3. After c3 STOP, route the sustainable prospective-service contract to Sol, size it from measured
    c3 throughput/storage, then continue remaining Senses gates. No Cortex until practical sensing

@@ -1116,9 +1116,17 @@ requests each, so c3's effective maximum is 816 requests even though the legacy 
 817; the attempt cap prevents a 25th frame. Handoff and activation receipt:
 [`helius-inventory-v3-c3-handoff-activation-2026-10-10.json`](evidence/helius-inventory-v3-c3-handoff-activation-2026-10-10.json).
 
-Campaign 3's first real frame and eventual 24-attempt STOP remain unqualified. Any mismatch, second
-gap, uncertain request, resource/provider failure or interrupted active reservation halts without
-replay. Only after c3's terminal STOP may a separate finite sustainable-service policy be assessed;
+Campaign 3's first real frame completed at `20261010T050000Z`: the new finalized anchor was slot
+455133321, and the reconciled inventory interval was `[455116881,455133322)`. Helius returned 16,437
+produced-slot inventory members across 16,441 numeric positions; four positions were not returned
+and are not interpreted as economic zero. All 34 request results captured and reconciled to
+61,403,814 raw / 13,580,271 zstd-stored bytes. All 16/16 selected full-block structural checks
+passed. This qualifies the bounded frame and its capture path only; it is not market/process
+completeness or economic swap qualification. Receipt:
+[`helius-inventory-v3-c3-first-frame-2026-10-10.json`](evidence/helius-inventory-v3-c3-first-frame-2026-10-10.json).
+The c3 LaunchAgent remains loaded for its next future hourly trigger. Its full 24-attempt run and
+terminal STOP remain unqualified. Any mismatch, second gap, uncertain request, resource/provider
+failure or interrupted active reservation halts without replay. Only after c3's terminal STOP may a separate finite sustainable-service policy be assessed;
 the candidate is a seven-day lease of up to seven daily campaigns, sized from observed frame tails
 and free disk while preserving the 50 GiB floor and a complete-frame write margin. It has no
 automatic renewal. The Helius key remains in mode-0600 private provider configuration and the

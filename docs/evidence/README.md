@@ -34,6 +34,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `helius-inventory-v3-c3-handoff-activation-2026-10-10.json` (receipt-bound c2 reconciliation,
   forward-only seed, inherited gaps, finite caps, disk/lease preflight, and scheduled-but-not-yet-run
   state at seal time).
+- Campaign-3 first prospective frame:
+  `helius-inventory-v3-c3-first-frame-2026-10-10.json` (34/34 captured requests, exact raw/stored
+  reconciliation, a new finalized anchor, 16/16 selected-block structural checks, and retained gaps;
+  no global discovery or economic-zero claim).
 - Closed frozen Helius inventory-v2 pilot:
   `helius-inventory-v2-final-2026-10-10.json` (104 requests, reconciled raw/stored bytes, final
   anchor and inventory interval, and the inherited 00:00Z oversized-frame gap).
