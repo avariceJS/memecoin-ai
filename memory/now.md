@@ -99,3 +99,7 @@
 3. c4's finite terminal and the audit are separate evidence boundaries. Only then revisit the
    diagnostic-ledger decision and a finite successor policy with Sol; no auto-renewal. Do not start
    Cortex.
+4. Do not reuse `tools/brain_senses_campaign_controller.py` unchanged as the long-term successor:
+   it is a 72-hour/3-campaign controller with a hard-coded v2 predecessor contract. After c4 STOP,
+   reconcile actual c4 tails and get Sol's bounded successor contract before implementing or loading
+   any replacement controller.
