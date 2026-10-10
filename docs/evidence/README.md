@@ -41,6 +41,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `helius-inventory-v3-c3-first-frame-2026-10-10.json` (34/34 captured requests, exact raw/stored
   reconciliation, a new finalized anchor, 16/16 selected-block structural checks, and retained gaps;
   no global discovery or economic-zero claim).
+- Campaign-3 first-frame sell23 replay:
+  `helius-inventory-v3-c3-sell23-census-2026-10-10.json` (80/80 eligible structural candidates
+  matched offline; 10 diagnostic exact ledgers, 70 censored native-close outcomes, zero RPCs).
 - Closed frozen Helius inventory-v2 pilot:
   `helius-inventory-v2-final-2026-10-10.json` (104 requests, reconciled raw/stored bytes, final
   anchor and inventory interval, and the inherited 00:00Z oversized-frame gap).

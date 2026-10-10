@@ -53,10 +53,14 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
 - Source architecture owns acquisition/completeness and Senses receipts. Training findings belong
   in `docs/training-evaluation.md`. Details and scoped denominators are in those canonical docs and
   their named receipts; this file is only live handoff.
+- The first c3 frame's frozen sell23 replay found 80/80 eligible candidates: 10 exact diagnostic
+  account ledgers and 70 censored native-close settlements; six equations passed on each. No RPCs
+  were made. Receipt: `helius-inventory-v3-c3-sell23-census-2026-10-10.json`.
 
 ## Next horizon
 
-1. At/after the next scheduled frame, inspect c3 status and evidence offline. Require a new finalized
+1. At/after the next scheduled frame (expected LaunchAgent trigger 06:05Z), inspect c3 status and
+   evidence offline. Require a new finalized
    anchor, monotonic forward interval, full accounting and 16/16 checks. Never retry an ambiguous
    request; seal and stop on mismatch or gap.
 2. Let the finite campaign reach its 24-attempt cap independently. Track gaps, request/byte totals, latency,

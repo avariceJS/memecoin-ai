@@ -243,6 +243,14 @@ sample only; it is not an audit of the decoder, a complete process/population ce
 price, or training/execution admission. Receipt:
 [inventory-frame census](evidence/helius-pumpswap-sell23-ledger-v2-inventory-frame-census-2026-10-10.json).
 
+The first c3 prospective frame was replayed offline through the same frozen sell23 ledger. All 80
+eligible candidates in its 16 selected full blocks matched: 10 had exact full target-account
+settlement (diagnostic only), and 70 retained censored native-close settlement. Each of the six
+ledger equations passed on all 80. The census used no additional Helius requests and does not extend
+the decoder's audit, unselected-block/process coverage, wallet-net price, or training/execution
+admission. Receipt:
+[`c3 sell23 frame census`](evidence/helius-inventory-v3-c3-sell23-census-2026-10-10.json).
+
 The pinned v1 `buy_exact_quote_in` path now has an offline structural attempt census over those same
 512 Helius full-block captures: 642,312 transactions, 12,120 unique candidate transactions, and
 12,143 instruction references across 507 slots, with no normalization failures. Of these refs,
