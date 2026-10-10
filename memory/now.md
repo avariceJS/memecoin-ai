@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 14:30 UTC. Recheck live runtime and disk before any campaign decision.
+**As of:** 2026-10-10 14:31 UTC. Recheck live runtime and disk before any campaign decision.
 
 ## Boundaries and runtime
 
@@ -34,7 +34,7 @@
   paths/subcommands; collector reads the endpoint in-process. Historical process-list disclosure
   remains in agent transcript. Provider-side logs and backups were not inspected. Receipt:
   `docs/evidence/helius-key-pre-resume-exposure-rescan-2026-10-10.json`.
-- Post-resume exact rescan at 14:28Z found zero matches in 5,318 Git objects, 681 process command
+- Post-resume exact rescan at 14:30Z found zero matches in 5,318 Git objects, 681 process command
   lines, 4,995 files modified since the prior full scan, and 90,043,541 bytes of new Unified Log
   output. Only the three expected private configs contain the key. MCP uses pinned
   `helius-mcp@2.2.0` with environment configuration; c4 argv is path-only. Receipt:

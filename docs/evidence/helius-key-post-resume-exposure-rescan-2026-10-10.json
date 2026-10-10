@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "evidence_id": "helius-key-post-resume-exposure-rescan-2026-10-10",
-  "checked_at_utc": "2026-10-10T14:28:20Z",
+  "checked_at_utc": "2026-10-10T14:30:43Z",
   "contract": "helius_key_exact_value_post_resume_rescan_v1",
   "method": "Exact credential-component and full-endpoint equality checks; secret held in process memory and never emitted.",
   "results": {

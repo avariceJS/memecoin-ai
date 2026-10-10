@@ -1362,7 +1362,7 @@ pinned with the credential in environment configuration. Provider-side and inacc
 storage are outside this scan. Receipt:
 [`pre-resume Helius-key rescan`](evidence/helius-key-pre-resume-exposure-rescan-2026-10-10.json).
 
-At 14:28Z, after prospective collection resumed, a follow-up scan found zero exact credential or
+At 14:30Z, after prospective collection resumed, a follow-up scan found zero exact credential or
 endpoint matches in all 5,318 current Git objects, 681 active process command lines, 4,995
 accessible files modified since the previous full scan, and 90,043,541 bytes of new Unified Log
 output. The only expected exact matches remain in the three mode-0600 private configurations.
