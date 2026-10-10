@@ -11,7 +11,7 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 ## Host and prospective runtime
 
 - Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`, HEAD
-  `277ffca` before this handoff implementation commit. Production untouched. About 68.6 GiB free.
+  `7e0fe9b` (`Add receipt-bound Helius campaign 3 handoff`). Production untouched. About 68.6 GiB free.
 - Campaign 2 sealed its missed-gap STOP at 04:05Z and the controller stopped without a successor.
   Sol approved receipt-bound anchor adoption. C3 is prepared in a separate root and its LaunchAgent
   is loaded but not running; first future trigger is 05:05Z. It starts forward-only at 455116881,
