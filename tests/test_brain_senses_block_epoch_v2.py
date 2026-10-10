@@ -935,6 +935,9 @@ def test_v3_24th_attempt_seals_terminal_stop_and_never_calls_provider_again(
     stop = json.loads((root / "STOP").read_text())
     assert stop["reason"] == "finite_attempt_cap_reached"
     assert stop["campaign_id"] == "helius-inventory-v3-hourly-20261010"
+    assert len(stop["manifest_sha256"]) == 64
+    assert len(stop["epoch_summary_sha256"]) == 64
+    assert len(stop["frame_reservation_sha256"]) == 64
     assert stop["attempt_count"] == 1
     assert 1 <= stop["requests"] <= schedule_v3.REQUESTS_PER_FRAME
     assert stop["observed_anchor_slot"] == 101

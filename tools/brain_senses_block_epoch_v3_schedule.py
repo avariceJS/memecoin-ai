@@ -317,10 +317,17 @@ def _seal_stop(root: Path, reason: str, **details: Any) -> dict[str, Any]:
     if not isinstance(bucket, str):
         bucket = None
     epoch = root / "epochs" / bucket if bucket else None
+    manifest_path = root / "schedule-v3.json"
+    summary_path = epoch / "epoch-summary.json" if epoch else None
+    reservation_path = epoch / "frame-reservation.json" if epoch else None
     request_started = bool(epoch and list((epoch / "requests").glob("*.json")))
     record = {
         "schema_version": SCHEMA_VERSION,
         "campaign_id": "helius-inventory-v3-hourly-20261010",
+        "manifest_sha256": _hash(manifest_path) if manifest_path.is_file() else None,
+        "predecessor_lineage_sha256": (
+            frontier.get("predecessor_lineage_sha256") if frontier else None
+        ),
         "reason": reason,
         "time_ns": time.time_ns(),
         "attempt_count": frontier.get("attempt_count", 0),
@@ -334,6 +341,12 @@ def _seal_stop(root: Path, reason: str, **details: Any) -> dict[str, Any]:
         "active_reservation_status": active.get("status") if active else None,
         "request_started": request_started,
         "epoch_created": bool(epoch and epoch.exists()),
+        "epoch_summary_sha256": (
+            _hash(summary_path) if summary_path and summary_path.is_file() else None
+        ),
+        "frame_reservation_sha256": (
+            _hash(reservation_path) if reservation_path and reservation_path.is_file() else None
+        ),
         "accounting_error_class": accounting_error,
         **details,
     }
