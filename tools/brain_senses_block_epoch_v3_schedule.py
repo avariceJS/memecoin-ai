@@ -350,8 +350,25 @@ def _seal_stop(root: Path, reason: str, **details: Any) -> dict[str, Any]:
         "accounting_error_class": accounting_error,
         **details,
     }
-    _create(stop_path, record)
+    _create_stop_atomically(stop_path, record)
     return record
+
+
+def _create_stop_atomically(path: Path, record: dict[str, Any]) -> None:
+    """Publish a complete, fsynced STOP record with an immutable atomic link."""
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    temp = path.with_name(f".{path.name}.{os.getpid()}.{time.time_ns()}.tmp")
+    fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, "w") as stream:
+            stream.write(canonical(record) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.link(temp, path)
+        _sync_dir(path.parent)
+    finally:
+        temp.unlink(missing_ok=True)
+        _sync_dir(path.parent)
 
 
 def _offline_reconcile_interrupted(root: Path) -> dict[str, Any]:

@@ -939,8 +939,9 @@ peak-write margin. Unused capacity is released only after request journals, capt
 file sizes reconcile. A missed hour records a gap and permits an anchor-only observation; it never
 fetches slots from the missed prospective interval. The observed finalized anchor/frontier and the
 last inventoried interval remain separate facts. Any ambiguous request or integrity discrepancy
-stops the finite campaign. A durable campaign STOP includes counters and the observed/inventoried
-frontier, plus hashes of the bound manifest, current reservation and sealed summary when present.
+stops the finite campaign. A durable campaign STOP is atomically published only after its file is
+fsynced; it includes counters and the observed/inventoried frontier, plus hashes of the bound
+manifest, current reservation and sealed summary when present.
 The hourly LaunchAgent wrapper checks STOP before scheduler or credential access, runs the
 scheduler in-process, and requests `launchctl bootout` only after STOP is durable. If bootout fails,
 the next calendar invocation is a STOP-only zero-RPC teardown retry; `KeepAlive` is disabled and

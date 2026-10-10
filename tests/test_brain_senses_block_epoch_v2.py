@@ -1036,6 +1036,28 @@ def test_v3_preflight_failure_stops_before_epoch_or_rpc(tmp_path: Path, monkeypa
     assert json.loads((root / "STOP").read_text())["epoch_created"] is False
 
 
+def test_v3_stop_publication_is_atomic_and_immutable(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "v3-atomic-stop"
+    root.mkdir(mode=0o700)
+    stop_path = root / "STOP"
+
+    def fail_publish(*args: Any, **kwargs: Any) -> None:
+        raise OSError("simulated_stop_link_failure")
+
+    monkeypatch.setattr(schedule_v3.os, "link", fail_publish)
+    with pytest.raises(OSError, match="simulated_stop_link_failure"):
+        schedule_v3._create_stop_atomically(stop_path, {"reason": "atomic_fixture"})
+    assert not stop_path.exists()
+    assert list(root.glob(".STOP.*.tmp")) == []
+
+    monkeypatch.undo()
+    first = schedule_v3._seal_stop(root, "first_reason")
+    second = schedule_v3._seal_stop(root, "second_reason")
+    assert first == second
+    assert json.loads(stop_path.read_text()) == first
+    assert stop_path.stat().st_mode & 0o777 == 0o600
+
+
 def test_v3_terminal_transport_failure_is_never_replayed(tmp_path: Path, monkeypatch) -> None:
     root = tmp_path / "v3-failed"
     lineage_path = _v3_lineage(tmp_path / "lineage-failed.json")
