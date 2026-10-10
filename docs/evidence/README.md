@@ -83,6 +83,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `pumpswap-sell23-c3-native-close-feasibility-2026-10-10.json` (485 censored rows replayed against
   the six-frame source hashes; row-level lamport/token endpoint, create/fund/sync/close and sibling
   instruction traces; no rent reserve inference, economic admission, or RPC).
+- Campaign-3 sell23 native-account conservation gate:
+  `pumpswap-sell23-c3-native-account-flow-2026-10-10.json` (independent replay of all 96 frozen
+  c3 blocks and 485 censored rows; ordered account-touch checks and lamport equations pass 485/485;
+  destinations remain ambiguous; no rent, wallet proceeds, admission, or RPC).
 - Closed frozen Helius inventory-v2 pilot:
   `helius-inventory-v2-final-2026-10-10.json` (104 requests, reconciled raw/stored bytes, final
   anchor and inventory interval, and the inherited 00:00Z oversized-frame gap).

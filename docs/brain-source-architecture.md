@@ -289,8 +289,12 @@ Token initialization (including `InitializeImmutableOwner`), exact System create
 1,488,440-lamport account creation separately from other System credits and keeps lamports distinct
 from token atomic units. A row can be `source_account_flow_exact` while its close destination remains
 `destination_ambiguous`; destination sibling effects do not become an instruction-scoped credit.
-This result supports account-level conservation and existing qualified sell transfer facts only; it
-does not infer historical rent, wrapped-token amount from SyncNative, wallet proceeds, or admission.
+The gate passed all 485 source-account flows with zero unsupported touches or missing endpoints;
+all 485 close destinations remain ambiguous. Failed transaction refs remain outside the success
+denominator. This result supports account-level conservation and existing qualified sell transfer
+facts only; it does not infer historical rent, wrapped-token amount from SyncNative, wallet proceeds,
+or admission. Receipt:
+[`c3 native-account flow gate`](evidence/pumpswap-sell23-c3-native-account-flow-2026-10-10.json).
 The implementation is frozen before a prospective audit: inspect all eligible sell23 native-close
 references in the first four completed scheduled c4 hourly frames after the freeze, including pass,
 fail, and unsupported rows. Do not add RPC calls, select later frames, or tune against the audit.
