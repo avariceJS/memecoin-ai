@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 09:07 UTC. Verify Git HEAD, runtime and disk before acting.
+**As of:** 2026-10-10 10:07 UTC. Verify Git HEAD, runtime and disk before acting.
 
 ## Boundaries
 
@@ -14,20 +14,20 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
 - Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; latest
   functional commit `2c1031d` adds an offline frame-2 role replication tool. Production remains
   untouched. About 68 GiB free; raw captures stay under ignored `work/`.
-- Frozen campaign c3 is 5/24 attempts. Frames at 05:00Z through 09:00Z are forward-adjacent:
+- Frozen campaign c3 is 6/24 attempts. Frames at 05:00Z through 10:00Z are forward-adjacent:
   `[455116881,455133322)`, `[455133322,455149828)`, `[455149828,455166372)`,
-  `[455166372,455182952)` and `[455182952,455199463)`, widths 16,441/16,506/16,544/16,580/16,511.
-  All completed 34/34 requests and 16/16 structural checks. Frames 3 and 4 each had four numeric
-  positions not returned in provider inventory; these remain unknown, not zero. Frame 5 returned
-  all 16,511 produced-slot members in its numeric interval. Aggregate: 170 requests, 291,947,425
-  raw / 65,327,783 stored bytes. Frame 5's journal, raw/compressed captures, summary, STOP and
-  reservation-release hashes reconciled offline. No backfill; inherited gaps remain. The
-  LaunchAgent remains loaded and idle; next expected bucket 10:00Z (10:05 trigger). Campaign cap
-  remains 24 attempts / 816 effective requests.
+  `[455166372,455182952)`, `[455182952,455199463)` and `[455199463,455216025)`, widths
+  16,441/16,506/16,544/16,580/16,511/16,562. All completed 34/34 requests and 16/16 structural
+  checks. Frames 3, 4 and 6 had respectively 4, 4 and 6 numeric positions not returned in provider
+  inventory; these remain unknown, not zero. Frame 5 returned all members in its numeric interval.
+  Aggregate: 204 requests, 347,578,354 raw / 78,114,752 stored bytes. Frame 6's journal,
+  raw/compressed captures, summary, STOP and reservation-release hashes reconciled offline. No
+  backfill; inherited gaps remain. The LaunchAgent remains loaded and idle; next expected bucket
+  11:00Z (11:05 trigger). Campaign cap remains 24 attempts / 816 effective requests.
 - C2 and controller STOPs are immutable. Old public/Helius watchers, c1/c2 and the controller are
   unloaded. Helius watch-v3 keeps its explicit STOP; do not resume it.
-- Runtime recheck at 09:06Z found c3 is the only loaded job matching Senses/Helius collector or
-  watcher names. Its fifth calendar launch completed with exit 0 and returned to idle. Older plist
+- Runtime recheck at 10:06Z found c3 is the only loaded job matching Senses/Helius collector or
+  watcher names. Its sixth calendar launch completed with exit 0 and returned to idle. Older plist
   files remain on disk but are not loaded; no duplicate collector process was running. A fresh
   credential scan found zero exact-key matches in the worktree, all local Git objects, 334,396
   saved/runtime file scan passes, current process argv, and Unified Log over 12 hours. The scan's
