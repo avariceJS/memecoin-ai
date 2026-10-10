@@ -2,6 +2,7 @@ import fcntl
 import hashlib
 import json
 import os
+import socket
 
 import pytest
 
@@ -64,7 +65,7 @@ def frame(opcode, payload, *, fin=True):
 def acknowledged_campaign(root):
     campaign = WssReferenceCampaign(root, authorization(), opened_ns=100)
     session = campaign.start_session(at_ns=101, free_disk_bytes=DISK_FLOOR_BYTES + 1)
-    session.connection_opened(102)
+    record_connected(session, 102)
     session.request_subscribe(103)
     session.acknowledge(9, 104)
     return campaign
@@ -72,7 +73,7 @@ def acknowledged_campaign(root):
 
 def connected(campaign, at):
     session = campaign.start_session(at_ns=at, free_disk_bytes=DISK_FLOOR_BYTES + 1)
-    session.connection_opened(at + 1)
+    record_connected(session, at + 1)
     session.request_subscribe(at + 2)
     session.acknowledge(9, at + 3)
     assert campaign.prepare_receive(at_ns=at + 4, free_disk_bytes=DISK_FLOOR_BYTES + 1)
@@ -82,6 +83,27 @@ def connected(campaign, at):
         clock_ns=lambda: at + 6,
     )
     return session
+
+
+def record_connected(session, at_ns):
+    session.record_dns_result(
+        started_ns=at_ns - 1,
+        finished_ns=at_ns - 1,
+        duration_ns=1,
+        address_count=1,
+        selected_family=socket.AF_INET,
+        selected_address="8.8.8.8",
+        outcome="resolved",
+    )
+    session.record_connect_result(
+        started_ns=at_ns - 1,
+        finished_ns=at_ns - 1,
+        duration_ns=1,
+        selected_family=socket.AF_INET,
+        selected_address="8.8.8.8",
+        outcome="connected",
+    )
+    session.connection_opened(at_ns)
 
 
 def test_two_sessions_keep_budgets_and_explicit_disconnect_gap(tmp_path):

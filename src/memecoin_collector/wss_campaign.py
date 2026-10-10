@@ -1,4 +1,4 @@
-"""Finite, single-writer WSS session controls; no live socket adapter is included."""
+"""Finite, single-writer WSS campaign journal and authorization binding."""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from memecoin_collector.wss_reference import (
     MAX_MESSAGE_BYTES,
     MAX_SESSION_NS,
     RAW_LIMIT_BYTES,
+    RECONNECTABLE_REASONS,
     STORED_LIMIT_BYTES,
     WssReferenceSession,
     _canonical,
@@ -28,7 +29,6 @@ from memecoin_collector.wss_reference import (
 
 MAX_SESSIONS = 2
 MAX_AUTHORIZATION_NS = 7 * 24 * 60 * 60 * 1_000_000_000
-RECONNECTABLE_REASONS = {"connection_disconnected", "session_duration_cap"}
 
 
 def default_authorization(
@@ -44,6 +44,8 @@ def default_authorization(
     client = Path(__file__).with_name("wss_client.py")
     tls = Path(__file__).with_name("wss_tls.py")
     private_config = Path(__file__).with_name("private_config.py")
+    socket_adapter = Path(__file__).with_name("wss_socket.py")
+    resolver = Path(__file__).resolve().parents[2] / "tools" / "brain_senses_wss_resolver.py"
     return {
         "schema_version": 1,
         "provider": "helius-standard-wss",
@@ -60,6 +62,8 @@ def default_authorization(
             "wss_client.py": _sha(client.read_bytes()),
             "wss_tls.py": _sha(tls.read_bytes()),
             "private_config.py": _sha(private_config.read_bytes()),
+            "wss_socket.py": _sha(socket_adapter.read_bytes()),
+            "brain_senses_wss_resolver.py": _sha(resolver.read_bytes()),
         },
         "authorized_at_ns": authorized_at_ns,
         "expires_at_ns": expires_at_ns,

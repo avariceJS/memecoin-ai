@@ -1877,10 +1877,16 @@ reflect a credential-bearing request target. The client cannot connect to a prov
 adds an offline, deadline-bound TLS adapter over a caller-supplied connected TCP socket. It uses
 Python's verified default trust store and hostname checking, disables TLS key logging, handles
 nonblocking readiness in both directions, returns sanitized phase errors and completed-byte counts,
-and closes without TLS unwrap on every terminal path. Its endpoint loader and TLS adapter are bound
-by hash in campaign authorization. DNS/TCP connection establishment remains absent pending an
-enforceable DNS deadline and single-address policy. There is no provider request, live endpoint
-connection, service activation, or WSS LaunchAgent.
+and closes without TLS unwrap on every terminal path. `wss_socket.py` adds a bounded offline-capable
+DNS/TCP adapter: it passes only the exact `mainnet.helius-rpc.com` hostname to a fixed-code resolver
+child, scrubs the child environment, caps IPC output, kills and reaps on timeout, selects the first
+usable OS-ordered public address, and makes one nonblocking TCP attempt without retry, address
+family fallback, or same-window resume. DNS and connect receipt times, durations, selected family/
+address, and sanitized outcomes are journaled; pre-ack failures seal an explicit unobserved session
+gap. Free disk, authorization, and independent wall-clock/monotonic four-hour deadlines are checked
+before and after each connection phase.
+Campaign authorization binds hashes for the endpoint reader, socket adapter, and resolver script.
+No provider request, live endpoint connection, service activation, or WSS LaunchAgent has occurred.
 
 The frozen *future* pilot envelope is at most four hours per session, one subscription, two
 sequential sessions at most, 128 MiB inbound message bytes, 64 MiB physically stored bytes, and a
@@ -1900,8 +1906,9 @@ seven days. It enforces two sequential windows maximum,
 aggregate raw/stored byte caps, disk floor, explicit reconnect gaps, and no-resume recovery. The
 wrapper checks the shapes and hashes in its authorization object but does not validate external c4
 or account receipts; a future activation gate must independently reconcile those artifacts. Its
-authorization now binds the injected client, TLS adapter, and shared private-file reader source
-hashes as well as the campaign, reference, and transport modules. The offline client shares
+authorization binds the injected client, TLS adapter, shared private-file reader, DNS/TCP adapter,
+and resolver script source hashes as well as the campaign, reference, and WebSocket transport
+modules. The offline client shares
 raw/stored budgets with notifications, persists the
 bounded pre-ack response before classifying it, and records protocol failures without endpoint
 material. Unknown response header names and all header values are excluded from failure evidence.

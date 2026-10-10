@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 20:40 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-10 21:17 UTC. Verify live runtime before any campaign or service decision.
 
 ## Boundaries and runtime
 
@@ -9,11 +9,13 @@
   holdout access, push, retry or backfill.
 - c3 is terminal after its ambiguous 11:00Z anchor failure; preserve its uncovered interval.
   c4 remains the unchanged finite calendar lease (one bootstrap plus at most 24 hourly frames).
-  Read-only status at 20:33Z after the natural 20:05Z tick: 8/24 frames complete, 272 frame
-  requests plus one bootstrap (273 all-in), 583,582,961 raw / 130,344,829 stored bytes, zero failed
-  epochs, zero open reservations, 16 attempts remaining, frontier 455380633, and 68,484,501,504
-  free bytes. LaunchAgent remains loaded and idle between calendar ticks, with fixed path-only
-  arguments; next trigger 21:05Z. No manual tick. Credit units remain unknown. Preserve all gaps.
+  Read-only status at 21:17Z after the natural 21:05Z tick: 9/24 frames complete, 306 frame
+  requests plus one bootstrap (307 all-in), 649,607,110 raw / 146,677,436 stored bytes, zero failed
+  or gapped epochs, zero open reservations, 15 attempts remaining, frontier 455397121, and
+  63,392,165,888 free bytes. LaunchAgent remains loaded and idle between calendar ticks, with fixed
+  path-only arguments; next scheduled trigger 22:05Z. No manual tick. Credit units remain unknown.
+  A relative-path status invocation failed the root binding; the absolute-path read-only status
+  succeeded without changing campaign state. Preserve all gaps.
 - Helius key is still in ignored `.env.local` and private MCP configs, all mode 0600. User accepts
   no rotation. Latest follow-up scan found zero exact endpoint/path matches in Git, recent saved
   files, current process args or 213.6 MB of Unified Log. Two Codex history files had only 67
@@ -45,13 +47,19 @@
   completeness estimate; benchmark was reproduced against its pinned source revision.
 - Offline WSS implementation now includes verified deadline-bound TLS over a caller-connected
   socket, strict Upgrade/subscription handling, cleanup ownership, partial input accounting, and a
-  shared no-follow private-config reader. It still has no DNS/TCP connector, provider request,
-  LaunchAgent, or live evidence. WSS authorization binds client/TLS/config-reader source hashes but
-  does not verify c4/account receipt contents. The 128 MiB WSS envelope estimates 2,686 published
+  shared no-follow private-config reader. Sol's DNS/TCP gate is implemented offline: a fixed-code
+  child receives only the public Helius hostname, with scrubbed environment, bounded IPC and
+  kill/reap timeout; the connector selects one public OS-ordered address and attempts one TCP
+  connection. DNS/connect results are journaled and pre-ack failures seal explicit unobserved gaps.
+  No live socket, provider request or service has run. WSS authorization binds client/TLS/config
+  reader/socket/resolver source hashes but does not verify c4/account receipt contents. The 128 MiB
+  WSS envelope estimates 2,686 published
   credits; together with HTTP's 5,719 calls the planning baseline is 8,405 before overhead. This is
   not a billing ceiling. No activation before c4 terminal proof, measured tails, account headroom /
-  overhead review, independent source/one-writer review and authorization. Final PPV: complete,
-  no findings/gaps; 156 focused tests pass.
+  overhead review, independent source/one-writer review and authorization. The credential/TLS
+  patch's final PPV was complete with no findings/gaps; the offline DNS/TCP connector, journal and
+  TLS/client focused suite passes 129 tests and independent review found no remaining blockers.
+  Connector remains unactivated.
 - The separate seven-day Helius service v1 also remains offline. Its conditional Sol gate is in
   `docs/brain-source-architecture.md`; after c4 STOP, reconcile terminal/no-post-STOP proof, all
   frame tails, disk and account limits, then review its cap (early stop vs evidence-backed revision)

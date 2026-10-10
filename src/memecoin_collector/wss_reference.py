@@ -7,8 +7,10 @@ pass complete UTF-8 JSON-RPC messages to it after the live-session gate is appro
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import os
+import socket
 import stat
 import time
 from collections.abc import Callable
@@ -40,6 +42,14 @@ TRANSPORT_FAILURE_CODES = {
     "authorization_expired",
     "session_clock_regression",
 }
+RECONNECTABLE_REASONS = {
+    "connection_disconnected",
+    "session_duration_cap",
+    "dns_resolution_failed",
+    "dns_resolution_timeout",
+    "tcp_connect_failed",
+    "tcp_connect_timeout",
+}
 
 
 def _canonical(row: dict[str, Any]) -> bytes:
@@ -64,6 +74,38 @@ def _safe_now(now_ns: int) -> int:
     if type(now_ns) is not int or now_ns < 0:
         raise ValueError("invalid_wss_time")
     return now_ns
+
+
+def _valid_public_ip(family: int | None, address: str | None) -> bool:
+    if (
+        not isinstance(family, int)
+        or isinstance(family, bool)
+        or family not in {socket.AF_INET, socket.AF_INET6}
+        or not isinstance(address, str)
+        or "%" in address
+    ):
+        return False
+    try:
+        parsed = ipaddress.ip_address(address)
+    except ValueError:
+        return False
+    version = 4 if family == socket.AF_INET else 6
+    return (
+        parsed.version == version
+        and parsed.is_global
+        and not parsed.is_multicast
+        and not parsed.is_reserved
+        and not (parsed.version == 6 and parsed.is_site_local)
+        and parsed.compressed == address
+    )
+
+
+def _family_name(family: int | None) -> str | None:
+    if family == socket.AF_INET:
+        return "ipv4"
+    if family == socket.AF_INET6:
+        return "ipv6"
+    return None
 
 
 def parse_logs_message(raw: bytes) -> dict[str, Any]:
@@ -189,6 +231,12 @@ class WssReferenceSession:
         self.control_receive_prepared = False
         self.last_subscribe_response_sha256: str | None = None
         self.connected = False
+        self.dns_recorded = False
+        self.dns_outcome: str | None = None
+        self.connect_recorded = False
+        self.dns_selected_family: int | None = None
+        self.dns_selected_address: str | None = None
+        self.connect_outcome: str | None = None
         self.subscribe_sent = False
         self.terminal = False
         self.opened_ns = opened_ns
@@ -234,10 +282,119 @@ class WssReferenceSession:
         return row
 
     def connection_opened(self, at_ns: int) -> None:
-        if self.connected or self.subscribe_sent:
+        if (
+            self.connected
+            or self.subscribe_sent
+            or self.connect_outcome != "connected"
+            or not self.dns_recorded
+            or self.dns_selected_address is None
+        ):
             raise ValueError("wss_connection_state_invalid")
         self._event("connection_opened", at_ns, {})
         self.connected = True
+
+    def record_dns_result(
+        self,
+        *,
+        started_ns: int,
+        finished_ns: int,
+        duration_ns: int,
+        address_count: int,
+        selected_family: int | None,
+        selected_address: str | None,
+        outcome: str,
+    ) -> None:
+        """Journal bounded DNS metadata without the endpoint URL or any credential."""
+        allowed = {"resolved", "no_usable_address", "resolver_failed", "resolver_timeout"}
+        if self.dns_recorded or self.connected or self.subscribe_sent:
+            raise ValueError("wss_dns_state_invalid")
+        if (
+            type(started_ns) is not int
+            or type(finished_ns) is not int
+            or type(duration_ns) is not int
+            or finished_ns < started_ns
+            or started_ns < self.last_event_ns
+            or duration_ns < 0
+            or type(address_count) is not int
+            or not 0 <= address_count <= 64
+            or outcome not in allowed
+            or (outcome == "resolved") != _valid_public_ip(selected_family, selected_address)
+            or (outcome == "resolved" and address_count == 0)
+            or (outcome in {"resolver_failed", "resolver_timeout"} and address_count != 0)
+            or (
+                selected_address is not None
+                and (not isinstance(selected_address, str) or len(selected_address) > 64)
+            )
+            or (
+                outcome != "resolved"
+                and (selected_family is not None or selected_address is not None)
+            )
+        ):
+            raise ValueError("wss_dns_result_invalid")
+        at_ns = _safe_now(finished_ns)
+        self._event(
+            "dns_resolution",
+            at_ns,
+            {
+                "started_ns": started_ns,
+                "finished_ns": finished_ns,
+                "duration_ns": duration_ns,
+                "address_count": address_count,
+                "selected_family": _family_name(selected_family),
+                "selected_address": selected_address,
+                "outcome": outcome,
+                "endpoint_or_credentials_recorded": False,
+            },
+        )
+        self.dns_recorded = True
+        self.dns_outcome = outcome
+        self.dns_selected_family = selected_family
+        self.dns_selected_address = selected_address
+
+    def record_connect_result(
+        self,
+        *,
+        started_ns: int,
+        finished_ns: int,
+        duration_ns: int,
+        selected_family: int,
+        selected_address: str,
+        outcome: str,
+    ) -> None:
+        """Journal exactly one selected-address TCP attempt and its bounded outcome."""
+        if not self.dns_recorded or self.connect_recorded or self.connected or self.subscribe_sent:
+            raise ValueError("wss_connect_state_invalid")
+        if (
+            type(started_ns) is not int
+            or type(finished_ns) is not int
+            or type(duration_ns) is not int
+            or finished_ns < started_ns
+            or started_ns < self.last_event_ns
+            or duration_ns < 0
+            or selected_family not in {socket.AF_INET, socket.AF_INET6}
+            or not isinstance(selected_address, str)
+            or len(selected_address) > 64
+            or selected_family != self.dns_selected_family
+            or selected_address != self.dns_selected_address
+            or outcome not in {"connected", "connect_failed", "connect_timeout"}
+        ):
+            raise ValueError("wss_connect_result_invalid")
+        self._event(
+            "tcp_connect",
+            _safe_now(finished_ns),
+            {
+                "started_ns": started_ns,
+                "finished_ns": finished_ns,
+                "duration_ns": duration_ns,
+                "selected_family": _family_name(selected_family),
+                "selected_address": selected_address,
+                "outcome": outcome,
+                "fallback_or_retry": False,
+                "endpoint_or_credentials_recorded": False,
+            },
+        )
+        self.connect_recorded = True
+        self.connect_outcome = outcome
 
     def record_upgrade_verified(self, at_ns: int, response_headers: bytes) -> None:
         """Record only the verified Upgrade response digest, never endpoint credentials."""
@@ -567,6 +724,26 @@ class WssReferenceSession:
         *,
         unreferenced_raw_files: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
+        if reason in {"dns_resolution_failed", "dns_resolution_timeout"} and (
+            self.dns_outcome
+            not in (
+                {"resolver_timeout"}
+                if reason == "dns_resolution_timeout"
+                else {"no_usable_address", "resolver_failed"}
+            )
+            or self.connect_recorded
+            or self.connected
+            or self.subscribe_sent
+        ):
+            raise ValueError("wss_dns_stop_reason_mismatch")
+        if reason in {"tcp_connect_failed", "tcp_connect_timeout"} and (
+            self.dns_outcome != "resolved"
+            or self.connect_outcome
+            != ("connect_timeout" if reason == "tcp_connect_timeout" else "connect_failed")
+            or self.connected
+            or self.subscribe_sent
+        ):
+            raise ValueError("wss_tcp_stop_reason_mismatch")
         messages = []
         control_responses = 0
         transport_failures = 0
@@ -673,11 +850,16 @@ class WssReferenceSession:
         last_subscribe_response_kind: str | None = None
         seen_identities: set[tuple[int, str]] = set()
         connected = False
+        dns_outcome: str | None = None
+        dns_family: int | None = None
+        dns_address: str | None = None
+        tcp_outcome: str | None = None
         subscribe_sent = False
         journal_files = sorted(journal_dir.glob("*.json"))
         if len(journal_files) != len(list(journal_dir.iterdir())):
             raise ValueError("wss_journal_tree_invalid")
         for expected, path in enumerate(journal_files, start=1):
+            prior_at = previous_at
             row = json.loads(path.read_text())
             unsigned = {k: v for k, v in row.items() if k != "sha256"}
             if (
@@ -692,6 +874,8 @@ class WssReferenceSession:
             parent, previous_at = row["sha256"], row["at_ns"]
             if row.get("kind") not in {
                 "session_open",
+                "dns_resolution",
+                "tcp_connect",
                 "connection_opened",
                 "upgrade_verified",
                 "subscribe_sent",
@@ -707,10 +891,117 @@ class WssReferenceSession:
                 raise ValueError("wss_session_open_order_invalid")
             if row.get("kind") == "session_stop" and expected != len(journal_files):
                 raise ValueError("wss_event_after_terminal_stop")
+            if row.get("kind") == "session_stop":
+                reason = row.get("reason")
+                if reason in {"dns_resolution_failed", "dns_resolution_timeout"} and (
+                    dns_outcome
+                    not in (
+                        {"resolver_timeout"}
+                        if reason == "dns_resolution_timeout"
+                        else {"no_usable_address", "resolver_failed"}
+                    )
+                    or tcp_outcome is not None
+                    or connected
+                    or subscribe_sent
+                ):
+                    raise ValueError("wss_dns_stop_reason_mismatch")
+                if reason in {"tcp_connect_failed", "tcp_connect_timeout"} and (
+                    dns_outcome != "resolved"
+                    or tcp_outcome
+                    != ("connect_timeout" if reason == "tcp_connect_timeout" else "connect_failed")
+                    or connected
+                    or subscribe_sent
+                ):
+                    raise ValueError("wss_tcp_stop_reason_mismatch")
             if row.get("kind") == "connection_opened":
-                if connected or subscribe_sent:
+                if (
+                    connected
+                    or subscribe_sent
+                    or dns_outcome != "resolved"
+                    or tcp_outcome != "connected"
+                ):
                     raise ValueError("wss_connection_state_invalid")
                 connected = True
+            if row.get("kind") == "dns_resolution":
+                if (
+                    connected
+                    or subscribe_sent
+                    or dns_outcome is not None
+                    or row.get("outcome")
+                    not in {
+                        "resolved",
+                        "no_usable_address",
+                        "resolver_failed",
+                        "resolver_timeout",
+                    }
+                ):
+                    raise ValueError("wss_dns_result_invalid")
+                if (
+                    type(row.get("started_ns")) is not int
+                    or row["started_ns"] < prior_at
+                    or type(row.get("finished_ns")) is not int
+                    or row["finished_ns"] < row["started_ns"]
+                    or row.get("at_ns") != row.get("finished_ns")
+                    or type(row.get("duration_ns")) is not int
+                    or row["duration_ns"] < 0
+                    or type(row.get("address_count")) is not int
+                    or not 0 <= row["address_count"] <= 64
+                    or row.get("endpoint_or_credentials_recorded") is not False
+                ):
+                    raise ValueError("wss_dns_result_invalid")
+                resolved = row["outcome"] == "resolved"
+                selected_family_name = row.get("selected_family")
+                selected_family_number = {
+                    "ipv4": socket.AF_INET,
+                    "ipv6": socket.AF_INET6,
+                }.get(selected_family_name)
+                if resolved != _valid_public_ip(
+                    selected_family_number, row.get("selected_address")
+                ):
+                    raise ValueError("wss_dns_selection_invalid")
+                if (resolved and row["address_count"] == 0) or (
+                    row["outcome"] in {"resolver_failed", "resolver_timeout"}
+                    and row["address_count"] != 0
+                ):
+                    raise ValueError("wss_dns_result_invalid")
+                if not resolved and (
+                    row.get("selected_family") is not None
+                    or row.get("selected_address") is not None
+                ):
+                    raise ValueError("wss_dns_selection_invalid")
+                dns_outcome = row["outcome"]
+                dns_family = selected_family_name
+                dns_address = row.get("selected_address")
+            if row.get("kind") == "tcp_connect":
+                if (
+                    connected
+                    or subscribe_sent
+                    or tcp_outcome is not None
+                    or dns_outcome != "resolved"
+                    or row.get("outcome") not in {"connected", "connect_failed", "connect_timeout"}
+                ):
+                    raise ValueError("wss_connect_result_invalid")
+                if (
+                    row.get("selected_family") != dns_family
+                    or row.get("selected_address") != dns_address
+                ):
+                    raise ValueError("wss_connect_address_mismatch")
+                tcp_outcome = row["outcome"]
+                if (
+                    type(row.get("started_ns")) is not int
+                    or row["started_ns"] < prior_at
+                    or type(row.get("finished_ns")) is not int
+                    or row["finished_ns"] < row["started_ns"]
+                    or row.get("at_ns") != row.get("finished_ns")
+                    or type(row.get("duration_ns")) is not int
+                    or row["duration_ns"] < 0
+                    or row.get("selected_family") not in {"ipv4", "ipv6"}
+                    or not isinstance(row.get("selected_address"), str)
+                    or len(row["selected_address"]) > 64
+                    or row.get("fallback_or_retry") is not False
+                    or row.get("endpoint_or_credentials_recorded") is not False
+                ):
+                    raise ValueError("wss_connect_result_invalid")
             if row.get("kind") == "upgrade_verified":
                 response_hash = row.get("response_sha256")
                 if (
@@ -910,6 +1201,15 @@ class WssReferenceSession:
         obj.control_receive_prepared = False
         obj.last_subscribe_response_sha256 = last_subscribe_response_sha256
         obj.connected = connected
+        obj.dns_recorded = dns_outcome is not None
+        obj.dns_outcome = dns_outcome
+        obj.connect_recorded = tcp_outcome is not None
+        obj.connect_outcome = tcp_outcome
+        obj.dns_selected_family = {
+            "ipv4": socket.AF_INET,
+            "ipv6": socket.AF_INET6,
+        }.get(dns_family)
+        obj.dns_selected_address = dns_address
         obj.subscribe_sent = subscribe_sent
         obj.terminal = bool(rows and rows[-1].get("kind") == "session_stop")
         opened = next((row["at_ns"] for row in rows if row.get("kind") == "session_open"), None)

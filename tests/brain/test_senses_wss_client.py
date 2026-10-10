@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import socket
 
 import pytest
 
@@ -210,10 +211,27 @@ class FakeTLSStream:
 
 def make_campaign(root, *, opened_monotonic_ns=0, auth=None):
     campaign = WssReferenceCampaign(root, auth or authorization(), opened_ns=100)
-    campaign.start_session(
+    session = campaign.start_session(
         at_ns=101,
         free_disk_bytes=DISK_FLOOR_BYTES + 1,
         opened_monotonic_ns=opened_monotonic_ns,
+    )
+    session.record_dns_result(
+        started_ns=101,
+        finished_ns=101,
+        duration_ns=1,
+        address_count=1,
+        selected_family=socket.AF_INET,
+        selected_address="8.8.8.8",
+        outcome="resolved",
+    )
+    session.record_connect_result(
+        started_ns=102,
+        finished_ns=102,
+        duration_ns=1,
+        selected_family=socket.AF_INET,
+        selected_address="8.8.8.8",
+        outcome="connected",
     )
     return campaign
 
@@ -516,11 +534,11 @@ def test_oversized_ack_id_is_preserved_then_stopped(tmp_path):
 def test_direct_acknowledge_rejects_out_of_range_subscription_id(tmp_path):
     campaign = make_campaign(tmp_path / "campaign")
     session = campaign.active
-    session.connection_opened(102)
-    session.request_subscribe(103)
+    session.connection_opened(103)
+    session.request_subscribe(104)
     with pytest.raises(ValueError, match="invalid_wss_subscription_ack"):
-        session.acknowledge(MAX_STRUCTURAL_U64 + 1, 104)
-    campaign.stop("synthetic_test_end", 105)
+        session.acknowledge(MAX_STRUCTURAL_U64 + 1, 105)
+    campaign.stop("synthetic_test_end", 106)
     campaign.close()
 
 
@@ -647,10 +665,28 @@ def test_repeated_old_connection_close_does_not_stop_later_window(tmp_path):
     assert first_connection is not None
     first_connection.close()
 
-    campaign.start_session(
-        at_ns=clock_ns() + 1,
+    second_open_ns = clock_ns() + 1
+    second_session = campaign.start_session(
+        at_ns=second_open_ns,
         free_disk_bytes=DISK_FLOOR_BYTES + 1,
         opened_monotonic_ns=0,
+    )
+    second_session.record_dns_result(
+        started_ns=second_open_ns,
+        finished_ns=second_open_ns,
+        duration_ns=1,
+        address_count=1,
+        selected_family=socket.AF_INET,
+        selected_address="1.1.1.1",
+        outcome="resolved",
+    )
+    second_session.record_connect_result(
+        started_ns=second_open_ns + 1,
+        finished_ns=second_open_ns + 1,
+        duration_ns=1,
+        selected_family=socket.AF_INET,
+        selected_address="1.1.1.1",
+        outcome="connected",
     )
     second_stream = FakeTLSStream()
     second_connection, _ = start(campaign, second_stream, mono=[0], clock=[clock_ns() + 2])

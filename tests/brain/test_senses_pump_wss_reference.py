@@ -1,6 +1,7 @@
 import hashlib
 import json
 import random
+import socket
 
 import pytest
 
@@ -26,10 +27,31 @@ def message(slot, signature, *, err=None, logs=None, subscription=9):
 
 def session(tmp_path):
     value = WssReferenceSession(tmp_path / "session", default_binding(), opened_ns=100)
-    value.connection_opened(101)
+    record_connected(value, 101)
     value.request_subscribe(102)
     value.acknowledge(9, 103)
     return value
+
+
+def record_connected(value, at_ns):
+    value.record_dns_result(
+        started_ns=at_ns - 1,
+        finished_ns=at_ns - 1,
+        duration_ns=1,
+        address_count=1,
+        selected_family=socket.AF_INET,
+        selected_address="8.8.8.8",
+        outcome="resolved",
+    )
+    value.record_connect_result(
+        started_ns=at_ns - 1,
+        finished_ns=at_ns - 1,
+        duration_ns=1,
+        selected_family=socket.AF_INET,
+        selected_address="8.8.8.8",
+        outcome="connected",
+    )
+    value.connection_opened(at_ns)
 
 
 def deliver(value, raw, received_ns, available_ns):
@@ -138,7 +160,7 @@ def test_notification_before_ack_and_time_regression_fail_closed(tmp_path):
     value = WssReferenceSession(tmp_path / "session", default_binding(), opened_ns=100)
     with pytest.raises(ValueError, match="wss_notification_before_ack"):
         value.record_message(message(1, "sig-D"), received_ns=101, clock_ns=lambda: 102)
-    value.connection_opened(102)
+    record_connected(value, 102)
     value.request_subscribe(103)
     with pytest.raises(ValueError, match="wss_ack_outside_session_window"):
         value.acknowledge(1, 99)
