@@ -51,11 +51,11 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   releases, split frontiers, fail-closed recovery and read-only status. Controller and related focused
   suites pass 54 tests; targeted Ruff passes. Differential review is under ignored `work/review/`.
 - Owner authorized the current Helius key. It remains in `.env.local` and Codex MCP environment
-  configuration, both mode `0600`; collector CLI has no endpoint argument. The exact key was
-  redacted from local Codex/shell histories and SQLite thread history. Exact scans found no key in
-  reachable Git objects or active process arguments. macOS Unified Log query timed out; remote
-  platform logs and filesystem snapshots are outside this checkout's control. Never echo or pass a
-  credential in a command argument or shell command text.
+  configuration, both mode `0600`; collector CLI has no endpoint argument. Credential incident
+  status: the exact credential appeared in 20 zsh history files; affected entries were scrubbed
+  atomically, and scans found no reachable Git/object or current argv match. Local Codex/SQLite
+  history was also redacted. macOS Unified Log query timed out; remote logs and snapshots are outside
+  this checkout's control. Never echo or pass a credential in command text or arguments.
 - The Helius MCP package resolved locally and from the registry as 2.2.0; its config is now pinned
   to `helius-mcp@2.2.0` with the child environment unchanged and mode `0600`. Existing MCP processes
   were already running the cached 2.2.0 package.

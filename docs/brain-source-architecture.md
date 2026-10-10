@@ -331,6 +331,18 @@ user, pool, or token accounts remain potential effects and do not establish a ba
 1,146 rows keep historical extension state unavailable. Receipt:
 [`Token-2022 clean-stratum trace`](evidence/pumpswap-buy-exact-v1-token2022-clean-stratum-2026-10-10.json).
 
+A bounded offline follow-up checked only the four `(program=Token-2022, wire=09)` rows against the
+official Token-2022 source at commit `b4724e6e7fecc8fc36295f861a769401bf92b270`, with pinned
+`instruction.rs` and `processor.rs` hashes in the derived receipt. All four source and raw-capture
+checks passed: the one-byte instruction is `CloseAccount`; each successful transaction has path
+`[5]`, stack height 1, and ordered accounts `[user quote token account, user destination, user
+owner signer]`. The destination and owner resolve to the same user key, whose compiled message
+privileges are writable and signer. The rows are labeled
+`known_structural_unsupported_close`; no account lifecycle, Token-2022 extension state, amount,
+rent/lamport settlement, PumpSwap economic effect, or admission is inferred. The original 1,146
+economic states remain quarantined. Receipt:
+[`four-row Token-2022 close structural classification`](evidence/pumpswap-buy-exact-v1-token2022-close-structural-2026-10-10.json).
+
 Provider-capability survey update (2026-10-10): Alchemy's current [Solana Account Archive
 documentation](https://www.alchemy.com/docs/solana/account-archive) describes paid-plan historical
 `getAccountInfo` reads (`slot`, `lastUpdateBeforeSlot`, `firstUpdateAfterSlot`), with `slot: S`
