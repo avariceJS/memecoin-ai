@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 22:22 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-10 22:28 UTC. Verify live runtime before any campaign or service decision.
 
 ## Boundaries and runtime
 
@@ -9,9 +9,9 @@
   holdout access, push, retry or backfill.
 - c3 is terminal after its ambiguous 11:00Z anchor failure; preserve its uncovered interval.
   c4 remains the unchanged finite calendar lease (one bootstrap plus at most 24 hourly frames).
-  Read-only status at 22:22Z: 10/24 frames complete, 340 frame requests plus one bootstrap (341
+  Read-only status at 22:28Z: 10/24 frames complete, 340 frame requests plus one bootstrap (341
   all-in), 706,277,979 raw / 161,843,979 stored bytes, zero failed or gapped epochs, zero open
-  reservations, 14 attempts remaining, frontier 455413633, and 60,144,988,160 free bytes. Exact c4
+  reservations, 14 attempts remaining, frontier 455413633, and 59,763,625,984 free bytes. Exact c4
   LaunchAgent remains loaded and idle between calendar ticks, with fixed path-only arguments; its
   22:00Z frame completed naturally. Old watcher/decode and predecessor-campaign LaunchAgents are
   disabled and unloaded. No manual tick. The ten-frame method accounting is 11 `getSlot`, 10
@@ -54,6 +54,12 @@
   pairs agree on the candidate facts. Sol accepted the dev-only freeze. Receipts:
   `docs/evidence/pumpswap-buy-exact-tail2-v1-development-qualification-2026-10-10.json`.
   Provider join: `docs/evidence/pumpswap-buy-exact-tail2-pair64-provider-check-2026-10-10.json`.
+- Verification: focused PumpSwap suite 44 passed, targeted Ruff/format passed, and `make smoke`
+  passed with synthetic-only evidence. Repository-wide `make check` stops on 43 E501 findings in
+  two unchanged pool-v2 qualifier tools. `make test` cannot collect three unrelated legacy tests
+  importing absent tools (`brain_senses_block_epoch_v2`, `brain_senses_buy_exact_v1_census`,
+  `brain_senses_buy_exact_v1_extra_role_census`); 13 optional ML tests skip. These are outside the
+  current diff; the differential-review artifact records details under ignored `work/reviews/`.
 
 - Pair64 offline comparison: 512 Helius selected blocks and 64 same-slot Alchemy pairs; all block
   identities and ordered signatures match. Across 80,467 transactions, 80,321 trees match exactly;
