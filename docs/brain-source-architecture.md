@@ -930,12 +930,28 @@ quota/request/byte budget, and a full-frame request preflight before I/O. Invoke
 environment that installs it editable); a shell Python without it imported an older installed
 package from the separate production checkout and failed before I/O. Before each invocation,
 recheck the actual UTC bucket, disk, and runtime state.
-Missed intervals stay in the same slot-coordinate frame only within the 20,000-slot cap; larger
-intervals seal as unknown gaps. Alchemy pairing stays disabled until an account-level limit is
-verifiable.
+The frozen v2 pilot closed after the sole authorized 02:00Z bucket completed. Across five epoch
+directories it reconciled 104 request reservations, 186,022,930 raw bytes and 41,818,169 zstd
+bytes, with no outstanding reservations. The final inventory covered `[455066012,455082524)` and
+reported 16,512 produced slots; all 16 selected blocks passed their full/signature self-checks.
+The final observed anchor was slot 455082523. The earlier 00:00Z interval
+`[455037817,455061516)` remains an explicit oversized-frame gap. Root STOP and final receipt bind the
+manifest, frontier, epoch plans, summaries, journals and counters:
+[`helius-inventory-v2-final-2026-10-10.json`](evidence/helius-inventory-v2-final-2026-10-10.json).
+This is provider-bounded structural coverage, not global slot or economic-process completeness.
+Alchemy pairing stays disabled until an account-level limit is verifiable.
 
-The separately versioned Helius v3 successor contract is bounded to 24 future hourly attempts and
-does not auto-renew. Its no-RPC predecessor lineage plus 24 attempts is at most 25 epoch
+The separately versioned Helius v3 successor contract is bounded to 24 future hourly attempts.
+Each campaign has a unique ID, immutable manifest and terminal STOP, and its own LaunchAgent. A
+separate finite generator has an initial 72-hour lease for at most three daily campaigns (including
+the first), capped at 2,451 total requests, 12,000,000,000 raw bytes and 3,000,000,000 stored bytes,
+plus the 50 GiB free-disk floor. The lease does not extend automatically. Its first campaign is
+seeded only from the closed v2 pilot receipt after local reconciliation; its known 00:00Z gap stays
+in lineage. Each later successor requires the immediate predecessor's verified normal 24-attempt
+STOP and reconciled journals. Sealed historical gaps remain in lineage; unresolved epochs,
+ambiguous state, abnormal STOPs,
+missed buckets, provider errors, or failed resource preflight halt generation. Boundaries are
+future-only and requests are never replayed. Its no-RPC predecessor lineage plus 24 attempts is at most 25 epoch
 directories; its all-in request cap is 817, with 34 request slots required before each anchor.
 Per-frame caps are 256,000,000 raw bytes and 128,000,000 compressed capture bytes; cumulative caps
 are 4,000,000,000 raw and 1,000,000,000 compressed bytes. Preflight reserves one complete frame
@@ -950,13 +966,17 @@ manifest, current reservation and sealed summary when present.
 The hourly LaunchAgent wrapper checks STOP before scheduler or credential access, runs the
 scheduler in-process, and requests `launchctl bootout` only after STOP is durable. If bootout fails,
 the next calendar invocation is a STOP-only zero-RPC teardown retry; `KeepAlive` is disabled and
-the wrapper writes a sanitized stderr diagnostic. The schedule never renews itself. A fsynced
+the wrapper writes a sanitized stderr diagnostic. The campaign schedule never renews itself. A
+separately locked controller may create successive unique campaign roots only under the single
+72-hour lease. Its durable lease counter and aggregate usage survive reboot; each successor binds its
+predecessor STOP and observed/inventoried frontier. Crash recovery reconciles local state only.
+Expiry or an abnormal predecessor STOP seals controller STOP and unloads its LaunchAgent. A fsynced
 invocation marker makes an unclean process exit
 detectable: the next invocation validates already captured journals locally, never repeats an
 ambiguous request, seals STOP, and unloads. Scheduler, wrapper, crash-boundary tests and differential
 review are qualified locally, including 24 normal synthetic attempts through final STOP; that replay
 checks horizon/teardown state, not real provider throughput. Real LaunchAgent installation and
-recovery remain pending the final v2 frame review. The immutable v3 schedule manifest also binds its
+recovery remain pending the finite controller qualification and final runtime checks. The immutable v3 schedule manifest also binds its
 minute-05 local calendar trigger,
 UTC bucket semantics, no-`RunAtLoad`/no-`KeepAlive` settings, teardown policy and explicit no-renewal
 rule; the installed plist hash will be recorded in the runtime receipt.

@@ -49,6 +49,8 @@ INTERVAL_HOURS = 1
 CODE_BINDINGS = (
     "tools/brain_senses_block_epoch_v3_schedule.py",
     "tools/brain_senses_block_epoch_v3_launch.py",
+    "tools/brain_senses_campaign_controller.py",
+    "ops/launchd/ai.memecoin.brain.senses.helius-inventory-controller.plist",
     "tools/brain_senses_block_epoch_v2.py",
     "tools/brain_senses_block_provider_pilot.py",
     "tools/brain_senses_program_watch.py",
@@ -125,9 +127,12 @@ def _preflight(
 
 
 def _read_manifest(root: Path, lineage: dict[str, Any]) -> dict[str, Any]:
+    campaign_id = lineage.get("campaign_id", "helius-inventory-v3-hourly-20261010")
+    if not isinstance(campaign_id, str) or not campaign_id.startswith("helius-inventory-v3-"):
+        raise ValueError("successor_campaign_id_invalid")
     config = {
         "schema_version": SCHEMA_VERSION,
-        "schedule_id": "helius-inventory-v3-hourly-20261010",
+        "schedule_id": campaign_id,
         "protocol": "senses-finalized-inventory-first-v3-scheduler-v2-frames",
         "provider": PROVIDER,
         "interval_hours": INTERVAL_HOURS,
@@ -156,7 +161,7 @@ def _read_manifest(root: Path, lineage: dict[str, Any]) -> dict[str, Any]:
             "crash_recovery": (
                 "offline journal/artifact reconciliation then durable STOP; no request replay"
             ),
-            "renewal": "none; new campaign ID and separate service launch required",
+            "renewal": "finite controller may create a new unique campaign under its lease",
         },
         "capture_storage_codec": "zstd",
         "retry_policy": (
@@ -323,7 +328,7 @@ def _seal_stop(root: Path, reason: str, **details: Any) -> dict[str, Any]:
     request_started = bool(epoch and list((epoch / "requests").glob("*.json")))
     record = {
         "schema_version": SCHEMA_VERSION,
-        "campaign_id": "helius-inventory-v3-hourly-20261010",
+        "campaign_id": _read(manifest_path).get("schedule_id") if manifest_path.is_file() else None,
         "manifest_sha256": _hash(manifest_path) if manifest_path.is_file() else None,
         "predecessor_lineage_sha256": (
             frontier.get("predecessor_lineage_sha256") if frontier else None
@@ -337,6 +342,9 @@ def _seal_stop(root: Path, reason: str, **details: Any) -> dict[str, Any]:
         "observed_anchor_slot": frontier.get("observed_anchor_slot"),
         "observed_frontier": frontier.get("observed_frontier"),
         "last_inventoried_interval": frontier.get("last_inventoried_interval"),
+        "gap_intervals": frontier.get("gap_intervals", []),
+        "last_attempt_bucket": frontier.get("last_attempt_bucket"),
+        "observed_anchor_receipt_ns": frontier.get("observed_anchor_receipt_ns"),
         "active_bucket": active.get("bucket") if active else None,
         "active_reservation_status": active.get("status") if active else None,
         "request_started": request_started,
@@ -437,6 +445,10 @@ def _run_bucket_locked(
     lineage = _read(lineage_path)
     if lineage.get("schema_version") != 1 or lineage.get("provider") != PROVIDER:
         raise ValueError("predecessor_lineage_invalid")
+    lease_expiry = lineage.get("controller_lease_expires_ns")
+    if type(lease_expiry) is not int or time.time_ns() >= lease_expiry:
+        _seal_stop(root, "controller_lease_expired_before_attempt")
+        return {"status": "campaign_stopped", "reason": "controller_lease_expired_before_attempt"}
     manifest = initialize(root, lineage_path)
     frontier_path = root / "frontier-v3.json"
     frontier = _frontier(root, lineage)
@@ -701,6 +713,14 @@ def _run_bucket_locked(
             "epoch": summary,
             "frontier": frontier,
         }
+    if missed:
+        record = _seal_stop(
+            root,
+            "missed_schedule_gap_requires_review",
+            missed_schedule_buckets=missed,
+            epoch_status=summary.get("status"),
+        )
+        return {"status": "campaign_stopped", **record, "epoch": summary, "frontier": frontier}
     if frontier["attempt_count"] >= ATTEMPTS_MAX:
         record = _seal_stop(root, "finite_attempt_cap_reached")
         return {"status": "campaign_stopped", **record, "epoch": summary}

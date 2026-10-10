@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 04:21 Europe/Moscow. Verify Git, runtime and disk before acting.
+**As of:** 2026-10-10 05:09 Europe/Moscow. Verify Git, runtime and disk before acting.
 
 ## Boundaries
 
@@ -10,8 +10,8 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 
 ## Host and prospective runtime
 
-- Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; clean at
-  handoff. Verify current HEAD before acting. Production untouched.
+- Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; pre-controller base was
+  `5f70283741527b738738217506464e6360b9f166`. Verify current HEAD and worktree. Production untouched.
 - About 69 GiB free. No Senses/Helius/Alchemy collector LaunchAgent or collector process is active.
   Previous public/Helius watchers and old schedulers remain stopped; Helius watch-v3 retains its
   explicit STOP and must not be resumed.
@@ -28,17 +28,24 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   journal rows validated offline, and 16/16 selected block/signature self-checks passed. It retained
   53,057,298 raw / 12,349,827 zstd bytes. The prior gap remains uncovered. Receipt:
   `docs/evidence/helius-inventory-v2-frame-2026-10-10T010000Z.json`.
-- Campaign schedule has a request-cap defect: 817 total requests permits a partial next frame after
-  24 complete 34-request frames. Do not install a LaunchAgent or edit the frozen manifest. Sol's
-  decision is to run the next two actual future hourly attempts manually, then stop/review this
-  campaign. One (01:00Z) completed; only the future 02:00Z attempt remains. Any successor needs a
+- The real `20261010T020000Z` bucket completed normally: 16,512 provider-returned produced slots,
+  34/34 journal rows and 16/16 selected-block self-checks. The frozen pilot closed at 104
+  requests / 186,022,930 raw / 41,818,169 stored bytes, with no outstanding reservations. Receipt:
+  `docs/evidence/helius-inventory-v2-final-2026-10-10.json`.
+- Campaign schedule had a request-cap defect: 817 total requests permits a partial next frame after
+  24 complete 34-request frames. Do not edit the frozen v2 manifest. Sol's final bucket ran once under the unchanged manifest,
+  then was closed and sealed. A successor needs a
   new version, 24-attempt finite horizon, separate observed/inventoried frontier, and full-frame
   request/byte/disk preflight before anchor.
-- A separate v3 scheduler implements Sol's successor contract locally: one-frame reservations,
-  34-request/byte/disk preflight, anchor-only handling after a missed hour, immutable reservation
-  releases, split frontiers, fail-closed recovery and read-only status. Focused validation passes 20
-  tests plus Ruff. It is uncommitted and has no LaunchAgent; do not enable before v2 ends and its
-  predecessor lineage is reconciled. Differential review is under ignored `work/review/`.
+- Sol authorized a separately finite 72-hour generator lease for at most three unique 24-attempt
+  campaigns (2,451 requests / 12 GB raw / 3 GB stored aggregate). The inherited sealed v2 gap is
+  recorded in lineage; abnormal current-campaign state halts generation. Controller implementation is locally qualified; no new LaunchAgent is loaded yet. Before bootstrap,
+  create the private log files and verify the installed plist hash. The first v3 attempt should be
+  the next future hourly :05 event; do not manually kickstart or backfill.
+- A separate v3 scheduler implements Sol's per-campaign contract locally: one-frame reservations,
+  34-request/byte/disk preflight, anchor-only gap capture followed by terminal STOP, immutable reservation
+  releases, split frontiers, fail-closed recovery and read-only status. Controller and related focused
+  suites pass 54 tests; targeted Ruff passes. Differential review is under ignored `work/review/`.
 - Owner authorized the current Helius key. It remains in `.env.local` and Codex MCP environment
   configuration, both mode `0600`; collector CLI has no endpoint argument. The exact key was
   redacted from local Codex/shell histories and SQLite thread history. Exact scans found no key in

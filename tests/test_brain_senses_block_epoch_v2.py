@@ -769,6 +769,8 @@ def _v3_lineage(path: Path, *, bucket: str = "20261010T010000Z", anchor: int = 1
     lineage = {
         "schema_version": 1,
         "provider": "helius-free",
+        "campaign_id": "helius-inventory-v3-hourly-20261010",
+        "controller_lease_expires_ns": 2_000_000_000_000_000_000,
         "predecessor_campaign_id": "frozen-v2-fixture",
         "last_attempt_bucket": bucket,
         "last_observed_anchor_slot": anchor,
@@ -861,7 +863,12 @@ def test_v3_missed_hour_is_anchor_only_and_never_backfilled(tmp_path: Path, monk
     service_policy = json.loads((root / "schedule-v3.json").read_text())["service_policy"]
     assert service_policy["run_at_load"] is False
     assert service_policy["keep_alive"] is False
-    assert service_policy["renewal"] == "none; new campaign ID and separate service launch required"
+    assert (
+        service_policy["renewal"]
+        == "finite controller may create a new unique campaign under its lease"
+    )
+    assert result["status"] == "campaign_stopped"
+    assert result["reason"] == "missed_schedule_gap_requires_review"
     assert result["epoch"]["status"] == "bootstrap_complete"
     assert [method for method, _ in client.calls] == ["getSlot"]
     context = json.loads(
@@ -889,7 +896,7 @@ def test_v3_missed_hour_is_anchor_only_and_never_backfilled(tmp_path: Path, monk
     repeated = schedule_v3.run_bucket(
         root, lineage_path=lineage_path, now=current, clients={"helius-free": client}
     )
-    assert repeated["status"] == "bucket_already_terminal"
+    assert repeated["status"] == "campaign_stopped"
     assert len(client.calls) == 1
 
     next_client = FakeRPC(anchors=[105])
@@ -899,10 +906,9 @@ def test_v3_missed_hour_is_anchor_only_and_never_backfilled(tmp_path: Path, monk
         now=datetime(2026, 10, 10, 4, 2, tzinfo=UTC),
         clients={"helius-free": next_client},
     )
-    assert next_result["epoch"]["status"] == "frame_complete"
-    assert next_result["frontier"]["last_inventoried_interval"]["start"] == 104
-    assert next_result["frontier"]["last_inventoried_interval"]["end_exclusive"] == 106
-    assert [method for method, _ in next_client.calls].count("getBlocks") == 1
+    assert next_result["status"] == "campaign_stopped"
+    assert next_result["reason"] == "missed_schedule_gap_requires_review"
+    assert next_client.calls == []
 
 
 def test_v3_24th_attempt_seals_terminal_stop_and_never_calls_provider_again(

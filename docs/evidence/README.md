@@ -12,6 +12,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
   01:32Z; account-wide, not attributable to this checkout or a method; account limit not returned).
 - Helius MCP account status/plan check: `helius-account-status-mcp-2026-10-10.json` (key configured,
   but plan and credit usage unavailable from the account tool; no plan mutation or paid RPC made).
+- Closed frozen Helius inventory-v2 pilot:
+  `helius-inventory-v2-final-2026-10-10.json` (104 requests, reconciled raw/stored bytes, final
+  anchor and inventory interval, and the inherited 00:00Z oversized-frame gap).
 - Helius public method-credit reference:
   `helius-public-credit-cost-reference-mcp-2026-10-10.json` (generic published rates estimate 34
   credits per complete 34-request frame; it is not account-meter evidence).
