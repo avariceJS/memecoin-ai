@@ -334,6 +334,10 @@ gate. One no-RPC development control is frozen from an already captured Helius f
 it tests mint bytes only and remains blocked on account entitlement, endpoint, price/limits and
 archive coverage. Its three-call cap, source hashes, provider-response scope and acceptance checks
 are in the [`Account Archive mint control plan`](evidence/alchemy-account-archive-mint-control-plan-2026-10-10.json).
+An account-wide Alchemy MCP usage summary at 01:32Z reported 18,680 CU / $0.01 month-to-date;
+the result returned no account limit and cannot attribute usage to this checkout, app or method.
+The bounded hourly usage-series query returned no rows, so it does not reconcile campaign usage.
+Receipt: [`Alchemy account usage summary`](evidence/alchemy-account-usage-summary-mcp-2026-10-10.json).
 
 One finalized slot was then fetched with full `getBlock` transactions from Alchemy Free and an
 independent public Solana RPC. Both HTTP responses were complete and agreed on block identity,
@@ -854,7 +858,10 @@ failed transactions); these are not economic swaps or exact activity. Four numer
 absent from the provider's returned inventory. The selection does not establish global slot,
 transaction, market or process completeness, and no exact economic zero is allowed. Helius charge
 units and account usage remain unverified. Current free disk is about 70 GiB; no v2 LaunchAgent is
-loaded. Receipt: [`helius-inventory-v2-first-frame-2026-10-09.json`](evidence/helius-inventory-v2-first-frame-2026-10-09.json).
+loaded. The Helius MCP account status check confirmed an API key is configured but returned no plan
+or credit usage; no account upgrade or paid RPC was made. Receipt:
+[`helius-account-status-mcp-2026-10-10.json`](evidence/helius-account-status-mcp-2026-10-10.json).
+Frame receipt: [`helius-inventory-v2-first-frame-2026-10-09.json`](evidence/helius-inventory-v2-first-frame-2026-10-09.json).
 
 The `20261010T000000Z` scheduler invocation occurred at 00:43Z. Its single captured `getSlot`
 anchor (43 raw / 56 zstd bytes) was 23,699 slots beyond the persisted frontier, above the frozen

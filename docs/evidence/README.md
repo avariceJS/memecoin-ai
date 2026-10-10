@@ -7,6 +7,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
 ## Brain and operator
 
 - Alchemy Free/PAYG endpoint behavior, metered CU reconciliation and bounded errors: `alchemy-endpoint-qualification-2026-10-09.json` (no secrets; endpoint behavior only, no completeness claim).
+- Alchemy MCP authenticated-account usage snapshot:
+  `alchemy-account-usage-summary-mcp-2026-10-10.json` (18,680 CU / $0.01 month-to-date as of
+  01:32Z; account-wide, not attributable to this checkout or a method; account limit not returned).
+- Helius MCP account status/plan check: `helius-account-status-mcp-2026-10-10.json` (key configured,
+  but plan and credit usage unavailable from the account tool; no plan mutation or paid RPC made).
 - One bounded PAYG `getSignaturesForAddress` page and MCP pagination/accounting limits:
   `alchemy-signature-page-probe-2026-10-09.json` (one parsed 10-row page, no raw response, no
   coverage or zero-activity claim; subsequent ambiguous attempts are disclosed in the receipt).

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "source": "Alchemy MCP get_usage_summary",
+  "captured_at": "2026-10-10T01:32:45Z",
+  "scope": "authenticated Alchemy account, all apps and methods",
+  "request_accounting": "MCP call only; no RPC method request made by this query",
+  "account_limit": "not returned",
+  "response": {
+    "billing_period": {
+      "start_time": "2026-10-01T00:00:00.000Z",
+      "end_time": "2026-11-01T00:00:00.000Z"
+    },
+    "month_to_date": {
+      "amount": 18680,
+      "unit": "ALCHEMY_COMPUTE_UNIT",
+      "usd": 0.01
+    },
+    "last_7_days": {
+      "amount": 18680,
+      "unit": "ALCHEMY_COMPUTE_UNIT",
+      "usd": 0.01
+    },
+    "last_30_days": {
+      "amount": 18680,
+      "unit": "ALCHEMY_COMPUTE_UNIT",
+      "usd": 0.01
+    },
+    "freshness": {
+      "data_through": "2026-10-10T01:32:00.000Z",
+      "contains_partial_today": true,
+      "update_cadence": "minute"
+    }
+  },
+  "limitations": [
+    "Account-wide totals are not attributable to this research checkout, a specific app, campaign, or method.",
+    "The hourly usage time-series query returned no rows for 2026-10-09T22:00:00Z through 2026-10-10T01:32:45Z.",
+    "This MCP account summary is not an immutable RPC capture and does not establish collector request counts."
+  ]
+}
