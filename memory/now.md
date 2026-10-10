@@ -62,6 +62,13 @@
   pairs agree on the candidate facts. Sol accepted the dev-only freeze. Receipts:
   `docs/evidence/pumpswap-buy-exact-tail2-v1-development-qualification-2026-10-10.json`.
   Provider join: `docs/evidence/pumpswap-buy-exact-tail2-pair64-provider-check-2026-10-10.json`.
+- Sol's metadata-only prospective audit plan is frozen in
+  `docs/evidence/pumpswap-buy-exact-tail2-c4-audit-prereg-2026-10-10.json`. The 22:00Z bucket
+  starts before `f7ec8c0` and is excluded; 23:00–02:00Z are nominal if all seal successfully.
+  If any eligible bucket is missing/failed/partial/ambiguous, count it and continue only on the
+  next naturally completed c4 frame; report all scheduled buckets and the four captures. Do not
+  open eligible payloads until four frames seal, metadata-only source binding is frozen, and the
+  exact runner/test hashes are recorded in a final plan. No audit frame payload was opened.
 - Verification: focused PumpSwap suite 44 passed, targeted Ruff/format passed, and `make smoke`
   passed with synthetic-only evidence. Repository-wide `make check` stops on 43 E501 findings in
   two unchanged pool-v2 qualifier tools. `make test` cannot collect three unrelated legacy tests

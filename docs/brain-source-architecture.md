@@ -507,6 +507,22 @@ facts and event cross-checks agreed across provider payloads. This is two-row ca
 consistency using the same decoder, not a second independent decoder or completeness evidence.
 Receipt: [`buyExact tail2 Pair64 provider check`](evidence/pumpswap-buy-exact-tail2-pair64-provider-check-2026-10-10.json).
 
+Sol preregistered a disjoint prospective tail2 audit using c4 metadata only. The frozen development
+commit is `f7ec8c0` at 22:11:37Z; bucket eligibility uses scheduled UTC bucket start, so 22:00Z is
+excluded and 23:00Z–02:00Z are the conditional nominal four frames. Select the earliest four
+naturally scheduled, successfully sealed eligible frames in order; if a bucket is absent, failed,
+partial or ambiguous, retain it in the scheduled-bucket denominator and continue only with the next
+natural c4 frame. No manual tick, retry, backfill, shrinkage or replacement population is allowed.
+The metadata-only preregistration binds the development/census sources and denominators. After four
+frames seal, a metadata-only manifest and final plan must additionally bind exact capture/source
+hashes and audit runner/test hashes before any payload opens. Fewer than four eligible frames at c4
+STOP makes the audit incomplete. A zero-row census earns no replication claim; mismatches remain
+visible and block clean replication. Reporting is limited to candidate legacy transfer flow,
+BuyEvent agreement and endpoint state in these selected captured blocks. Fee equalities remain
+hypotheses; settlement, wallet-net price, broader completeness and training/execution admission are
+not established. Receipt:
+[`tail2 c4 audit preregistration`](evidence/pumpswap-buy-exact-tail2-c4-audit-prereg-2026-10-10.json).
+
 A new Helius Free epoch was then captured for the frozen one-pass audit: 512/512 selected full
 blocks parsed, 512/512 signature-only checks matched the full-response signature hashes, and the
 slot set is disjoint from both the 15:00Z development source and the failed 13:00Z source. The
