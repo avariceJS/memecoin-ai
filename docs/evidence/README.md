@@ -421,3 +421,12 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   Reproduction uses `tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py` and
   `tools/brain_senses_buy_exact_v1_pool_v2_pda_derive.cjs` with the package artifact under ignored
   `work/source-surveys/`.
+- `pumpswap-buy-exact-v1-c3-two-frame-dual-legacy-gate-v2-2026-10-10.json`: source-bound
+  development replay over both c3 frames and 450 structural candidates; four successful
+  dual-legacy cases are censored, zero exact. Two lack an endpoint and two have subtree/endpoint
+  residuals; all have unresolved outside-subtree target-account touches. No audit, fee, wallet-net,
+  admission, or completeness claim.
+- `pumpswap-buy-exact-v1-c4-future-frame-structural-audit-prereg-2026-10-10.json`: metadata-only
+  pre-registration for a single structural replay on the first complete scheduled c4 frame at or
+  after 18:00Z. It binds the existing qualifier and source pins, excludes already-opened frames,
+  and provides no economic audit or new-request authority.

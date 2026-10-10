@@ -450,6 +450,21 @@ frame is development/ordinary replication only. This is structural role/order qu
 selected captured-block class; settlement and economic admission remain unqualified. Other account
 counts, Token-2022 effects, cashback combinations and unknown layouts remain quarantined.
 
+The separately scoped c3 dual-legacy settlement feasibility gate replayed both already-open frames
+against raw blocks (32 blocks, 450 matching instruction references: 360 successful and 90 failed
+attempt-only). The frozen structural predicate accepted 447 references and retained three
+structural mismatches; none of the four successful dual-legacy references had exact settlement.
+All four are censored: two lack a transaction-boundary token endpoint and two have explicit
+candidate-subtree versus endpoint-delta residuals. Each has 10–20 ordered outside-subtree touches
+of target accounts, so sibling and lifecycle effects cannot be allocated to the candidate. Fees
+remain hypotheses; wallet-net amounts, exact execution prices, training/execution admission, and
+global discovery are unqualified. Sol closed this development gate at 4/4 censored, 0 exact; no
+lifecycle extension or economic audit is justified on these four rows. Receipt:
+[`c3 two-frame dual-legacy gate`](evidence/pumpswap-buy-exact-v1-c3-two-frame-dual-legacy-gate-v2-2026-10-10.json).
+The next independent check is structural only: the first successfully completed scheduled c4 frame
+at or after 18:00Z, selected by schedule metadata before payload inspection. No fallback frame,
+backfill, or economic qualification is authorized by that selection rule.
+
 The frozen development predicate selected all 62 successful refs in that captured census whose
 payload is the pinned 25-byte shape, two-account suffix passes the source-bound checks, and both
 base and quote use legacy SPL Token. The other 1,237 successful structural candidates include
