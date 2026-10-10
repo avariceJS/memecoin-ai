@@ -18,7 +18,16 @@ if str(REPO_ROOT) not in sys.path:
 if str(REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from memecoin_pumpswap.buy_exact_v1 import ACCOUNT_ROLES, IDL_SHA256  # noqa: E402
+from memecoin_pumpswap.buy_exact_v1 import (  # noqa: E402
+    ACCOUNT_ROLES,
+    FEE_RECIPIENTS_DOC_COMMIT,
+    FEE_RECIPIENTS_DOC_SHA256,
+    IDL_SHA256,
+)
+from memecoin_pumpswap.compiled_economics import (  # noqa: E402
+    FEE_RECIPIENTS_UPGRADE_2026_04_28,
+    associated_token_address,
+)
 from memecoin_pumpswap.decoder import PROGRAM, decode58  # noqa: E402
 from tools.brain_senses_buy_exact_v1_census import _capture_rows, _read_block  # noqa: E402
 
@@ -63,7 +72,9 @@ def _compiled_instruction(tx: dict[str, Any], path: list[int]) -> dict[str, Any]
     raise ValueError("unsupported_instruction_path_depth")
 
 
-def _roles_from_raw(tx: dict[str, Any], path: list[int]) -> tuple[dict[str, str], str]:
+def _roles_from_raw(
+    tx: dict[str, Any], path: list[int]
+) -> tuple[dict[str, str], str, list[str]]:
     message = tx.get("transaction", {}).get("message", {})
     raw_keys = message.get("accountKeys")
     if not isinstance(raw_keys, list):
@@ -85,9 +96,10 @@ def _roles_from_raw(tx: dict[str, Any], path: list[int]) -> tuple[dict[str, str]
     if any(type(index) is not int or not 0 <= index < len(keys) for index in account_indexes):
         raise ValueError("instruction_account_index_invalid")
     wire = decode58(instruction["data"])
-    role_keys = (keys[index] for index in account_indexes[: len(ACCOUNT_ROLES)])
+    account_values = [keys[index] for index in account_indexes]
+    role_keys = account_values[: len(ACCOUNT_ROLES)]
     result = dict(zip(ACCOUNT_ROLES, role_keys, strict=True))
-    return {role: result[role] for role in TARGET_ROLES}, wire.hex()
+    return {role: result[role] for role in TARGET_ROLES}, wire.hex(), account_values
 
 
 def _validate_frame_binding(
@@ -189,6 +201,8 @@ def qualify(report_path: Path, epoch_root: Path, frame_receipt_path: Path) -> di
     loaded_blocks: dict[int, dict[str, Any]] = {}
     pools: dict[str, dict[str, Any]] = {}
     status_counts = Counter()
+    suffix_status = {"success": Counter(), "failed": Counter()}
+    suffix_rows = []
     for row in candidates:
         slot = row["slot"]
         if slot not in by_slot:
@@ -207,7 +221,7 @@ def qualify(report_path: Path, epoch_root: Path, frame_receipt_path: Path) -> di
         signatures = tx.get("transaction", {}).get("signatures", [])
         if not signatures or signatures[0] != row["signature"]:
             raise ValueError("candidate_signature_mismatch")
-        raw_roles, wire_hex = _roles_from_raw(tx, row["path"])
+        raw_roles, wire_hex, account_values = _roles_from_raw(tx, row["path"])
         if wire_hex != row["instruction_data_hex"]:
             raise ValueError("candidate_instruction_wire_mismatch")
         expected_status = "success" if tx.get("meta", {}).get("err") is None else "failed"
@@ -218,6 +232,50 @@ def qualify(report_path: Path, epoch_root: Path, frame_receipt_path: Path) -> di
             raise ValueError("identified_idl_role_mismatch")
         if raw_roles["base_mint"] == raw_roles["quote_mint"]:
             raise ValueError("base_quote_mint_alias")
+        suffix_accounts = account_values[len(ACCOUNT_ROLES) :]
+        suffix_record = {
+            "slot": slot,
+            "transaction_index": tx_index,
+            "path": row["path"],
+            "signature": row["signature"],
+            "transaction_status": expected_status,
+            "pool": raw_roles["pool"],
+            "quote_mint": raw_roles["quote_mint"],
+            "quote_token_program": raw_roles["quote_token_program"],
+            "raw_suffix_accounts": suffix_accounts,
+            "wallet_in_pinned_eight": None,
+            "ata_matches_observed_quote_mint": None,
+            "raw_accounts_match_census": None,
+            "source_checks_pass": False,
+        }
+        if len(suffix_accounts) == 2:
+            wallet, ata = suffix_accounts
+            wallet_match = wallet in FEE_RECIPIENTS_UPGRADE_2026_04_28
+            derived_ata = associated_token_address(
+                wallet, raw_roles["quote_mint"], raw_roles["quote_token_program"]
+            )
+            ata_match = ata == derived_ata
+            census_match = (
+                wallet == row.get("observed_fee_recipient")
+                and ata == row.get("observed_fee_ata")
+            )
+            source_checks_pass = wallet_match and ata_match and census_match
+            suffix_record.update(
+                {
+                    "wallet_in_pinned_eight": wallet_match,
+                    "ata_matches_observed_quote_mint": ata_match,
+                    "raw_accounts_match_census": census_match,
+                    "source_checks_pass": source_checks_pass,
+                }
+            )
+            suffix_status[expected_status]["exact_pair_present"] += 1
+            suffix_status[expected_status]["wallet_in_pinned_eight"] += int(wallet_match)
+            suffix_status[expected_status]["ata_matches_observed_quote_mint"] += int(ata_match)
+            suffix_status[expected_status]["raw_accounts_match_census"] += int(census_match)
+            suffix_status[expected_status]["source_checks_pass"] += int(source_checks_pass)
+        else:
+            suffix_status[expected_status]["suffix_account_shape_missing_or_mismatched"] += 1
+        suffix_rows.append(suffix_record)
         pool = raw_roles["pool"]
         tuple_value = tuple(raw_roles[role] for role in TARGET_ROLES[1:])
         entry = pools.setdefault(pool, {
@@ -258,6 +316,17 @@ def qualify(report_path: Path, epoch_root: Path, frame_receipt_path: Path) -> di
             "mints_nonaliased": True,
             "raw_roles_match_census": True,
             "no_conflicting_tuple_per_pool": True,
+            "suffix_candidate_references": len(suffix_rows),
+            "suffix_source_checks_passed": sum(
+                record["source_checks_pass"] for record in suffix_rows
+            ),
+            "suffix_source_checks_failed_or_unresolved": sum(
+                not record["source_checks_pass"] for record in suffix_rows
+            ),
+            "suffix_status_denominators": {
+                status: dict(counts) for status, counts in suffix_status.items()
+            },
+            "suffix_references": suffix_rows,
             "pools": sorted(pools.values(), key=lambda value: value["pool"]),
         },
         "source": {
@@ -268,6 +337,14 @@ def qualify(report_path: Path, epoch_root: Path, frame_receipt_path: Path) -> di
             "epoch_summary_sha256": _sha(summary_bytes),
             "full_block_captures": sorted(captures, key=lambda value: value["slot"]),
             "pinned_idl_sha256": IDL_SHA256,
+            "fee_recipient_notice_commit": FEE_RECIPIENTS_DOC_COMMIT,
+            "fee_recipient_notice_sha256": FEE_RECIPIENTS_DOC_SHA256,
+            "buy_exact_decoder_sha256": _sha(
+                (REPO_ROOT / "src/memecoin_pumpswap/buy_exact_v1.py").read_bytes()
+            ),
+            "compiled_economics_sha256": _sha(
+                (REPO_ROOT / "src/memecoin_pumpswap/compiled_economics.py").read_bytes()
+            ),
             "qualifier_sha256": _sha(script_bytes),
             "source_binding": (
                 "raw_full_block_account_indices_and_message_keys; "

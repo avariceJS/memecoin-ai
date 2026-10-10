@@ -112,7 +112,7 @@ def test_raw_role_qualifier_uses_idl_positions_and_loaded_addresses():
         },
     }
 
-    roles, wire = _roles_from_raw(tx, [0])
+    roles, wire, account_values = _roles_from_raw(tx, [0])
 
     assert tuple(roles) == TARGET_ROLES
     assert roles == {
@@ -123,3 +123,5 @@ def test_raw_role_qualifier_uses_idl_positions_and_loaded_addresses():
         "quote_token_program": "quote-token-program-key",
     }
     assert wire == "00"
+    assert account_values[ACCOUNT_ROLES.index("base_mint")] == "base-mint-key"
+    assert account_values[ACCOUNT_ROLES.index("quote_mint")] == "quote-mint-key"
