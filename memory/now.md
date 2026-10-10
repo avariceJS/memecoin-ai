@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 05:11 UTC. Recheck Git, LaunchAgents, collector state and disk before acting.
+**As of:** 2026-10-10 05:18 UTC. Recheck Git, LaunchAgents, collector state and disk before acting.
 
 ## Boundaries
 
@@ -56,6 +56,12 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
 - The first c3 frame's frozen sell23 replay found 80/80 eligible candidates: 10 exact diagnostic
   account ledgers and 70 censored native-close settlements; six equations passed on each. No RPCs
   were made. Receipt: `helius-inventory-v3-c3-sell23-census-2026-10-10.json`.
+- The buyExact census tool now replays sealed c3 full-block captures while binding epoch plan,
+  frame receipt, summary hash, and selected slots; its default v2 path remains unchanged. Focused
+  tests passed (3/3), Ruff/compile passed, and a 512-block Pair64 replay exactly matched the frozen
+  counters/matrix. First c3 frame: 365 references in 15 of 16 selected blocks; 59 pinned
+  25-byte/two-account suffix structural candidates (53 success, six failed). No settlement or
+  economics is inferred. Receipt: `pumpswap-buy-exact-v1-c3-frame-census-2026-10-10.json`.
 
 ## Next horizon
 

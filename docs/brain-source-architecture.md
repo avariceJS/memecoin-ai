@@ -266,6 +266,18 @@ training/execution admission. The planned 13:00Z independent audit was consumed 
 attempt; future qualification must use a new disjoint source. Receipt:
 [`buyExact v1 attempt census`](evidence/pumpswap-buy-exact-v1-attempt-census-2026-10-10.json).
 
+The frozen structural census now accepts the sealed v3 epoch layout directly. Its v3 branch binds
+the campaign/bucket and epoch-plan hash to the frame receipt, checks the sealed summary hash and
+selected-block outcomes, then requires the captured full-block slots to equal that summary. The
+default v2 input path remains unchanged; the Pair64 captured census replay returned the same counters
+and matrix as its frozen receipt. Replaying the first prospective c3 frame found 365 references in
+16 selected full blocks (15 reference-bearing slots), including 59 pinned 25-byte/two-account
+documented-suffix structural candidates: 53 in successful transactions and six in failed attempts.
+No normalization errors occurred. This adds prospective structural-yield monitoring only; it does
+not establish fills, settlement, economic correctness, market completeness, or admission. The other
+account/layout subgroups remain unresolved or unverified. Receipt:
+[`buyExact c3 frame census`](evidence/pumpswap-buy-exact-v1-c3-frame-census-2026-10-10.json).
+
 The official [Pump AMM IDL pinned at commit `8cda1fa`](https://github.com/pump-fun/pump-public-docs/blob/8cda1fa30ea658b20909d8aedf002047119388d2/idl/pump_amm.json)
 binds 23 fixed `buy_exact_quote_in` accounts and the `spendable_quote_in`,
 `min_base_amount_out`, and `track_volume` arguments. Its docs identify the optional cashback

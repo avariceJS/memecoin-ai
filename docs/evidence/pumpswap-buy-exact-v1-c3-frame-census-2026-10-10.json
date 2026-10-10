@@ -1,0 +1,52 @@
+{
+  "additional_helius_requests": 0,
+  "counts": {
+    "block_requests": 16,
+    "failed_attempt_references": 148,
+    "full_block_transactions": 16668,
+    "instruction_references": 365,
+    "normalization_errors": 0,
+    "pinned_25_byte_two_account_documented_suffix_candidates": 59,
+    "raw_full_block_response_bytes": 59721887,
+    "successful_transaction_references": 217,
+    "such_candidates_in_failed_transactions": 6,
+    "such_candidates_in_successful_transactions": 53,
+    "three_account_unresolved_predecessor_references": 298,
+    "unique_candidate_transactions": 365,
+    "unsupported_24_or_26_byte_payload_references": 114,
+    "zstd_full_block_response_bytes": 12012923
+  },
+  "created_at_utc": "2026-10-10T05:18:03Z",
+  "evidence_id": "pumpswap-buy-exact-v1-c3-frame-census-2026-10-10",
+  "limitations": [
+    "The frame selected 16 of 16,437 provider-returned produced slots; reference counts do not estimate a market-wide rate without an explicit sampling design and uncertainty analysis.",
+    "These are structural instruction references, not proved executed or settled buys; six of the 59 two-account candidates are in failed transactions.",
+    "No gross transfer, fee settlement, pool balance effect, wallet-net price, historical Token-2022 extension state, economic completeness, training/execution admission, or edge is qualified.",
+    "Three-account suffix predecessors and 24/26-byte layouts remain quarantined or unverified."
+  ],
+  "offline_replay": true,
+  "schema_version": 1,
+  "scope": "Offline structural attempt census of the pinned v1 buy_exact_quote_in instruction references in the first c3 selected full blocks; selected-block sample only.",
+  "source": {
+    "code_commit": "8adec85043bd9dd5afca1b41d137ae0d1b94579e",
+    "capture_artifacts_digest_sha256": "e0eb09143d8fcc95dcb1358fa4407042d0b77d6430283f8efa51287628bd78bc",
+    "capture_root": "work/brain-senses-live-helius-inventory-v3-20261010-3/epochs/20261010T050000Z",
+    "epoch_plan_sha256": "273ef0e974b4bee82978a43d41842c5cfc538f727cd108bb3a1478d318cf8129",
+    "epoch_summary_sha256": "74cccb5eee1b5dc416491f2912b7a7a05b8eaa04a2251a18b03416430a7c54fa",
+    "frame_receipt": "helius-inventory-v3-c3-first-frame-2026-10-10.json",
+    "frame_receipt_sha256": "cb422dbd8a8d3d7be4efdd1978b5c69b912b4b199bcef8e4499f9bcb0a6fb103",
+    "implementation_sha256": "028998b1860bf9528cdfd20c7d94223c605e934f05b89ebd3835796233a2dccb",
+    "pump_amm_idl_sha256": "b7d8c57a4d9c4dd0109a9ab893052352333252d4eedced10ac091d4d66cab89b",
+    "selected_full_blocks": 16,
+    "selected_reference_slots": 15,
+    "source_binding_kind": "helius_v3_frame_receipt_bound_offline_replay",
+    "source_census_sha256": "f89036b703f337b4206a5fdb58f31f846c5868534e517913e7291cde3f83b89c",
+    "source_census_work_path": "work/review/helius-v3-c3-first-frame-buyexact-census-v4.json",
+    "tool_sha256": "14e6a4eec485b8a8a19267e18621c67131c70ff54c5bd250cf060de023525d46"
+  },
+  "time_semantics": {
+    "availability": "recorded local capture receipt time; not historical provider availability",
+    "decision_time": "not applicable to this offline structural census",
+    "native_event_time": "blockTime reported in the captured finalized block response"
+  }
+}
