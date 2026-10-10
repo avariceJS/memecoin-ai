@@ -1,11 +1,11 @@
 # Current Project State
 
-**As of:** 2026-10-10 16:10 UTC. Recheck live runtime and disk before any campaign decision.
+**As of:** 2026-10-10 16:20 UTC. Recheck live runtime and disk before any campaign decision.
 
 ## Boundaries and runtime
 
 - Continue Senses only. Research checkout `/Users/root1/Developer/memecoin-research`, branch
-  `research/active`; HEAD at 16:10Z after runner review is `e082e3f`. Production `/Users/root1/Desktop/memecoin-ai`
+  `research/active`; HEAD at 16:20Z is `0ab13e1`. Production `/Users/root1/Desktop/memecoin-ai`
   remains untouched. No trading, signing, paid upgrade, protected holdout access, push, backfill,
   or ambiguous-request retry.
 - c3 is permanently terminal after its reserved 11:00Z `getSlot` transport failure (205 attempts,
@@ -40,8 +40,9 @@
   nullable block time; ambiguous transport receipt/availability remain unknown. Service suite: 32
   passed. Offline path-only runner and LaunchAgent template committed in `7cc22ea`; runner/service
   focused suite: 50 passed, Ruff/format/diff passed. The template is not installed or loaded.
-  Activation remains gated on c4 normal terminal receipt, measured tails, account limit review and
-  independent review; no service activation has occurred.
+  Runner credential-file handling was hardened in `0834cff` to require a regular mode-0600 file;
+  its FIFO rejection test passed. Activation remains gated on c4 normal terminal receipt, measured
+  tails, account limit review and independent review; no service activation has occurred.
 - Helius key remains in ignored mode-0600 `.env.local` and two mode-0600 MCP configs; user
   authorized no-rotation continuation. The latest exact-value scan (13:55Z) found zero in 5,253
   Git objects, 253,570 accessible saved text/runtime/evidence files, current process arguments and
@@ -107,6 +108,12 @@
 - Exhaustive focused pytest coverage checks the frozen qualifier's message-header privilege
   partitions through 12 static keys, loaded address boundaries, and fail-closed invalid cases;
   `6 passed`. No Hypothesis dependency was added.
+- Sol's additive offline mint-state locator is committed in `9d371d5`, `16a7166`, `d6e43f5`, and
+  `0ab13e1`; receipt `docs/evidence/pumpswap-buy-exact-v1-c4-state-snapshot-locator-2026-10-10.json`
+  binds the existing 140 T22-base identities and 16 full-block hashes. All 140 pass the readonly
+  mint/distinct-fee-payer gate and have no earlier/later same-slot mint writable potential, making
+  S-1/S whole-account snapshot candidates only. No state was fetched or RPC made. Parent replay to
+  `/tmp` matched committed receipt SHA-256 `75433e0302e974d00f651899a143fa10cb0843e7a7a7bdc18f5ba86d06804043`.
 - Later c4 frames are ordinary frozen-predicate replication only; no tuning or independent audit.
   Token-2022 effects, other layouts,
   fills, fee movement and native settlement remain quarantined. Pair64 is sampled same-slot evidence,
