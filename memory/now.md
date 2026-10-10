@@ -9,7 +9,7 @@
   holdout access, push, retry or backfill.
 - c3 is terminal after its ambiguous 11:00Z anchor failure; preserve its uncovered interval.
   c4 remains the unchanged finite calendar lease (one bootstrap plus at most 24 hourly frames).
-  Read-only status at 22:28Z: 10/24 frames complete, 340 frame requests plus one bootstrap (341
+  Read-only status at 22:32Z: 10/24 frames complete, 340 frame requests plus one bootstrap (341
   all-in), 706,277,979 raw / 161,843,979 stored bytes, zero failed or gapped epochs, zero open
   reservations, 14 attempts remaining, frontier 455413633, and 59,583,811,584 free bytes. Exact c4
   LaunchAgent remains loaded and idle between calendar ticks, with fixed path-only arguments; its
