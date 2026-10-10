@@ -1764,21 +1764,25 @@ The separate runner entry point and LaunchAgent template are
 `tools/brain_senses_service_v1_runner.py` and
 `ops/launchd/ai.memecoin.brain.senses.helius-service-v1.plist`. They are offline implementation
 artifacts only; the template is uninstalled and the service is not activated. The template passes
-fixed absolute paths only, has no endpoint/key environment, and sets `RunAtLoad` and `KeepAlive` to
-false. Before initialization, the runner pins its own source hash, the shared private-file reader
-hash, and the template hash in the service root. Its read-only status path does not load credentials
-or contact a provider. A scheduled
-tick takes an exclusive runner lock, reconciles outstanding service state before credential loading,
-and accepts only the current UTC bucket during minutes 05–15; late ticks, duplicate bucket IDs, and
-missing credentials create no reservation or provider call. The credential loader reads the private
+fixed absolute paths only, contains no credential in argv or environment, and sets `RunAtLoad` and
+`KeepAlive` to false. Its environment sets a fixed system-only `PATH` and the versioned absolute
+Homebrew zstd executable. Before initialization, the runner pins its own source hash, the shared
+private-file reader hash, and the template hash in the service root. Its read-only status path does
+not load credentials or contact a provider. A scheduled tick takes an exclusive runner lock,
+reconciles outstanding service state before credential loading, and accepts only the current UTC
+bucket during minutes 05–15; late ticks, duplicate bucket IDs, and missing credentials create no
+reservation or provider call. After activation and source checks but before loading credentials or
+reserving bootstrap/frame work, each tick verifies that zstd is usable. Missing or unusable zstd
+returns sanitized `no_rpc` without a reservation. The credential loader reads the private
 mode-0600 configuration through a no-follow descriptor, validates stable file identity, and keeps
 the HTTPS RPC endpoint in-process. Its URL checks independently reject duplicate config/query keys,
 userinfo, fragments, non-default ports, and non-Helius hosts. Tick-time activation requires a
 matching normal c4 STOP/zero-post-STOP receipt, a reviewed gate receipt for measured tails, account
 limits and authorization, and an independent check that c4's exact LaunchAgent label is unloaded.
 After a durable service STOP, the runner only attempts to boot out its own exact label. The focused
-runner and service suites pass 79 synthetic tests; this is offline validation, not activation
-evidence.
+runner and service suites pass 80 synthetic tests; Sol independently accepted the zstd path and
+pre-reservation check as an offline operational fix. These checks do not eliminate removal of the
+external binary after preflight and are not live launchd or activation evidence.
 
 The activation check binds c4's exact versioned campaign ID, LaunchAgent label, root, STOP, and
 terminal receipt. Under a host-wide and service-root exclusive lock, each scheduled tick probes the

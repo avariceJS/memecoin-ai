@@ -46,6 +46,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   accessible saved-root scan found credential components only in the three expected mode-0600
   private configs).
 - Helius follow-up exposure scan at 19:04Z: `helius-key-followup-exposure-rescan-2026-10-10T1904Z.json` (zero exact endpoint/path/hostname matches in Git blobs, process arguments and recent Unified Log; two Codex history files contain only the public hostname).
+- Helius service v1 operational review and post-resume credential scan:
+  `helius-service-v1-operational-review-2026-10-10.json` (source/plist hash-bound offline review,
+  zstd launchd/pre-reservation fix and Sol acceptance; zero current-key matches in Git, process
+  arguments, recent log/text files and 672.6 MB of Unified Log; no activation or provider request).
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:

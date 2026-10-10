@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 21:39 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-10 21:51 UTC. Verify live runtime before any campaign or service decision.
 
 ## Boundaries and runtime
 
@@ -9,21 +9,22 @@
   holdout access, push, retry or backfill.
 - c3 is terminal after its ambiguous 11:00Z anchor failure; preserve its uncovered interval.
   c4 remains the unchanged finite calendar lease (one bootstrap plus at most 24 hourly frames).
-  Read-only status at 21:39Z: 9/24 frames complete, 306 frame
+  Read-only status at 21:51Z: 9/24 frames complete, 306 frame
   requests plus one bootstrap (307 all-in), 649,607,110 raw / 146,677,436 stored bytes, zero failed
   or gapped epochs, zero open reservations, 15 attempts remaining, frontier 455397121, and
-  61,640,060,928 free bytes. Exact c4 LaunchAgent remains loaded and idle between calendar ticks,
+  61,518,856,192 free bytes. Exact c4 LaunchAgent remains loaded and idle between calendar ticks,
   with fixed path-only arguments; next scheduled trigger 22:05Z. No manual tick. Credit units remain
-  unknown.
-  A relative-path status invocation failed the root binding; the absolute-path read-only status
-  succeeded without changing campaign state. Preserve all gaps.
+  unknown. Preserve all gaps.
 - Helius key is still in ignored `.env.local` and private MCP configs, all mode 0600. User accepts
   no rotation. Latest follow-up scan found zero exact endpoint/path matches in Git, recent saved
   files, current process args or 213.6 MB of Unified Log. Two Codex history files had only 67
   public-hostname mentions. c4 args contain fixed paths; loader reads endpoint in-process. Prior
   process-list disclosure remains in accepted agent-session history. Provider-side logs, remote
   storage, backups and Time Machine are outside scan scope. Receipt:
-  `docs/evidence/helius-key-followup-exposure-rescan-2026-10-10T1904Z.json`.
+  `docs/evidence/helius-key-followup-exposure-rescan-2026-10-10T1904Z.json`. Post-resume scan also
+  found zero matches across 2,918 Git blobs, current process arguments, 270 recent log/text files
+  (50.4 MB), and 672.6 MB of Unified Log output. `.env.local` remains mode 0600; key material was
+  not emitted. See the service review receipt for exact scope.
 - No Cortex. Do not alter c4's frozen lease or the previously frozen PumpSwap audits.
 - Helius MCP reproducibility check: persistent `~/.codex/config.toml` is pinned to
   `helius-mcp@2.2.0`. Two Helius child processes inherited `@latest` from the already-running
@@ -75,8 +76,12 @@
   A scoped offline gate patch binds exact c4 campaign/label/root, inventories competing Senses
   launchd labels and processes, and holds host/root writer locks. A failed second frame check seals
   only a provably unstarted frame and retains the sleep-gap anchor across tested crash points. Sol
-  review found no remaining blocker. Focused service/runner suite: 79 passed. Initialization can
-  create local metadata without the tick gate but performs no RPC. Service v1 remains uninitialized.
+  review found no remaining blocker. The inactive plist now sets a sanitized PATH and fixed versioned
+  zstd path; each scheduled runner verifies zstd before credential loading or durable reservation.
+  Sol accepted this offline operational fix; focused service/runner suite: 80 passed. Initialization
+  can create local metadata without the tick gate but performs no RPC. Service v1 remains
+  uninitialized. Source-bound review and exposure scan:
+  `docs/evidence/helius-service-v1-operational-review-2026-10-10.json`.
 
 ## Next horizon
 

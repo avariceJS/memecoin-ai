@@ -30,7 +30,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from memecoin_ai.domain import canonical  # noqa: E402
-from memecoin_ai.sources import ReadOnlyRPC  # noqa: E402
+from memecoin_ai.sources import ReadOnlyRPC, SourceError, verify_capture_storage_codec  # noqa: E402
 from memecoin_collector.private_config import read_private_config  # noqa: E402
 from tools import brain_senses_block_epoch_v3_schedule as schedule_v3  # noqa: E402
 from tools import brain_senses_service_v1 as service  # noqa: E402
@@ -503,6 +503,11 @@ def run_tick(
             return {"status": "no_rpc", "reason": gate_reason}
         if not status.get("source_bindings_match", False):
             return {"status": "no_rpc", "reason": "service_source_hash_mismatch"}
+        try:
+            # Prove capture storage is usable before any durable request reservation.
+            verify_capture_storage_codec("zstd")
+        except (OSError, ValueError, SourceError, subprocess.SubprocessError):
+            return {"status": "no_rpc", "reason": "storage_codec_unavailable"}
 
         clients = client_loader()
         if not clients or "helius-free" not in clients:

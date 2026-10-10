@@ -130,6 +130,7 @@ class FakeService:
 
 @pytest.fixture(autouse=True)
 def isolate_activation_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(runner, "verify_capture_storage_codec", lambda _codec: None)
     monkeypatch.setattr(runner, "PREDECESSOR_ROOT", tmp_path / "predecessor")
     monkeypatch.setattr(runner, "HOST_WRITER_LOCK", tmp_path / "host-writer.lock")
     monkeypatch.setattr(runner, "_default_writer_inventory", lambda: (set(), set()))
@@ -165,7 +166,17 @@ def test_launchd_template_is_path_only_and_opt_in() -> None:
     assert "--scheduled-tick" in args
     assert all("://" not in (value or "") for value in args)
     assert all("API_KEY" not in (value or "") and "RPC_URL" not in (value or "") for value in args)
-    assert "EnvironmentVariables" not in document
+    env = document["EnvironmentVariables"]
+    env_pairs = list(env)
+    environment = {env_pairs[i].text: env_pairs[i + 1].text for i in range(0, len(env_pairs), 2)}
+    assert environment == {
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "BRAIN_ZSTD_EXECUTABLE": "/opt/homebrew/Cellar/zstd/1.5.7_1/bin/zstd",
+    }
+    assert all(
+        "api-key" not in value.lower() and "rpc_url" not in value.lower()
+        for value in environment.values()
+    )
     assert document["RunAtLoad"].tag == "false"
     assert document["KeepAlive"].tag == "false"
     schedule = document["StartCalendarInterval"]
@@ -291,6 +302,33 @@ def test_late_tick_reconciles_then_returns_without_credentials_or_reservation(
     assert result["status"] == "no_rpc"
     assert result["reason"] == "outside_scheduled_tick_window"
     assert not calls and not fake.reservations
+
+
+def test_storage_codec_failure_is_no_rpc_before_credential_or_reservation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, plist, stop, receipt, gate = _ready_inputs(tmp_path)
+    fake = FakeService()
+    credential_calls = []
+
+    def unavailable(_codec: str) -> None:
+        raise runner.SourceError("zstd unavailable")
+
+    monkeypatch.setattr(runner, "verify_capture_storage_codec", unavailable)
+    result = runner.run_tick(
+        root,
+        plist_path=plist,
+        gate_path=gate,
+        predecessor_stop_path=stop,
+        terminal_receipt_path=receipt,
+        now=datetime(2026, 10, 10, 10, 10, tzinfo=UTC),
+        service_api=fake,
+        client_loader=lambda: credential_calls.append(True) or {"helius-free": object()},
+        unloaded_probe=lambda _label: True,
+    )
+    assert result == {"status": "no_rpc", "reason": "storage_codec_unavailable"}
+    assert fake.status_calls == 1
+    assert not credential_calls and not fake.reservations
 
 
 def test_missing_credential_is_no_rpc_before_reservation(tmp_path: Path) -> None:
