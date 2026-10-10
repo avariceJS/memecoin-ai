@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 05:28 Europe/Moscow. Verify Git, runtime and disk before acting.
+**As of:** 2026-10-10 05:58 Europe/Moscow. Verify Git, runtime and disk before acting.
 
 ## Boundaries
 
@@ -85,10 +85,10 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   `docs/evidence/pumpswap-buy-exact-v1-token2022-privilege-census-2026-10-10.json`.
 - A second offline trace replay covered those 1,146 refs across 285 captured blocks / 366,918
   transactions. It retained exact target-touching wire bytes, instruction paths/stacks, and
-  same-slot writable-potential counts for each target account. There were 3,552 Token-2022
-  `(first byte 12, length 10)` instructions and four `(9, 1)` variants; those four rows stop at an
-  unclassified wire shape. The other 1,142 are structural traces only. All 1,146 remain
-  economically unqualified with extension state unavailable. Receipt:
+  same-slot writable-potential counts for each target account. A pinned official Token-2022 source
+  replay classified the four exact `(09)` traces as structural `CloseAccount`; they remain
+  economically unsupported lifecycle instructions. The other 1,142 rows are structural traces.
+  All 1,146 remain economically unqualified with extension state unavailable. Receipt:
   `docs/evidence/pumpswap-buy-exact-v1-token2022-clean-stratum-2026-10-10.json`.
 - Offline replay decoded all 3,552 exact Token-2022 `TransferChecked` wire traces as declared
   atomic u64 plus decimals argument; all pass structure and transaction-status gates. IDL role
@@ -104,11 +104,12 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 
 ## Next horizon
 
-1. Check the first future campaign-1 scheduled frame (06:05 MSK / 03:05Z), then its controller
-   checkpoint; do not kickstart, backfill missed prospective slots, or duplicate requests.
+1. Check the campaign-1 frame due at 06:05 MSK / 03:05Z and its controller checkpoint. At 05:58
+   MSK the scheduled LaunchAgent is loaded, with zero runs/requests and 69 GiB free. Do not kickstart,
+   backfill missed prospective slots, or duplicate requests.
 2. Keep the 67 unknown-program refs, 11 writable-potential refs, and 10 with both reasons separately
-   quarantined. Within the 1,146 replay, stop four rows with Token-2022 `(9,1)` wire; use only the
-   remaining 1,142 for a later structural evidence gate. Preserve all economic/extension states.
+   quarantined. All 1,146 still have unavailable historical extension state and unqualified
+   economics; structural instruction labels do not change admission.
 3. Alchemy Account Archive remains unexecutable from this checkout: no PAYG endpoint and no account
-   limit/entitlement verified. Do not make paid calls; continue other Senses work and prospective
-   collection. No Cortex.
+   limit/entitlement verified. Do not make paid calls. Continue the offline evidence horizon and
+   prospective collection; no Cortex.
