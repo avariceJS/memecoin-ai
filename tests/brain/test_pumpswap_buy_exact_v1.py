@@ -639,10 +639,7 @@ def test_tail2_create_idempotent_target_ata_requires_payer_signer_and_writable_p
     message = transaction["transaction"]["message"]
     names = SCHEMA["instructions"]["buy_exact_quote_in"]["accounts"]
     buy_accounts = message["instructions"][0]["accounts"]
-    roles = {
-        name: message["accountKeys"][buy_accounts[index]]
-        for index, name in enumerate(names)
-    }
+    roles = {name: message["accountKeys"][buy_accounts[index]] for index, name in enumerate(names)}
     fee_ata = message["accountKeys"][buy_accounts[-1]]
     indexes = {key: index for index, key in enumerate(message["accountKeys"])}
     associated_ix = {
