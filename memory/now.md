@@ -37,8 +37,10 @@
 - Frozen buyExact tail2 dual-legacy development diagnostic (`f7ec8c0`): candidate `TransferChecked`
   flow exact 62/62; `BuyEvent` cross-check match 62/62; endpoint reconciliation exact 61/62 with
   one sibling-touch `unknown_partial`. Five fee equations matched but remain hypotheses; no
-  settlement, wallet-net price or admission. Sol accepted the dev-only freeze. Receipt:
+  settlement, wallet-net price or admission. The two references overlapping Alchemy's 64 same-slot
+  pairs agree on the candidate facts. Sol accepted the dev-only freeze. Receipts:
   `docs/evidence/pumpswap-buy-exact-tail2-v1-development-qualification-2026-10-10.json`.
+  Provider join: `docs/evidence/pumpswap-buy-exact-tail2-pair64-provider-check-2026-10-10.json`.
 
 - Pair64 offline comparison: 512 Helius selected blocks and 64 same-slot Alchemy pairs; all block
   identities and ordered signatures match. Across 80,467 transactions, 80,321 trees match exactly;

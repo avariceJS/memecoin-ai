@@ -500,6 +500,13 @@ are pinned to an official interface source; this is not deployed-binary proof. N
 was opened, and no training, execution, wallet-net-price, or broader economic settlement admission
 is granted. Receipt: [`buyExact tail2 development diagnostic`](evidence/pumpswap-buy-exact-tail2-v1-development-qualification-2026-10-10.json).
 
+An offline join against Pair64's 64 captured Alchemy same-slot full blocks found two overlaps among
+the 62 frozen references. For both, block identity and signature matched; transaction payloads
+matched after excluding `meta.logMessages`, and replayed candidate flows, target endpoint account
+facts and event cross-checks agreed across provider payloads. This is two-row captured payload
+consistency using the same decoder, not a second independent decoder or completeness evidence.
+Receipt: [`buyExact tail2 Pair64 provider check`](evidence/pumpswap-buy-exact-tail2-pair64-provider-check-2026-10-10.json).
+
 A new Helius Free epoch was then captured for the frozen one-pass audit: 512/512 selected full
 blocks parsed, 512/512 signature-only checks matched the full-response signature hashes, and the
 slot set is disjoint from both the 15:00Z development source and the failed 13:00Z source. The

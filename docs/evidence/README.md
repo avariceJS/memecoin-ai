@@ -415,6 +415,10 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   target-account endpoint reconciliation is exact 61/62 under classified provider-reported touches,
   and one sibling-touch row remains `unknown_partial`. Fee equations are empirical hypotheses; no
   audit/RPC/admission.
+- `pumpswap-buy-exact-tail2-pair64-provider-check-2026-10-10.json`: offline Helius/Alchemy payload
+  join for the two development candidates overlapping Alchemy's 64 same-slot full blocks; both
+  candidate flows, endpoint account facts and event checks agree after excluding log messages.
+  Same decoder on both sides; no independent decoder or completeness claim.
 - `pumpswap-buy-exact-v1-audit-failure-2026-10-10.json`: preserved one-time 13:00Z census failure after all 512 payloads were processed but before report publication; no outcomes accepted and no reuse permitted.
 - `pumpswap-buy-exact-v1-audit-qualification-2026-10-10.json`: fresh disjoint 512-slot Helius Free captured-class census and one-pass replay of all seven successful dual-legacy refs; diagnostic-only, with four censored native settlements and Token-2022 still quarantined.
 - `pumpswap-buy-exact-v1-token2022-dev-census-2026-10-10.json.zst`: source-bound offline replay of the 15:00Z development captures; all 1,234 quote-side Token-2022 refs retain unknown historical extension state, with no settlement claim.
