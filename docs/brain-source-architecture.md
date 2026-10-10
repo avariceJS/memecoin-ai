@@ -329,6 +329,26 @@ The 24/26-byte argument layouts, all leading accounts, pool_v2/cashback/hook cla
 movement, and Token-2022 effects remain unresolved or quarantined. Receipt:
 [`buyExact c3 remaining suffix census`](evidence/pumpswap-buy-exact-v1-c3-extra-role-census-2026-10-10.json).
 
+The current official [`@pump-fun/pump-swap-sdk@2.1.0`](https://www.npmjs.com/package/@pump-fun/pump-swap-sdk)
+was also pinned and compared with the local official AMM IDL. Its `buy_exact_quote_in` fixed
+23-account order and arguments match; the builder appends an optional quote-mint cashback ATA,
+then readonly `pool-v2` when the pool creator is non-default, then the readonly fee wallet and its
+writable quote ATA. The `pool-v2` derivation is `findProgramAddress(["pool-v2", base_mint],
+Pump AMM program)`. On the 192 first-frame references with the exact 25-byte payload and three
+remaining accounts, all raw prefixes match the official SDK derivation; none matches the official
+cashback ATA derivation. Raw message-header privileges and the previously qualified fee pair leave
+190 references with the expected readonly `pool-v2` plus fee pair (134 successful transaction
+references and 56 failed attempt-only references). Two other failed references have transaction-wide
+writability on either `pool-v2` or the fee recipient and remain quarantined. This is role/order
+qualification for that captured class only; it does not decode settlement or justify economic
+admission. Other account counts, Token-2022 effects, cashback combinations and unknown layouts remain
+quarantined. Receipt: [`c3 pool-v2 prefix qualification`](evidence/pumpswap-buy-exact-v1-c3-pool-v2-prefix-qualification-2026-10-10.json).
+The frozen reusable offline classifier is `tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py`
+with the official SDK adapter `tools/brain_senses_buy_exact_v1_pool_v2_pda_derive.cjs`; it binds the
+SDK package integrity, source hashes, IDL contract, fee-recipient set, frame receipt and each raw
+capture. Apply it once to the first complete c4 frame whose bodies have not been inspected for this
+predicate; a c3 replay or any already-inspected frame is development/ordinary replication only.
+
 The frozen development predicate selected all 62 successful refs in that captured census whose
 payload is the pinned 25-byte shape, two-account suffix passes the source-bound checks, and both
 base and quote use legacy SPL Token. The other 1,237 successful structural candidates include

@@ -319,3 +319,10 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   v1 IDL and NPM SDK artifact integrity; the examined SDK release has no explicit exact-quote
   builder implementation, leaving captured remaining-account variants unresolved. Raw NPM
   tarball is retained outside Git under `work/official-sources/`.
+- `pumpswap-buy-exact-v1-c3-pool-v2-prefix-qualification-2026-10-10.json`: pins the current
+  official PumpSwap SDK 2.1.0 and compares its 23-account IDL, pool-v2 derivation and buy remaining
+  account order against 192 raw c3 first-frame references; 190 are structurally role-qualified and
+  two failed attempts remain quarantined. No settlement or economic qualification. Reproduction
+  uses `tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py` and
+  `tools/brain_senses_buy_exact_v1_pool_v2_pda_derive.cjs` with the package artifact under ignored
+  `work/source-surveys/`.
