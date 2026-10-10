@@ -1244,6 +1244,18 @@ it does not establish fee movement, fill, settlement, economic orientation, or c
 [`buyExact frame-2 census`](evidence/pumpswap-buy-exact-v1-c3-frame2-census-2026-10-10.json) and
 [`buyExact frame-2 role replication`](evidence/pumpswap-buy-exact-v1-c3-frame2-role-replication-2026-10-10.json).
 
+A later raw/report reconciliation of the exact 25-byte/23-fixed/three-tail subgroup independently
+normalized all 16 frame-2 full blocks (16,426 transactions): raw and census sets matched 258/258,
+with no normalization errors, duplicates, or set differences. The unchanged pool-v2 predicate
+accepted 257 references (225 successful transactions and 32 failed attempt-only references) and
+quarantined one successful reference because its fee wallet was globally writable. Raw compiled
+instructions show that message key at account position 24 in both the outer sibling instruction and
+the PumpSwap CPI; the sibling program's semantics remain unknown. This explains the observed message
+privilege but does not waive the frozen transaction-wide readonly requirement. No economic settlement
+was qualified. This is ordinary replication of an already examined development frame, scoped only to
+its selected blocks. Receipt:
+[`frame-2 raw-reconciled pool-v2 prefix replication`](evidence/pumpswap-buy-exact-v1-c3-frame2-pool-v2-prefix-raw-reconciled-2026-10-10.json).
+
 Campaign 3 completed six forward-adjacent frames through `20261010T100000Z`, then terminated
 abnormally on its reserved 11:00Z finalized `getSlot`: the request failed at transport, produced no
 response bytes, and its provider charge remains unknown. Count it as the 205th attempted request.

@@ -314,6 +314,11 @@ are not in Git; consult the receipt's pinned local root and manifest when author
 - `pumpswap-buy-exact-v1-c3-frame2-role-replication-2026-10-10.json`: applies frozen raw IDL and
   suffix rules to all 418 eligible 25-byte +2/+3 invocations in frame 2; 160 +2 and 258 +3 trailing
   pairs source-supported, with +3 prefixes retained as unknown. Structural only; no economics.
+- `pumpswap-buy-exact-v1-c3-frame2-pool-v2-prefix-raw-reconciled-2026-10-10.json`: exact raw/report
+  reconciliation for 258 three-tail candidates from 16 frame-2 blocks; the frozen pool-v2 predicate
+  accepts 257 and quarantines one successful transaction with a transaction-wide writable fee wallet.
+  The raw sibling reference is recorded, while its semantics and all economic settlement remain
+  unresolved. Development replication only.
 - `pumpswap-buy-exact-v1-development-qualification-2026-10-10.json`: complete replay of the frozen 62-ref dual-legacy development population, with exact token-account ledger facts; still diagnostic-only and not the sealed audit.
 - `pumpswap-buy-exact-v1-audit-failure-2026-10-10.json`: preserved one-time 13:00Z census failure after all 512 payloads were processed but before report publication; no outcomes accepted and no reuse permitted.
 - `pumpswap-buy-exact-v1-audit-qualification-2026-10-10.json`: fresh disjoint 512-slot Helius Free captured-class census and one-pass replay of all seven successful dual-legacy refs; diagnostic-only, with four censored native settlements and Token-2022 still quarantined.
