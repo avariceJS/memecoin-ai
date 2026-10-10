@@ -50,6 +50,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `helius-service-v1-operational-review-2026-10-10.json` (source/plist hash-bound offline review,
   zstd launchd/pre-reservation fix and Sol acceptance; zero current-key matches in Git, process
   arguments, recent log/text files and 672.6 MB of Unified Log; no activation or provider request).
+- Helius credential rescan after the resumed c4 frame:
+  `helius-key-post-resume-c4-log-rescan-2026-10-10T2218Z.json` (mode-0600 private config; zero
+  current endpoint/key-path matches in 1,459 active campaign files, process/LaunchAgent arguments,
+  and 55.5 MB of recent Unified Log; no credential value stored in the receipt).
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:

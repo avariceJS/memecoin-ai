@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 22:11 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-10 22:18 UTC. Verify live runtime before any campaign or service decision.
 
 ## Boundaries and runtime
 
@@ -9,11 +9,12 @@
   holdout access, push, retry or backfill.
 - c3 is terminal after its ambiguous 11:00Z anchor failure; preserve its uncovered interval.
   c4 remains the unchanged finite calendar lease (one bootstrap plus at most 24 hourly frames).
-  Read-only status at 22:11Z: 10/24 frames complete, 340 frame requests plus one bootstrap (341
+  Read-only status at 22:16Z: 10/24 frames complete, 340 frame requests plus one bootstrap (341
   all-in), 706,277,979 raw / 161,843,979 stored bytes, zero failed or gapped epochs, zero open
-  reservations, 14 attempts remaining, frontier 455413633, and 60,868,034,560 free bytes. Exact c4
+  reservations, 14 attempts remaining, frontier 455413633, and 60,479,909,888 free bytes. Exact c4
   LaunchAgent remains loaded and idle between calendar ticks, with fixed path-only arguments; its
-  22:00Z frame completed naturally. No manual tick. Credit units remain
+  22:00Z frame completed naturally. Old watcher/decode and predecessor-campaign LaunchAgents are
+  disabled and unloaded. No manual tick. Credit units remain
   unknown. Preserve all gaps.
 - Helius key is still in ignored `.env.local` and private MCP configs, all mode 0600. User accepts
   no rotation. Latest follow-up scan found zero exact endpoint/path matches in Git, recent saved
@@ -25,11 +26,16 @@
   found zero matches across 2,918 Git blobs, current process arguments, 270 recent log/text files
   (50.4 MB), and 672.6 MB of Unified Log output. `.env.local` remains mode 0600; key material was
   not emitted. See the service review receipt for exact scope.
+- After the 22:00Z frame and this continuation, a scoped scan found zero endpoint/key-path matches
+  in 1,459 c4 campaign files (180.4 MB), current process/LaunchAgent arguments, and 55.5 MB of
+  recent Unified Log. `.env.local` remains mode 0600; value was not emitted. Receipt:
+  `docs/evidence/helius-key-post-resume-c4-log-rescan-2026-10-10T2218Z.json`.
 - No Cortex. Do not alter c4's frozen lease or the previously frozen PumpSwap audits.
 - Helius MCP reproducibility check: persistent `~/.codex/config.toml` is pinned to
   `helius-mcp@2.2.0`. Two Helius child processes inherited `@latest` from the already-running
   Codex app-server; both local npm lockfiles resolve to 2.2.0 with identical tarball integrity.
-  No MCP/provider requests were made. Do not restart the app-server during the campaign; new
+  A fresh read-only `getHeliusPlanInfo` call at 22:16Z failed with MCP `Transport closed`; current
+  account plan and limits remain unknown. Do not restart the app-server during the campaign; new
   app-server starts should consume the pinned config.
 
 ## Senses evidence and current decision horizon
