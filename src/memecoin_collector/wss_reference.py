@@ -66,7 +66,7 @@ def parse_logs_message(raw: bytes) -> dict[str, Any]:
     """Parse only the standard logsSubscribe envelope, never economic semantics."""
     try:
         message = json.loads(raw)
-    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError, TypeError) as exc:
+    except (UnicodeDecodeError, ValueError, RecursionError, TypeError) as exc:
         raise ValueError("malformed_logs_message") from exc
     if not isinstance(message, dict):
         raise ValueError("logs_message_not_object")
@@ -109,7 +109,7 @@ def parse_subscribe_response(raw: bytes) -> dict[str, Any]:
     """Project the bounded JSON-RPC response to the one subscribe request."""
     try:
         response = json.loads(raw)
-    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError, TypeError):
+    except (UnicodeDecodeError, ValueError, RecursionError, TypeError):
         return {"response_kind": "invalid", "request_id": None, "subscription_id": None}
     if not isinstance(response, dict) or response.get("jsonrpc") != "2.0":
         return {"response_kind": "invalid", "request_id": None, "subscription_id": None}
