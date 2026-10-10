@@ -61,7 +61,8 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
   tests passed (3/3), Ruff/compile passed, and a 512-block Pair64 replay exactly matched the frozen
   counters/matrix. First c3 frame: 365 references in 15 of 16 selected blocks; 59 pinned
   25-byte/two-account suffix structural candidates (53 success, six failed). No settlement or
-  economics is inferred. Receipt: `pumpswap-buy-exact-v1-c3-frame-census-2026-10-10.json`.
+  economics is inferred. Receipt: `pumpswap-buy-exact-v1-c3-frame-census-2026-10-10.json`; its
+  mistyped commit ID is corrected by the adjacent correction receipt.
 
 ## Next horizon
 

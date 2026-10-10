@@ -277,6 +277,8 @@ No normalization errors occurred. This adds prospective structural-yield monitor
 not establish fills, settlement, economic correctness, market completeness, or admission. The other
 account/layout subgroups remain unresolved or unverified. Receipt:
 [`buyExact c3 frame census`](evidence/pumpswap-buy-exact-v1-c3-frame-census-2026-10-10.json).
+Its commit-id metadata correction is recorded separately at
+[`buyExact c3 census correction`](evidence/pumpswap-buy-exact-v1-c3-frame-census-correction-2026-10-10.json).
 
 The official [Pump AMM IDL pinned at commit `8cda1fa`](https://github.com/pump-fun/pump-public-docs/blob/8cda1fa30ea658b20909d8aedf002047119388d2/idl/pump_amm.json)
 binds 23 fixed `buy_exact_quote_in` accounts and the `spendable_quote_in`,
