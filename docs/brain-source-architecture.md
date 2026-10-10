@@ -862,6 +862,11 @@ loaded. The Helius MCP account status check confirmed an API key is configured b
 or credit usage; no account upgrade or paid RPC was made. Receipt:
 [`helius-account-status-mcp-2026-10-10.json`](evidence/helius-account-status-mcp-2026-10-10.json).
 Frame receipt: [`helius-inventory-v2-first-frame-2026-10-09.json`](evidence/helius-inventory-v2-first-frame-2026-10-09.json).
+The current public Helius credit reference lists 1 method credit each for `getSlot`, `getBlocks`,
+and `getBlock`; that yields an estimated 34 credits for a complete frame or 816 for 24 frames if
+those generic rates apply. Keep this separate from RPC request counts and actual account credits,
+which remain unverified. Receipt:
+[`Helius public credit-cost reference`](evidence/helius-public-credit-cost-reference-mcp-2026-10-10.json).
 
 The `20261010T000000Z` scheduler invocation occurred at 00:43Z. Its single captured `getSlot`
 anchor (43 raw / 56 zstd bytes) was 23,699 slots beyond the persisted frontier, above the frozen

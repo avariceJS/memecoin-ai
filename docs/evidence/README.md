@@ -12,6 +12,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
   01:32Z; account-wide, not attributable to this checkout or a method; account limit not returned).
 - Helius MCP account status/plan check: `helius-account-status-mcp-2026-10-10.json` (key configured,
   but plan and credit usage unavailable from the account tool; no plan mutation or paid RPC made).
+- Helius public method-credit reference:
+  `helius-public-credit-cost-reference-mcp-2026-10-10.json` (generic published rates estimate 34
+  credits per complete 34-request frame; it is not account-meter evidence).
 - One bounded PAYG `getSignaturesForAddress` page and MCP pagination/accounting limits:
   `alchemy-signature-page-probe-2026-10-09.json` (one parsed 10-row page, no raw response, no
   coverage or zero-activity claim; subsequent ambiguous attempts are disclosed in the receipt).
