@@ -25,6 +25,11 @@
   storage, backups and Time Machine are outside scan scope. Receipt:
   `docs/evidence/helius-key-followup-exposure-rescan-2026-10-10T1904Z.json`.
 - No Cortex. Do not alter c4's frozen lease or the previously frozen PumpSwap audits.
+- Helius MCP reproducibility check: persistent `~/.codex/config.toml` is pinned to
+  `helius-mcp@2.2.0`. Two Helius child processes inherited `@latest` from the already-running
+  Codex app-server; both local npm lockfiles resolve to 2.2.0 with identical tarball integrity.
+  No MCP/provider requests were made. Do not restart the app-server during the campaign; new
+  app-server starts should consume the pinned config.
 
 ## Senses evidence and current decision horizon
 
