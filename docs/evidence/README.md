@@ -40,6 +40,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   objects, 249,759 accessible saved text/runtime/evidence files, current process command lines, and
   1.285 GB of recent Unified Log output; the three expected private mode-0600 configs remain the
   only local exact-value matches).
+- Helius exposure rescan before resumed campaign work:
+  `helius-key-resume-exposure-rescan-2026-10-10.json` (zero matches in 5,334 Git objects, active
+  process arguments, and 199 MB of recent Unified Log output; a complete checkout plus full
+  accessible saved-root scan found credential components only in the three expected mode-0600
+  private configs).
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:

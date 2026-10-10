@@ -48,6 +48,11 @@
   output. Only the three expected private configs contain the key. MCP uses pinned
   `helius-mcp@2.2.0` with environment configuration; c4 argv is path-only. Receipt:
   `docs/evidence/helius-key-post-resume-exposure-rescan-2026-10-10.json`.
+- Pre-work continuation rescan at 15:38Z found zero matches in 5,334 Git objects / 121,698,114
+  blob bytes, active process arguments, and 198,986,586 Unified Log bytes. The complete checkout
+  and full accessible saved-root scan found no credential components outside `.env.local` and the
+  two expected mode-0600 MCP configs. c4 still uses fixed argv. Receipt:
+  `docs/evidence/helius-key-resume-exposure-rescan-2026-10-10.json`.
 - MCP: Alchemy ping and official Solana docs search worked; Helius documentation transport closed.
   No MCP provider RPC was performed.
 

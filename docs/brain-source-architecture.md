@@ -35,6 +35,12 @@ credential-bearing process-list result remains in this agent-session tool transc
 retroactively removed. See the
 [`saved-transcript correction`](evidence/helius-mcp-saved-transcript-redaction-correction-2026-10-10.json)
 and [`process remediation`](evidence/helius-mcp-credential-process-list-remediation-2026-10-10.json).
+The post-resume scan before the current c4 work rechecked all Git objects, the complete checkout,
+accessible saved Codex/Cursor/work/evidence/log/temp roots, active process command lines, and the
+prior hour of Unified Log; it found no credential components outside the three expected mode-0600
+private configs. Provider-side logs, remote conversation storage, backups, Time Machine, and
+inaccessible services remain outside the scan. See the
+[`resume exposure rescan`](evidence/helius-key-resume-exposure-rescan-2026-10-10.json).
 Read-only Helius MCP plan info and current pricing confirm Free at 1M credits/month and 10 standard
 RPC requests/s; standard `getBlock`, `getBlocks`, `getSignaturesForAddress`, and `getTransaction` each cost one
 credit. Account-level usage is not exposed. Standard WSS is available; enhanced
