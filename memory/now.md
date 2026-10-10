@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 06:16 UTC. Verify Git HEAD, runtime and disk before acting.
+**As of:** 2026-10-10 06:24 UTC. Verify Git HEAD, runtime and disk before acting.
 
 ## Boundaries
 
@@ -23,6 +23,9 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
   effective requests. Frame receipts are in `docs/evidence/helius-inventory-v3-c3-*frame*`.
 - C2 and controller STOPs are immutable. Old public/Helius watchers, c1/c2 and the controller are
   unloaded. Helius watch-v3 keeps its explicit STOP; do not resume it.
+- Runtime recheck at 06:23Z found c3 is the only loaded job matching Senses/Helius collector or
+  watcher names. Older plist files remain on disk but are not loaded; no duplicate collector process
+  was running.
 - Helius credential is authorized without rotation. `.env.local` and Codex/Cursor configs are mode
   `0600`; the collector resolves its endpoint in-process, while LaunchAgents pass only paths.
   Process arguments, tracked Git, c3 captures, saved Codex/Cursor files and a two-hour Unified Log
