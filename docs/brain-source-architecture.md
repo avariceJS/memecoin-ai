@@ -42,6 +42,15 @@ private configs. Provider-side logs, remote conversation storage, backups, Time 
 inaccessible services remain outside the scan. See the
 [`resume exposure rescan`](evidence/helius-key-resume-exposure-rescan-2026-10-10.json).
 A follow-up scan at 19:04Z found no exact endpoint/path/hostname matches across 2,861 Git blobs, no exact endpoint/path matches in 3,452 recent saved files (2.05 GB), no process-argument matches, and no match in 213.6 MB of the last hour of Unified Log. Two Codex history files had 67 public-hostname-only mentions; no endpoint path or key component was present. The c4 LaunchAgent remained path-only and the scheduled 19:05Z frame was active at the 19:06Z status read. Receipt: [`19:04Z exposure rescan`](evidence/helius-key-followup-exposure-rescan-2026-10-10T1904Z.json).
+At 23:18Z a credential-config enumeration accidentally emitted the current value in one tool result
+in this interactive agent session. The active session transcript cannot be retracted from this
+checkout. A secret-safe follow-up found no exact value in 5,818 Git objects, 177 recent accessible
+saved files (1.05 GB across Codex, Cursor, and local work/log roots), current process or c4
+LaunchAgent arguments, or 82.2 MB of Unified Log; the three expected private configs remain mode
+0600. Remote conversation storage, provider logs, backups, and Time Machine remain outside the scan.
+The user authorized continued use without rotation. The current c4 LaunchAgent carries only fixed
+paths and reads the private endpoint in process. Receipt:
+[`23:18Z post-output exposure rescan`](evidence/helius-key-post-tool-output-rescan-2026-10-10T2318Z.json).
 Read-only Helius MCP plan info and current pricing confirm Free at 1M credits/month and 10 standard
 RPC requests/s; standard `getBlock`, `getBlocks`, `getSignaturesForAddress`, and `getTransaction` each cost one
 credit. Account-level usage is not exposed. Standard WSS is available; enhanced
@@ -522,6 +531,21 @@ BuyEvent agreement and endpoint state in these selected captured blocks. Fee equ
 hypotheses; settlement, wallet-net price, broader completeness and training/execution admission are
 not established. Receipt:
 [`tail2 c4 audit preregistration`](evidence/pumpswap-buy-exact-tail2-c4-audit-prereg-2026-10-10.json).
+
+The metadata selector is implemented in `tools/brain_senses_buy_exact_tail2_c4_manifest.py`. It
+refuses a changed preregistration, source pin, lease/schedule pin, malformed frame, request identity,
+capture/runtime code pin, capture receipt, byte accounting, or deterministic inventory selection. It
+hashes compressed responses without decompression and creates its manifest outside the frozen
+campaign root only after four eligible successful frames exist. During an earlier pre-fix CLI
+invocation with only the 23:00Z frame available, the 34 compressed response files in that frame
+were read only for SHA-256 and 34 request/result/capture metadata rows were read; no bytes were
+decompressed, displayed, classified, or used to select a frame or infer an outcome. No output,
+request, or campaign-state change occurred. Sol accepted this as a disclosed procedural deviation;
+the original frame remains eligible and no replacement is allowed. Receipt:
+[`23:00Z hash-only preplan deviation`](evidence/pumpswap-buy-exact-tail2-c4-manifest-preplan-hash-only-deviation-2026-10-10.json).
+At the current 11/24 campaign point, only that one post-freeze frame is eligible; semantic payloads
+remain unopened. The corrected builder now stops before content hashing unless four metadata
+candidates are complete.
 
 A new Helius Free epoch was then captured for the frozen one-pass audit: 512/512 selected full
 blocks parsed, 512/512 signature-only checks matched the full-response signature hashes, and the

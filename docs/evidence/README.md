@@ -54,6 +54,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `helius-key-post-resume-c4-log-rescan-2026-10-10T2218Z.json` (mode-0600 private config; zero
   current endpoint/key-path matches in 1,459 active campaign files, process/LaunchAgent arguments,
   and 55.5 MB of recent Unified Log; no credential value stored in the receipt).
+- Helius post-tool-output local exposure rescan:
+  `helius-key-post-tool-output-rescan-2026-10-10T2318Z.json` (zero exact matches in every Git
+  object, 177 recent local saved files / 1.05 GB, process and LaunchAgent arguments, and 82.2 MB
+  of Unified Log; three expected private configs remain mode 0600. The receipt records the separate
+  active-session tool-output disclosure and local/remote scan limits without storing the value).
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:
@@ -431,7 +436,16 @@ are not in Git; consult the receipt's pinned local root and manifest when author
 - `pumpswap-buy-exact-tail2-c4-audit-prereg-2026-10-10.json`: metadata-only preregistration of
   the first four naturally completed c4 frames whose scheduled bucket starts after the frozen
   development commit; records conditional nominal buckets, failed/missing-frame handling,
-  denominators, source pins and claim limits. No eligible frame payload was opened.
+  denominators, source pins and claim limits. At preregistration time no eligible frame payload
+  was opened. A later hash-only preplan access to the 23:00Z frame was adjudicated as a disclosed
+  procedural deviation; its receipt records the limits and retained eligibility:
+  `pumpswap-buy-exact-tail2-c4-manifest-preplan-hash-only-deviation-2026-10-10.json`.
+- The c4 tail2 metadata manifest builder and its focused tests are in
+  `tools/brain_senses_buy_exact_tail2_c4_manifest.py` and
+  `tests/test_brain_senses_buy_exact_tail2_c4_manifest.py`. They enforce the preregistered freeze,
+  source/runtime pins, natural-frame selection, request/capture accounting, and compressed-byte
+  hashes without decompressing eligible payloads. It emits no manifest until four eligible frames
+  are successfully source-bound; the current campaign has fewer than four.
 - `pumpswap-buy-exact-v1-audit-failure-2026-10-10.json`: preserved one-time 13:00Z census failure after all 512 payloads were processed but before report publication; no outcomes accepted and no reuse permitted.
 - `pumpswap-buy-exact-v1-audit-qualification-2026-10-10.json`: fresh disjoint 512-slot Helius Free captured-class census and one-pass replay of all seven successful dual-legacy refs; diagnostic-only, with four censored native settlements and Token-2022 still quarantined.
 - `pumpswap-buy-exact-v1-token2022-dev-census-2026-10-10.json.zst`: source-bound offline replay of the 15:00Z development captures; all 1,234 quote-side Token-2022 refs retain unknown historical extension state, with no settlement claim.

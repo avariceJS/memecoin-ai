@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 22:50 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-10 23:30 UTC. Verify live runtime before any campaign or service decision.
 
 ## Boundaries and runtime
 
@@ -9,13 +9,14 @@
   holdout access, push, retry or backfill.
 - c3 is terminal after its ambiguous 11:00Z anchor failure; preserve its uncovered interval.
   c4 remains the unchanged finite calendar lease (one bootstrap plus at most 24 hourly frames).
-  Read-only status at 22:50Z: 10/24 frames complete, 340 frame requests plus one bootstrap (341
-  all-in), 706,277,979 raw / 161,843,979 stored bytes, zero failed or gapped epochs, zero open
-  reservations, 14 attempts remaining, frontier 455413633, and 58,245,718,016 free bytes. Exact c4
+  Read-only status at 23:30Z: 11/24 frames complete, 374 frame requests plus one bootstrap (375
+  all-in), 769,657,413 raw / 177,576,506 stored bytes, zero failed or gapped epochs, zero open
+  reservations, 13 attempts remaining, frontier 455430160, and 55,792,263,168 free bytes. Exact c4
   LaunchAgent remains loaded and idle between calendar ticks, with fixed path-only arguments; its
-  22:00Z frame completed naturally. Old watcher/decode and predecessor-campaign LaunchAgents are
-  disabled and unloaded. No manual tick. The ten-frame method accounting is 11 `getSlot`, 10
-  `getBlocks`, 160 full `getBlock`, and 160 signature checks; charge units unknown for all.
+  23:00Z frame completed naturally. Old watcher/decode and predecessor-campaign LaunchAgents are
+  disabled and unloaded. No manual tick. The eleven-frame method accounting is 12 `getSlot`
+  (including bootstrap), 11 `getBlocks`, 176 full `getBlock`, and 176 signature checks; provider
+  charge units remain unknown.
   Preserve all gaps.
 - Helius key is still in ignored `.env.local` and private MCP configs, all mode 0600. User accepts
   no rotation. Latest follow-up scan found zero exact endpoint/path matches in Git, recent saved
@@ -31,6 +32,17 @@
   in 1,459 c4 campaign files (180.4 MB), current process/LaunchAgent arguments, and 55.5 MB of
   recent Unified Log. `.env.local` remains mode 0600; value was not emitted. Receipt:
   `docs/evidence/helius-key-post-resume-c4-log-rescan-2026-10-10T2218Z.json`.
+- At 23:18Z a private-config enumeration accidentally emitted the key in one tool result in the
+  interactive agent session; this transcript cannot be retracted from the checkout. A secret-safe
+  rescan found zero exact matches across all 5,818 Git objects, 177 recent local saved files (1.05
+  GB), current process/LaunchAgent arguments, and 82.2 MB of Unified Log. All three expected private
+  config files remain mode 0600. Provider and remote conversation storage remain inaccessible.
+  Receipt: `docs/evidence/helius-key-post-tool-output-rescan-2026-10-10T2318Z.json`.
+- The user authorized continued use without rotation. The c4 LaunchAgent is loaded and idle between
+  natural calendar triggers; its arguments contain fixed paths only and the runner reads the private
+  endpoint in process. Read-only status confirms 11/24 successful frames, 13 remaining, zero
+  failures/gaps/open reservations, 375 all-in requests and the free-disk figure above. No manual RPC
+  or tick was run. A relative-root status attempt failed closed; the absolute-root read succeeded.
 - c4 terminal proof implementation is being frozen offline. The new qualifier independently
   revalidates capture journals, selected-slot derivation, full/signature block agreement, structural
   summaries, request timing, reservation release, accounting and artifact hashes. It creates only
@@ -68,7 +80,13 @@
   If any eligible bucket is missing/failed/partial/ambiguous, count it and continue only on the
   next naturally completed c4 frame; report all scheduled buckets and the four captures. Do not
   open eligible payloads until four frames seal, metadata-only source binding is frozen, and the
-  exact runner/test hashes are recorded in a final plan. No audit frame payload was opened.
+  exact runner/test hashes are recorded in a final plan. A pre-fix CLI invocation hash-read the 34
+  compressed responses and 34 metadata rows from the 23:00Z frame, without decompression, display,
+  classification, output, RPC or campaign mutation. Sol retained the frame and preregistration with
+  this procedural deviation disclosed; see
+  `docs/evidence/pumpswap-buy-exact-tail2-c4-manifest-preplan-hash-only-deviation-2026-10-10.json`.
+  No semantic payload was opened. The corrected builder does not hash content until four candidates
+  exist.
 - Verification: focused PumpSwap suite 44 passed, targeted Ruff/format passed, and `make smoke`
   passed with synthetic-only evidence. Repository-wide `make check` stops on 43 E501 findings in
   two unchanged pool-v2 qualifier tools. `make test` cannot collect three unrelated legacy tests
