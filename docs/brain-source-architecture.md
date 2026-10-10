@@ -339,6 +339,19 @@ account/layout subgroups remain unresolved or unverified. Receipt:
 Its commit-id metadata correction is recorded separately at
 [`buyExact c3 census correction`](evidence/pumpswap-buy-exact-v1-c3-frame-census-correction-2026-10-10.json).
 
+A source-bound offline structural novelty digest independently normalized every transaction in
+Pair64's 512 selected Helius blocks and c3's six completed 16-block frames. Pair64 had 642,312
+transactions, 37,427 unique PumpSwap-referencing transactions and 72,034 raw instruction refs
+(60,385 successful-status refs, 11,649 failed-status refs); four selected blocks had no PumpSwap
+refs. Across c3's 96 selected blocks, 98,993 transactions yielded 6,858 unique referencing
+transactions and 13,422 instruction refs (11,373 successful-status, 2,049 failed-status); one block
+had no refs. Pair64's buyExact raw counts and bytes matched its frozen census; the two c3 frames with
+frozen buyExact censuses and all six c3 sell23 frame denominators matched. The digest pins block
+hashes and event/receipt times, records exact wire bytes and instruction paths, and leaves unknown
+accounts positional. Exact trailing bytes are structural fingerprints only; this is not global
+discovery, an economic classification, or an admission result. Receipt:
+[`PumpSwap structural novelty digest`](evidence/pumpswap-structural-novelty-v1-2026-10-10.json).
+
 The official [Pump AMM IDL pinned at commit `8cda1fa`](https://github.com/pump-fun/pump-public-docs/blob/8cda1fa30ea658b20909d8aedf002047119388d2/idl/pump_amm.json)
 binds 23 fixed `buy_exact_quote_in` accounts and the `spendable_quote_in`,
 `min_base_amount_out`, and `track_volume` arguments. Its docs identify the optional cashback

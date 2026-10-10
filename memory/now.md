@@ -1,11 +1,11 @@
 # Current Project State
 
-**As of:** 2026-10-10 15:38 UTC. Recheck live runtime and disk before any campaign decision.
+**As of:** 2026-10-10 15:53 UTC. Recheck live runtime and disk before any campaign decision.
 
 ## Boundaries and runtime
 
 - Continue Senses only. Research checkout `/Users/root1/Developer/memecoin-research`, branch
-  `research/active`; HEAD at 15:38Z was `120ff7f`. Production `/Users/root1/Desktop/memecoin-ai`
+  `research/active`; HEAD at 15:53Z is `58794b3`. Production `/Users/root1/Desktop/memecoin-ai`
   remains untouched. No trading, signing, paid upgrade, protected holdout access, push, backfill,
   or ambiguous-request retry.
 - c3 is permanently terminal after its reserved 11:00Z `getSlot` transport failure (205 attempts,
@@ -18,13 +18,13 @@
   responses total 216,017,528 raw / 45,211,652 stored bytes; the 15:00Z inventory interval was
   `[455282201,455298550)` with 16,345 provider-reported produced slots. Three of 24 future attempts
   are complete, root STOP is absent, and c4 remains loaded idle between calendar triggers (last
-  exit 0); next UTC trigger is 16:05Z. Do not manually invoke. Receipts:
+  exit 0, four total runs); next UTC trigger is 16:05Z. At 15:51Z, LaunchAgent argv remained fixed
+  path/subcommand only, free disk was 72 GiB, and c4 used 51,192 KiB. Do not manually invoke. Receipts:
   `docs/evidence/helius-inventory-v3-c4-bootstrap-2026-10-10.json`,
   `docs/evidence/helius-inventory-v3-c4-first-frame-2026-10-10.json`.
-- c4 root: `work/brain-senses-live-helius-inventory-v3-20261010-4/`. At 15:38Z, free space was
-  73.6 GiB and c4 allocated 51,192 KiB. Preserve gaps; reconcile each scheduled epoch and stop on
-  lease failure. The
-  first-frame one-hour projection is 816 reservations, 1.40 GB raw and 0.316 GB stored per day;
+- c4 root: `work/brain-senses-live-helius-inventory-v3-20261010-4/`. Preserve gaps; reconcile each
+  scheduled epoch and stop on lease failure. The first-frame one-hour projection is 816
+  reservations, 1.40 GB raw and 0.316 GB stored per day;
   credit billing units remain unverified.
 - 2026-10-10 15:38Z: offline service controller v1 uses a separate v2 external anchor epoch before
   initializing an unchanged v3 campaign. Adjacent UTC-day rollover now reconciles the last sealed
@@ -34,7 +34,10 @@
   provably unstarted; bootstrap source dependencies are pinned. Focused synthetic suite: 29 passed,
   including partial/full-day rollover, recovery generation, missed midnight, crash points, duplicate
   tick, lock contention, source drift, init/reserve recovery, campaign-hash scope and budget
-  monotonicity. v2/scheduler/c4 recovery suites: 53 passed; Ruff and diff checks pass. No RPC/c4/runtime changes. Not
+  monotonicity. v2/scheduler/c4 recovery suites: 53 passed; Ruff and diff checks pass. A separate
+  status timestamp fix now projects per-request start/receipt/availability/decision nanoseconds and
+  nullable block time; ambiguous transport receipt/availability remain unknown. Service suite: 32
+  passed. No RPC/c4/runtime changes. Not
   activation-ready: no deployed scheduler/runner; c4 terminal/tail and account-credit gates remain.
 - Helius key remains in ignored mode-0600 `.env.local` and two mode-0600 MCP configs; user
   authorized no-rotation continuation. The latest exact-value scan (13:55Z) found zero in 5,253
@@ -110,6 +113,12 @@
 - Offline service checks also pass: c4 recovery fixtures `7 passed`, scheduler/epoch suites `35
   passed`, finite controller fixtures `11 passed`. These were local synthetic tests; no RPC or live
   LaunchAgent invocation occurred.
+- 2026-10-10: committed the offline PumpSwap structural novelty tool/tests (`574db0f`); final
+  receipt `docs/evidence/pumpswap-structural-novelty-v1-2026-10-10.json` binds that commit and tool
+  hash. Pair64: 512 blocks, 642,312 tx, 37,427 referencing tx, 72,034 refs. c3: six 16-block frames,
+  98,993 tx, 6,858 referencing tx, 13,422 refs. Census denominators reconcile where frozen receipts
+  exist; structural-only, no global discovery/economic/admission claim. Focused tests: 7 passed;
+  no RPC or c4 audit access.
 
 ## Next decision horizon
 

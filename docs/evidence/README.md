@@ -176,6 +176,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   and all 146 contain its explicit truncation marker. Alchemy inventory failed once; its unsampled
   slot coverage remains unknown. The receipt binds the ignored raw root and complete offline audit
   hash; it does not claim transaction discovery completeness or economic agreement.
+- `pumpswap-structural-novelty-v1-2026-10-10.json`: commit-bound offline structural digest over
+  Pair64's 512 selected Helius blocks and c3's six completed 16-block frames. It independently
+  enumerates PumpSwap instructions, matches available Pair64/c3 census denominators, and records
+  exact wire/path/privilege classes, status splits, block hashes and times. It makes no global
+  discovery, settlement, economic, or admission claim.
 - First real Helius-only inventory-first v2 frame after the scheduler binding migration:
   `helius-inventory-v2-first-frame-2026-10-09.json`. It records 34 successful requests, a 9,261-slot
   provider-returned inventory denominator, 16/16 selected structural self-checks and explicit raw /
