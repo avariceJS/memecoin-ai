@@ -23,6 +23,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `helius-mcp-saved-transcript-redaction-correction-2026-10-10.json` (corrects the earlier
   incomplete saved-history scan; three credential occurrences in two old Cursor JSONL transcripts
   were redacted, files set to 0600, and JSONL validity retained).
+- Helius local exact-key exposure scan:
+  `helius-key-local-exposure-scan-2026-10-10.json` (zero matches in 5,130 Git objects, 8,786
+  scanned local saved log/config files and current process arguments; expected private `.env.local`
+  occurrence only; scope limitations and prior session-transcript exposure disclosed).
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:
@@ -54,6 +58,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - Campaign-3 first-frame sell23 replay:
   `helius-inventory-v3-c3-sell23-census-2026-10-10.json` (80/80 eligible structural candidates
   matched offline; 10 diagnostic exact ledgers, 70 censored native-close outcomes, zero RPCs).
+- Campaign-3 six-frame sell23 ledger replay:
+  `pumpswap-sell23-c3-six-frame-ledger-replay-2026-10-10.json` (frozen ledger v2 replay over 96
+  completed selected blocks, per-frame and per-pool exact/censored/failed accounting, input/code
+  hashes, and zero RPCs).
 - Closed frozen Helius inventory-v2 pilot:
   `helius-inventory-v2-final-2026-10-10.json` (104 requests, reconciled raw/stored bytes, final
   anchor and inventory interval, and the inherited 00:00Z oversized-frame gap).

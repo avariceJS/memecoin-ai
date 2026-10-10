@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "created_at_utc": "2026-10-10T11:38:28Z",
+  "credential": "current local MEMECOIN_HELIUS_RPC_URL secret component; value intentionally not retained",
+  "result": "no exact-key match outside the expected private local configuration was found in the scanned scopes",
+  "expected_local_match": {
+    "path": ".env.local",
+    "mode": "0600",
+    "git_ignored": true,
+    "occurrences": 1
+  },
+  "scans": {
+    "checkout_files": {
+      "count": 300129,
+      "exact_matches": 1,
+      "scope": "checkout files excluding .git, .venv, node_modules and language/test caches; includes ignored work/"
+    },
+    "git_objects": {
+      "count": 5130,
+      "exact_matches": 0,
+      "scope": "all objects returned by git cat-file --batch-all-objects, including unreachable objects"
+    },
+    "saved_log_and_config_files": {
+      "count": 8786,
+      "exact_matches": 0,
+      "roots": ["~/.codex", "~/.cursor", "~/.claude", "~/Library/Logs"],
+      "extensions": [".jsonl", ".log", ".txt", ".json", ".md", ".plist"],
+      "per_file_size_limit_bytes": 200000000
+    },
+    "process_command_lines": {
+      "exact_matches": 0,
+      "method": "in-memory comparison against ps -eww output; command contents not emitted"
+    }
+  },
+  "known_prior_exposure": "The earlier credential-bearing process-list output remains visible in the prior agent session transcript, as disclosed in docs/brain-source-architecture.md and the c3 activation record. This scan does not inspect service-side conversation storage, backups, Time Machine, or remote systems.",
+  "limitations": [
+    "No secret value or secret hash is stored in this receipt.",
+    "Saved log/config search was scoped to the listed local roots, text-like extensions and size bound.",
+    "LaunchAgent configuration was separately verified to contain only paths and zstd configuration; it has no credential environment entry."
+  ]
+}

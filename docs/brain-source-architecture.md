@@ -251,6 +251,18 @@ the decoder's audit, unselected-block/process coverage, wallet-net price, or tra
 admission. Receipt:
 [`c3 sell23 frame census`](evidence/helius-inventory-v3-c3-sell23-census-2026-10-10.json).
 
+The frozen sell23 ledger v2 was then replayed once across c3's six completed 05:00–10:00Z frames
+(96 selected full blocks), excluding the failed 11:00Z anchor epoch. All 553 successful exact-class
+candidates matched: 68 had exact target-account ledger settlement and 485 were censored partial
+settlements. Two failed exact-layout structural references were counted separately and not treated
+as executions. All six ledger equations passed for every matched candidate (3,318 checks); no
+unknown target-account rows or unsupported outcomes occurred inside this eligible class. The
+top-two pool concentration was 48/553 (8.68%) across 97 pools represented by successful or failed
+exact-class references. This is forward temporal reuse of the frozen captured-class contract, not
+independent economic validation, global discovery completeness, wallet-net execution price, or
+training/execution admission. No RPC was made. Receipt:
+[`c3 six-frame sell23 replay`](evidence/pumpswap-sell23-c3-six-frame-ledger-replay-2026-10-10.json).
+
 The pinned v1 `buy_exact_quote_in` path now has an offline structural attempt census over those same
 512 Helius full-block captures: 642,312 transactions, 12,120 unique candidate transactions, and
 12,143 instruction references across 507 slots, with no normalization failures. Of these refs,
@@ -1237,6 +1249,14 @@ collector LaunchAgent. The c3 activation receipt's initial process-argument fiel
 macOS `sysctl` check and is superseded by the credential process-list remediation receipt. The
 initial process-list tool output is visible in this session transcript. A successful local activation
 does not qualify real provider throughput, completeness or economic coverage.
+
+At 11:38Z a fresh exact-value scan found the expected sole checkout occurrence in ignored, mode-0600
+`.env.local`; it found no match in 5,130 Git objects, 8,786 current saved log/config files across
+the local Codex, Cursor, Claude and Library Logs roots, or current process command lines. The loaded
+c4 LaunchAgent carries no credential environment entry and its arguments contain only paths. This
+scan did not inspect service-side conversation storage, backups, Time Machine or remote systems; the
+previous credential-bearing process-list result remains visible in the prior agent session transcript.
+Receipt: [`local Helius-key exposure scan`](evidence/helius-key-local-exposure-scan-2026-10-10.json).
 
 Campaign 4 was prepared and its calendar LaunchAgent loaded idle at 11:28Z, with the first permitted
 bootstrap at 12:05Z. The activation-time disk check found 73,256,988,672 free bytes against
