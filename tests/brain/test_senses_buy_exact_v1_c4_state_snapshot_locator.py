@@ -194,6 +194,12 @@ def test_target_requires_success_readonly_mint_and_distinct_fee_payer() -> None:
     }
     assert locator._target_message_gate(row, {"transactions": [tx]})["eligible"] is True
 
+    tx["meta"]["err"] = {"InstructionError": [0, "Custom"]}
+    failed_gate = locator._target_message_gate(row, {"transactions": [tx]})
+    assert failed_gate["eligible"] is False
+    assert "target_transaction_not_successful" in failed_gate["reasons"]
+    tx["meta"]["err"] = None
+
     message = tx["transaction"]["message"]
     message["accountKeys"] = [MINT, OTHER]
     message["header"] = {

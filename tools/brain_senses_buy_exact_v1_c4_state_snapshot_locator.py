@@ -122,7 +122,7 @@ def _writable_occurrences(
         try:
             accounts, writable = _account_view(tx)
             payer, payer_state = _fee_payer(accounts)
-        except Exception:
+        except (AttributeError, IndexError, KeyError, TypeError, ValueError):
             # A malformed transaction cannot clear either side of an account-state bracket.
             for mint in mint_keys:
                 occurrences[mint].append(
@@ -221,7 +221,7 @@ def _target_message_gate(row: dict[str, Any], block: dict[str, Any]) -> dict[str
             mint_privilege = "unresolved"
             reasons.append("target_mint_privilege_unresolved")
         payer, payer_state = _fee_payer(accounts)
-    except Exception:
+    except (AttributeError, IndexError, KeyError, TypeError, ValueError):
         mint_privilege, payer, payer_state = "unresolved", None, "unresolved"
         reasons.append("target_message_resolution_failed")
     if payer is None:
