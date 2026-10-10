@@ -304,6 +304,8 @@ def build_manifest(
                 key=lambda item: item["slot"],
             ),
             "repository_head": repository_head,
+            "manifest_tool_path": Path(__file__).relative_to(ROOT).as_posix(),
+            "manifest_tool_sha256": _sha256(Path(__file__).read_bytes()),
         },
         "source_documentation": [
             {

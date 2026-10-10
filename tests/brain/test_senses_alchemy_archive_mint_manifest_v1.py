@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import sys
 from pathlib import Path
 
@@ -107,6 +108,13 @@ def test_frozen_locator_joins_and_deduplicates_150_pairs_without_rpc() -> None:
         "actual_cu": None,
     }
     assert result["source"]["selected_transaction_count"] == 17_607
+    assert result["source"]["manifest_tool_path"] == (
+        "tools/brain_senses_alchemy_archive_mint_manifest_v1.py"
+    )
+    assert (
+        result["source"]["manifest_tool_sha256"]
+        == hashlib.sha256(Path(manifest.__file__).read_bytes()).hexdigest()
+    )
     assert result["access_gate"]["rpc_requests_made_by_this_manifest"] == 0
     assert all(
         pair["planned_result"]["reservation_id"] is None
