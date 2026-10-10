@@ -319,6 +319,16 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   accepts 257 and quarantines one successful transaction with a transaction-wide writable fee wallet.
   The raw sibling reference is recorded, while its semantics and all economic settlement remain
   unresolved. Development replication only.
+- `helius-inventory-v3-c4-first-frame-2026-10-10.json`: sealed receipt for the scheduled c4 13:05Z
+  epoch; all 34 requests reconcile and all 16 selected full-block/signature checks pass across a
+  16,596-slot provider-reported inventory interval, with no backfill or economic completeness claim.
+- `pumpswap-buy-exact-v1-c4-first-frame-census-2026-10-10.json`: offline census of 17,607
+  transactions in the first c4 frame; 260 pinned v1 instruction references, including 171 exact
+  25-byte/23-fixed/three-tail candidates. No settlement qualification.
+- `pumpswap-buy-exact-v1-c4-first-frame-pool-v2-prefix-raw-reconciled-2026-10-10.json`: first
+  untouched c4 application of the frozen pool-v2 prefix predicate; raw/report sets match 171/171,
+  all 171 pass structurally (141 successful refs, 30 failed attempts). This is structural only and
+  is not an independent economic audit.
 - `pumpswap-buy-exact-v1-development-qualification-2026-10-10.json`: complete replay of the frozen 62-ref dual-legacy development population, with exact token-account ledger facts; still diagnostic-only and not the sealed audit.
 - `pumpswap-buy-exact-v1-audit-failure-2026-10-10.json`: preserved one-time 13:00Z census failure after all 512 payloads were processed but before report publication; no outcomes accepted and no reuse permitted.
 - `pumpswap-buy-exact-v1-audit-qualification-2026-10-10.json`: fresh disjoint 512-slot Helius Free captured-class census and one-pass replay of all seven successful dual-legacy refs; diagnostic-only, with four censored native settlements and Token-2022 still quarantined.

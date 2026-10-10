@@ -1321,6 +1321,26 @@ no frame attempts yet, and about 73.10 GB free after bootstrap. Its next full fr
 13:05Z scheduled bucket; no manual invocation or request replay is permitted. Receipt:
 [`c4 bootstrap`](evidence/helius-inventory-v3-c4-bootstrap-2026-10-10.json).
 
+The scheduled 13:05Z c4 frame completed from the new frontier over `[455249113,455265709)`. Its
+34/34 request/result journals reconciled (one `getSlot`, one `getBlocks`, 16 signature-only and 16
+full `getBlock` responses), and every response was captured. The provider returned all 16,596
+produced-slot inventory members; all 16 selected full-block/signature identity and ordered-signature
+checks passed. The frame stored 58,434,290 raw and 13,182,819 compressed bytes, with no open
+reservation or campaign STOP. No c3 gap was fetched. This proves only selected-block source
+consistency inside the provider-reported range, not economic or global market completeness. Receipt:
+[`c4 first frame`](evidence/helius-inventory-v3-c4-first-frame-2026-10-10.json).
+
+The frozen buyExact pool-v2 three-tail qualifier was applied once to this first eligible untouched
+c4 frame. Its independent raw-block normalization covered 17,607 transactions in 16 full blocks;
+the exact valid-boolean 25-byte/23-fixed/three-tail candidate set matched the census 171/171 with no
+normalization failures, duplicates, or set differences. All 171 references passed the pinned SDK
+pool-v2/fee-wallet/ATA structural predicate: 141 successful-transaction references and 30 failed
+attempt-only references. No economic settlement, fee movement, historical pool initialization,
+wallet-net result, training eligibility, or market completeness was qualified. Later c4 frames are
+replication only, not independent audit or classifier tuning. Receipts:
+[`c4 buyExact census`](evidence/pumpswap-buy-exact-v1-c4-first-frame-census-2026-10-10.json) and
+[`c4 raw-reconciled pool-v2 qualification`](evidence/pumpswap-buy-exact-v1-c4-first-frame-pool-v2-prefix-raw-reconciled-2026-10-10.json).
+
 The paired finalized-block sensor runs a seeded 64-slot epoch each UTC hour through
 `ai.memecoin.brain.senses.block-epochs`, with raw reservations and receipts under
 `work/brain-senses-live-helius-hourly-20261009/`. Every selected Helius block is checked against its
