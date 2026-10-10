@@ -79,8 +79,10 @@ def parse_logs_message(raw: bytes) -> dict[str, Any]:
     params = message.get("params")
     result = params.get("result") if isinstance(params, dict) else None
     subscription_id = params.get("subscription") if isinstance(params, dict) else None
-    if type(subscription_id) is not int or not 0 <= subscription_id <= MAX_STRUCTURAL_U64:
+    if type(subscription_id) is not int:
         raise ValueError("logs_message_subscription_missing")
+    if not 0 <= subscription_id <= MAX_STRUCTURAL_U64:
+        raise ValueError("logs_message_subscription_out_of_range")
     context = result.get("context") if isinstance(result, dict) else None
     value = result.get("value") if isinstance(result, dict) else None
     if not isinstance(context, dict) or type(context.get("slot")) is not int:

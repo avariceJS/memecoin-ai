@@ -1914,7 +1914,7 @@ using `tools/brain_senses_wss_reference_benchmark.py`.
 This source yields only provider notifications delivered inside recorded connection windows. It
 does not establish complete Pump births, a pool/market census, economic execution, inactivity,
 absence, lifecycle or death. Comparison with selected captured blocks can measure only overlap in
-that selected scope. Focused offline validation: 57 tests, including 300 deterministic generated
+that selected scope. Focused offline validation: 58 tests, including 300 deterministic generated
 deliveries with duplicates, crash-prefix recovery, raw mutation, subscription mismatch, transport
 header preflight, fragmented text messages, ping/pong masking, strict Upgrade and raw ack/error
 binding over fake deadline-aware streams, pre-I/O authorization/disk gates, fresh monotonic origin,

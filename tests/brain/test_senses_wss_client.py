@@ -410,7 +410,7 @@ def test_structural_projection_accepts_signature_and_u64_boundaries():
     [
         (0, "\x01" * (MAX_SIGNATURE_CHARS + 1), 77, "logs_message_signature_oversized"),
         (MAX_STRUCTURAL_U64 + 1, "sig", 77, "logs_message_slot_out_of_range"),
-        (9, "sig", MAX_STRUCTURAL_U64 + 1, "logs_message_subscription_missing"),
+        (9, "sig", MAX_STRUCTURAL_U64 + 1, "logs_message_subscription_out_of_range"),
     ],
 )
 def test_structural_projection_rejects_unbounded_fields(slot, signature, subscription, reason):
@@ -451,6 +451,17 @@ def test_oversized_ack_id_is_preserved_then_stopped(tmp_path):
     assert stop["raw_message_bytes"] == len(ack)
     raw_path = next((campaign.root / "sessions/01/raw").glob("*.bin"))
     assert raw_path.read_bytes() == ack
+    campaign.close()
+
+
+def test_direct_acknowledge_rejects_out_of_range_subscription_id(tmp_path):
+    campaign = make_campaign(tmp_path / "campaign")
+    session = campaign.active
+    session.connection_opened(102)
+    session.request_subscribe(103)
+    with pytest.raises(ValueError, match="invalid_wss_subscription_ack"):
+        session.acknowledge(MAX_STRUCTURAL_U64 + 1, 104)
+    campaign.stop("synthetic_test_end", 105)
     campaign.close()
 
 
