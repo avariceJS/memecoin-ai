@@ -2337,14 +2337,17 @@ def _sealed_timestamp_records(seals: list[dict[str, Any]]) -> list[dict[str, Any
     for seal in seals:
         evidence = seal.get("evidence", {})
         request_outcomes = evidence.get("request_outcomes")
-        if not isinstance(request_outcomes, list) or not request_outcomes:
+        has_request_rows = isinstance(request_outcomes, list) and bool(request_outcomes)
+        if not has_request_rows:
             request_outcomes = [{}]
         for request in request_outcomes:
-            request_started_ns = request.get(
-                "request_started_ns", evidence.get("request_started_ns")
-            )
-            receipt_ns = request.get("receipt_ns", evidence.get("anchor_receipt_ns"))
-            availability_ns = request.get("availability_ns", evidence.get("availability_ns"))
+            request_started_ns = request.get("request_started_ns")
+            receipt_ns = request.get("receipt_ns")
+            availability_ns = request.get("availability_ns")
+            if not has_request_rows:
+                request_started_ns = evidence.get("request_started_ns")
+                receipt_ns = evidence.get("anchor_receipt_ns")
+                availability_ns = evidence.get("availability_ns")
             if seal.get("outcome") == "ambiguous" and request.get("status") == "request_failed":
                 # Failed transport has no response receipt; some epoch adapters record
                 # terminal bookkeeping timestamps under response-time field names.

@@ -777,6 +777,46 @@ def test_status_keeps_ambiguous_request_start_and_unknown_receipt_times(
     assert record["decision_time_ns"] == seal["evidence"]["decision_time_ns"]
 
 
+def test_status_does_not_fill_missing_request_time_from_neighboring_anchor() -> None:
+    records = service._sealed_timestamp_records(
+        [
+            {
+                "reservation_id": "frame-1",
+                "outcome": "complete",
+                "at_ns": 99,
+                "evidence": {
+                    "anchor_receipt_ns": 20,
+                    "availability_ns": 21,
+                    "decision_time_ns": 30,
+                    "request_outcomes": [
+                        {
+                            "sequence": 1,
+                            "phase": "anchor",
+                            "status": "captured",
+                            "slot": 100,
+                            "request_started_ns": 10,
+                            "receipt_ns": 20,
+                            "availability_ns": 21,
+                        },
+                        {
+                            "sequence": 2,
+                            "phase": "inventory",
+                            "status": "captured",
+                        },
+                    ],
+                },
+            }
+        ]
+    )
+
+    assert records[0]["receipt_ns"] == 20
+    assert records[1]["request_started_ns"] is None
+    assert records[1]["receipt_ns"] is None
+    assert records[1]["availability_ns"] is None
+    assert records[1]["receipt_time_state"] == "unknown"
+    assert records[1]["availability_time_state"] == "unknown"
+
+
 def test_external_bootstrap_rejects_drift_in_a_pinned_scheduler_dependency(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
