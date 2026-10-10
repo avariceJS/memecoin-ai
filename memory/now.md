@@ -1,68 +1,70 @@
 # Current Project State
 
-**As of:** 2026-10-10 11:28 UTC. Recheck Git, LaunchAgents and disk before acting.
+**As of:** 2026-10-10 11:44 UTC. Recheck Git, LaunchAgents, time and disk before acting.
 
 ## Boundaries
 
-Continue Senses; do not start Cortex. Do not change production, trade/sign, use protected holdouts,
-push remotes, or make paid upgrades. Keep event, receipt, availability and decision times distinct.
-Never turn unknown, missing, censored, failed, stopped or unsupported into zero. See `AGENTS.md`,
-`docs/INDEX.md`, and the canonical source/evaluation owners.
+Continue Senses only. Do not change production, trade/sign, touch protected holdouts, push remotes,
+make paid upgrades, backfill missed prospective slots, or retry ambiguous requests. Keep event,
+receipt, availability and decision times distinct; unknown, missing, censored, failed, stopped and
+unsupported states are never zero. See `AGENTS.md`, `docs/INDEX.md` and canonical source/evaluation
+owners.
 
 ## Runtime
 
-- Checkout `/Users/root1/Developer/memecoin-research`, branch `research/active`, HEAD
-  `7accfbbc70c91b43a6ad3d5f90358d1e4626fe4b` plus uncommitted activation-state docs/receipt.
-  Production `/Users/root1/Desktop/memecoin-ai` remains untouched. Raw captures stay under ignored
-  `work/`.
-- c3 is permanently terminal after its reserved 11:00Z `getSlot` failed with
-  `TransportSourceError`. Count 205 attempts including the uncertain charge; frontier 455216025 did
-  not move. Six prior complete frames remain valid only in their provider-reported selected-slot
-  scope. Do not retry or backfill. Hash-bound receipt:
+- Research checkout `/Users/root1/Developer/memecoin-research`, branch `research/active`, HEAD
+  `3efef49`. Worktree was clean before the current handoff edit. Production
+  `/Users/root1/Desktop/memecoin-ai` remains untouched. Raw captures are under ignored `work/`.
+- c3 is permanently terminal after its reserved 11:00Z `getSlot` failed; count 205 attempts including
+  the uncertain charge. Frontier remains 455216025. Six prior complete frames are valid only in their
+  captured provider-reported selected-block scope. Never retry/backfill. Hash-bound STOP is in
   `docs/evidence/helius-inventory-v3-c3-abnormal-stop-2026-10-10.json`.
-- Sol authorized one c4 lease: one fresh future finalized `getSlot` bootstrap, then at most 24
-  future hourly frame attempts from that new anchor; 817 requests, 4,000,000,000 raw bytes,
-  1,000,000,000 stored bytes, 20,000 slots/34 requests per frame, 50-GiB floor plus full-frame
-  peak margin. c1/c2/c3 lineage counts are 0/1/205. No successor/renewal. Ambiguous or missed
-  bootstrap/frame buckets stop without retry; no backfill.
-- c4 LaunchAgent `ai.memecoin.brain.senses.helius-inventory-v3-20261010-4` is loaded idle for its
-  12:05Z bootstrap trigger (`20261010T120000Z`); at 11:28Z it had zero runs, reservations, frame
-  attempts or bytes. c3, c2, c1, controller, failed schedulers/watchers and completed fixed samples
-  are persistently disabled. Activation receipt:
-  `docs/evidence/helius-inventory-v3-c4-activation-2026-10-10.json`. Free disk was 73,256,988,672
-  bytes; campaign floor plus peak margin requires 54,361,091,200 bytes.
-- Existing Helius key is authorized without rotation. `.env.local`, Codex and Cursor configs are
-  mode 0600. The latest exact-key scan found zero process-argv matches; c4 plist contains paths only.
-  Earlier targeted saved-history/Git/Unified Log scans and Cursor redactions are recorded in the
-  source architecture/evidence. Helius MCP account transport was unavailable; local collector RPC
-  is independent. No RPC occurred during c4 preparation or activation.
-- Alchemy archive entitlement/coverage and account meter remain unestablished; no archive/paid
-  request was made. Pair64 evidence supports only sampled identity/signature agreement. No provider
-  agreement implies discovery completeness.
+- Sol authorized c4 as one fresh future finalized `getSlot`, then at most 24 future hourly frames;
+  817 total requests, 4 GB raw, 1 GB stored, 20,000 slots/34 requests per frame, 50-GiB floor plus
+  peak margin; lineage c1/c2/c3 = 0/1/205. No successor. Missed/ambiguous bootstrap or frame is
+  terminal, with no replay. c4 LaunchAgent is loaded idle for its 12:05Z bootstrap; at 11:44Z it had
+  zero runs/reservations/frame captures. Never manually trigger it. Check scheduled outcome and gap,
+  then let only future buckets continue under the sealed lease. c4 receipt:
+  `docs/evidence/helius-inventory-v3-c4-activation-2026-10-10.json`.
+- At 11:44Z local disk showed about 73.26 GB free. c4 requires 54.36 GB free including its campaign
+  floor and one-frame peak margin. c1–c3 and failed/legacy Senses services remain persistently
+  disabled; evidence and STOP records remain.
+- Helius credential remains in ignored mode-0600 `.env.local`; no rotation per user authorization.
+  Fresh exact-value scan: one expected checkout match, zero in 5,130 Git objects, zero in 8,786
+  local saved log/config files, zero process command-line matches. The previous credential-bearing
+  process-list output remains in an earlier agent transcript; limits are recorded in
+  `docs/evidence/helius-key-local-exposure-scan-2026-10-10.json`. c4 arguments are paths only; its
+  environment has zstd configuration only.
+- MCP checks: Alchemy `ping` succeeded; official Solana docs catalog responded; Helius MCP account
+  transport previously closed/unavailable. Local collector credentials and RPC path are separate.
+  No RPC request was made for the MCP checks.
 
-## Senses status
+## Senses evidence
 
-- Helius inventory is provider-bounded structural observation, not global market/process coverage.
-  Preserve inventory nonreturns, failed blocks, gaps and unknown intervals separately.
-- PumpSwap sell23 captured-class transfer ledger is qualified; some native settlement is censored.
-  Not wallet-net execution price or admission. `buyExact25` layout-role samples remain structural;
-  Token-2022, CPI/fill/fee settlement and unresolved layouts stay quarantined. See
-  `docs/brain-source-architecture.md` and named receipts.
-- No claims of trading edge, economic completeness or temporal availability from historical
-  backfill. The source architecture already records the long-range scale objective and native
-  coordinate contracts.
+- Frozen sell23 ledger v2 replayed offline on c3 frames 05:00–10:00Z: 96 selected full blocks, 553
+  successful eligible candidates, 68 exact target-account settlements (diagnostic only), 485
+  censored partial settlements, two failed exact-layout refs separately counted. All 3,318 ledger
+  equation checks passed; 97 pools represented, top-two candidate concentration 48/553. No RPC.
+  Receipt: `docs/evidence/pumpswap-sell23-c3-six-frame-ledger-replay-2026-10-10.json`; replay tool:
+  `tools/brain_senses_replay_pumpswap_sell23_c3_six_frames.py`. This does not prove wallet-net price,
+  global completeness, execution quality or admission.
+- `buyExact25` remains structural only. Token-2022 transfer-fee/hook economics and unresolved
+  instruction layouts remain quarantined. See `docs/brain-source-architecture.md` and receipts.
+- Alchemy archive entitlement/coverage and account meter remain unestablished. Pair64 is sampled
+  same-slot comparison only. No provider agreement proves global discovery completeness.
 
 ## Next horizon
 
-1. Keep c4 scheduled autonomously. After the 12:05Z bootstrap, verify its one request/result/receipt,
-   new anchor, explicit uncovered `[455216025, anchor+1)` gap, and no inventory calls before allowing
-   the next hourly frame. Never manually trigger a missed bucket.
-2. Continue independent offline source/recovery/anomaly automation work while the calendar history
-   accumulates. No RPC outside the c4 lease; no reset or c3 replay.
-3. On c4 STOP, reconcile requests/bytes/gaps and runtime teardown, then return the measured evidence
-   to Sol for a sustainable prospective lease decision. No auto-successor.
-4. Continue qualified `buyExact25` evidence only on fresh disjoint samples; do not infer economics
-   from role replication. No Cortex until sensing engineering gates actually move to representation,
-   learning, capacity or compute.
-5. Use `env -u PYTHONPATH .venv/bin/python` from this checkout; system Python previously resolved a
-   production-tree package during a help probe.
+1. At 12:05Z verify exactly one c4 fresh finalized anchor, explicit uncovered interval
+   `[455216025, anchor+1)`, no stale `getBlocks`/`getBlock`, one unique request identity and unchanged
+   c3 STOP/journal. Failure is terminal with no retry. A successful receipt permits only future
+   scheduled c4 frames.
+2. Keep c4 frozen. Read-only monitoring tracks the 16-block checks, 34-request frame cap, bytes/disk,
+   gaps, duplicate identities and post-STOP traffic; no successor from the first frame.
+3. After c4 receipts, ask Sol to decide a separate finite sustainable lease. Current Sol candidate is
+   a measured seven-day lease with no auto-renewal and at most one future-only recovery after full
+   STOP/journal reconciliation; this is not authorization or a change to c4.
+4. Continue offline sensing gates during calendar accumulation. Never use c3 failed 11:00Z epoch or
+   audit samples for tuning. Do not start Cortex.
+5. Run repository Python with `env -u PYTHONPATH .venv/bin/python`; system Python previously resolved
+   a production-tree package during a help probe.
