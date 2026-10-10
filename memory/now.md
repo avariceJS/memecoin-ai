@@ -93,8 +93,9 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
    finite seven-day lease (at most 5,719 all-in requests, measured byte ceilings, 50-GiB floor, no
    auto-renew) is a candidate only if normal closure and resource evidence support it. Continue Senses;
    no Cortex until sensing bottlenecks are actually closed.
-4. Sol accepted two c3 frames for a single offline structural role replication; that gate passed.
-   Do not reopen buyExact economic experiments absent pinned historical-account-state evidence.
+4. Sol's current horizon: no separate engineering task before a new c3 material boundary. Monitor
+   c3 read-only. The two-frame buyExact role replication passed; no economic experiment until pinned
+   historical Token-2022 state and instruction-scoped settlement evidence exist.
 5. Use `.venv/bin/python` from the research checkout for local tools. Interactive system `python`
    resolved a production-tree package during a `--help` probe; it did not affect the LaunchAgent or
    captures. Use `env -u PYTHONPATH .venv/bin/python ...` for reproducible research commands.
