@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 10:07 UTC. Verify Git HEAD, runtime and disk before acting.
+**As of:** 2026-10-10 11:07 UTC. Verify Git HEAD, runtime and disk before acting.
 
 ## Boundaries
 
@@ -14,21 +14,29 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
 - Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; latest
   functional commit `2c1031d` adds an offline frame-2 role replication tool. Production remains
   untouched. About 68 GiB free; raw captures stay under ignored `work/`.
-- Frozen campaign c3 is 6/24 attempts. Frames at 05:00Z through 10:00Z are forward-adjacent:
+- Frozen campaign c3 reached abnormal STOP at attempt 7/24. Six frames at 05:00Z through 10:00Z
+  are forward-adjacent:
   `[455116881,455133322)`, `[455133322,455149828)`, `[455149828,455166372)`,
   `[455166372,455182952)`, `[455182952,455199463)` and `[455199463,455216025)`, widths
   16,441/16,506/16,544/16,580/16,511/16,562. All completed 34/34 requests and 16/16 structural
   checks. Frames 3, 4 and 6 had respectively 4, 4 and 6 numeric positions not returned in provider
   inventory; these remain unknown, not zero. Frame 5 returned all members in its numeric interval.
-  Aggregate: 204 requests, 347,578,354 raw / 78,114,752 stored bytes. Frame 6's journal,
-  raw/compressed captures, summary, STOP and reservation-release hashes reconciled offline. No
-  backfill; inherited gaps remain. The LaunchAgent remains loaded and idle; next expected bucket
-  11:00Z (11:05 trigger). Campaign cap remains 24 attempts / 816 effective requests.
+  Aggregate before failure: 204 successful-frame requests, 347,578,354 raw / 78,114,752 stored
+  bytes. The 11:00Z attempt reserved one `getSlot` anchor and ended `anchor_failed` /
+  `finalized_anchor_unknown` with `TransportSourceError`, no response capture, and zero captured
+  bytes. Charge status is unknown. The frontier did not advance. Campaign status is 7 attempts,
+  205 requests, 6 successful epochs and 1 failed epoch; durable root STOP reason is
+  `epoch_requires_review_before_next_launch`. Frame STOP, summary, reservation and release hashes
+  reconcile. Raw failure evidence is under ignored
+  `work/brain-senses-live-helius-inventory-v3-20261010-3/epochs/20261010T110000Z/`; root STOP SHA-256:
+  `e8666a111d5e9aadd9c12044490e2d0ad4d42b0a204d57fbae0295ba036a9f00`. Do not replay its anchor,
+  backfill the bucket or reset the frontier. The c3 LaunchAgent was unloaded by terminal STOP; no
+  matching Senses/Helius LaunchAgent is loaded. Campaign cap remains 24 attempts / 816 requests.
 - C2 and controller STOPs are immutable. Old public/Helius watchers, c1/c2 and the controller are
   unloaded. Helius watch-v3 keeps its explicit STOP; do not resume it.
-- Runtime recheck at 10:06Z found c3 is the only loaded job matching Senses/Helius collector or
-  watcher names. Its sixth calendar launch completed with exit 0 and returned to idle. Older plist
-  files remain on disk but are not loaded; no duplicate collector process was running. A fresh
+- Runtime recheck at 11:06Z found no loaded Senses/Helius collector or watcher; c3 is unloaded
+  after STOP. Older plist files remain on disk but are not loaded; no duplicate collector process was
+  running. A fresh
   credential scan found zero exact-key matches in the worktree, all local Git objects, 334,396
   saved/runtime file scan passes, current process argv, and Unified Log over 12 hours. The scan's
   unreadable entries were stale pytest `current` symlinks and local Unix sockets. `.env.local`
@@ -93,13 +101,12 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
 
 ## Next horizon
 
-1. Read-only inspect each future c3 tick (next expected trigger 08:05Z): unique frame/request
-   identities, new finalized anchor, forward interval, full inventory accounting, 16/16 body/signature
-   checks, explicit gaps/failures, byte/disk floors, and no repeats. Do not run missed buckets again.
-2. Accept normal campaign closure only after all 24 attempts, immutable reconciled journals/captures/
-   summaries/STOP and budget totals, no ambiguity, agent bootout, and no later RPC. Otherwise stop and
-   create a receipt-specific abnormal recovery decision; never backfill or reset the frontier.
-3. After terminal STOP, send measured latency/byte tails, selected-block yield/concentration, gaps,
+1. Abnormal c3 STOP awaits a receipt-specific Sol recovery decision. Keep c3 unloaded; make no RPC,
+   replay, backfill or frontier reset while it is pending.
+2. Do not treat c3 as normally closed. The anchor request's provider charge state is unknown. Any
+   future prospective service requires a separate versioned decision and policy; preserve existing
+   frame and gap evidence.
+3. After a future authorized terminal STOP, send measured latency/byte tails, selected-block yield/concentration, gaps,
    account-level quota evidence, and free disk to Sol for a separate prospective-service lease. A
    finite seven-day lease (at most 5,719 all-in requests, measured byte ceilings, 50-GiB floor, no
    auto-renew) is a candidate only if normal closure and resource evidence support it. Continue Senses;
