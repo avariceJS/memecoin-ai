@@ -1362,6 +1362,17 @@ pinned with the credential in environment configuration. Provider-side and inacc
 storage are outside this scan. Receipt:
 [`pre-resume Helius-key rescan`](evidence/helius-key-pre-resume-exposure-rescan-2026-10-10.json).
 
+At 14:28Z, after prospective collection resumed, a follow-up scan found zero exact credential or
+endpoint matches in all 5,318 current Git objects, 681 active process command lines, 4,995
+accessible files modified since the previous full scan, and 90,043,541 bytes of new Unified Log
+output. The only expected exact matches remain in the three mode-0600 private configurations.
+Helius MCP is pinned to `helius-mcp@2.2.0` and receives its credential through environment
+configuration; c4 LaunchAgent arguments contain only fixed paths and commands, while the collector
+loads `.env.local` in-process. The c4 LaunchAgent is loaded idle between calendar triggers with two
+complete frames and zero open reservations. Provider-side, remote, backup, and inaccessible service
+storage remain outside the scan. Receipt:
+[`post-resume Helius-key rescan`](evidence/helius-key-post-resume-exposure-rescan-2026-10-10.json).
+
 Campaign 4 was prepared and its calendar LaunchAgent loaded idle at 11:28Z, with the first permitted
 bootstrap at 12:05Z. The activation-time disk check found 73,256,988,672 free bytes against
 54,361,091,200 required for the floor and full-frame peak margin. It had zero runs, reservations,
@@ -1546,8 +1557,9 @@ Helius decode watchers also repeatedly exited `ValueError` and were unloaded aft
 were preserved. They did not produce qualified anomaly coverage; a future decoder monitor must be
 bound to immutable block-epoch captures and emit explicit failures before it is relied on.
 
-Helius watch v3 remains the only scheduled prospective sensor in this set. It is a capped sparse
-program-address reference stream, not block or economic completeness. Its `20261009T180000Z` epoch
+At the 2026-10-09 stop boundary, Helius watch v3 was the only scheduled prospective sensor in this
+older service set. It was a capped sparse program-address reference stream, not block or economic
+completeness. Its `20261009T180000Z` epoch
 reached 1,100 attempts (1,099 captured, one failed) and recorded STOP with pending signatures. Its
 captured response bodies total 23,446,112 raw bytes; the complete epoch root uses 42,216 KiB. The
 measured mean is about 21.3 KB/attempt; the 4,400-request/day schedule projects about 93.8 MB/day in

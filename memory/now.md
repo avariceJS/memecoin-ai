@@ -1,11 +1,12 @@
 # Current Project State
 
-**As of:** 2026-10-10 14:25 UTC. Recheck live runtime and disk before any campaign decision.
+**As of:** 2026-10-10 14:30 UTC. Recheck live runtime and disk before any campaign decision.
 
 ## Boundaries and runtime
 
 - Continue Senses only. Research checkout `/Users/root1/Developer/memecoin-research`, branch
-  `research/active`; current HEAD is `3d84e6c`. Production `/Users/root1/Desktop/memecoin-ai`
+  `research/active`; HEAD before this handoff update was `3bff70d` (see latest commit for this
+  update). Production `/Users/root1/Desktop/memecoin-ai`
   remains untouched. No trading, signing, paid upgrade, protected holdout access, push, backfill,
   or ambiguous-request retry.
 - c3 is permanently terminal after its reserved 11:00Z `getSlot` transport failure (205 attempts,
@@ -17,8 +18,9 @@
   34/34 requests and 16/16 selected block/signature checks over `[455249113,455265709)`, returning
   all 16,596 provider-reported produced slots. The 13:00Z and 14:00Z frames are complete (34/34
   requests and 16/16 structural checks each); the latter used 65,501,052 raw/14,230,705 stored
-  bytes. Two of 24 attempts are complete, STOP is absent, and c4 remains loaded; the next UTC
-  trigger is 15:05Z. Do not manually invoke. Receipts:
+  bytes. Two of 24 attempts are complete, root STOP is absent, and c4 remains loaded idle between
+  calendar triggers (LaunchAgent last exit code 0); the next UTC trigger is 15:05Z. Do not manually
+  invoke. Receipts:
   `docs/evidence/helius-inventory-v3-c4-bootstrap-2026-10-10.json`,
   `docs/evidence/helius-inventory-v3-c4-first-frame-2026-10-10.json`.
 - c4 root: `work/brain-senses-live-helius-inventory-v3-20261010-4/`. Latest observed free space:
@@ -32,6 +34,11 @@
   paths/subcommands; collector reads the endpoint in-process. Historical process-list disclosure
   remains in agent transcript. Provider-side logs and backups were not inspected. Receipt:
   `docs/evidence/helius-key-pre-resume-exposure-rescan-2026-10-10.json`.
+- Post-resume exact rescan at 14:28Z found zero matches in 5,318 Git objects, 681 process command
+  lines, 4,995 files modified since the prior full scan, and 90,043,541 bytes of new Unified Log
+  output. Only the three expected private configs contain the key. MCP uses pinned
+  `helius-mcp@2.2.0` with environment configuration; c4 argv is path-only. Receipt:
+  `docs/evidence/helius-key-post-resume-exposure-rescan-2026-10-10.json`.
 - MCP: Alchemy ping and official Solana docs search worked; Helius documentation transport closed.
   No MCP provider RPC was performed.
 
