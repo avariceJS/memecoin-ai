@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 06:30 Europe/Moscow. Verify Git, runtime and disk before acting.
+**As of:** 2026-10-10 06:35 Europe/Moscow. Verify Git, runtime and disk before acting.
 
 ## Boundaries
 
@@ -11,7 +11,7 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 ## Host and prospective runtime
 
 - Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`, HEAD
-  `211d549` (`Recover Helius campaign after zero-IO setup failure`). Verify current HEAD and worktree.
+  `2dd0f03` (`Qualify PumpSwap buyExact endpoint deltas offline`). Verify current HEAD and worktree.
   Production untouched.
 - About 69 GiB free. The recovered finite Helius controller and campaign-2 LaunchAgents are loaded but idle; campaign 2 has made no RPC yet.
   Previous public/Helius watchers and old schedulers remain stopped; Helius watch-v3 retains its
@@ -48,7 +48,7 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   original 72-hour deadline and all aggregate ceilings, and started campaign 2 in a fresh root. The
   `03:00Z` slot remains uncovered and will never be replayed. Receipt:
   `docs/evidence/helius-inventory-v3-preanchor-recovery-2026-10-10.json` (SHA-256
-  `d5da27cdf1909065bdbfc5a5cd676141170f742dd6e11cfefbbe120f30d23c2f`). At 06:30 MSK both
+  `d5da27cdf1909065bdbfc5a5cd676141170f742dd6e11cfefbbe120f30d23c2f`). At 06:35 MSK both
   controller and campaign-2 LaunchAgents are loaded/idle; campaign 2 has zero runs/requests and its
   first future event is 07:05 MSK / 04:05Z. Do not kickstart or backfill.
 - A separate v3 scheduler implements Sol's per-campaign contract locally: one-frame reservations,
@@ -64,7 +64,8 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   echo or pass a credential in command text or arguments.
 - The Helius MCP package resolved locally and from the registry as 2.2.0; its config is now pinned
   to `helius-mcp@2.2.0` with the child environment unchanged and mode `0600`. Existing MCP processes
-  were already running the cached 2.2.0 package.
+  were already running the cached 2.2.0 package. A read-only account-status call authenticated, but
+  credit usage and plan limits were unavailable without a JWT session.
 - Alchemy research HTTP endpoint/plan limits remain unverified. No paid Account Archive query was
   made. The frozen no-RPC control and its three-read ceiling are in
   `docs/evidence/alchemy-account-archive-mint-control-plan-2026-10-10.json`.
@@ -107,7 +108,7 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   role-unknown. No realized transfer or economic effect is inferred. Receipt:
   `docs/evidence/pumpswap-buy-exact-v1-token2022-transfer-checked-2026-10-10.json`.
 - Fresh Alchemy MCP read-only usage summary: 18,680 CU / $0.01 account-wide month-to-date through
-  02:27Z; no account limit reported. The PAYG endpoint variable is absent from process env and
+  03:34Z; no account limit reported. The PAYG endpoint variable is absent from process env and
   `.env.local`; no archive query or paid request was made.
 - Senses remains incomplete: broad process/market discovery, lifecycle, provider-independent
   completeness and prospective continuity are limited. Preserve unknown/gap/censored/failed/stopped/
