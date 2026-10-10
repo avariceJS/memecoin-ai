@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 04:23 UTC. Recheck Git, LaunchAgents, collector state and disk before acting.
+**As of:** 2026-10-10 04:26 UTC. Recheck Git, LaunchAgents, collector state and disk before acting.
 
 ## Boundaries
 
@@ -11,8 +11,9 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
 
 ## Host and prospective runtime
 
-- Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`, HEAD
-  `c02851e` (`Refresh c3 handoff repository state`). Production remains untouched. About 68.5 GiB
+- Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; the
+  latest functional change is `Add receipt-bound Helius campaign 3 handoff`, followed by state-only
+  memory commits. Verify actual HEAD and clean status. Production remains untouched. About 68.5 GiB
   free; raw captures stay under ignored `work/`.
 - Campaign 3 is a one-use, receipt-bound continuation. Its LaunchAgent is loaded and not running;
   first scheduled trigger is 2026-10-10 05:05Z. It adopts c2 finalized anchor 455116880 only as
