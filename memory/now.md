@@ -1,11 +1,12 @@
 # Current Project State
 
-**As of:** 2026-10-10 13:00 UTC. Verify live Git, LaunchAgents, campaign state and disk before acting.
+**As of:** 2026-10-10 13:18 UTC. Verify live Git, LaunchAgents, campaign state and disk before acting.
 
 ## Boundaries and runtime
 
 - Continue Senses only. Research checkout `/Users/root1/Developer/memecoin-research`, branch
-  `research/active`; latest sensing change is commit `7c9e4bd`. Production
+  `research/active`; latest sensing evidence commit is `f8d68ac` (followed by measured-throughput
+  doc commit `3872d3d`). Production
   `/Users/root1/Desktop/memecoin-ai` remains untouched. No trading,
   signing, paid upgrade, protected holdout access, push, backfill, or ambiguous-request retry.
 - c3 is permanently terminal after its reserved 11:00Z `getSlot` transport failure (205 attempts,
@@ -13,12 +14,18 @@
 - c4 remains a frozen finite lease: one finalized `getSlot` anchor, then at most 24 future hourly
   attempts, no successor/auto-renewal. Its 12:05Z bootstrap recorded anchor 455249112, frontier
   455249113, gap `[455216025,455249113)`, one request (43 raw/56 stored bytes), no `getBlocks` or
-  `getBlock`, zero open reservations; c3 STOP unchanged. LaunchAgent
-  `ai.memecoin.brain.senses.helius-inventory-v3-20261010-4` is loaded, one run/exit 0, next scheduled
-  bucket 13:05Z. Do not manually invoke. Bootstrap receipt:
+  `getBlock`, zero open reservations; c3 STOP unchanged. Its scheduled 13:05Z frame then completed
+  34/34 requests and 16/16 selected block/signature checks over `[455249113,455265709)`, returning
+  all 16,596 provider-reported produced slots. It used 58,434,290 raw/13,182,819 stored bytes in
+  91.38 s. The c4 LaunchAgent is loaded and idle for its next 14:05Z bucket; one of 24 frame attempts
+  is complete, 23 remain, campaign STOP is absent, and failures are zero. Do not manually invoke.
+  Receipts:
   `docs/evidence/helius-inventory-v3-c4-bootstrap-2026-10-10.json`.
+  `docs/evidence/helius-inventory-v3-c4-first-frame-2026-10-10.json`.
 - c4 root: `work/brain-senses-live-helius-inventory-v3-20261010-4/`. Latest observed free space:
-  71,388,340 KiB. Preserve gaps; reconcile each scheduled epoch and stop on lease failure.
+  about 73.06 GB. Preserve gaps; reconcile each scheduled epoch and stop on lease failure. The
+  first-frame one-hour projection is 816 reservations, 1.40 GB raw and 0.316 GB stored per day;
+  credit billing units remain unverified.
 - Helius key stays in ignored mode-0600 `.env.local`; user explicitly authorized continued use without
   rotation. Exact-value scan at 12:30Z found its expected sole private-config occurrence, no matches
   in 5,165 Git objects, 10,308 selected saved text/config/log files, or process command lines. The
@@ -42,19 +49,31 @@
   referenced by a sibling outer instruction at `[1]` and the PumpSwap CPI at `[1,0]`. Sibling
   semantics remain unknown; no economic settlement qualified. Receipt:
   `docs/evidence/pumpswap-buy-exact-v1-c3-frame2-pool-v2-prefix-raw-reconciled-2026-10-10.json`.
+- The frozen predicate was applied once to c4's first eligible untouched frame: raw/report candidate
+  sets match 171/171 across 16 blocks/17,607 transactions; all 171 structural passes comprise 141
+  successful references and 30 failed attempt-only references. Zero settlements qualified. Census:
+  `docs/evidence/pumpswap-buy-exact-v1-c4-first-frame-census-2026-10-10.json`; result:
+  `docs/evidence/pumpswap-buy-exact-v1-c4-first-frame-pool-v2-prefix-raw-reconciled-2026-10-10.json`.
 - Exhaustive focused pytest coverage checks the frozen qualifier's message-header privilege
   partitions through 12 static keys, loaded address boundaries, and fail-closed invalid cases;
   `6 passed`. No Hypothesis dependency was added.
-- Run the frozen classifier once only on the first complete c4 frame whose raw bodies were not
-  examined for this predicate; otherwise label replication. Token-2022 effects, other layouts,
+- Later c4 frames are ordinary frozen-predicate replication only; no tuning or independent audit.
+  Token-2022 effects, other layouts,
   fills, fee movement and native settlement remain quarantined. Pair64 is sampled same-slot evidence,
   not global completeness. Alchemy PAYG endpoint is absent from research `.env.local`.
 
 ## Next decision horizon
 
-1. At/after 13:05Z check the actual scheduled c4 outcome, request journals, frame integrity, bytes,
-   disk, STOP and any traffic after STOP. Do not manually trigger or replay.
-2. Qualify the first c4 frame only under the frozen untouched-frame rule.
-3. Leave c4 on its finite schedule. After terminal evidence, ask Sol to decide whether a new,
-   sustainable prospective lease is justified. Do not install a successor or auto-renewal meanwhile.
-4. Continue independent Senses engineering gates during calendar accumulation; do not start Cortex.
+1. At/after each c4 scheduled bucket inspect actual execution, request journals, frame integrity,
+   bytes, disk, STOP and any traffic after epoch STOP. Do not manually trigger or replay.
+2. Keep later c4 use as ordinary replication; do not tune the frozen classifier on these frames.
+3. Sol approved one bounded offline development diagnostic over the 141 successful c4 first-frame
+   structural references. Freeze that population; retain the 30 failed references as attempt-only.
+   Record exact args/event bytes, ordered token instructions and declared atomic amounts, sibling
+   target-account touches, and endpoint availability. Do not run Token-2022 economics for the 140
+   T22-base references without bank-time extension/withheld state and ordered CPI reconciliation.
+   The single dual-legacy reference can receive conditional diagnostic ledger checks only if every
+   event, token instruction, sibling, endpoint and lifecycle effect is supported; otherwise censor
+   with explicit reasons. No class admission or audit follows. c4 acquisition remains untouched.
+4. After c4 terminal evidence, ask Sol for a separate sustainable prospective lease policy. Do not
+   install a successor or auto-renewal meanwhile. Continue independent Senses gates; do not start Cortex.
