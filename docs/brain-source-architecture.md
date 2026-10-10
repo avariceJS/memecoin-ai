@@ -1004,6 +1004,24 @@ manifest, frontier, epoch plans, summaries, journals and counters:
 This is provider-bounded structural coverage, not global slot or economic-process completeness.
 Alchemy pairing stays disabled until an account-level limit is verifiable.
 
+An offline selector/yield census independently replayed the three complete v2 frames against
+their provider-returned inventories and full/signature captures. All 48 selected block pairs match
+the frozen selection and sealed structural checks. The scoped denominators are 30,269 returned
+produced-slot members and 48 selected blocks; four numeric positions in the first frame were not
+returned by `getBlocks`. The 00:00Z oversized interval remains a distinct 23,699-slot gap. The
+selected blocks contain 5,743 PumpSwap structural instruction references across 2,903 transactions
+(670 references in 553 failed transactions), plus 168 exact legacy sell23 structural candidates
+from 28 candidate pools. Per-frame sell23 counts are 67, 31 and 70. In the first frame, 39/67
+candidates came from two pools; aggregate top-two concentration across the three frames is 39/168.
+Each frame selected blocks in all four numeric interval quarters, with selected event-time spans
+from about 15 to 51 minutes and a 109-second median adjacent sampled-blockTime gap across the
+combined sample. This supports use as a bounded structural sentinel with concentration monitoring;
+it does not establish market representativeness or unselected-block activity. The three frame
+receipts reconcile exactly to 102 requests, 186,022,844 raw bytes and 41,818,057 zstd bytes; the
+other two campaign requests are the initial anchor and oversized-gap anchor (86 raw / 112 stored
+bytes), matching the frozen 104-request campaign closure. Receipt:
+[`Helius v2 selector and yield census`](evidence/helius-inventory-v2-selector-yield-census-2026-10-10.json).
+
 The separately versioned Helius v3 successor contract is bounded to 24 future hourly attempts.
 Each campaign has a unique ID, immutable manifest and terminal STOP, and its own LaunchAgent. A
 separate finite generator has an initial 72-hour lease for at most three daily campaigns (including

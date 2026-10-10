@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 06:35 Europe/Moscow. Verify Git, runtime and disk before acting.
+**As of:** 2026-10-10 06:43 Europe/Moscow. Verify Git, runtime and disk before acting.
 
 ## Boundaries
 
@@ -11,7 +11,7 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 ## Host and prospective runtime
 
 - Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`, HEAD
-  `2dd0f03` (`Qualify PumpSwap buyExact endpoint deltas offline`). Verify current HEAD and worktree.
+  `73e9e19` (`Clarify selector receipt comparison scope`). Verify current HEAD and worktree.
   Production untouched.
 - About 69 GiB free. The recovered finite Helius controller and campaign-2 LaunchAgents are loaded but idle; campaign 2 has made no RPC yet.
   Previous public/Helius watchers and old schedulers remain stopped; Helius watch-v3 retains its
@@ -48,7 +48,7 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   original 72-hour deadline and all aggregate ceilings, and started campaign 2 in a fresh root. The
   `03:00Z` slot remains uncovered and will never be replayed. Receipt:
   `docs/evidence/helius-inventory-v3-preanchor-recovery-2026-10-10.json` (SHA-256
-  `d5da27cdf1909065bdbfc5a5cd676141170f742dd6e11cfefbbe120f30d23c2f`). At 06:35 MSK both
+  `d5da27cdf1909065bdbfc5a5cd676141170f742dd6e11cfefbbe120f30d23c2f`). At 06:42 MSK both
   controller and campaign-2 LaunchAgents are loaded/idle; campaign 2 has zero runs/requests and its
   first future event is 07:05 MSK / 04:05Z. Do not kickstart or backfill.
 - A separate v3 scheduler implements Sol's per-campaign contract locally: one-frame reservations,
@@ -80,6 +80,13 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   prospective frame, all 67 eligible candidates passed six transfer equations; 13 exact and 54
   censored. No wallet-net price/admission. Receipt:
   `docs/evidence/helius-pumpswap-sell23-ledger-v2-inventory-frame-census-2026-10-10.json`.
+- Offline v2 selector/yield census replays all 48 selected full/signature pairs across three
+  completed frames from 30,269 provider-returned inventory members. It records 5,743 structural
+  PumpSwap references, 2,903 unique referencing transactions, 553 failed referencing transactions,
+  and 168 exact legacy sell23 candidates across 28 pools (top two aggregate: 39/168). The first
+  frame is concentrated: 39/67 candidates in two pools. Quarter coverage is present in each frame;
+  representativeness is not established. Three-frame byte/request totals reconcile exactly to the
+  campaign closure. Receipt: `docs/evidence/helius-inventory-v2-selector-yield-census-2026-10-10.json`.
 - PumpSwap buyExact v1 remains economically quarantined: pinned official layout is known, but the
   SDK survey found no exact-quote helper or account-suffix mapping. A new offline endpoint-delta
   census replayed one preidentified isolated ref against its exact captured block and derived
