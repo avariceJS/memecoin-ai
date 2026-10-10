@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 13:18 UTC. Verify live Git, LaunchAgents, campaign state and disk before acting.
+**As of:** 2026-10-10 13:25 UTC. Verify live Git, LaunchAgents, campaign state and disk before acting.
 
 ## Boundaries and runtime
 
@@ -54,6 +54,13 @@
   successful references and 30 failed attempt-only references. Zero settlements qualified. Census:
   `docs/evidence/pumpswap-buy-exact-v1-c4-first-frame-census-2026-10-10.json`; result:
   `docs/evidence/pumpswap-buy-exact-v1-c4-first-frame-pool-v2-prefix-raw-reconciled-2026-10-10.json`.
+- Sol's bounded c4 success trace is complete: 141/141 frozen successful references replayed from 16
+  receipt-hash-verified full blocks. It records event bytes, ordered target-account touches, token
+  operands, and transaction-boundary endpoints/deltas. 140 Token-2022 economics remain prohibited;
+  the one dual-legacy ledger gate stayed closed. Receipt:
+  `docs/evidence/pumpswap-buy-exact-v1-c4-success-trace-2026-10-10.json.zst` (5,431,224 raw JSON /
+  209,052 compressed bytes). Focused tests 4 passed and Ruff passed. `make check` currently fails on
+  43 pre-existing Ruff E501 findings in existing qualifier tools; new files were clean.
 - Exhaustive focused pytest coverage checks the frozen qualifier's message-header privilege
   partitions through 12 static keys, loaded address boundaries, and fail-closed invalid cases;
   `6 passed`. No Hypothesis dependency was added.
@@ -67,13 +74,8 @@
 1. At/after each c4 scheduled bucket inspect actual execution, request journals, frame integrity,
    bytes, disk, STOP and any traffic after epoch STOP. Do not manually trigger or replay.
 2. Keep later c4 use as ordinary replication; do not tune the frozen classifier on these frames.
-3. Sol approved one bounded offline development diagnostic over the 141 successful c4 first-frame
-   structural references. Freeze that population; retain the 30 failed references as attempt-only.
-   Record exact args/event bytes, ordered token instructions and declared atomic amounts, sibling
-   target-account touches, and endpoint availability. Do not run Token-2022 economics for the 140
-   T22-base references without bank-time extension/withheld state and ordered CPI reconciliation.
-   The single dual-legacy reference can receive conditional diagnostic ledger checks only if every
-   event, token instruction, sibling, endpoint and lifecycle effect is supported; otherwise censor
-   with explicit reasons. No class admission or audit follows. c4 acquisition remains untouched.
+3. Keep c4 on its loaded calendar schedule; next bucket is 14:05Z. Do not manually invoke, backfill,
+   or retry. Preserve c4's finite lease and inspect the actual launchd/journal/capture/STOP state
+   after each scheduled frame.
 4. After c4 terminal evidence, ask Sol for a separate sustainable prospective lease policy. Do not
    install a successor or auto-renewal meanwhile. Continue independent Senses gates; do not start Cortex.

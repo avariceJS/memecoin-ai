@@ -329,6 +329,11 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   untouched c4 application of the frozen pool-v2 prefix predicate; raw/report sets match 171/171,
   all 171 pass structurally (141 successful refs, 30 failed attempts). This is structural only and
   is not an independent economic audit.
+- `pumpswap-buy-exact-v1-c4-success-trace-2026-10-10.json.zst`: hash-bound offline trace of the
+  141 frozen c4 successful references; includes raw Pump event bytes, ordered instructions touching
+  target roles, declared token operands, and transaction endpoint availability/deltas. The 140
+  Token-2022-base rows receive no economic equations; the single dual-legacy row's conditional
+  ledger gate remains closed. Endpoint deltas are transaction-scoped and unattributed.
 - `pumpswap-buy-exact-v1-development-qualification-2026-10-10.json`: complete replay of the frozen 62-ref dual-legacy development population, with exact token-account ledger facts; still diagnostic-only and not the sealed audit.
 - `pumpswap-buy-exact-v1-audit-failure-2026-10-10.json`: preserved one-time 13:00Z census failure after all 512 payloads were processed but before report publication; no outcomes accepted and no reuse permitted.
 - `pumpswap-buy-exact-v1-audit-qualification-2026-10-10.json`: fresh disjoint 512-slot Helius Free captured-class census and one-pass replay of all seven successful dual-legacy refs; diagnostic-only, with four censored native settlements and Token-2022 still quarantined.

@@ -1346,6 +1346,22 @@ replication only, not independent audit or classifier tuning. Receipts:
 [`c4 buyExact census`](evidence/pumpswap-buy-exact-v1-c4-first-frame-census-2026-10-10.json) and
 [`c4 raw-reconciled pool-v2 qualification`](evidence/pumpswap-buy-exact-v1-c4-first-frame-pool-v2-prefix-raw-reconciled-2026-10-10.json).
 
+Sol authorized one frozen offline development trace over those 141 successful c4 references. It
+revalidated all 16 raw full-block captures against their receipt hashes, then recorded each
+candidate's exact instruction bytes/arguments, every transaction instruction touching its 26
+supplied account roles, ordered token/system account operands, Pump event bytes/path, and transaction
+endpoint availability. The 140 Token-2022-base/legacy-quote rows remain without bank-time extension
+or withheld state; no fee, conservation, or event-to-transfer equations ran. The single dual-legacy
+row has an exact role-matching descendant BuyEvent but remains censored by outside-subtree touches,
+unsupported target-touching programs, and incomplete token endpoints, so its conditional ledger gate
+also stayed closed. Across 3,665 unique target-account endpoints, all had pre/post lamport values;
+841 had compatible pre/post token rows and transaction-boundary deltas, while 2,824 were missing
+token rows and remain unknown. These are whole-transaction endpoint facts, never candidate-buy
+settlement. The artifact preserves 2,334 ordered target-touching instructions and 138 exact
+role-matching descendant BuyEvents; three references have no such event. It admits no class,
+wallet-net price, fee schedule, training, or execution claim. Receipt:
+[`c4 successful-reference trace`](evidence/pumpswap-buy-exact-v1-c4-success-trace-2026-10-10.json.zst).
+
 The paired finalized-block sensor runs a seeded 64-slot epoch each UTC hour through
 `ai.memecoin.brain.senses.block-epochs`, with raw reservations and receipts under
 `work/brain-senses-live-helius-hourly-20261009/`. Every selected Helius block is checked against its
