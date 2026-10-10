@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 06:18 Europe/Moscow. Verify Git, runtime and disk before acting.
+**As of:** 2026-10-10 06:30 Europe/Moscow. Verify Git, runtime and disk before acting.
 
 ## Boundaries
 
@@ -10,8 +10,8 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 
 ## Host and prospective runtime
 
-- Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; offline
-  Token-2022 privilege classifier source is committed as `e854c90`. Verify current HEAD and worktree.
+- Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`, HEAD
+  `211d549` (`Recover Helius campaign after zero-IO setup failure`). Verify current HEAD and worktree.
   Production untouched.
 - About 69 GiB free. The recovered finite Helius controller and campaign-2 LaunchAgents are loaded but idle; campaign 2 has made no RPC yet.
   Previous public/Helius watchers and old schedulers remain stopped; Helius watch-v3 retains its
@@ -48,7 +48,7 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   original 72-hour deadline and all aggregate ceilings, and started campaign 2 in a fresh root. The
   `03:00Z` slot remains uncovered and will never be replayed. Receipt:
   `docs/evidence/helius-inventory-v3-preanchor-recovery-2026-10-10.json` (SHA-256
-  `d5da27cdf1909065bdbfc5a5cd676141170f742dd6e11cfefbbe120f30d23c2f`). At 06:18 MSK both
+  `d5da27cdf1909065bdbfc5a5cd676141170f742dd6e11cfefbbe120f30d23c2f`). At 06:30 MSK both
   controller and campaign-2 LaunchAgents are loaded/idle; campaign 2 has zero runs/requests and its
   first future event is 07:05 MSK / 04:05Z. Do not kickstart or backfill.
 - A separate v3 scheduler implements Sol's per-campaign contract locally: one-frame reservations,
@@ -56,11 +56,12 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   releases, split frontiers, fail-closed recovery and read-only status. Controller and related focused
   suites pass 54 tests; targeted Ruff passes. Differential review is under ignored `work/review/`.
 - Owner authorized the current Helius key. It remains in `.env.local` and Codex MCP environment
-  configuration, both mode `0600`; collector CLI has no endpoint argument. Credential incident
-  status: the exact credential appeared in 20 zsh history files; affected entries were scrubbed
-  atomically, and scans found no reachable Git/object or current argv match. Local Codex/SQLite
-  history was also redacted. macOS Unified Log query timed out; remote logs and snapshots are outside
-  this checkout's control. Never echo or pass a credential in command text or arguments.
+  configuration, both mode `0600`; LaunchAgents pass only paths and the collector reads the endpoint
+  in-process. After the prior atomic scrub of 20 zsh history files, a fresh exact endpoint-query scan
+  found no match across the repository, user histories, `Library/Logs`, Codex support files, 4,839
+  reachable/unreachable Git objects, or 24-hour Unified Log output (3.66 GB). `ps` arguments also
+  had no match; `.env.local` remains `0600`. Remote logs/snapshots are outside this checkout. Never
+  echo or pass a credential in command text or arguments.
 - The Helius MCP package resolved locally and from the registry as 2.2.0; its config is now pinned
   to `helius-mcp@2.2.0` with the child environment unchanged and mode `0600`. Existing MCP processes
   were already running the cached 2.2.0 package.
@@ -78,9 +79,14 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   prospective frame, all 67 eligible candidates passed six transfer equations; 13 exact and 54
   censored. No wallet-net price/admission. Receipt:
   `docs/evidence/helius-pumpswap-sell23-ledger-v2-inventory-frame-census-2026-10-10.json`.
-- PumpSwap buyExact v1 remains quarantined: pinned official instruction layout is known, but the SDK
-  source survey found no exact-quote builder helper or evidence mapping captured account suffixes to
-  builder variants. Token-2022 mint/account state and historical intermediate state remain unknown.
+- PumpSwap buyExact v1 remains economically quarantined: pinned official layout is known, but the
+  SDK survey found no exact-quote helper or account-suffix mapping. A new offline endpoint-delta
+  census replayed one preidentified isolated ref against its exact captured block and derived
+  provider-reported account deltas for all 1,234 frozen development refs. All seven endpoint rows
+  are present in 52 refs; 1,182 are partial, and 1,233 have sibling touches that censor buy-subtree
+  attribution. The one isolated ref is only a delta feasibility candidate. No CPI settlement, fee,
+  withheld amount, wallet price, or economic admission is qualified. Receipt:
+  `docs/evidence/pumpswap-buy-exact-v1-token2022-endpoint-delta-census-2026-10-10.json.zst`.
 - The source-bound offline Token-2022 privilege census reconciled all 1,234 dev refs across 298
   captured full blocks / 384,459 transactions with zero network requests. Same-slot quote-mint
   privilege partitions are 1,146 readonly-or-absent with no unclassified target touch, 67 with an
@@ -109,17 +115,17 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 
 ## Next horizon
 
-1. Check campaign 2 after its scheduled event at 07:05 MSK / 04:05Z. Do not kickstart, backfill
-   missed prospective slots, or duplicate requests. Confirm request journal, capture accounting,
-   STOP/continuation state, and controller checkpoint before drawing any qualification claim.
+1. Check campaign 2 after its scheduled event at 07:05 MSK / 04:05Z. Expect the frozen missed-gap
+   path: one anchor request, no inventory/body, then terminal STOP. Confirm exact journal, time,
+   gap, STOP and controller checkpoint. Do not kickstart or backfill.
 2. Keep the 67 unknown-program refs, 11 writable-potential refs, and 10 with both reasons separately
    quarantined. All 1,146 still have unavailable historical extension state and unqualified
    economics; structural instruction labels do not change admission.
-3. After the active finite campaign reaches a normal STOP, revisit the sustainable prospective
-   collection design with Sol before its lease expires. Do not assume this 72-hour lease is an
-   indefinite collector; retain no-replay semantics and gaps. Alchemy Account Archive remains
-   unexecutable from this checkout: no PAYG endpoint and no account limit/entitlement verified. Do
-   not make paid calls. Continue Senses work; no Cortex.
+3. If the campaign-2 receipt exactly proves the expected anchor-only gap STOP, use Sol's separate,
+   one-use future-only campaign-3 continuation under the unchanged lease/caps. Then qualify its
+   first complete frame and 24-attempt STOP before considering a separate longer lease. Alchemy
+   Account Archive remains unexecutable here: no PAYG endpoint or account entitlement is verified;
+   no paid query. Continue Senses; no Cortex.
 
 ## Next service decision (Sol, 2026-10-10)
 
@@ -136,12 +142,13 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   gap. Any discrepancy, duplicate tick, second gap, uncertain request or repeated setup failure
   halts. The next full qualification boundary is campaign 3's first complete frame and 24-attempt
   STOP; the current three-ID lease cannot renew automatically.
-- Prepare any longer-lived service as a separately versioned controller/policy. Candidate horizon:
+- Only after campaign 3's full 24-attempt run may a longer-lived service be considered as a separately
+  versioned controller/policy. Candidate horizon:
   finite 7-day lease, up to seven daily campaigns and 5,719 all-in requests, no auto-renewal. Size
   total byte caps from measured frame tails and free disk at activation, preserving the 50 GiB floor
   and full-frame peak-write margin; shorten if capacity is insufficient.
-- During campaign 2, gather consecutive frame start/completion times, unique request/journal counts,
-  inventory and 16/16 selected-block checks, explicit gaps/errors, raw/zstd bytes and latency, disk
-  peak/free space, selector/pool concentration, and the STOP plus predecessor-bound campaign-3
-  handoff. Reconcile journal counts and actual retained file sizes at the daily boundary. Failures
-  halt; recovery reconciles local evidence only and never reissues an RPC.
+- During campaign 2, verify the launchd PATH/zstd fix, credential-file access, unique anchor request,
+  receipt/availability time, exact gap and normal terminal teardown. During campaign 3, measure
+  consecutive frame times, request IDs, inventory and 16/16 checks, gaps/errors, raw/zstd bytes and
+  latency, disk headroom, selector/pool concentration and STOP. Reconcile journals to retained file
+  sizes. Failures halt; recovery reconciles local evidence only and never reissues an RPC.

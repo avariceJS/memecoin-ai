@@ -354,6 +354,22 @@ attribution. No amount is treated as realized transfer, balance delta, fee settl
 economics. Receipt:
 [`Token-2022 TransferChecked structural replay`](evidence/pumpswap-buy-exact-v1-token2022-transfer-checked-2026-10-10.json).
 
+A bounded offline endpoint-delta census replayed the preidentified no-sibling development
+reference against its exact captured Helius full-block response; the raw transaction replay
+matched its prior source-bound census row by canonical JSON comparison. All seven target token
+accounts had matching provider-reported transaction-boundary amount rows, and the ordered target
+trace contained only the pinned PumpSwap root plus legacy `TransferChecked` and Token-2022
+`TransferChecked` instructions. This is one isolated subtree-delta feasibility candidate. Across
+the frozen 1,234-reference development population, all seven target accounts had both compatible
+endpoint rows in 52 refs; 1,182 refs were partial. The receipt records 7,452 signed per-account
+transaction-endpoint deltas and 1,186 unknown account endpoints. A reported zero delta means equal
+provider-reported boundary amounts, not no activity. The other 1,233 refs have an outside-subtree
+target-account touch and remain censored for buy-subtree attribution, even where their whole-
+transaction account deltas are present. Missing rows remain unknown. No CPI settlement, gross
+transfer, withheld fee, wallet-net price, historical extension state, or economic admission is
+qualified. Receipt:
+[`Token-2022 transaction endpoint delta feasibility census`](evidence/pumpswap-buy-exact-v1-token2022-endpoint-delta-census-2026-10-10.json.zst).
+
 Provider-capability survey update (2026-10-10): Alchemy's current [Solana Account Archive
 documentation](https://www.alchemy.com/docs/solana/account-archive) describes paid-plan historical
 `getAccountInfo` reads (`slot`, `lastUpdateBeforeSlot`, `firstUpdateAfterSlot`), with `slot: S`
