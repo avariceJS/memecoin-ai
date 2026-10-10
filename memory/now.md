@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 22:30 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-10 22:32 UTC. Verify live runtime before any campaign or service decision.
 
 ## Boundaries and runtime
 
@@ -11,7 +11,7 @@
   c4 remains the unchanged finite calendar lease (one bootstrap plus at most 24 hourly frames).
   Read-only status at 22:28Z: 10/24 frames complete, 340 frame requests plus one bootstrap (341
   all-in), 706,277,979 raw / 161,843,979 stored bytes, zero failed or gapped epochs, zero open
-  reservations, 14 attempts remaining, frontier 455413633, and 59,763,625,984 free bytes. Exact c4
+  reservations, 14 attempts remaining, frontier 455413633, and 59,583,811,584 free bytes. Exact c4
   LaunchAgent remains loaded and idle between calendar ticks, with fixed path-only arguments; its
   22:00Z frame completed naturally. Old watcher/decode and predecessor-campaign LaunchAgents are
   disabled and unloaded. No manual tick. The ten-frame method accounting is 11 `getSlot`, 10
