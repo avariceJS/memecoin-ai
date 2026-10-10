@@ -862,7 +862,8 @@ anchor (43 raw / 56 zstd bytes) was 23,699 slots beyond the persisted frontier, 
 inventory or block-body requests and no retries. The numeric interval is an explicit unknown gap,
 not a backfill, empty inventory or economic zero. Its terminal journal and request hashes are bound
 by the [oversized-frame gap receipt](evidence/helius-inventory-v2-oversized-gap-2026-10-10.json).
-The next two actual hourly buckets remain the bounded continuation; do not replay this bucket.
+At the 01:00Z handoff, only the actual 02:00Z bucket remained authorized; run it once and review
+the frozen campaign. Do not replay this bucket.
 
 The inventory-first CLI accepts no endpoint argument. The running collector obtains the RPC endpoint
 from the protected local `.env.local` file or process environment; plans and request receipts retain
@@ -909,8 +910,8 @@ begin a partial frame because the scheduler does not preflight all 34 request sl
 that frame's anchor. Do not install a LaunchAgent against this schedule. The first frame used
 71,939,096 raw bytes and 15,335,264 zstd bytes; one frame does not establish sustained size or
 latency tails. Generic Helius method credit prices are known, but the connected key's active plan
-and remaining balance are not available through the MCP account tools. After the first frame, two
-more future hourly frames are to be run manually under the unchanged manifest; then the finite
+and remaining balance are not available through the MCP account tools. At the 01:00Z handoff, the
+final actual 02:00Z bucket remained to be run once under the unchanged manifest; then the finite
 campaign will be stopped and reviewed. Any successor needs a new schedule version, an all-in
 quota/request/byte budget, and a full-frame request preflight before I/O. Invoke with the research
 `src/` import path explicitly (or the research
@@ -931,8 +932,15 @@ peak-write margin. Unused capacity is released only after request journals, capt
 file sizes reconcile. A missed hour records a gap and permits an anchor-only observation; it never
 fetches slots from the missed prospective interval. The observed finalized anchor/frontier and the
 last inventoried interval remain separate facts. Any ambiguous request or integrity discrepancy
-stops the finite campaign. The v3 scheduler implementation is under local qualification and is not
-enabled as a LaunchAgent yet.
+stops the finite campaign. A durable campaign STOP includes counters and the observed/inventoried
+frontier. The hourly LaunchAgent wrapper checks STOP before scheduler or credential access, runs the
+scheduler in-process, and requests `launchctl bootout` only after STOP is durable. If bootout fails,
+the next calendar invocation is a STOP-only zero-RPC teardown retry; `KeepAlive` is disabled and
+the schedule never renews itself. A fsynced invocation marker makes an unclean process exit
+detectable: the next invocation validates already captured journals locally, never repeats an
+ambiguous request, seals STOP, and unloads. Scheduler, wrapper, crash-boundary tests and differential
+review are qualified locally; real LaunchAgent installation and recovery remain pending the final
+v2 frame review.
 
 The prior public and Helius program-address watches stopped on failed requests and remain immutable.
 Neither cursor is resumed. Helius watch v2 made a fresh head query and attempted 1,000 signature

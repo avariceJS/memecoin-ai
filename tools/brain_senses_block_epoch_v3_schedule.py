@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import fcntl
 import hashlib
+import os
 import shutil
 import sys
 import time
@@ -47,6 +48,7 @@ SELECTION_COUNT = 16
 INTERVAL_HOURS = 1
 CODE_BINDINGS = (
     "tools/brain_senses_block_epoch_v3_schedule.py",
+    "tools/brain_senses_block_epoch_v3_launch.py",
     "tools/brain_senses_block_epoch_v2.py",
     "tools/brain_senses_block_provider_pilot.py",
     "tools/brain_senses_program_watch.py",
@@ -276,6 +278,106 @@ def _record_release(epoch: Path, reservation: dict[str, Any], summary: dict[str,
     _create(path, release)
 
 
+def _seal_stop(root: Path, reason: str, **details: Any) -> dict[str, Any]:
+    """Durably record terminal state and a bounded snapshot before service teardown."""
+    stop_path = root / "STOP"
+    if stop_path.exists():
+        return _read(stop_path)
+    frontier_path = root / "frontier-v3.json"
+    try:
+        frontier = _read(frontier_path) if frontier_path.is_file() else {}
+        usage = _usage_v3(root / "epochs")
+        accounting_error = None
+    except Exception as exc:
+        frontier = {}
+        usage = {"requests": 0, "raw_bytes": 0, "stored_bytes": 0}
+        accounting_error = type(exc).__name__
+    active_path = root / "active-frame-reservation.json"
+    try:
+        active = _read(active_path) if active_path.is_file() else None
+    except Exception as exc:
+        active = None
+        accounting_error = accounting_error or type(exc).__name__
+    bucket = active.get("bucket") if active else frontier.get("last_attempt_bucket")
+    if not isinstance(bucket, str):
+        bucket = None
+    epoch = root / "epochs" / bucket if bucket else None
+    request_started = bool(epoch and list((epoch / "requests").glob("*.json")))
+    record = {
+        "schema_version": SCHEMA_VERSION,
+        "campaign_id": "helius-inventory-v3-hourly-20261010",
+        "reason": reason,
+        "time_ns": time.time_ns(),
+        "attempt_count": frontier.get("attempt_count", 0),
+        "requests": usage["requests"],
+        "raw_bytes": usage["raw_bytes"],
+        "stored_bytes": usage["stored_bytes"],
+        "observed_anchor_slot": frontier.get("observed_anchor_slot"),
+        "observed_frontier": frontier.get("observed_frontier"),
+        "last_inventoried_interval": frontier.get("last_inventoried_interval"),
+        "active_bucket": active.get("bucket") if active else None,
+        "active_reservation_status": active.get("status") if active else None,
+        "request_started": request_started,
+        "epoch_created": bool(epoch and epoch.exists()),
+        "accounting_error_class": accounting_error,
+        **details,
+    }
+    _create(stop_path, record)
+    return record
+
+
+def _offline_reconcile_interrupted(root: Path) -> dict[str, Any]:
+    """Reconcile only already sealed local artifacts after a process death; never call RPC."""
+    frontier_path = root / "frontier-v3.json"
+    active_path = root / "active-frame-reservation.json"
+    if not active_path.is_file() or not frontier_path.is_file():
+        return {"local_reconciliation": "no_active_frame"}
+    active = _read(active_path)
+    if active.get("status") not in {"active", "reconciled"}:
+        return {"local_reconciliation": "unknown_reservation_status"}
+    epoch = root / "epochs" / str(active.get("bucket"))
+    plan_path = epoch / "epoch-plan.json"
+    if not plan_path.is_file():
+        return {"local_reconciliation": "missing_epoch_plan"}
+    plan = _read(plan_path)
+    try:
+        rows = _validate_journal(epoch, plan)
+        summary_path = epoch / "epoch-summary.json"
+        if not summary_path.is_file():
+            return {
+                "local_reconciliation": "journal_valid_but_epoch_unsealed",
+                "journal_rows": len(rows),
+            }
+        reservation = _read(epoch / "frame-reservation.json")
+        summary = _reconcile_epoch(epoch, plan, reservation)
+        if active.get("status") == "active":
+            _record_release(epoch, reservation, summary)
+            active.update(
+                {
+                    "status": "reconciled",
+                    "actual_requests": summary["request_reservations"],
+                    "actual_raw_bytes": summary["captured_response_bytes"],
+                    "actual_stored_bytes": summary["stored_response_bytes"],
+                    "released_ns": time.time_ns(),
+                }
+            )
+            _replace(active_path, active)
+        frontier = _read(frontier_path)
+        if frontier.get("last_attempt_bucket") != active.get("bucket"):
+            frontier = _advance(frontier, str(active["bucket"]), epoch, summary)
+            _replace(frontier_path, frontier)
+        return {
+            "local_reconciliation": "sealed_epoch_reconciled",
+            "epoch_status": summary.get("status"),
+            "journal_rows": len(rows),
+        }
+    except Exception as exc:
+        return {
+            "local_reconciliation": "failed_closed",
+            "error_class": type(exc).__name__,
+        }
+
+
 def _run_bucket_locked(
     root: Path,
     *,
@@ -284,27 +386,20 @@ def _run_bucket_locked(
     clients: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    stop_path = root / "STOP"
+    if stop_path.exists():
+        return {"status": "campaign_stopped", **_read(stop_path)}
     lineage = _read(lineage_path)
     if lineage.get("schema_version") != 1 or lineage.get("provider") != PROVIDER:
         raise ValueError("predecessor_lineage_invalid")
     manifest = initialize(root, lineage_path)
     frontier_path = root / "frontier-v3.json"
     frontier = _frontier(root, lineage)
-    stop_path = root / "STOP"
-    if stop_path.exists():
-        return {"status": "campaign_stopped", **_read(stop_path)}
     if frontier.get("last_terminal_status") not in (None, "frame_complete", "bootstrap_complete"):
-        _create(
-            stop_path,
-            {
-                "schema_version": SCHEMA_VERSION,
-                "reason": "prior_epoch_requires_review_before_new_anchor",
-                "epoch_status": frontier.get("last_terminal_status"),
-                "bucket": frontier.get("last_attempt_bucket"),
-                "request_started": False,
-                "epoch_created": False,
-                "time_ns": time.time_ns(),
-            },
+        _seal_stop(
+            root,
+            "prior_epoch_requires_review_before_new_anchor",
+            epoch_status=frontier.get("last_terminal_status"),
         )
         return {
             "status": "campaign_stopped",
@@ -323,99 +418,54 @@ def _run_bucket_locked(
         "active",
         "reconciled",
     }:
-        _create(
-            stop_path,
-            {
-                "schema_version": SCHEMA_VERSION,
-                "reason": "active_frame_reservation_status_unknown",
-                "request_started": False,
-                "epoch_created": False,
-                "time_ns": time.time_ns(),
-            },
-        )
+        _seal_stop(root, "active_frame_reservation_status_unknown")
         return {"status": "campaign_stopped", "reason": "active_frame_reservation_status_unknown"}
 
     if active_path.exists() and _read(active_path).get("status") == "active":
         active = _read(active_path)
-        if active.get("bucket") != bucket:
-            _create(
-                stop_path,
-                {
-                    "schema_version": SCHEMA_VERSION,
-                    "reason": "unreconciled_active_frame_from_prior_bucket",
-                    "active_bucket": active.get("bucket"),
-                    "bucket": bucket,
-                    "time_ns": time.time_ns(),
-                },
-            )
-            return {
-                "status": "campaign_stopped",
-                "reason": "unreconciled_active_frame_from_prior_bucket",
-            }
-        plan = _read(epoch / "epoch-plan.json")
+        active_epoch = epochs / str(active.get("bucket"))
+        plan_path = active_epoch / "epoch-plan.json"
         try:
-            summary = run_epoch(epoch, plan, clients=clients)
-            if not _terminal_health(summary):
-                if not stop_path.exists():
-                    _create(
-                        stop_path,
-                        {
-                            "schema_version": SCHEMA_VERSION,
-                            "reason": "recovered_epoch_requires_review",
-                            "epoch_status": summary.get("status"),
-                            "bucket": bucket,
-                            "time_ns": time.time_ns(),
-                        },
-                    )
-                return {
-                    "status": "campaign_stopped",
-                    "reason": "recovered_epoch_requires_review",
-                    "epoch": summary,
+            plan = _read(plan_path)
+            summary_path = active_epoch / "epoch-summary.json"
+            if not summary_path.is_file():
+                # The process died with an outstanding envelope. Do not replay, even if
+                # local files suggest that the request may not have reached the provider.
+                record = _seal_stop(
+                    root,
+                    "process_interrupted_with_active_reservation",
+                    recovered_without_rpc=True,
+                )
+                return {"status": "campaign_stopped", **record}
+            summary = _reconcile_epoch(active_epoch, plan, active)
+            _record_release(active_epoch, active, summary)
+            active.update(
+                {
+                    "status": "reconciled",
+                    "actual_requests": summary["request_reservations"],
+                    "actual_raw_bytes": summary["captured_response_bytes"],
+                    "actual_stored_bytes": summary["stored_response_bytes"],
+                    "released_ns": time.time_ns(),
                 }
-            summary = _reconcile_epoch(epoch, plan, active)
+            )
+            _replace(active_path, active)
+            frontier = _advance(frontier, str(active["bucket"]), active_epoch, summary)
+            _replace(frontier_path, frontier)
+            record = _seal_stop(
+                root,
+                "process_interrupted_after_epoch_sealed",
+                recovered_without_rpc=True,
+                epoch_status=summary.get("status"),
+            )
+            return {"status": "campaign_stopped", **record}
         except Exception as exc:
-            _create(
-                stop_path,
-                {
-                    "schema_version": SCHEMA_VERSION,
-                    "reason": "active_frame_recovery_failed_closed",
-                    "error_class": type(exc).__name__,
-                    "bucket": bucket,
-                    "time_ns": time.time_ns(),
-                },
+            record = _seal_stop(
+                root,
+                "active_frame_recovery_failed_closed",
+                error_class=type(exc).__name__,
+                recovered_without_rpc=True,
             )
-            raise
-        if not _terminal_health(summary):
-            _create(
-                stop_path,
-                {
-                    "schema_version": SCHEMA_VERSION,
-                    "reason": "recovered_epoch_requires_review",
-                    "epoch_status": summary.get("status"),
-                    "bucket": bucket,
-                    "time_ns": time.time_ns(),
-                },
-            )
-            return {
-                "status": "campaign_stopped",
-                "reason": "recovered_epoch_requires_review",
-                "epoch": summary,
-            }
-        _record_release(epoch, active, summary)
-        active["status"] = "reconciled"
-        active["actual_requests"] = summary["request_reservations"]
-        active["actual_raw_bytes"] = summary["captured_response_bytes"]
-        active["actual_stored_bytes"] = summary["stored_response_bytes"]
-        active["released_ns"] = time.time_ns()
-        _replace(active_path, active)
-        frontier = _advance(frontier, bucket, epoch, summary)
-        _replace(frontier_path, frontier)
-        return {
-            "status": "epoch_recovered",
-            "bucket": bucket,
-            "epoch": summary,
-            "frontier": frontier,
-        }
+            return {"status": "campaign_stopped", **record}
 
     # A crash after durable release but before the frontier update is reconciled without RPC.
     if active_path.exists():
@@ -431,15 +481,10 @@ def _run_bucket_locked(
             frontier = _advance(frontier, released_bucket, released_epoch, released_summary)
             _replace(frontier_path, frontier)
             if not _terminal_health(released_summary):
-                _create(
-                    stop_path,
-                    {
-                        "schema_version": SCHEMA_VERSION,
-                        "reason": "recovered_epoch_requires_review",
-                        "epoch_status": released_summary.get("status"),
-                        "bucket": released_bucket,
-                        "time_ns": time.time_ns(),
-                    },
+                _seal_stop(
+                    root,
+                    "recovered_epoch_requires_review",
+                    epoch_status=released_summary.get("status"),
                 )
                 return {
                     "status": "campaign_stopped",
@@ -448,17 +493,11 @@ def _run_bucket_locked(
                 }
 
     if len(_attempts(epochs)) != int(frontier.get("attempt_count", -1)):
-        _create(
-            stop_path,
-            {
-                "schema_version": SCHEMA_VERSION,
-                "reason": "attempt_directory_frontier_mismatch",
-                "attempt_directories": len(_attempts(epochs)),
-                "frontier_attempt_count": frontier.get("attempt_count"),
-                "request_started": False,
-                "epoch_created": False,
-                "time_ns": time.time_ns(),
-            },
+        _seal_stop(
+            root,
+            "attempt_directory_frontier_mismatch",
+            attempt_directories=len(_attempts(epochs)),
+            frontier_attempt_count=frontier.get("attempt_count"),
         )
         return {"status": "campaign_stopped", "reason": "attempt_directory_frontier_mismatch"}
 
@@ -468,15 +507,10 @@ def _run_bucket_locked(
         if summary_path.exists():
             summary = _read(summary_path)
             if not _terminal_health(summary):
-                _create(
-                    stop_path,
-                    {
-                        "schema_version": SCHEMA_VERSION,
-                        "reason": "epoch_requires_review_before_next_launch",
-                        "epoch_status": summary.get("status"),
-                        "bucket": bucket,
-                        "time_ns": time.time_ns(),
-                    },
+                _seal_stop(
+                    root,
+                    "epoch_requires_review_before_next_launch",
+                    epoch_status=summary.get("status"),
                 )
                 return {
                     "status": "campaign_stopped",
@@ -489,31 +523,12 @@ def _run_bucket_locked(
                 "epoch": summary,
                 "frontier": frontier,
             }
-        _create(
-            stop_path,
-            {
-                "schema_version": SCHEMA_VERSION,
-                "reason": "epoch_exists_without_active_reservation",
-                "bucket": bucket,
-                "time_ns": time.time_ns(),
-            },
-        )
+        _seal_stop(root, "epoch_exists_without_active_reservation")
         return {"status": "campaign_stopped", "reason": "epoch_exists_without_active_reservation"}
 
     last_bucket = frontier.get("last_attempt_bucket")
     if last_bucket is not None and bucket <= last_bucket:
-        _create(
-            stop_path,
-            {
-                "schema_version": SCHEMA_VERSION,
-                "reason": "non_monotonic_schedule_bucket",
-                "last_attempt_bucket": last_bucket,
-                "bucket": bucket,
-                "request_started": False,
-                "epoch_created": False,
-                "time_ns": time.time_ns(),
-            },
-        )
+        _seal_stop(root, "non_monotonic_schedule_bucket", prior_bucket=last_bucket)
         return {"status": "campaign_stopped", "reason": "non_monotonic_schedule_bucket"}
     missed = _missed_buckets(last_bucket, bucket)
     attempts = int(frontier["attempt_count"])
@@ -530,18 +545,7 @@ def _run_bucket_locked(
         free_disk=shutil.disk_usage(root).free,
     )
     if reason:
-        _create(
-            stop_path,
-            {
-                "schema_version": SCHEMA_VERSION,
-                "reason": reason,
-                "bucket": bucket,
-                "request_started": False,
-                "epoch_created": False,
-                "usage": usage,
-                "time_ns": time.time_ns(),
-            },
-        )
+        _seal_stop(root, reason, usage=usage)
         return {
             "status": "preflight_stopped_without_epoch_or_rpc",
             "reason": reason,
@@ -620,15 +624,10 @@ def _run_bucket_locked(
     except Exception as exc:
         # The reservation remains active; later process invocations cannot spend it again.
         if not stop_path.exists():
-            _create(
-                stop_path,
-                {
-                    "schema_version": SCHEMA_VERSION,
-                    "reason": "epoch_reconciliation_failed_closed",
-                    "error_class": type(exc).__name__,
-                    "bucket": bucket,
-                    "time_ns": time.time_ns(),
-                },
+            _seal_stop(
+                root,
+                "epoch_reconciliation_failed_closed",
+                error_class=type(exc).__name__,
             )
         raise
 
@@ -646,15 +645,10 @@ def _run_bucket_locked(
     frontier = _advance(frontier, bucket, epoch, summary)
     _replace(frontier_path, frontier)
     if not _terminal_health(summary):
-        _create(
-            stop_path,
-            {
-                "schema_version": SCHEMA_VERSION,
-                "reason": "epoch_requires_review_before_next_launch",
-                "epoch_status": summary.get("status"),
-                "bucket": bucket,
-                "time_ns": time.time_ns(),
-            },
+        _seal_stop(
+            root,
+            "epoch_requires_review_before_next_launch",
+            epoch_status=summary.get("status"),
         )
         return {
             "status": "campaign_stopped",
@@ -662,6 +656,9 @@ def _run_bucket_locked(
             "epoch": summary,
             "frontier": frontier,
         }
+    if frontier["attempt_count"] >= ATTEMPTS_MAX:
+        record = _seal_stop(root, "finite_attempt_cap_reached")
+        return {"status": "campaign_stopped", **record, "epoch": summary}
     return {"status": "epoch_finished", "bucket": bucket, "epoch": summary, "frontier": frontier}
 
 
@@ -740,7 +737,44 @@ def run_bucket(
             fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise ValueError("inventory_first_v3_schedule_already_active") from exc
-        return _run_bucket_locked(root, lineage_path=lineage_path, now=now, clients=clients)
+        stop_path = root / "STOP"
+        if stop_path.exists():
+            return {"status": "campaign_stopped", **_read(stop_path)}
+        in_progress = root / "invocation-in-progress.json"
+        if in_progress.exists():
+            reconciliation = _offline_reconcile_interrupted(root)
+            record = _seal_stop(
+                root,
+                "process_interrupted_without_terminal_stop",
+                recovered_without_rpc=True,
+                **reconciliation,
+            )
+            return {"status": "campaign_stopped", **record}
+        _create(
+            in_progress,
+            {"pid": os.getpid(), "started_ns": time.time_ns(), "policy": "one invocation"},
+        )
+        try:
+            result = _run_bucket_locked(root, lineage_path=lineage_path, now=now, clients=clients)
+        except BaseException:
+            # Leave the marker after an abrupt/exceptional exit unless STOP is already durable.
+            if stop_path.exists():
+                in_progress.unlink(missing_ok=True)
+                _sync_dir(root)
+            raise
+        if not in_progress.exists():
+            return result
+        in_progress.unlink()
+        _sync_dir(root)
+        return result
+
+
+def _sync_dir(path: Path) -> None:
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
 
 
 def read_status(root: Path) -> dict[str, Any]:

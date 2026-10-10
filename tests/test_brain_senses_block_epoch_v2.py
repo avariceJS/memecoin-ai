@@ -3,6 +3,7 @@ from __future__ import annotations
 import fcntl
 import hashlib
 import json
+import os
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -15,6 +16,7 @@ from memecoin_ai.domain import canonical
 from memecoin_ai.sources import Capture
 from tools import brain_senses_block_epoch_v2 as epoch_v2
 from tools import brain_senses_block_epoch_v2_schedule as schedule_v2
+from tools import brain_senses_block_epoch_v3_launch as launch_v3
 from tools import brain_senses_block_epoch_v3_schedule as schedule_v3
 
 
@@ -899,6 +901,104 @@ def test_v3_missed_hour_is_anchor_only_and_never_backfilled(tmp_path: Path, monk
     assert [method for method, _ in next_client.calls].count("getBlocks") == 1
 
 
+def test_v3_24th_attempt_seals_terminal_stop_and_never_calls_provider_again(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "v3-finite"
+    lineage_path = _v3_lineage(tmp_path / "lineage-finite.json")
+    monkeypatch.setattr(schedule_v3, "ATTEMPTS_MAX", 1)
+    monkeypatch.setattr(schedule_v3, "EPOCH_DIRS_MAX", 2)
+    monkeypatch.setattr(
+        schedule_v3.shutil,
+        "disk_usage",
+        lambda _: SimpleNamespace(
+            free=(
+                schedule_v3.DISK_FLOOR_BYTES
+                + schedule_v3.FRAME_RAW_BYTES
+                + schedule_v3.FRAME_STORED_BYTES
+                + schedule_v3.PEAK_WRITE_MARGIN_BYTES
+            )
+        ),
+    )
+    client = FakeRPC(anchors=[101])
+    result = schedule_v3.run_bucket(
+        root,
+        lineage_path=lineage_path,
+        now=datetime(2026, 10, 10, 2, 5, tzinfo=UTC),
+        clients={"helius-free": client},
+    )
+    assert result["status"] == "campaign_stopped"
+    stop = json.loads((root / "STOP").read_text())
+    assert stop["reason"] == "finite_attempt_cap_reached"
+    assert stop["campaign_id"] == "helius-inventory-v3-hourly-20261010"
+    assert stop["attempt_count"] == 1
+    assert 1 <= stop["requests"] <= schedule_v3.REQUESTS_PER_FRAME
+    assert stop["observed_anchor_slot"] == 101
+    assert stop["request_started"] is True
+    calls_at_stop = len(client.calls)
+    again = schedule_v3.run_bucket(
+        root,
+        lineage_path=lineage_path,
+        now=datetime(2026, 10, 10, 3, 5, tzinfo=UTC),
+        clients={"helius-free": client},
+    )
+    assert again["status"] == "campaign_stopped"
+    assert len(client.calls) == calls_at_stop
+
+
+def test_v3_crash_after_frontier_commit_reconciles_offline_then_stops(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "v3-crash-before-stop"
+    lineage_path = _v3_lineage(tmp_path / "lineage-crash-before-stop.json")
+    monkeypatch.setattr(schedule_v3, "ATTEMPTS_MAX", 1)
+    monkeypatch.setattr(schedule_v3, "EPOCH_DIRS_MAX", 2)
+    monkeypatch.setattr(
+        schedule_v3.shutil,
+        "disk_usage",
+        lambda _: SimpleNamespace(
+            free=(
+                schedule_v3.DISK_FLOOR_BYTES
+                + schedule_v3.FRAME_RAW_BYTES
+                + schedule_v3.FRAME_STORED_BYTES
+                + schedule_v3.PEAK_WRITE_MARGIN_BYTES
+            )
+        ),
+    )
+    seal_stop = schedule_v3._seal_stop
+
+    def crash_before_stop(path: Path, reason: str, **details: Any) -> dict[str, Any]:
+        if reason == "finite_attempt_cap_reached":
+            raise SystemExit("simulated_crash_before_stop_fsync")
+        return seal_stop(path, reason, **details)
+
+    monkeypatch.setattr(schedule_v3, "_seal_stop", crash_before_stop)
+    client = FakeRPC(anchors=[101])
+    with pytest.raises(SystemExit, match="before_stop_fsync"):
+        schedule_v3.run_bucket(
+            root,
+            lineage_path=lineage_path,
+            now=datetime(2026, 10, 10, 2, 5, tzinfo=UTC),
+            clients={"helius-free": client},
+        )
+    calls_at_crash = len(client.calls)
+    assert not (root / "STOP").exists()
+    assert (root / "invocation-in-progress.json").exists()
+
+    monkeypatch.setattr(schedule_v3, "_seal_stop", seal_stop)
+    recovered = schedule_v3.run_bucket(
+        root,
+        lineage_path=lineage_path,
+        now=datetime(2026, 10, 10, 3, 5, tzinfo=UTC),
+        clients={"helius-free": client},
+    )
+    assert recovered["status"] == "campaign_stopped"
+    assert recovered["reason"] == "process_interrupted_without_terminal_stop"
+    assert recovered["local_reconciliation"] == "sealed_epoch_reconciled"
+    assert recovered["attempt_count"] == 1
+    assert len(client.calls) == calls_at_crash
+
+
 def test_v3_preflight_failure_stops_before_epoch_or_rpc(tmp_path: Path, monkeypatch) -> None:
     root = tmp_path / "v3-preflight"
     lineage_path = _v3_lineage(tmp_path / "lineage-preflight.json")
@@ -1009,10 +1109,72 @@ def test_v3_crash_after_durable_request_never_replays_ambiguous_rpc(
         clients={"helius-free": replacement},
     )
     assert result["status"] == "campaign_stopped"
-    assert result["epoch"]["status"] == "anchor_ambiguous"
+    assert result["reason"] == "process_interrupted_without_terminal_stop"
+    assert result["recovered_without_rpc"] is True
+    assert result["local_reconciliation"] in {"failed_closed", "journal_valid_but_epoch_unsealed"}
     assert replacement.calls == []
     assert json.loads((root / "active-frame-reservation.json").read_text())["status"] == "active"
     assert not (root / "epochs" / "20261010T020000Z" / "frame-reservation-release.json").exists()
+
+
+def test_v3_launch_wrapper_boots_out_only_after_stop_and_retries_without_scheduler(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "launch"
+    root.mkdir()
+    lineage = tmp_path / "lineage.json"
+    lineage.write_text("{}")
+    calls: list[list[str]] = []
+
+    def success_runner(command, **kwargs):
+        calls.append(command)
+        return SimpleNamespace(returncode=0)
+
+    (root / "STOP").write_text(json.dumps({"reason": "fixture_stop"}))
+    assert launch_v3.run(root, lineage, "fixture.label", runner=success_runner) == 0
+    assert calls == [["/bin/launchctl", "bootout", f"gui/{os.getuid()}/fixture.label"]]
+
+    calls.clear()
+
+    def failed_bootout(command, **kwargs):
+        calls.append(command)
+        return SimpleNamespace(returncode=5)
+
+    assert launch_v3.run(root, lineage, "fixture.label", runner=failed_bootout) == 1
+    assert len(calls) == 1
+    assert calls[0][1] == "bootout"
+
+
+def test_v3_launch_wrapper_runs_without_secret_args_then_boots_out_on_new_stop(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "launch-fresh"
+    root.mkdir()
+    lineage = tmp_path / "lineage-fresh.json"
+    calls: list[list[str]] = []
+    scheduler_calls: list[tuple[Path, Path]] = []
+
+    def scheduler_stops_then_bootout(path: Path, *, lineage_path: Path):
+        scheduler_calls.append((path, lineage_path))
+        (root / "STOP").write_text(json.dumps({"reason": "fixture_stop"}))
+
+    def bootout_only(command, **kwargs):
+        calls.append(command)
+        return SimpleNamespace(returncode=0)
+
+    assert (
+        launch_v3.run(
+            root,
+            lineage,
+            "fixture.label",
+            runner=bootout_only,
+            scheduler=scheduler_stops_then_bootout,
+        )
+        == 0
+    )
+    assert scheduler_calls == [(root, lineage)]
+    assert len(calls) == 1
+    assert calls[0][1] == "bootout"
 
 
 def test_scheduler_cli_help_and_explicit_configuration(monkeypatch, capsys, tmp_path: Path) -> None:
