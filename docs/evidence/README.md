@@ -181,6 +181,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   enumerates PumpSwap instructions, matches available Pair64/c3 census denominators, and records
   exact wire/path/privilege classes, status splits, block hashes and times. It makes no global
   discovery, settlement, economic, or admission claim.
+- `senses-program-exposure-ledger-v1-pair64-c3-2026-10-10.json`: bounded offline census of all
+  program IDs and outer/inner instruction references in those same 608 captured blocks, with
+  transaction-status, message-version, resolved account-key source, request/response provenance,
+  capture times, selected-slot denominators, and explicit cross-dataset overlaps. Completeness is
+  limited to the sealed selected-block inputs; program exposure is not a market, pool, birth, trade,
+  or economic fact.
 - First real Helius-only inventory-first v2 frame after the scheduler binding migration:
   `helius-inventory-v2-first-frame-2026-10-09.json`. It records 34 successful requests, a 9,261-slot
   provider-returned inventory denominator, 16/16 selected structural self-checks and explicit raw /

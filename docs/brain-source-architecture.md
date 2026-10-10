@@ -352,6 +352,18 @@ accounts positional. Exact trailing bytes are structural fingerprints only; this
 discovery, an economic classification, or an admission result. Receipt:
 [`PumpSwap structural novelty digest`](evidence/pumpswap-structural-novelty-v1-2026-10-10.json).
 
+A separate venue-neutral program-exposure ledger covers all 608 same captured blocks: 512 Pair64
+selected slots and six c3 frames of 16 slots each. It reconciles 741,305 normalized transactions
+and 2,574,909 raw instruction references across outer/inner paths, transaction status, message
+version and resolved program-key source; raw and normalized reference totals agree, and all seven
+datasets are complete for their sealed inputs. It preserves per-capture observations and reports
+cross-dataset signature overlap instead of deduplicating. Only the exact program ID in the pinned
+official Pump AMM IDL receives a venue label; every other ID remains `unknown_program`. This is
+selected-block structural exposure, not program discovery completeness, pool identity, token/market
+birth, an economic event, or admission. The ledger uses about 5 MB of output and its offline replay
+read 699 MB in 98 seconds on this Mac. Receipt:
+[`program exposure ledger`](evidence/senses-program-exposure-ledger-v1-pair64-c3-2026-10-10.json).
+
 The official [Pump AMM IDL pinned at commit `8cda1fa`](https://github.com/pump-fun/pump-public-docs/blob/8cda1fa30ea658b20909d8aedf002047119388d2/idl/pump_amm.json)
 binds 23 fixed `buy_exact_quote_in` accounts and the `spendable_quote_in`,
 `min_base_amount_out`, and `track_volume` arguments. Its docs identify the optional cashback
