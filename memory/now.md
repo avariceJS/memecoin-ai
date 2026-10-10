@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 05:10 Europe/Moscow. Verify Git, runtime and disk before acting.
+**As of:** 2026-10-10 05:17 Europe/Moscow. Verify Git, runtime and disk before acting.
 
 ## Boundaries
 
@@ -10,8 +10,9 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 
 ## Host and prospective runtime
 
-- Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; pre-controller base was
-  `5f70283741527b738738217506464e6360b9f166`. Verify current HEAD and worktree. Production untouched.
+- Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; offline
+  Token-2022 privilege classifier source is committed as `e854c90`. Verify current HEAD and worktree.
+  Production untouched.
 - About 70 GiB free. The Helius finite controller and campaign-1 LaunchAgents are loaded but idle; the v3 campaign has made no RPC yet.
   Previous public/Helius watchers and old schedulers remain stopped; Helius watch-v3 retains its
   explicit STOP and must not be resumed.
@@ -43,7 +44,8 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   LaunchAgents are loaded; both have zero active processes now. Controller has two successful runs;
   campaign has zero runs and zero requests. Plist hashes and log modes are in
   `docs/evidence/helius-inventory-controller-install-2026-10-10.json`. First v3 attempt is the next
-  future local :05 event; do not kickstart or backfill.
+  future local :05 event; do not kickstart or backfill. At 05:17 MSK the first event is 06:05 MSK
+  (03:05Z), not yet due.
 - A separate v3 scheduler implements Sol's per-campaign contract locally: one-frame reservations,
   34-request/byte/disk preflight, anchor-only gap capture followed by terminal STOP, immutable reservation
   releases, split frontiers, fail-closed recovery and read-only status. Controller and related focused
@@ -74,16 +76,24 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 - PumpSwap buyExact v1 remains quarantined: pinned official instruction layout is known, but the SDK
   source survey found no exact-quote builder helper or evidence mapping captured account suffixes to
   builder variants. Token-2022 mint/account state and historical intermediate state remain unknown.
+- The source-bound offline Token-2022 privilege census reconciled all 1,234 dev refs across 298
+  captured full blocks / 384,459 transactions with zero network requests. Same-slot quote-mint
+  privilege partitions are 1,146 readonly-or-absent with no unclassified target touch, 67 with an
+  unclassified target touch, 11 with writable-potential evidence only, and 10 with both. Writable
+  means potential, not actual modification. All 1,234 retain `historical_extension_state=unavailable`
+  and `economic_effects=not_assessed`. Receipt:
+  `docs/evidence/pumpswap-buy-exact-v1-token2022-privilege-census-2026-10-10.json`.
 - Senses remains incomplete: broad process/market discovery, lifecycle, provider-independent
   completeness and prospective continuity are limited. Preserve unknown/gap/censored/failed/stopped/
   unsupported/immature separately; never convert them to zero.
 
 ## Next horizon
 
-1. Check actual UTC, Git, runtime and disk; run only the next two future buckets. No replay,
-   catch-up or retry of `20261010T000000Z`.
-2. Review evidence across the prospective campaign, append a terminal campaign STOP, then begin a
-   separately versioned successor with whole-frame request preflight, aggregate budget, account
-   quota measurement, and a tested LaunchAgent/service recovery path.
-3. Continue offline source/coverage and lifecycle qualification and revisit buyExact after this
-   provider/recovery horizon. No Cortex.
+1. Check the first future campaign-1 scheduled frame (06:05 MSK / 03:05Z), then its controller
+   checkpoint; do not kickstart, backfill missed prospective slots, or duplicate requests.
+2. Continue Sol's next offline gate on only the 1,146 clean Token-2022 references. Keep 67 unknown
+   program refs, 11 writable-potential refs, and 10 refs with both reasons separate and quarantined.
+   Preserve all economic/extension states as unknown; no amount or settlement decoder.
+3. Verify Alchemy entitlement, endpoint and account-level costs before any historical archive call;
+   no paid request is authorized by the capability survey alone. Continue prospective and lifecycle
+   sensing. No Cortex.

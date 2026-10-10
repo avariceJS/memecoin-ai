@@ -307,6 +307,19 @@ and the 15:00Z candidate count is a different population from the fresh 1,166-re
 Do not infer extension state from the 2026-10-01 fixtures or a later account fetch. Receipt:
 [`Token-2022 development evidence census`](evidence/pumpswap-buy-exact-v1-token2022-dev-census-2026-10-10.json.zst).
 
+A separate offline privilege replay bound the same 1,234 references and inspected every transaction
+in each of their 298 captured full blocks (384,459 transaction records). Message-header and loaded
+address privileges show that 1,213 references had no writable quote-mint occurrence anywhere in
+their captured slot; 21 references had at least one writable occurrence, which is only potential
+write evidence. Of the 1,213 mint-readonly references, 67 also had an instruction from an
+unclassified program touching a target account; 1,146 had no such touch. The remaining 10
+potential-write references also had an unclassified target-touching program. Therefore this replay
+identifies a candidate subset for historical mint-byte acquisition only. It does not recover
+mint/account bytes, prove an actual write or no-write beyond the captured provider block, resolve
+the other target-account effects, qualify Token-2022 economics, or change the 1,234 quarantined
+economic states. Receipt:
+[`Token-2022 full-slot privilege census`](evidence/pumpswap-buy-exact-v1-token2022-privilege-census-2026-10-10.json).
+
 Provider-capability survey update (2026-10-10): Alchemy's current [Solana Account Archive
 documentation](https://www.alchemy.com/docs/solana/account-archive) describes paid-plan historical
 `getAccountInfo` reads (`slot`, `lastUpdateBeforeSlot`, `firstUpdateAfterSlot`), with `slot: S`

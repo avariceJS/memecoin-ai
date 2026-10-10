@@ -238,6 +238,7 @@ are not in Git; consult the receipt's pinned local root and manifest when author
 - `pumpswap-buy-exact-v1-audit-failure-2026-10-10.json`: preserved one-time 13:00Z census failure after all 512 payloads were processed but before report publication; no outcomes accepted and no reuse permitted.
 - `pumpswap-buy-exact-v1-audit-qualification-2026-10-10.json`: fresh disjoint 512-slot Helius Free captured-class census and one-pass replay of all seven successful dual-legacy refs; diagnostic-only, with four censored native settlements and Token-2022 still quarantined.
 - `pumpswap-buy-exact-v1-token2022-dev-census-2026-10-10.json.zst`: source-bound offline replay of the 15:00Z development captures; all 1,234 quote-side Token-2022 refs retain unknown historical extension state, with no settlement claim.
+- `pumpswap-buy-exact-v1-token2022-privilege-census-2026-10-10.json`: full-message and same-slot writable-privilege replay for those 1,234 refs across 298 captured full blocks; identifies mint-readonly slots as candidates for historical mint-byte acquisition, while 77 refs retain unclassified target-touching programs. No economic or extension-state qualification.
 - `pumpswap-buy-exact-sdk-builder-source-survey-2026-10-10.json`: pins the official 23-account
   v1 IDL and NPM SDK artifact integrity; the examined SDK release has no explicit exact-quote
   builder implementation, leaving captured remaining-account variants unresolved. Raw NPM
