@@ -1,4 +1,4 @@
-"""Finite, single-writer WSS session campaign controls; no network client is included."""
+"""Finite, single-writer WSS session controls; no live socket adapter is included."""
 
 from __future__ import annotations
 
@@ -7,12 +7,14 @@ import hashlib
 import json
 import os
 import stat
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from memecoin_collector.wss_reference import (
     DISK_FLOOR_BYTES,
+    MAX_CONTROL_RESPONSE_BYTES,
     MAX_MESSAGE_BYTES,
     MAX_SESSION_NS,
     RAW_LIMIT_BYTES,
@@ -39,6 +41,7 @@ def default_authorization(
     """Build the credential-free, fixed future campaign authorization binding."""
     transport = Path(__file__).with_name("wss_transport.py")
     reference = Path(__file__).with_name("wss_reference.py")
+    client = Path(__file__).with_name("wss_client.py")
     return {
         "schema_version": 1,
         "provider": "helius-standard-wss",
@@ -52,6 +55,7 @@ def default_authorization(
             "wss_campaign.py": _sha(Path(__file__).read_bytes()),
             "wss_reference.py": _sha(reference.read_bytes()),
             "wss_transport.py": _sha(transport.read_bytes()),
+            "wss_client.py": _sha(client.read_bytes()),
         },
         "authorized_at_ns": authorized_at_ns,
         "expires_at_ns": expires_at_ns,
@@ -154,7 +158,13 @@ class WssReferenceCampaign:
                 total += path.stat().st_size
         return total
 
-    def start_session(self, *, at_ns: int, free_disk_bytes: int) -> WssReferenceSession:
+    def start_session(
+        self,
+        *,
+        at_ns: int,
+        free_disk_bytes: int,
+        opened_monotonic_ns: int | None = None,
+    ) -> WssReferenceSession:
         at_ns = _safe_now(at_ns)
         if self.terminal:
             raise ValueError("wss_campaign_terminal")
@@ -191,10 +201,18 @@ class WssReferenceCampaign:
             gap = {"start_ns": previous_stop["at_ns"], "end_ns": at_ns, "explicit": True}
         index = len(self.sessions) + 1
         session_root = self.root / "sessions" / f"{index:02d}"
-        session = WssReferenceSession(session_root, default_binding(), opened_ns=at_ns)
+        if opened_monotonic_ns is None:
+            opened_monotonic_ns = time.monotonic_ns()
+        session = WssReferenceSession(
+            session_root,
+            default_binding(),
+            opened_ns=at_ns,
+            opened_monotonic_ns=opened_monotonic_ns,
+        )
         start = {
             "session_index": index,
             "opened_ns": at_ns,
+            "opened_monotonic_ns": opened_monotonic_ns,
             "authorization_sha256": self.authorization_sha256,
             "session_binding_sha256": _sha(_canonical(session.binding)),
             "preceding_gap": gap,
@@ -208,10 +226,8 @@ class WssReferenceCampaign:
         if self.terminal or self.active is None:
             raise ValueError("wss_campaign_no_active_session")
         at_ns = _safe_now(at_ns)
-        if (
-            not self.authorization["authorized_at_ns"]
-            <= at_ns
-            < self.authorization["expires_at_ns"]
+        if not (
+            self.authorization["authorized_at_ns"] <= at_ns < self.authorization["expires_at_ns"]
         ):
             self.stop("authorization_expired", at_ns)
             return False
@@ -225,6 +241,39 @@ class WssReferenceCampaign:
         if not accepted:
             self.stop("session_preflight_stop", at_ns)
         return accepted
+
+    def prepare_control_receive(self, *, at_ns: int, free_disk_bytes: int) -> bool:
+        """Reserve aggregate disk/raw/stored capacity for the subscription response."""
+        if self.terminal or self.active is None:
+            raise ValueError("wss_campaign_no_active_session")
+        at_ns = _safe_now(at_ns)
+        if not (
+            self.authorization["authorized_at_ns"] <= at_ns < self.authorization["expires_at_ns"]
+        ):
+            self.stop("authorization_expired", at_ns)
+            return False
+        if (
+            sum(item.raw_bytes for item in self.sessions) + MAX_CONTROL_RESPONSE_BYTES
+            > RAW_LIMIT_BYTES
+        ):
+            self.stop("aggregate_raw_cap", at_ns)
+            return False
+        if self._stored_bytes() + MAX_CONTROL_RESPONSE_BYTES + 16_384 > STORED_LIMIT_BYTES:
+            self.stop("aggregate_stored_cap", at_ns)
+            return False
+        accepted = self.active.prepare_control_receive(at_ns=at_ns, free_disk_bytes=free_disk_bytes)
+        if not accepted:
+            self.stop("session_preflight_stop", at_ns)
+        return accepted
+
+    def record_subscribe_response(
+        self, raw: bytes, *, received_ns: int, clock_ns: Callable[[], int]
+    ) -> dict[str, Any]:
+        if self.terminal or self.active is None:
+            raise ValueError("wss_campaign_no_active_session")
+        return self.active.record_subscribe_response(
+            raw, received_ns=received_ns, clock_ns=clock_ns
+        )
 
     def record_message(self, raw: bytes, *, received_ns: int, clock_ns) -> dict[str, Any]:
         if self.terminal or self.active is None:
@@ -442,13 +491,14 @@ class WssReferenceCampaign:
             start = cls._verify_seal(
                 json.loads(start_path.read_text()), "wss_campaign_session_start_hash_mismatch"
             )
+            session = WssReferenceSession.recover(session_root, at_ns=at_ns)
             if (
                 start.get("session_index") != index
                 or start.get("authorization_sha256") != auth_sha
                 or start.get("session_binding_sha256") != _sha(_canonical(default_binding()))
+                or start.get("opened_monotonic_ns") != session.opened_monotonic_ns
             ):
                 raise ValueError("wss_campaign_session_binding_mismatch")
-            session = WssReferenceSession.recover(session_root, at_ns=at_ns)
             stop = WssReferenceCampaign._last_stop(session)
             session_stop_path = session_root / "campaign-session-stop.json"
             if session_stop_path.exists():

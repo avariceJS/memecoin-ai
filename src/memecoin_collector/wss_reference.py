@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import stat
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -20,9 +21,21 @@ PUMP_BONDING_CURVE_PROGRAM = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
 RAW_LIMIT_BYTES = 128 * 1024 * 1024
 STORED_LIMIT_BYTES = 64 * 1024 * 1024
 MAX_MESSAGE_BYTES = 4 * 1024 * 1024
+MAX_CONTROL_RESPONSE_BYTES = 64 * 1024
 DISK_FLOOR_BYTES = 50 * 1024**3
 MAX_SESSION_NS = 4 * 60 * 60 * 1_000_000_000
 MAX_SESSIONS = 2
+TRANSPORT_FAILURE_CODES = {
+    "http_upgrade_io",
+    "http_upgrade_rejected",
+    "subscribe_response_io",
+    "subscribe_response_invalid",
+    "subscribe_response_cap",
+    "connection_disconnected",
+    "client_deadline",
+    "authorization_expired",
+    "session_clock_regression",
+}
 
 
 def _canonical(row: dict[str, Any]) -> bytes:
@@ -92,10 +105,39 @@ def parse_logs_message(raw: bytes) -> dict[str, Any]:
     }
 
 
+def parse_subscribe_response(raw: bytes) -> dict[str, Any]:
+    """Project the bounded JSON-RPC response to the one subscribe request."""
+    try:
+        response = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError, TypeError):
+        return {"response_kind": "invalid", "request_id": None, "subscription_id": None}
+    if not isinstance(response, dict) or response.get("jsonrpc") != "2.0":
+        return {"response_kind": "invalid", "request_id": None, "subscription_id": None}
+    request_id = response.get("id")
+    if type(request_id) is not int or request_id != 1:
+        return {"response_kind": "invalid", "request_id": None, "subscription_id": None}
+    if type(response.get("result")) is int and response["result"] >= 0 and "error" not in response:
+        return {
+            "response_kind": "ack",
+            "request_id": request_id,
+            "subscription_id": response["result"],
+        }
+    if isinstance(response.get("error"), dict) and "result" not in response:
+        return {"response_kind": "error", "request_id": request_id, "subscription_id": None}
+    return {"response_kind": "invalid", "request_id": request_id, "subscription_id": None}
+
+
 class WssReferenceSession:
     """Append-only one-connection journal; interruption seals a gap, never resumes."""
 
-    def __init__(self, root: Path, binding: dict[str, Any], *, opened_ns: int) -> None:
+    def __init__(
+        self,
+        root: Path,
+        binding: dict[str, Any],
+        *,
+        opened_ns: int,
+        opened_monotonic_ns: int | None = None,
+    ) -> None:
         opened_ns = _safe_now(opened_ns)
         if root.exists():
             raise ValueError("wss_session_root_exists")
@@ -128,12 +170,26 @@ class WssReferenceSession:
         self.acknowledged = False
         self.subscription_id: int | None = None
         self.receive_prepared = False
+        self.control_receive_prepared = False
+        self.last_subscribe_response_sha256: str | None = None
         self.connected = False
         self.subscribe_sent = False
         self.terminal = False
         self.opened_ns = opened_ns
+        if opened_monotonic_ns is None:
+            opened_monotonic_ns = time.monotonic_ns()
+        if type(opened_monotonic_ns) is not int or opened_monotonic_ns < 0:
+            raise ValueError("invalid_wss_monotonic_open_time")
+        self.opened_monotonic_ns = opened_monotonic_ns
         self.last_event_ns = opened_ns
-        self._event("session_open", opened_ns, {"event_time_basis": "slot_only"})
+        self._event(
+            "session_open",
+            opened_ns,
+            {
+                "event_time_basis": "slot_only",
+                "opened_monotonic_ns": opened_monotonic_ns,
+            },
+        )
 
     def _event(self, kind: str, at_ns: int, fields: dict[str, Any]) -> dict[str, Any]:
         at_ns = _safe_now(at_ns)
@@ -162,6 +218,23 @@ class WssReferenceSession:
         self._event("connection_opened", at_ns, {})
         self.connected = True
 
+    def record_upgrade_verified(self, at_ns: int, response_headers: bytes) -> None:
+        """Record only the verified Upgrade response digest, never endpoint credentials."""
+        if not self.connected or self.subscribe_sent or not isinstance(response_headers, bytes):
+            raise ValueError("wss_upgrade_evidence_state_invalid")
+        if not 1 <= len(response_headers) <= 16 * 1024:
+            raise ValueError("wss_upgrade_evidence_size_invalid")
+        self._event(
+            "upgrade_verified",
+            at_ns,
+            {
+                "response_bytes": len(response_headers),
+                "response_sha256": hashlib.sha256(response_headers).hexdigest(),
+                "tls_adapter_verified_peer": True,
+                "endpoint_and_credentials_recorded": False,
+            },
+        )
+
     def request_subscribe(self, at_ns: int, *, request_id: int = 1) -> None:
         if not self.connected or self.subscribe_sent or request_id != 1:
             raise ValueError("wss_subscribe_request_invalid")
@@ -177,7 +250,14 @@ class WssReferenceSession:
         )
         self.subscribe_sent = True
 
-    def acknowledge(self, subscription_id: int, at_ns: int, *, request_id: int = 1) -> None:
+    def acknowledge(
+        self,
+        subscription_id: int,
+        at_ns: int,
+        *,
+        request_id: int = 1,
+        response_sha256: str | None = None,
+    ) -> None:
         if (
             not self.subscribe_sent
             or self.acknowledged
@@ -188,13 +268,133 @@ class WssReferenceSession:
             raise ValueError("invalid_wss_subscription_ack")
         if at_ns < self.opened_ns or at_ns - self.opened_ns > MAX_SESSION_NS:
             raise ValueError("wss_ack_outside_session_window")
+        if response_sha256 is not None and response_sha256 != self.last_subscribe_response_sha256:
+            raise ValueError("wss_subscription_ack_evidence_mismatch")
         self._event(
             "subscription_ack",
             at_ns,
-            {"request_id": request_id, "subscription_id": subscription_id},
+            {
+                "request_id": request_id,
+                "subscription_id": subscription_id,
+                "response_sha256": response_sha256,
+            },
         )
         self.acknowledged = True
         self.subscription_id = subscription_id
+
+    def prepare_control_receive(self, *, at_ns: int, free_disk_bytes: int) -> bool:
+        """Reserve bounded space for the pre-ack JSON-RPC response before reading it."""
+        if self.terminal or not self.subscribe_sent or self.acknowledged:
+            raise ValueError("wss_control_receive_state_invalid")
+        at_ns = _safe_now(at_ns)
+        if type(free_disk_bytes) is not int or free_disk_bytes < 0:
+            raise ValueError("invalid_wss_disk_measurement")
+        if at_ns - self.opened_ns >= MAX_SESSION_NS:
+            self.stop("session_duration_cap", at_ns)
+            return False
+        if free_disk_bytes < DISK_FLOOR_BYTES:
+            self.stop("disk_floor", at_ns)
+            return False
+        if (
+            self.raw_bytes + MAX_CONTROL_RESPONSE_BYTES > RAW_LIMIT_BYTES
+            or self.stored_bytes + MAX_CONTROL_RESPONSE_BYTES + 8192 > STORED_LIMIT_BYTES
+        ):
+            self.stop("pre_receive_byte_cap", at_ns)
+            return False
+        self.control_receive_prepared = True
+        return True
+
+    def record_subscribe_response(
+        self,
+        raw: bytes,
+        *,
+        received_ns: int,
+        clock_ns: Callable[[], int],
+    ) -> dict[str, Any]:
+        """Persist the exact pre-ack response and its bounded derived classification."""
+        received_ns = _safe_now(received_ns)
+        if self.terminal or not self.control_receive_prepared or self.acknowledged:
+            raise ValueError("wss_control_response_state_invalid")
+        self.control_receive_prepared = False
+        if not isinstance(raw, bytes) or len(raw) > MAX_CONTROL_RESPONSE_BYTES:
+            raise ValueError("wss_control_response_size_invalid")
+        projection = parse_subscribe_response(raw)
+        if received_ns < self.opened_ns or received_ns - self.opened_ns >= MAX_SESSION_NS:
+            self.stop("session_duration_cap", received_ns)
+            raise ValueError("wss_control_response_outside_session_window")
+        if (
+            self.raw_bytes + len(raw) > RAW_LIMIT_BYTES
+            or self.stored_bytes + len(raw) + 8192 > STORED_LIMIT_BYTES
+        ):
+            self._event(
+                "message_rejected",
+                received_ns,
+                {
+                    "reason": "control_byte_cap",
+                    "raw_bytes": len(raw),
+                    "raw_sha256": hashlib.sha256(raw).hexdigest(),
+                },
+            )
+            self.stop("byte_cap_gap", received_ns)
+            raise ValueError("wss_control_response_byte_cap")
+        seq = self.seq + 1
+        raw_path = self.root / "raw" / f"{seq:08d}.bin"
+        _write_new(raw_path, raw)
+        available_ns = _safe_now(clock_ns())
+        if available_ns < received_ns:
+            raise ValueError("wss_availability_precedes_receipt")
+        raw_sha256 = hashlib.sha256(raw).hexdigest()
+        self.raw_bytes += len(raw)
+        self.stored_bytes += len(raw)
+        row = self._event(
+            "protocol_response",
+            received_ns,
+            {
+                **projection,
+                "received_ns": received_ns,
+                "availability_ns": available_ns,
+                "decision_ns": None,
+                "raw_path": raw_path.relative_to(self.root).as_posix(),
+                "raw_sha256": raw_sha256,
+                "raw_bytes": len(raw),
+            },
+        )
+        self.last_subscribe_response_sha256 = raw_sha256
+        return row
+
+    def record_transport_failure(
+        self,
+        *,
+        phase: str,
+        reason: str,
+        raw_evidence: bytes,
+        at_ns: int,
+    ) -> dict[str, Any]:
+        """Preserve bounded HTTP failure bytes without charging them as RPC messages."""
+        at_ns = _safe_now(at_ns)
+        if (
+            self.terminal
+            or phase not in {"http_upgrade", "subscribe_response"}
+            or reason not in TRANSPORT_FAILURE_CODES
+            or not isinstance(raw_evidence, bytes)
+            or len(raw_evidence) > 16 * 1024
+        ):
+            raise ValueError("wss_transport_failure_evidence_invalid")
+        raw_path = self.root / "raw" / f"{self.seq + 1:08d}.bin"
+        raw_sha256 = hashlib.sha256(raw_evidence).hexdigest()
+        _write_new(raw_path, raw_evidence)
+        self.stored_bytes += len(raw_evidence)
+        return self._event(
+            "transport_failure",
+            at_ns,
+            {
+                "phase": phase,
+                "reason": reason,
+                "raw_path": raw_path.relative_to(self.root).as_posix(),
+                "raw_sha256": raw_sha256,
+                "raw_bytes": len(raw_evidence),
+            },
+        )
 
     def prepare_receive(self, *, at_ns: int, free_disk_bytes: int) -> bool:
         """Reserve worst-case next-message headroom before the transport reads it."""
@@ -339,11 +539,17 @@ class WssReferenceSession:
         unreferenced_raw_files: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         messages = []
+        control_responses = 0
+        transport_failures = 0
         rejected = 0
         for path in (self.root / "journal").glob("*.json"):
             event = json.loads(path.read_text())
             if event.get("kind") == "message":
                 messages.append(event)
+            elif event.get("kind") == "protocol_response":
+                control_responses += 1
+            elif event.get("kind") == "transport_failure":
+                transport_failures += 1
             elif event.get("kind") == "message_rejected":
                 rejected += 1
         row = self._event(
@@ -354,6 +560,8 @@ class WssReferenceSession:
                 "raw_bytes": self.raw_bytes,
                 "stored_bytes_before_stop": self.stored_bytes,
                 "notifications": len(messages),
+                "control_responses": control_responses,
+                "transport_failures": transport_failures,
                 "rejected_messages_or_frames": rejected,
                 "parse_failures": sum(m.get("parse_state") != "notification" for m in messages),
                 "duplicate_deliveries": sum(bool(m.get("duplicate_delivery")) for m in messages),
@@ -429,6 +637,8 @@ class WssReferenceSession:
         raw_names: set[str] = set()
         previous_at = -1
         ack_subscription_id: int | None = None
+        last_subscribe_response_sha256: str | None = None
+        last_subscribe_response_kind: str | None = None
         seen_identities: set[tuple[int, str]] = set()
         connected = False
         subscribe_sent = False
@@ -451,8 +661,11 @@ class WssReferenceSession:
             if row.get("kind") not in {
                 "session_open",
                 "connection_opened",
+                "upgrade_verified",
                 "subscribe_sent",
                 "subscription_ack",
+                "protocol_response",
+                "transport_failure",
                 "message",
                 "message_rejected",
                 "session_stop",
@@ -466,6 +679,19 @@ class WssReferenceSession:
                 if connected or subscribe_sent:
                     raise ValueError("wss_connection_state_invalid")
                 connected = True
+            if row.get("kind") == "upgrade_verified":
+                response_hash = row.get("response_sha256")
+                if (
+                    not connected
+                    or subscribe_sent
+                    or type(row.get("response_bytes")) is not int
+                    or not 1 <= row["response_bytes"] <= 16 * 1024
+                    or not isinstance(response_hash, str)
+                    or len(response_hash) != 64
+                    or row.get("tls_adapter_verified_peer") is not True
+                    or row.get("endpoint_and_credentials_recorded") is not False
+                ):
+                    raise ValueError("wss_upgrade_evidence_invalid")
             if row.get("kind") == "subscribe_sent":
                 if not connected or subscribe_sent or row.get("request_id") != 1:
                     raise ValueError("wss_subscribe_request_invalid")
@@ -482,9 +708,80 @@ class WssReferenceSession:
                     or ack_subscription_id is not None
                     or row.get("request_id") != 1
                     or type(row.get("subscription_id")) is not int
+                    or (
+                        last_subscribe_response_sha256 is not None
+                        and (
+                            row.get("response_sha256") != last_subscribe_response_sha256
+                            or last_subscribe_response_kind != "ack"
+                        )
+                    )
+                    or (
+                        row.get("response_sha256") is not None
+                        and (
+                            row.get("response_sha256") != last_subscribe_response_sha256
+                            or last_subscribe_response_kind != "ack"
+                        )
+                    )
                 ):
                     raise ValueError("wss_subscription_ack_invalid")
                 ack_subscription_id = row["subscription_id"]
+            if row.get("kind") == "protocol_response":
+                if (
+                    not subscribe_sent
+                    or ack_subscription_id is not None
+                    or last_subscribe_response_sha256
+                ):
+                    raise ValueError("wss_subscription_response_order_invalid")
+                name = row.get("raw_path")
+                if (
+                    not isinstance(name, str)
+                    or not name.startswith("raw/")
+                    or ".." in Path(name).parts
+                    or Path(name).name in raw_names
+                ):
+                    raise ValueError("wss_raw_reference_invalid")
+                raw_names.add(Path(name).name)
+                raw_path = root / name
+                if not raw_path.is_file() or raw_path.is_symlink():
+                    raise ValueError("wss_raw_capture_missing")
+                raw = raw_path.read_bytes()
+                raw_sha256 = hashlib.sha256(raw).hexdigest()
+                if len(raw) != row.get("raw_bytes") or raw_sha256 != row.get("raw_sha256"):
+                    raise ValueError("wss_raw_capture_hash_mismatch")
+                if (
+                    row.get("received_ns") != row.get("at_ns")
+                    or type(row.get("availability_ns")) is not int
+                    or row["availability_ns"] < row["received_ns"]
+                    or row.get("decision_ns") is not None
+                ):
+                    raise ValueError("wss_message_time_contract_invalid")
+                projection = parse_subscribe_response(raw)
+                if any(row.get(key) != value for key, value in projection.items()):
+                    raise ValueError("wss_subscription_response_projection_mismatch")
+                last_subscribe_response_sha256 = raw_sha256
+                last_subscribe_response_kind = projection["response_kind"]
+            if row.get("kind") == "transport_failure":
+                name = row.get("raw_path")
+                if (
+                    row.get("phase") not in {"http_upgrade", "subscribe_response"}
+                    or row.get("reason") not in TRANSPORT_FAILURE_CODES
+                    or not isinstance(name, str)
+                    or not name.startswith("raw/")
+                    or ".." in Path(name).parts
+                    or Path(name).name in raw_names
+                ):
+                    raise ValueError("wss_transport_failure_projection_invalid")
+                raw_names.add(Path(name).name)
+                raw_path = root / name
+                if not raw_path.is_file() or raw_path.is_symlink():
+                    raise ValueError("wss_raw_capture_missing")
+                raw = raw_path.read_bytes()
+                if (
+                    len(raw) != row.get("raw_bytes")
+                    or len(raw) > 16 * 1024
+                    or hashlib.sha256(raw).hexdigest() != row.get("raw_sha256")
+                ):
+                    raise ValueError("wss_raw_capture_hash_mismatch")
             if row.get("kind") == "message":
                 if ack_subscription_id is None:
                     raise ValueError("wss_notification_before_ack")
@@ -493,7 +790,7 @@ class WssReferenceSession:
                     not isinstance(name, str)
                     or not name.startswith("raw/")
                     or ".." in Path(name).parts
-                    or name in raw_names
+                    or Path(name).name in raw_names
                 ):
                     raise ValueError("wss_raw_reference_invalid")
                 raw_names.add(Path(name).name)
@@ -549,8 +846,18 @@ class WssReferenceSession:
         obj.seq = len(rows)
         obj.parent_sha256 = parent
         obj.last_event_ns = previous_at
-        obj.raw_bytes = sum(row["raw_bytes"] for row in rows if row.get("kind") == "message")
-        obj.stored_bytes = sum(p.stat().st_size for p in root.rglob("*") if p.is_file())
+        obj.raw_bytes = sum(
+            row["raw_bytes"] for row in rows if row.get("kind") in {"message", "protocol_response"}
+        )
+        obj.stored_bytes = sum(
+            path.stat().st_size
+            for path in root.rglob("*")
+            if path.is_file()
+            and not (
+                path.parent == root
+                and path.name in {"campaign-start.json", "campaign-session-stop.json"}
+            )
+        )
         if obj.raw_bytes > RAW_LIMIT_BYTES or obj.stored_bytes > STORED_LIMIT_BYTES:
             raise ValueError("wss_recovered_byte_cap_exceeded")
         obj.seen_signatures = {
@@ -563,14 +870,37 @@ class WssReferenceSession:
         obj.acknowledged = any(row.get("kind") == "subscription_ack" for row in rows)
         obj.subscription_id = ack_subscription_id
         obj.receive_prepared = False
+        obj.control_receive_prepared = False
+        obj.last_subscribe_response_sha256 = last_subscribe_response_sha256
         obj.connected = connected
         obj.subscribe_sent = subscribe_sent
         obj.terminal = bool(rows and rows[-1].get("kind") == "session_stop")
         opened = next((row["at_ns"] for row in rows if row.get("kind") == "session_open"), None)
+        opened_monotonic = next(
+            (row.get("opened_monotonic_ns") for row in rows if row.get("kind") == "session_open"),
+            None,
+        )
         if opened is None:
             raise ValueError("wss_session_open_missing")
         obj.opened_ns = opened
+        if type(opened_monotonic) is not int or opened_monotonic < 0:
+            raise ValueError("wss_session_monotonic_open_time_invalid")
+        obj.opened_monotonic_ns = opened_monotonic
         if obj.terminal:
+            stop_row = rows[-1]
+            stop_path = journal_files[-1]
+            if (
+                stop_row.get("raw_bytes") != obj.raw_bytes
+                or stop_row.get("stored_bytes_before_stop")
+                != obj.stored_bytes - stop_path.stat().st_size
+                or stop_row.get("notifications")
+                != sum(row.get("kind") == "message" for row in rows)
+                or stop_row.get("control_responses")
+                != sum(row.get("kind") == "protocol_response" for row in rows)
+                or stop_row.get("transport_failures")
+                != sum(row.get("kind") == "transport_failure" for row in rows)
+            ):
+                raise ValueError("wss_session_stop_accounting_mismatch")
             return obj
         if orphan_names:
             orphan_facts = []

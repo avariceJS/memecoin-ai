@@ -144,7 +144,7 @@ def read_server_frame_header(reader: ExactReader, *, max_payload_bytes: int) -> 
     if opcode in CONTROL_OPCODES and (not fin or payload_length > 125):
         raise FrameProtocolError("wss_control_frame_invalid")
     header = FrameHeader(fin, opcode, payload_length, bytes(raw))
-    if payload_length > max_payload_bytes:
+    if opcode not in CONTROL_OPCODES and payload_length > max_payload_bytes:
         raise FrameTooLarge(header)
     return header
 

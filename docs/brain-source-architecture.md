@@ -1854,8 +1854,21 @@ RFC 6455 server frames and assembles uncompressed text messages; it validates ca
 encodings and rejects masked server frames, reserved bits, binary messages, and unsupported control
 shapes. Oversize declarations fail after header reads and before payload reads. Client frame encoding
 uses fresh random masks by default, as required by [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455.html);
-tests inject a fixed mask only for deterministic offline verification. TLS, HTTP Upgrade, sockets,
-provider authentication, and live request dispatch are not implemented.
+tests inject a fixed mask only for deterministic offline verification. The injectable
+`src/memecoin_collector/wss_client.py` now specifies strict HTTP/1.1 Upgrade validation, exact
+`Sec-WebSocket-Accept` binding, one standard `logsSubscribe` request, raw ack/error capture, and
+subscription-ID binding. It rejects redirects, extension/subprotocol negotiation, oversized headers,
+and unverified TLS-adapter assertions. Fresh authorization, wall-time session, disk-floor, and
+session-owner gates run before Upgrade I/O and again before `logsSubscribe` dispatch. The monotonic
+session origin is recorded at session creation and cannot be supplied or refreshed by the client.
+A monotonic four-hour deadline is passed to every injected stream read/write, including partial
+header and frame reads. The byte-stream adapter must itself interrupt blocked I/O at that deadline.
+Endpoint and request target are used only to construct the
+in-memory Upgrade request; they are not written to the journal. Failed Upgrade evidence retains
+only the status code, header names, byte count and digest, never response header values that might
+reflect a credential-bearing request target. The client has no socket/TLS/HTTP client dependency or
+credential loader and cannot connect to a provider. No TLS/socket adapter, provider authentication,
+LaunchAgent, or live request dispatch is implemented.
 
 The frozen *future* pilot envelope is at most four hours per session, one subscription, two
 sequential sessions at most, 128 MiB inbound message bytes, 64 MiB physically stored bytes, and a
@@ -1868,11 +1881,16 @@ source/filter, exact hashes for the campaign/reference/transport code, caps, and
 seven days. It enforces two sequential windows maximum,
 aggregate raw/stored byte caps, disk floor, explicit reconnect gaps, and no-resume recovery. The
 wrapper checks the shapes and hashes in its authorization object but does not validate external c4
-or account receipts; a future activation gate must independently reconcile those artifacts. No
-LaunchAgent or network client is present. Activation still requires c4's normal terminal gates, account-level
-entitlement and headroom, a separately bounded overhead allowance or billing evidence, immutable
-session authorization, and a one-writer LaunchAgent review. Stop on cap, low disk, malformed
-transport state, or journal ambiguity.
+or account receipts; a future activation gate must independently reconcile those artifacts. Its
+authorization now binds the injected client source hash as well as the campaign, reference, and
+transport modules. The offline client shares raw/stored budgets with notifications, persists the
+bounded pre-ack response before classifying it, and records protocol failures without endpoint
+material. Unknown response header names and all header values are excluded from failure evidence.
+Control-frame payloads remain independently limited by RFC 6455's 125-byte bound and do not consume
+application-message capacity. Activation still requires c4's normal terminal gates, account-level entitlement and
+headroom, a separately bounded overhead allowance or billing evidence, immutable session
+authorization, an independently reviewed TLS adapter, and a one-writer LaunchAgent review. Stop
+on cap, low disk, malformed transport state, or journal ambiguity.
 
 An offline payload benchmark verified and replayed the captured Pair64 512 full blocks and c3's
 six 16-block frames (96 blocks total): 608 blocks and 741,305 transactions produced 51,502
@@ -1889,8 +1907,12 @@ using `tools/brain_senses_wss_reference_benchmark.py`.
 This source yields only provider notifications delivered inside recorded connection windows. It
 does not establish complete Pump births, a pool/market census, economic execution, inactivity,
 absence, lifecycle or death. Comparison with selected captured blocks can measure only overlap in
-that selected scope. Focused offline validation: 28 tests, including 300 deterministic generated
+that selected scope. Focused offline validation: 45 tests, including 300 deterministic generated
 deliveries with duplicates, crash-prefix recovery, raw mutation, subscription mismatch, transport
-header preflight, fragmented text messages, ping/pong masking, two-window aggregate limits, writer
-exclusion, source-bound authorization, reconnect gaps and no-resume recovery. No live provider,
-LaunchAgent, account budget, WebSocket handshake, or long-run throughput was tested.
+header preflight, fragmented text messages, ping/pong masking, strict Upgrade and raw ack/error
+binding over fake deadline-aware streams, pre-I/O authorization/disk gates, fresh monotonic origin,
+authorization expiry during a control read, wall-clock regression cleanup, malformed pre-ack
+fail-closed recovery, independent ping caps, aggregate limits, writer exclusion, source-bound
+authorization, reconnect gaps and no-resume recovery. These tests do not establish that a real TLS
+adapter honors deadlines or certificate verification. No live provider, LaunchAgent, account
+budget, or long-run throughput was tested.
