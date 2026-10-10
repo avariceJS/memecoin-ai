@@ -1061,9 +1061,7 @@ default PATH did not include the installed zstd executable. Its immutable STOP r
 zero bytes and no reservation; exactly one empty bucket directory was left. The one-use recovery
 receipt preserves that STOP, binds source and zstd hashes, and authorizes campaign 2 under a fresh
 root without changing the original deadline or aggregate ceilings. The missed `20261010T030000Z`
-bucket is an explicit uncovered setup gap and is never replayed. At recovery installation, the
-controller and campaign-2 LaunchAgents were loaded and idle, with no RPC requests; campaign 2's
-first event is the next future minute-05 event. Both plists configure only the non-secret
+bucket is an explicit uncovered setup gap and is never replayed. Both plists configure only the non-secret
 `BRAIN_ZSTD_EXECUTABLE` path. The RPC URL remains sourced from the private `.env.local` file and is
 not included in process arguments. Recovery evidence is in
 [`helius-inventory-v3-preanchor-recovery-2026-10-10.json`](evidence/helius-inventory-v3-preanchor-recovery-2026-10-10.json);
@@ -1074,7 +1072,17 @@ An invocation marker makes abnormal process exit detectable. The next invocation
 captured journals locally, never repeats an ambiguous request, seals STOP and unloads. Scheduler,
 wrapper and controller crash-boundary tests are qualified locally, including 24 normal synthetic
 attempts through STOP; this checks horizon and teardown state, not real provider throughput. The
-first real scheduled frame and subsequent controller recovery checks remain pending. The immutable
+real `20261010T040000Z` campaign-2 invocation took one parsed finalized-slot `getSlot` anchor at
+slot 455116880, then sealed `missed_schedule_gap_requires_review`. Its only request reconciles to
+43 raw / 56 zstd bytes; it made zero inventory or block-body requests. The gap
+`[455082524,455116881)` is explicit, `missed_slot_backfill=false`, and the active reservation is
+reconciled. The controller's unchanged normal-successor verifier rejected this non-24-attempt
+campaign with `predecessor_campaign_stop_abnormal`, then sealed controller STOP without creating a
+successor. The controller's aggregate counters remain zero because it did not admit the abnormal
+campaign; campaign 2's actual 1 request / 43 raw / 56 stored bytes must still count against the
+original lease if a separately authorized continuation is created. Receipt:
+[`Helius campaign-2 missed-gap STOP`](evidence/helius-inventory-v3-campaign2-missed-gap-2026-10-10.json).
+The immutable
 campaign manifest binds its minute-05 local calendar trigger, UTC hour buckets, no-`RunAtLoad` and
 no-`KeepAlive` settings, and teardown policy. The installed campaign plist hash is bound into
 controller state and recorded in the runtime receipt.
@@ -1096,8 +1104,9 @@ Keep its 72-hour deadline, three-campaign limit and aggregate request/byte ceili
 generalize either pre-anchor recovery. Campaign 2's first permitted event follows the missed
 `03:00Z` setup interval, so its frozen scheduler records the gap, may take one anchor-only
 observation, and then seals a terminal missed-gap STOP. This is not a normal 24-attempt STOP and
-must not pass the existing normal-successor verifier. Once that real receipt is sealed, a separately
-versioned, single-use continuation may create campaign 3 under the same lease and aggregate caps,
+must not pass the existing normal-successor verifier. The campaign-2 receipt now satisfies the
+recorded anchor-only gap checks. A separately versioned, single-use continuation may create campaign
+3 under the same lease and aggregate caps,
 preserving campaign 2's STOP. It may adopt campaign 2's anchor only with an explicit receipt-bound
 contract; otherwise it takes a new future anchor and records the intervening interval as uncovered.
 Any discrepancy, duplicate tick, second gap, uncertain request or repeated setup failure halts.

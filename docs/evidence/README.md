@@ -22,6 +22,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `helius-inventory-v3-preanchor-recovery-2026-10-10.json` (preserves both predecessor STOPs,
   proves the sole empty attempt directory, binds the fixed zstd executable, and authorizes one
   fresh-root replacement without extending the original lease or budgets).
+- Campaign-2 missed-gap anchor-only STOP:
+  `helius-inventory-v3-campaign2-missed-gap-2026-10-10.json` (one parsed finalized `getSlot`, no
+  inventory/block requests or backfill, reconciled request/byte counters, and the unchanged
+  controller's expected strict rejection; no successor was created).
 - Closed frozen Helius inventory-v2 pilot:
   `helius-inventory-v2-final-2026-10-10.json` (104 requests, reconciled raw/stored bytes, final
   anchor and inventory interval, and the inherited 00:00Z oversized-frame gap).
