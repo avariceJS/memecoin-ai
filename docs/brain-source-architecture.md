@@ -1877,6 +1877,19 @@ times, and disk accounting. Then monitor read-only through the bounded lease and
 run before any longer renewal. This conditional procedure does not authorize Cortex or new economic
 claims.
 
+The offline implementation is `tools/brain_senses_c4_terminal_qualifier.py`. It independently
+recomputes c4 inventory selection and structural summaries from captured payloads, rechecks every
+request/result/reservation and byte/time boundary, and indexes acquisition files by size, mtime and
+SHA-256. After normal STOP it may create exactly one derived `terminal-receipt.json`; it never
+changes c4 acquisition artifacts, calls RPC, retries, backfills, or loads credentials. Receipt
+creation requires external operational snapshots spanning at least 70 minutes, with the first within
+seven minutes of STOP, exact c4 LaunchAgent/process absence, stable artifact inventory, and a
+complete filtered Unified Log query. The post-STOP zero-request claim is scoped to c4-attributable
+activity through pinned local collector paths; it is not provider-side or host-wide network silence.
+The service predecessor gate reruns the verifier and pins its source hash. Focused offline tests
+cover accounting helpers, late request/reservation rejection, and service-gate delegation. The live
+24-frame terminal receipt and post-STOP window remain unqualified until the current c4 lease ends.
+
 ## Prospective Pump bonding-curve references (offline gate, 2026-10-10)
 
 Sol selected standard Helius WSS `logsSubscribe` filtered by the single Pump bonding-curve

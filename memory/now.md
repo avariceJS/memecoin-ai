@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 22:32 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-10 22:50 UTC. Verify live runtime before any campaign or service decision.
 
 ## Boundaries and runtime
 
@@ -9,9 +9,9 @@
   holdout access, push, retry or backfill.
 - c3 is terminal after its ambiguous 11:00Z anchor failure; preserve its uncovered interval.
   c4 remains the unchanged finite calendar lease (one bootstrap plus at most 24 hourly frames).
-  Read-only status at 22:32Z: 10/24 frames complete, 340 frame requests plus one bootstrap (341
+  Read-only status at 22:50Z: 10/24 frames complete, 340 frame requests plus one bootstrap (341
   all-in), 706,277,979 raw / 161,843,979 stored bytes, zero failed or gapped epochs, zero open
-  reservations, 14 attempts remaining, frontier 455413633, and 59,583,811,584 free bytes. Exact c4
+  reservations, 14 attempts remaining, frontier 455413633, and 58,245,718,016 free bytes. Exact c4
   LaunchAgent remains loaded and idle between calendar ticks, with fixed path-only arguments; its
   22:00Z frame completed naturally. Old watcher/decode and predecessor-campaign LaunchAgents are
   disabled and unloaded. No manual tick. The ten-frame method accounting is 11 `getSlot`, 10
@@ -31,6 +31,13 @@
   in 1,459 c4 campaign files (180.4 MB), current process/LaunchAgent arguments, and 55.5 MB of
   recent Unified Log. `.env.local` remains mode 0600; value was not emitted. Receipt:
   `docs/evidence/helius-key-post-resume-c4-log-rescan-2026-10-10T2218Z.json`.
+- c4 terminal proof implementation is being frozen offline. The new qualifier independently
+  revalidates capture journals, selected-slot derivation, full/signature block agreement, structural
+  summaries, request timing, reservation release, accounting and artifact hashes. It creates only
+  the derived `terminal-receipt.json` after natural STOP and a 70-minute external observation window;
+  no campaign bytes, lease, runtime or request state changed. Service predecessor validation now
+  reruns this verifier and pins its source. Focused suite, including final hardening: 87 passed.
+  No terminal receipt exists while c4 is active. Review notes: ignored `work/reviews/` artifact.
 - No Cortex. Do not alter c4's frozen lease or the previously frozen PumpSwap audits.
 - Helius MCP reproducibility check: persistent `~/.codex/config.toml` is pinned to
   `helius-mcp@2.2.0`. Two Helius child processes inherited `@latest` from the already-running
@@ -118,8 +125,10 @@
    Tail2's implementation froze at `f7ec8c0`. Once the first four successful scheduled frames
    strictly later than that commit complete, select them by metadata only, freeze the audit plan,
    then open their payloads once. Do not inspect those future full-block payloads before plan freeze.
-2. After normal c4 STOP, verify terminal receipt, request accounting, no open/ambiguous reservation,
-   no post-STOP I/O and unloaded label; calculate full storage/latency/width tails and account
+2. After normal c4 STOP, collect two external operational snapshots spanning at least 70 minutes
+   (first within seven minutes), then create and reverify the terminal receipt. Confirm no open or
+   ambiguous reservation, c4-attributable post-STOP request, or loaded label; calculate full
+   storage/latency/width tails and account
    headroom before selecting the authorized successor path.
 3. Review the seven-day autonomous service runner against that evidence; only then activate on its
    future calendar tick if every Sol gate is satisfied. Continue offline engineering and economic

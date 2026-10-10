@@ -54,6 +54,20 @@ def _proof(root: Path) -> tuple[Path, Path]:
     return stop_path, receipt_path
 
 
+@pytest.fixture(autouse=True)
+def _stub_terminal_verification_for_service_policy_tests(monkeypatch: pytest.MonkeyPatch):
+    # These tests exercise service policy/recovery with deliberately small proof
+    # fixtures. Deep c4 terminal qualification has its own tests.
+    calls: list[tuple[Path, Path | None]] = []
+
+    def verify(root: Path, receipt: Path | None = None) -> dict:
+        calls.append((root, receipt))
+        return {"status": "normal_finite_terminal"}
+
+    monkeypatch.setattr(service.c4_terminal, "verify_receipt", verify)
+    yield calls
+
+
 def _initialize(root: Path, *, start: str = "2026-10-10T00:00:00") -> int:
     start_ns = _ns(start)
     stop_path, receipt_path = _proof(root / "predecessor")
@@ -131,9 +145,12 @@ def _run_frame(root: Path, reservation: dict, *, slot: int):
     return result, sealed, client
 
 
-def test_predecessor_requires_verified_normal_stop(tmp_path: Path) -> None:
+def test_predecessor_requires_verified_normal_stop(
+    tmp_path: Path, _stub_terminal_verification_for_service_policy_tests
+) -> None:
     stop, receipt = _proof(tmp_path / "proof")
     service._predecessor_proof(stop, receipt)
+    assert _stub_terminal_verification_for_service_policy_tests == [(stop.parent, receipt)]
     value = json.loads(stop.read_text())
     value["reason"] = "epoch_requires_review_before_next_launch"
     stop.write_text(json.dumps(value, sort_keys=True))

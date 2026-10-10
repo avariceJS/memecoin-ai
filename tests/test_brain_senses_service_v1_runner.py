@@ -16,6 +16,17 @@ from tools import brain_senses_service_v1_runner as runner
 _DEFAULT_WRITER_INVENTORY = runner._default_writer_inventory
 
 
+@pytest.fixture(autouse=True)
+def _stub_terminal_verification_for_runner_policy_tests(monkeypatch: pytest.MonkeyPatch):
+    # Runner policy tests use compact synthetic receipts; the qualifier's own
+    # suite exercises frozen acquisition evidence validation.
+    monkeypatch.setattr(
+        service.c4_terminal,
+        "verify_receipt",
+        lambda _root, _receipt=None: {"status": "normal_finite_terminal"},
+    )
+
+
 def _ns(value: str) -> int:
     return int(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp() * 1_000_000_000)
 

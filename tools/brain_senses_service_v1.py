@@ -28,6 +28,7 @@ from memecoin_ai.domain import canonical, digest  # noqa: E402
 from memecoin_ai.sources import Capture  # noqa: E402
 from tools import brain_senses_block_epoch_v2 as epoch_v2  # noqa: E402
 from tools import brain_senses_block_epoch_v3_schedule as schedule_v3  # noqa: E402
+from tools import brain_senses_c4_terminal_qualifier as c4_terminal  # noqa: E402
 
 SCHEMA_VERSION = 2
 SERVICE_DAYS = 7
@@ -53,6 +54,7 @@ DISK_FLOOR_BYTES = 50 * 1024**3
 DISK_PEAK_MARGIN_BYTES = 674_000_000
 CODE_BINDINGS = (
     "tools/brain_senses_service_v1.py",
+    "tools/brain_senses_c4_terminal_qualifier.py",
     "tools/brain_senses_block_epoch_v2.py",
     "tools/brain_senses_block_epoch_v3_schedule.py",
     "tools/brain_senses_block_epoch_v2_schedule.py",
@@ -129,6 +131,9 @@ def _campaign_id(service_id: str, at_ns: int, generation: int) -> str:
 
 
 def _predecessor_proof(stop_path: Path, receipt_path: Path) -> dict[str, Any]:
+    # The terminal file is derived evidence, so validate it from the complete
+    # frozen c4 tree before accepting any asserted summary fields.
+    c4_terminal.verify_receipt(stop_path.parent, receipt_path)
     stop_bytes = stop_path.read_bytes()
     receipt_bytes = receipt_path.read_bytes()
     stop = json.loads(stop_bytes)
