@@ -1657,8 +1657,24 @@ from request start, response receipt, availability, and decision nanoseconds. Fo
 transport failures, receipt and availability remain unknown; request-start time is reported only
 when the request journal captured it, never inferred from reservation time.
 
-The service currently provides offline reconciliation and an injected-client bootstrap seam, not a
-deployed scheduler or provider runner. The exclusive writer marker spans v2 reservation, epoch
+The separate runner entry point and LaunchAgent template are
+`tools/brain_senses_service_v1_runner.py` and
+`ops/launchd/ai.memecoin.brain.senses.helius-service-v1.plist`. They are offline implementation
+artifacts only; the template is uninstalled and the service is not activated. The template passes
+fixed absolute paths only, has no endpoint/key environment, and sets `RunAtLoad` and `KeepAlive` to
+false. Before initialization, the runner pins its own source hash and the template hash in the
+service root. Its read-only status path does not load credentials or contact a provider. A scheduled
+tick takes an exclusive runner lock, reconciles outstanding service state before credential loading,
+and accepts only the current UTC bucket during minutes 05–15; late ticks, duplicate bucket IDs, and
+missing credentials create no reservation or provider call. The credential loader reads the private
+mode-0600 configuration in-process and never exports the endpoint. Tick-time activation requires a
+matching normal c4 STOP/zero-post-STOP receipt, a reviewed gate receipt for measured tails, account
+limits and authorization, and an independent check that c4's exact LaunchAgent label is unloaded.
+After a durable service STOP, the runner only attempts to boot out its own exact label. The focused
+runner and service suites pass 50 synthetic tests; this is offline validation, not activation
+evidence.
+
+The exclusive writer marker spans v2 reservation, epoch
 execution/reconciliation, immutable capture/result/summary lineage, and v3 campaign initialization.
 Restart reconciles both roots, validates their hashes and accounting, and does not replay a started
 request. A successful external bootstrap binds the prior c4 committed frontier, anchor slot,
@@ -1671,7 +1687,8 @@ initializing the next g01 root and reserving its first frame. The old root remai
 through the canonical scheduler. A missed midnight uses the future anchor-only path and records no
 invented frame or gap. Initialization repairs only its proven unreserved manifest/controller/ledger
 prefix; an append-before-writer crash is sealed as provably unstarted. The offline suite uses
-synthetic clients only; no provider RPC or service activation is claimed.
+synthetic clients only; no provider RPC, LaunchAgent load, or service activation is claimed. Account
+credit and the c4 terminal/tail gates still prevent activation.
 
 Activation remains gated on c4's actual STOP and terminal/no-post-STOP receipt, measured tails for
 24 frames or an abnormal-stop dossier, account read-only credit/overage status or a conservative
