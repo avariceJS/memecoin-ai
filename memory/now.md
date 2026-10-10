@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 06:43 Europe/Moscow. Verify Git, runtime and disk before acting.
+**As of:** 2026-10-10 06:44 Europe/Moscow. Verify Git, runtime and disk before acting.
 
 ## Boundaries
 
@@ -11,7 +11,7 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 ## Host and prospective runtime
 
 - Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`, HEAD
-  `73e9e19` (`Clarify selector receipt comparison scope`). Verify current HEAD and worktree.
+  `55fb609` (`Record Helius v2 selector yield qualification`). Verify current HEAD and worktree.
   Production untouched.
 - About 69 GiB free. The recovered finite Helius controller and campaign-2 LaunchAgents are loaded but idle; campaign 2 has made no RPC yet.
   Previous public/Helius watchers and old schedulers remain stopped; Helius watch-v3 retains its
