@@ -366,6 +366,10 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   records transaction order, static/ALT provenance, endpoint/event/sibling gates and bank-time state
   requirements. No full-account or mint-only row passes, no acquisition control was emitted, and no
   state RPC was made.
+- `pumpswap-buy-exact-v1-c4-state-snapshot-locator-2026-10-10.json`: separate offline locator over
+  those same 140 identities and 16 hash-bound blocks. All 140 pass target-message gates and have no
+  earlier/later same-slot mint writable-potential blockers; this only identifies S-1/S whole-account
+  snapshot candidates. No state was acquired and no effect or economic claim is made.
 - `pumpswap-buy-exact-v1-development-qualification-2026-10-10.json`: complete replay of the frozen 62-ref dual-legacy development population, with exact token-account ledger facts; still diagnostic-only and not the sealed audit.
 - `pumpswap-buy-exact-v1-audit-failure-2026-10-10.json`: preserved one-time 13:00Z census failure after all 512 payloads were processed but before report publication; no outcomes accepted and no reuse permitted.
 - `pumpswap-buy-exact-v1-audit-qualification-2026-10-10.json`: fresh disjoint 512-slot Helius Free captured-class census and one-pass replay of all seven successful dual-legacy refs; diagnostic-only, with four censored native settlements and Token-2022 still quarantined.

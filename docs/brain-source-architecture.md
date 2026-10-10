@@ -1465,6 +1465,17 @@ bank-time raw bytes, owners, lamports, TLVs, and extension dependencies without 
 values. It establishes no fee, effect, settlement, decoder admission, or market completeness:
 [`c4 state-bracketing feasibility`](evidence/pumpswap-buy-exact-v1-c4-state-bracketing-feasibility-2026-10-10.json).
 
+A separate offline mint-state locator then rechecked only the 140 frozen Token-2022-base
+identities against those same 16 receipt-hash-bound blocks (17,607 transactions). All 140 target
+transactions passed the successful-status, base-mint-readonly, and distinct-resolved-fee-payer
+gate. No other same-slot transaction had writable potential for those target mints, so all 140
+remain candidates for both the S-1 and S whole-account snapshot boundaries. Writable privilege is
+only potential; failed transactions were treated as nonblocking only when failure and a distinct
+resolved fee payer were known, because transaction fees persist on failure. No account snapshot was
+requested or acquired, and this establishes no state value, mutation/effect, lifecycle, settlement,
+economic qualification, or provider completeness. Receipt:
+[`c4 mint-state snapshot locator`](evidence/pumpswap-buy-exact-v1-c4-state-snapshot-locator-2026-10-10.json).
+
 The paired finalized-block sensor runs a seeded 64-slot epoch each UTC hour through
 `ai.memecoin.brain.senses.block-epochs`, with raw reservations and receipts under
 `work/brain-senses-live-helius-hourly-20261009/`. Every selected Helius block is checked against its
