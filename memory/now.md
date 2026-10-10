@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 22:28 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-10 22:29 UTC. Verify live runtime before any campaign or service decision.
 
 ## Boundaries and runtime
 
@@ -114,6 +114,9 @@
 
 1. Let the unchanged c4 LaunchAgent collect only scheduled future frames; inspect read-only status
    after natural ticks and retain missed intervals as gaps. Do not retry, backfill or manually tick.
+   Tail2's implementation froze at `f7ec8c0`. Once the first four successful scheduled frames
+   strictly later than that commit complete, select them by metadata only, freeze the audit plan,
+   then open their payloads once. Do not inspect those future full-block payloads before plan freeze.
 2. After normal c4 STOP, verify terminal receipt, request accounting, no open/ambiguous reservation,
    no post-STOP I/O and unloaded label; calculate full storage/latency/width tails and account
    headroom before selecting the authorized successor path.
