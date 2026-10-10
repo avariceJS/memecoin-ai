@@ -367,6 +367,15 @@ are not in Git; consult the receipt's pinned local root and manifest when author
 - `helius-inventory-v3-c4-first-frame-2026-10-10.json`: sealed receipt for the scheduled c4 13:05Z
   epoch; all 34 requests reconcile and all 16 selected full-block/signature checks pass across a
   16,596-slot provider-reported inventory interval, with no backfill or economic completeness claim.
+- `helius-inventory-v3-c4-frame-20261010T180000Z.json`: sealed receipt for the preregistered
+  18:00Z c4 frame; 34 request/result pairs and 16 sampled full-block/signature checks reconcile,
+  with exact capture, plan, summary, reservation, selection, and predecessor-lineage hashes.
+- `pumpswap-buy-exact-v1-c4-1800-structural-census-2026-10-10.json`: offline census of 17,784
+  transactions and 427 PumpSwap instruction references in 16 hash-bound full blocks, with zero
+  normalization errors; the matching 25-byte/three-tail class has 271 references.
+- `pumpswap-buy-exact-v1-c4-1800-pool-v2-structural-qualification-2026-10-10.json`: one-pass
+  application of the frozen SDK predicate to all 271 raw-reconciled candidates; 270 structural
+  passes and one failed attempt quarantined for transaction-wide pool-v2 writability. No economics.
 - `pumpswap-buy-exact-v1-c4-first-frame-census-2026-10-10.json`: offline census of 17,607
   transactions in the first c4 frame; 260 pinned v1 instruction references, including 171 exact
   25-byte/23-fixed/three-tail candidates. No settlement qualification.

@@ -1484,6 +1484,21 @@ replication only, not independent audit or classifier tuning. Receipts:
 [`c4 buyExact census`](evidence/pumpswap-buy-exact-v1-c4-first-frame-census-2026-10-10.json) and
 [`c4 raw-reconciled pool-v2 qualification`](evidence/pumpswap-buy-exact-v1-c4-first-frame-pool-v2-prefix-raw-reconciled-2026-10-10.json).
 
+Following the metadata-only pre-registration, the unchanged qualifier was applied once to the
+still-unopened c4 `18:00Z` frame. The scheduled capture reconciled 34/34 requests and 16/16 sampled
+block/signature checks; the offline census normalized 17,784 transactions and 427 PumpSwap
+instruction references with zero normalization errors. Its full matching 25-byte/23-fixed/three-tail
+class contained 271 candidates; raw/report identities matched. The frozen SDK predicate accepted
+270/271: all 132 successful references passed, while 138/139 failed attempt-only references passed
+and one failed reference was quarantined because `pool-v2` was transaction-writable. No settlement,
+fee movement, exact zero, wallet-net result, training admission, or global completeness was assessed.
+The selector, limits, and no-fallback rule are bound by the
+[`c4 future-frame pre-registration`](evidence/pumpswap-buy-exact-v1-c4-future-frame-structural-audit-prereg-2026-10-10.json);
+frame and replay receipts are
+[`c4 18:00Z frame`](evidence/helius-inventory-v3-c4-frame-20261010T180000Z.json),
+[`c4 18:00Z census`](evidence/pumpswap-buy-exact-v1-c4-1800-structural-census-2026-10-10.json),
+and [`c4 18:00Z pool-v2 structural qualification`](evidence/pumpswap-buy-exact-v1-c4-1800-pool-v2-structural-qualification-2026-10-10.json).
+
 Sol authorized one frozen offline development trace over those 141 successful c4 references. It
 revalidated all 16 raw full-block captures against their receipt hashes, then recorded each
 candidate's exact instruction bytes/arguments, every transaction instruction touching its 26
