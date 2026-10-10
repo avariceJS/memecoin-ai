@@ -323,10 +323,17 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   v1 IDL and NPM SDK artifact integrity; the examined SDK release has no explicit exact-quote
   builder implementation, leaving captured remaining-account variants unresolved. Raw NPM
   tarball is retained outside Git under `work/official-sources/`.
-- `pumpswap-buy-exact-v1-c3-pool-v2-prefix-qualification-2026-10-10.json`: pins the current
-  official PumpSwap SDK 2.1.0 and compares its 23-account IDL, pool-v2 derivation and buy remaining
-  account order against 192 raw c3 first-frame references; 190 are structurally role-qualified and
-  two failed attempts remain quarantined. No settlement or economic qualification. Reproduction
-  uses `tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py` and
+- `pumpswap-buy-exact-v1-c3-pool-v2-prefix-qualification-2026-10-10.json`: pins the official
+  PumpSwap SDK 2.1.0 and qualifies 192 rows supplied by the census report against raw captures;
+  this first receipt did not independently prove report population completeness. Treat it as row
+  qualification only. It is superseded for the captured-class denominator by the raw-reconciled v2
+  receipt below.
+- `pumpswap-buy-exact-v1-c3-pool-v2-prefix-raw-reconciled-2026-10-10.json`: independently
+  normalizes all 16 hash-bound c3 first-frame blocks (16,668 transactions), verifies census source
+  pins and exact raw/report identity and field equality for the full matching valid-boolean
+  25-byte/23-fixed/3-tail class (192/192, with zero normalization errors or set differences), then
+  applies the unchanged SDK pool-v2 predicate. 190 pass structural roles and two failed attempts
+  remain quarantined. This does not establish global discovery completeness or economic settlement.
+  Reproduction uses `tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py` and
   `tools/brain_senses_buy_exact_v1_pool_v2_pda_derive.cjs` with the package artifact under ignored
   `work/source-surveys/`.

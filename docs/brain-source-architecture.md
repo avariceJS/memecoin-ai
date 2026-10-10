@@ -334,20 +334,27 @@ was also pinned and compared with the local official AMM IDL. Its `buy_exact_quo
 23-account order and arguments match; the builder appends an optional quote-mint cashback ATA,
 then readonly `pool-v2` when the pool creator is non-default, then the readonly fee wallet and its
 writable quote ATA. The `pool-v2` derivation is `findProgramAddress(["pool-v2", base_mint],
-Pump AMM program)`. On the 192 first-frame references with the exact 25-byte payload and three
-remaining accounts, all raw prefixes match the official SDK derivation; none matches the official
-cashback ATA derivation. Raw message-header privileges and the previously qualified fee pair leave
-190 references with the expected readonly `pool-v2` plus fee pair (134 successful transaction
-references and 56 failed attempt-only references). Two other failed references have transaction-wide
-writability on either `pool-v2` or the fee recipient and remain quarantined. This is role/order
-qualification for that captured class only; it does not decode settlement or justify economic
-admission. Other account counts, Token-2022 effects, cashback combinations and unknown layouts remain
-quarantined. Receipt: [`c3 pool-v2 prefix qualification`](evidence/pumpswap-buy-exact-v1-c3-pool-v2-prefix-qualification-2026-10-10.json).
-The frozen reusable offline classifier is `tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py`
-with the official SDK adapter `tools/brain_senses_buy_exact_v1_pool_v2_pda_derive.cjs`; it binds the
-SDK package integrity, source hashes, IDL contract, fee-recipient set, frame receipt and each raw
-capture. Apply it once to the first complete c4 frame whose bodies have not been inspected for this
-predicate; a c3 replay or any already-inspected frame is development/ordinary replication only.
+Pump AMM program)`. The original [`c3 prefix receipt`](evidence/pumpswap-buy-exact-v1-c3-pool-v2-prefix-qualification-2026-10-10.json)
+qualified the 192 rows supplied by its census report and bound each row to raw captures, but did not
+independently prove that the report contained the full matching population; treat that receipt as
+row qualification only. The corrected v2 qualifier independently normalizes every transaction in
+all 16 hash-bound blocks (16,668 transactions), selects matching valid-boolean 25-byte/23-fixed/3-tail
+references, verifies census source hashes and exact identity/field equality by slot, signature and
+instruction path, and fails closed on normalization errors, duplicate identities, or set mismatch.
+The raw set and report each contain 192 references. All 192 prefixes match the official SDK pool-v2
+derivation; none matches its cashback ATA derivation. Raw message-header privileges and the
+previously qualified fee pair leave 190 references with the expected readonly `pool-v2` plus fee
+pair (134 successful transaction references and 56 failed attempt-only references). Two failed
+references have transaction-wide writability on either `pool-v2` or the fee recipient and remain
+quarantined. Receipt: [`c3 raw-reconciled pool-v2 prefix qualification`](evidence/pumpswap-buy-exact-v1-c3-pool-v2-prefix-raw-reconciled-2026-10-10.json).
+The population-binding qualifier is `tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py`
+with the official SDK adapter `tools/brain_senses_buy_exact_v1_pool_v2_pda_derive.cjs`. It binds
+SDK package integrity, source hashes, IDL, fee-recipient set, frame receipt, raw captures, census
+tool/source pins, and the exact raw/report candidate set. Apply it once to the first complete c4
+frame whose bodies have not been inspected for this predicate; a c3 replay or already-inspected
+frame is development/ordinary replication only. This is structural role/order qualification for the
+selected captured-block class; settlement and economic admission remain unqualified. Other account
+counts, Token-2022 effects, cashback combinations and unknown layouts remain quarantined.
 
 The frozen development predicate selected all 62 successful refs in that captured census whose
 payload is the pinned 25-byte shape, two-account suffix passes the source-bound checks, and both
