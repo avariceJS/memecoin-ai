@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 05:17 Europe/Moscow. Verify Git, runtime and disk before acting.
+**As of:** 2026-10-10 05:28 Europe/Moscow. Verify Git, runtime and disk before acting.
 
 ## Boundaries
 
@@ -83,6 +83,16 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   means potential, not actual modification. All 1,234 retain `historical_extension_state=unavailable`
   and `economic_effects=not_assessed`. Receipt:
   `docs/evidence/pumpswap-buy-exact-v1-token2022-privilege-census-2026-10-10.json`.
+- A second offline trace replay covered those 1,146 refs across 285 captured blocks / 366,918
+  transactions. It retained exact target-touching wire bytes, instruction paths/stacks, and
+  same-slot writable-potential counts for each target account. There were 3,552 Token-2022
+  `(first byte 12, length 10)` instructions and four `(9, 1)` variants; those four rows stop at an
+  unclassified wire shape. The other 1,142 are structural traces only. All 1,146 remain
+  economically unqualified with extension state unavailable. Receipt:
+  `docs/evidence/pumpswap-buy-exact-v1-token2022-clean-stratum-2026-10-10.json`.
+- Fresh Alchemy MCP read-only usage summary: 18,680 CU / $0.01 account-wide month-to-date through
+  02:27Z; no account limit reported. The PAYG endpoint variable is absent from process env and
+  `.env.local`; no archive query or paid request was made.
 - Senses remains incomplete: broad process/market discovery, lifecycle, provider-independent
   completeness and prospective continuity are limited. Preserve unknown/gap/censored/failed/stopped/
   unsupported/immature separately; never convert them to zero.
@@ -91,9 +101,9 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 
 1. Check the first future campaign-1 scheduled frame (06:05 MSK / 03:05Z), then its controller
    checkpoint; do not kickstart, backfill missed prospective slots, or duplicate requests.
-2. Continue Sol's next offline gate on only the 1,146 clean Token-2022 references. Keep 67 unknown
-   program refs, 11 writable-potential refs, and 10 refs with both reasons separate and quarantined.
-   Preserve all economic/extension states as unknown; no amount or settlement decoder.
-3. Verify Alchemy entitlement, endpoint and account-level costs before any historical archive call;
-   no paid request is authorized by the capability survey alone. Continue prospective and lifecycle
-   sensing. No Cortex.
+2. Keep the 67 unknown-program refs, 11 writable-potential refs, and 10 with both reasons separately
+   quarantined. Within the 1,146 replay, stop four rows with Token-2022 `(9,1)` wire; use only the
+   remaining 1,142 for a later structural evidence gate. Preserve all economic/extension states.
+3. Alchemy Account Archive remains unexecutable from this checkout: no PAYG endpoint and no account
+   limit/entitlement verified. Do not make paid calls; continue other Senses work and prospective
+   collection. No Cortex.

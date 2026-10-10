@@ -320,6 +320,17 @@ the other target-account effects, qualify Token-2022 economics, or change the 1,
 economic states. Receipt:
 [`Token-2022 full-slot privilege census`](evidence/pumpswap-buy-exact-v1-token2022-privilege-census-2026-10-10.json).
 
+The next offline trace replay covered all 1,146 mint-readonly references without an unclassified
+program touch, across their 285 captured full blocks and 366,918 transaction records. It preserved
+exact wire bytes and path/stack evidence for every instruction touching a target role, plus each
+target account's writable-potential appearances across its captured slot. Of 3,556 Token-2022
+target-touching instructions, 3,552 had first byte `12` and length 10; four had first byte `09` and
+length 1. Those four rows are stopped at an unclassified Token-2022 wire shape; the other 1,142
+remain structural traces only, with no amount or settlement decode. Same-slot writable privileges on
+user, pool, or token accounts remain potential effects and do not establish a balance change. All
+1,146 rows keep historical extension state unavailable. Receipt:
+[`Token-2022 clean-stratum trace`](evidence/pumpswap-buy-exact-v1-token2022-clean-stratum-2026-10-10.json).
+
 Provider-capability survey update (2026-10-10): Alchemy's current [Solana Account Archive
 documentation](https://www.alchemy.com/docs/solana/account-archive) describes paid-plan historical
 `getAccountInfo` reads (`slot`, `lastUpdateBeforeSlot`, `firstUpdateAfterSlot`), with `slot: S`
