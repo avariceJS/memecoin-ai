@@ -93,6 +93,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - The next real scheduler bucket sealed as an oversized gap:
   `helius-inventory-v2-oversized-gap-2026-10-10.json`. One `getSlot` anchor recorded a width above
   the pinned cap; no inventory or block body was requested, and the bucket must not be replayed.
+- The 2026-10-10 01:00Z real v2 frame:
+  `helius-inventory-v2-frame-2026-10-10T010000Z.json`. Its 34-request journal validates offline;
+  all 16 selected full/signature pairs pass structural self-checks. The preceding oversized gap
+  remains uncovered, and the captured structural references are not economic swaps.
 - Frozen no-RPC Alchemy Account Archive mint-state control plan:
   `alchemy-account-archive-mint-control-plan-2026-10-10.json`. It pins one already captured
   Token-2022 development reference and at most three historical reads, but has not been run because

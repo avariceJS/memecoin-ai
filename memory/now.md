@@ -24,10 +24,16 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   23,699-slot range above the 20,000 cap, and sealed `oversized_frame` with no inventory/block
   requests and no retries. The interval is an explicit gap, not zero or backfill. Never replay it.
   Receipt: `docs/evidence/helius-inventory-v2-oversized-gap-2026-10-10.json`.
+- The real `20261010T010000Z` bucket completed: 4,496 provider-returned produced slots, 34/34
+  journal rows validated offline, and 16/16 selected block/signature self-checks passed. It retained
+  53,057,298 raw / 12,349,827 zstd bytes. The prior gap remains uncovered. Receipt:
+  `docs/evidence/helius-inventory-v2-frame-2026-10-10T010000Z.json`.
 - Campaign schedule has a request-cap defect: 817 total requests permits a partial next frame after
   24 complete 34-request frames. Do not install a LaunchAgent or edit the frozen manifest. Sol's
-  decision is to run the next two actual future hourly frames manually, then stop/review this
-  campaign. Any successor needs a new version and complete-frame request preflight.
+  decision is to run the next two actual future hourly attempts manually, then stop/review this
+  campaign. One (01:00Z) completed; only the future 02:00Z attempt remains. Any successor needs a
+  new version, 24-attempt finite horizon, separate observed/inventoried frontier, and full-frame
+  request/byte/disk preflight before anchor.
 - Owner authorized the current Helius key. It remains in `.env.local` and Codex MCP environment
   configuration, both mode `0600`; collector CLI has no endpoint argument. The exact key was
   redacted from local Codex/shell histories and SQLite thread history. Exact scans found no key in
