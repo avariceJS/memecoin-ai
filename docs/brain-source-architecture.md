@@ -1123,10 +1123,16 @@ the candidate is a seven-day lease of up to seven daily campaigns, sized from ob
 and free disk while preserving the 50 GiB floor and a complete-frame write margin. It has no
 automatic renewal. The Helius key remains in mode-0600 private provider configuration and the
 collector reads its endpoint in-process; the key is absent from LaunchAgent arguments. MCP package
-configuration is pinned to `helius-mcp@2.2.0`, and the exact key was absent from current argv and
-targeted saved-history scans after remediation. Helius MCP authenticated, but did not expose
-credit usage or plan limits without a JWT session. A successful local activation does not qualify
-real provider throughput, completeness or economic coverage.
+configuration in Codex and Cursor is pinned to `helius-mcp@2.2.0`. Legacy `@latest` npm process
+listings exposed the inherited credential, so those five old processes were terminated; after
+cleanup, no exact-key process-list matches remained. The exact key was absent from targeted saved
+histories and a 262 MB two-hour Unified Log scan; one old Cursor config-history snapshot was
+redacted. Helius MCP authenticated, but did not expose credit usage or plan limits without a JWT
+session; the MCP transport closed after legacy-process cleanup. This does not affect the separate
+collector LaunchAgent. The c3 activation receipt's initial process-argument field used an invalid
+macOS `sysctl` check and is superseded by the credential process-list remediation receipt. The
+initial process-list tool output is visible in this session transcript. A successful local activation
+does not qualify real provider throughput, completeness or economic coverage.
 
 The paired finalized-block sensor runs a seeded 64-slot epoch each UTC hour through
 `ai.memecoin.brain.senses.block-epochs`, with raw reservations and receipts under

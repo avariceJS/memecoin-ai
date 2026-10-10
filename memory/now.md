@@ -25,11 +25,15 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
   unloaded. Helius watch-v3 keeps its explicit STOP; do not resume it. The first c3 frame has not run.
 - Helius credential is authorized without rotation. Private `.env.local`, Codex and Cursor config
   files are mode `0600`; collector reads its RPC endpoint in-process and LaunchAgents pass paths
-  only. Current configs pin `helius-mcp@2.2.0`. Exact key scans found no match in working files,
-  4,891 Git objects, current `argv`, recent saved histories, or a 262 MB two-hour Unified Log scan.
-  One old Cursor config-history snapshot was redacted. Helius account status authenticated, but plan
-  and credit usage remain unavailable without JWT session. A prior Alchemy endpoint in saved Codex
-  records was redacted; see source-architecture receipt/history.
+  only. Codex/Cursor configs pin `helius-mcp@2.2.0`. Five legacy `@latest` npm processes that
+  displayed the inherited key in `pgrep` listings were terminated; no matches remain. Exact key
+  scans found no match in working files, 4,891 Git objects, process listings, recent saved histories,
+  or a 262 MB two-hour Unified Log scan. One old Cursor config-history snapshot was redacted.
+  Helius account status authenticated but exposed no plan/credits; MCP transport closed after
+  retiring old processes. The c3 activation receipt's initial process-argument check was invalid;
+  use `helius-mcp-credential-process-list-remediation-2026-10-10.json`. The separate prospective
+  RPC LaunchAgent is unaffected. A prior Alchemy endpoint in saved Codex records was redacted; see
+  source-architecture history.
 - Alchemy Archive access/limits/coverage were not established. No archive query or paid request was
   made; no separate PAYG endpoint is configured. Pair64 offline audit supports only sampled block
   agreement (64/64 identity/signature pairs); Alchemy inventory failure remains explicit.
