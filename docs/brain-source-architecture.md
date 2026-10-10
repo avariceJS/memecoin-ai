@@ -1182,9 +1182,36 @@ and are not interpreted as economic zero. All 34 request results captured and re
 passed. This qualifies the bounded frame and its capture path only; it is not market/process
 completeness or economic swap qualification. Receipt:
 [`helius-inventory-v3-c3-first-frame-2026-10-10.json`](evidence/helius-inventory-v3-c3-first-frame-2026-10-10.json).
-The c3 LaunchAgent remains loaded for its next future hourly trigger. Its full 24-attempt run and
-terminal STOP remain unqualified. Any mismatch, second gap, uncertain request, resource/provider
-failure or interrupted active reservation halts without replay. Only after c3's terminal STOP may a separate finite sustainable-service policy be assessed;
+
+The next scheduled frame completed at `20261010T060000Z` on the adjacent forward interval
+`[455133322,455149828)`, width 16,506. Helius returned 16,506 inventory members; all 34 request
+results and capture hashes reconciled to 63,742,226 raw / 13,808,125 stored bytes, and all 16/16
+selected block/signature checks passed. The inherited gaps remain untouched. Across these two frames,
+68 bucket-and-sequence request identities are accounted; a repeated `getSlot` payload is the new
+hourly anchor observation, not a retry. No method/parameter identity repeats within either frame.
+Receipt: [`helius-inventory-v3-c3-frame2-2026-10-10.json`](evidence/helius-inventory-v3-c3-frame2-2026-10-10.json).
+
+An offline replay of frame 2 found 404 unique candidate transactions and 479 instruction references
+in 16 selected full blocks, with zero normalization errors. Of these, 418 invocations have the
+pinned 25-byte layout and two or three remaining accounts: 160 in the +2 stratum and 258 in +3.
+Every trailing wallet/ATA pair matched the pinned recipient set, raw quote-mint/token-program ATA
+derivation, and census pair; all five pinned IDL roles matched raw compiled account indices. The
+eligible references split into 376 successful and 42 failed transaction attempts. All 59 observed
+pools have nonaliased base/quote mints and internally consistent role tuples; no duplicate paths or
+tuple conflicts occurred. A +3 prefix remains unresolved even when its trailing pair matches.
+The other 61 instruction references, including 24-/26-byte payloads and unsupported account
+shapes, remain quarantined. This replicates structural role mapping across two prospective frames;
+it does not establish fee movement, fill, settlement, economic orientation, or completeness. Receipts:
+[`buyExact frame-2 census`](evidence/pumpswap-buy-exact-v1-c3-frame2-census-2026-10-10.json) and
+[`buyExact frame-2 role replication`](evidence/pumpswap-buy-exact-v1-c3-frame2-role-replication-2026-10-10.json).
+
+At frame 2, the c3 LaunchAgent remained loaded and idle for the next scheduled trigger. This is only
+2/24 attempts; do not create a sustainable-service successor until c3 has its normal fully reconciled
+terminal STOP, measured width/latency/byte tails, disk-floor history, and verified teardown with no
+post-STOP RPC. An abnormal STOP requires a separate recovery decision.
+During the remaining c3 attempts, any mismatch, second gap, uncertain request, resource/provider
+failure or interrupted active reservation halts without replay. Only after c3's terminal STOP may a
+separate finite sustainable-service policy be assessed;
 the candidate is a seven-day lease of up to seven daily campaigns, sized from observed frame tails
 and free disk while preserving the 50 GiB floor and a complete-frame write margin. It has no
 automatic renewal. The Helius key remains in mode-0600 private provider configuration and the

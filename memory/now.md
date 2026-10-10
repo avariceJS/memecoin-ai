@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 05:39 UTC. Verify Git HEAD, runtime and disk before acting.
+**As of:** 2026-10-10 06:16 UTC. Verify Git HEAD, runtime and disk before acting.
 
 ## Boundaries
 
@@ -11,31 +11,25 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
 
 ## Host and prospective runtime
 
-- Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; the
-  latest functional change is `Add receipt-bound Helius campaign 3 handoff`, followed by state-only
-  memory commits. Verify actual HEAD and clean status. Production remains untouched. About 68.5 GiB
-  free; raw captures stay under ignored `work/`.
-- Campaign 3 is a one-use, receipt-bound continuation. One of its 24 frame attempts completed at 05:05Z:
-  34/34 captured requests, 61,403,814 raw / 13,580,271 stored bytes, interval
-  `[455116881,455133322)`, and 16/16 selected-block structural checks. The new finalized anchor is
-  455133321. Both inherited gaps remain explicit; no backfill. The LaunchAgent remains loaded for
-  the next future trigger. C1 used 0 and c2 used 1/43/56; both count against the original lease.
-  C3 cap remains 24 frame attempts / 816 effective requests. Receipt:
-  `docs/evidence/helius-inventory-v3-c3-first-frame-2026-10-10.json`.
+- Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; latest
+  functional commit `2c1031d` adds an offline frame-2 role replication tool. Production remains
+  untouched. About 68 GiB free; raw captures stay under ignored `work/`.
+- Frozen campaign c3 is 2/24 attempts. Frames at 05:00Z and 06:00Z are forward-adjacent:
+  `[455116881,455133322)` and `[455133322,455149828)`, width 16,441/16,506. Both completed 34/34
+  requests with 16/16 structural checks. Aggregate: 68 requests, 125,146,040 raw / 27,388,396
+  stored bytes. Capture, response, summary, STOP, reservation and release hashes were reconciled
+  offline. No backfill; inherited gaps remain. The LaunchAgent stays loaded for future triggers,
+  currently idle; next expected bucket 07:00Z (07:05 trigger). Campaign cap remains 24 attempts / 816
+  effective requests. Frame receipts are in `docs/evidence/helius-inventory-v3-c3-*frame*`.
 - C2 and controller STOPs are immutable. Old public/Helius watchers, c1/c2 and the controller are
   unloaded. Helius watch-v3 keeps its explicit STOP; do not resume it.
-- Helius credential is authorized without rotation. Private `.env.local`, Codex and Cursor config
-  files are mode `0600`; collector reads its RPC endpoint in-process and LaunchAgents pass paths
-  only. Codex/Cursor configs pin `helius-mcp@2.2.0`. Five legacy `@latest` npm processes that
-  displayed the inherited key in `pgrep` listings were terminated; current process command lines,
-  tracked Git, c3 capture, and saved Codex/Cursor files have no matches outside the current private
-  configs. A second scan found three exact copies in two old Cursor JSONL transcripts that the first
-  targeted history scan had missed; both were redacted, changed to mode `0600`, and their 103 JSONL
-  records remain valid. The prior remediation receipt's saved-history zero is superseded by
-  `helius-mcp-saved-transcript-redaction-correction-2026-10-10.json`. A 262 MB two-hour Unified Log
-  scan found no exact match. One initial credential-bearing process-list result remains in the
-  agent-session transcript. The MCP account tool currently returns `Transport closed`; independent
-  RPC LaunchAgent is unaffected.
+- Helius credential is authorized without rotation. `.env.local` and Codex/Cursor configs are mode
+  `0600`; the collector resolves its endpoint in-process, while LaunchAgents pass only paths.
+  Process arguments, tracked Git, c3 captures, saved Codex/Cursor files and a two-hour Unified Log
+  scan had no exact-key matches outside private configs after remediation. Two historical Cursor
+  JSONL transcripts were redacted and validated; one initial credential-bearing process-list result
+  remains in this agent-session transcript. Codex/Cursor pin `helius-mcp@2.2.0`. MCP account tool
+  returns `Transport closed`; local RPC LaunchAgent works independently.
 - Alchemy Archive access/limits/coverage were not established. No archive query or paid request was
   made; no separate PAYG endpoint is configured. Pair64 offline audit supports only sampled block
   agreement (64/64 identity/signature pairs); Alchemy inventory failure remains explicit.
@@ -78,10 +72,17 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
   `fee_pair_unqualified` because the recipient was transaction-writable. No prefix role, fee
   movement, or economic fill is inferred. Receipt: `pumpswap-buy-exact-v1-c3-extra-role-census-2026-10-10.json`;
   code commit: `8a4c197cc29d35aeda1e6800777dbd38741799d3`.
+- Frame 2 buyExact replay: 404 unique candidate transactions, 479 instruction references, 0
+  normalization errors. Frozen raw IDL +2/+3 role replication covered 418 25-byte invocations:
+  376 successful and 42 failed references; all 160 +2 and 258 +3 wallet/ATA pairs matched pinned
+  source rules. 59 pools, no alias, conflicting tuple or duplicate path. The +3 prefix stays
+  unresolved; all other layouts and economics remain quarantined. Receipt:
+  `pumpswap-buy-exact-v1-c3-frame2-role-replication-2026-10-10.json`. Implementation commit:
+  `2c1031d49c100e9ddb9f5e16c49ad00fd8ca8714`.
 
 ## Next horizon
 
-1. Read-only inspect each future c3 tick (next expected trigger 06:05Z): unique frame/request
+1. Read-only inspect each future c3 tick (next expected trigger 07:05Z): unique frame/request
    identities, new finalized anchor, forward interval, full inventory accounting, 16/16 body/signature
    checks, explicit gaps/failures, byte/disk floors, and no repeats. Do not run missed buckets again.
 2. Accept normal campaign closure only after all 24 attempts, immutable reconciled journals/captures/
@@ -92,5 +93,8 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
    finite seven-day lease (at most 5,719 all-in requests, measured byte ceilings, 50-GiB floor, no
    auto-renew) is a candidate only if normal closure and resource evidence support it. Continue Senses;
    no Cortex until sensing bottlenecks are actually closed.
-4. After the first-frame suffix census, do not invent another buyExact economic experiment before
-   multi-frame c3 evidence and a pinned historical-account-state entitlement path are available.
+4. Sol accepted two c3 frames for a single offline structural role replication; that gate passed.
+   Do not reopen buyExact economic experiments absent pinned historical-account-state evidence.
+5. Use `.venv/bin/python` from the research checkout for local tools. Interactive system `python`
+   resolved a production-tree package during a `--help` probe; it did not affect the LaunchAgent or
+   captures. Use `env -u PYTHONPATH .venv/bin/python ...` for reproducible research commands.

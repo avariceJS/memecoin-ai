@@ -41,6 +41,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `helius-inventory-v3-c3-first-frame-2026-10-10.json` (34/34 captured requests, exact raw/stored
   reconciliation, a new finalized anchor, 16/16 selected-block structural checks, and retained gaps;
   no global discovery or economic-zero claim).
+- Campaign-3 second prospective frame:
+  `helius-inventory-v3-c3-frame2-2026-10-10.json` (forward-adjacent interval, 34/34 reconciled
+  captures, exact raw/stored accounting, 16/16 checks, no missing inventory positions in this
+  provider response, and no backfill/retry).
 - Campaign-3 first-frame sell23 replay:
   `helius-inventory-v3-c3-sell23-census-2026-10-10.json` (80/80 eligible structural candidates
   matched offline; 10 diagnostic exact ledgers, 70 censored native-close outcomes, zero RPCs).
@@ -282,6 +286,12 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   other 306 c3 references; all trailing pairs match the pinned wallet/ATA rule, 301 leading
   accounts remain unresolved, three census rows retain writable-recipient failure state, and 142
   references are failed attempts.
+- `pumpswap-buy-exact-v1-c3-frame2-census-2026-10-10.json`: offline source-bound census of the
+  second prospective c3 frame; 404 candidate transactions, 479 instruction references, and zero
+  normalization failures across 16 selected full blocks.
+- `pumpswap-buy-exact-v1-c3-frame2-role-replication-2026-10-10.json`: applies frozen raw IDL and
+  suffix rules to all 418 eligible 25-byte +2/+3 invocations in frame 2; 160 +2 and 258 +3 trailing
+  pairs source-supported, with +3 prefixes retained as unknown. Structural only; no economics.
 - `pumpswap-buy-exact-v1-development-qualification-2026-10-10.json`: complete replay of the frozen 62-ref dual-legacy development population, with exact token-account ledger facts; still diagnostic-only and not the sealed audit.
 - `pumpswap-buy-exact-v1-audit-failure-2026-10-10.json`: preserved one-time 13:00Z census failure after all 512 payloads were processed but before report publication; no outcomes accepted and no reuse permitted.
 - `pumpswap-buy-exact-v1-audit-qualification-2026-10-10.json`: fresh disjoint 512-slot Helius Free captured-class census and one-pass replay of all seven successful dual-legacy refs; diagnostic-only, with four censored native settlements and Token-2022 still quarantined.
