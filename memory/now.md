@@ -1,11 +1,12 @@
 # Current Project State
 
-**As of:** 2026-10-10 12:48 UTC. Verify live Git, LaunchAgents, campaign state and disk before acting.
+**As of:** 2026-10-10 13:00 UTC. Verify live Git, LaunchAgents, campaign state and disk before acting.
 
 ## Boundaries and runtime
 
 - Continue Senses only. Research checkout `/Users/root1/Developer/memecoin-research`, branch
-  `research/active`, HEAD `b1ee9b3`; production `/Users/root1/Desktop/memecoin-ai` remains untouched. No trading,
+  `research/active`; latest sensing change is commit `7c9e4bd`. Production
+  `/Users/root1/Desktop/memecoin-ai` remains untouched. No trading,
   signing, paid upgrade, protected holdout access, push, backfill, or ambiguous-request retry.
 - c3 is permanently terminal after its reserved 11:00Z `getSlot` transport failure (205 attempts,
   charge uncertain), frontier 455216025. No retry or backfill.
@@ -41,6 +42,9 @@
   referenced by a sibling outer instruction at `[1]` and the PumpSwap CPI at `[1,0]`. Sibling
   semantics remain unknown; no economic settlement qualified. Receipt:
   `docs/evidence/pumpswap-buy-exact-v1-c3-frame2-pool-v2-prefix-raw-reconciled-2026-10-10.json`.
+- Exhaustive focused pytest coverage checks the frozen qualifier's message-header privilege
+  partitions through 12 static keys, loaded address boundaries, and fail-closed invalid cases;
+  `6 passed`. No Hypothesis dependency was added.
 - Run the frozen classifier once only on the first complete c4 frame whose raw bodies were not
   examined for this predicate; otherwise label replication. Token-2022 effects, other layouts,
   fills, fee movement and native settlement remain quarantined. Pair64 is sampled same-slot evidence,
