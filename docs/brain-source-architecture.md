@@ -41,6 +41,7 @@ prior hour of Unified Log; it found no credential components outside the three e
 private configs. Provider-side logs, remote conversation storage, backups, Time Machine, and
 inaccessible services remain outside the scan. See the
 [`resume exposure rescan`](evidence/helius-key-resume-exposure-rescan-2026-10-10.json).
+A follow-up scan at 19:04Z found no exact endpoint/path/hostname matches across 2,861 Git blobs, no exact endpoint/path matches in 3,452 recent saved files (2.05 GB), no process-argument matches, and no match in 213.6 MB of the last hour of Unified Log. Two Codex history files had 67 public-hostname-only mentions; no endpoint path or key component was present. The c4 LaunchAgent remained path-only and the scheduled 19:05Z frame was active at the 19:06Z status read. Receipt: [`19:04Z exposure rescan`](evidence/helius-key-followup-exposure-rescan-2026-10-10T1904Z.json).
 Read-only Helius MCP plan info and current pricing confirm Free at 1M credits/month and 10 standard
 RPC requests/s; standard `getBlock`, `getBlocks`, `getSignaturesForAddress`, and `getTransaction` each cost one
 credit. Account-level usage is not exposed. Standard WSS is available; enhanced
@@ -1440,6 +1441,14 @@ loads `.env.local` in-process. The c4 LaunchAgent is loaded idle between calenda
 complete frames and zero open reservations. Provider-side, remote, backup, and inaccessible service
 storage remain outside the scan. Receipt:
 [`post-resume Helius-key rescan`](evidence/helius-key-post-resume-exposure-rescan-2026-10-10.json).
+
+The 18:43Z follow-up scanned all 2,861 Git blobs, 324,977 checkout/recent saved files, current
+process arguments, and 703,165,178 bytes of recent Unified Log output. No endpoint or credential
+component appeared; 68 matches were only the public Helius hostname in two mode-0600 Codex history
+files. `.env.local` and the two private MCP configurations remain mode 0600. The c4 LaunchAgent
+remains loaded idle with path-only arguments. Provider-side, remote, backup and inaccessible service
+storage remain outside scope. Receipt:
+[`follow-up Helius-key rescan`](evidence/helius-key-followup-exposure-rescan-2026-10-10.json).
 
 Campaign 4 was prepared and its calendar LaunchAgent loaded idle at 11:28Z, with the first permitted
 bootstrap at 12:05Z. The activation-time disk check found 73,256,988,672 free bytes against
