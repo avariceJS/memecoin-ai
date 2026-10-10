@@ -1852,9 +1852,11 @@ LaunchAgent unloaded. Early/abnormal STOP does not qualify and requires a new So
 all 24 real frame request/raw/stored/latency/width tails, `du`, and free-disk headroom before fixing
 the new service's finite budget. The first five c4 frames initially projected about 12.4 GB raw
 across 167 service frames, above the provisional 12 GB raw cap. An interim ten-frame sizing replay
-measures 706.3 MB raw and 161.8 MB stored across completed frames; per-frame mean is 70.63 MB raw /
-16.18 MB stored, with 19.9–165.2 seconds anchor-to-seal (median 36.8 seconds). At that mean, 167
-future frames project 11.79 GB raw and 2.70 GB stored. This interim projection is close to the raw
+accounts for all 341 requests: 11 `getSlot` anchors, 10 `getBlocks` inventories, 160 full `getBlock`
+captures and 160 signature checks. All 341 provider charge units remain `unknown_unverified`. The
+replay measures 706.3 MB raw and 161.8 MB stored across completed frames; per-frame mean is 70.63 MB
+raw / 16.18 MB stored, with 19.9–165.2 seconds anchor-to-seal (median 36.8 seconds). At that mean,
+167 future frames project 11.79 GB raw and 2.70 GB stored. This interim projection is close to the raw
 cap and has no defensible tail margin; it does not revise the cap. Reconcile all 24 tails before
 choosing an earlier hard STOP or reviewing a cap revision; never relax a live manifest. Confirm
 account credit/overage status if exposed; otherwise pin a conservative

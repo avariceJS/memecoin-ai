@@ -14,8 +14,9 @@
   reservations, 14 attempts remaining, frontier 455413633, and 60,144,988,160 free bytes. Exact c4
   LaunchAgent remains loaded and idle between calendar ticks, with fixed path-only arguments; its
   22:00Z frame completed naturally. Old watcher/decode and predecessor-campaign LaunchAgents are
-  disabled and unloaded. No manual tick. Credit units remain
-  unknown. Preserve all gaps.
+  disabled and unloaded. No manual tick. The ten-frame method accounting is 11 `getSlot`, 10
+  `getBlocks`, 160 full `getBlock`, and 160 signature checks; charge units unknown for all.
+  Preserve all gaps.
 - Helius key is still in ignored `.env.local` and private MCP configs, all mode 0600. User accepts
   no rotation. Latest follow-up scan found zero exact endpoint/path matches in Git, recent saved
   files, current process args or 213.6 MB of Unified Log. Two Codex history files had only 67

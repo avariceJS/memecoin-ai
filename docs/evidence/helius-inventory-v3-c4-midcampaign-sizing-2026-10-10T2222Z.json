@@ -6,7 +6,7 @@
   "branch_head": "2d5e02156958704604611b64815ab96d0850ce4e",
   "campaign_id": "helius-inventory-v3-20261010-4",
   "controller_state_sha256": "8a079a74414c947db9d6d06524507ad9918abeb2b72d278ed6e733dc8f9b073f",
-  "date_utc": "2026-10-10T22:22:29Z",
+  "date_utc": "2026-10-10T22:24:43Z",
   "decision": {
     "change_12GB_raw_budget": false,
     "current_finite_lease_unchanged": true,
@@ -148,8 +148,38 @@
     "inherited_gap_intervals": 3,
     "missed_slot_backfill": false,
     "open_reservations": 0,
+    "provider_charge_state": {
+      "all_requests": 341,
+      "requests_with_unknown_charge_units": 341
+    },
     "provider_charge_units": "unknown_unverified",
     "provider_returned_inventory_denominator_sum": 164465,
+    "request_methods": {
+      "getBlock_full_block": {
+        "count": 160,
+        "provider_charge_units": "unknown_unverified",
+        "raw_response_bytes": 688802197,
+        "stored_response_bytes": 145509274
+      },
+      "getBlock_signature_check": {
+        "count": 160,
+        "provider_charge_units": "unknown_unverified",
+        "raw_response_bytes": 15830309,
+        "stored_response_bytes": 15832422
+      },
+      "getBlocks_inventory": {
+        "count": 10,
+        "provider_charge_units": "unknown_unverified",
+        "raw_response_bytes": 1645000,
+        "stored_response_bytes": 501667
+      },
+      "getSlot_anchor": {
+        "count": 11,
+        "provider_charge_units": "unknown_unverified",
+        "raw_response_bytes": 473,
+        "stored_response_bytes": 616
+      }
+    },
     "selected_full_blocks": 160
   },
   "status": "midcampaign_sizing_observation_not_terminal_review",
