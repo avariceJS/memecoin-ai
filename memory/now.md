@@ -5,7 +5,7 @@
 ## Boundaries and runtime
 
 - Continue Senses only. Research checkout `/Users/root1/Developer/memecoin-research`, branch
-  `research/active`; HEAD at 16:10Z is `7cc22ea`. Production `/Users/root1/Desktop/memecoin-ai`
+  `research/active`; HEAD at 16:10Z after runner review is `e082e3f`. Production `/Users/root1/Desktop/memecoin-ai`
   remains untouched. No trading, signing, paid upgrade, protected holdout access, push, backfill,
   or ambiguous-request retry.
 - c3 is permanently terminal after its reserved 11:00Z `getSlot` transport failure (205 attempts,
