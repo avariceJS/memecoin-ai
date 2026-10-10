@@ -1776,3 +1776,27 @@ restart, bootstrap, sleep gaps, ambiguity, generation handoff, lease/campaign/da
 and writer exclusion. After any future activation, the first qualification is one observed seven-day
 run before considering a longer policy. This policy proves no provider or chain completeness and
 authorizes no economics or decoder changes.
+
+Sol conditionally approved the existing service's post-c4 activation procedure on 2026-10-10; this
+has no effect on the running c4 lease. Activation requires, in order: a normal durable STOP at the
+24-attempt cap; a terminal receipt binding STOP, epoch plans/summaries, request journals, and
+reservation release; no ambiguous/open reservation or post-STOP request; and the exact c4
+LaunchAgent unloaded. Early/abnormal STOP does not qualify and requires a new Sol decision. Reconcile
+all 24 real frame request/raw/stored/latency/width tails, `du`, and free-disk headroom before fixing
+the new service's finite budget. The first five c4 frames project about 12.4 GB raw across 167
+service frames, exceeding the provisional 12 GB raw cap. Either accept an earlier hard STOP or
+review a cap revision from complete c4 tails before initializing a fresh service root; never relax a
+live manifest. Confirm account credit/overage status if exposed; otherwise pin a conservative
+no-paid-overage request envelope (at most 5,719 requests), retain unknown provider charge units, and
+stop on quota/429 conditions. Independently review source and plist pins, one-writer and no-retry
+crash evidence, sanitized `PATH`/zstd, fixed path-only arguments, mode-0600 credential loading,
+secret-free logs, and absence of another loaded Senses writer.
+
+Only after those gates may a fresh service ID be initialized with authorization time after c4 STOP
+and expiry within seven days, binding exact c4 terminal hashes. Load the single scheduled agent and
+let a future calendar tick make the one-request bootstrap; do not manually kickstart, catch up, or
+replay. The next distinct scheduled bucket is the first 34-request frame. Accept this deployment only
+after both requests/frames reconcile to immutable captures, ledger/frontier/gap lineage, availability
+times, and disk accounting. Then monitor read-only through the bounded lease and review the observed
+run before any longer renewal. This conditional procedure does not authorize Cortex or new economic
+claims.
