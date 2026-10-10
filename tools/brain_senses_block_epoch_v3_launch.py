@@ -45,7 +45,7 @@ def run(
     stop = root / "STOP"
     if stop.is_file():
         # A failed prior bootout is retried here; STOP is checked before scheduler or RPC setup.
-        return 0 if _bootout(label, runner=runner) else 1
+        return _terminal_bootout(label, runner=runner)
 
     try:
         scheduler(root, lineage_path=lineage)
@@ -53,8 +53,20 @@ def run(
         if not stop.exists():
             _seal_stop(root, "scheduler_process_failed", error_class=type(exc).__name__)
     if stop.exists():
-        return 0 if _bootout(label, runner=runner) else 1
+        return _terminal_bootout(label, runner=runner)
     return 0
+
+
+def _terminal_bootout(label: str, *, runner=subprocess.run) -> int:
+    if _bootout(label, runner=runner):
+        return 0
+    print(
+        "Helius Senses v3 STOP is durable; launchctl bootout failed; next invocation will "
+        "retry teardown without RPC.",
+        file=sys.stderr,
+        flush=True,
+    )
+    return 1
 
 
 def main(argv: list[str] | None = None) -> int:

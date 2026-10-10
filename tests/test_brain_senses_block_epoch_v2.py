@@ -1147,7 +1147,7 @@ def test_v3_crash_after_durable_request_never_replays_ambiguous_rpc(
 
 
 def test_v3_launch_wrapper_boots_out_only_after_stop_and_retries_without_scheduler(
-    tmp_path: Path,
+    tmp_path: Path, capsys
 ) -> None:
     root = tmp_path / "launch"
     root.mkdir()
@@ -1172,6 +1172,7 @@ def test_v3_launch_wrapper_boots_out_only_after_stop_and_retries_without_schedul
     assert launch_v3.run(root, lineage, "fixture.label", runner=failed_bootout) == 1
     assert len(calls) == 1
     assert calls[0][1] == "bootout"
+    assert "retry teardown without RPC" in capsys.readouterr().err
 
 
 def test_v3_launch_wrapper_runs_without_secret_args_then_boots_out_on_new_stop(

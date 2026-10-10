@@ -950,7 +950,8 @@ manifest, current reservation and sealed summary when present.
 The hourly LaunchAgent wrapper checks STOP before scheduler or credential access, runs the
 scheduler in-process, and requests `launchctl bootout` only after STOP is durable. If bootout fails,
 the next calendar invocation is a STOP-only zero-RPC teardown retry; `KeepAlive` is disabled and
-the schedule never renews itself. A fsynced invocation marker makes an unclean process exit
+the wrapper writes a sanitized stderr diagnostic. The schedule never renews itself. A fsynced
+invocation marker makes an unclean process exit
 detectable: the next invocation validates already captured journals locally, never repeats an
 ambiguous request, seals STOP, and unloads. Scheduler, wrapper, crash-boundary tests and differential
 review are qualified locally; real LaunchAgent installation and recovery remain pending the final
