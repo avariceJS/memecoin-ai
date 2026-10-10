@@ -1329,6 +1329,11 @@ checks passed. The frame stored 58,434,290 raw and 13,182,819 compressed bytes, 
 reservation or campaign STOP. No c3 gap was fetched. This proves only selected-block source
 consistency inside the provider-reported range, not economic or global market completeness. Receipt:
 [`c4 first frame`](evidence/helius-inventory-v3-c4-first-frame-2026-10-10.json).
+From first request start through final receipt (91.38 seconds), measured transfer/capture throughput
+was 0.639 MB/s raw and 0.144 MB/s compressed, with a 4.43:1 raw-to-stored ratio. At one such frame
+per hour this is a provisional 816 reservations, 1.40 GB raw and 0.316 GB compressed per day;
+these are first-frame projections, not billing credits or architecture limits. No provider credit
+counter was available in this runtime.
 
 The frozen buyExact pool-v2 three-tail qualifier was applied once to this first eligible untouched
 c4 frame. Its independent raw-block normalization covered 17,607 transactions in 16 full blocks;
