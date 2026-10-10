@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 12:38 UTC. Recheck Git, LaunchAgents, UTC bucket and disk before acting.
+**As of:** 2026-10-10 12:39 UTC. Recheck Git, LaunchAgents, UTC bucket and disk before acting.
 
 ## Boundaries
 
@@ -13,8 +13,7 @@ unknown, censored, failed, stopped and unsupported states are not zero. See `AGE
 ## Runtime and credentials
 
 - Research checkout `/Users/root1/Developer/memecoin-research`, branch `research/active`, HEAD
-  `007e43a`; the current key rescan receipt and its canonical pointers are the only uncommitted
-  scope. Production is untouched.
+  `a9df296`; worktree clean. Production is untouched.
 - c3 is permanently terminal after the reserved 11:00Z `getSlot` failure; all 205 attempts count,
   including the uncertain charge. Trusted frontier is 455216025. No retry/backfill.
 - c4 lease remains frozen: one anchor plus at most 24 future hourly frames, no successor. The
@@ -59,12 +58,11 @@ unknown, censored, failed, stopped and unsupported states are not zero. See `AGE
 
 ## Next horizon
 
-1. Commit the current exact-key rescan receipt/docs; preserve raw captures under ignored `work/`.
-2. At/after 13:05Z inspect actual c4 scheduled execution, journal/request identities, structural
+1. At/after 13:05Z inspect actual c4 scheduled execution, journal/request identities, structural
    checks, bytes/disk, STOP and no post-STOP traffic. Do not manually invoke or retry.
-3. Apply the frozen v2 classifier once only if the first c4 frame is complete and was not previously
+2. Apply the frozen v2 classifier once only if the first c4 frame is complete and was not previously
    inspected for this predicate. Do not use missed buckets.
-4. Keep c4 frozen through its finite run. After its terminal evidence, ask Sol for a separate
+3. Keep c4 frozen through its finite run. After its terminal evidence, ask Sol for a separate
    sustainable prospective lease policy; no auto-renewal or controller change is currently
    authorized.
 5. Continue engineering Senses gates during autonomous calendar accumulation. Do not start Cortex.
