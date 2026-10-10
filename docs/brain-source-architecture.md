@@ -1850,10 +1850,14 @@ has no effect on the running c4 lease. Activation requires, in order: a normal d
 reservation release; no ambiguous/open reservation or post-STOP request; and the exact c4
 LaunchAgent unloaded. Early/abnormal STOP does not qualify and requires a new Sol decision. Reconcile
 all 24 real frame request/raw/stored/latency/width tails, `du`, and free-disk headroom before fixing
-the new service's finite budget. The first five c4 frames project about 12.4 GB raw across 167
-service frames, exceeding the provisional 12 GB raw cap. Either accept an earlier hard STOP or
-review a cap revision from complete c4 tails before initializing a fresh service root; never relax a
-live manifest. Confirm account credit/overage status if exposed; otherwise pin a conservative
+the new service's finite budget. The first five c4 frames initially projected about 12.4 GB raw
+across 167 service frames, above the provisional 12 GB raw cap. An interim ten-frame sizing replay
+measures 706.3 MB raw and 161.8 MB stored across completed frames; per-frame mean is 70.63 MB raw /
+16.18 MB stored, with 19.9–165.2 seconds anchor-to-seal (median 36.8 seconds). At that mean, 167
+future frames project 11.79 GB raw and 2.70 GB stored. This interim projection is close to the raw
+cap and has no defensible tail margin; it does not revise the cap. Reconcile all 24 tails before
+choosing an earlier hard STOP or reviewing a cap revision; never relax a live manifest. Confirm
+account credit/overage status if exposed; otherwise pin a conservative
 no-paid-overage request envelope (at most 5,719 requests), retain unknown provider charge units, and
 stop on quota/429 conditions. Independently review source and plist pins, one-writer and no-retry
 crash evidence, sanitized `PATH`/zstd, fixed path-only arguments, mode-0600 credential loading,
