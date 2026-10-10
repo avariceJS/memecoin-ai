@@ -145,6 +145,59 @@ def test_frame_with_missing_acquisition_time_is_ineligible(tmp_path: Path) -> No
     assert skipped[0]["eligible"] is False
 
 
+def test_frame_with_request_before_reservation_order_is_ineligible(tmp_path: Path) -> None:
+    epoch = tmp_path / "epochs" / "20261010T150000Z"
+    (epoch / "requests").mkdir(parents=True)
+    (epoch / "request-results").mkdir()
+    bucket_time = datetime.strptime(epoch.name, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
+    trigger_ns = int((bucket_time + timedelta(minutes=5)).timestamp()) * 1_000_000_000
+    (epoch / "epoch-plan.json").write_text(
+        json.dumps(
+            {
+                "epoch_id": epoch.name,
+                "bucket": epoch.name,
+                "created_ns": trigger_ns + 10,
+            }
+        )
+    )
+    (epoch / "requests/000000000001.json").write_text(
+        json.dumps(
+            {
+                "sequence": 1,
+                "phase": "anchor",
+                "method": "getSlot",
+                "reserved_ns": trigger_ns - 1,
+            }
+        )
+    )
+    (epoch / "request-results/000000000001.json").write_text(
+        json.dumps(
+            {
+                "sequence": 1,
+                "status": "captured",
+                "request_started_ns": trigger_ns + 20,
+            }
+        )
+    )
+    (epoch / "epoch-summary.json").write_text(
+        json.dumps({"status": "frame_complete", "sealed_ns": trigger_ns + 30})
+    )
+    schedule = {
+        "service_policy": {
+            "start_calendar_interval": {"minute": 5},
+            "schedule_timezone": "host-local calendar trigger; epoch buckets are UTC",
+        }
+    }
+
+    selected, skipped = completed_frame_ids(
+        tmp_path, freeze_ns=1_700_000_000_000_000_000, schedule=schedule
+    )
+
+    assert selected == []
+    assert skipped[0]["status"] == "timing_evidence_missing_or_ambiguous"
+    assert skipped[0]["reason"] == "frame_request_time_order_invalid"
+
+
 def test_capture_receipt_paths_cannot_escape_capture_directory(tmp_path: Path) -> None:
     receipt_dir = tmp_path / "capture"
     receipt_dir.mkdir()

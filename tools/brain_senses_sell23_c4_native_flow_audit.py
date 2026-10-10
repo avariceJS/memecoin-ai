@@ -188,6 +188,9 @@ def _bucket_timing(
             "first_request_started_ns",
             "epoch_sealed_ns",
         )
+        ordered_times = [timestamps[field] for field in time_fields]
+        if ordered_times != sorted(ordered_times):
+            raise ValueError("frame_request_time_order_invalid")
         if any(timestamps[field] <= freeze_ns for field in time_fields):
             return {
                 "status": "completed_before_or_during_freeze",
