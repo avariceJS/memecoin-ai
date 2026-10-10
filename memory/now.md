@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 05:07 UTC. Recheck Git, LaunchAgents, collector state and disk before acting.
+**As of:** 2026-10-10 05:11 UTC. Recheck Git, LaunchAgents, collector state and disk before acting.
 
 ## Boundaries
 
@@ -27,14 +27,15 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
 - Helius credential is authorized without rotation. Private `.env.local`, Codex and Cursor config
   files are mode `0600`; collector reads its RPC endpoint in-process and LaunchAgents pass paths
   only. Codex/Cursor configs pin `helius-mcp@2.2.0`. Five legacy `@latest` npm processes that
-  displayed the inherited key in `pgrep` listings were terminated; no matches remain. Exact key
-  scans found no match in working files, 4,891 Git objects, process listings, recent saved histories,
-  or a 262 MB two-hour Unified Log scan. One old Cursor config-history snapshot was redacted.
-  Helius account status authenticated but exposed no plan/credits; MCP transport closed after
-  retiring old processes. The c3 activation receipt's initial process-argument check was invalid;
-  use `helius-mcp-credential-process-list-remediation-2026-10-10.json`. The separate prospective
-  RPC LaunchAgent is unaffected. A prior Alchemy endpoint in saved Codex records was redacted; see
-  source-architecture history.
+  displayed the inherited key in `pgrep` listings were terminated; current process command lines,
+  tracked Git, c3 capture, and saved Codex/Cursor files have no matches outside the current private
+  configs. A second scan found three exact copies in two old Cursor JSONL transcripts that the first
+  targeted history scan had missed; both were redacted, changed to mode `0600`, and their 103 JSONL
+  records remain valid. The prior remediation receipt's saved-history zero is superseded by
+  `helius-mcp-saved-transcript-redaction-correction-2026-10-10.json`. A 262 MB two-hour Unified Log
+  scan found no exact match. One initial credential-bearing process-list result remains in the
+  agent-session transcript. The MCP account tool currently returns `Transport closed`; independent
+  RPC LaunchAgent is unaffected.
 - Alchemy Archive access/limits/coverage were not established. No archive query or paid request was
   made; no separate PAYG endpoint is configured. Pair64 offline audit supports only sampled block
   agreement (64/64 identity/signature pairs); Alchemy inventory failure remains explicit.

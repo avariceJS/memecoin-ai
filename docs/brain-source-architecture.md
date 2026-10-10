@@ -22,10 +22,21 @@ Alchemy Free and PAYG share one provider family. Read-only block verification ca
 endpoint through `MEMECOIN_ALCHEMY_PAYG_HTTP_URL`; the current research `.env.local` has no PAYG
 endpoint, so no paid acquisition is currently configured. Helius remains a separate provider family.
 
-The user-provided Helius RPC credential is configured only in ignored, mode-0600 `.env.local` under
-`MEMECOIN_HELIUS_RPC_URL`; LaunchAgent arguments, Git and logs contain no key. Read-only Helius MCP
-plan info and current pricing confirm Free at 1M credits/month and 10 standard RPC requests/s;
-standard `getBlock`, `getBlocks`, `getSignaturesForAddress`, and `getTransaction` each cost one
+The user-provided Helius RPC credential is configured in ignored, mode-0600 `.env.local` under
+`MEMECOIN_HELIUS_RPC_URL`; the current Codex and Cursor MCP configs also hold it as private
+mode-0600 configuration. The collector loads its endpoint inside the process, and LaunchAgent
+arguments contain only paths. Do not claim that all historical logs are clean: an Oct 10 exact-value
+scan found three old copies in two Cursor JSONL transcripts, redacted them, reset both files to
+mode 0600, and validated all JSONL records. The earlier history scan missed these transcript
+directories; the correction receipt supersedes its saved-history zero-match field. Post-cleanup
+scans found no match in process command lines, tracked Git, c3 captures, or other saved Codex/Cursor
+data beyond the current private configs. A two-hour Unified Log scan also found no match. One initial
+credential-bearing process-list result remains in this agent-session tool transcript and cannot be
+retroactively removed. See the
+[`saved-transcript correction`](evidence/helius-mcp-saved-transcript-redaction-correction-2026-10-10.json)
+and [`process remediation`](evidence/helius-mcp-credential-process-list-remediation-2026-10-10.json).
+Read-only Helius MCP plan info and current pricing confirm Free at 1M credits/month and 10 standard
+RPC requests/s; standard `getBlock`, `getBlocks`, `getSignaturesForAddress`, and `getTransaction` each cost one
 credit. Account-level usage is not exposed. Standard WSS is available; enhanced
 `transactionSubscribe` and mainnet LaserStream gRPC are not in Free. The old address-signature
 watch stopped after 4,350 reserved/captured requests, with three transport failures and a growing

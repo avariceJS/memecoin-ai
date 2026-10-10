@@ -18,8 +18,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   but plan and credit usage unavailable from the account tool; no plan mutation or paid RPC made).
 - Helius credential process-list remediation:
   `helius-mcp-credential-process-list-remediation-2026-10-10.json` (corrects the c3 activation
-  receipt's invalid process-argument check; five legacy key-displaying npm processes were stopped,
-  saved Cursor history was redacted, and post-cleanup exact-key scans are recorded).
+  receipt's invalid process-argument check; five legacy key-displaying npm processes were stopped).
+- Helius saved-transcript redaction correction:
+  `helius-mcp-saved-transcript-redaction-correction-2026-10-10.json` (corrects the earlier
+  incomplete saved-history scan; three credential occurrences in two old Cursor JSONL transcripts
+  were redacted, files set to 0600, and JSONL validity retained).
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:
