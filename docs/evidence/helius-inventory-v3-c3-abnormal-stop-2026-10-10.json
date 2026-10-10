@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "campaign_id": "helius-inventory-v3-20261010-3",
+  "classification": "permanently_terminal_abnormal_stop",
+  "stop_reason": "epoch_requires_review_before_next_launch",
+  "failed_bucket": "20261010T110000Z",
+  "failed_identity": {
+    "phase": "anchor",
+    "sequence": 1,
+    "method": "getSlot",
+    "params": [{"commitment": "finalized"}]
+  },
+  "failed_request_status": "request_failed",
+  "error_class": "TransportSourceError",
+  "provider_charge_status": "unknown_unverified",
+  "attempted_requests_including_uncertain_charge": 205,
+  "successful_frame_requests": 204,
+  "successful_frames": 6,
+  "raw_response_bytes": 347578354,
+  "stored_response_bytes": 78114752,
+  "trusted_anchor_slot": 455216024,
+  "trusted_frontier": 455216025,
+  "failure_interval_status": "unknown",
+  "retry": false,
+  "backfill": false,
+  "source_artifact_hashes": {
+    "STOP": "e8666a111d5e9aadd9c12044490e2d0ad4d42b0a204d57fbae0295ba036a9f00",
+    "frontier-v3.json": "db52f9a7b4f2b24a4b54d5bde0574a57eaddc9937b5f9402c0ad9d5114d24e65",
+    "active-frame-reservation.json": "7292e9fc3cba8d0a92e1f6f8c21095d112523436a79daa06be6f421a6c597713",
+    "epochs/20261010T110000Z/STOP": "61c8c6405ab6b1c15d577b8ec79a2b6e3343e225cecd2508984120822c5e8ff0",
+    "epochs/20261010T110000Z/epoch-summary.json": "854093ce0c79ae5bf067a1e07052b753febe54d835c402927588430132578822",
+    "epochs/20261010T110000Z/epoch-plan.json": "7b3b3ea277af28d402d7caacd5bd10fd70c491d5ae8f705b59be0243890eabb3",
+    "epochs/20261010T110000Z/frame-reservation.json": "8dd92d211dfbb475bae2c49bf26dcc780dc098f6e3a374401b1f1de914a84139",
+    "epochs/20261010T110000Z/frame-reservation-release.json": "ca3dfb5568a8e08cb0b9b3caae6dff83c12dd7f534f432490279bf40b5cdad0b",
+    "epochs/20261010T110000Z/requests/000000000001.json": "3a1529e43ad717ace61c276568f7efd0dcd79b26b3937761aa02f7a11cfabac3",
+    "epochs/20261010T110000Z/request-results/000000000001.json": "a4c37dc7500a98305a6a667f03fba8d3e0f4f78e81068055c5f523e9d893cf6e"
+  },
+  "scope": "Captured-class provider-bounded structural inventory. Not global discovery, economic completeness, or permission to resume c3."
+}

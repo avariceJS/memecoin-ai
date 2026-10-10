@@ -1205,17 +1205,28 @@ it does not establish fee movement, fill, settlement, economic orientation, or c
 [`buyExact frame-2 census`](evidence/pumpswap-buy-exact-v1-c3-frame2-census-2026-10-10.json) and
 [`buyExact frame-2 role replication`](evidence/pumpswap-buy-exact-v1-c3-frame2-role-replication-2026-10-10.json).
 
-At frame 2, the c3 LaunchAgent remained loaded and idle for the next scheduled trigger. This is only
-2/24 attempts; do not create a sustainable-service successor until c3 has its normal fully reconciled
-terminal STOP, measured width/latency/byte tails, disk-floor history, and verified teardown with no
-post-STOP RPC. An abnormal STOP requires a separate recovery decision.
-During the remaining c3 attempts, any mismatch, second gap, uncertain request, resource/provider
-failure or interrupted active reservation halts without replay. Only after c3's terminal STOP may a
-separate finite sustainable-service policy be assessed;
-the candidate is a seven-day lease of up to seven daily campaigns, sized from observed frame tails
-and free disk while preserving the 50 GiB floor and a complete-frame write margin. It has no
-automatic renewal. The Helius key remains in mode-0600 private provider configuration and the
-collector reads its endpoint in-process; the key is absent from LaunchAgent arguments. MCP package
+Campaign 3 completed six forward-adjacent frames through `20261010T100000Z`, then terminated
+abnormally on its reserved 11:00Z finalized `getSlot`: the request failed at transport, produced no
+response bytes, and its provider charge remains unknown. Count it as the 205th attempted request.
+The frontier remains 455216025; the failed interval is unknown. c3 is permanently terminal: do not
+retry the bucket, adopt its uncertain request as free, reset its frontier, or backfill. Its root STOP,
+frontier, failed request/result, reservation release and epoch summary are hash-bound in
+[`c3 abnormal STOP`](evidence/helius-inventory-v3-c3-abnormal-stop-2026-10-10.json). The six prior
+frames remain valid only within their captured provider-reported inventory and selected-block scope.
+
+Sol authorized one separately versioned c4 recovery lease, independent of the closed 72-hour
+controller: one `getSlot(finalized)` bootstrap in a fresh future UTC bucket, then at most 24 future
+hourly frame attempts beginning from that new anchor. The c3 frontier is only the lower marker for
+an explicit uncovered interval; the bootstrap makes no `getBlocks`/`getBlock` request against it.
+The c4 lease caps its own all-in use at 817 request reservations, 4,000,000,000 raw bytes and
+1,000,000,000 stored bytes. Its lineage separately records c1=0, c2=1 and c3=205 attempted
+requests. Frames retain the 20,000-slot and 34-request bounds, and the existing 50-GiB disk floor
+plus complete-frame peak margin. It has no successor or
+auto-renewal. A missed/ambiguous bootstrap or any frame failure is terminal and is not replayed;
+missed schedule buckets remain gaps. First full-frame acquisition is allowed only in the next
+scheduled bucket after a verified bootstrap receipt. These bounds are this one recovery lease, not
+future architecture ceilings. The Helius key remains in mode-0600 private provider configuration and
+the collector reads its endpoint in-process; the key is absent from LaunchAgent arguments. MCP package
 configuration in Codex and Cursor is pinned to `helius-mcp@2.2.0`. Legacy `@latest` npm process
 listings exposed the inherited credential, so those five old processes were terminated; after
 cleanup, no exact-key process-list matches remained. The exact key was absent from targeted saved
