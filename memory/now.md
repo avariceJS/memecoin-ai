@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 21:37 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-10 21:39 UTC. Verify live runtime before any campaign or service decision.
 
 ## Boundaries and runtime
 
@@ -9,11 +9,12 @@
   holdout access, push, retry or backfill.
 - c3 is terminal after its ambiguous 11:00Z anchor failure; preserve its uncovered interval.
   c4 remains the unchanged finite calendar lease (one bootstrap plus at most 24 hourly frames).
-  Read-only status at 21:36Z: 9/24 frames complete, 306 frame
+  Read-only status at 21:39Z: 9/24 frames complete, 306 frame
   requests plus one bootstrap (307 all-in), 649,607,110 raw / 146,677,436 stored bytes, zero failed
   or gapped epochs, zero open reservations, 15 attempts remaining, frontier 455397121, and
-  61,972,348,928 free bytes. Exact c4 LaunchAgent remains loaded and idle between calendar ticks, with fixed
-  path-only arguments; next scheduled trigger 22:05Z. No manual tick. Credit units remain unknown.
+  61,640,060,928 free bytes. Exact c4 LaunchAgent remains loaded and idle between calendar ticks,
+  with fixed path-only arguments; next scheduled trigger 22:05Z. No manual tick. Credit units remain
+  unknown.
   A relative-path status invocation failed the root binding; the absolute-path read-only status
   succeeded without changing campaign state. Preserve all gaps.
 - Helius key is still in ignored `.env.local` and private MCP configs, all mode 0600. User accepts
