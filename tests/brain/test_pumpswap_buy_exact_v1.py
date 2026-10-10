@@ -9,6 +9,12 @@ from memecoin_pumpswap.compiled_economics import (
     associated_token_address,
 )
 from memecoin_pumpswap.decoder import EVENT_TAG, PROGRAM, TOKEN, decode58, encode58
+from memecoin_pumpswap.economic_buy_exact_tail2_v1 import (
+    ASSOCIATED_TOKEN_PROGRAM,
+    FEE_PROGRAM,
+    _signed_transfer_deltas,
+    diagnose_pumpswap_buy_exact_tail2_dual_legacy_v1,
+)
 from memecoin_pumpswap.economic_buy_exact_v1 import diagnose_pumpswap_buy_exact_v1
 from memecoin_pumpswap.schema import SCHEMA
 
@@ -185,6 +191,7 @@ def _buy_exact_compiled_transaction():
         system_program="11111111111111111111111111111111",
         associated_token_program="ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
         program=PROGRAM,
+        fee_program=FEE_PROGRAM,
     )
     fee_ata = associated_token_address(recipient, roles["quote_mint"], TOKEN)
     account_keys = set(roles.values()) | {recipient, fee_ata}
@@ -467,3 +474,234 @@ def test_successful_instruction_without_event_is_not_an_exact_fill():
     assert result["status"] == "quarantined"
     assert result["references"][0]["reason"] == "buy_event_count_or_shape"
     assert "amounts_atomic_units" not in result["references"][0]
+
+
+def test_tail2_dual_legacy_contract_separates_candidate_flow_and_full_ledger():
+    result = diagnose_pumpswap_buy_exact_tail2_dual_legacy_v1(
+        _buy_exact_compiled_transaction(), [0]
+    )
+
+    assert result["status"] == "diagnostic_facts_only"
+    assert result["candidate_token_flow_state"] == "exact"
+    assert result["transaction_target_account_ledger_state"] == "exact"
+    assert result["candidate_flows_atomic_units"]["gross_user_quote_debit"] == 100
+    assert result["candidate_flows_atomic_units"]["pool_quote_credit"] == 98
+    assert result["candidate_flows_atomic_units"]["user_base_credit"] == 60
+    assert result["signed_conservation_by_mint_atomic_units"] == {
+        result["units"]["base_mint"]: 0,
+        result["units"]["quote_mint"]: 0,
+    }
+    assert result["units"]["ui_conversion_performed"] is False
+    assert result["admission"] == {
+        "training": "none",
+        "execution": "none",
+        "wallet_net_price": "none",
+    }
+
+
+def test_tail2_event_mismatch_does_not_erase_exact_candidate_transfer_flow():
+    transaction = _buy_exact_compiled_transaction()
+    transfer = transaction["meta"]["innerInstructions"][0]["instructions"][1]
+    wire = bytearray(decode58(transfer["data"]))
+    wire[1:9] = (97).to_bytes(8, "little")
+    transfer["data"] = encode58(bytes(wire))
+
+    result = diagnose_pumpswap_buy_exact_tail2_dual_legacy_v1(transaction, [0])
+
+    assert result["candidate_token_flow_state"] == "exact"
+    assert result["transaction_target_account_ledger_state"] == "unknown_partial"
+    assert result["event_crosscheck"]["state"] == "mismatch"
+    assert result["fee_flow_hypotheses"]["fee_flow_hypotheses_state"] == "not_evaluated"
+
+
+def test_tail2_failed_transaction_remains_attempt_only():
+    transaction = _buy_exact_compiled_transaction()
+    transaction["meta"]["err"] = {"InstructionError": [0, "Custom"]}
+
+    result = diagnose_pumpswap_buy_exact_tail2_dual_legacy_v1(transaction, [0])
+
+    assert result["status"] == "failed_tx_attempt_only"
+    assert result["candidate_token_flow_state"] == "none_failed_transaction"
+    assert result["transaction_target_account_ledger_state"] == "none_failed_transaction"
+
+
+def test_tail2_transfer_facts_do_not_require_event_presence():
+    transaction = _buy_exact_compiled_transaction()
+    transaction["meta"]["innerInstructions"][0]["instructions"].pop()
+
+    result = diagnose_pumpswap_buy_exact_tail2_dual_legacy_v1(transaction, [0])
+
+    assert result["candidate_token_flow_state"] == "exact"
+    assert result["event_crosscheck"]["state"] == "unknown_or_ambiguous"
+    assert result["fee_flow_hypotheses"]["fee_flow_hypotheses_state"] == "not_evaluated"
+
+
+def test_tail2_malformed_event_alongside_valid_event_is_ambiguous():
+    transaction = _buy_exact_compiled_transaction()
+    malformed = dict(transaction["meta"]["innerInstructions"][0]["instructions"][-1])
+    malformed["data"] = encode58(EVENT_TAG + b"invalid")
+    transaction["meta"]["innerInstructions"][0]["instructions"].append(malformed)
+
+    result = diagnose_pumpswap_buy_exact_tail2_dual_legacy_v1(transaction, [0])
+
+    assert result["candidate_token_flow_state"] == "exact"
+    assert result["event_crosscheck"]["state"] == "unknown_or_ambiguous"
+    assert len(result["event_decode_errors"]) == 1
+    assert result["fee_flow_hypotheses"]["fee_flow_hypotheses_state"] == "not_evaluated"
+
+
+def test_tail2_missing_endpoint_censors_only_full_transaction_ledger():
+    transaction = _buy_exact_compiled_transaction()
+    names = SCHEMA["instructions"]["buy_exact_quote_in"]["accounts"]
+    instruction_accounts = transaction["transaction"]["message"]["instructions"][0]["accounts"]
+    user_base_index = instruction_accounts[names.index("user_base_token_account")]
+    transaction["meta"]["postTokenBalances"] = [
+        row
+        for row in transaction["meta"]["postTokenBalances"]
+        if row["accountIndex"] != user_base_index
+    ]
+
+    result = diagnose_pumpswap_buy_exact_tail2_dual_legacy_v1(transaction, [0])
+
+    assert result["candidate_token_flow_state"] == "exact"
+    assert result["transaction_target_account_ledger_state"] == "unknown_partial"
+
+
+def test_tail2_conflicting_post_endpoint_identity_censors_candidate_flow():
+    transaction = _buy_exact_compiled_transaction()
+    names = SCHEMA["instructions"]["buy_exact_quote_in"]["accounts"]
+    instruction_accounts = transaction["transaction"]["message"]["instructions"][0]["accounts"]
+    user_base_index = instruction_accounts[names.index("user_base_token_account")]
+    row = next(
+        row
+        for row in transaction["meta"]["postTokenBalances"]
+        if row["accountIndex"] == user_base_index
+    )
+    row["mint"] = _key(250)
+
+    result = diagnose_pumpswap_buy_exact_tail2_dual_legacy_v1(transaction, [0])
+
+    assert result["candidate_token_flow_state"] == "unknown"
+    assert result["reason"] == "endpoint_mint_program_or_decimals_mismatch"
+
+
+def test_tail2_unsupported_token_instruction_stays_quarantined():
+    transaction = _buy_exact_compiled_transaction()
+    transfer = transaction["meta"]["innerInstructions"][0]["instructions"][1]
+    wire = bytearray(decode58(transfer["data"]))
+    wire[0] = 3  # legacy SPL Token TransferChecked is the only qualified wire variant
+    transfer["data"] = encode58(bytes(wire))
+
+    result = diagnose_pumpswap_buy_exact_tail2_dual_legacy_v1(transaction, [0])
+
+    assert result["candidate_token_flow_state"] == "unknown"
+    assert result["reason"] == "unsupported_candidate_subtree_effect"
+
+
+def test_tail2_unclassified_outer_touch_censors_full_transaction_ledger_only():
+    transaction = _buy_exact_compiled_transaction()
+    message = transaction["transaction"]["message"]
+    names = SCHEMA["instructions"]["buy_exact_quote_in"]["accounts"]
+    buy_accounts = message["instructions"][0]["accounts"]
+    target_index = buy_accounts[names.index("user_base_token_account")]
+    system_index = message["accountKeys"].index("11111111111111111111111111111111")
+    message["instructions"].append(
+        {
+            "programIdIndex": system_index,
+            "accounts": [target_index, buy_accounts[names.index("pool_base_token_account")]],
+            "data": encode58((2).to_bytes(4, "little") + (7).to_bytes(8, "little")),
+        }
+    )
+
+    result = diagnose_pumpswap_buy_exact_tail2_dual_legacy_v1(transaction, [0])
+
+    assert result["candidate_token_flow_state"] == "exact"
+    assert result["transaction_target_account_ledger_state"] == "unknown_partial"
+    assert result["ordered_target_account_touches"] == "incomplete"
+
+
+def test_tail2_fee_program_alias_with_token_program_is_rejected():
+    transaction = _buy_exact_compiled_transaction()
+    names = SCHEMA["instructions"]["buy_exact_quote_in"]["accounts"]
+    instruction_accounts = transaction["transaction"]["message"]["instructions"][0]["accounts"]
+    instruction_accounts[names.index("fee_program")] = transaction["transaction"]["message"][
+        "accountKeys"
+    ].index(TOKEN)
+
+    result = diagnose_pumpswap_buy_exact_tail2_dual_legacy_v1(transaction, [0])
+
+    assert result["candidate_token_flow_state"] == "unknown"
+    assert result["reason"] == "legacy_role_or_mint_contract_unverified"
+
+
+def test_tail2_create_idempotent_target_ata_requires_payer_signer_and_writable_privileges():
+    transaction = _buy_exact_compiled_transaction()
+    message = transaction["transaction"]["message"]
+    names = SCHEMA["instructions"]["buy_exact_quote_in"]["accounts"]
+    buy_accounts = message["instructions"][0]["accounts"]
+    roles = {
+        name: message["accountKeys"][buy_accounts[index]]
+        for index, name in enumerate(names)
+    }
+    fee_ata = message["accountKeys"][buy_accounts[-1]]
+    indexes = {key: index for index, key in enumerate(message["accountKeys"])}
+    associated_ix = {
+        "programIdIndex": indexes[ASSOCIATED_TOKEN_PROGRAM],
+        "accounts": [
+            indexes[roles["user"]],
+            indexes[fee_ata],
+            indexes[message["accountKeys"][buy_accounts[-2]]],
+            indexes[roles["quote_mint"]],
+            indexes[roles["system_program"]],
+            indexes[TOKEN],
+        ],
+        "data": encode58(b"\x01"),
+    }
+    message["instructions"].append(associated_ix)
+
+    valid = diagnose_pumpswap_buy_exact_tail2_dual_legacy_v1(transaction, [0])
+    assert valid["transaction_target_account_ledger_state"] == "exact"
+
+    associated_ix["accounts"][0] = indexes[roles["protocol_fee_recipient"]]
+    invalid_payer = diagnose_pumpswap_buy_exact_tail2_dual_legacy_v1(transaction, [0])
+    assert invalid_payer["candidate_token_flow_state"] == "exact"
+    assert invalid_payer["transaction_target_account_ledger_state"] == "unknown_partial"
+
+
+def test_tail2_contradictory_reconciler_exact_status_fails_closed(monkeypatch):
+    import memecoin_pumpswap.economic_buy_exact_tail2_v1 as diagnostic
+
+    monkeypatch.setattr(
+        diagnostic,
+        "reconcile_legacy_token_accounts",
+        lambda *_args, **_kwargs: {
+            "status": "exact",
+            "exact_account_count": 5,
+            "unknown_account_count": 0,
+            "censored_account_count": 0,
+        },
+    )
+
+    result = diagnostic.diagnose_pumpswap_buy_exact_tail2_dual_legacy_v1(
+        _buy_exact_compiled_transaction(), [0]
+    )
+
+    assert result["candidate_token_flow_state"] == "exact"
+    assert result["transaction_target_account_ledger_state"] == "unknown_partial"
+
+
+def test_signed_transfer_deltas_conserve_atomic_units_across_generated_u64_values():
+    import random
+
+    generator = random.Random(25062026)
+    for _ in range(512):
+        amount = generator.randrange(0, 2**64)
+        transfer = {
+            "source": "source",
+            "destination": "destination",
+            "mint": "mint",
+            "amount_base_units": amount,
+        }
+        deltas = _signed_transfer_deltas([transfer])
+        assert deltas == {("source", "mint"): -amount, ("destination", "mint"): amount}
+        assert sum(deltas.values()) == 0
