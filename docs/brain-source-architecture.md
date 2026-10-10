@@ -954,8 +954,10 @@ the wrapper writes a sanitized stderr diagnostic. The schedule never renews itse
 invocation marker makes an unclean process exit
 detectable: the next invocation validates already captured journals locally, never repeats an
 ambiguous request, seals STOP, and unloads. Scheduler, wrapper, crash-boundary tests and differential
-review are qualified locally; real LaunchAgent installation and recovery remain pending the final
-v2 frame review. The immutable v3 schedule manifest also binds its minute-05 local calendar trigger,
+review are qualified locally, including 24 normal synthetic attempts through final STOP; that replay
+checks horizon/teardown state, not real provider throughput. Real LaunchAgent installation and
+recovery remain pending the final v2 frame review. The immutable v3 schedule manifest also binds its
+minute-05 local calendar trigger,
 UTC bucket semantics, no-`RunAtLoad`/no-`KeepAlive` settings, teardown policy and explicit no-renewal
 rule; the installed plist hash will be recorded in the runtime receipt.
 

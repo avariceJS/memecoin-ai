@@ -1006,6 +1006,53 @@ def test_v3_crash_after_frontier_commit_reconciles_offline_then_stops(
     assert len(client.calls) == calls_at_crash
 
 
+def test_v3_completes_exactly_24_normal_attempts_then_seals_stop(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "v3-24-attempts"
+    lineage_path = _v3_lineage(tmp_path / "lineage-24-attempts.json")
+    monkeypatch.setattr(
+        schedule_v3.shutil,
+        "disk_usage",
+        lambda _: SimpleNamespace(
+            free=(
+                schedule_v3.DISK_FLOOR_BYTES
+                + schedule_v3.FRAME_RAW_BYTES
+                + schedule_v3.FRAME_STORED_BYTES
+                + schedule_v3.PEAK_WRITE_MARGIN_BYTES
+            )
+        ),
+    )
+    calls_total = 0
+    start = datetime(2026, 10, 10, 2, 5, tzinfo=UTC)
+    for offset in range(schedule_v3.ATTEMPTS_MAX):
+        client = FakeRPC(anchors=[101 + offset])
+        result = schedule_v3.run_bucket(
+            root,
+            lineage_path=lineage_path,
+            now=start + timedelta(hours=offset),
+            clients={"helius-free": client},
+        )
+        calls_total += len(client.calls)
+        if offset < schedule_v3.ATTEMPTS_MAX - 1:
+            assert result["status"] == "epoch_finished"
+        else:
+            assert result["status"] == "campaign_stopped"
+            assert result["reason"] == "finite_attempt_cap_reached"
+            assert result["attempt_count"] == 24
+    assert calls_total > 24
+    calls_at_stop = calls_total
+    final = schedule_v3.run_bucket(
+        root,
+        lineage_path=lineage_path,
+        now=start + timedelta(hours=24),
+        clients={"helius-free": FakeRPC(anchors=[125])},
+    )
+    assert final["status"] == "campaign_stopped"
+    assert len(list((root / "epochs").glob("20*T*Z"))) == 24
+    assert calls_total == calls_at_stop
+
+
 def test_v3_preflight_failure_stops_before_epoch_or_rpc(tmp_path: Path, monkeypatch) -> None:
     root = tmp_path / "v3-preflight"
     lineage_path = _v3_lineage(tmp_path / "lineage-preflight.json")
