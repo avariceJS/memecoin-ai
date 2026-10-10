@@ -412,3 +412,10 @@ def test_status_path_never_loads_credentials_or_provider(
     )
     assert runner.main(["--root", str(tmp_path), "--status-only"]) == 0
     assert json.loads(capsys.readouterr().out)["service"]["status"] == "awaiting_bootstrap"
+
+
+def test_private_endpoint_loader_rejects_mode_0600_fifo_without_reading(tmp_path: Path) -> None:
+    fifo = tmp_path / "endpoint-config"
+    os.mkfifo(fifo, 0o600)
+    os.chmod(fifo, 0o600)
+    assert runner._load_private_endpoint(fifo) is None

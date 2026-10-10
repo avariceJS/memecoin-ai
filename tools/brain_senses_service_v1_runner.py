@@ -186,7 +186,11 @@ def _load_private_endpoint(env_file: Path | None = None) -> str | None:
     path = env_file or (REPO_ROOT / ".env.local")
     try:
         metadata = path.lstat()
-        if path.is_symlink() or stat.S_IMODE(metadata.st_mode) != 0o600:
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or path.is_symlink()
+            or stat.S_IMODE(metadata.st_mode) != 0o600
+        ):
             return None
         for line in path.read_text().splitlines():
             key, sep, raw = line.partition("=")
