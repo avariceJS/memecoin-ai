@@ -25,6 +25,8 @@ MAX_CONTROL_RESPONSE_BYTES = 64 * 1024
 DISK_FLOOR_BYTES = 50 * 1024**3
 MAX_SESSION_NS = 4 * 60 * 60 * 1_000_000_000
 MAX_SESSIONS = 2
+MAX_STRUCTURAL_U64 = 2**64 - 1
+MAX_SIGNATURE_CHARS = 128
 TRANSPORT_FAILURE_CODES = {
     "http_upgrade_io",
     "http_upgrade_rejected",
@@ -77,17 +79,21 @@ def parse_logs_message(raw: bytes) -> dict[str, Any]:
     params = message.get("params")
     result = params.get("result") if isinstance(params, dict) else None
     subscription_id = params.get("subscription") if isinstance(params, dict) else None
-    if type(subscription_id) is not int or subscription_id < 0:
+    if type(subscription_id) is not int or not 0 <= subscription_id <= MAX_STRUCTURAL_U64:
         raise ValueError("logs_message_subscription_missing")
     context = result.get("context") if isinstance(result, dict) else None
     value = result.get("value") if isinstance(result, dict) else None
-    if not isinstance(context, dict) or type(context.get("slot")) is not int or context["slot"] < 0:
+    if not isinstance(context, dict) or type(context.get("slot")) is not int:
         raise ValueError("logs_message_slot_missing")
+    if not 0 <= context["slot"] <= MAX_STRUCTURAL_U64:
+        raise ValueError("logs_message_slot_out_of_range")
     if not isinstance(value, dict):
         raise ValueError("logs_message_value_missing")
     signature = value.get("signature")
     if not isinstance(signature, str) or not signature:
         raise ValueError("logs_message_signature_missing")
+    if len(signature) > MAX_SIGNATURE_CHARS:
+        raise ValueError("logs_message_signature_oversized")
     logs = value.get("logs")
     if logs is not None and (
         not isinstance(logs, list) or any(not isinstance(x, str) for x in logs)
@@ -116,7 +122,11 @@ def parse_subscribe_response(raw: bytes) -> dict[str, Any]:
     request_id = response.get("id")
     if type(request_id) is not int or request_id != 1:
         return {"response_kind": "invalid", "request_id": None, "subscription_id": None}
-    if type(response.get("result")) is int and response["result"] >= 0 and "error" not in response:
+    if (
+        type(response.get("result")) is int
+        and 0 <= response["result"] <= MAX_STRUCTURAL_U64
+        and "error" not in response
+    ):
         return {
             "response_kind": "ack",
             "request_id": request_id,
@@ -263,7 +273,7 @@ class WssReferenceSession:
             or self.acknowledged
             or request_id != 1
             or type(subscription_id) is not int
-            or subscription_id < 0
+            or not 0 <= subscription_id <= MAX_STRUCTURAL_U64
         ):
             raise ValueError("invalid_wss_subscription_ack")
         if at_ns < self.opened_ns or at_ns - self.opened_ns > MAX_SESSION_NS:
@@ -708,6 +718,7 @@ class WssReferenceSession:
                     or ack_subscription_id is not None
                     or row.get("request_id") != 1
                     or type(row.get("subscription_id")) is not int
+                    or not 0 <= row["subscription_id"] <= MAX_STRUCTURAL_U64
                     or (
                         last_subscribe_response_sha256 is not None
                         and (

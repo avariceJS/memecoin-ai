@@ -1892,6 +1892,13 @@ headroom, a separately bounded overhead allowance or billing evidence, immutable
 authorization, an independently reviewed TLS adapter, and a one-writer LaunchAgent review. Stop
 on cap, low disk, malformed transport state, or journal ambiguity.
 
+Notification projections bound copied signatures to 128 Unicode characters and slots and
+subscription IDs to unsigned 64-bit integers. Out-of-range facts stay in the immutable raw message
+and contribute to the parse-failure denominator; they are not copied into journal fields. The ack
+subscription ID uses the same unsigned 64-bit bound. This keeps projected journal growth within the
+existing per-message reservation without tightening the raw capture cap or implying economic
+validity.
+
 An offline payload benchmark verified and replayed the captured Pair64 512 full blocks and c3's
 six 16-block frames (96 blocks total): 608 blocks and 741,305 transactions produced 51,502
 Pump-program mentions, 34,112 failed transactions, 335 explicit Helius `Log truncated` notifications,
@@ -1907,13 +1914,15 @@ using `tools/brain_senses_wss_reference_benchmark.py`.
 This source yields only provider notifications delivered inside recorded connection windows. It
 does not establish complete Pump births, a pool/market census, economic execution, inactivity,
 absence, lifecycle or death. Comparison with selected captured blocks can measure only overlap in
-that selected scope. Focused offline validation: 49 tests, including 300 deterministic generated
+that selected scope. Focused offline validation: 57 tests, including 300 deterministic generated
 deliveries with duplicates, crash-prefix recovery, raw mutation, subscription mismatch, transport
 header preflight, fragmented text messages, ping/pong masking, strict Upgrade and raw ack/error
 binding over fake deadline-aware streams, pre-I/O authorization/disk gates, fresh monotonic origin,
 authorization expiry during a control read, wall-clock regression cleanup, malformed pre-ack
 fail-closed recovery, JSON recursion and integer-digit limits with raw preservation and stable
-failure accounting, independent ping caps, aggregate limits, writer exclusion, source-bound
-authorization, reconnect gaps and no-resume recovery. These tests do not establish that a real TLS
+failure accounting, signature/slot/subscription projection bounds, cumulative projection and
+near-cap stop-before-read behavior, independent ping caps, aggregate limits, writer exclusion,
+source-bound authorization, reconnect gaps and no-resume recovery. These tests do not establish
+that a real TLS
 adapter honors deadlines or certificate verification. No live provider, LaunchAgent, account
 budget, or long-run throughput was tested.

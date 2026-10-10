@@ -11,7 +11,15 @@ from memecoin_collector.wss_client import (
     WssClientError,
     upgrade_and_subscribe,
 )
-from memecoin_collector.wss_reference import DISK_FLOOR_BYTES, MAX_CONTROL_RESPONSE_BYTES
+from memecoin_collector.wss_reference import (
+    DISK_FLOOR_BYTES,
+    MAX_CONTROL_RESPONSE_BYTES,
+    MAX_MESSAGE_BYTES,
+    MAX_SIGNATURE_CHARS,
+    MAX_STRUCTURAL_U64,
+    STORED_LIMIT_BYTES,
+    parse_logs_message,
+)
 
 
 def authorization():
@@ -45,6 +53,27 @@ def notification(slot=44):
                 "result": {
                     "context": {"slot": slot},
                     "value": {"signature": f"sig-{slot}", "err": None, "logs": []},
+                },
+            },
+        },
+        separators=(",", ":"),
+    ).encode()
+
+
+def notification_payload(slot, signature, *, subscription=77, logs=None):
+    return json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "method": "logsNotification",
+            "params": {
+                "subscription": subscription,
+                "result": {
+                    "context": {"slot": slot},
+                    "value": {
+                        "signature": signature,
+                        "err": None,
+                        "logs": [] if logs is None else logs,
+                    },
                 },
             },
         },
@@ -361,6 +390,112 @@ def test_integer_digit_limit_notification_has_stable_failure_state(tmp_path):
     campaign.stop("synthetic_test_end", clock_ns() + 1)
     stop_path = sorted((campaign.root / "sessions/01/journal").glob("*.json"))[-1]
     assert json.loads(stop_path.read_text())["parse_failures"] == 1
+    campaign.close()
+
+
+def test_structural_projection_accepts_signature_and_u64_boundaries():
+    for slot in (0, MAX_STRUCTURAL_U64):
+        for subscription in (0, MAX_STRUCTURAL_U64):
+            signature = "\x01" * MAX_SIGNATURE_CHARS
+            facts = parse_logs_message(
+                notification_payload(slot, signature, subscription=subscription)
+            )
+            assert facts["event_slot"] == slot
+            assert facts["subscription_id"] == subscription
+            assert facts["signature"] == signature
+
+
+@pytest.mark.parametrize(
+    ("slot", "signature", "subscription", "reason"),
+    [
+        (0, "\x01" * (MAX_SIGNATURE_CHARS + 1), 77, "logs_message_signature_oversized"),
+        (MAX_STRUCTURAL_U64 + 1, "sig", 77, "logs_message_slot_out_of_range"),
+        (9, "sig", MAX_STRUCTURAL_U64 + 1, "logs_message_subscription_missing"),
+    ],
+)
+def test_structural_projection_rejects_unbounded_fields(slot, signature, subscription, reason):
+    with pytest.raises(ValueError, match=reason):
+        parse_logs_message(notification_payload(slot, signature, subscription=subscription))
+
+
+def test_u64_ack_and_notification_ids_recover_with_raw_accounting(tmp_path):
+    ack = f'{{"jsonrpc":"2.0","result":{MAX_STRUCTURAL_U64},"id":1}}'.encode()
+    campaign = make_campaign(tmp_path / "campaign")
+    stream = FakeTLSStream(ack=ack)
+    connection, clock_ns = start(campaign, stream)
+    raw = notification_payload(
+        MAX_STRUCTURAL_U64,
+        "\x01" * MAX_SIGNATURE_CHARS,
+        subscription=MAX_STRUCTURAL_U64,
+    )
+    stream.buffer.extend(server_frame(raw))
+    row = connection.receive_notification()
+    assert row["parse_state"] == "notification"
+    assert campaign.sessions[0].subscription_id == MAX_STRUCTURAL_U64
+    campaign.stop("synthetic_test_end", clock_ns() + 1)
+    expected_raw = len(ack) + len(raw)
+    campaign.close()
+    recovered = WssReferenceCampaign.recover_interrupted(campaign.root, at_ns=clock_ns() + 2)
+    assert recovered["raw_message_bytes"] == expected_raw
+    session_stop_path = sorted((campaign.root / "sessions/01/journal").glob("*.json"))[-1]
+    assert json.loads(session_stop_path.read_text())["notifications"] == 1
+
+
+def test_oversized_ack_id_is_preserved_then_stopped(tmp_path):
+    ack = f'{{"jsonrpc":"2.0","result":{MAX_STRUCTURAL_U64 + 1},"id":1}}'.encode()
+    campaign = make_campaign(tmp_path / "campaign")
+    with pytest.raises(WssClientError, match="subscription_response_invalid"):
+        start(campaign, FakeTLSStream(ack=ack))
+    stop = json.loads((campaign.root / "CAMPAIGN_STOP.json").read_text())
+    assert stop["reason"] == "subscription_response_invalid"
+    assert stop["raw_message_bytes"] == len(ack)
+    raw_path = next((campaign.root / "sessions/01/raw").glob("*.bin"))
+    assert raw_path.read_bytes() == ack
+    campaign.close()
+
+
+def test_oversized_signature_is_raw_and_counted_without_projection_amplification(tmp_path):
+    campaign = make_campaign(tmp_path / "campaign")
+    stream = FakeTLSStream()
+    connection, clock_ns = start(campaign, stream)
+    payloads = [notification_payload(50 + i, "s" * 3_500_000) for i in range(8)]
+    payloads.append(notification_payload(99, "s" * (MAX_MESSAGE_BYTES - 512)))
+    expected_raw = 0
+    for raw in payloads:
+        assert len(raw) <= MAX_MESSAGE_BYTES
+        expected_raw += len(raw)
+        stream.buffer.extend(server_frame(raw))
+        row = connection.receive_notification()
+        assert row["parse_state"] == "logs_message_signature_oversized"
+    actual_stored = campaign._stored_bytes()
+    assert actual_stored <= STORED_LIMIT_BYTES
+    assert sum(session.raw_bytes for session in campaign.sessions) == expected_raw + len(stream.ack)
+    campaign.stop("synthetic_test_end", clock_ns() + 1)
+    assert campaign._stored_bytes() <= STORED_LIMIT_BYTES
+    campaign.close()
+
+
+def test_near_cap_messages_stop_before_next_payload_and_keep_physical_cap(tmp_path):
+    campaign = make_campaign(tmp_path / "campaign")
+    stream = FakeTLSStream()
+    connection, _ = start(campaign, stream)
+    padding = "x" * 3_900_000
+    frame = server_frame(notification_payload(0, "sig-0", logs=[padding]))
+    assert len(frame) <= MAX_MESSAGE_BYTES + 10
+    accepted = 0
+    for slot in range(18):
+        raw = notification_payload(slot, f"sig-{slot}", logs=[padding])
+        frame = server_frame(raw)
+        assert len(raw) <= MAX_MESSAGE_BYTES
+        stream.buffer.extend(frame)
+        row = connection.receive_notification()
+        if row is None:
+            break
+        accepted += 1
+    assert accepted == 17
+    assert campaign.terminal
+    assert campaign._stored_bytes() <= STORED_LIMIT_BYTES
+    assert len(stream.buffer) == len(frame)
     campaign.close()
 
 
