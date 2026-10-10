@@ -21,7 +21,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -29,6 +29,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from memecoin_ai.domain import canonical  # noqa: E402
 from memecoin_ai.sources import ReadOnlyRPC  # noqa: E402
+from memecoin_collector.private_config import read_private_config  # noqa: E402
 from tools import brain_senses_block_epoch_v3_schedule as schedule_v3  # noqa: E402
 from tools import brain_senses_service_v1 as service  # noqa: E402
 
@@ -46,10 +47,12 @@ def _sha(data: bytes) -> str:
 
 
 def _binding(plist_path: Path) -> dict[str, Any]:
+    private_config_reader = REPO_ROOT / "src/memecoin_collector/private_config.py"
     return {
         "schema_version": SCHEMA_VERSION,
         "runner_sha256": _sha(Path(__file__).read_bytes()),
         "plist_sha256": _sha(plist_path.read_bytes()),
+        "private_config_reader_sha256": _sha(private_config_reader.read_bytes()),
         "label": SERVICE_LABEL,
         "policy": "one current UTC bucket; no catch-up; status-only has no side effects",
     }
@@ -185,31 +188,41 @@ def _load_private_endpoint(env_file: Path | None = None) -> str | None:
     """Read the endpoint only in-process from the private config; never export it."""
     path = env_file or (REPO_ROOT / ".env.local")
     try:
-        metadata = path.lstat()
-        if (
-            not stat.S_ISREG(metadata.st_mode)
-            or path.is_symlink()
-            or stat.S_IMODE(metadata.st_mode) != 0o600
-        ):
-            return None
-        for line in path.read_text().splitlines():
+        data = read_private_config(path)
+        text = data.decode("utf-8")
+        matches = []
+        for line in text.splitlines():
             key, sep, raw = line.partition("=")
             if sep and key.strip() == "MEMECOIN_HELIUS_RPC_URL":
-                value = raw.strip().strip("\"'")
-                parsed = urlsplit(value)
-                if (
-                    parsed.scheme == "https"
-                    and parsed.hostname
-                    and (
-                        parsed.hostname.endswith(".helius-rpc.com")
-                        or parsed.hostname == "rpc.helius.xyz"
-                    )
-                    and parsed.username is None
-                    and parsed.password is None
-                ):
-                    return value
-                return None
-    except OSError:
+                matches.append(raw.strip())
+        if len(matches) != 1:
+            return None
+        value = matches[0]
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        parsed = urlsplit(value)
+        hostname = parsed.hostname
+        port = parsed.port
+        query = parse_qsl(parsed.query, keep_blank_values=True, strict_parsing=True)
+        api_keys = [item for key, item in query if key == "api-key"]
+        if (
+            value
+            and all(33 <= ord(char) <= 126 for char in value)
+            and parsed.scheme == "https"
+            and hostname
+            and (hostname.endswith(".helius-rpc.com") or hostname == "rpc.helius.xyz")
+            and parsed.username is None
+            and parsed.password is None
+            and not parsed.fragment
+            and port in (None, 443)
+            and parsed.netloc
+            and parsed.netloc.count("@") == 0
+            and not any(char in parsed.netloc for char in "\\%")
+            and len(api_keys) == 1
+            and bool(api_keys[0])
+        ):
+            return value
+    except (OSError, UnicodeDecodeError, ValueError):
         return None
     return None
 

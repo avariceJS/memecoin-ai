@@ -12,7 +12,6 @@ import hashlib
 import json
 import secrets
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Protocol
 
 from memecoin_collector.wss_campaign import WssReferenceCampaign
@@ -22,6 +21,7 @@ from memecoin_collector.wss_reference import (
     MAX_SESSION_NS,
     PUMP_BONDING_CURVE_PROGRAM,
 )
+from memecoin_collector.wss_tls import TLSVerification
 from memecoin_collector.wss_transport import (
     FrameProtocolError,
     FrameTooLarge,
@@ -33,15 +33,6 @@ from memecoin_collector.wss_transport import (
 
 MAX_HTTP_HEADER_BYTES = 16 * 1024
 WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-
-
-@dataclass(frozen=True)
-class TLSVerification:
-    """Adapter assertion; a production adapter must derive this from verified TLS state."""
-
-    peer_hostname: str
-    certificate_verified: bool
-    hostname_verified: bool
 
 
 class DeadlineByteStream(Protocol):
@@ -57,9 +48,10 @@ class DeadlineByteStream(Protocol):
 class WssClientError(ValueError):
     """Sanitized protocol outcome; never includes endpoint, headers, or payload text."""
 
-    def __init__(self, reason: str, *, evidence: bytes = b"") -> None:
+    def __init__(self, reason: str, *, evidence: bytes = b"", progress_bytes: int = 0) -> None:
         super().__init__(reason)
         self.evidence = evidence[:MAX_HTTP_HEADER_BYTES]
+        self.progress_bytes = max(0, min(int(progress_bytes), 2**63 - 1))
 
 
 class _DeadlineIO:
@@ -79,6 +71,10 @@ class _DeadlineIO:
         self.clock_ns = clock_ns
         self.authorization_expires_ns = authorization_expires_ns
         self.session = session
+        self.progress_bytes = 0
+
+    def reset_progress(self) -> None:
+        self.progress_bytes = 0
 
     def check(self) -> None:
         now_ns = self.clock_ns()
@@ -90,33 +86,56 @@ class _DeadlineIO:
             raise WssClientError("client_deadline")
 
     def read_exactly(self, size: int) -> bytes:
-        self.check()
+        try:
+            self.check()
+        except WssClientError as exc:
+            raise WssClientError(exc.args[0], progress_bytes=self.progress_bytes) from None
         try:
             value = self.stream.read_exactly(size, deadline_monotonic_ns=self.deadline_ns)
         except TimeoutError as exc:
-            raise WssClientError("stream_timeout") from exc
+            raise WssClientError(
+                "stream_timeout",
+                progress_bytes=self.progress_bytes + getattr(exc, "bytes_completed", 0),
+            ) from None
         except (OSError, EOFError) as exc:
-            raise WssClientError("stream_read_failed") from exc
+            raise WssClientError(
+                "stream_read_failed",
+                progress_bytes=self.progress_bytes + getattr(exc, "bytes_completed", 0),
+            ) from None
         if not isinstance(value, bytes) or len(value) != size:
-            raise WssClientError("stream_read_incomplete")
+            self.progress_bytes += len(value) if isinstance(value, bytes) else 0
+            raise WssClientError("stream_read_incomplete", progress_bytes=self.progress_bytes)
+        self.progress_bytes += len(value)
         if self.monotonic_ns() >= self.deadline_ns:
-            raise WssClientError("client_deadline", evidence=value)
+            raise WssClientError(
+                "client_deadline", evidence=value, progress_bytes=self.progress_bytes
+            )
         try:
             self.check()
         except WssClientError as exc:
             evidence = value if exc.args == ("client_deadline",) else b""
-            raise WssClientError(exc.args[0], evidence=evidence) from None
+            raise WssClientError(
+                exc.args[0], evidence=evidence, progress_bytes=self.progress_bytes
+            ) from None
         return value
 
     def write_all(self, data: bytes) -> None:
-        self.check()
+        try:
+            self.check()
+        except WssClientError as exc:
+            raise WssClientError(exc.args[0], progress_bytes=self.progress_bytes) from None
         try:
             self.stream.write_all(data, deadline_monotonic_ns=self.deadline_ns)
-        except TimeoutError as exc:
-            raise WssClientError("stream_timeout") from exc
-        except (OSError, EOFError) as exc:
-            raise WssClientError("stream_write_failed") from exc
-        self.check()
+        except TimeoutError:
+            raise WssClientError("stream_timeout", progress_bytes=self.progress_bytes) from None
+        except (OSError, EOFError):
+            raise WssClientError(
+                "stream_write_failed", progress_bytes=self.progress_bytes
+            ) from None
+        try:
+            self.check()
+        except WssClientError as exc:
+            raise WssClientError(exc.args[0], progress_bytes=self.progress_bytes) from None
 
 
 def _validate_authority(host: str, target: str, tls: TLSVerification) -> None:
@@ -155,7 +174,11 @@ def _read_upgrade_headers(io: _DeadlineIO) -> bytes:
             if data.endswith(b"\r\n\r\n"):
                 return bytes(data)
     except WssClientError as exc:
-        raise WssClientError(exc.args[0], evidence=bytes(data) + exc.evidence) from None
+        raise WssClientError(
+            exc.args[0],
+            evidence=bytes(data) + exc.evidence,
+            progress_bytes=max(io.progress_bytes, exc.progress_bytes),
+        ) from None
     raise WssClientError("http_upgrade_headers_too_large", evidence=bytes(data))
 
 
@@ -231,6 +254,7 @@ def _stop_with_failure(
     phase: str,
     reason: str,
     evidence: bytes,
+    progress_bytes: int = 0,
     at_ns: int,
 ) -> None:
     if campaign.active is not None and not campaign.terminal:
@@ -239,6 +263,7 @@ def _stop_with_failure(
             phase=phase,
             reason=reason,
             raw_evidence=evidence[:MAX_HTTP_HEADER_BYTES],
+            progress_bytes=progress_bytes,
             at_ns=at_ns,
         )
         campaign.stop(reason, at_ns)
@@ -264,6 +289,7 @@ class WssClientConnection:
         self,
         campaign: WssReferenceCampaign,
         io: _DeadlineIO,
+        stream: DeadlineByteStream,
         *,
         clock_ns: Callable[[], int],
         monotonic_ns: Callable[[], int],
@@ -271,13 +297,24 @@ class WssClientConnection:
         deadline_ns: int,
     ) -> None:
         self.campaign = campaign
+        self.session = campaign.active
         self.io = io
+        self.stream = stream
+        self.closed = False
         self.clock_ns = clock_ns
         self.monotonic_ns = monotonic_ns
         self.free_disk_bytes = free_disk_bytes
         self.deadline_ns = deadline_ns
 
+    def _assert_session_owner(self) -> None:
+        if self.closed:
+            raise WssClientError("connection_closed")
+        if self.campaign.active is not self.session:
+            self._close_stream()
+            raise WssClientError("connection_session_superseded")
+
     def _next_subscription_response(self) -> dict | None:
+        self.io.reset_progress()
         if not self.campaign.prepare_control_receive(
             at_ns=self.clock_ns(), free_disk_bytes=self.free_disk_bytes()
         ):
@@ -296,6 +333,7 @@ class WssClientConnection:
                     phase="subscribe_response",
                     reason="subscribe_response_cap",
                     evidence=exc.header.raw,
+                    progress_bytes=self.io.progress_bytes,
                     at_ns=self.clock_ns(),
                 )
                 raise WssClientError("subscribe_response_cap") from None
@@ -318,21 +356,26 @@ class WssClientConnection:
                     phase="subscribe_response",
                     reason=failure_reason,
                     evidence=exc.evidence if isinstance(exc, WssClientError) else b"",
+                    progress_bytes=(
+                        exc.progress_bytes
+                        if isinstance(exc, WssClientError)
+                        else self.io.progress_bytes
+                    ),
                     at_ns=self.clock_ns(),
                 )
                 raise WssClientError(failure_reason) from None
             if result is None:
                 continue
             kind, body = result
-            _preflight_connection(
-                self.campaign,
-                clock_ns=self.clock_ns,
-                monotonic_ns=self.monotonic_ns,
-                free_disk_bytes=self.free_disk_bytes,
-                allow_connected=True,
-                allow_subscribe_sent=True,
-            )
             if kind == "ping":
+                _preflight_connection(
+                    self.campaign,
+                    clock_ns=self.clock_ns,
+                    monotonic_ns=self.monotonic_ns,
+                    free_disk_bytes=self.free_disk_bytes,
+                    allow_connected=True,
+                    allow_subscribe_sent=True,
+                )
                 try:
                     self.io.write_all(encode_client_frame(0xA, body))
                 except WssClientError:
@@ -345,11 +388,20 @@ class WssClientConnection:
                         phase="subscribe_response",
                         reason=reason,
                         evidence=b"",
+                        progress_bytes=self.io.progress_bytes,
                         at_ns=self.clock_ns(),
                     )
                     raise
                 continue
             if kind == "pong":
+                _preflight_connection(
+                    self.campaign,
+                    clock_ns=self.clock_ns,
+                    monotonic_ns=self.monotonic_ns,
+                    free_disk_bytes=self.free_disk_bytes,
+                    allow_connected=True,
+                    allow_subscribe_sent=True,
+                )
                 continue
             if kind == "close":
                 self.campaign.active.record_transport_failure(
@@ -380,6 +432,14 @@ class WssClientConnection:
                         at_ns=received_ns,
                     )
                 raise WssClientError("subscribe_response_invalid") from None
+            _preflight_connection(
+                self.campaign,
+                clock_ns=self.clock_ns,
+                monotonic_ns=self.monotonic_ns,
+                free_disk_bytes=self.free_disk_bytes,
+                allow_connected=True,
+                allow_subscribe_sent=True,
+            )
             if row["response_kind"] == "ack":
                 self.io.deadline_ns = _preflight_connection(
                     self.campaign,
@@ -404,42 +464,123 @@ class WssClientConnection:
 
     def receive_notification(self) -> dict | None:
         try:
+            self._assert_session_owner()
+            self.io.reset_progress()
             self.io.check()
-            return self.campaign.receive_json_message(
+            row = self.campaign.receive_json_message(
                 self.io,
                 at_ns=self.clock_ns(),
                 free_disk_bytes=self.free_disk_bytes(),
                 clock_ns=self.clock_ns,
                 send_client_frame=self.io.write_all,
             )
-        except (TimeoutError, OSError, EOFError, WssClientError) as exc:
-            if self.campaign.active is not None and not self.campaign.terminal:
-                caught_reason = (
-                    exc.args[0]
-                    if isinstance(exc, WssClientError)
-                    and exc.args
-                    and exc.args[0]
-                    in {
-                        "authorization_expired",
-                        "session_clock_regression",
-                        "client_deadline",
-                    }
-                    else None
-                )
-                reason = _io_failure_reason(
-                    self.io,
-                    default=caught_reason
-                    or (
-                        "client_deadline"
-                        if self.monotonic_ns() >= self.deadline_ns
-                        else "subscribe_response_io"
-                    ),
-                )
-                self.campaign.stop(
-                    reason,
-                    max(self.clock_ns(), self.campaign.active.last_event_ns),
-                )
+            if self.campaign.terminal or self.campaign.active is None:
+                self.close()
+            return row
+        except BaseException as exc:
+            try:
+                if (
+                    self.campaign.active is self.session
+                    and self.session is not None
+                    and not self.campaign.terminal
+                ):
+                    caught_reason = (
+                        exc.args[0]
+                        if isinstance(exc, WssClientError)
+                        and exc.args
+                        and exc.args[0]
+                        in {
+                            "authorization_expired",
+                            "session_clock_regression",
+                            "client_deadline",
+                        }
+                        else None
+                    )
+                    reason = _io_failure_reason(
+                        self.io,
+                        default=caught_reason
+                        or (
+                            "client_deadline"
+                            if self.monotonic_ns() >= self.deadline_ns
+                            else "subscribe_response_io"
+                        ),
+                    )
+                    progress_bytes = (
+                        exc.progress_bytes
+                        if isinstance(exc, WssClientError)
+                        else self.io.progress_bytes
+                        if not isinstance(exc, Exception)
+                        else 0
+                    )
+                    if progress_bytes:
+                        self.campaign.active.record_transport_failure(
+                            phase="notification",
+                            reason=(
+                                reason
+                                if reason
+                                in {
+                                    "client_deadline",
+                                    "authorization_expired",
+                                    "session_clock_regression",
+                                }
+                                else "notification_io"
+                            ),
+                            raw_evidence=b"",
+                            progress_bytes=progress_bytes,
+                            at_ns=max(self.clock_ns(), self.campaign.active.last_event_ns),
+                        )
+                    if not isinstance(exc, Exception):
+                        stop_reason = "client_cancelled"
+                    elif isinstance(exc, (TimeoutError, OSError, EOFError, WssClientError)):
+                        stop_reason = reason
+                    else:
+                        stop_reason = "notification_client_failure"
+                    self.campaign.stop(
+                        stop_reason,
+                        max(self.clock_ns(), self.campaign.active.last_event_ns),
+                    )
+            finally:
+                self._close_stream()
+            if not isinstance(exc, Exception):
+                raise
             raise WssClientError("notification_transport_failed") from None
+
+    def _close_stream(self) -> None:
+        if self.closed:
+            return
+        self.closed = True
+        close = getattr(self.stream, "close", None)
+        if callable(close):
+            try:
+                close()
+            except Exception:
+                pass
+
+    def close(self) -> None:
+        """Seal this observation window and close TLS without an unwrap frame."""
+        if self.closed:
+            return
+        try:
+            if (
+                self.campaign.active is self.session
+                and self.session is not None
+                and not self.campaign.terminal
+            ):
+                active = self.session
+                self.campaign.stop_session(
+                    "connection_disconnected",
+                    max(self.clock_ns(), active.last_event_ns),
+                )
+        finally:
+            self._close_stream()
+
+    def __enter__(self) -> WssClientConnection:
+        if self.closed:
+            raise WssClientError("connection_closed")
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
 
 
 def upgrade_and_subscribe(
@@ -452,15 +593,55 @@ def upgrade_and_subscribe(
     monotonic_ns: Callable[[], int],
     free_disk_bytes: Callable[[], int],
 ) -> WssClientConnection | None:
+    """Transfer stream ownership only to a successfully subscribed connection."""
+    session = campaign.active
+    try:
+        connection = _upgrade_and_subscribe_owned(
+            campaign,
+            stream,
+            host=host,
+            request_target=request_target,
+            clock_ns=clock_ns,
+            monotonic_ns=monotonic_ns,
+            free_disk_bytes=free_disk_bytes,
+        )
+    except BaseException:
+        _close_stream(stream)
+        if session is not None and campaign.active is session and not campaign.terminal:
+            campaign.stop(
+                "client_failure",
+                max(clock_ns(), session.last_event_ns),
+            )
+        raise
+    if connection is None:
+        _close_stream(stream)
+    return connection
+
+
+def _upgrade_and_subscribe_owned(
+    campaign: WssReferenceCampaign,
+    stream: DeadlineByteStream,
+    *,
+    host: str,
+    request_target: str,
+    clock_ns: Callable[[], int],
+    monotonic_ns: Callable[[], int],
+    free_disk_bytes: Callable[[], int],
+) -> WssClientConnection | None:
     """Perform a strict HTTP Upgrade and one logsSubscribe exchange on an injected stream."""
     if campaign.terminal or campaign.active is None:
+        _close_stream(stream)
         raise WssClientError("campaign_session_missing")
-    deadline_ns = _preflight_connection(
-        campaign,
-        clock_ns=clock_ns,
-        monotonic_ns=monotonic_ns,
-        free_disk_bytes=free_disk_bytes,
-    )
+    try:
+        deadline_ns = _preflight_connection(
+            campaign,
+            clock_ns=clock_ns,
+            monotonic_ns=monotonic_ns,
+            free_disk_bytes=free_disk_bytes,
+        )
+    except WssClientError:
+        _close_stream(stream)
+        raise
     try:
         _validate_authority(host, request_target, getattr(stream, "tls_verification", None))
     except WssClientError:
@@ -471,6 +652,7 @@ def upgrade_and_subscribe(
             evidence=b"",
             at_ns=clock_ns(),
         )
+        _close_stream(stream)
         raise WssClientError("tls_or_upgrade_authority_invalid") from None
     active = campaign.active
     io = _DeadlineIO(
@@ -505,16 +687,22 @@ def upgrade_and_subscribe(
             phase="http_upgrade",
             reason=reason,
             evidence=_safe_upgrade_failure_evidence(header_bytes or exc.evidence),
+            progress_bytes=exc.progress_bytes,
             at_ns=clock_ns(),
         )
+        _close_stream(stream)
         raise WssClientError("http_upgrade_failed") from None
-    deadline_ns = _preflight_connection(
-        campaign,
-        clock_ns=clock_ns,
-        monotonic_ns=monotonic_ns,
-        free_disk_bytes=free_disk_bytes,
-        allow_connected=True,
-    )
+    try:
+        deadline_ns = _preflight_connection(
+            campaign,
+            clock_ns=clock_ns,
+            monotonic_ns=monotonic_ns,
+            free_disk_bytes=free_disk_bytes,
+            allow_connected=True,
+        )
+    except WssClientError:
+        _close_stream(stream)
+        raise
     io.deadline_ns = deadline_ns
     active.request_subscribe(clock_ns())
     request = {
@@ -537,10 +725,12 @@ def upgrade_and_subscribe(
             evidence=b"",
             at_ns=clock_ns(),
         )
+        _close_stream(stream)
         raise WssClientError("subscribe_request_failed") from None
     connection = WssClientConnection(
         campaign,
         io,
+        stream,
         clock_ns=clock_ns,
         monotonic_ns=monotonic_ns,
         free_disk_bytes=free_disk_bytes,
@@ -549,10 +739,21 @@ def upgrade_and_subscribe(
     try:
         response = connection._next_subscription_response()
     except WssClientError:
+        connection._close_stream()
         raise
     if response is None:
+        connection._close_stream()
         return None
     return connection
+
+
+def _close_stream(stream: DeadlineByteStream) -> None:
+    close = getattr(stream, "close", None)
+    if callable(close):
+        try:
+            close()
+        except Exception:
+            pass
 
 
 def _preflight_connection(

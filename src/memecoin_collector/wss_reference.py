@@ -33,6 +33,8 @@ TRANSPORT_FAILURE_CODES = {
     "subscribe_response_io",
     "subscribe_response_invalid",
     "subscribe_response_cap",
+    "notification_io",
+    "notification_invalid",
     "connection_disconnected",
     "client_deadline",
     "authorization_expired",
@@ -149,6 +151,7 @@ class WssReferenceSession:
         *,
         opened_ns: int,
         opened_monotonic_ns: int | None = None,
+        writer_guard: Callable[[], bool] | None = None,
     ) -> None:
         opened_ns = _safe_now(opened_ns)
         if root.exists():
@@ -169,6 +172,7 @@ class WssReferenceSession:
         if binding != required:
             raise ValueError("wss_session_binding_mismatch")
         self.root = root
+        self._writer_guard = writer_guard
         root.mkdir(parents=True, mode=0o700)
         (root / "raw").mkdir(mode=0o700)
         (root / "journal").mkdir(mode=0o700)
@@ -203,7 +207,12 @@ class WssReferenceSession:
             },
         )
 
+    def _assert_writer(self) -> None:
+        if self._writer_guard is not None and not self._writer_guard():
+            raise ValueError("wss_campaign_writer_released")
+
     def _event(self, kind: str, at_ns: int, fields: dict[str, Any]) -> dict[str, Any]:
+        self._assert_writer()
         at_ns = _safe_now(at_ns)
         if self.terminal:
             raise ValueError("wss_session_terminal")
@@ -324,6 +333,7 @@ class WssReferenceSession:
         clock_ns: Callable[[], int],
     ) -> dict[str, Any]:
         """Persist the exact pre-ack response and its bounded derived classification."""
+        self._assert_writer()
         received_ns = _safe_now(received_ns)
         if self.terminal or not self.control_receive_prepared or self.acknowledged:
             raise ValueError("wss_control_response_state_invalid")
@@ -380,16 +390,20 @@ class WssReferenceSession:
         phase: str,
         reason: str,
         raw_evidence: bytes,
+        progress_bytes: int = 0,
         at_ns: int,
     ) -> dict[str, Any]:
         """Preserve bounded HTTP failure bytes without charging them as RPC messages."""
+        self._assert_writer()
         at_ns = _safe_now(at_ns)
         if (
             self.terminal
-            or phase not in {"http_upgrade", "subscribe_response"}
+            or phase not in {"http_upgrade", "subscribe_response", "notification"}
             or reason not in TRANSPORT_FAILURE_CODES
             or not isinstance(raw_evidence, bytes)
             or len(raw_evidence) > 16 * 1024
+            or type(progress_bytes) is not int
+            or progress_bytes < 0
         ):
             raise ValueError("wss_transport_failure_evidence_invalid")
         raw_path = self.root / "raw" / f"{self.seq + 1:08d}.bin"
@@ -405,11 +419,13 @@ class WssReferenceSession:
                 "raw_path": raw_path.relative_to(self.root).as_posix(),
                 "raw_sha256": raw_sha256,
                 "raw_bytes": len(raw_evidence),
+                "partial_input_bytes": progress_bytes,
             },
         )
 
     def prepare_receive(self, *, at_ns: int, free_disk_bytes: int) -> bool:
         """Reserve worst-case next-message headroom before the transport reads it."""
+        self._assert_writer()
         if self.terminal:
             raise ValueError("wss_session_terminal")
         at_ns = _safe_now(at_ns)
@@ -439,6 +455,7 @@ class WssReferenceSession:
         received_ns: int,
         clock_ns: Callable[[], int],
     ) -> dict[str, Any]:
+        self._assert_writer()
         received_ns = _safe_now(received_ns)
         if self.terminal:
             raise ValueError("wss_session_terminal")
@@ -553,6 +570,7 @@ class WssReferenceSession:
         messages = []
         control_responses = 0
         transport_failures = 0
+        partial_input_bytes = 0
         rejected = 0
         for path in (self.root / "journal").glob("*.json"):
             event = json.loads(path.read_text())
@@ -562,6 +580,7 @@ class WssReferenceSession:
                 control_responses += 1
             elif event.get("kind") == "transport_failure":
                 transport_failures += 1
+                partial_input_bytes += event.get("partial_input_bytes", 0)
             elif event.get("kind") == "message_rejected":
                 rejected += 1
         row = self._event(
@@ -574,6 +593,7 @@ class WssReferenceSession:
                 "notifications": len(messages),
                 "control_responses": control_responses,
                 "transport_failures": transport_failures,
+                "partial_input_bytes": partial_input_bytes,
                 "rejected_messages_or_frames": rejected,
                 "parse_failures": sum(m.get("parse_state") != "notification" for m in messages),
                 "duplicate_deliveries": sum(bool(m.get("duplicate_delivery")) for m in messages),
@@ -775,13 +795,16 @@ class WssReferenceSession:
                 last_subscribe_response_kind = projection["response_kind"]
             if row.get("kind") == "transport_failure":
                 name = row.get("raw_path")
+                partial_input_bytes = row.get("partial_input_bytes", 0)
                 if (
-                    row.get("phase") not in {"http_upgrade", "subscribe_response"}
+                    row.get("phase") not in {"http_upgrade", "subscribe_response", "notification"}
                     or row.get("reason") not in TRANSPORT_FAILURE_CODES
                     or not isinstance(name, str)
                     or not name.startswith("raw/")
                     or ".." in Path(name).parts
                     or Path(name).name in raw_names
+                    or type(partial_input_bytes) is not int
+                    or partial_input_bytes < 0
                 ):
                     raise ValueError("wss_transport_failure_projection_invalid")
                 raw_names.add(Path(name).name)
@@ -855,6 +878,7 @@ class WssReferenceSession:
         orphan_names = sorted(actual_raw - raw_names)
         obj = cls.__new__(cls)
         obj.root = root
+        obj._writer_guard = None
         obj.binding = binding
         obj.seq = len(rows)
         obj.parent_sha256 = parent
@@ -912,6 +936,12 @@ class WssReferenceSession:
                 != sum(row.get("kind") == "protocol_response" for row in rows)
                 or stop_row.get("transport_failures")
                 != sum(row.get("kind") == "transport_failure" for row in rows)
+                or stop_row.get("partial_input_bytes", 0)
+                != sum(
+                    row.get("partial_input_bytes", 0)
+                    for row in rows
+                    if row.get("kind") == "transport_failure"
+                )
             ):
                 raise ValueError("wss_session_stop_accounting_mismatch")
             return obj

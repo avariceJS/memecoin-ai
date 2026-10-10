@@ -167,6 +167,65 @@ def test_runner_binding_is_immutable_and_detects_plist_drift(tmp_path: Path) -> 
         runner._write_binding(root, plist)
 
 
+def test_runner_binding_includes_shared_private_file_reader(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    plist = tmp_path / "service.plist"
+    plist.write_text("one")
+    binding = runner._write_binding(root, plist)
+    assert binding["private_config_reader_sha256"] == runner._sha(
+        (runner.REPO_ROOT / "src/memecoin_collector/private_config.py").read_bytes()
+    )
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "http://mainnet.helius-rpc.com/?api-key=fixture",
+        "https://user@mainnet.helius-rpc.com/?api-key=fixture",
+        "https://mainnet.helius-rpc.com:444/?api-key=fixture",
+        "https://mainnet.helius-rpc.com/?api-key=fixture#fragment",
+        "https://mainnet.helius-rpc.com/?api-key=one&api-key=two",
+        "https://evil.example/?api-key=fixture",
+    ],
+)
+def test_private_endpoint_loader_rejects_ambiguous_or_unsafe_url(
+    tmp_path: Path, endpoint: str
+) -> None:
+    config = tmp_path / ".env.local"
+    config.write_text(f"MEMECOIN_HELIUS_RPC_URL={endpoint}\n")
+    config.chmod(0o600)
+    assert runner._load_private_endpoint(config) is None
+
+
+def test_private_endpoint_loader_accepts_one_private_helius_rpc_url(tmp_path: Path) -> None:
+    config = tmp_path / ".env.local"
+    config.write_text(
+        'MEMECOIN_HELIUS_RPC_URL="https://mainnet.helius-rpc.com/?api-key=fixture-secret"\n'
+    )
+    config.chmod(0o600)
+    endpoint = runner._load_private_endpoint(config)
+    assert endpoint is not None and endpoint.endswith("api-key=fixture-secret")
+
+
+def test_private_endpoint_loader_rejects_duplicate_config_key(tmp_path: Path) -> None:
+    config = tmp_path / ".env.local"
+    config.write_text(
+        "MEMECOIN_HELIUS_RPC_URL=https://mainnet.helius-rpc.com/?api-key=one\n"
+        "MEMECOIN_HELIUS_RPC_URL=https://mainnet.helius-rpc.com/?api-key=two\n"
+    )
+    config.chmod(0o600)
+    assert runner._load_private_endpoint(config) is None
+
+
+def test_private_endpoint_loader_rejects_hardlink_alias(tmp_path: Path) -> None:
+    config = tmp_path / ".env.local"
+    config.write_text("MEMECOIN_HELIUS_RPC_URL=https://mainnet.helius-rpc.com/?api-key=fixture\n")
+    config.chmod(0o600)
+    alias = tmp_path / "alias"
+    os.link(config, alias)
+    assert runner._load_private_endpoint(alias) is None
+
+
 def test_initialize_pins_runner_and_plist_before_service_initialization(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

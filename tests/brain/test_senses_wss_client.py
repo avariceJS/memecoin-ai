@@ -7,7 +7,6 @@ import pytest
 from memecoin_collector.wss_campaign import WssReferenceCampaign, default_authorization
 from memecoin_collector.wss_client import (
     WS_GUID,
-    TLSVerification,
     WssClientError,
     upgrade_and_subscribe,
 )
@@ -20,6 +19,7 @@ from memecoin_collector.wss_reference import (
     STORED_LIMIT_BYTES,
     parse_logs_message,
 )
+from memecoin_collector.wss_tls import _TLS_VERIFICATION_TOKEN, TLSVerification
 
 
 def authorization():
@@ -95,8 +95,19 @@ class FakeTLSStream:
         expire_on_websocket_payload=False,
         expire_after_first_upgrade_byte=False,
         tls_ok=True,
+        partial_failure_bytes=0,
+        partial_upgrade_failure=False,
+        expire_after_websocket_header=False,
+        fail_pong_write=False,
     ):
-        self.tls_verification = TLSVerification("mainnet.helius-rpc.com", tls_ok, tls_ok)
+        self.tls_verification = TLSVerification(
+            "mainnet.helius-rpc.com", tls_ok, tls_ok, _TLS_VERIFICATION_TOKEN
+        )
+        self.partial_failure_bytes = partial_failure_bytes
+        self.partial_upgrade_failure = partial_upgrade_failure
+        self.expire_after_websocket_header = expire_after_websocket_header
+        self.fail_pong_write = fail_pong_write
+        self.closed = False
         self.ack = ack or b'{"jsonrpc":"2.0","result":77,"id":1}'
         self.before_ack = before_ack
         self.subscribe_frames = subscribe_frames
@@ -114,6 +125,10 @@ class FakeTLSStream:
         self.request_target_fixture = "/?api-key=fixture-secret"
 
     def read_exactly(self, size, *, deadline_monotonic_ns):
+        if self.partial_upgrade_failure and not self.in_websocket_phase:
+            error = OSError("synthetic partial upgrade read")
+            error.bytes_completed = 1
+            raise error
         self.read_sizes.append(size)
         if self.in_websocket_phase:
             self.websocket_read_sizes.append(size)
@@ -121,14 +136,24 @@ class FakeTLSStream:
             if self.mono is not None:
                 self.mono[0] = deadline_monotonic_ns
         if len(self.buffer) < size:
+            if self.partial_failure_bytes:
+                count = min(len(self.buffer), self.partial_failure_bytes)
+                del self.buffer[:count]
+                error = OSError("synthetic partial read")
+                error.bytes_completed = count
+                raise error
             raise EOFError
         value = bytes(self.buffer[:size])
         del self.buffer[:size]
+        if self.expire_after_websocket_header and self.in_websocket_phase and size == 2:
+            self.wall_clock[0] = 100 + 6 * 24 * 60 * 60 * 1_000_000_000
         if self.expire_on_websocket_payload and self.in_websocket_phase and size > 2:
             self.wall_clock[0] = 100 + 6 * 24 * 60 * 60 * 1_000_000_000
         return value
 
     def write_all(self, data, *, deadline_monotonic_ns):
+        if self.fail_pong_write and data and data[0] & 0x0F == 0x0A:
+            raise OSError("synthetic pong write failure")
         self.writes.append(data)
         if data.startswith(b"GET "):
             key = next(
@@ -156,6 +181,9 @@ class FakeTLSStream:
             else:
                 self.buffer.extend(self.before_ack)
                 self.buffer.extend(server_frame(self.ack))
+
+    def close(self):
+        self.closed = True
 
     @staticmethod
     def _verify_subscribe_request(data):
@@ -234,6 +262,37 @@ def test_upgrade_subscribe_ack_is_raw_bound_and_recovers_without_resume(tmp_path
     stop = WssReferenceCampaign.recover_interrupted(campaign.root, at_ns=clock_ns() + 5)
     assert stop["raw_message_bytes"] == len(stream.ack)
     assert stop["no_resume"] is True
+
+
+def test_expired_authorization_after_complete_ack_preserves_raw_response(tmp_path):
+    now = [102]
+    campaign = make_campaign(tmp_path / "campaign")
+    original_record = campaign.record_subscribe_response
+
+    def expire_after_record(*args, **kwargs):
+        row = original_record(*args, **kwargs)
+        now[0] = authorization()["expires_at_ns"]
+        return row
+
+    campaign.record_subscribe_response = expire_after_record
+    stream = FakeTLSStream()
+    with pytest.raises(WssClientError, match="authorization_expired"):
+        start(campaign, stream, clock=now)
+
+    rows = [
+        json.loads(path.read_text())
+        for path in sorted((campaign.root / "sessions/01/journal").glob("*.json"))
+    ]
+    protocol = next(row for row in rows if row["kind"] == "protocol_response")
+    raw = (campaign.root / "sessions/01" / protocol["raw_path"]).read_bytes()
+    assert raw == stream.ack
+    assert protocol["response_kind"] == "ack"
+    assert not any(row["kind"] == "subscription_ack" for row in rows)
+    assert json.loads((campaign.root / "CAMPAIGN_STOP.json").read_text())["reason"] == (
+        "authorization_expired"
+    )
+    assert stream.closed is True
+    campaign.close()
 
 
 def test_notification_uses_the_deadline_bound_stream_after_ack(tmp_path):
@@ -560,6 +619,198 @@ def test_close_before_subscribe_ack_ends_window_without_resume(tmp_path):
     assert session_stop["kind"] == "session_stop"
     assert session_stop["reason"] == "connection_disconnected"
     assert campaign.active is None
+    assert stream.closed is True
+    campaign.close()
+
+
+def test_connection_owner_closes_stream_and_seals_on_normal_exit(tmp_path):
+    campaign = make_campaign(tmp_path / "campaign")
+    stream = FakeTLSStream()
+    connection, _ = start(campaign, stream)
+    assert connection is not None
+    connection.close()
+    assert stream.closed is True
+    assert campaign.active is None
+    assert not campaign.terminal
+    assert not (campaign.root / "CAMPAIGN_STOP.json").exists()
+    session_stop = json.loads(
+        sorted((campaign.root / "sessions/01/journal").glob("*.json"))[-1].read_text()
+    )
+    assert session_stop["reason"] == "connection_disconnected"
+    campaign.close()
+
+
+def test_repeated_old_connection_close_does_not_stop_later_window(tmp_path):
+    campaign = make_campaign(tmp_path / "campaign")
+    first_stream = FakeTLSStream()
+    first_connection, clock_ns = start(campaign, first_stream)
+    assert first_connection is not None
+    first_connection.close()
+
+    campaign.start_session(
+        at_ns=clock_ns() + 1,
+        free_disk_bytes=DISK_FLOOR_BYTES + 1,
+        opened_monotonic_ns=0,
+    )
+    second_stream = FakeTLSStream()
+    second_connection, _ = start(campaign, second_stream, mono=[0], clock=[clock_ns() + 2])
+    assert second_connection is not None
+
+    first_connection.close()
+
+    assert campaign.active is not None
+    assert second_stream.closed is False
+    assert not campaign.terminal
+    second_connection.close()
+    campaign.close()
+
+
+def test_malformed_post_ack_frame_closes_stream_and_stops_session(tmp_path):
+    campaign = make_campaign(tmp_path / "campaign")
+    stream = FakeTLSStream()
+    connection, _ = start(campaign, stream)
+    assert connection is not None
+    stream.buffer.extend(b"\xc1\x00")  # RSV1 without negotiated extensions.
+
+    with pytest.raises(WssClientError, match="notification_transport_failed"):
+        connection.receive_notification()
+
+    assert stream.closed is True
+    assert campaign.terminal is True
+    assert campaign.active is None
+    campaign_stop = json.loads((campaign.root / "CAMPAIGN_STOP.json").read_text())
+    assert campaign_stop["reason"] == "transport_frame_header_failure"
+    campaign.close()
+
+
+def test_partial_notification_read_is_counted_without_becoming_message(tmp_path):
+    campaign = make_campaign(tmp_path / "campaign")
+    stream = FakeTLSStream()
+    connection, _ = start(campaign, stream)
+    assert connection is not None
+    stream.buffer = bytearray(b"\x81\x05ab")
+    stream.partial_failure_bytes = 2
+    with pytest.raises(WssClientError, match="notification_transport_failed"):
+        connection.receive_notification()
+    rows = [
+        json.loads(path.read_text())
+        for path in sorted((campaign.root / "sessions/01/journal").glob("*.json"))
+    ]
+    transport = next(row for row in rows if row["kind"] == "transport_failure")
+    assert transport["partial_input_bytes"] == 4  # Two-byte frame header + two payload bytes.
+    assert rows[-1]["kind"] == "session_stop"
+    assert rows[-1]["partial_input_bytes"] == 4
+    assert not any(row["kind"] == "message" for row in rows)
+    assert stream.closed is True
+    campaign.close()
+
+
+def test_expiry_between_frame_header_and_payload_preserves_current_message_bytes(tmp_path):
+    now = [102]
+    campaign = make_campaign(tmp_path / "campaign")
+    stream = FakeTLSStream(wall_clock=now)
+    connection, _ = start(campaign, stream, clock=now)
+    assert connection is not None
+    stream.expire_after_websocket_header = True
+    stream.buffer.extend(server_frame(notification()))
+
+    with pytest.raises(WssClientError, match="notification_transport_failed"):
+        connection.receive_notification()
+
+    rows = [
+        json.loads(path.read_text())
+        for path in sorted((campaign.root / "sessions/01/journal").glob("*.json"))
+    ]
+    transport = next(row for row in rows if row["kind"] == "transport_failure")
+    assert transport["partial_input_bytes"] == 2
+    assert json.loads((campaign.root / "CAMPAIGN_STOP.json").read_text())["reason"] == (
+        "authorization_expired"
+    )
+    campaign.close()
+
+
+def test_next_receive_does_not_recount_previously_completed_message(tmp_path):
+    now = [102]
+    campaign = make_campaign(tmp_path / "campaign")
+    stream = FakeTLSStream(wall_clock=now)
+    connection, _ = start(campaign, stream, clock=now)
+    assert connection is not None
+    stream.buffer.extend(server_frame(notification()))
+    assert connection.receive_notification() is not None
+
+    now[0] = authorization()["expires_at_ns"]
+    with pytest.raises(WssClientError, match="notification_transport_failed"):
+        connection.receive_notification()
+
+    session_stop = json.loads(
+        sorted((campaign.root / "sessions/01/journal").glob("*.json"))[-1].read_text()
+    )
+    assert session_stop["reason"] == "authorization_expired"
+    assert session_stop["partial_input_bytes"] == 0
+    assert stream.closed is True
+    campaign.close()
+
+
+def test_pong_write_failure_accounts_for_ping_input_only(tmp_path):
+    campaign = make_campaign(tmp_path / "campaign")
+    stream = FakeTLSStream()
+    connection, _ = start(campaign, stream)
+    assert connection is not None
+    ping = server_frame(b"heartbeat", opcode=9)
+    stream.buffer.extend(ping)
+    stream.fail_pong_write = True
+
+    with pytest.raises(WssClientError, match="notification_transport_failed"):
+        connection.receive_notification()
+
+    rows = [
+        json.loads(path.read_text())
+        for path in sorted((campaign.root / "sessions/01/journal").glob("*.json"))
+    ]
+    transport = next(row for row in rows if row["kind"] == "transport_failure")
+    assert transport["phase"] == "notification"
+    assert transport["partial_input_bytes"] == len(ping)
+    session_stop = rows[-1]
+    assert session_stop["notifications"] == 0
+    assert session_stop["partial_input_bytes"] == len(ping)
+    assert stream.closed is True
+    campaign.close()
+
+
+def test_partial_upgrade_read_is_preserved_in_transport_failure(tmp_path):
+    campaign = make_campaign(tmp_path / "campaign")
+    stream = FakeTLSStream(partial_upgrade_failure=True)
+    with pytest.raises(WssClientError, match="http_upgrade_failed"):
+        start(campaign, stream)
+
+    rows = [
+        json.loads(path.read_text())
+        for path in sorted((campaign.root / "sessions/01/journal").glob("*.json"))
+    ]
+    transport = next(row for row in rows if row["kind"] == "transport_failure")
+    assert transport["partial_input_bytes"] == 1
+    assert stream.closed is True
+    campaign.close()
+
+
+def test_notification_cancellation_closes_and_stops_before_propagating(tmp_path):
+    campaign = make_campaign(tmp_path / "campaign")
+    stream = FakeTLSStream()
+    connection, _ = start(campaign, stream)
+    assert connection is not None
+
+    def cancel_read(size, *, deadline_monotonic_ns):
+        raise KeyboardInterrupt
+
+    stream.read_exactly = cancel_read
+    with pytest.raises(KeyboardInterrupt):
+        connection.receive_notification()
+
+    assert stream.closed is True
+    assert campaign.terminal is True
+    assert json.loads((campaign.root / "CAMPAIGN_STOP.json").read_text())["reason"] == (
+        "client_cancelled"
+    )
     campaign.close()
 
 
@@ -572,6 +823,12 @@ def test_malformed_pre_ack_frame_fails_closed_with_campaign_stop(tmp_path):
     assert json.loads((campaign.root / "CAMPAIGN_STOP.json").read_text())["reason"] == (
         "subscribe_response_invalid"
     )
+    rows = [
+        json.loads(path.read_text())
+        for path in sorted((campaign.root / "sessions/01/journal").glob("*.json"))
+    ]
+    transport = next(row for row in rows if row["kind"] == "transport_failure")
+    assert transport["partial_input_bytes"] == 2
     campaign.close()
 
 

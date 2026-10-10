@@ -42,6 +42,8 @@ def default_authorization(
     transport = Path(__file__).with_name("wss_transport.py")
     reference = Path(__file__).with_name("wss_reference.py")
     client = Path(__file__).with_name("wss_client.py")
+    tls = Path(__file__).with_name("wss_tls.py")
+    private_config = Path(__file__).with_name("private_config.py")
     return {
         "schema_version": 1,
         "provider": "helius-standard-wss",
@@ -56,6 +58,8 @@ def default_authorization(
             "wss_reference.py": _sha(reference.read_bytes()),
             "wss_transport.py": _sha(transport.read_bytes()),
             "wss_client.py": _sha(client.read_bytes()),
+            "wss_tls.py": _sha(tls.read_bytes()),
+            "private_config.py": _sha(private_config.read_bytes()),
         },
         "authorized_at_ns": authorized_at_ns,
         "expires_at_ns": expires_at_ns,
@@ -127,6 +131,7 @@ class WssReferenceCampaign:
         self.sessions: list[WssReferenceSession] = []
         self.active: WssReferenceSession | None = None
         self.terminal = False
+        self._closed = False
         self._write_state(
             "campaign_open.json",
             {
@@ -158,6 +163,10 @@ class WssReferenceCampaign:
                 total += path.stat().st_size
         return total
 
+    def _assert_writer_open(self) -> None:
+        if self._closed or getattr(self, "lock_fd", None) is None:
+            raise ValueError("wss_campaign_writer_released")
+
     def start_session(
         self,
         *,
@@ -165,6 +174,7 @@ class WssReferenceCampaign:
         free_disk_bytes: int,
         opened_monotonic_ns: int | None = None,
     ) -> WssReferenceSession:
+        self._assert_writer_open()
         at_ns = _safe_now(at_ns)
         if self.terminal:
             raise ValueError("wss_campaign_terminal")
@@ -208,6 +218,7 @@ class WssReferenceCampaign:
             default_binding(),
             opened_ns=at_ns,
             opened_monotonic_ns=opened_monotonic_ns,
+            writer_guard=lambda: not self._closed and self.lock_fd is not None,
         )
         start = {
             "session_index": index,
@@ -223,6 +234,7 @@ class WssReferenceCampaign:
         return session
 
     def prepare_receive(self, *, at_ns: int, free_disk_bytes: int) -> bool:
+        self._assert_writer_open()
         if self.terminal or self.active is None:
             raise ValueError("wss_campaign_no_active_session")
         at_ns = _safe_now(at_ns)
@@ -244,6 +256,7 @@ class WssReferenceCampaign:
 
     def prepare_control_receive(self, *, at_ns: int, free_disk_bytes: int) -> bool:
         """Reserve aggregate disk/raw/stored capacity for the subscription response."""
+        self._assert_writer_open()
         if self.terminal or self.active is None:
             raise ValueError("wss_campaign_no_active_session")
         at_ns = _safe_now(at_ns)
@@ -269,6 +282,7 @@ class WssReferenceCampaign:
     def record_subscribe_response(
         self, raw: bytes, *, received_ns: int, clock_ns: Callable[[], int]
     ) -> dict[str, Any]:
+        self._assert_writer_open()
         if self.terminal or self.active is None:
             raise ValueError("wss_campaign_no_active_session")
         return self.active.record_subscribe_response(
@@ -276,6 +290,7 @@ class WssReferenceCampaign:
         )
 
     def record_message(self, raw: bytes, *, received_ns: int, clock_ns) -> dict[str, Any]:
+        self._assert_writer_open()
         if self.terminal or self.active is None:
             raise ValueError("wss_campaign_no_active_session")
         return self.active.record_message(raw, received_ns=received_ns, clock_ns=clock_ns)
@@ -290,6 +305,7 @@ class WssReferenceCampaign:
         send_client_frame: Callable[[bytes], None] | None = None,
     ) -> dict[str, Any] | None:
         """Preflight, read bounded synthetic/server frames, and persist one JSON-RPC message."""
+        self._assert_writer_open()
         from memecoin_collector.wss_transport import (
             FrameProtocolError,
             FrameTooLarge,
@@ -321,21 +337,66 @@ class WssReferenceCampaign:
                 )
                 self.stop("websocket_payload_cap", observed_ns)
                 return None
-            except (FrameProtocolError, OSError, EOFError):
-                self.stop("transport_frame_header_failure", observed_ns)
+            except (FrameProtocolError, OSError, EOFError) as exc:
+                reason = (
+                    "notification_io"
+                    if isinstance(exc, (OSError, EOFError))
+                    else "notification_invalid"
+                )
+                self.active.record_transport_failure(
+                    phase="notification",
+                    reason=reason,
+                    raw_evidence=b"",
+                    progress_bytes=getattr(reader, "progress_bytes", 0),
+                    at_ns=max(observed_ns, self.active.last_event_ns),
+                )
+                self.stop(
+                    "transport_frame_header_failure",
+                    max(observed_ns, self.active.last_event_ns),
+                )
                 raise
             try:
                 payload = reader.read_exactly(header.payload_length)
             except (OSError, EOFError):
-                self.stop("transport_frame_payload_failure", observed_ns)
+                self.active.record_transport_failure(
+                    phase="notification",
+                    reason="notification_io",
+                    raw_evidence=b"",
+                    progress_bytes=getattr(reader, "progress_bytes", 0),
+                    at_ns=max(observed_ns, self.active.last_event_ns),
+                )
+                self.stop(
+                    "transport_frame_payload_failure",
+                    max(observed_ns, self.active.last_event_ns),
+                )
                 raise
             if len(payload) != header.payload_length:
-                self.stop("transport_frame_payload_truncated", observed_ns)
+                self.active.record_transport_failure(
+                    phase="notification",
+                    reason="notification_io",
+                    raw_evidence=b"",
+                    progress_bytes=getattr(reader, "progress_bytes", 0),
+                    at_ns=max(observed_ns, self.active.last_event_ns),
+                )
+                self.stop(
+                    "transport_frame_payload_truncated",
+                    max(observed_ns, self.active.last_event_ns),
+                )
                 raise ValueError("wss_frame_payload_truncated")
             try:
                 message = assembler.accept(ServerFrame(header, payload))
             except (FrameProtocolError, FrameTooLarge):
-                self.stop("transport_message_invalid", observed_ns)
+                self.active.record_transport_failure(
+                    phase="notification",
+                    reason="notification_invalid",
+                    raw_evidence=b"",
+                    progress_bytes=getattr(reader, "progress_bytes", 0),
+                    at_ns=max(observed_ns, self.active.last_event_ns),
+                )
+                self.stop(
+                    "transport_message_invalid",
+                    max(observed_ns, self.active.last_event_ns),
+                )
                 raise
             if message is None:
                 continue
@@ -346,8 +407,18 @@ class WssReferenceCampaign:
                     raise ValueError("wss_transport_ping_writer_missing")
                 try:
                     send_client_frame(encode_client_frame(0xA, body))
-                except Exception:
-                    self.stop("transport_pong_write_failure", observed_ns)
+                except BaseException:
+                    failure_ns = observed_ns
+                    if self.active is not None:
+                        failure_ns = max(observed_ns, self.active.last_event_ns)
+                        self.active.record_transport_failure(
+                            phase="notification",
+                            reason="notification_io",
+                            raw_evidence=b"",
+                            progress_bytes=getattr(reader, "progress_bytes", 0),
+                            at_ns=failure_ns,
+                        )
+                    self.stop("transport_pong_write_failure", failure_ns)
                     raise
                 continue
             if kind == "pong":
@@ -359,6 +430,7 @@ class WssReferenceCampaign:
             return self.record_message(body, received_ns=received_ns, clock_ns=clock_ns)
 
     def stop_session(self, reason: str, at_ns: int) -> dict[str, Any]:
+        self._assert_writer_open()
         if self.terminal or self.active is None:
             raise ValueError("wss_campaign_no_active_session")
         at_ns = _safe_now(at_ns)
@@ -381,6 +453,7 @@ class WssReferenceCampaign:
         return row
 
     def stop(self, reason: str, at_ns: int) -> dict[str, Any]:
+        self._assert_writer_open()
         if self.terminal:
             raise ValueError("wss_campaign_terminal")
         at_ns = _safe_now(at_ns)
@@ -412,6 +485,9 @@ class WssReferenceCampaign:
         return row
 
     def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
         if getattr(self, "lock_fd", None) is not None:
             fcntl.flock(self.lock_fd, fcntl.LOCK_UN)
             os.close(self.lock_fd)

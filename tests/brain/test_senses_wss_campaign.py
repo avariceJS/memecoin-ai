@@ -126,7 +126,20 @@ def test_one_writer_lock_and_recovery_seal_without_resume(tmp_path):
             WssReferenceCampaign.recover_interrupted(root, at_ns=120)
     finally:
         os.close(fd)
+    session = campaign.active
+    assert session is not None
+    journal_count = len(list((root / "sessions/01/journal").glob("*.json")))
     campaign.close()
+    with pytest.raises(ValueError, match="wss_campaign_writer_released"):
+        session.record_transport_failure(
+            phase="http_upgrade",
+            reason="http_upgrade_rejected",
+            raw_evidence=b"",
+            at_ns=120,
+        )
+    assert len(list((root / "sessions/01/journal").glob("*.json"))) == journal_count
+    with pytest.raises(ValueError, match="wss_campaign_writer_released"):
+        campaign.start_session(at_ns=120, free_disk_bytes=DISK_FLOOR_BYTES + 1)
     stop = WssReferenceCampaign.recover_interrupted(root, at_ns=120)
     assert stop["reason"] == "process_interrupted_no_resume"
     assert stop["session_count"] == 1

@@ -1765,16 +1765,19 @@ The separate runner entry point and LaunchAgent template are
 `ops/launchd/ai.memecoin.brain.senses.helius-service-v1.plist`. They are offline implementation
 artifacts only; the template is uninstalled and the service is not activated. The template passes
 fixed absolute paths only, has no endpoint/key environment, and sets `RunAtLoad` and `KeepAlive` to
-false. Before initialization, the runner pins its own source hash and the template hash in the
-service root. Its read-only status path does not load credentials or contact a provider. A scheduled
+false. Before initialization, the runner pins its own source hash, the shared private-file reader
+hash, and the template hash in the service root. Its read-only status path does not load credentials
+or contact a provider. A scheduled
 tick takes an exclusive runner lock, reconciles outstanding service state before credential loading,
 and accepts only the current UTC bucket during minutes 05–15; late ticks, duplicate bucket IDs, and
 missing credentials create no reservation or provider call. The credential loader reads the private
-mode-0600 configuration in-process and never exports the endpoint. Tick-time activation requires a
+mode-0600 configuration through a no-follow descriptor, validates stable file identity, and keeps
+the HTTPS RPC endpoint in-process. Its URL checks independently reject duplicate config/query keys,
+userinfo, fragments, non-default ports, and non-Helius hosts. Tick-time activation requires a
 matching normal c4 STOP/zero-post-STOP receipt, a reviewed gate receipt for measured tails, account
 limits and authorization, and an independent check that c4's exact LaunchAgent label is unloaded.
 After a durable service STOP, the runner only attempts to boot out its own exact label. The focused
-runner and service suites pass 50 synthetic tests; this is offline validation, not activation
+runner and service suites pass 61 synthetic tests; this is offline validation, not activation
 evidence.
 
 The exclusive writer marker spans v2 reservation, epoch
@@ -1848,8 +1851,12 @@ decision time remains null. Malformed messages and failed transactions stay in t
 Before each receive, the future transport must reserve one maximum 4 MiB message, the remaining
 aggregate caps, and the disk floor; an oversized frame must be rejected from its WebSocket length
 header before payload read; a refused frame records its header and never reads its payload. No
-socket, provider request, credential load, or live evidence has been
-implemented in this offline milestone. `src/memecoin_collector/wss_transport.py` parses bounded
+network socket is opened, provider request made, or live evidence captured in this offline milestone.
+The private endpoint loader in `src/memecoin_collector/wss_tls.py` reads only the fixed repository
+`.env.local` file through the shared `src/memecoin_collector/private_config.py` reader, which uses a
+no-follow, nonblocking descriptor, owner/mode/link/size checks, and a before/after file identity
+check; its secret-bearing endpoint representation is redacted. No endpoint or API key is passed in
+process arguments or included in request evidence. `src/memecoin_collector/wss_transport.py` parses bounded
 RFC 6455 server frames and assembles uncompressed text messages; it validates canonical length
 encodings and rejects masked server frames, reserved bits, binary messages, and unsupported control
 shapes. Oversize declarations fail after header reads and before payload reads. Client frame encoding
@@ -1866,26 +1873,42 @@ header and frame reads. The byte-stream adapter must itself interrupt blocked I/
 Endpoint and request target are used only to construct the
 in-memory Upgrade request; they are not written to the journal. Failed Upgrade evidence retains
 only the status code, header names, byte count and digest, never response header values that might
-reflect a credential-bearing request target. The client has no socket/TLS/HTTP client dependency or
-credential loader and cannot connect to a provider. No TLS/socket adapter, provider authentication,
-LaunchAgent, or live request dispatch is implemented.
+reflect a credential-bearing request target. The client cannot connect to a provider. `wss_tls.py`
+adds an offline, deadline-bound TLS adapter over a caller-supplied connected TCP socket. It uses
+Python's verified default trust store and hostname checking, disables TLS key logging, handles
+nonblocking readiness in both directions, returns sanitized phase errors and completed-byte counts,
+and closes without TLS unwrap on every terminal path. Its endpoint loader and TLS adapter are bound
+by hash in campaign authorization. DNS/TCP connection establishment remains absent pending an
+enforceable DNS deadline and single-address policy. There is no provider request, live endpoint
+connection, service activation, or WSS LaunchAgent.
 
 The frozen *future* pilot envelope is at most four hours per session, one subscription, two
 sequential sessions at most, 128 MiB inbound message bytes, 64 MiB physically stored bytes, and a
 50 GiB free-disk floor. Reconnection creates a new window and an explicit gap: no catch-up or HTTP
-transaction retrieval. At 20 credits per decimal MB, 128 MiB implies an estimated 2,685 streaming
-credits (`ceil(128 * 2^20 / 1,000,000 * 20)`) before protocol/accounting overhead. This is not a
-hard billing ceiling. `src/memecoin_collector/wss_campaign.py` adds an offline single-writer wrapper.
+transaction retrieval. Helius publishes two LaserStream WSS credits per 0.1 MB of uncompressed
+data; the 128 MiB cap gives a conservative aggregate-rounding estimate of 2,686 credits
+(`2 * ceil(128 * 2^20 / 100,000)`). The separate seven-day HTTP service's 5,719 standard-call
+envelope plus this WSS estimate is 8,405 published credits before overhead. These are rate-based
+planning estimates, not charge ceilings: the billing source does not establish per-message versus
+aggregate rounding for this workload, account-specific plan/headroom, or all overhead. Before
+activation verify the connected key's plan/remaining credits and billing units, concurrent use, and
+an explicit bounded TLS/reconnect/other-overhead allowance; do not assume paid overage. See
+[Helius credit schedule](https://www.helius.dev/docs/billing/credits). `src/memecoin_collector/wss_campaign.py` adds an offline single-writer wrapper.
 Its immutable credential-free authorization binds a c4 STOP hash, account-budget evidence hash,
 source/filter, exact hashes for the campaign/reference/transport code, caps, and an expiry of at most
 seven days. It enforces two sequential windows maximum,
 aggregate raw/stored byte caps, disk floor, explicit reconnect gaps, and no-resume recovery. The
 wrapper checks the shapes and hashes in its authorization object but does not validate external c4
 or account receipts; a future activation gate must independently reconcile those artifacts. Its
-authorization now binds the injected client source hash as well as the campaign, reference, and
-transport modules. The offline client shares raw/stored budgets with notifications, persists the
+authorization now binds the injected client, TLS adapter, and shared private-file reader source
+hashes as well as the campaign, reference, and transport modules. The offline client shares
+raw/stored budgets with notifications, persists the
 bounded pre-ack response before classifying it, and records protocol failures without endpoint
 material. Unknown response header names and all header values are excluded from failure evidence.
+Transport-failure `partial_input_bytes` is the number of application bytes known to have reached the
+parser for that failed unit; it excludes outbound bytes, does not count as a notification, and is not
+a complete wire-byte or billing denominator. Bytes buffered internally by TLS at cancellation may
+not be observable to the parser.
 Control-frame payloads remain independently limited by RFC 6455's 125-byte bound and do not consume
 application-message capacity. Activation still requires c4's normal terminal gates, account-level entitlement and
 headroom, a separately bounded overhead allowance or billing evidence, immutable session
@@ -1914,7 +1937,7 @@ using `tools/brain_senses_wss_reference_benchmark.py`.
 This source yields only provider notifications delivered inside recorded connection windows. It
 does not establish complete Pump births, a pool/market census, economic execution, inactivity,
 absence, lifecycle or death. Comparison with selected captured blocks can measure only overlap in
-that selected scope. Focused offline validation: 58 tests, including 300 deterministic generated
+that selected scope. Focused offline validation: 95 tests, including 300 deterministic generated
 deliveries with duplicates, crash-prefix recovery, raw mutation, subscription mismatch, transport
 header preflight, fragmented text messages, ping/pong masking, strict Upgrade and raw ack/error
 binding over fake deadline-aware streams, pre-I/O authorization/disk gates, fresh monotonic origin,
@@ -1922,7 +1945,12 @@ authorization expiry during a control read, wall-clock regression cleanup, malfo
 fail-closed recovery, JSON recursion and integer-digit limits with raw preservation and stable
 failure accounting, signature/slot/subscription projection bounds, cumulative projection and
 near-cap stop-before-read behavior, independent ping caps, aggregate limits, writer exclusion,
-source-bound authorization, reconnect gaps and no-resume recovery. These tests do not establish
-that a real TLS
-adapter honors deadlines or certificate verification. No live provider, LaunchAgent, account
-budget, or long-run throughput was tested.
+source-bound authorization, reconnect gaps and no-resume recovery, trusted/untrusted local TLS
+certificates, hostname/key-log rejection, TLS deadlines, partial read/write and readiness failure
+accounting, SSLWantRead/SSLWantWrite in both directions, private-config symlink/hardlink/FIFO/size
+checks, cancellation cleanup, stale-session ownership, and raw-ack preservation across authorization
+expiry, rejection of forged TLS verification flags without the internal handshake capability, and
+sanitized private-config descriptor I/O errors and file-change detection. These establish only the
+tested local adapter behavior. They do not prove public DNS/TCP,
+provider authentication or acceptance, live provider deadlines, account billing, LaunchAgent
+operation, or continuous throughput.
