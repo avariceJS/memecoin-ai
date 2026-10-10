@@ -109,7 +109,9 @@ def test_frozen_locator_joins_and_deduplicates_150_pairs_without_rpc() -> None:
     assert result["source"]["selected_transaction_count"] == 17_607
     assert result["access_gate"]["rpc_requests_made_by_this_manifest"] == 0
     assert all(
-        pair["planned_result"]["raw_response_sha256"] is None
+        pair["planned_result"]["reservation_id"] is None
+        and pair["planned_result"]["request_journal_entry_id"] is None
+        and pair["planned_result"]["raw_response_sha256"] is None
         and pair["planned_result"]["receipt_ns"] is None
         and pair["planned_result"]["availability_ns"] is None
         and pair["planned_result"]["provider_cu_delta"] is None

@@ -218,6 +218,8 @@ def _build_pairs(rows: list[dict[str, Any]], locator_receipt_sha256: str) -> lis
                 },
                 "planned_result": {
                     "status": "not_requested_access_gate_pending",
+                    "reservation_id": None,
+                    "request_journal_entry_id": None,
                     "raw_response_sha256": None,
                     "raw_response_bytes": None,
                     "raw_capture_path": None,
@@ -242,7 +244,11 @@ def _build_pairs(rows: list[dict[str, Any]], locator_receipt_sha256: str) -> lis
                     "provider_cu_before": None,
                     "provider_cu_after": None,
                     "provider_cu_delta": None,
+                    "provider_usage_snapshot_before_id": None,
+                    "provider_usage_snapshot_after_id": None,
                     "cu_journal_entry_id": None,
+                    "http_status": None,
+                    "jsonrpc_error_code": None,
                 },
             }
         )
