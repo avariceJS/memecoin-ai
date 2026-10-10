@@ -684,6 +684,99 @@ def test_bootstrap_result_and_lineage_hash_drift_fail_closed(tmp_path: Path) -> 
     assert service.read_status(root)["stop"]["reason"] == "epoch_tree_reconciliation_failed_closed"
 
 
+def test_status_preserves_separate_event_receipt_availability_and_decision_times(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "service"
+    start = _initialize(root)
+    bootstrap = service.reserve_bootstrap(
+        root,
+        at_ns=start,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + service.DISK_PEAK_MARGIN_BYTES + 1,
+    )
+    bootstrap_seal, _ = _run_bootstrap(root, bootstrap)
+    frame_time = start + 3600 * 1_000_000_000
+    frame = service.reserve_bucket(
+        root,
+        bucket_ns=frame_time,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + 2 * service.DISK_PEAK_MARGIN_BYTES,
+        request_time_ns=frame_time,
+    )
+    _, frame_seal, _ = _run_frame(root, frame, slot=100)
+
+    records = service.read_status(root)["sealed_evidence_timestamps"]
+    bootstrap_record = next(
+        item for item in records if item["reservation_id"] == bootstrap["reservation_id"]
+    )
+    assert bootstrap_seal["outcome"] == "bootstrap_complete"
+    assert bootstrap_record["native_slot"] == 100
+    assert bootstrap_record["event_time_state"] == "unknown"
+    assert bootstrap_record["block_time_seconds"] is None
+    assert type(bootstrap_record["request_started_ns"]) is int
+    assert type(bootstrap_record["receipt_ns"]) is int
+    assert type(bootstrap_record["availability_ns"]) is int
+    assert type(bootstrap_record["decision_time_ns"]) is int
+    assert bootstrap_record["request_started_ns"] <= bootstrap_record["receipt_ns"]
+    assert bootstrap_record["receipt_ns"] <= bootstrap_record["availability_ns"]
+
+    frame_records = [item for item in records if item["reservation_id"] == frame["reservation_id"]]
+    assert frame_seal["outcome"] == "sampled_gap"
+    assert len(frame_records) == 1
+    anchor_record = next(item for item in frame_records if item["request_phase"] == "anchor")
+    assert anchor_record["native_slot"] == 100
+    assert type(anchor_record["request_started_ns"]) is int
+    assert type(anchor_record["receipt_ns"]) is int
+    assert type(anchor_record["availability_ns"]) is int
+    assert anchor_record["request_start_time_state"] == "known"
+    assert anchor_record["receipt_time_state"] == "known"
+    assert anchor_record["availability_time_state"] == "known"
+
+
+def test_status_keeps_ambiguous_request_start_and_unknown_receipt_times(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "service"
+    start = _initialize(root)
+    bootstrap = service.reserve_bootstrap(
+        root,
+        at_ns=start,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + service.DISK_PEAK_MARGIN_BYTES + 1,
+    )
+    _run_bootstrap(root, bootstrap)
+    frame_time = start + 3600 * 1_000_000_000
+    frame = service.reserve_bucket(
+        root,
+        bucket_ns=frame_time,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + 2 * service.DISK_PEAK_MARGIN_BYTES,
+        request_time_ns=frame_time,
+    )
+    service.mark_epoch_started(root, reservation_id=frame["reservation_id"], at_ns=frame_time)
+    campaign_root = root / "campaigns" / frame["campaign_id"]
+    schedule_v3.run_bucket(
+        campaign_root,
+        lineage_path=campaign_root / "predecessor-lineage-v1.json",
+        now=datetime.fromtimestamp(frame_time / 1e9, UTC),
+        clients={"helius-free": _SlotClient(fail=True)},
+    )
+    seal = service.seal_from_epoch(
+        root, reservation_id=frame["reservation_id"], at_ns=frame_time + 1
+    )
+
+    assert seal["outcome"] == "ambiguous"
+    record = next(
+        item
+        for item in service.read_status(root)["sealed_evidence_timestamps"]
+        if item["reservation_id"] == frame["reservation_id"]
+    )
+    assert record["request_started_ns"] is None
+    assert record["request_start_time_state"] == "unknown"
+    assert record["receipt_ns"] is None
+    assert record["availability_ns"] is None
+    assert record["receipt_time_state"] == "unknown"
+    assert record["availability_time_state"] == "unknown"
+    assert record["decision_time_ns"] == seal["evidence"]["decision_time_ns"]
+
+
 def test_external_bootstrap_rejects_drift_in_a_pinned_scheduler_dependency(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

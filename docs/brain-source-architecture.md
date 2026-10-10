@@ -1639,7 +1639,10 @@ physical allocated bytes under its campaign root against the stored cap. It neve
 to make room. Request counts are not charge units; provider credit usage remains unverified, and no
 Alchemy pairing or paid archive path is included. The read-only `--status-only` command performs no
 provider call and reports ledger totals, pending reservations, physical bytes, free disk, reset
-count, and STOP.
+count, and STOP. Its sealed timestamp projection keeps native slot and nullable block time separate
+from request start, response receipt, availability, and decision nanoseconds. For ambiguous
+transport failures, receipt and availability remain unknown; request-start time is reported only
+when the request journal captured it, never inferred from reservation time.
 
 The service currently provides offline reconciliation and an injected-client bootstrap seam, not a
 deployed scheduler or provider runner. The exclusive writer marker spans v2 reservation, epoch

@@ -2331,6 +2331,57 @@ def run_reserved_bootstrap(
         handle.close()
 
 
+def _sealed_timestamp_records(seals: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Project chain-event, request, receipt, availability, and decision times separately."""
+    records: list[dict[str, Any]] = []
+    for seal in seals:
+        evidence = seal.get("evidence", {})
+        request_outcomes = evidence.get("request_outcomes")
+        if not isinstance(request_outcomes, list) or not request_outcomes:
+            request_outcomes = [{}]
+        for request in request_outcomes:
+            request_started_ns = request.get(
+                "request_started_ns", evidence.get("request_started_ns")
+            )
+            receipt_ns = request.get("receipt_ns", evidence.get("anchor_receipt_ns"))
+            availability_ns = request.get("availability_ns", evidence.get("availability_ns"))
+            if seal.get("outcome") == "ambiguous" and request.get("status") == "request_failed":
+                # Failed transport has no response receipt; some epoch adapters record
+                # terminal bookkeeping timestamps under response-time field names.
+                receipt_ns = None
+                availability_ns = None
+            event_slot = request.get("event_slot")
+            if event_slot is None:
+                event_slot = request.get("slot")
+            if event_slot is None:
+                event_slot = evidence.get("anchor_slot")
+            block_time_seconds = request.get("block_time_seconds")
+            records.append(
+                {
+                    "reservation_id": seal.get("reservation_id"),
+                    "outcome": seal.get("outcome"),
+                    "request_sequence": request.get("sequence"),
+                    "request_phase": request.get("phase"),
+                    "request_status": request.get("status"),
+                    "native_slot": event_slot,
+                    "block_time_seconds": block_time_seconds,
+                    "request_started_ns": request_started_ns,
+                    "request_start_time_state": "known"
+                    if request_started_ns is not None
+                    else "unknown",
+                    "receipt_ns": receipt_ns,
+                    "availability_ns": availability_ns,
+                    "decision_time_ns": evidence.get("decision_time_ns", seal.get("at_ns")),
+                    "event_time_state": "known" if block_time_seconds is not None else "unknown",
+                    "receipt_time_state": "known" if receipt_ns is not None else "unknown",
+                    "availability_time_state": (
+                        "known" if availability_ns is not None else "unknown"
+                    ),
+                }
+            )
+    return records
+
+
 def read_status(root: Path) -> dict[str, Any]:
     """Read-only state reconstruction; never creates files or queries a provider."""
     manifest = _read(root / "service-manifest-v2.json")
@@ -2412,13 +2463,7 @@ def read_status(root: Path) -> dict[str, Any]:
         "last_bucket_ns": controller["last_bucket_ns"],
         "inventory_intervals": intervals,
         "missed_bucket_gaps": gaps,
-        "sealed_evidence_timestamps": [
-            {
-                key: event.get("evidence", {}).get(key)
-                for key in ("event_time", "receipt_time", "availability_time", "decision_time")
-            }
-            for event in seals
-        ],
+        "sealed_evidence_timestamps": _sealed_timestamp_records(seals),
         "status": (
             "stopped"
             if stop
