@@ -1847,23 +1847,50 @@ when the full message arrives; availability is measured after the exact raw mess
 decision time remains null. Malformed messages and failed transactions stay in their denominators.
 Before each receive, the future transport must reserve one maximum 4 MiB message, the remaining
 aggregate caps, and the disk floor; an oversized frame must be rejected from its WebSocket length
-header before payload read. No socket, provider request, credential load, or live evidence has been
-implemented in this offline milestone.
+header before payload read; a refused frame records its header and never reads its payload. No
+socket, provider request, credential load, or live evidence has been
+implemented in this offline milestone. `src/memecoin_collector/wss_transport.py` parses bounded
+RFC 6455 server frames and assembles uncompressed text messages; it validates canonical length
+encodings and rejects masked server frames, reserved bits, binary messages, and unsupported control
+shapes. Oversize declarations fail after header reads and before payload reads. Client frame encoding
+uses fresh random masks by default, as required by [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455.html);
+tests inject a fixed mask only for deterministic offline verification. TLS, HTTP Upgrade, sockets,
+provider authentication, and live request dispatch are not implemented.
 
 The frozen *future* pilot envelope is at most four hours per session, one subscription, two
 sequential sessions at most, 128 MiB inbound message bytes, 64 MiB physically stored bytes, and a
 50 GiB free-disk floor. Reconnection creates a new window and an explicit gap: no catch-up or HTTP
 transaction retrieval. At 20 credits per decimal MB, 128 MiB implies an estimated 2,685 streaming
 credits (`ceil(128 * 2^20 / 1,000,000 * 20)`) before protocol/accounting overhead. This is not a
-hard billing ceiling. Activation still requires c4's normal terminal gates, account-level
+hard billing ceiling. `src/memecoin_collector/wss_campaign.py` adds an offline single-writer wrapper.
+Its immutable credential-free authorization binds a c4 STOP hash, account-budget evidence hash,
+source/filter, exact hashes for the campaign/reference/transport code, caps, and an expiry of at most
+seven days. It enforces two sequential windows maximum,
+aggregate raw/stored byte caps, disk floor, explicit reconnect gaps, and no-resume recovery. The
+wrapper checks the shapes and hashes in its authorization object but does not validate external c4
+or account receipts; a future activation gate must independently reconcile those artifacts. No
+LaunchAgent or network client is present. Activation still requires c4's normal terminal gates, account-level
 entitlement and headroom, a separately bounded overhead allowance or billing evidence, immutable
 session authorization, and a one-writer LaunchAgent review. Stop on cap, low disk, malformed
-transport state, or journal ambiguity. The present implementation does not enforce the two-session
-campaign-wide count; that belongs to the not-yet-activated service wrapper.
+transport state, or journal ambiguity.
+
+An offline payload benchmark verified and replayed the captured Pair64 512 full blocks and c3's
+six 16-block frames (96 blocks total): 608 blocks and 741,305 transactions produced 51,502
+Pump-program mentions, 34,112 failed transactions, 335 explicit Helius `Log truncated` notifications,
+and 69,592,769 bytes of compact `logsNotification`-shaped UTF-8 JSON. No mentioned row was
+unsupported and none had null logs. The payload estimate uses existing block `meta.err` and
+`meta.logMessages`; it excludes WebSocket framing, TLS, and provider billing overhead. It is a
+selected-block capacity warning (about 52% of the 128 MiB raw cap), not a live bytes/time rate,
+continuous-window projection, or completeness result. Sol kept the frozen pilot envelope unchanged;
+only live delivered bytes and connected duration can calibrate a successor. Reproduction:
+[`Pump WSS selected-block payload benchmark`](evidence/senses-pump-wss-reference-payload-benchmark-2026-10-10.json),
+using `tools/brain_senses_wss_reference_benchmark.py`.
 
 This source yields only provider notifications delivered inside recorded connection windows. It
 does not establish complete Pump births, a pool/market census, economic execution, inactivity,
 absence, lifecycle or death. Comparison with selected captured blocks can measure only overlap in
-that selected scope. Focused offline validation: 9 tests, including 300 deterministic generated
-deliveries with duplicates, crash-prefix recovery, raw mutation, subscription mismatch and
-pre-read disk stop. No live provider, LaunchAgent, account budget, or long-run throughput was tested.
+that selected scope. Focused offline validation: 28 tests, including 300 deterministic generated
+deliveries with duplicates, crash-prefix recovery, raw mutation, subscription mismatch, transport
+header preflight, fragmented text messages, ping/pong masking, two-window aggregate limits, writer
+exclusion, source-bound authorization, reconnect gaps and no-resume recovery. No live provider,
+LaunchAgent, account budget, WebSocket handshake, or long-run throughput was tested.

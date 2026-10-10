@@ -112,6 +112,7 @@ def test_recovery_accounts_for_raw_write_without_journal_row(tmp_path):
     orphan = b"raw message was durable before interruption"
     path = value.root / "raw" / "00000003.bin"
     path.write_bytes(orphan)
+    path.chmod(0o600)
     recovered = WssReferenceSession.recover(value.root, at_ns=120)
     stop = json.loads(sorted((value.root / "journal").glob("*.json"))[-1].read_text())
     assert recovered.terminal is True

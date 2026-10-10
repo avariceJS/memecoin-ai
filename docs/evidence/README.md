@@ -45,6 +45,7 @@ contain large exact payloads, so open only the named artifact needed for a speci
   process arguments, and 199 MB of recent Unified Log output; a complete checkout plus full
   accessible saved-root scan found credential components only in the three expected mode-0600
   private configs).
+- Helius follow-up exposure scan at 19:04Z: `helius-key-followup-exposure-rescan-2026-10-10T1904Z.json` (zero exact endpoint/path/hostname matches in Git blobs, process arguments and recent Unified Log; two Codex history files contain only the public hostname).
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:
@@ -187,6 +188,7 @@ contain large exact payloads, so open only the named artifact needed for a speci
   capture times, selected-slot denominators, and explicit cross-dataset overlaps. Completeness is
   limited to the sealed selected-block inputs; program exposure is not a market, pool, birth, trade,
   or economic fact.
+- `senses-pump-wss-reference-payload-benchmark-2026-10-10.json`: reproducible selected-block estimate of standard Pump `logsSubscribe` application payload bytes; it excludes framing/TLS/provider overhead and makes no live-rate or completeness claim.
 - Sell23 c4 audit v2 metadata-only preflight:
   `pumpswap-sell23-c4-audit-v2-metadata-preflight-2026-10-10.json` (confirms unchanged first four
   frozen frames and canonical schedule binding; records the prior pre-case hash-format failure;

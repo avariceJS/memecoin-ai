@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -303,6 +304,33 @@ class WssReferenceSession:
             },
         )
 
+    def reject_transport_header(
+        self, *, raw_header: bytes, declared_payload_bytes: int, received_ns: int
+    ) -> dict[str, Any]:
+        """Record only the bounded frame header when its payload is refused pre-read."""
+        if self.terminal or not self.receive_prepared:
+            raise ValueError("wss_transport_rejection_state_invalid")
+        if (
+            not isinstance(raw_header, bytes)
+            or not 2 <= len(raw_header) <= 10
+            or type(declared_payload_bytes) is not int
+            or declared_payload_bytes < 0
+        ):
+            raise ValueError("wss_transport_rejection_invalid")
+        received_ns = _safe_now(received_ns)
+        self.receive_prepared = False
+        self._event(
+            "message_rejected",
+            received_ns,
+            {
+                "reason": "websocket_frame_payload_cap",
+                "frame_header_hex": raw_header.hex(),
+                "declared_payload_bytes": declared_payload_bytes,
+                "payload_read": False,
+            },
+        )
+        return self.stop("websocket_frame_payload_cap", received_ns)
+
     def stop(
         self,
         reason: str,
@@ -311,10 +339,13 @@ class WssReferenceSession:
         unreferenced_raw_files: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         messages = []
+        rejected = 0
         for path in (self.root / "journal").glob("*.json"):
             event = json.loads(path.read_text())
             if event.get("kind") == "message":
                 messages.append(event)
+            elif event.get("kind") == "message_rejected":
+                rejected += 1
         row = self._event(
             "session_stop",
             at_ns,
@@ -323,6 +354,7 @@ class WssReferenceSession:
                 "raw_bytes": self.raw_bytes,
                 "stored_bytes_before_stop": self.stored_bytes,
                 "notifications": len(messages),
+                "rejected_messages_or_frames": rejected,
                 "parse_failures": sum(m.get("parse_state") != "notification" for m in messages),
                 "duplicate_deliveries": sum(bool(m.get("duplicate_delivery")) for m in messages),
                 "failed_transactions": sum(m.get("transaction_error") is True for m in messages),
@@ -346,21 +378,48 @@ class WssReferenceSession:
         at_ns = _safe_now(at_ns)
         if not root.is_dir() or root.is_symlink():
             raise ValueError("wss_session_root_invalid")
-        if {p.name for p in root.iterdir()} != {"binding.json", "raw", "journal"}:
+        if stat.S_IMODE(root.stat().st_mode) != 0o700:
+            raise ValueError("wss_session_root_mode_invalid")
+        allowed = {
+            "binding.json",
+            "raw",
+            "journal",
+            "campaign-start.json",
+            "campaign-session-stop.json",
+        }
+        if not {p.name for p in root.iterdir()}.issubset(allowed) or not {
+            "binding.json",
+            "raw",
+            "journal",
+        }.issubset({p.name for p in root.iterdir()}):
             raise ValueError("wss_session_tree_invalid")
         binding_path = root / "binding.json"
         journal_dir = root / "journal"
         raw_dir = root / "raw"
+        for sidecar_name in ("campaign-start.json", "campaign-session-stop.json"):
+            sidecar = root / sidecar_name
+            if sidecar.exists() and (
+                sidecar.is_symlink()
+                or not sidecar.is_file()
+                or stat.S_IMODE(sidecar.stat().st_mode) != 0o600
+            ):
+                raise ValueError("wss_session_sidecar_invalid")
         if (
             binding_path.is_symlink()
             or not binding_path.is_file()
+            or stat.S_IMODE(binding_path.stat().st_mode) != 0o600
             or journal_dir.is_symlink()
             or not journal_dir.is_dir()
+            or stat.S_IMODE(journal_dir.stat().st_mode) != 0o700
             or raw_dir.is_symlink()
             or not raw_dir.is_dir()
+            or stat.S_IMODE(raw_dir.stat().st_mode) != 0o700
         ):
             raise ValueError("wss_session_tree_invalid")
-        if any(p.is_symlink() or not p.is_file() for p in journal_dir.iterdir()):
+        if any(
+            p.is_symlink() or not p.is_file() or stat.S_IMODE(p.stat().st_mode) != 0o600
+            for p in journal_dir.iterdir()
+        ):
             raise ValueError("wss_journal_tree_invalid")
         binding = json.loads(binding_path.read_text())
         if binding != default_binding():
@@ -478,7 +537,10 @@ class WssReferenceSession:
                     seen_identities.add(identity)
             rows.append(row)
         actual_raw = {p.name for p in raw_dir.iterdir() if p.is_file()}
-        if any(p.is_symlink() or not p.is_file() for p in raw_dir.iterdir()):
+        if any(
+            p.is_symlink() or not p.is_file() or stat.S_IMODE(p.stat().st_mode) != 0o600
+            for p in raw_dir.iterdir()
+        ):
             raise ValueError("wss_raw_tree_invalid")
         orphan_names = sorted(actual_raw - raw_names)
         obj = cls.__new__(cls)
