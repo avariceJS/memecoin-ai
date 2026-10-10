@@ -1,11 +1,11 @@
 # Current Project State
 
-**As of:** 2026-10-10 15:53 UTC. Recheck live runtime and disk before any campaign decision.
+**As of:** 2026-10-10 16:10 UTC. Recheck live runtime and disk before any campaign decision.
 
 ## Boundaries and runtime
 
 - Continue Senses only. Research checkout `/Users/root1/Developer/memecoin-research`, branch
-  `research/active`; HEAD at 15:53Z is `58794b3`. Production `/Users/root1/Desktop/memecoin-ai`
+  `research/active`; HEAD at 16:10Z is `7cc22ea`. Production `/Users/root1/Desktop/memecoin-ai`
   remains untouched. No trading, signing, paid upgrade, protected holdout access, push, backfill,
   or ambiguous-request retry.
 - c3 is permanently terminal after its reserved 11:00Z `getSlot` transport failure (205 attempts,
@@ -16,10 +16,11 @@
   `getBlock`, zero open reservations; c3 STOP unchanged. The 13:00Z, 14:00Z, and 15:00Z frames
   completed 34/34 requests and 16/16 selected block/signature checks each. Across those frames,
   responses total 216,017,528 raw / 45,211,652 stored bytes; the 15:00Z inventory interval was
-  `[455282201,455298550)` with 16,345 provider-reported produced slots. Three of 24 future attempts
-  are complete, root STOP is absent, and c4 remains loaded idle between calendar triggers (last
-  exit 0, four total runs); next UTC trigger is 16:05Z. At 15:51Z, LaunchAgent argv remained fixed
-  path/subcommand only, free disk was 72 GiB, and c4 used 51,192 KiB. Do not manually invoke. Receipts:
+  `[455282201,455298550)` with 16,345 provider-reported produced slots. Four future buckets had
+  scheduled ticks through 16:05Z (five total process runs including bootstrap); the latest exited
+  0. At 16:09Z the LaunchAgent was loaded idle, c4 root STOP was absent, free disk was 71 GiB, and
+  the root used 70,680 KiB. Next trigger is 17:05Z. The 16:00Z frame evidence remains unopened
+  while the four-case frozen audit set is incomplete. Do not manually invoke. Receipts:
   `docs/evidence/helius-inventory-v3-c4-bootstrap-2026-10-10.json`,
   `docs/evidence/helius-inventory-v3-c4-first-frame-2026-10-10.json`.
 - c4 root: `work/brain-senses-live-helius-inventory-v3-20261010-4/`. Preserve gaps; reconcile each
@@ -37,8 +38,10 @@
   monotonicity. v2/scheduler/c4 recovery suites: 53 passed; Ruff and diff checks pass. A separate
   status timestamp fix now projects per-request start/receipt/availability/decision nanoseconds and
   nullable block time; ambiguous transport receipt/availability remain unknown. Service suite: 32
-  passed. No RPC/c4/runtime changes. Not
-  activation-ready: no deployed scheduler/runner; c4 terminal/tail and account-credit gates remain.
+  passed. Offline path-only runner and LaunchAgent template committed in `7cc22ea`; runner/service
+  focused suite: 50 passed, Ruff/format/diff passed. The template is not installed or loaded.
+  Activation remains gated on c4 normal terminal receipt, measured tails, account limit review and
+  independent review; no service activation has occurred.
 - Helius key remains in ignored mode-0600 `.env.local` and two mode-0600 MCP configs; user
   authorized no-rotation continuation. The latest exact-value scan (13:55Z) found zero in 5,253
   Git objects, 253,570 accessible saved text/runtime/evidence files, current process arguments and
@@ -56,6 +59,12 @@
   and full accessible saved-root scan found no credential components outside `.env.local` and the
   two expected mode-0600 MCP configs. c4 still uses fixed argv. Receipt:
   `docs/evidence/helius-key-resume-exposure-rescan-2026-10-10.json`.
+- Post-first-tick scan at 16:07Z compared exact endpoint/key components in 237 recently modified
+  accessible files (283,138,089 bytes) and active process arguments: zero argument matches; the
+  only file match was expected private mode-0600 `~/.codex/config.toml`; no recent saved-log or
+  other-path match. `.env.local` and both MCP configs remain mode 0600. This supplements the
+  15:38Z full Git/object and accessible-root scan; provider-side logs and backups were not inspected.
+  The earlier process-list disclosure remains in the session transcript and is accepted by user.
 - MCP: Alchemy ping and official Solana docs search worked; Helius documentation transport closed.
   No MCP provider RPC was performed.
 
