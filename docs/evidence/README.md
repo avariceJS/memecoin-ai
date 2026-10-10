@@ -446,6 +446,17 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   source/runtime pins, natural-frame selection, request/capture accounting, and compressed-byte
   hashes without decompressing eligible payloads. It emits no manifest until four eligible frames
   are successfully source-bound; the current campaign has fewer than four.
+- The metadata-only final-plan builder and one-pass audit runner are
+  `tools/brain_senses_buy_exact_tail2_c4_plan.py` and
+  `tools/brain_senses_buy_exact_tail2_c4_audit.py`; focused synthetic tests are in the matching
+  `tests/test_brain_senses_buy_exact_tail2_c4_{plan,audit}.py`. The plan requires the complete
+  scheduled-bucket denominator and hashes of the preregistration, source modules, dependencies,
+  deviation receipt, test source files and a JUnit result artifact with checked outcome counts. The
+  runner distinguishes successful, failed and
+  unknown transaction status; an unknown status or unresolved successful instruction withholds an
+  exact successful-class denominator. It retains observed candidates as a lower bound while the
+  denominator is incomplete, and reports failed-attempt uncertainty separately. No real frame has
+  passed through this runner; the frozen audit has not opened semantic payloads.
 - `pumpswap-buy-exact-v1-audit-failure-2026-10-10.json`: preserved one-time 13:00Z census failure after all 512 payloads were processed but before report publication; no outcomes accepted and no reuse permitted.
 - `pumpswap-buy-exact-v1-audit-qualification-2026-10-10.json`: fresh disjoint 512-slot Helius Free captured-class census and one-pass replay of all seven successful dual-legacy refs; diagnostic-only, with four censored native settlements and Token-2022 still quarantined.
 - `pumpswap-buy-exact-v1-token2022-dev-census-2026-10-10.json.zst`: source-bound offline replay of the 15:00Z development captures; all 1,234 quote-side Token-2022 refs retain unknown historical extension state, with no settlement claim.

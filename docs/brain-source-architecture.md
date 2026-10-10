@@ -547,6 +547,32 @@ At the current 11/24 campaign point, only that one post-freeze frame is eligible
 remain unopened. The corrected builder now stops before content hashing unless four metadata
 candidates are complete.
 
+The metadata-only final-plan builder and offline one-pass audit runner are now implemented in
+`tools/brain_senses_buy_exact_tail2_c4_plan.py` and
+`tools/brain_senses_buy_exact_tail2_c4_audit.py`. The plan binds every scheduled bucket through the
+fourth natural success, selected-frame capture identities, the deviation receipt, frozen source and
+dependency hashes, and a synthetic-only test receipt. It publishes a separate create-only freeze
+receipt; both must be durable before semantic decompression. The runner independently rechecks the
+schedule denominator, source and artifact hashes, reservation state, request/capture identities,
+full/signature block agreement and transaction-signature order, then opens each response once. A
+post-start provenance or parsing error seals an incomplete receipt and prohibits replay. Semantic
+disagreement is a completed negative result. The test receipt binds exact test source hashes, an
+exit code, and a JUnit result artifact whose hash and outcome counts are independently revalidated
+at plan and audit preflight.
+
+Sol's population gate requires an explicit success/failure status for every captured transaction
+and resolvable instruction programs for every successful transaction. Unresolved instruction
+indexes, unknown PumpSwap instruction bytes, parser-unknown successful candidates or unknown
+transaction status withhold the exact captured successful-class denominator; observed tail2
+candidate checks are reported only as a lower bound. Known failed attempts remain separate:
+unresolved failed instructions can make that attempt census incomplete without reducing or
+contaminating the successful denominator. Parseable but unsupported instruction variants stay
+classified and quarantined. If the population gate passes, a positive result can claim only candidate
+checked-transfer and BuyEvent agreement on the selected captured block class. Fee equalities remain
+hypotheses; no settlement, wallet-net price, global completeness, exact economic zero or admission
+follows. Focused tests are synthetic only. The current campaign still has 11/24 frames; no eligible
+payload has been semantically opened and no audit result exists.
+
 A new Helius Free epoch was then captured for the frozen one-pass audit: 512/512 selected full
 blocks parsed, 512/512 signature-only checks matched the full-response signature hashes, and the
 slot set is disjoint from both the 15:00Z development source and the failed 13:00Z source. The

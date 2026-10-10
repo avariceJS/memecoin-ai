@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 23:30 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-10 23:50 UTC. Verify live runtime before any campaign or service decision.
 
 ## Boundaries and runtime
 
@@ -9,9 +9,9 @@
   holdout access, push, retry or backfill.
 - c3 is terminal after its ambiguous 11:00Z anchor failure; preserve its uncovered interval.
   c4 remains the unchanged finite calendar lease (one bootstrap plus at most 24 hourly frames).
-  Read-only status at 23:30Z: 11/24 frames complete, 374 frame requests plus one bootstrap (375
+  Read-only status at 23:50Z: 11/24 frames complete, 374 frame requests plus one bootstrap (375
   all-in), 769,657,413 raw / 177,576,506 stored bytes, zero failed or gapped epochs, zero open
-  reservations, 13 attempts remaining, frontier 455430160, and 55,792,263,168 free bytes. Exact c4
+  reservations, 13 attempts remaining, frontier 455430160, and 54,775,685,120 free bytes. Exact c4
   LaunchAgent remains loaded and idle between calendar ticks, with fixed path-only arguments; its
   23:00Z frame completed naturally. Old watcher/decode and predecessor-campaign LaunchAgents are
   disabled and unloaded. No manual tick. The eleven-frame method accounting is 12 `getSlot`
@@ -41,8 +41,11 @@
 - The user authorized continued use without rotation. The c4 LaunchAgent is loaded and idle between
   natural calendar triggers; its arguments contain fixed paths only and the runner reads the private
   endpoint in process. Read-only status confirms 11/24 successful frames, 13 remaining, zero
-  failures/gaps/open reservations, 375 all-in requests and the free-disk figure above. No manual RPC
-  or tick was run. A relative-root status attempt failed closed; the absolute-root read succeeded.
+  failures/gaps/open reservations, 375 all-in requests and the free-disk figure above. The next
+  frame's pre-reservation requirement is 54,361,091,200 bytes (50 GiB floor plus frame envelope and
+  peak margin), leaving about 395 MiB current headroom; the unchanged runner fails closed before
+  RPC if free space falls below that value. No manual RPC or tick was run. A relative-root status
+  attempt failed closed; the absolute-root read succeeded.
 - c4 terminal proof implementation is being frozen offline. The new qualifier independently
   revalidates capture journals, selected-slot derivation, full/signature block agreement, structural
   summaries, request timing, reservation release, accounting and artifact hashes. It creates only
@@ -87,6 +90,17 @@
   `docs/evidence/pumpswap-buy-exact-tail2-c4-manifest-preplan-hash-only-deviation-2026-10-10.json`.
   No semantic payload was opened. The corrected builder does not hash content until four candidates
   exist.
+- The final-plan builder and one-pass audit runner are implemented offline. They bind all scheduled
+  buckets through the fourth natural success, source/dependency/test hashes, frame identities and a
+  separate create-only freeze receipt. Sol decided that any unknown transaction status or unresolved
+  instruction in a successful transaction withholds an exact captured successful-class denominator;
+  observed candidate checks remain a lower bound. Failed-attempt uncertainty is separate. The
+  runner audits every transaction/reference once and seals an incomplete receipt after any
+  post-start provenance or parsing failure. Synthetic test evidence now binds the JUnit result hash
+  and test/failure/error/skip counts as well as test-source hashes. No eligible frame payload is opened yet. Synthetic
+  focused verification: 26 tests pass; Ruff, format and py_compile pass; `make smoke` passes with
+  synthetic-only evidence. Differential review is complete with no open findings; details are in
+  ignored `work/reviews/tail2-c4-plan-audit-differential-review-20261011.md`.
 - Verification: focused PumpSwap suite 44 passed, targeted Ruff/format passed, and `make smoke`
   passed with synthetic-only evidence. Repository-wide `make check` stops on 43 E501 findings in
   two unchanged pool-v2 qualifier tools. `make test` cannot collect three unrelated legacy tests
