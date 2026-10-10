@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-10T03:45:00Z",
+  "source": "Alchemy MCP authenticated account surfaces",
+  "application": {
+    "name": "memcoin-ai",
+    "app_id": "nsvflslm1kqtntvz",
+    "solana_mainnet_enabled": true,
+    "research_endpoint_identity_verified": false
+  },
+  "configuration": {
+    "alchemy_free_endpoint_present": true,
+    "separate_alchemy_payg_endpoint_present": false
+  },
+  "usage_summary": {
+    "month_to_date_compute_units": 18680,
+    "month_to_date_usd": "0.01",
+    "data_through": "2026-10-10T03:44:00Z",
+    "account_limit_returned": false
+  },
+  "app_method_usage_series": {
+    "data_through": "2026-10-10T03:45:00Z",
+    "reported_october_8_compute_units": {
+      "getSlot": 15000,
+      "getSignaturesForAddress": 3520,
+      "getTransaction": 160
+    },
+    "reported_total_compute_units": 18680,
+    "getAccountInfo_usage_reported": false
+  },
+  "account_archive_gate": {
+    "plan_entitlement_verified": false,
+    "remaining_budget_verified": false,
+    "archive_method_meter_verified": false,
+    "sample_slot_coverage_verified": false,
+    "account_specific_slot_or_cursor_semantics_verified": false,
+    "state": "historical_extension_state_unavailable"
+  },
+  "acquisition": {
+    "archive_rpc_requests": 0,
+    "frozen_mint_control_modified": false,
+    "frozen_mint_control_sha256": "8c32ff2c910fbba7247eb894e17663e0530c2c339d6b044413da7fb97c619a59"
+  },
+  "limitations": [
+    "MCP app metadata and usage do not establish the specific research endpoint identity or Account Archive entitlement.",
+    "The usage series is a dashboard account/app meter, not raw RPC acquisition evidence.",
+    "Generic published plan, method-cost, and historical-slot documentation is not account-specific qualification.",
+    "No archive query, coverage probe, retry, or three-read control call was made."
+  ]
+}

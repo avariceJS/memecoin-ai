@@ -10,6 +10,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - Alchemy MCP authenticated-account usage snapshot:
   `alchemy-account-usage-summary-mcp-2026-10-10.json` (18,680 CU / $0.01 month-to-date as of
   01:32Z; account-wide, not attributable to this checkout or a method; account limit not returned).
+- Alchemy Account Archive account-access gate:
+  `alchemy-account-archive-access-gate-mcp-2026-10-10.json` (the authenticated app exposes Solana
+  mainnet and its Oct 8 method usage, but not research endpoint identity, archive entitlement,
+  remaining limit, or account-specific archive coverage; zero archive RPCs).
 - Helius MCP account status/plan check: `helius-account-status-mcp-2026-10-10.json` (key configured,
   but plan and credit usage unavailable from the account tool; no plan mutation or paid RPC made).
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its

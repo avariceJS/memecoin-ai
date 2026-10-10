@@ -397,10 +397,17 @@ gate. One no-RPC development control is frozen from an already captured Helius f
 it tests mint bytes only and remains blocked on account entitlement, endpoint, price/limits and
 archive coverage. Its three-call cap, source hashes, provider-response scope and acceptance checks
 are in the [`Account Archive mint control plan`](evidence/alchemy-account-archive-mint-control-plan-2026-10-10.json).
-An account-wide Alchemy MCP usage summary at 01:32Z reported 18,680 CU / $0.01 month-to-date;
-the result returned no account limit and cannot attribute usage to this checkout, app or method.
-The bounded hourly usage-series query returned no rows, so it does not reconcile campaign usage.
-Receipt: [`Alchemy account usage summary`](evidence/alchemy-account-usage-summary-mcp-2026-10-10.json).
+The Alchemy MCP account surfaces returned one app (`memcoin-ai`, app ID recorded in the sanitized
+access-gate receipt) with Solana mainnet enabled. The current usage summary reports 18,680 CU / USD
+0.01 month-to-date through 03:44Z on 2026-10-10, with no account limit. Its app-filtered method
+series attributes those same 18,680 CU to Oct 8 `getSlot` (15,000), `getSignaturesForAddress`
+(3,520), and `getTransaction` (160); it reports no Account Archive `getAccountInfo` use. The
+research `.env.local` has an Alchemy Free endpoint but no separately configured PAYG endpoint. The
+account/app surfaces do not expose Account Archive entitlement, exact remaining budget, or an
+account-specific archive meter. Generic published pricing and historical-slot semantics remain
+provider documentation, not account-qualified access or coverage. No archive RPC was issued; the
+three-read mint control remains frozen and `frozen_no_rpc_access_gate_pending`. Receipt:
+[`Alchemy Account Archive access gate`](evidence/alchemy-account-archive-access-gate-mcp-2026-10-10.json).
 
 One finalized slot was then fetched with full `getBlock` transactions from Alchemy Free and an
 independent public Solana RPC. Both HTTP responses were complete and agreed on block identity,
