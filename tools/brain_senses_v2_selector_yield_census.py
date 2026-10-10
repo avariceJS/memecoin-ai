@@ -381,7 +381,8 @@ def analyze(output_path: Path) -> dict[str, Any]:
                 else None
             ),
             "selected_block_yields": selected_rows,
-            "selected_yield_matches_frame_receipt": (isinstance(receipt_sampling, dict)),
+            "replayed_structural_checks_match_sealed_summary": True,
+            "frame_receipt_aggregate_yield_available": isinstance(receipt_sampling, dict),
             "source_receipt_raw_bytes": summary["captured_response_bytes"],
             "source_receipt_stored_bytes": summary["stored_response_bytes"],
             "source_frame_requests": summary["request_reservations"],
