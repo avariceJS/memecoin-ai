@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 05:09 Europe/Moscow. Verify Git, runtime and disk before acting.
+**As of:** 2026-10-10 05:10 Europe/Moscow. Verify Git, runtime and disk before acting.
 
 ## Boundaries
 
@@ -12,7 +12,7 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 
 - Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; pre-controller base was
   `5f70283741527b738738217506464e6360b9f166`. Verify current HEAD and worktree. Production untouched.
-- About 69 GiB free. No Senses/Helius/Alchemy collector LaunchAgent or collector process is active.
+- About 70 GiB free. The Helius finite controller and campaign-1 LaunchAgents are loaded but idle; the v3 campaign has made no RPC yet.
   Previous public/Helius watchers and old schedulers remain stopped; Helius watch-v3 retains its
   explicit STOP and must not be resumed.
 - Helius inventory-first v2 has one complete prospective frame, `[455028552,455037817)`, with
@@ -39,9 +39,11 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   request/byte/disk preflight before anchor.
 - Sol authorized a separately finite 72-hour generator lease for at most three unique 24-attempt
   campaigns (2,451 requests / 12 GB raw / 3 GB stored aggregate). The inherited sealed v2 gap is
-  recorded in lineage; abnormal current-campaign state halts generation. Controller implementation is locally qualified; no new LaunchAgent is loaded yet. Before bootstrap,
-  create the private log files and verify the installed plist hash. The first v3 attempt should be
-  the next future hourly :05 event; do not manually kickstart or backfill.
+  recorded in lineage; abnormal current-campaign state halts generation. Controller source is committed (`4406fde`) and locally qualified. Controller and campaign-1
+  LaunchAgents are loaded; both have zero active processes now. Controller has two successful runs;
+  campaign has zero runs and zero requests. Plist hashes and log modes are in
+  `docs/evidence/helius-inventory-controller-install-2026-10-10.json`. First v3 attempt is the next
+  future local :05 event; do not kickstart or backfill.
 - A separate v3 scheduler implements Sol's per-campaign contract locally: one-frame reservations,
   34-request/byte/disk preflight, anchor-only gap capture followed by terminal STOP, immutable reservation
   releases, split frontiers, fail-closed recovery and read-only status. Controller and related focused

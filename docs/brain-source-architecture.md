@@ -949,38 +949,38 @@ plus the 50 GiB free-disk floor. The lease does not extend automatically. Its fi
 seeded only from the closed v2 pilot receipt after local reconciliation; its known 00:00Z gap stays
 in lineage. Each later successor requires the immediate predecessor's verified normal 24-attempt
 STOP and reconciled journals. Sealed historical gaps remain in lineage; unresolved epochs,
-ambiguous state, abnormal STOPs,
-missed buckets, provider errors, or failed resource preflight halt generation. Boundaries are
-future-only and requests are never replayed. Its no-RPC predecessor lineage plus 24 attempts is at most 25 epoch
-directories; its all-in request cap is 817, with 34 request slots required before each anchor.
-Per-frame caps are 256,000,000 raw bytes and 128,000,000 compressed capture bytes; cumulative caps
-are 4,000,000,000 raw and 1,000,000,000 compressed bytes. Preflight reserves one complete frame
-envelope at a time against committed bytes and other reservations, plus the 50 GiB disk floor and a
-peak-write margin. Unused capacity is released only after request journals, captures, summaries and
-file sizes reconcile. A missed hour records a gap and permits an anchor-only observation; it never
-fetches slots from the missed prospective interval. The observed finalized anchor/frontier and the
-last inventoried interval remain separate facts. Any ambiguous request or integrity discrepancy
-stops the finite campaign. A durable campaign STOP is atomically published only after its file is
-fsynced; it includes counters and the observed/inventoried frontier, plus hashes of the bound
-manifest, current reservation and sealed summary when present.
-The hourly LaunchAgent wrapper checks STOP before scheduler or credential access, runs the
-scheduler in-process, and requests `launchctl bootout` only after STOP is durable. If bootout fails,
-the next calendar invocation is a STOP-only zero-RPC teardown retry; `KeepAlive` is disabled and
-the wrapper writes a sanitized stderr diagnostic. The campaign schedule never renews itself. A
-separately locked controller may create successive unique campaign roots only under the single
-72-hour lease. Its durable lease counter and aggregate usage survive reboot; each successor binds its
-predecessor STOP and observed/inventoried frontier. Crash recovery reconciles local state only.
-Expiry or an abnormal predecessor STOP seals controller STOP and unloads its LaunchAgent. A fsynced
-invocation marker makes an unclean process exit
-detectable: the next invocation validates already captured journals locally, never repeats an
-ambiguous request, seals STOP, and unloads. Scheduler, wrapper, crash-boundary tests and differential
-review are qualified locally, including 24 normal synthetic attempts through final STOP; that replay
-checks horizon/teardown state, not real provider throughput. Real LaunchAgent installation and
-recovery remain pending the finite controller qualification and final runtime checks. The immutable v3 schedule manifest also binds its
-minute-05 local calendar trigger,
-UTC bucket semantics, no-`RunAtLoad`/no-`KeepAlive` settings, teardown policy and explicit no-renewal
-rule; the installed plist hash will be recorded in the runtime receipt.
+ambiguous state, abnormal STOPs, missed buckets, provider errors, or failed resource preflight halt
+generation. Boundaries are future-only and requests are never replayed. Its no-RPC predecessor
+lineage plus 24 attempts is at most 25 epoch directories; each campaign allows 817 all-in requests,
+with 34 slots required before an anchor. Per-frame caps are 256,000,000 raw bytes and 128,000,000
+compressed bytes; campaign caps are 4,000,000,000 raw and 1,000,000,000 compressed bytes. Preflight
+reserves one complete frame envelope against committed bytes and other reservations, plus the 50 GiB
+disk floor and a peak-write margin. Unused capacity is released only after request journals,
+captures, summaries and file sizes reconcile. A missed hour records a gap, permits one anchor-only
+observation, then seals terminal STOP; it never fetches missed prospective slots. Observed anchor and
+inventoried interval remain separate. Ambiguous requests and integrity discrepancies stop the
+campaign. STOP is atomically published after fsync and includes counters, frontiers, and hashes of
+the bound manifest, active reservation and summary when present.
 
+The campaign LaunchAgent checks STOP before scheduler or credential access, runs the scheduler in
+process, and requests `launchctl bootout` only after durable STOP. If bootout fails, the next
+calendar invocation retries teardown without RPC; `KeepAlive` is disabled. A separate locked
+controller may create unique campaign roots only inside its 72-hour lease; durable lease and
+aggregate state survive reboot, and each successor binds the predecessor STOP and frontiers. Crash
+recovery reconciles local state only. Expiry or abnormal predecessor STOP seals controller STOP and
+unloads it. The controller and first campaign LaunchAgents are loaded and idle; no v3 RPC has run
+at this receipt. The controller has two successful zero-RPC runs. Campaign 1 will first run at the
+next future local minute-05 calendar event. Installed plist hashes, private log modes and idle
+request counts are in the [controller runtime receipt](evidence/helius-inventory-controller-install-2026-10-10.json).
+
+An invocation marker makes abnormal process exit detectable. The next invocation validates already
+captured journals locally, never repeats an ambiguous request, seals STOP and unloads. Scheduler,
+wrapper and controller crash-boundary tests are qualified locally, including 24 normal synthetic
+attempts through STOP; this checks horizon and teardown state, not real provider throughput. The
+first real scheduled frame and subsequent controller recovery checks remain pending. The immutable
+campaign manifest binds its minute-05 local calendar trigger, UTC hour buckets, no-`RunAtLoad` and
+no-`KeepAlive` settings, and teardown policy. The installed campaign plist hash is bound into
+controller state and recorded in the runtime receipt.
 The prior public and Helius program-address watches stopped on failed requests and remain immutable.
 Neither cursor is resumed. Helius watch v2 made a fresh head query and attempted 1,000 signature
 references plus 1,000 transaction bodies; 999 bodies were captured, one request failed, and a later
