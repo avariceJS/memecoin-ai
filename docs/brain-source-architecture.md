@@ -472,11 +472,13 @@ base and quote use legacy SPL Token. The other 1,237 successful structural candi
 Token-2022 on at least one side and remain quarantined. Offline replay of all 62 refs found one exact
 `BuyEvent` and four checked legacy token transfers per ref; user quote-account gross debit matched
 the event gross amount, pool quote credit matched its separate event field, and base credit matched
-the event amount and minimum. The full ordered ledger reconciled all six target-touched token
-accounts in all 62 transactions. Observed mint decimal pairs were 9/6 in 61 and 6/9 in one; amounts
-remain integer atomic units and no UI conversion is made. Gross/net and fee-flow equations matched
-all 62, but remain empirical diagnostic hypotheses. This is narrow development evidence only, with
-no wallet-net price, training, execution, or market-completeness admission. Its deterministic plan
+the event amount and minimum. The earlier nested ledger reconciled all six target-role token
+accounts in all 62 transactions. A follow-up full-transaction touch classifier found one sibling-
+touch case where that nested `exact` status is insufficient. Observed mint decimal pairs were 9/6 in
+61 and 6/9 in one; amounts remain integer atomic units and no UI conversion is made. Gross/net and
+fee-flow equations matched all 62, but remain empirical diagnostic hypotheses. This is narrow
+development evidence only, with no wallet-net price, training, execution, or market-completeness
+admission. Its deterministic plan
 and replay receipt also bind a metadata-only manifest for 512 disjoint 13:00Z Helius full blocks.
 That source was opened once by the frozen structural census on 2026-10-10. All 512 block payloads
 were processed, but report construction failed because the source binding receipt uses `git_commit`
@@ -486,6 +488,17 @@ do not rerun or tune on this archive. Corrected code requires a new disjoint sou
 plan. Receipt: [`buyExact v1 failed audit attempt`](evidence/pumpswap-buy-exact-v1-audit-failure-2026-10-10.json).
 Development receipt:
 [`buyExact v1 development`](evidence/pumpswap-buy-exact-v1-development-qualification-2026-10-10.json).
+
+A frozen follow-up diagnostic separates the candidate legacy `TransferChecked` instruction flow
+from transaction-wide target-token endpoint reconciliation. Across all 62 frozen dual-legacy tail2
+development references, candidate flows and `BuyEvent` cross-checks match 62/62. Endpoint equations
+are exact for 61/62 only where all provider-reported target-account touches are classified; the
+remaining transaction stays `unknown_partial` because sibling programs also touch target accounts,
+even though the nested legacy-token ledger reports `exact`. All five fee equations matched the event
+cross-check in this sample, but remain empirical hypotheses rather than fee laws. ATA route checks
+are pinned to an official interface source; this is not deployed-binary proof. No audit source or RPC
+was opened, and no training, execution, wallet-net-price, or broader economic settlement admission
+is granted. Receipt: [`buyExact tail2 development diagnostic`](evidence/pumpswap-buy-exact-tail2-v1-development-qualification-2026-10-10.json).
 
 A new Helius Free epoch was then captured for the frozen one-pass audit: 512/512 selected full
 blocks parsed, 512/512 signature-only checks matched the full-response signature hashes, and the

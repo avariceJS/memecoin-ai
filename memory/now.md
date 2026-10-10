@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 21:51 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-10 22:11 UTC. Verify live runtime before any campaign or service decision.
 
 ## Boundaries and runtime
 
@@ -9,11 +9,11 @@
   holdout access, push, retry or backfill.
 - c3 is terminal after its ambiguous 11:00Z anchor failure; preserve its uncovered interval.
   c4 remains the unchanged finite calendar lease (one bootstrap plus at most 24 hourly frames).
-  Read-only status at 21:51Z: 9/24 frames complete, 306 frame
-  requests plus one bootstrap (307 all-in), 649,607,110 raw / 146,677,436 stored bytes, zero failed
-  or gapped epochs, zero open reservations, 15 attempts remaining, frontier 455397121, and
-  61,518,856,192 free bytes. Exact c4 LaunchAgent remains loaded and idle between calendar ticks,
-  with fixed path-only arguments; next scheduled trigger 22:05Z. No manual tick. Credit units remain
+  Read-only status at 22:11Z: 10/24 frames complete, 340 frame requests plus one bootstrap (341
+  all-in), 706,277,979 raw / 161,843,979 stored bytes, zero failed or gapped epochs, zero open
+  reservations, 14 attempts remaining, frontier 455413633, and 60,868,034,560 free bytes. Exact c4
+  LaunchAgent remains loaded and idle between calendar ticks, with fixed path-only arguments; its
+  22:00Z frame completed naturally. No manual tick. Credit units remain
   unknown. Preserve all gaps.
 - Helius key is still in ignored `.env.local` and private MCP configs, all mode 0600. User accepts
   no rotation. Latest follow-up scan found zero exact endpoint/path matches in Git, recent saved
@@ -33,6 +33,12 @@
   app-server starts should consume the pinned config.
 
 ## Senses evidence and current decision horizon
+
+- Frozen buyExact tail2 dual-legacy development diagnostic (`f7ec8c0`): candidate `TransferChecked`
+  flow exact 62/62; `BuyEvent` cross-check match 62/62; endpoint reconciliation exact 61/62 with
+  one sibling-touch `unknown_partial`. Five fee equations matched but remain hypotheses; no
+  settlement, wallet-net price or admission. Sol accepted the dev-only freeze. Receipt:
+  `docs/evidence/pumpswap-buy-exact-tail2-v1-development-qualification-2026-10-10.json`.
 
 - Pair64 offline comparison: 512 Helius selected blocks and 64 same-slot Alchemy pairs; all block
   identities and ordered signatures match. Across 80,467 transactions, 80,321 trees match exactly;
