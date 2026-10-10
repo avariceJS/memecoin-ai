@@ -79,24 +79,37 @@ def test_source_receipt_metadata_preserves_explicit_audit_fields():
 
 
 def test_raw_role_qualifier_uses_idl_positions_and_loaded_addresses():
-    keys = [f"account-{index}" for index in range(len(ACCOUNT_ROLES) - 1)]
+    keys = [f"account-{index}" for index in range(len(ACCOUNT_ROLES) - 3)]
     keys[ACCOUNT_ROLES.index("pool")] = "pool-key"
-    keys[ACCOUNT_ROLES.index("base_mint")] = "base-mint-key"
-    keys[ACCOUNT_ROLES.index("quote_mint")] = "quote-mint-key"
     keys[ACCOUNT_ROLES.index("base_token_program")] = "base-token-program-key"
     keys[ACCOUNT_ROLES.index("quote_token_program")] = "quote-token-program-key"
-    accounts = list(range(len(keys))) + [len(keys)]
+    loaded_base_mint = len(keys)
+    loaded_quote_mint = loaded_base_mint + 1
+    account_indexes = {
+        role: index
+        for index, role in enumerate(ACCOUNT_ROLES)
+        if role not in ("base_mint", "quote_mint")
+    }
+    account_indexes["base_mint"] = loaded_base_mint
+    account_indexes["quote_mint"] = loaded_quote_mint
+    accounts = [account_indexes[role] for role in ACCOUNT_ROLES]
+    program_index = loaded_quote_mint + 1
     tx = {
         "transaction": {
             "message": {
                 "accountKeys": keys,
                 "instructions": [
-                    {"programIdIndex": len(keys), "accounts": accounts, "data": "1"}
+                    {"programIdIndex": program_index, "accounts": accounts, "data": "1"}
                 ],
             },
             "signatures": ["signature"],
         },
-        "meta": {"loadedAddresses": {"writable": [], "readonly": [PROGRAM]}},
+        "meta": {
+            "loadedAddresses": {
+                "writable": ["base-mint-key"],
+                "readonly": ["quote-mint-key", PROGRAM],
+            }
+        },
     }
 
     roles, wire = _roles_from_raw(tx, [0])

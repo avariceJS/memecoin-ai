@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 import sys
 from collections import Counter
 from pathlib import Path
@@ -149,7 +150,9 @@ def qualify(report_path: Path, epoch_root: Path, frame_receipt_path: Path) -> di
     if len(candidates) != 59:
         raise ValueError(f"expected_59_candidates_got_{len(candidates)}")
 
-    zstd = "/opt/homebrew/bin/zstd"
+    zstd = shutil.which("zstd")
+    if zstd is None:
+        raise ValueError("zstd_cli_unavailable")
     capture_entries = _capture_rows(epoch_root, v3_layout=True)
     by_slot: dict[int, tuple[dict[str, Any], dict[str, Any], Path]] = {}
     captures = []
