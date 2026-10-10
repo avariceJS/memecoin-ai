@@ -5,7 +5,7 @@
 ## Boundaries and runtime
 
 - Continue Senses only. Research checkout `/Users/root1/Developer/memecoin-research`, branch
-  `research/active`; current HEAD is `b54c67c`. Production `/Users/root1/Desktop/memecoin-ai`
+  `research/active`; current HEAD is `3d84e6c`. Production `/Users/root1/Desktop/memecoin-ai`
   remains untouched. No trading, signing, paid upgrade, protected holdout access, push, backfill,
   or ambiguous-request retry.
 - c3 is permanently terminal after its reserved 11:00Z `getSlot` transport failure (205 attempts,
@@ -78,12 +78,13 @@
   Token-2022 effects, other layouts,
   fills, fee movement and native settlement remain quarantined. Pair64 is sampled same-slot evidence,
   not global completeness. Alchemy PAYG endpoint is absent from research `.env.local`.
-- The sell23 c4 audit selector and offline auditor are frozen in `537c929`. It selects the first four
+- The sell23 c4 audit selector and offline auditor are frozen in `537c929` and timing hardening in
+  `3d84e6c`. It selects the first four
   completed frames whose scheduled trigger, plan creation, first durable reservation, request start,
   and seal are all strictly after `5c5eed3`'s freeze time. Thus `13:00Z` is excluded; `14:00Z` is
   the first eligible completed frame. At 14:23Z only that one eligible frame exists; transaction
   cases remain unopened. The offline preflight returns inconclusive without reading cases. Focused
-  tests: 13 passed; Ruff clean. Audit tool:
+  tests: 14 passed; Ruff clean. Audit tool:
   `tools/brain_senses_sell23_c4_native_flow_audit.py`.
 - Offline service checks also pass: c4 recovery fixtures `7 passed`, scheduler/epoch suites `35
   passed`, finite controller fixtures `11 passed`. These were local synthetic tests; no RPC or live
