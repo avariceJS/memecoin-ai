@@ -1,13 +1,13 @@
 # Current Project State
 
-**As of:** 2026-10-10 13:37 UTC. Verify live Git, LaunchAgents, campaign state and disk before acting.
+**As of:** 2026-10-10 14:09 UTC. Recheck live runtime and disk before any campaign decision.
 
 ## Boundaries and runtime
 
 - Continue Senses only. Research checkout `/Users/root1/Developer/memecoin-research`, branch
-  `research/active`; current HEAD was `dfcee6d` at the 13:28Z check. Production
-  `/Users/root1/Desktop/memecoin-ai` remains untouched. No trading,
-  signing, paid upgrade, protected holdout access, push, backfill, or ambiguous-request retry.
+  `research/active`; current HEAD is `b54c67c`. Production `/Users/root1/Desktop/memecoin-ai`
+  remains untouched. No trading, signing, paid upgrade, protected holdout access, push, backfill,
+  or ambiguous-request retry.
 - c3 is permanently terminal after its reserved 11:00Z `getSlot` transport failure (205 attempts,
   charge uncertain), frontier 455216025. No retry or backfill.
 - c4 remains a frozen finite lease: one finalized `getSlot` anchor, then at most 24 future hourly
@@ -15,23 +15,23 @@
   455249113, gap `[455216025,455249113)`, one request (43 raw/56 stored bytes), no `getBlocks` or
   `getBlock`, zero open reservations; c3 STOP unchanged. Its scheduled 13:05Z frame then completed
   34/34 requests and 16/16 selected block/signature checks over `[455249113,455265709)`, returning
-  all 16,596 provider-reported produced slots. It used 58,434,290 raw/13,182,819 stored bytes in
-  91.38 s. The c4 LaunchAgent is loaded and idle for its next 14:05Z bucket; one of 24 frame attempts
-  is complete, 23 remain, campaign STOP is absent, and failures are zero. Do not manually invoke.
-  Receipts:
-  `docs/evidence/helius-inventory-v3-c4-bootstrap-2026-10-10.json`.
+  all 16,596 provider-reported produced slots. The 13:00Z and 14:00Z frames are complete (34/34
+  requests and 16/16 structural checks each); the latter used 65,501,052 raw/14,230,705 stored
+  bytes. Two of 24 attempts are complete, STOP is absent, and c4 is still loaded on its hourly
+  schedule. Do not manually invoke. Receipts:
+  `docs/evidence/helius-inventory-v3-c4-bootstrap-2026-10-10.json`,
   `docs/evidence/helius-inventory-v3-c4-first-frame-2026-10-10.json`.
 - c4 root: `work/brain-senses-live-helius-inventory-v3-20261010-4/`. Latest observed free space:
-  about 73.06 GB. Preserve gaps; reconcile each scheduled epoch and stop on lease failure. The
+  about 72 GiB. Preserve gaps; reconcile each scheduled epoch and stop on lease failure. The
   first-frame one-hour projection is 816 reservations, 1.40 GB raw and 0.316 GB stored per day;
   credit billing units remain unverified.
-- Helius key remains in ignored mode-0600 `.env.local` and the two mode-0600 MCP configs; user
-  authorized no-rotation continuation. At 13:28Z exact-value scans found zero in 5,238 Git objects,
-  249,759 accessible saved text/runtime/evidence files, process arguments, and 1,285,040,709 bytes
-  of eight-hour Unified Log output. Three earlier Cursor-transcript copies were redacted and
-  revalidated; the historical process-list disclosure remains in the agent transcript. The c4
-  LaunchAgent arguments contain only paths and RPC reads credentials in-process. Receipt:
-  `docs/evidence/helius-key-local-exposure-rescan-post-redaction-2026-10-10.json`.
+- Helius key remains in ignored mode-0600 `.env.local` and two mode-0600 MCP configs; user
+  authorized no-rotation continuation. The latest exact-value scan (13:55Z) found zero in 5,253
+  Git objects, 253,570 accessible saved text/runtime/evidence files, current process arguments and
+  1,313,859,327 bytes of eight-hour Unified Log output. c4 LaunchAgent arguments contain only fixed
+  paths/subcommands; collector reads the endpoint in-process. Historical process-list disclosure
+  remains in agent transcript. Provider-side logs and backups were not inspected. Receipt:
+  `docs/evidence/helius-key-pre-resume-exposure-rescan-2026-10-10.json`.
 - MCP: Alchemy ping and official Solana docs search worked; Helius documentation transport closed.
   No MCP provider RPC was performed.
 
@@ -81,12 +81,13 @@
 
 ## Next decision horizon
 
-1. At/after each c4 scheduled bucket inspect actual execution, request journals, frame integrity,
-   bytes, disk, STOP and any traffic after epoch STOP. Do not manually trigger or replay.
-2. Keep later c4 use as ordinary replication; do not tune the frozen classifier on these frames.
-3. Keep c4 on its loaded calendar schedule; next bucket is 14:05Z. Do not manually invoke, backfill,
-   or retry. Preserve c4's finite lease and inspect the actual launchd/journal/capture/STOP state
-   after each scheduled frame.
-4. Continue with Sol's offline state-source decision after this no-row feasibility result. Keep c4
-   running its unchanged finite scheduled lease and inspect every scheduled epoch; no successor or
-   auto-renewal until its finite terminal and a separate Sol policy. Do not start Cortex.
+1. Keep c4 on its unchanged loaded schedule; inspect each scheduled frame read-only and never
+   manually invoke, retry, or backfill. First four completed scheduled frames after the frozen sell23
+   gate define its audit. At 14:09Z, two frames (13:00Z, 14:00Z) are complete; audit cases remain
+   unopened. Preserve intervening failed buckets as gaps and use later frames only under the frozen
+   first-four-completed rule. Audit selector/examples are committed before case inspection.
+2. Once four frames are sealed, independently enumerate raw eligible sell23 native-close rows,
+   reconcile all denominators and request/frame hashes, and apply the frozen gate once. No tuning.
+3. c4's finite terminal and the audit are separate evidence boundaries. Only then revisit the
+   diagnostic-ledger decision and a finite successor policy with Sol; no auto-renewal. Do not start
+   Cortex.

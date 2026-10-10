@@ -297,8 +297,12 @@ or admission. Receipt:
 [`c3 native-account flow gate`](evidence/pumpswap-sell23-c3-native-account-flow-2026-10-10.json).
 The implementation is frozen before a prospective audit: inspect all eligible sell23 native-close
 references in the first four completed scheduled c4 hourly frames after the freeze, including pass,
-fail, and unsupported rows. Do not add RPC calls, select later frames, or tune against the audit.
-Campaign STOP or too few eligible cases makes the audit inconclusive.
+fail, and unsupported rows. If a scheduled bucket fails or is incomplete, preserve it as a gap and
+use the next completed scheduled frame only under this precommitted rule. Do not add RPC calls,
+select frames based on their contents, or tune against the audit. For readable pass examples, select
+at most two passing rows per pool by ascending SHA-256 of the ASCII signature (signature is the
+tie-breaker); this example selection does not reduce the all-row denominator. Record every mismatch.
+Campaign STOP before four completed frames or too few eligible cases makes the audit inconclusive.
 
 The pinned v1 `buy_exact_quote_in` path now has an offline structural attempt census over those same
 512 Helius full-block captures: 642,312 transactions, 12,120 unique candidate transactions, and
