@@ -1,7 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 05:37 UTC. HEAD `0d417e834362c344fe014323ab4149d3fcbdeeca`;
-verify runtime and disk before acting.
+**As of:** 2026-10-10 05:39 UTC. Verify Git HEAD, runtime and disk before acting.
 
 ## Boundaries
 
@@ -93,3 +92,5 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
    finite seven-day lease (at most 5,719 all-in requests, measured byte ceilings, 50-GiB floor, no
    auto-renew) is a candidate only if normal closure and resource evidence support it. Continue Senses;
    no Cortex until sensing bottlenecks are actually closed.
+4. After the first-frame suffix census, do not invent another buyExact economic experiment before
+   multi-frame c3 evidence and a pinned historical-account-state entitlement path are available.
