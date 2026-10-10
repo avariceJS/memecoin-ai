@@ -81,9 +81,12 @@ def _is_candidate_transaction(tx: dict[str, Any]) -> bool:
     return False
 
 
-def _capture_rows(root: Path) -> list[tuple[Path, dict[str, Any], dict[str, Any]]]:
+def _capture_rows(
+    root: Path, *, v3_layout: bool = False
+) -> list[tuple[Path, dict[str, Any], dict[str, Any]]]:
     rows = []
-    for receipt_path in sorted((root / "captures/helius-free").glob("*/receipt.json")):
+    capture_dir = root / "captures" if v3_layout else root / "captures/helius-free"
+    for receipt_path in sorted(capture_dir.glob("*/receipt.json")):
         receipt = _json(receipt_path)
         request = json.loads(receipt["request_json"])
         params = request.get("params")
@@ -132,8 +135,11 @@ def census(
     zstd = shutil.which("zstd")
     if zstd is None:
         raise ValueError("zstd_cli_unavailable")
-    plan_path = root / "plan.json"
-    if not plan_path.is_file():
+    plan_path = next(
+        (root / name for name in ("plan.json", "epoch-plan.json") if (root / name).is_file()),
+        None,
+    )
+    if plan_path is None:
         raise ValueError("capture_plan_missing")
     plan_bytes = plan_path.read_bytes()
     plan_pin = _sha256(plan_bytes)
@@ -141,10 +147,53 @@ def census(
         REPO_ROOT / "docs/evidence/helius-alchemy-pair64-offline-audit-2026-10-09.json"
     )
     audit_receipt = _json(audit_receipt_path)
+    frame = audit_receipt.get("frame")
     if audit_receipt.get("bound_plan_sha256") == plan_pin:
         binding_kind = "pair64_plan_bound_provider_audit"
+    elif (
+        isinstance(frame, dict)
+        and root.parent.parent.name
+        in {
+            audit_receipt.get("campaign_id"),
+            f"brain-senses-live-{audit_receipt.get('campaign_id', '')}",
+        }
+        and frame.get("bucket") == root.name
+        and frame.get("plan_sha256") == plan_pin
+        and frame.get("status") == "frame_complete"
+        and frame.get("reservation_status") == "reconciled"
+        and frame.get("capture_artifacts_count") == frame.get("actual_requests")
+        and frame.get("request_statuses") == {"captured": frame.get("actual_requests")}
+        and frame.get("sampled_structural_checks", {}).get("passed") == expected_slots
+        and frame.get("sampled_structural_checks", {}).get("total") == expected_slots
+        and (root / "epoch-summary.json").is_file()
+        and _sha256((root / "epoch-summary.json").read_bytes()) == frame.get("summary_sha256")
+    ):
+        binding_kind = "helius_v3_frame_receipt_bound_offline_replay"
+        frame_summary = _json(root / "epoch-summary.json")
+        structural_checks = frame_summary.get("structural_checks")
+        if (
+            frame_summary.get("epoch_id") != root.name
+            or frame_summary.get("status") != "frame_complete"
+            or not isinstance(frame_summary.get("selected_slots"), list)
+            or len(frame_summary["selected_slots"]) != expected_slots
+            or not isinstance(structural_checks, list)
+            or len(structural_checks) != expected_slots
+            or any(
+                row.get("status") != "qualified_structural_reference_count"
+                or row.get("block_identity_equal") is not True
+                or row.get("signature_order_equal") is not True
+                or row.get("full_response_validation_failures")
+                for row in structural_checks
+            )
+        ):
+            raise ValueError("source_frame_summary_invalid")
     else:
-        expected_capture_root = (root / "captures/helius-free").resolve()
+        capture_dir = (
+            root / "captures"
+            if (root / "attempt-context.json").is_file()
+            else root / "captures/helius-free"
+        )
+        expected_capture_root = capture_dir.resolve()
         receipt_capture_root = Path(audit_receipt.get("capture_root", "")).resolve()
         if (
             receipt_capture_root != expected_capture_root
@@ -154,7 +203,7 @@ def census(
             raise ValueError("source_binding_receipt_does_not_bind_captured_blocks")
         binding_kind = "captured_class_full_block_replay_receipt"
 
-    captures = _capture_rows(root)
+    captures = _capture_rows(root, v3_layout=(root / "attempt-context.json").is_file())
     if len(captures) != expected_slots:
         raise ValueError("unexpected_full_block_capture_count")
 
@@ -264,6 +313,10 @@ def census(
 
     if len(slot_rows) != expected_slots:
         raise ValueError("unique_slot_count_mismatch")
+    if binding_kind == "helius_v3_frame_receipt_bound_offline_replay" and slot_rows != set(
+        frame_summary["selected_slots"]
+    ):
+        raise ValueError("captured_block_slots_do_not_match_sealed_frame_summary")
     counters["candidate_unique_signatures"] = len(seen_signatures)
     counters["reference_slots"] = len(reference_slots)
     counters.setdefault("normalization_errors", 0)
