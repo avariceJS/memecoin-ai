@@ -1476,6 +1476,25 @@ requested or acquired, and this establishes no state value, mutation/effect, lif
 economic qualification, or provider completeness. Receipt:
 [`c4 mint-state snapshot locator`](evidence/pumpswap-buy-exact-v1-c4-state-snapshot-locator-2026-10-10.json).
 
+An offline Account Archive manifest independently joined those 140 locator identities to the
+feasibility rows by slot, transaction identity, blockhash and Token-2022 base-mint role, and matched
+the 16 capture response/compressed hashes and receipt times. Deduplication yields 75 unique
+`(mint,S-1)` and 75 unique `(mint,S)` point reads. The manifest requires full `base64` account bytes,
+owner, lamports, space and explicit TLV parse records; it distinguishes `value: null` nonexistence,
+out-of-coverage, provider/transport failures, malformed responses and cross-source conflicts. Its
+proposed ceiling is 150 requests, 9,830,400 raw response bytes and 1,500 published standard CUs;
+these are planning caps only, not authorization or account-meter evidence. Alchemy documents
+historical `getAccountInfo(slot)` as paid-plan only (Free is unavailable), with slot S representing
+the latest finalized write at or before S and response context at the requested slot. The research
+endpoint, entitlement, archive coverage and account-specific billing remain unverified. The prior
+three-read control stays frozen at `frozen_no_rpc_access_gate_pending`; this manifest made zero RPCs.
+Equal S-1/S bytes would not reconstruct state at the target transaction position or prove Token-2022
+effects. With 139/140 partial token endpoints and outside-subtree touches in all 140 rows, buy
+settlement remains prohibited. Sources: [Alchemy Account Archive](https://www.alchemy.com/docs/solana/account-archive),
+[Alchemy `getAccountInfo`](https://www.alchemy.com/docs/chains/solana/solana-api-endpoints/get-account-info),
+[Solana `getAccountInfo` RPC reference](https://solana.com/docs/rpc/http/getaccountinfo). Receipt:
+[`c4 Alchemy Account Archive proposed mint manifest`](evidence/alchemy-account-archive-c4-mint-snapshot-manifest-2026-10-10.json).
+
 The paired finalized-block sensor runs a seeded 64-slot epoch each UTC hour through
 `ai.memecoin.brain.senses.block-epochs`, with raw reservations and receipts under
 `work/brain-senses-live-helius-hourly-20261009/`. Every selected Helius block is checked against its
