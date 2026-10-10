@@ -47,6 +47,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - Campaign-4 one-use recovery lease activation:
   `helius-inventory-v3-c4-activation-2026-10-10.json` (fresh 12:00Z bootstrap bucket, disabled
   predecessor jobs, key-free LaunchAgent arguments, and verified zero I/O at activation).
+- Campaign-4 scheduled bootstrap:
+  `helius-inventory-v3-c4-bootstrap-2026-10-10.json` (one finalized anchor request, explicit
+  uncovered interval with no backfill, byte/request reconciliation, unchanged c3 STOP, and the
+  next forward-only scheduled frame boundary).
 - Campaign-3 first prospective frame:
   `helius-inventory-v3-c3-first-frame-2026-10-10.json` (34/34 captured requests, exact raw/stored
   reconciliation, a new finalized anchor, 16/16 selected-block structural checks, and retained gaps;

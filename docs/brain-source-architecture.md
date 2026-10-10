@@ -1288,6 +1288,14 @@ STOP/raw evidence retained. c4 is not an address-index replacement. No exact Hel
 found in process arguments. Receipt:
 [`c4 activation`](evidence/helius-inventory-v3-c4-activation-2026-10-10.json).
 
+The 12:05Z c4 trigger completed exactly one fresh finalized `getSlot` request at 455,249,112 and
+recorded frontier 455,249,113. It made no `getBlocks` or `getBlock` requests, retained the uncovered
+interval `[455216025,455249113)` without backfill, reconciled 43 raw / 56 stored bytes, and left zero
+reservations. The c3 terminal STOP hash is unchanged. The LaunchAgent had one run with exit code 0,
+no frame attempts yet, and about 73.10 GB free after bootstrap. Its next full frame is only the
+13:05Z scheduled bucket; no manual invocation or request replay is permitted. Receipt:
+[`c4 bootstrap`](evidence/helius-inventory-v3-c4-bootstrap-2026-10-10.json).
+
 The paired finalized-block sensor runs a seeded 64-slot epoch each UTC hour through
 `ai.memecoin.brain.senses.block-epochs`, with raw reservations and receipts under
 `work/brain-senses-live-helius-hourly-20261009/`. Every selected Helius block is checked against its
