@@ -398,18 +398,16 @@ def _recover_orphan_reservation(
     bucket = reservation.get("plan", {}).get("bucket")
     if reservation.get("action") == "frame":
         epoch = campaign_root / "epochs" / str(bucket)
-        activity = (
-            list((epoch / "requests").glob("*.json")) if (epoch / "requests").is_dir() else []
-        )
-        activity += (
-            list((epoch / "request-results").glob("*.json"))
-            if (epoch / "request-results").is_dir()
-            else []
-        )
+        activity = list(epoch.iterdir()) if epoch.is_dir() else []
         active_path = campaign_root / "active-frame-reservation.json"
         active = _read(active_path) if active_path.is_file() else None
-        unsafe = bool(activity) or bool(
-            active and (active.get("status") != "reconciled" or active.get("bucket") == bucket)
+        invocation = campaign_root / "invocation-in-progress.json"
+        unsafe = (
+            bool(activity)
+            or invocation.exists()
+            or bool(
+                active and (active.get("status") != "reconciled" or active.get("bucket") == bucket)
+            )
         )
     else:
         epoch = campaign_root / "bootstrap-epochs" / str(bucket)
@@ -438,6 +436,11 @@ def _recover_orphan_reservation(
         controller["bootstrap_sealed"] = False
     else:
         controller["sleep_gap_pending"] = True
+    # Persist the no-replay gap state before the seal append. A crash before the
+    # append leaves an outstanding reservation for the next tick to reconcile;
+    # a crash after the append cannot leave a stale controller with a sealed
+    # reservation that appears eligible for an ordinary adjacent frame.
+    _write(root / "controller-v2.json", controller)
     seal = _append(
         root,
         {
@@ -454,11 +457,10 @@ def _recover_orphan_reservation(
                 "started_request_reservations": 0,
                 "unstarted_request_capacity": reservation["requests"],
                 "decision_time_ns": at_ns,
-                "proof": ("reservation exists but writer marker and epoch activity are absent"),
+                "proof": "reservation exists but epoch activity is absent",
             },
         },
     )
-    _write(root / "controller-v2.json", controller)
     return [*events, seal]
 
 
@@ -1452,6 +1454,48 @@ def reserve_bucket(
         handle.close()
 
 
+def seal_unstarted_frame_reservation(
+    root: Path, *, reservation_id: str, at_ns: int
+) -> dict[str, Any]:
+    """Seal a frame only when activation recheck failed before epoch handoff."""
+    handle = _lock(root)
+    try:
+        manifest = _read(root / "service-manifest-v2.json")
+        controller = _read(root / "controller-v2.json")
+        events = _verify_for_action(root, manifest, controller, at_ns=at_ns)
+        reservation = next(
+            (
+                event
+                for event in events
+                if event.get("kind") == "reservation"
+                and event.get("reservation_id") == reservation_id
+            ),
+            None,
+        )
+        if reservation is None or reservation.get("action") != "frame":
+            raise ValueError("unstarted_frame_reservation_identity_mismatch")
+        writer = _read(root / "writer-active-v2.json")
+        if (
+            writer.get("reservation_id") != reservation_id
+            or writer.get("plan_sha256") != reservation.get("plan_sha256")
+            or writer.get("status") != "reserved_not_started"
+        ):
+            raise ValueError("unstarted_frame_not_proven")
+        seal = _seal_from_epoch_locked(
+            root,
+            reservation_id=reservation_id,
+            at_ns=at_ns,
+            controller=controller,
+            manifest=manifest,
+            events=events,
+        )
+        if seal.get("outcome") != "unstarted":
+            raise ValueError("unstarted_frame_not_proven")
+        return seal
+    finally:
+        handle.close()
+
+
 def mark_epoch_started(root: Path, *, reservation_id: str, at_ns: int) -> dict[str, Any]:
     """Durably mark the handoff before invoking the v3 epoch scheduler."""
     handle = _lock(root)
@@ -2100,6 +2144,45 @@ def _apply_seal_to_controller(
     controller["last_sealed_bucket_ns"] = reservation["bucket_ns"]
 
 
+def _unstarted_frame_evidence(
+    root: Path,
+    reservation: dict[str, Any],
+    *,
+    at_ns: int,
+    writer: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Prove a frame never crossed the epoch handoff or request boundary."""
+    if writer is not None and (
+        writer.get("reservation_id") != reservation.get("reservation_id")
+        or writer.get("plan_sha256") != reservation.get("plan_sha256")
+        or writer.get("status") != "reserved_not_started"
+    ):
+        raise ValueError("unstarted_frame_writer_state_mismatch")
+    campaign_root = root / "campaigns" / reservation["campaign_id"]
+    bucket = reservation.get("plan", {}).get("bucket")
+    epoch = campaign_root / "epochs" / str(bucket)
+    active_path = campaign_root / "active-frame-reservation.json"
+    active = _read(active_path) if active_path.is_file() else None
+    invocation = campaign_root / "invocation-in-progress.json"
+    if (
+        (epoch.exists() and any(epoch.iterdir()))
+        or invocation.exists()
+        or bool(active and (active.get("status") != "reconciled" or active.get("bucket") == bucket))
+    ):
+        raise ValueError("unstarted_frame_has_epoch_activity")
+    return {
+        "bucket": bucket,
+        "started_request_reservations": 0,
+        "unstarted_request_capacity": reservation["requests"],
+        "decision_time_ns": at_ns,
+        "proof": (
+            "reserved_not_started marker and absent epoch activity"
+            if writer is not None
+            else "append-before-writer prefix and absent epoch activity"
+        ),
+    }
+
+
 def _seal_from_epoch_locked(
     root: Path,
     *,
@@ -2125,8 +2208,37 @@ def _seal_from_epoch_locked(
         # Verify immutable evidence before recovering a crash after seal append.
         try:
             if reservation["action"] == "frame":
-                outcome, evidence, summary = _verified_epoch_evidence(root, reservation)
-                evidence["epoch_summary"] = summary
+                if existing_seal.get("outcome") == "unstarted":
+                    outcome = "unstarted"
+                    writer_path = root / "writer-active-v2.json"
+                    writer = _read(writer_path) if writer_path.is_file() else None
+                    evidence = _unstarted_frame_evidence(
+                        root, reservation, at_ns=at_ns, writer=writer
+                    )
+                    summary = {}
+                    prior_evidence = existing_seal.get("evidence", {})
+                    if (
+                        existing_seal.get("actual_requests") != 0
+                        or existing_seal.get("actual_raw_bytes") != 0
+                        or existing_seal.get("actual_stored_bytes") != 0
+                        or any(
+                            prior_evidence.get(key) != evidence.get(key)
+                            for key in (
+                                "bucket",
+                                "started_request_reservations",
+                                "unstarted_request_capacity",
+                            )
+                        )
+                        or prior_evidence.get("proof")
+                        not in {
+                            "reserved_not_started marker and absent epoch activity",
+                            "append-before-writer prefix and absent epoch activity",
+                        }
+                    ):
+                        raise ValueError("unstarted_frame_seal_evidence_mismatch")
+                else:
+                    outcome, evidence, summary = _verified_epoch_evidence(root, reservation)
+                    evidence["epoch_summary"] = summary
             else:
                 outcome, evidence, summary, lineage = _external_bootstrap_evidence(
                     root, reservation, controller
@@ -2168,31 +2280,50 @@ def _seal_from_epoch_locked(
         return existing_seal
     writer_path = root / "writer-active-v2.json"
     writer = _read(writer_path) if writer_path.is_file() else None
-    if (
+    if writer is None and reservation.get("action") == "frame":
+        # A crash after the ledger reservation append but before its marker is
+        # recoverable only when no scheduler/epoch evidence exists.
+        try:
+            outcome = "unstarted"
+            evidence = _unstarted_frame_evidence(root, reservation, at_ns=at_ns, writer=None)
+            summary = {}
+        except Exception as exc:
+            _stop(root, "epoch_tree_reconciliation_failed_closed", at_ns=at_ns)
+            raise ValueError("epoch_tree_reconciliation_failed_closed") from exc
+    elif (
         writer is None
         or writer.get("reservation_id") != reservation_id
         or writer.get("plan_sha256") != reservation.get("plan_sha256")
     ):
         _stop(root, "service_writer_marker_uncertain", at_ns=at_ns)
         raise ValueError("service_writer_marker_uncertain")
-
-    try:
-        if reservation["action"] == "frame":
-            evidence_outcome, evidence, summary = _verified_epoch_evidence(root, reservation)
-            evidence["epoch_summary"] = summary
-            outcome = evidence_outcome
-        else:
-            outcome, evidence, summary, lineage = _external_bootstrap_evidence(
-                root, reservation, controller
-            )
-            if lineage is not None:
-                evidence["lineage"] = lineage
-                evidence["anchor_slot"] = lineage["last_observed_anchor_slot"]
-                evidence["anchor_receipt_ns"] = lineage["last_observed_anchor_receipt_ns"]
-                evidence["epoch_summary"] = summary
-    except Exception as exc:
-        _stop(root, "epoch_tree_reconciliation_failed_closed", at_ns=at_ns)
-        raise ValueError("epoch_tree_reconciliation_failed_closed") from exc
+    else:
+        try:
+            if reservation["action"] == "frame":
+                if writer.get("status") == "reserved_not_started":
+                    outcome = "unstarted"
+                    evidence = _unstarted_frame_evidence(
+                        root, reservation, at_ns=at_ns, writer=writer
+                    )
+                    summary = {}
+                else:
+                    evidence_outcome, evidence, summary = _verified_epoch_evidence(
+                        root, reservation
+                    )
+                    evidence["epoch_summary"] = summary
+                    outcome = evidence_outcome
+            else:
+                outcome, evidence, summary, lineage = _external_bootstrap_evidence(
+                    root, reservation, controller
+                )
+                if lineage is not None:
+                    evidence["lineage"] = lineage
+                    evidence["anchor_slot"] = lineage["last_observed_anchor_slot"]
+                    evidence["anchor_receipt_ns"] = lineage["last_observed_anchor_receipt_ns"]
+                    evidence["epoch_summary"] = summary
+        except Exception as exc:
+            _stop(root, "epoch_tree_reconciliation_failed_closed", at_ns=at_ns)
+            raise ValueError("epoch_tree_reconciliation_failed_closed") from exc
 
     if outcome == "halt_review":
         _stop(root, "provider_or_data_review_halt", at_ns=at_ns)
@@ -2207,22 +2338,27 @@ def _seal_from_epoch_locked(
         actual_raw = int(evidence.get("raw_response_bytes", 0))
         actual_stored = int(evidence.get("stored_response_bytes", 0))
 
-    seal = _append(
-        root,
-        {
-            "kind": "seal",
-            "reservation_id": reservation_id,
-            "campaign_id": reservation["campaign_id"],
-            "outcome": outcome,
-            "actual_requests": actual_requests,
-            "actual_raw_bytes": actual_raw,
-            "actual_stored_bytes": actual_stored,
-            "at_ns": at_ns,
-            "evidence": evidence,
-        },
-    )
-    _apply_seal_to_controller(controller, reservation, seal)
-    _write(root / "controller-v2.json", controller)
+    seal_event = {
+        "kind": "seal",
+        "reservation_id": reservation_id,
+        "campaign_id": reservation["campaign_id"],
+        "outcome": outcome,
+        "actual_requests": actual_requests,
+        "actual_raw_bytes": actual_raw,
+        "actual_stored_bytes": actual_stored,
+        "at_ns": at_ns,
+        "evidence": evidence,
+    }
+    if outcome == "unstarted":
+        # Persist the required future anchor/gap state before making the seal
+        # visible. If the append fails, the outstanding reservation is retried
+        # locally on the next tick; no provider I/O is eligible.
+        _apply_seal_to_controller(controller, reservation, seal_event)
+        _write(root / "controller-v2.json", controller)
+    seal = _append(root, seal_event)
+    if outcome != "unstarted":
+        _apply_seal_to_controller(controller, reservation, seal)
+        _write(root / "controller-v2.json", controller)
     writer_path.unlink(missing_ok=True)
     dfd = os.open(root, os.O_RDONLY)
     try:

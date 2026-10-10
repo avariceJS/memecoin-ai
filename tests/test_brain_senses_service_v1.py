@@ -301,6 +301,241 @@ def test_reserve_crash_before_writer_is_sealed_unstarted_without_replay(
     }
 
 
+def test_reserved_not_started_frame_recovers_as_unstarted_without_replay(tmp_path: Path) -> None:
+    root = tmp_path / "service"
+    start = _initialize(root)
+    bootstrap = service.reserve_bootstrap(
+        root,
+        at_ns=start,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + service.DISK_PEAK_MARGIN_BYTES + 1,
+    )
+    bootstrap_seal, bootstrap_client = _run_bootstrap(root, bootstrap)
+    assert bootstrap_seal["outcome"] == "bootstrap_complete"
+    assert bootstrap_client.calls == 1
+
+    first_bucket = start + 3600 * 1_000_000_000
+    frame = service.reserve_bucket(
+        root,
+        bucket_ns=first_bucket,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + 2 * service.DISK_PEAK_MARGIN_BYTES,
+        request_time_ns=first_bucket,
+    )
+    assert frame["action"] == "frame"
+    assert service._read(root / "writer-active-v2.json")["status"] == "reserved_not_started"
+
+    seal = service.seal_unstarted_frame_reservation(
+        root, reservation_id=frame["reservation_id"], at_ns=first_bucket + 1
+    )
+    assert seal["outcome"] == "unstarted"
+    next_bucket = first_bucket + 3600 * 1_000_000_000
+    next_frame = service.reserve_bucket(
+        root,
+        bucket_ns=next_bucket,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + 2 * service.DISK_PEAK_MARGIN_BYTES,
+        request_time_ns=next_bucket,
+    )
+    seals = [event for event in service._load_ledger(root) if event.get("kind") == "seal"]
+    frame_seal = next(
+        event for event in seals if event["reservation_id"] == frame["reservation_id"]
+    )
+    assert frame_seal["outcome"] == "unstarted"
+    assert frame_seal["actual_requests"] == 0
+    assert next_frame["action"] == "sleep_gap_anchor"
+    assert (
+        service._read(root / "writer-active-v2.json")["reservation_id"]
+        == next_frame["reservation_id"]
+    )
+    assert next_frame["bucket_ns"] == next_bucket
+
+
+@pytest.mark.parametrize("crash_after", ["controller_write", "seal_append"])
+def test_unstarted_frame_seal_recovers_each_durable_crash_prefix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, crash_after: str
+) -> None:
+    root = tmp_path / crash_after
+    start = _initialize(root)
+    bootstrap = service.reserve_bootstrap(
+        root,
+        at_ns=start,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + service.DISK_PEAK_MARGIN_BYTES + 1,
+    )
+    service.run_reserved_bootstrap(
+        root,
+        reservation_id=bootstrap["reservation_id"],
+        at_ns=start,
+        clients={"helius-free": _SlotClient()},
+    )
+    bucket = start + 3600 * 1_000_000_000
+    frame = service.reserve_bucket(
+        root,
+        bucket_ns=bucket,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + 2 * service.DISK_PEAK_MARGIN_BYTES,
+        request_time_ns=bucket,
+    )
+    original_write = service._write
+    original_append = service._append
+    fired = False
+
+    def fail_write(path, value, *, exclusive=False):
+        nonlocal fired
+        result = original_write(path, value, exclusive=exclusive)
+        if not fired and crash_after == "controller_write" and path.name == "controller-v2.json":
+            fired = True
+            raise RuntimeError("injected unstarted controller crash")
+        return result
+
+    def fail_append(path, event):
+        nonlocal fired
+        result = original_append(path, event)
+        if not fired and crash_after == "seal_append" and event.get("kind") == "seal":
+            fired = True
+            raise RuntimeError("injected unstarted seal crash")
+        return result
+
+    monkeypatch.setattr(service, "_write", fail_write)
+    monkeypatch.setattr(service, "_append", fail_append)
+    with pytest.raises(RuntimeError, match="injected unstarted"):
+        service.seal_unstarted_frame_reservation(
+            root, reservation_id=frame["reservation_id"], at_ns=bucket + 1
+        )
+    monkeypatch.setattr(service, "_write", original_write)
+    monkeypatch.setattr(service, "_append", original_append)
+
+    recovered = service.seal_from_epoch(
+        root, reservation_id=frame["reservation_id"], at_ns=bucket + 2
+    )
+    assert recovered["outcome"] == "unstarted"
+    assert service.read_status(root)["usage"]["outstanding"] == 0
+    assert not (root / "writer-active-v2.json").exists()
+    next_frame = service.reserve_bucket(
+        root,
+        bucket_ns=bucket + 3600 * 1_000_000_000,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + 2 * service.DISK_PEAK_MARGIN_BYTES,
+        request_time_ns=bucket + 3600 * 1_000_000_000,
+    )
+    assert next_frame["action"] == "sleep_gap_anchor"
+
+
+def test_append_before_writer_frame_prefix_recovers_without_rpc(tmp_path: Path) -> None:
+    root = tmp_path / "service"
+    start = _initialize(root)
+    bootstrap = service.reserve_bootstrap(
+        root,
+        at_ns=start,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + service.DISK_PEAK_MARGIN_BYTES + 1,
+    )
+    service.run_reserved_bootstrap(
+        root,
+        reservation_id=bootstrap["reservation_id"],
+        at_ns=start,
+        clients={"helius-free": _SlotClient()},
+    )
+    bucket = start + 3600 * 1_000_000_000
+    frame = service.reserve_bucket(
+        root,
+        bucket_ns=bucket,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + 2 * service.DISK_PEAK_MARGIN_BYTES,
+        request_time_ns=bucket,
+    )
+    (root / "writer-active-v2.json").unlink()
+    seal = service.seal_from_epoch(root, reservation_id=frame["reservation_id"], at_ns=bucket + 1)
+    assert seal["outcome"] == "unstarted"
+    assert service.read_status(root)["usage"]["requests"] == 1
+    next_frame = service.reserve_bucket(
+        root,
+        bucket_ns=bucket + 3600 * 1_000_000_000,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + 2 * service.DISK_PEAK_MARGIN_BYTES,
+        request_time_ns=bucket + 3600 * 1_000_000_000,
+    )
+    assert next_frame["action"] == "sleep_gap_anchor"
+
+
+@pytest.mark.parametrize("tamper", ["started", "plan", "activity"])
+def test_unstarted_frame_reconciliation_rejects_started_or_mismatched_state(
+    tmp_path: Path, tamper: str
+) -> None:
+    root = tmp_path / tamper
+    start = _initialize(root)
+    bootstrap = service.reserve_bootstrap(
+        root,
+        at_ns=start,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + service.DISK_PEAK_MARGIN_BYTES + 1,
+    )
+    service.run_reserved_bootstrap(
+        root,
+        reservation_id=bootstrap["reservation_id"],
+        at_ns=start,
+        clients={"helius-free": _SlotClient()},
+    )
+    bucket = start + 3600 * 1_000_000_000
+    frame = service.reserve_bucket(
+        root,
+        bucket_ns=bucket,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + 2 * service.DISK_PEAK_MARGIN_BYTES,
+        request_time_ns=bucket,
+    )
+    writer_path = root / "writer-active-v2.json"
+    writer = service._read(writer_path)
+    if tamper == "started":
+        writer["status"] = "epoch_started"
+        service._write(writer_path, writer)
+    elif tamper == "plan":
+        writer["plan_sha256"] = "0" * 64
+        service._write(writer_path, writer)
+    else:
+        epoch = root / "campaigns" / frame["campaign_id"] / "epochs" / frame["plan"]["bucket"]
+        epoch.mkdir(parents=True)
+        (epoch / "unexpected.json").write_text("{}")
+
+    with pytest.raises(ValueError):
+        service.seal_unstarted_frame_reservation(
+            root, reservation_id=frame["reservation_id"], at_ns=bucket + 1
+        )
+    assert not any(
+        event.get("kind") == "seal" and event.get("reservation_id") == frame["reservation_id"]
+        for event in service._load_ledger(root)
+    )
+    if tamper == "activity":
+        assert (root / "STOP").is_file()
+    else:
+        assert not (root / "STOP").exists()
+
+
+def test_append_before_writer_with_epoch_activity_fails_closed(tmp_path: Path) -> None:
+    root = tmp_path / "service"
+    start = _initialize(root)
+    bootstrap = service.reserve_bootstrap(
+        root,
+        at_ns=start,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + service.DISK_PEAK_MARGIN_BYTES + 1,
+    )
+    service.run_reserved_bootstrap(
+        root,
+        reservation_id=bootstrap["reservation_id"],
+        at_ns=start,
+        clients={"helius-free": _SlotClient()},
+    )
+    bucket = start + 3600 * 1_000_000_000
+    frame = service.reserve_bucket(
+        root,
+        bucket_ns=bucket,
+        free_disk_bytes=service.DISK_FLOOR_BYTES + 2 * service.DISK_PEAK_MARGIN_BYTES,
+        request_time_ns=bucket,
+    )
+    (root / "writer-active-v2.json").unlink()
+    epoch = root / "campaigns" / frame["campaign_id"] / "epochs" / frame["plan"]["bucket"]
+    epoch.mkdir(parents=True)
+    (epoch / "unexpected.json").write_text("{}")
+
+    with pytest.raises(ValueError, match="epoch_tree_reconciliation_failed_closed"):
+        service.seal_from_epoch(root, reservation_id=frame["reservation_id"], at_ns=bucket + 1)
+    assert (root / "STOP").is_file()
+    assert not any(
+        event.get("kind") == "seal" and event.get("reservation_id") == frame["reservation_id"]
+        for event in service._load_ledger(root)
+    )
+
+
 def test_external_bootstrap_seals_lineage_before_a_later_frame_bucket(tmp_path: Path) -> None:
     root = tmp_path / "service"
     start = _initialize(root)

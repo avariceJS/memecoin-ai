@@ -1777,8 +1777,24 @@ userinfo, fragments, non-default ports, and non-Helius hosts. Tick-time activati
 matching normal c4 STOP/zero-post-STOP receipt, a reviewed gate receipt for measured tails, account
 limits and authorization, and an independent check that c4's exact LaunchAgent label is unloaded.
 After a durable service STOP, the runner only attempts to boot out its own exact label. The focused
-runner and service suites pass 61 synthetic tests; this is offline validation, not activation
+runner and service suites pass 79 synthetic tests; this is offline validation, not activation
 evidence.
+
+The activation check binds c4's exact versioned campaign ID, LaunchAgent label, root, STOP, and
+terminal receipt. Under a host-wide and service-root exclusive lock, each scheduled tick probes the
+exact c4 label and inventories the Senses LaunchAgent namespace plus running `brain_senses_*.py`
+processes. Unknown inventory, another writer, or an indeterminate launchd response blocks provider
+work. The census repeats after a frame reservation and immediately before the scheduler handoff. If
+that frame reservation is still `reserved_not_started`, a failed recheck records a zero-request
+unstarted seal and preserves a future anchor/gap transition; it never retries that bucket. Crash
+recovery keeps the writer marker until the controller gap state and seal are durable, and validates
+the unstarted evidence on restart. This behavior is covered by injected controller-write/seal-append
+crashes, append-before-writer recovery, and started/mismatched/activity rejection tests. Offline
+`initialize` can still create the new root and binding metadata without this tick-time gate; it
+performs no provider I/O. The host lock coordinates service v1 runners; launchd/process snapshots
+exclude other observed writers but are not an atomic lock against a newly launched noncooperating
+process. Activation therefore remains prohibited until the full c4 terminal, storage-tail,
+account-limit, and independent-review gates pass.
 
 The exclusive writer marker spans v2 reservation, epoch
 execution/reconciliation, immutable capture/result/summary lineage, and v3 campaign initialization.

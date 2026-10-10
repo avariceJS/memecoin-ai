@@ -9,10 +9,12 @@ loader can be reached, then reserves at most the current UTC hourly bucket.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import fcntl
 import hashlib
 import json
 import os
+import shlex
 import stat
 import subprocess
 import sys
@@ -35,6 +37,11 @@ from tools import brain_senses_service_v1 as service  # noqa: E402
 
 SCHEMA_VERSION = 1
 SERVICE_LABEL = "ai.memecoin.brain.senses.helius-service-v1"
+PREDECESSOR_CAMPAIGN_ID = "helius-inventory-v3-20261010-4"
+PREDECESSOR_LABEL = "ai.memecoin.brain.senses.helius-inventory-v3-20261010-4"
+PREDECESSOR_ROOT = REPO_ROOT / "work/brain-senses-live-helius-inventory-v3-20261010-4"
+SENSES_LABEL_PREFIX = "ai.memecoin.brain.senses."
+HOST_WRITER_LOCK = REPO_ROOT / "work/.brain-senses-host-writer-v1.lock"
 DEFAULT_PLIST = REPO_ROOT / "ops/launchd/ai.memecoin.brain.senses.helius-service-v1.plist"
 BUCKET_NS = 3_600_000_000_000
 TICK_MINUTE_START = 5
@@ -138,9 +145,12 @@ def _activation_gate(
     predecessor_stop_path: Path,
     terminal_receipt_path: Path,
     *,
+    predecessor_root: Path | None = None,
     unloaded_probe: Callable[[str], bool],
+    writer_inventory: Callable[[], tuple[set[str], set[int]]],
 ) -> tuple[bool, str]:
     """Verify the externally reviewed activation dossier without loading credentials."""
+    expected_root = predecessor_root or PREDECESSOR_ROOT
     try:
         proof = service._predecessor_proof(predecessor_stop_path, terminal_receipt_path)
         gate = json.loads(gate_path.read_text())
@@ -157,11 +167,19 @@ def _activation_gate(
             and gate.get("account_limit_verified") is True
             and gate.get("independent_review_complete") is True
             and gate.get("reviewer_authorized_activation") is True
+            and gate.get("predecessor_campaign_id") == PREDECESSOR_CAMPAIGN_ID
+            and gate.get("predecessor_launchagent_label") == PREDECESSOR_LABEL
+            and gate.get("predecessor_root") == str(expected_root)
         )
         if not approved:
             return False, "activation_gate_incomplete"
-        if not unloaded_probe("ai.memecoin.brain.senses.helius-inventory-v3"):
-            return False, "predecessor_launchagent_not_proven_unloaded"
+        if predecessor_stop_path.resolve() != expected_root / "STOP":
+            return False, "predecessor_stop_path_mismatch"
+        if terminal_receipt_path.resolve() != expected_root / "terminal-receipt.json":
+            return False, "predecessor_terminal_receipt_path_mismatch"
+        writer_ok, writer_reason = _writers_clear(unloaded_probe, writer_inventory)
+        if not writer_ok:
+            return False, writer_reason
         if proof.get("committed_frontier") is None:
             return False, "predecessor_frontier_missing"
         return True, "activation_gate_passed"
@@ -169,9 +187,11 @@ def _activation_gate(
         return False, "activation_gate_evidence_invalid"
 
 
-def _default_unloaded_probe(label: str) -> bool:
+def _default_unloaded_probe(
+    label: str, *, runner: Callable[..., subprocess.CompletedProcess] = subprocess.run
+) -> bool:
     target = f"gui/{os.getuid()}/{label}"
-    result = subprocess.run(
+    result = runner(
         ["/bin/launchctl", "print", target],
         cwd=REPO_ROOT,
         check=False,
@@ -179,9 +199,128 @@ def _default_unloaded_probe(label: str) -> bool:
         text=True,
         timeout=15,
     )
-    # launchctl print is successful for loaded services. Any failure is treated
-    # as uncertain here; a reviewed gate must prove the service is unloaded.
-    return result.returncode != 0 and "Could not find service" in result.stderr
+    # Only the precise not-found response proves unloaded. Any other error is
+    # uncertain and blocks activation.
+    expected = f'Could not find service "{label}" in domain for user gui: {os.getuid()}'
+    stderr_lines = result.stderr.strip().splitlines()
+    known_not_found = stderr_lines in ([expected], ["Bad request.", expected])
+    return (
+        result.returncode != 0
+        and isinstance(result.stdout, str)
+        and not result.stdout.strip()
+        and known_not_found
+    )
+
+
+def _default_writer_inventory(
+    *, runner: Callable[..., subprocess.CompletedProcess] = subprocess.run
+) -> tuple[set[str], set[int]]:
+    """Read the launchd namespace and process table without returning command text."""
+    launchd = runner(
+        ["/bin/launchctl", "list"],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    lines = launchd.stdout.splitlines() if isinstance(launchd.stdout, str) else []
+    if launchd.returncode != 0 or not lines or lines[0].split() != ["PID", "Status", "Label"]:
+        raise ValueError("launchd_writer_inventory_unavailable")
+    labels: set[str] = set()
+    for line in lines[1:]:
+        fields = line.split()
+        if len(fields) != 3 or not fields[2]:
+            raise ValueError("launchd_writer_inventory_malformed")
+        if fields[2].startswith(SENSES_LABEL_PREFIX):
+            labels.add(fields[2])
+
+    processes = runner(
+        ["/bin/ps", "-axo", "pid=,command="],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    if processes.returncode != 0 or not isinstance(processes.stdout, str):
+        raise ValueError("senses_process_inventory_unavailable")
+    pids: set[int] = set()
+    for line in processes.stdout.splitlines():
+        fields = line.strip().split(None, 1)
+        if not line.strip():
+            continue
+        if len(fields) != 2:
+            raise ValueError("senses_process_inventory_malformed")
+        try:
+            pid = int(fields[0])
+        except ValueError as exc:
+            raise ValueError("senses_process_inventory_malformed") from exc
+        try:
+            argv = shlex.split(fields[1])
+        except ValueError as exc:
+            raise ValueError("senses_process_inventory_malformed") from exc
+        is_senses_writer = any(
+            (
+                ("/tools/brain_senses_" in token or token.startswith("tools/brain_senses_"))
+                and token.endswith(".py")
+            )
+            or token.startswith("tools.brain_senses_")
+            for token in argv
+        )
+        if pid != os.getpid() and is_senses_writer:
+            pids.add(pid)
+    return labels, pids
+
+
+def _writers_clear(
+    unloaded_probe: Callable[[str], bool],
+    writer_inventory: Callable[[], tuple[set[str], set[int]]],
+) -> tuple[bool, str]:
+    try:
+        if not unloaded_probe(PREDECESSOR_LABEL):
+            return False, "predecessor_launchagent_not_proven_unloaded"
+        loaded_labels, writer_pids = writer_inventory()
+        competing_labels = sorted(label for label in loaded_labels if label != SERVICE_LABEL)
+        if competing_labels or writer_pids:
+            return False, "other_senses_writer_present_or_ambiguous"
+    except Exception:
+        return False, "senses_writer_inventory_unavailable"
+    return True, "writer_inventory_clear"
+
+
+@contextlib.contextmanager
+def _exclusive_lock(path: Path, busy_reason: str):
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags, 0o600)
+    handle = os.fdopen(fd, "a")
+    try:
+        metadata = os.fstat(fd)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != os.getuid()
+            or stat.S_IMODE(metadata.st_mode) != 0o600
+        ):
+            raise ValueError("writer_lock_file_not_private_regular_file")
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise ValueError(busy_reason) from exc
+        yield handle
+    finally:
+        handle.close()
+
+
+@contextlib.contextmanager
+def _writer_ownership(root: Path):
+    """Hold host and service-root locks across the complete scheduled tick."""
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(_exclusive_lock(HOST_WRITER_LOCK, "service_host_writer_already_active"))
+        stack.enter_context(
+            _exclusive_lock(root / ".runner-v1.lock", "service_runner_already_active")
+        )
+        yield
 
 
 def _load_private_endpoint(env_file: Path | None = None) -> str | None:
@@ -280,22 +419,19 @@ def run_tick(
     gate_path: Path,
     predecessor_stop_path: Path,
     terminal_receipt_path: Path,
+    predecessor_root: Path | None = None,
     now: datetime | None = None,
     client_loader: Callable[[], dict[str, Any] | None] = _default_client_loader,
     unloaded_probe: Callable[[str], bool] = _default_unloaded_probe,
+    writer_inventory: Callable[[], tuple[set[str], set[int]]] | None = None,
     bootout: Callable[[], bool] = _bootout_exact_label,
     service_api: Any = service,
     scheduler: Callable[..., dict[str, Any]] = schedule_v3.run_bucket,
 ) -> dict[str, Any]:
     """Run one reserved current bucket; never replay an old identity or catch up."""
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    lock_path = root / ".runner-v1.lock"
-    with lock_path.open("a") as lock:
-        try:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as exc:
-            raise ValueError("service_runner_already_active") from exc
-
+    writer_probe = writer_inventory or _default_writer_inventory
+    with _writer_ownership(root):
         current = now or datetime.now(UTC)
         at_ns = int(current.timestamp() * 1_000_000_000)
         if (root / "STOP").is_file():
@@ -359,7 +495,9 @@ def run_tick(
             gate_path,
             predecessor_stop_path,
             terminal_receipt_path,
+            predecessor_root=predecessor_root,
             unloaded_probe=unloaded_probe,
+            writer_inventory=writer_probe,
         )
         if not gate_ok:
             return {"status": "no_rpc", "reason": gate_reason}
@@ -382,6 +520,9 @@ def run_tick(
         try:
             if status.get("status") == "awaiting_bootstrap":
                 reservation = service_api.reserve_bootstrap(root, at_ns=at_ns)
+                writer_ok, writer_reason = _writers_clear(unloaded_probe, writer_probe)
+                if not writer_ok:
+                    return {"status": "no_rpc", "reason": writer_reason}
                 seal = service_api.run_reserved_bootstrap(
                     root,
                     reservation_id=reservation["reservation_id"],
@@ -403,6 +544,9 @@ def run_tick(
             )
             reservation_id = reservation["reservation_id"]
             if reservation["action"] != "frame":
+                writer_ok, writer_reason = _writers_clear(unloaded_probe, writer_probe)
+                if not writer_ok:
+                    return {"status": "no_rpc", "reason": writer_reason}
                 seal = service_api.run_reserved_bootstrap(
                     root,
                     reservation_id=reservation_id,
@@ -419,6 +563,17 @@ def run_tick(
                     "bootout_succeeded": bootout() if stopped else None,
                 }
 
+            writer_ok, writer_reason = _writers_clear(unloaded_probe, writer_probe)
+            if not writer_ok:
+                seal = service_api.seal_unstarted_frame_reservation(
+                    root, reservation_id=reservation_id, at_ns=time.time_ns()
+                )
+                return {
+                    "status": "no_rpc",
+                    "reason": writer_reason,
+                    "reservation_id": reservation_id,
+                    "outcome": seal.get("outcome"),
+                }
             service_api.mark_epoch_started(root, reservation_id=reservation_id, at_ns=at_ns)
             campaign_root = root / "campaigns" / reservation["campaign_id"]
             result = scheduler(

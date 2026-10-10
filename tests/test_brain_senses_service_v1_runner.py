@@ -13,6 +13,8 @@ from memecoin_ai.domain import canonical
 from tools import brain_senses_service_v1 as service
 from tools import brain_senses_service_v1_runner as runner
 
+_DEFAULT_WRITER_INVENTORY = runner._default_writer_inventory
+
 
 def _ns(value: str) -> int:
     return int(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp() * 1_000_000_000)
@@ -62,6 +64,9 @@ def _gate(path: Path, stop: Path, receipt: Path, **changes: object) -> None:
         "account_limit_verified": True,
         "independent_review_complete": True,
         "reviewer_authorized_activation": True,
+        "predecessor_campaign_id": runner.PREDECESSOR_CAMPAIGN_ID,
+        "predecessor_launchagent_label": runner.PREDECESSOR_LABEL,
+        "predecessor_root": str(runner.PREDECESSOR_ROOT),
         **changes,
     }
     path.write_text(canonical(value) + "\n")
@@ -106,6 +111,12 @@ class FakeService:
         self.sealed.append(reservation_id)
         return {"reservation_id": reservation_id, "outcome": "bootstrap_complete"}
 
+    def seal_unstarted_frame_reservation(
+        self, _root: Path, *, reservation_id: str, at_ns: int
+    ) -> dict:
+        self.sealed.append(reservation_id)
+        return {"reservation_id": reservation_id, "outcome": "unstarted"}
+
     def _load_ledger(self, _root: Path) -> list[dict]:
         return [{"kind": "reservation", "bucket_ns": bucket} for bucket in self.reservations]
 
@@ -115,6 +126,13 @@ class FakeService:
     def seal_from_epoch(self, _root: Path, *, reservation_id: str, at_ns: int) -> dict:
         self.sealed.append(reservation_id)
         return {"reservation_id": reservation_id, "outcome": "complete"}
+
+
+@pytest.fixture(autouse=True)
+def isolate_activation_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(runner, "PREDECESSOR_ROOT", tmp_path / "predecessor")
+    monkeypatch.setattr(runner, "HOST_WRITER_LOCK", tmp_path / "host-writer.lock")
+    monkeypatch.setattr(runner, "_default_writer_inventory", lambda: (set(), set()))
 
 
 def _ready_inputs(tmp_path: Path) -> tuple[Path, Path, Path, Path, Path]:
@@ -338,10 +356,222 @@ def test_gate_and_reconciliation_precede_credential_loader(tmp_path: Path) -> No
         ),
     )
     assert result["status"] == "bucket_sealed"
-    assert sequence[0] == "unloaded:ai.memecoin.brain.senses.helius-inventory-v3"
+    assert sequence[0] == f"unloaded:{runner.PREDECESSOR_LABEL}"
     assert sequence.index("credential") < sequence.index("scheduler")
     assert fake.reservations == [_ns("2026-10-10T10:00:00Z")]
     assert fake.marked == ["r1"] and fake.sealed == ["r1"]
+
+
+def test_actual_versioned_c4_label_blocks_gate_when_generic_label_is_absent(
+    tmp_path: Path,
+) -> None:
+    root, plist, stop, receipt, gate = _ready_inputs(tmp_path)
+    fake = FakeService()
+    probed = []
+    result = runner.run_tick(
+        root,
+        plist_path=plist,
+        gate_path=gate,
+        predecessor_stop_path=stop,
+        terminal_receipt_path=receipt,
+        now=datetime(2026, 10, 10, 10, 10, tzinfo=UTC),
+        service_api=fake,
+        client_loader=lambda: pytest.fail("loaded c4 must block credential loading"),
+        unloaded_probe=lambda label: probed.append(label) or False,
+        writer_inventory=lambda: (set(), set()),
+    )
+    assert result == {
+        "status": "no_rpc",
+        "reason": "predecessor_launchagent_not_proven_unloaded",
+    }
+    assert probed == [runner.PREDECESSOR_LABEL]
+    assert runner.PREDECESSOR_LABEL != "ai.memecoin.brain.senses.helius-inventory-v3"
+    assert not fake.reservations
+
+
+def test_loaded_senses_namespace_writer_blocks_activation(tmp_path: Path) -> None:
+    root, plist, stop, receipt, gate = _ready_inputs(tmp_path)
+    fake = FakeService()
+    result = runner.run_tick(
+        root,
+        plist_path=plist,
+        gate_path=gate,
+        predecessor_stop_path=stop,
+        terminal_receipt_path=receipt,
+        now=datetime(2026, 10, 10, 10, 10, tzinfo=UTC),
+        service_api=fake,
+        client_loader=lambda: pytest.fail("competing writer must block credential loading"),
+        unloaded_probe=lambda label: label == runner.PREDECESSOR_LABEL,
+        writer_inventory=lambda: ({"ai.memecoin.brain.senses.unknown-writer"}, set()),
+    )
+    assert result == {
+        "status": "no_rpc",
+        "reason": "other_senses_writer_present_or_ambiguous",
+    }
+    assert not fake.reservations
+
+
+def test_competing_senses_process_blocks_activation(tmp_path: Path) -> None:
+    root, plist, stop, receipt, gate = _ready_inputs(tmp_path)
+    fake = FakeService()
+    result = runner.run_tick(
+        root,
+        plist_path=plist,
+        gate_path=gate,
+        predecessor_stop_path=stop,
+        terminal_receipt_path=receipt,
+        now=datetime(2026, 10, 10, 10, 10, tzinfo=UTC),
+        service_api=fake,
+        client_loader=lambda: pytest.fail("competing process must block credentials"),
+        unloaded_probe=lambda label: label == runner.PREDECESSOR_LABEL,
+        writer_inventory=lambda: (set(), {123}),
+    )
+    assert result == {
+        "status": "no_rpc",
+        "reason": "other_senses_writer_present_or_ambiguous",
+    }
+    assert not fake.reservations
+
+
+def test_unknown_writer_inventory_blocks_activation(tmp_path: Path) -> None:
+    root, plist, stop, receipt, gate = _ready_inputs(tmp_path)
+    fake = FakeService()
+
+    def unavailable():
+        raise ValueError("inventory command failed")
+
+    result = runner.run_tick(
+        root,
+        plist_path=plist,
+        gate_path=gate,
+        predecessor_stop_path=stop,
+        terminal_receipt_path=receipt,
+        now=datetime(2026, 10, 10, 10, 10, tzinfo=UTC),
+        service_api=fake,
+        client_loader=lambda: pytest.fail("unknown inventory must block credentials"),
+        unloaded_probe=lambda label: label == runner.PREDECESSOR_LABEL,
+        writer_inventory=unavailable,
+    )
+    assert result == {"status": "no_rpc", "reason": "senses_writer_inventory_unavailable"}
+    assert not fake.reservations
+
+
+def test_mismatched_predecessor_label_binding_fails_closed(tmp_path: Path) -> None:
+    root, plist, stop, receipt, gate = _ready_inputs(tmp_path)
+    _gate(
+        gate,
+        stop,
+        receipt,
+        predecessor_launchagent_label="ai.memecoin.brain.senses.helius-inventory-v3",
+    )
+    fake = FakeService()
+    result = runner.run_tick(
+        root,
+        plist_path=plist,
+        gate_path=gate,
+        predecessor_stop_path=stop,
+        terminal_receipt_path=receipt,
+        now=datetime(2026, 10, 10, 10, 10, tzinfo=UTC),
+        service_api=fake,
+        client_loader=lambda: pytest.fail("mismatched label must block credentials"),
+        unloaded_probe=lambda _label: True,
+        writer_inventory=lambda: (set(), set()),
+    )
+    assert result == {"status": "no_rpc", "reason": "activation_gate_incomplete"}
+    assert not fake.reservations
+
+
+def test_launchd_probe_error_is_not_treated_as_unloaded() -> None:
+    def runner_fn(_args, **_kwargs):
+        return SimpleNamespace(returncode=1, stdout="", stderr="launchd unavailable")
+
+    assert not runner._default_unloaded_probe(runner.PREDECESSOR_LABEL, runner=runner_fn)
+
+
+def test_launchd_exact_not_found_response_proves_unloaded() -> None:
+    label = runner.PREDECESSOR_LABEL
+
+    def runner_fn(_args, **_kwargs):
+        return SimpleNamespace(
+            returncode=113,
+            stdout="",
+            stderr=(
+                "Bad request.\n"
+                f'Could not find service "{label}" in domain for user gui: {os.getuid()}\n'
+            ),
+        )
+
+    assert runner._default_unloaded_probe(label, runner=runner_fn)
+
+
+def test_writer_inventory_censuses_senses_labels_and_processes_without_echoing_args() -> None:
+    outputs = [
+        SimpleNamespace(
+            returncode=0,
+            stdout=(
+                "PID\tStatus\tLabel\n"
+                f"-\t0\t{runner.SERVICE_LABEL}\n"
+                f"-\t0\t{runner.PREDECESSOR_LABEL}\n"
+                "-\t0\tcom.apple.example\n"
+            ),
+        ),
+        SimpleNamespace(
+            returncode=0,
+            stdout=(
+                f"{os.getpid()} /python/tools/brain_senses_service_v1_runner.py\n"
+                "123 /python/tools/brain_senses_old_writer.py --credential=never-echo\n"
+                "124 python3 tools/brain_senses_legacy_worker.py --credential=never-echo\n"
+            ),
+        ),
+    ]
+
+    def runner_fn(_args, **_kwargs):
+        return outputs.pop(0)
+
+    labels, pids = _DEFAULT_WRITER_INVENTORY(runner=runner_fn)
+    assert labels == {runner.SERVICE_LABEL, runner.PREDECESSOR_LABEL}
+    assert pids == {123, 124}
+
+
+def test_host_lock_excludes_a_second_service_root(tmp_path: Path) -> None:
+    first = tmp_path / "service-one"
+    second = tmp_path / "service-two"
+    with runner._writer_ownership(first):
+        with pytest.raises(ValueError, match="service_host_writer_already_active"):
+            with runner._writer_ownership(second):
+                pytest.fail("second service root acquired the shared host lock")
+
+
+def test_writer_guard_repeats_immediately_before_frame_io(tmp_path: Path) -> None:
+    root, plist, stop, receipt, gate = _ready_inputs(tmp_path)
+    fake = FakeService()
+    probe_calls = []
+
+    def probe(label: str) -> bool:
+        probe_calls.append(label)
+        return len(probe_calls) == 1
+
+    result = runner.run_tick(
+        root,
+        plist_path=plist,
+        gate_path=gate,
+        predecessor_stop_path=stop,
+        terminal_receipt_path=receipt,
+        now=datetime(2026, 10, 10, 10, 10, tzinfo=UTC),
+        service_api=fake,
+        client_loader=lambda: {"helius-free": object()},
+        unloaded_probe=probe,
+        writer_inventory=lambda: (set(), set()),
+    )
+    assert result == {
+        "status": "no_rpc",
+        "reason": "predecessor_launchagent_not_proven_unloaded",
+        "reservation_id": "r1",
+        "outcome": "unstarted",
+    }
+    assert probe_calls == [runner.PREDECESSOR_LABEL, runner.PREDECESSOR_LABEL]
+    assert fake.reservations == [_ns("2026-10-10T10:00:00Z")]
+    assert fake.sealed == ["r1"]
 
 
 def test_unverified_gate_never_loads_credential_or_reserves(tmp_path: Path) -> None:

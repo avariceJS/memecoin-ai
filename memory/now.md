@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 21:17 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-10 21:37 UTC. Verify live runtime before any campaign or service decision.
 
 ## Boundaries and runtime
 
@@ -9,10 +9,10 @@
   holdout access, push, retry or backfill.
 - c3 is terminal after its ambiguous 11:00Z anchor failure; preserve its uncovered interval.
   c4 remains the unchanged finite calendar lease (one bootstrap plus at most 24 hourly frames).
-  Read-only status at 21:17Z after the natural 21:05Z tick: 9/24 frames complete, 306 frame
+  Read-only status at 21:36Z: 9/24 frames complete, 306 frame
   requests plus one bootstrap (307 all-in), 649,607,110 raw / 146,677,436 stored bytes, zero failed
   or gapped epochs, zero open reservations, 15 attempts remaining, frontier 455397121, and
-  63,392,165,888 free bytes. LaunchAgent remains loaded and idle between calendar ticks, with fixed
+  61,972,348,928 free bytes. Exact c4 LaunchAgent remains loaded and idle between calendar ticks, with fixed
   path-only arguments; next scheduled trigger 22:05Z. No manual tick. Credit units remain unknown.
   A relative-path status invocation failed the root binding; the absolute-path read-only status
   succeeded without changing campaign state. Preserve all gaps.
@@ -66,6 +66,11 @@
   before any fresh initialization. Its credential loading now shares the fd-based reader and uses
   stricter RPC URL checks, with that helper source-bound into its runner pin. No manual bootstrap or
   catch-up.
+  A scoped offline gate patch binds exact c4 campaign/label/root, inventories competing Senses
+  launchd labels and processes, and holds host/root writer locks. A failed second frame check seals
+  only a provably unstarted frame and retains the sleep-gap anchor across tested crash points. Sol
+  review found no remaining blocker. Focused service/runner suite: 79 passed. Initialization can
+  create local metadata without the tick gate but performs no RPC. Service v1 remains uninitialized.
 
 ## Next horizon
 
