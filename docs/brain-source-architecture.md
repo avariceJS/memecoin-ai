@@ -1238,6 +1238,16 @@ macOS `sysctl` check and is superseded by the credential process-list remediatio
 initial process-list tool output is visible in this session transcript. A successful local activation
 does not qualify real provider throughput, completeness or economic coverage.
 
+Campaign 4 was prepared and its calendar LaunchAgent loaded idle at 11:28Z, with the first permitted
+bootstrap at 12:05Z. The activation-time disk check found 73,256,988,672 free bytes against
+54,361,091,200 required for the floor and full-frame peak margin. It had zero runs, reservations,
+attempt directories or captured bytes at the receipt boundary. The c3/controller predecessors were
+persistently disabled; by 11:33Z the failed scheduler, decode watchers, capped address-watch streams
+and completed fixed-sample LaunchAgents were also persistently disabled, with their files and
+STOP/raw evidence retained. c4 is not an address-index replacement. No exact Helius-key match was
+found in process arguments. Receipt:
+[`c4 activation`](evidence/helius-inventory-v3-c4-activation-2026-10-10.json).
+
 The paired finalized-block sensor runs a seeded 64-slot epoch each UTC hour through
 `ai.memecoin.brain.senses.block-epochs`, with raw reservations and receipts under
 `work/brain-senses-live-helius-hourly-20261009/`. Every selected Helius block is checked against its
