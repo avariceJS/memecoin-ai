@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 14:23 UTC. Recheck live runtime and disk before any campaign decision.
+**As of:** 2026-10-10 14:25 UTC. Recheck live runtime and disk before any campaign decision.
 
 ## Boundaries and runtime
 
@@ -85,6 +85,9 @@
   cases remain unopened. The offline preflight returns inconclusive without reading cases. Focused
   tests: 13 passed; Ruff clean. Audit tool:
   `tools/brain_senses_sell23_c4_native_flow_audit.py`.
+- Offline service checks also pass: c4 recovery fixtures `7 passed`, scheduler/epoch suites `35
+  passed`, finite controller fixtures `11 passed`. These were local synthetic tests; no RPC or live
+  LaunchAgent invocation occurred.
 
 ## Next decision horizon
 
