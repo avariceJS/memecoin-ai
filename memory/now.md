@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 14:09 UTC. Recheck live runtime and disk before any campaign decision.
+**As of:** 2026-10-10 14:23 UTC. Recheck live runtime and disk before any campaign decision.
 
 ## Boundaries and runtime
 
@@ -17,12 +17,12 @@
   34/34 requests and 16/16 selected block/signature checks over `[455249113,455265709)`, returning
   all 16,596 provider-reported produced slots. The 13:00Z and 14:00Z frames are complete (34/34
   requests and 16/16 structural checks each); the latter used 65,501,052 raw/14,230,705 stored
-  bytes. Two of 24 attempts are complete, STOP is absent, and c4 is still loaded on its hourly
-  schedule. Do not manually invoke. Receipts:
+  bytes. Two of 24 attempts are complete, STOP is absent, and c4 remains loaded; the next UTC
+  trigger is 15:05Z. Do not manually invoke. Receipts:
   `docs/evidence/helius-inventory-v3-c4-bootstrap-2026-10-10.json`,
   `docs/evidence/helius-inventory-v3-c4-first-frame-2026-10-10.json`.
 - c4 root: `work/brain-senses-live-helius-inventory-v3-20261010-4/`. Latest observed free space:
-  about 72 GiB. Preserve gaps; reconcile each scheduled epoch and stop on lease failure. The
+  72 GiB at 14:23Z. Preserve gaps; reconcile each scheduled epoch and stop on lease failure. The
   first-frame one-hour projection is 816 reservations, 1.40 GB raw and 0.316 GB stored per day;
   credit billing units remain unverified.
 - Helius key remains in ignored mode-0600 `.env.local` and two mode-0600 MCP configs; user
@@ -78,14 +78,22 @@
   Token-2022 effects, other layouts,
   fills, fee movement and native settlement remain quarantined. Pair64 is sampled same-slot evidence,
   not global completeness. Alchemy PAYG endpoint is absent from research `.env.local`.
+- The sell23 c4 audit selector and offline auditor are frozen in `537c929`. It selects the first four
+  completed frames whose scheduled trigger, plan creation, first durable reservation, request start,
+  and seal are all strictly after `5c5eed3`'s freeze time. Thus `13:00Z` is excluded; `14:00Z` is
+  the first eligible completed frame. At 14:23Z only that one eligible frame exists; transaction
+  cases remain unopened. The offline preflight returns inconclusive without reading cases. Focused
+  tests: 13 passed; Ruff clean. Audit tool:
+  `tools/brain_senses_sell23_c4_native_flow_audit.py`.
 
 ## Next decision horizon
 
 1. Keep c4 on its unchanged loaded schedule; inspect each scheduled frame read-only and never
    manually invoke, retry, or backfill. First four completed scheduled frames after the frozen sell23
-   gate define its audit. At 14:09Z, two frames (13:00Z, 14:00Z) are complete; audit cases remain
-   unopened. Preserve intervening failed buckets as gaps and use later frames only under the frozen
-   first-four-completed rule. Audit selector/examples are committed before case inspection.
+   gate define its audit. At 14:23Z, `13:00Z` is pre-freeze and excluded; only `14:00Z` is eligible
+   and complete. Audit cases remain unopened. Preserve intervening failed buckets as gaps and use
+   later frames only under the frozen first-four-eligible-completed rule. Audit selector/examples
+   were committed before case inspection.
 2. Once four frames are sealed, independently enumerate raw eligible sell23 native-close rows,
    reconcile all denominators and request/frame hashes, and apply the frozen gate once. No tuning.
 3. c4's finite terminal and the audit are separate evidence boundaries. Only then revisit the
