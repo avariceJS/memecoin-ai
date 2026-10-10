@@ -306,6 +306,17 @@ census. This qualifies only the exact two-account suffix roles. It does not show
 that a transaction settled an economic fill. No economics or pool-state query was added. Receipt:
 [`buyExact c3 role tuple qualification`](evidence/pumpswap-buy-exact-v1-c3-role-tuple-qualification-2026-10-10.json).
 
+The remaining 306 references in the same first frame were replayed once from the same raw blocks.
+All 306 ordered trailing wallet/ATA pairs matched the pinned recipient set, quote-mint/program ATA
+derivation, and prior census, with 164 successful-transaction references and 142 failed attempts.
+There were no discordant pairs; 301 references retain an unresolved leading account, and five have
+no such prefix. Three rows preserve the census state `fee_pair_unqualified` because the recipient
+was transaction-writable, despite the wallet/ATA identity pair matching. This verifies that pair's
+structural identity only; it does not promote those rows to the 59-reference candidate subgroup.
+The 24/26-byte argument layouts, all leading accounts, pool_v2/cashback/hook claims, fills, fee
+movement, and Token-2022 effects remain unresolved or quarantined. Receipt:
+[`buyExact c3 remaining suffix census`](evidence/pumpswap-buy-exact-v1-c3-extra-role-census-2026-10-10.json).
+
 The frozen development predicate selected all 62 successful refs in that captured census whose
 payload is the pinned 25-byte shape, two-account suffix passes the source-bound checks, and both
 base and quote use legacy SPL Token. The other 1,237 successful structural candidates include

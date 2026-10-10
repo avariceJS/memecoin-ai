@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 05:27 UTC. Recheck Git, LaunchAgents, collector state and disk before acting.
+**As of:** 2026-10-10 05:35 UTC. Recheck Git, LaunchAgents, collector state and disk before acting.
 
 ## Boundaries
 
@@ -15,7 +15,7 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
   latest functional change is `Add receipt-bound Helius campaign 3 handoff`, followed by state-only
   memory commits. Verify actual HEAD and clean status. Production remains untouched. About 68.5 GiB
   free; raw captures stay under ignored `work/`.
-- Campaign 3 is a one-use, receipt-bound continuation. Its first scheduled frame at 05:05Z completed:
+- Campaign 3 is a one-use, receipt-bound continuation. One of its 24 frame attempts completed at 05:05Z:
   34/34 captured requests, 61,403,814 raw / 13,580,271 stored bytes, interval
   `[455116881,455133322)`, and 16/16 selected-block structural checks. The new finalized anchor is
   455133321. Both inherited gaps remain explicit; no backfill. The LaunchAgent remains loaded for
@@ -72,6 +72,12 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
   `pumpswap-buy-exact-v1-c3-role-tuple-qualification-2026-10-10.json`. Qualifier commits:
   `09bfe6f5cd606293ac11de53caf18d83ee199e1a`, `02d7feb17f0b4810957b85c2e6f4919f06e0c070`,
   `2045af272134dbe44582435e4eb7f8891d3635b2`, `f89b3df5a02bc1e456ca6e527d55a34dd922a671`.
+- Sol-directed offline replay of the other 306 first-frame buyExact refs found all 306 raw trailing
+  wallet/ATA pairs match the pinned set and derivation rule (164 success, 142 failed). There are no
+  pair mismatches; 301 refs retain an unresolved prefix account. Three rows remain
+  `fee_pair_unqualified` because the recipient was transaction-writable. No prefix role, fee
+  movement, or economic fill is inferred. Receipt: `pumpswap-buy-exact-v1-c3-extra-role-census-2026-10-10.json`;
+  code commit: `8a4c197cc29d35aeda1e6800777dbd38741799d3`.
 
 ## Next horizon
 
