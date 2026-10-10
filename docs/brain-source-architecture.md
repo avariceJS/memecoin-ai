@@ -1592,3 +1592,69 @@ these captured responses, not that either provider returned every transaction in
 No current real source qualifies complete market trades, market inactivity, lifecycle death, or
 historical availability. Expanding to another provider or modality requires its own semantic and
 coverage evidence; the architecture does not infer cross-domain joins.
+
+## Seven-day prospective Helius service policy (offline implementation, 2026-10-10)
+
+The next service is separately versioned from the old three-campaign/72-hour controller. Its
+offline policy ledger lives in `tools/brain_senses_service_v1.py`; it does not create a LaunchAgent,
+load credentials, invoke an RPC client, or modify campaign 4. It requires a terminal c4 proof bound
+to both the STOP hash and terminal receipt hash, with zero post-STOP requests, before initialization.
+The offline controller now has `seal_from_epoch`, which derives a service seal from the unique
+reservation's daily v3 epoch path. It verifies pinned schedule/source and epoch-plan hashes, request
+journal identities, capture receipts and response hashes, produced-slot selection, anchor and
+frontier values, request/raw/stored accounting, and physical campaign bytes before releasing the
+single-writer marker. Missing or inconsistent evidence leaves that marker in place and writes a
+service STOP. Synthetic tests use a fake client and make no RPC.
+
+One exclusive controller owns one outstanding reservation at a time and an append-only,
+hash-chained ledger across daily campaign roots. Campaign IDs are unique per UTC date and their
+manifests are create-only. Each bucket reservation pins its campaign ID, UTC bucket, deterministic
+seed, uniform-without-replacement selection from finalized `getBlocks` members, width cap, codec,
+and request/byte/disk budgets before anchor I/O. Authorization expires within seven days, and
+allows at most seven daily campaigns, 24 hourly buckets per day, and 5,719 requests all-in. A
+regular frame reserves 34 requests; an external bootstrap reserves one finalized `getSlot` request.
+Bootstrap, recovery, and sleep-gap anchors run in a separate v2 epoch tree; only a validated, sealed
+anchor lineage may initialize a fresh v3 campaign. Its first frame must be at a strictly later hourly
+bucket. The v3 scheduler and v2 epoch source remain unchanged. A missed bucket is retained as a gap;
+the next future tick gets an anchor-only epoch, and repeated sleep gaps may each use a distinct future
+anchor. A first started ambiguous frame attempt is charged as spent, its unstarted request capacity
+is released, and one fresh campaign generation may recover at a later future bucket with a new
+external anchor. That recovery does not advance the prior committed frontier; the uncovered interval
+is explicit. A second ambiguity, an ambiguous bootstrap, or inconsistent evidence writes STOP.
+Reservations survive restart and cannot be sent again.
+
+Per-frame ceilings remain 256 MB raw / 128 MB stored, frame width at most 20,000 slots, and daily
+ceilings 4 GB raw / 1 GB stored. The service's provisional aggregate ceilings are 12 GB logical raw
+and 3 GB stored, based on the observed two-frame c4 total of 123,935,342 raw and 27,413,524 stored
+bytes at 14:31Z; these are provisional and subject to a 24-frame tail review and preflight. At that
+check, `du` reported 31,292 KiB allocated and `df` reported 75,550,884 KiB free. Before each new
+reservation, the controller requires at least 50 GiB free plus the full-frame peak margin and checks
+physical allocated bytes under its campaign root against the stored cap. It never deletes captures
+to make room. Request counts are not charge units; provider credit usage remains unverified, and no
+Alchemy pairing or paid archive path is included. The read-only `--status-only` command performs no
+provider call and reports ledger totals, pending reservations, physical bytes, free disk, reset
+count, and STOP.
+
+The service currently provides offline reconciliation and an injected-client bootstrap seam, not a
+deployed scheduler or provider runner. The exclusive writer marker spans v2 reservation, epoch
+execution/reconciliation, immutable capture/result/summary lineage, and v3 campaign initialization.
+Restart reconciles both roots, validates their hashes and accounting, and does not replay a started
+request. A successful external bootstrap binds the prior c4 committed frontier, anchor slot,
+receipt/availability times, explicit uncovered interval, and bootstrap bucket before initializing
+the new campaign. At an exactly adjacent UTC day boundary, it reconciles the previous campaign's
+last sealed bootstrap/frame, acquires the old v3 schedule lock, and records the canonical v3
+administrative no-RPC STOP. A closure receipt hashes that STOP and prior root evidence; new-generation
+lineage carries forward the last anchor, receipt time, frontier, inventory interval, and gaps before
+initializing the next g01 root and reserving its first frame. The old root remains non-writable
+through the canonical scheduler. A missed midnight uses the future anchor-only path and records no
+invented frame or gap. Initialization repairs only its proven unreserved manifest/controller/ledger
+prefix; an append-before-writer crash is sealed as provably unstarted. The offline suite uses
+synthetic clients only; no provider RPC or service activation is claimed.
+
+Activation remains gated on c4's actual STOP and terminal/no-post-STOP receipt, measured tails for
+24 frames or an abnormal-stop dossier, account read-only credit/overage status or a conservative
+account cap, and operational review of the separate service runner. Synthetic evidence covers
+restart, bootstrap, sleep gaps, ambiguity, generation handoff, lease/campaign/day/request limits,
+and writer exclusion. After any future activation, the first qualification is one observed seven-day
+run before considering a longer policy. This policy proves no provider or chain completeness and
+authorizes no economics or decoder changes.

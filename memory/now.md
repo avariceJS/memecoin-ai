@@ -1,12 +1,11 @@
 # Current Project State
 
-**As of:** 2026-10-10 14:31 UTC. Recheck live runtime and disk before any campaign decision.
+**As of:** 2026-10-10 15:38 UTC. Recheck live runtime and disk before any campaign decision.
 
 ## Boundaries and runtime
 
 - Continue Senses only. Research checkout `/Users/root1/Developer/memecoin-research`, branch
-  `research/active`; HEAD before this handoff update was `3bff70d` (see latest commit for this
-  update). Production `/Users/root1/Desktop/memecoin-ai`
+  `research/active`; HEAD at 15:38Z was `120ff7f`. Production `/Users/root1/Desktop/memecoin-ai`
   remains untouched. No trading, signing, paid upgrade, protected holdout access, push, backfill,
   or ambiguous-request retry.
 - c3 is permanently terminal after its reserved 11:00Z `getSlot` transport failure (205 attempts,
@@ -14,19 +13,29 @@
 - c4 remains a frozen finite lease: one finalized `getSlot` anchor, then at most 24 future hourly
   attempts, no successor/auto-renewal. Its 12:05Z bootstrap recorded anchor 455249112, frontier
   455249113, gap `[455216025,455249113)`, one request (43 raw/56 stored bytes), no `getBlocks` or
-  `getBlock`, zero open reservations; c3 STOP unchanged. Its scheduled 13:05Z frame then completed
-  34/34 requests and 16/16 selected block/signature checks over `[455249113,455265709)`, returning
-  all 16,596 provider-reported produced slots. The 13:00Z and 14:00Z frames are complete (34/34
-  requests and 16/16 structural checks each); the latter used 65,501,052 raw/14,230,705 stored
-  bytes. Two of 24 attempts are complete, root STOP is absent, and c4 remains loaded idle between
-  calendar triggers (LaunchAgent last exit code 0); the next UTC trigger is 15:05Z. Do not manually
-  invoke. Receipts:
+  `getBlock`, zero open reservations; c3 STOP unchanged. The 13:00Z, 14:00Z, and 15:00Z frames
+  completed 34/34 requests and 16/16 selected block/signature checks each. Across those frames,
+  responses total 216,017,528 raw / 45,211,652 stored bytes; the 15:00Z inventory interval was
+  `[455282201,455298550)` with 16,345 provider-reported produced slots. Three of 24 future attempts
+  are complete, root STOP is absent, and c4 remains loaded idle between calendar triggers (last
+  exit 0); next UTC trigger is 16:05Z. Do not manually invoke. Receipts:
   `docs/evidence/helius-inventory-v3-c4-bootstrap-2026-10-10.json`,
   `docs/evidence/helius-inventory-v3-c4-first-frame-2026-10-10.json`.
-- c4 root: `work/brain-senses-live-helius-inventory-v3-20261010-4/`. Latest observed free space:
-  72 GiB at 14:23Z. Preserve gaps; reconcile each scheduled epoch and stop on lease failure. The
+- c4 root: `work/brain-senses-live-helius-inventory-v3-20261010-4/`. At 15:38Z, free space was
+  73.6 GiB and c4 allocated 51,192 KiB. Preserve gaps; reconcile each scheduled epoch and stop on
+  lease failure. The
   first-frame one-hour projection is 816 reservations, 1.40 GB raw and 0.316 GB stored per day;
   credit billing units remain unverified.
+- 2026-10-10 15:38Z: offline service controller v1 uses a separate v2 external anchor epoch before
+  initializing an unchanged v3 campaign. Adjacent UTC-day rollover now reconciles the last sealed
+  epoch, closes the prior campaign with canonical v3 administrative STOP under both locks, and binds
+  closure/root hashes plus anchor/frontier/gaps into new g01 lineage before frame reservation. Missed
+  midnight remains anchor-only. Initialization and reservation crash prefixes repair only when
+  provably unstarted; bootstrap source dependencies are pinned. Focused synthetic suite: 29 passed,
+  including partial/full-day rollover, recovery generation, missed midnight, crash points, duplicate
+  tick, lock contention, source drift, init/reserve recovery, campaign-hash scope and budget
+  monotonicity. v2/scheduler/c4 recovery suites: 53 passed; Ruff and diff checks pass. No RPC/c4/runtime changes. Not
+  activation-ready: no deployed scheduler/runner; c4 terminal/tail and account-credit gates remain.
 - Helius key remains in ignored mode-0600 `.env.local` and two mode-0600 MCP configs; user
   authorized no-rotation continuation. The latest exact-value scan (13:55Z) found zero in 5,253
   Git objects, 253,570 accessible saved text/runtime/evidence files, current process arguments and
