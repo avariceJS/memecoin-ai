@@ -343,6 +343,17 @@ rent/lamport settlement, PumpSwap economic effect, or admission is inferred. The
 economic states remain quarantined. Receipt:
 [`four-row Token-2022 close structural classification`](evidence/pumpswap-buy-exact-v1-token2022-close-structural-2026-10-10.json).
 
+A second offline follow-up replayed all 3,552 Token-2022 `(tag=12, length=10)` traces in the clean
+stratum against their pinned full-block captures and the official Token-2022 source. Every row
+passed the exact program, wire, path/stack, resolved-account, minimum-operand, signature, and
+successful-transaction checks. The receipt records the encoded `u64` as `declared_amount_atomic`
+and the trailing `u8` as `decimals_argument` (6 for all rows), without UI scaling or an effect claim.
+Pump IDL target-role labels are emitted only when the trace parent is the clean-row candidate and
+fixed IDL account keys match that row's role values; 114 sibling-parent traces retain unknown role
+attribution. No amount is treated as realized transfer, balance delta, fee settlement, or PumpSwap
+economics. Receipt:
+[`Token-2022 TransferChecked structural replay`](evidence/pumpswap-buy-exact-v1-token2022-transfer-checked-2026-10-10.json).
+
 Provider-capability survey update (2026-10-10): Alchemy's current [Solana Account Archive
 documentation](https://www.alchemy.com/docs/solana/account-archive) describes paid-plan historical
 `getAccountInfo` reads (`slot`, `lastUpdateBeforeSlot`, `firstUpdateAfterSlot`), with `slot: S`

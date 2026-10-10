@@ -90,6 +90,11 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   unclassified wire shape. The other 1,142 are structural traces only. All 1,146 remain
   economically unqualified with extension state unavailable. Receipt:
   `docs/evidence/pumpswap-buy-exact-v1-token2022-clean-stratum-2026-10-10.json`.
+- Offline replay decoded all 3,552 exact Token-2022 `TransferChecked` wire traces as declared
+  atomic u64 plus decimals argument; all pass structure and transaction-status gates. IDL role
+  attribution is retained only for 3,438 aligned traces; 114 sibling-parent traces remain
+  role-unknown. No realized transfer or economic effect is inferred. Receipt:
+  `docs/evidence/pumpswap-buy-exact-v1-token2022-transfer-checked-2026-10-10.json`.
 - Fresh Alchemy MCP read-only usage summary: 18,680 CU / $0.01 account-wide month-to-date through
   02:27Z; no account limit reported. The PAYG endpoint variable is absent from process env and
   `.env.local`; no archive query or paid request was made.
