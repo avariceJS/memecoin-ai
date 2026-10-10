@@ -1285,6 +1285,12 @@ scan did not inspect service-side conversation storage, backups, Time Machine or
 previous credential-bearing process-list result remains visible in the prior agent session transcript.
 Receipt: [`local Helius-key exposure scan`](evidence/helius-key-local-exposure-scan-2026-10-10.json).
 
+At 12:30Z, the authorized no-rotation rescan again found the single expected `.env.local`
+occurrence (mode 0600), with no exact match in 5,165 Git objects, 10,308 selected local saved
+text/config/log files, or current process command lines. It did not inspect provider-side systems,
+backups or remote services; the prior process-list disclosure remains in the agent-session
+transcript. Receipt: [`local Helius-key exposure rescan`](evidence/helius-key-local-exposure-rescan-2026-10-10.json).
+
 Campaign 4 was prepared and its calendar LaunchAgent loaded idle at 11:28Z, with the first permitted
 bootstrap at 12:05Z. The activation-time disk check found 73,256,988,672 free bytes against
 54,361,091,200 required for the floor and full-frame peak margin. It had zero runs, reservations,

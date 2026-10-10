@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 12:30 UTC. Recheck Git, LaunchAgents, UTC bucket and disk before acting.
+**As of:** 2026-10-10 12:38 UTC. Recheck Git, LaunchAgents, UTC bucket and disk before acting.
 
 ## Boundaries
 
@@ -13,7 +13,8 @@ unknown, censored, failed, stopped and unsupported states are not zero. See `AGE
 ## Runtime and credentials
 
 - Research checkout `/Users/root1/Developer/memecoin-research`, branch `research/active`, HEAD
-  `3290956`; c4 bootstrap docs/receipt are the only uncommitted scope. Production is untouched.
+  `007e43a`; the current key rescan receipt and its canonical pointers are the only uncommitted
+  scope. Production is untouched.
 - c3 is permanently terminal after the reserved 11:00Z `getSlot` failure; all 205 attempts count,
   including the uncertain charge. Trusted frontier is 455216025. No retry/backfill.
 - c4 lease remains frozen: one anchor plus at most 24 future hourly frames, no successor. The
@@ -26,14 +27,13 @@ unknown, censored, failed, stopped and unsupported states are not zero. See `AGE
   bootstrap. Verify scheduled frame and its explicit gap/failure outcome, then leave later forward
   buckets autonomous under the frozen lease. No backfill or successor.
 - Helius key remains in ignored mode-0600 `.env.local`, with no rotation as explicitly authorized.
-  Exact-value scan found one expected checkout occurrence, zero in 5,130 Git objects, zero in
-  8,786 selected local text/config/log files, and zero current process arguments. The earlier
-  process-list disclosure remains in a prior agent transcript and is recorded in the scan receipt.
-  c4 LaunchAgent carries paths only and has no credential environment entry; runtime loads the URL
-  in-process. Do not echo the key. Receipt:
-  `docs/evidence/helius-key-local-exposure-scan-2026-10-10.json`.
-- MCP checks: Alchemy ping and official Solana docs catalog responded; Helius MCP account transport
-  was unavailable in the prior check. No MCP check made an RPC request.
+  12:30Z exact-value rescan found one expected private-config occurrence, zero matches in 5,165 Git
+  objects, 10,308 selected saved text/config/log files, and current process command lines. The
+  earlier process-list disclosure remains in the prior agent transcript. c4 LaunchAgent passes only
+  paths and `BRAIN_ZSTD_EXECUTABLE`; RPC reads the endpoint in-process. Receipt:
+  `docs/evidence/helius-key-local-exposure-rescan-2026-10-10.json`.
+- MCP checks: Alchemy ping and Solana transaction-message docs search responded; Helius MCP
+  documentation transport closed. No MCP call made a provider RPC request.
 
 ## Senses evidence
 
@@ -42,16 +42,16 @@ unknown, censored, failed, stopped and unsupported states are not zero. See `AGE
   failed layout refs separately counted, all 3,318 equations passed; no RPC. This is not a wallet-net
   price, completeness or admission claim. Receipt:
   `docs/evidence/pumpswap-sell23-c3-six-frame-ledger-replay-2026-10-10.json`.
-- `buyExact25` latest source is official PumpSwap SDK 2.1.0. On the 192 exact 25-byte/three-tail
-  refs in c3's first frame, SDK pool-v2 derivation matched 192/192 and cashback ATA matched 0/192.
-  Combined prefix and fee-pair structure is supported for 190 refs (134 successful tx refs, 56
-  failed attempt-only); two failed refs with transaction-wide writable prefix/fee account are
-  quarantined. No settlement/economic conclusion. Receipt:
-  `docs/evidence/pumpswap-buy-exact-v1-c3-pool-v2-prefix-qualification-2026-10-10.json`.
-- Sol froze the exact role predicate and the offline classifier is frozen at HEAD `3290956`. Apply
-  once only to the first complete c4 frame whose raw bodies were not previously examined for this
-  predicate; otherwise label the result ordinary replication. It emits structural roles only and
-  does not admit economic settlement or training.
+- `buyExact25` source is official PumpSwap SDK 2.1.0. The v2 raw/report qualifier independently
+  normalized 16 c3 full blocks / 16,668 transactions, found 192 matching references and exact
+  raw/report identity and field equality (no normalization errors or set differences). The frozen
+  pool-v2 predicate passes 190 (134 success references, 56 failed attempt-only); two failed attempts
+  with transaction-wide writable accounts remain quarantined. No settlement/economic conclusion.
+  Receipt: `docs/evidence/pumpswap-buy-exact-v1-c3-pool-v2-prefix-raw-reconciled-2026-10-10.json`.
+- Sol froze the exact role predicate; the v2 population-binding classifier is frozen at HEAD
+  `007e43a`. Apply once only to the first complete c4 frame whose raw bodies were not previously
+  examined for this predicate; otherwise label as ordinary replication. It emits structural roles
+  only and does not admit economic settlement or training.
 - Token-2022, other buy layouts, fills, fee movement, native settlement and unknown roles remain
   quarantined. Pair64 remains sampled same-slot evidence, not global completeness.
 - Alchemy Free/PAYG account capabilities are not a broad archive/completeness claim; PAYG endpoint
@@ -59,11 +59,10 @@ unknown, censored, failed, stopped and unsupported states are not zero. See `AGE
 
 ## Next horizon
 
-1. Commit the reviewed c4 bootstrap receipt/docs separately from the committed c3 SDK-prefix
-   qualification; preserve all immutable raw captures under ignored `work/`.
+1. Commit the current exact-key rescan receipt/docs; preserve raw captures under ignored `work/`.
 2. At/after 13:05Z inspect actual c4 scheduled execution, journal/request identities, structural
    checks, bytes/disk, STOP and no post-STOP traffic. Do not manually invoke or retry.
-3. Apply the frozen classifier once only if the first c4 frame is complete and was not previously
+3. Apply the frozen v2 classifier once only if the first c4 frame is complete and was not previously
    inspected for this predicate. Do not use missed buckets.
 4. Keep c4 frozen through its finite run. After its terminal evidence, ask Sol for a separate
    sustainable prospective lease policy; no auto-renewal or controller change is currently

@@ -27,6 +27,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `helius-key-local-exposure-scan-2026-10-10.json` (zero matches in 5,130 Git objects, 8,786
   scanned local saved log/config files and current process arguments; expected private `.env.local`
   occurrence only; scope limitations and prior session-transcript exposure disclosed).
+- Helius local exact-key exposure rescan after authorized continuation:
+  `helius-key-local-exposure-rescan-2026-10-10.json` (zero matches in 5,165 Git objects, 10,308
+  selected saved local text/config/log files, and process command lines; `.env.local` remains the
+  sole mode-0600 occurrence; prior session transcript disclosure and remote-scope limits retained).
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:
