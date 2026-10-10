@@ -187,6 +187,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   capture times, selected-slot denominators, and explicit cross-dataset overlaps. Completeness is
   limited to the sealed selected-block inputs; program exposure is not a market, pool, birth, trade,
   or economic fact.
+- Sell23 c4 audit v2 metadata-only preflight:
+  `pumpswap-sell23-c4-audit-v2-metadata-preflight-2026-10-10.json` (confirms unchanged first four
+  frozen frames and canonical schedule binding; records the prior pre-case hash-format failure;
+  opened no transaction cases and made no provider requests).
 - First real Helius-only inventory-first v2 frame after the scheduler binding migration:
   `helius-inventory-v2-first-frame-2026-10-09.json`. It records 34 successful requests, a 9,261-slot
   provider-returned inventory denominator, 16/16 selected structural self-checks and explicit raw /

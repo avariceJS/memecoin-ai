@@ -14,6 +14,28 @@ from brain_senses_sell23_c4_native_flow_audit import (  # noqa: E402
     completed_frame_ids,
     select_pass_examples,
 )
+from brain_senses_sell23_c4_native_flow_audit_v2 import schedule_digests  # noqa: E402
+
+
+def test_v2_schedule_binding_distinguishes_raw_and_canonical_hashes(tmp_path: Path) -> None:
+    schedule = {
+        "provider": "helius-free",
+        "service_policy": {"start_calendar_interval": {"minute": 5}},
+    }
+    compact = tmp_path / "compact.json"
+    pretty = tmp_path / "pretty.json"
+    compact.write_text(json.dumps(schedule, sort_keys=True, separators=(",", ":")))
+    pretty.write_text(json.dumps(schedule, indent=2))
+
+    compact_hashes = schedule_digests(compact, schedule)
+    pretty_hashes = schedule_digests(pretty, schedule)
+
+    assert compact_hashes["canonical_schedule_sha256"] == pretty_hashes["canonical_schedule_sha256"]
+    assert compact_hashes["raw_schedule_file_sha256"] != pretty_hashes["raw_schedule_file_sha256"]
+
+    changed = {**schedule, "provider": "other-provider"}
+    changed_hashes = schedule_digests(pretty, changed)
+    assert changed_hashes["canonical_schedule_sha256"] != pretty_hashes["canonical_schedule_sha256"]
 
 
 def test_first_four_completed_scheduled_frames_skip_gaps_and_keep_order(tmp_path: Path) -> None:
@@ -108,9 +130,7 @@ def test_pass_examples_are_stable_and_limited_per_pool() -> None:
     assert len(selected) == 4
     assert all(row["flow_status"] == "source_account_flow_exact" for row in selected)
     assert {row["pool"] for row in selected} == {"pool-a", "pool-b"}
-    assert all(
-        sum(row["pool"] == pool for row in selected) == 2 for pool in {"pool-a", "pool-b"}
-    )
+    assert all(sum(row["pool"] == pool for row in selected) == 2 for pool in {"pool-a", "pool-b"})
 
 
 def test_frame_with_missing_acquisition_time_is_ineligible(tmp_path: Path) -> None:
