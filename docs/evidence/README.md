@@ -26,6 +26,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `helius-inventory-v3-campaign2-missed-gap-2026-10-10.json` (one parsed finalized `getSlot`, no
   inventory/block requests or backfill, reconciled request/byte counters, and the unchanged
   controller's expected strict rejection; no successor was created).
+- One-use campaign-3 anchor-adoption preparation and LaunchAgent activation:
+  `helius-inventory-v3-c3-handoff-activation-2026-10-10.json` (receipt-bound c2 reconciliation,
+  forward-only seed, inherited gaps, finite caps, disk/lease preflight, and scheduled-but-not-yet-run
+  state at seal time).
 - Closed frozen Helius inventory-v2 pilot:
   `helius-inventory-v2-final-2026-10-10.json` (104 requests, reconciled raw/stored bytes, final
   anchor and inventory interval, and the inherited 00:00Z oversized-frame gap).

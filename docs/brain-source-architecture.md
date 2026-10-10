@@ -1100,26 +1100,33 @@ unknown completeness, not full program history or a block-range truth source. A 
 query is a separate observation, not a retry or a bridge across the old gap.
 
 The current v3 generator is a finite qualification lease, not the sustainable long-lived collector.
-Keep its 72-hour deadline, three-campaign limit and aggregate request/byte ceilings frozen. Do not
-generalize either pre-anchor recovery. Campaign 2's first permitted event follows the missed
-`03:00Z` setup interval, so its frozen scheduler records the gap, may take one anchor-only
-observation, and then seals a terminal missed-gap STOP. This is not a normal 24-attempt STOP and
-must not pass the existing normal-successor verifier. The campaign-2 receipt now satisfies the
-recorded anchor-only gap checks. A separately versioned, single-use continuation may create campaign
-3 under the same lease and aggregate caps,
-preserving campaign 2's STOP. It may adopt campaign 2's anchor only with an explicit receipt-bound
-contract; otherwise it takes a new future anchor and records the intervening interval as uncovered.
-Any discrepancy, duplicate tick, second gap, uncertain request or repeated setup failure halts.
-The next full qualification boundary is campaign 3's first complete prospective frame and then its
-24-attempt STOP. A longer service still needs a separately versioned policy; the next candidate is a
-finite seven-day lease of up to seven daily campaigns and 5,719 all-in requests, with raw and
-stored-byte ceilings set from observed frame tails and free disk at activation while retaining the
-50 GiB floor and a full-frame write margin. Shorten the lease if measured capacity cannot support
-seven days. Do not renew automatically or reuse missed intervals. Before activation, require
-campaign-3 qualification, failure/expiry and duplicate-controller exercises, aggregate-cap
-preflight, private-credential access without argv/log exposure, and a read-only account-plan/credit
-check where available. A resumed service starts at a future boundary, reconciles local journals,
-and halts on ambiguous requests or resource/provider failures.
+Keep its 72-hour deadline, three-campaign limit and aggregate request/byte ceilings frozen. Campaign
+2's first permitted event followed the missed `03:00Z` setup interval, so its frozen scheduler
+captured one anchor-only observation and sealed a terminal missed-gap STOP; this is not a normal
+24-attempt STOP and was correctly rejected by the unchanged successor verifier. Sol adjudicated the
+final c2 receipt and selected its finalized anchor for a separately versioned, single-use c3
+continuation. `tools/brain_senses_campaign3_handoff.py` binds that receipt and both STOPs, verifies
+c1/c2 actual use and c2 journal/capture reconciliation, preserves both gaps, and seeds observed
+frontier 455116881 without claiming inventory there. C3 was prepared offline and its LaunchAgent
+loaded at 04:20Z for the next future trigger, 05:05Z. The first frame must take a new finalized upper
+anchor and may inventory only forward from 455116881. No bootstrap request, missed-slot backfill or
+duplicate campaign is allowed. C1's zero use and c2's 1 request / 43 raw / 56 stored bytes are
+debited from the unchanged aggregate caps. The v3 scheduler permits at most 24 attempts of 34
+requests each, so c3's effective maximum is 816 requests even though the legacy manifest ceiling is
+817; the attempt cap prevents a 25th frame. Handoff and activation receipt:
+[`helius-inventory-v3-c3-handoff-activation-2026-10-10.json`](evidence/helius-inventory-v3-c3-handoff-activation-2026-10-10.json).
+
+Campaign 3's first real frame and eventual 24-attempt STOP remain unqualified. Any mismatch, second
+gap, uncertain request, resource/provider failure or interrupted active reservation halts without
+replay. Only after c3's terminal STOP may a separate finite sustainable-service policy be assessed;
+the candidate is a seven-day lease of up to seven daily campaigns, sized from observed frame tails
+and free disk while preserving the 50 GiB floor and a complete-frame write margin. It has no
+automatic renewal. The Helius key remains in mode-0600 private provider configuration and the
+collector reads its endpoint in-process; the key is absent from LaunchAgent arguments. MCP package
+configuration is pinned to `helius-mcp@2.2.0`, and the exact key was absent from current argv and
+targeted saved-history scans after remediation. Helius MCP authenticated, but did not expose
+credit usage or plan limits without a JWT session. A successful local activation does not qualify
+real provider throughput, completeness or economic coverage.
 
 The paired finalized-block sensor runs a seeded 64-slot epoch each UTC hour through
 `ai.memecoin.brain.senses.block-epochs`, with raw reservations and receipts under

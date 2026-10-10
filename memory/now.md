@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 07:11 Europe/Moscow. Verify Git, runtime and disk before acting.
+**As of:** 2026-10-10 04:23 UTC. Verify Git, runtime and disk before acting.
 
 ## Boundaries
 
@@ -11,13 +11,14 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 ## Host and prospective runtime
 
 - Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`, HEAD
-  `938898b` (`Record Alchemy archive access gate`). Current campaign-2 evidence/docs are being
-  committed; verify current HEAD and worktree. Production untouched.
-- About 69 GiB free. Campaign 2 ran its scheduled 04:05Z event, took one anchor-only observation,
-  sealed a missed-gap STOP and unloaded. Its controller stopped at the 04:10Z check without a
-  successor. Sol approved a separately versioned one-use c3 continuation that adopts c2's anchor;
-  implementation/activation is pending.
-  Previous public/Helius watchers and old schedulers remain stopped; Helius watch-v3 retains its
+  `277ffca` before this handoff implementation commit. Production untouched. About 68.6 GiB free.
+- Campaign 2 sealed its missed-gap STOP at 04:05Z and the controller stopped without a successor.
+  Sol approved receipt-bound anchor adoption. C3 is prepared in a separate root and its LaunchAgent
+  is loaded but not running; first future trigger is 05:05Z. It starts forward-only at 455116881,
+  keeps both gaps, has at most 24 frames / 816 requests, and debits c2's 1/43/56 actual use against
+  the original lease. No c3 RPC or backfill has occurred. Receipt:
+  `docs/evidence/helius-inventory-v3-c3-handoff-activation-2026-10-10.json`.
+- Old public/Helius watchers, c1/c2 and the v3 controller remain stopped. Helius watch-v3 keeps its
   explicit STOP and must not be resumed.
 - Helius inventory-first v2 has one complete prospective frame, `[455028552,455037817)`, with
   9,261 provider-returned produced slots, 16/16 selected-block self-checks and 34 captured requests.
@@ -67,19 +68,21 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   34-request/byte/disk preflight, anchor-only gap capture followed by terminal STOP, immutable reservation
   releases, split frontiers, fail-closed recovery and read-only status. Controller and related focused
   suites pass 54 tests; targeted Ruff passes. Differential review is under ignored `work/review/`.
-- Owner authorized the current Helius key without rotation. It remains in `.env.local` and Helius
-  MCP configuration, both mode `0600`; active LaunchAgents pass only paths and collector code reads
-  the endpoint in-process. Exact Helius key searches found no match in working files, 4,891 Git
-  objects, process/LaunchAgent arguments, saved histories/logs, or the 3.46 GB 24-hour Unified Log.
+- Owner authorized the current Helius key without rotation. It remains in `.env.local` and private
+  Codex/Cursor MCP configuration, all mode `0600`; LaunchAgents pass only paths and collector code
+  reads the endpoint in-process. Exact key scans found no match in working files, 4,891 Git objects,
+  current `argv`, recent saved histories, or a 262 MB two-hour Unified Log scan. One obsolete saved
+  Cursor config snapshot was redacted. Current MCP configs pin `helius-mcp@2.2.0`; existing process
+  argv contains no exact key. Helius account status authenticated, but credit usage/plan limits are
+  unavailable without a JWT session.
   One Alchemy Free endpoint did appear in three saved Codex records (one history line, 28 session
   lines, three SQLite rows); those exact strings were redacted, SQLite secure-deleted/checkpointed/
   vacuumed, and affected files tightened to `0600`. Post-scrub file/WAL/process-argument searches
   found no matches. Remote snapshots are outside local control. Never put credentials in arguments
   or saved command text.
-- The Helius MCP package resolved locally and from the registry as 2.2.0; its config is now pinned
-  to `helius-mcp@2.2.0` with the child environment unchanged and mode `0600`. Existing MCP processes
-  were already running the cached 2.2.0 package. A read-only account-status call authenticated, but
-  credit usage and plan limits were unavailable without a JWT session.
+- The Helius MCP package resolved locally and from the registry as 2.2.0; Codex and Cursor config
+  now pin it to `helius-mcp@2.2.0`, with keys retained only in private env config. The cached package
+  version is 2.2.0. Account status authenticated; credit usage and plan limits remain unavailable.
 - Alchemy MCP identifies one `memcoin-ai` app with Solana mainnet. MTD usage: 18,680 CU / $0.01
   through 03:44Z; Oct 8 app-method series attributes 15,000 to `getSlot`, 3,520 to
   `getSignaturesForAddress`, and 160 to `getTransaction`. No account limit, Account Archive
@@ -143,36 +146,10 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 
 ## Next horizon
 
-1. Implement Sol's explicit receipt-bound c3 contract, then audit its one-use creation, offline
-   forward-only plan, duplicate-controller/crash behavior and full-frame/disk/lease preflight before
-   activating the next future trigger. Preserve both STOPs and debit c2's actual 1/43/56 use.
-2. Keep the 67 unknown-program refs, 11 writable-potential refs, and 10 with both reasons separately
-   quarantined. All 1,146 still have unavailable historical extension state and unqualified
-   economics; structural instruction labels do not change admission.
-3. After c3 is explicitly authorized, qualify its first complete frame and 24-attempt STOP before
-   considering a separately versioned sustainable collector policy. Alchemy Account Archive remains
-   unavailable until account entitlement, limits, method meter and slot coverage are verified. Keep
-   buyExact Token-2022 economics quarantined. Continue Senses; no Cortex.
-
-## Next service decision (Sol, 2026-10-10)
-
-- Keep the current v3 lease/controller and campaign-2 policy frozen. No limit/deadline extension or
-  generalized automatic recovery. Campaign 2's first allowed event follows the missed `03:00Z`
-  setup interval, so the frozen scheduler should make one anchor-only observation and seal a
-  terminal missed-gap STOP. This is not a normal 24-attempt STOP and cannot pass the unchanged
-  controller's successor verifier.
-- Campaign 2's sealed receipt passed the conditional checks. Sol chose anchor adoption: bind both
-  STOPs and final receipt hash, seed observed frontier 455116881 while preserving the uncovered
-  interval `[455082524,455116881)`, and let c3's first scheduled event request a new upper anchor
-  for only the forward interval. No bootstrap RPC or historical replay. Count c1=0 and c2=1/43/56
-  against the original lease. C3 is the third/last ID and allows at most 24 frame directories and
-  816 requests. Any mismatch or duplicate-controller/crash ambiguity halts.
-- Only after campaign 3's full 24-attempt run may a longer-lived service be considered as a separately
-  versioned controller/policy. Candidate horizon:
-  finite 7-day lease, up to seven daily campaigns and 5,719 all-in requests, no auto-renewal. Size
-  total byte caps from measured frame tails and free disk at activation, preserving the 50 GiB floor
-  and full-frame peak-write margin; shorten if capacity is insufficient.
-- During campaign 3, measure
-  consecutive frame times, request IDs, inventory and 16/16 checks, gaps/errors, raw/zstd bytes and
-  latency, disk headroom, selector/pool concentration and STOP. Reconcile journals to retained file
-  sizes. Failures halt; recovery reconciles local evidence only and never reissues an RPC.
+1. Verify the 05:05Z c3 prospective frame from captured files; require a new finalized upper anchor,
+   start 455116881, full accounting and no retries. A failure seals and stops; do not replay.
+2. Let the finite 24-attempt c3 campaign finish autonomously. Track gaps, 16/16 checks, raw/zstd
+   bytes, latency, disk headroom and selector concentration; reconcile actual request/byte totals.
+3. After c3 STOP, assess a separately versioned finite sustainable collector sized from measured
+   throughput and storage. Then continue the remaining Senses gates: buyExact economics stay
+   quarantined, Alchemy Archive needs verified access/limits/coverage, and no Cortex yet.
