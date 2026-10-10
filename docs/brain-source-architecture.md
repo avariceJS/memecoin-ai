@@ -292,6 +292,20 @@ Token-2022, and other remaining-account variants still require source- and accou
 qualification; no economic decoder change follows from this survey. Receipt:
 [`buyExact SDK builder source survey`](evidence/pumpswap-buy-exact-sdk-builder-source-survey-2026-10-10.json).
 
+An independent offline replay mapped the 59 first-frame two-account suffix candidates back to
+their captured compiled instructions and message account keys, using the pinned IDL account order.
+All 59 wire bytes, signatures, transaction indices, and success/failure states matched the census;
+the five selected IDL positions matched every reported role. Across 27 pools, each pool had one
+non-aliased mint/program tuple and no conflicting tuple. The observed distribution was two distinct
+`base_mint` keys and 27 `quote_mint` keys in this sample; these are IDL-position observations, not
+proof of trade direction, settlement, or asset orientation. The 53 successful-transaction refs
+and six failed attempts remain structural references only. A second raw check verified both
+trailing accounts in order for all 59 refs: the first is in the pinned eight-wallet set, and the
+second derives as that wallet's ATA for the observed quote mint and token program; both match the
+census. This qualifies only the exact two-account suffix roles. It does not show that fees moved or
+that a transaction settled an economic fill. No economics or pool-state query was added. Receipt:
+[`buyExact c3 role tuple qualification`](evidence/pumpswap-buy-exact-v1-c3-role-tuple-qualification-2026-10-10.json).
+
 The frozen development predicate selected all 62 successful refs in that captured census whose
 payload is the pinned 25-byte shape, two-account suffix passes the source-bound checks, and both
 base and quote use legacy SPL Token. The other 1,237 successful structural candidates include

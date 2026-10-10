@@ -274,6 +274,10 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   suffix candidates (53 successful transaction references, six failed attempts). No settlement claim.
 - `pumpswap-buy-exact-v1-c3-frame-census-correction-2026-10-10.json`: corrects only the c3 census
   receipt's mistyped tool commit ID; preserves the original receipt and binds the verified source hash.
+- `pumpswap-buy-exact-v1-c3-role-tuple-qualification-2026-10-10.json`: independently maps the 59
+  c3 two-account suffix candidates from raw full-block account indices to pinned IDL roles; all 27
+  pool tuples are internally consistent, and all 59 ordered trailing pairs match the pinned wallet
+  set and quote-mint/token-program ATA rule. This is structural only.
 - `pumpswap-buy-exact-v1-development-qualification-2026-10-10.json`: complete replay of the frozen 62-ref dual-legacy development population, with exact token-account ledger facts; still diagnostic-only and not the sealed audit.
 - `pumpswap-buy-exact-v1-audit-failure-2026-10-10.json`: preserved one-time 13:00Z census failure after all 512 payloads were processed but before report publication; no outcomes accepted and no reuse permitted.
 - `pumpswap-buy-exact-v1-audit-qualification-2026-10-10.json`: fresh disjoint 512-slot Helius Free captured-class census and one-pass replay of all seven successful dual-legacy refs; diagnostic-only, with four censored native settlements and Token-2022 still quarantined.

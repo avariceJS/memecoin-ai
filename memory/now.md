@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 05:18 UTC. Recheck Git, LaunchAgents, collector state and disk before acting.
+**As of:** 2026-10-10 05:27 UTC. Recheck Git, LaunchAgents, collector state and disk before acting.
 
 ## Boundaries
 
@@ -58,20 +58,31 @@ zero. Follow `AGENTS.md` and `docs/INDEX.md`.
   were made. Receipt: `helius-inventory-v3-c3-sell23-census-2026-10-10.json`.
 - The buyExact census tool now replays sealed c3 full-block captures while binding epoch plan,
   frame receipt, summary hash, and selected slots; its default v2 path remains unchanged. Focused
-  tests passed (3/3), Ruff/compile passed, and a 512-block Pair64 replay exactly matched the frozen
+  tests passed (4/4), Ruff passed, and a 512-block Pair64 replay exactly matched the frozen
   counters/matrix. First c3 frame: 365 references in 15 of 16 selected blocks; 59 pinned
   25-byte/two-account suffix structural candidates (53 success, six failed). No settlement or
   economics is inferred. Receipt: `pumpswap-buy-exact-v1-c3-frame-census-2026-10-10.json`; its
   mistyped commit ID is corrected by the adjacent correction receipt.
+- An independent raw full-block replay rechecked those 59 candidates' transaction paths, signatures,
+  wire bytes, status, and five pinned IDL positions. All match across 27 pools; no mint alias or
+  per-pool tuple conflict. All 59 ordered two-account suffixes also matched the pinned eight-wallet
+  set and ATA derived from each observed quote mint/token program (53 success, 6 failed attempts).
+  The 2 distinct base-position keys / 27 quote-position keys remain only an observed sample
+  distribution, not economic orientation; actual fee movement/fill remain unproven. Receipt:
+  `pumpswap-buy-exact-v1-c3-role-tuple-qualification-2026-10-10.json`. Qualifier commits:
+  `09bfe6f5cd606293ac11de53caf18d83ee199e1a`, `02d7feb17f0b4810957b85c2e6f4919f06e0c070`,
+  `2045af272134dbe44582435e4eb7f8891d3635b2`, `f89b3df5a02bc1e456ca6e527d55a34dd922a671`.
 
 ## Next horizon
 
-1. At/after the next scheduled frame (expected LaunchAgent trigger 06:05Z), inspect c3 status and
-   evidence offline. Require a new finalized
-   anchor, monotonic forward interval, full accounting and 16/16 checks. Never retry an ambiguous
-   request; seal and stop on mismatch or gap.
-2. Let the finite campaign reach its 24-attempt cap independently. Track gaps, request/byte totals, latency,
-   disk headroom, selector concentration and terminal STOP; reconcile retained files to journals.
-3. After c3 STOP, route the sustainable prospective-service contract to Sol, size it from measured
-   c3 throughput/storage, then continue remaining Senses gates. No Cortex until practical sensing
-   bottlenecks are actually closed.
+1. Read-only inspect each future c3 tick (next expected trigger 06:05Z): unique frame/request
+   identities, new finalized anchor, forward interval, full inventory accounting, 16/16 body/signature
+   checks, explicit gaps/failures, byte/disk floors, and no repeats. Do not run missed buckets again.
+2. Accept normal campaign closure only after all 24 attempts, immutable reconciled journals/captures/
+   summaries/STOP and budget totals, no ambiguity, agent bootout, and no later RPC. Otherwise stop and
+   create a receipt-specific abnormal recovery decision; never backfill or reset the frontier.
+3. After terminal STOP, send measured latency/byte tails, selected-block yield/concentration, gaps,
+   account-level quota evidence, and free disk to Sol for a separate prospective-service lease. A
+   finite seven-day lease (at most 5,719 all-in requests, measured byte ceilings, 50-GiB floor, no
+   auto-renew) is a candidate only if normal closure and resource evidence support it. Continue Senses;
+   no Cortex until sensing bottlenecks are actually closed.
