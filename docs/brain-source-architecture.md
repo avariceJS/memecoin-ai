@@ -310,6 +310,28 @@ at most two passing rows per pool by ascending SHA-256 of the ASCII signature (s
 tie-breaker); this example selection does not reduce the all-row denominator. Record every mismatch.
 Campaign STOP before four completed frames or too few eligible cases makes the audit inconclusive.
 
+The first four eligible completed c4 frames were 14:00Z–17:00Z. A versioned audit correction
+compares each frozen plan to SHA-256 of the canonical schedule JSON and records both that digest
+and the raw schedule-file digest; the original pre-case binding failure and selector remain
+unchanged. Metadata preflight confirmed the same four frames before the v2 tool was frozen. The
+single corrected audit reconciled 388 sell23 structural references across 64 full blocks: 387
+successful references and one failed-transaction reference. Of 342 native-close source-account
+flow rows, 341 passed the frozen lamport-accounting predicate and one had an unsupported outer
+instruction touch at `[4]` alongside target CPI `[4,0]`; that row remains quarantined. The other 45
+successful references were outside the native-close gate. All 342 close destinations remain
+ambiguous. This supports no wallet-net price, rent attribution, destination attribution, settlement
+completeness, or admission claim, and it does not justify generalizing the earlier 485/485 c3
+development result. The correction made zero provider requests and did not modify c4. Receipt:
+[`sell23 c4 native-flow audit v2`](evidence/pumpswap-sell23-c4-native-flow-audit-v2-2026-10-10.json).
+
+A separate bounded-search deviation emitted a truncated 13:00Z buyExact state-locator result before
+the audit. Sol adjudicated that this artifact was outside the frozen 14:00Z–17:00Z sell23 population
+and that no selected sell23 case was opened or used by the search. Because the search recursively
+included `docs`, the handoff does not claim that no other c4-related documentation text was
+incidentally scanned. The deviation did not alter selection or predicate; preserve its bounded scope
+record with the audit evidence:
+[`sell23 audit scope deviation`](evidence/sell23-c4-bounded-search-scope-deviation-2026-10-10.json).
+
 The pinned v1 `buy_exact_quote_in` path now has an offline structural attempt census over those same
 512 Helius full-block captures: 642,312 transactions, 12,120 unique candidate transactions, and
 12,143 instruction references across 507 slots, with no normalization failures. Of these refs,

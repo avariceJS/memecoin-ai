@@ -191,6 +191,14 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `pumpswap-sell23-c4-audit-v2-metadata-preflight-2026-10-10.json` (confirms unchanged first four
   frozen frames and canonical schedule binding; records the prior pre-case hash-format failure;
   opened no transaction cases and made no provider requests).
+- One-shot corrected sell23 c4 native-flow audit:
+  `pumpswap-sell23-c4-native-flow-audit-v2-2026-10-10.json` (first four frozen frames, all raw
+  denominators reconciled, 341/342 native-close source-account flows exact, one unsupported touch
+  quarantined; no wallet-net, rent, destination attribution, or admission claim).
+- Sell23 audit bounded-search scope deviation:
+  `sell23-c4-bounded-search-scope-deviation-2026-10-10.json` (records a truncated accidental
+  emission of the 13:00Z buyExact locator, its exact artifact hash and command digest, and Sol's
+  scope-limited determination that it did not expose or affect the 14:00–17:00Z sell23 audit cases).
 - First real Helius-only inventory-first v2 frame after the scheduler binding migration:
   `helius-inventory-v2-first-frame-2026-10-09.json`. It records 34 successful requests, a 9,261-slot
   provider-returned inventory denominator, 16/16 selected structural self-checks and explicit raw /
