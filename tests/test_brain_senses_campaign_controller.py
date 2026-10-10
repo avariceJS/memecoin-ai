@@ -7,6 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from tools import brain_senses_campaign_controller as controller
+from tools import brain_senses_campaign_recovery_v1 as recovery
 
 
 class FakeLaunchctl:
@@ -88,6 +89,7 @@ def test_controller_creates_one_campaign_and_carries_v2_gap(tmp_path, monkeypatc
     assert plist["RunAtLoad"] is False
     assert "--label" in plist["ProgramArguments"]
     assert all("api" not in arg.lower() for arg in plist["ProgramArguments"])
+    assert Path(plist["EnvironmentVariables"]["BRAIN_ZSTD_EXECUTABLE"]).is_absolute()
 
     repeated = controller.tick(
         root,
@@ -388,3 +390,153 @@ def test_three_campaign_lease_never_creates_fourth(tmp_path, monkeypatch) -> Non
     assert result["reason"] == "finite_campaign_or_aggregate_request_cap_reached"
     assert json.loads((root / "STOP").read_text())["campaign_count"] == 3
     assert not [cmd for cmd in launchctl.commands if cmd[1] == "bootstrap"]
+
+
+def test_recovery_receipt_binds_exact_zero_io_and_single_use(tmp_path, monkeypatch) -> None:
+    executable = Path("/opt/homebrew/bin/zstd")
+    if not executable.is_file():
+        return
+    monkeypatch.setenv("BRAIN_ZSTD_EXECUTABLE", str(executable))
+    receipt_path = tmp_path / "recovery.json"
+    stop_hash = "a" * 64
+    controller_hash = "b" * 64
+    names = (
+        "src/memecoin_ai/sources.py",
+        "tools/brain_senses_campaign_controller.py",
+        "tools/brain_senses_block_epoch_v3_schedule.py",
+        "tools/brain_senses_block_epoch_v3_launch.py",
+        "ops/launchd/ai.memecoin.brain.senses.helius-inventory-controller.plist",
+    )
+    receipt = {
+        "schema_version": 1,
+        "recovery_id": "helius-v3-preanchor-setup-recovery-20261010-1",
+        "predecessor_controller_id": "helius-inventory-controller-20261010-72h",
+        "predecessor_campaign_id": "helius-inventory-v3-20261010-1",
+        "predecessor_campaign_stop_sha256": stop_hash,
+        "predecessor_controller_stop_sha256": controller_hash,
+        "zero_io_proof": {
+            "request_started": False,
+            "requests": 0,
+            "raw_bytes": 0,
+            "stored_bytes": 0,
+            "attempts": 0,
+            "empty_epoch_directories": 1,
+            "empty_epoch_directory": "epochs/20261010T030000Z",
+            "empty_epoch_directory_entries": [],
+            "empty_epoch_directory_listing_sha256": hashlib.sha256(b"[]\n").hexdigest(),
+            "materialized_epoch_artifacts": 0,
+            "request_directories": 0,
+            "request_files": 0,
+            "capture_files": 0,
+        },
+        "root_cause_reproduction": {"status": "confirmed_before_any_rpc"},
+        "source_sha256": {
+            name: hashlib.sha256((controller.REPO_ROOT / name).read_bytes()).hexdigest()
+            for name in names
+        },
+        "zstd": {
+            "executable": str(executable),
+            "executable_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
+        },
+    }
+    receipt_path.write_text(json.dumps(receipt, sort_keys=True))
+    state = {
+        "recovery_count": 1,
+        "recovery_receipt_path": str(receipt_path),
+        "recovery_receipt_sha256": hashlib.sha256(receipt_path.read_bytes()).hexdigest(),
+        "recovery_campaign_stop_sha256": stop_hash,
+        "recovery_controller_stop_sha256": controller_hash,
+    }
+    controller._validate_recovery_receipt(tmp_path, state)
+    state["recovery_count"] = 2
+    try:
+        controller._validate_recovery_receipt(tmp_path, state)
+    except ValueError as error:
+        assert str(error) == "recovery_authorization_count_invalid"
+    else:
+        raise AssertionError("recovery authorization must be single use")
+
+
+def test_recovery_zero_io_proof_rejects_any_request_artifact(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(recovery, "FAILED_CAMPAIGN_ROOT", tmp_path)
+    epochs = tmp_path / "epochs" / "predecessor-lineage"
+    epochs.mkdir(parents=True)
+    (epochs / "lineage.json").write_text("{}\n")
+    (tmp_path / "epochs" / "20261010T030000Z").mkdir()
+    marker = tmp_path / "invocation-in-progress.json"
+    marker.write_text("{}\n")
+    stop = {
+        "campaign_id": recovery.CAMPAIGN_ID,
+        "reason": "scheduler_process_failed",
+        "error_class": "SourceError",
+        "request_started": False,
+        "requests": 0,
+        "raw_bytes": 0,
+        "stored_bytes": 0,
+        "attempt_count": 0,
+        "epoch_created": False,
+        "frame_reservation_sha256": None,
+        "time_ns": 1_791_601_503_158_792_000,
+    }
+    proof = recovery._zero_io_proof(stop)
+    assert proof["failed_schedule_bucket"] == "20261010T030000Z"
+    assert proof["empty_epoch_directories"] == 1
+    assert proof["empty_epoch_directory_entries"] == []
+    request_dir = tmp_path / "requests"
+    request_dir.mkdir()
+    (request_dir / "attempt.json").write_text("{}\n")
+    try:
+        recovery._zero_io_proof(stop)
+    except ValueError as error:
+        assert str(error) == "failed_campaign_zero_io_not_proven"
+    else:
+        raise AssertionError("recovery must reject any request artifact")
+    (request_dir / "attempt.json").unlink()
+    request_dir.rmdir()
+    (tmp_path / "epochs" / "20261010T030000Z" / ".unexpected").symlink_to(marker)
+    try:
+        recovery._zero_io_proof(stop)
+    except ValueError as error:
+        assert str(error) == "failed_campaign_zero_io_not_proven"
+    else:
+        raise AssertionError("recovery must reject any entry in the failed bucket directory")
+
+
+def test_recovery_seed_preserves_lease_and_old_aggregate_caps(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(recovery, "RECOVERY_ROOT", tmp_path / "controller-v2")
+    monkeypatch.setattr(recovery, "RECEIPT_PATH", tmp_path / "recovery.json")
+    receipt = {
+        "recovery_id": recovery.RECOVERY_ID,
+        "predecessor_campaign_stop_sha256": "a" * 64,
+        "predecessor_controller_stop_sha256": "b" * 64,
+        "prepared_ns": 1_791_601_600_000_000_000,
+        "uncovered_schedule_bucket": "20261010T030000Z",
+    }
+    old_state = {
+        "lease_start_ns": 1_791_598_199_640_296_800,
+        "lease_expires_ns": 1_791_857_399_640_296_800,
+        "campaign_count": 1,
+        "aggregate_requests": 0,
+        "aggregate_raw_bytes": 0,
+        "aggregate_stored_bytes": 0,
+        "predecessor_root": "/tmp/closed-v2",
+        "ready_lineage": {
+            "campaign_id": "pending",
+            "predecessor_campaign_id": "helius-inventory-v2-16-hourly-20261010",
+            "last_attempt_bucket": "20261010T020000Z",
+            "last_observed_anchor_slot": 455082523,
+            "last_observed_anchor_receipt_ns": 1_791_597_609_195_251_000,
+            "provider": "helius-free",
+            "schema_version": 1,
+        },
+    }
+    recovery._seed_recovery_controller(receipt, old_state, {})
+    state = json.loads((tmp_path / "controller-v2/controller-state.json").read_text())
+    assert state["campaign_count"] == 1
+    assert state["current_campaign_id"] is None
+    assert state["lease_start_ns"] == old_state["lease_start_ns"]
+    assert state["lease_expires_ns"] == old_state["lease_expires_ns"]
+    assert state["aggregate_requests"] == 0
+    assert state["recovery_count"] == 1
+    assert state["ready_lineage"]["predecessor_campaign_id"] == recovery.CAMPAIGN_ID
+    assert state["ready_lineage"]["uncovered_setup_gap_buckets"] == ["20261010T030000Z"]

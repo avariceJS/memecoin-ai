@@ -43,7 +43,14 @@ class SourceError(RuntimeError):
 
 @lru_cache(maxsize=1)
 def _zstd_executable() -> tuple[str, str]:
-    executable = shutil.which("zstd")
+    configured = os.environ.get("BRAIN_ZSTD_EXECUTABLE")
+    if configured:
+        candidate = Path(configured)
+        executable = str(candidate) if candidate.is_absolute() else None
+        if executable is None or not candidate.is_file() or not os.access(candidate, os.X_OK):
+            raise SourceError("configured zstd executable is unavailable or not executable")
+    else:
+        executable = shutil.which("zstd")
     if executable is None:
         raise SourceError("zstd executable is required for compressed capture storage")
     result = subprocess.run([executable, "--version"], capture_output=True, text=True, check=False)

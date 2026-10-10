@@ -1015,10 +1015,19 @@ calendar invocation retries teardown without RPC; `KeepAlive` is disabled. A sep
 controller may create unique campaign roots only inside its 72-hour lease; durable lease and
 aggregate state survive reboot, and each successor binds the predecessor STOP and frontiers. Crash
 recovery reconciles local state only. Expiry or abnormal predecessor STOP seals controller STOP and
-unloads it. The controller and first campaign LaunchAgents are loaded and idle; no v3 RPC has run
-at this receipt. The controller has two successful zero-RPC runs. Campaign 1 will first run at the
-next future local minute-05 calendar event. Installed plist hashes, private log modes and idle
-request counts are in the [controller runtime receipt](evidence/helius-inventory-controller-install-2026-10-10.json).
+unloads it. Campaign 1 failed before anchor and RPC at its first scheduled event because launchd's
+default PATH did not include the installed zstd executable. Its immutable STOP records zero requests,
+zero bytes and no reservation; exactly one empty bucket directory was left. The one-use recovery
+receipt preserves that STOP, binds source and zstd hashes, and authorizes campaign 2 under a fresh
+root without changing the original deadline or aggregate ceilings. The missed `20261010T030000Z`
+bucket is an explicit uncovered setup gap and is never replayed. At recovery installation, the
+controller and campaign-2 LaunchAgents were loaded and idle, with no RPC requests; campaign 2's
+first event is the next future minute-05 event. Both plists configure only the non-secret
+`BRAIN_ZSTD_EXECUTABLE` path. The RPC URL remains sourced from the private `.env.local` file and is
+not included in process arguments. Recovery evidence is in
+[`helius-inventory-v3-preanchor-recovery-2026-10-10.json`](evidence/helius-inventory-v3-preanchor-recovery-2026-10-10.json);
+the initial installation record remains at
+[`helius-inventory-controller-install-2026-10-10.json`](evidence/helius-inventory-controller-install-2026-10-10.json).
 
 An invocation marker makes abnormal process exit detectable. The next invocation validates already
 captured journals locally, never repeats an ambiguous request, seals STOP and unloads. Scheduler,
@@ -1040,6 +1049,27 @@ scheduled bucket starts a fresh query. At most 4,400 watch requests/day are plan
 bound rather than an architecture limit. This is a sparse provider address-index stream with
 unknown completeness, not full program history or a block-range truth source. A fresh current-head
 query is a separate observation, not a retry or a bridge across the old gap.
+
+The current v3 generator is a finite qualification lease, not the sustainable long-lived collector.
+Keep its 72-hour deadline, three-campaign limit and aggregate request/byte ceilings frozen. Do not
+generalize either pre-anchor recovery. Campaign 2's first permitted event follows the missed
+`03:00Z` setup interval, so its frozen scheduler records the gap, may take one anchor-only
+observation, and then seals a terminal missed-gap STOP. This is not a normal 24-attempt STOP and
+must not pass the existing normal-successor verifier. Once that real receipt is sealed, a separately
+versioned, single-use continuation may create campaign 3 under the same lease and aggregate caps,
+preserving campaign 2's STOP. It may adopt campaign 2's anchor only with an explicit receipt-bound
+contract; otherwise it takes a new future anchor and records the intervening interval as uncovered.
+Any discrepancy, duplicate tick, second gap, uncertain request or repeated setup failure halts.
+The next full qualification boundary is campaign 3's first complete prospective frame and then its
+24-attempt STOP. A longer service still needs a separately versioned policy; the next candidate is a
+finite seven-day lease of up to seven daily campaigns and 5,719 all-in requests, with raw and
+stored-byte ceilings set from observed frame tails and free disk at activation while retaining the
+50 GiB floor and a full-frame write margin. Shorten the lease if measured capacity cannot support
+seven days. Do not renew automatically or reuse missed intervals. Before activation, require
+campaign-3 qualification, failure/expiry and duplicate-controller exercises, aggregate-cap
+preflight, private-credential access without argv/log exposure, and a read-only account-plan/credit
+check where available. A resumed service starts at a future boundary, reconciles local journals,
+and halts on ambiguous requests or resource/provider failures.
 
 The paired finalized-block sensor runs a seeded 64-slot epoch each UTC hour through
 `ai.memecoin.brain.senses.block-epochs`, with raw reservations and receipts under

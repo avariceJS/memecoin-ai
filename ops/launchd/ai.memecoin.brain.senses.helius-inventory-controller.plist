@@ -9,12 +9,17 @@
     <string>/Users/root1/Developer/memecoin-research/.venv/bin/python</string>
     <string>/Users/root1/Developer/memecoin-research/tools/brain_senses_campaign_controller.py</string>
     <string>--root</string>
-    <string>/Users/root1/Developer/memecoin-research/work/brain-senses-helius-controller-20261010</string>
+    <string>/Users/root1/Developer/memecoin-research/work/brain-senses-helius-controller-recovery-20261010</string>
     <string>--predecessor-root</string>
     <string>/Users/root1/Developer/memecoin-research/work/brain-senses-live-helius-inventory-v2-16-hourly-20261010</string>
   </array>
   <key>WorkingDirectory</key>
   <string>/Users/root1/Developer/memecoin-research</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>BRAIN_ZSTD_EXECUTABLE</key>
+    <string>/opt/homebrew/bin/zstd</string>
+  </dict>
   <key>StartCalendarInterval</key>
   <dict>
     <key>Minute</key>
@@ -25,8 +30,8 @@
   <key>KeepAlive</key>
   <false/>
   <key>StandardOutPath</key>
-  <string>/Users/root1/Developer/memecoin-research/work/brain-senses-helius-controller-20261010/supervisor/stdout.log</string>
+  <string>/Users/root1/Developer/memecoin-research/work/brain-senses-helius-controller-recovery-20261010/supervisor/stdout.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/root1/Developer/memecoin-research/work/brain-senses-helius-controller-20261010/supervisor/stderr.log</string>
+  <string>/Users/root1/Developer/memecoin-research/work/brain-senses-helius-controller-recovery-20261010/supervisor/stderr.log</string>
 </dict>
 </plist>

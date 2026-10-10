@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 05:58 Europe/Moscow. Verify Git, runtime and disk before acting.
+**As of:** 2026-10-10 06:18 Europe/Moscow. Verify Git, runtime and disk before acting.
 
 ## Boundaries
 
@@ -13,7 +13,7 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 - Research checkout: `/Users/root1/Developer/memecoin-research`, branch `research/active`; offline
   Token-2022 privilege classifier source is committed as `e854c90`. Verify current HEAD and worktree.
   Production untouched.
-- About 70 GiB free. The Helius finite controller and campaign-1 LaunchAgents are loaded but idle; the v3 campaign has made no RPC yet.
+- About 69 GiB free. The recovered finite Helius controller and campaign-2 LaunchAgents are loaded but idle; campaign 2 has made no RPC yet.
   Previous public/Helius watchers and old schedulers remain stopped; Helius watch-v3 retains its
   explicit STOP and must not be resumed.
 - Helius inventory-first v2 has one complete prospective frame, `[455028552,455037817)`, with
@@ -40,12 +40,17 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   request/byte/disk preflight before anchor.
 - Sol authorized a separately finite 72-hour generator lease for at most three unique 24-attempt
   campaigns (2,451 requests / 12 GB raw / 3 GB stored aggregate). The inherited sealed v2 gap is
-  recorded in lineage; abnormal current-campaign state halts generation. Controller source is committed (`4406fde`) and locally qualified. Controller and campaign-1
-  LaunchAgents are loaded; both have zero active processes now. Controller has two successful runs;
-  campaign has zero runs and zero requests. Plist hashes and log modes are in
-  `docs/evidence/helius-inventory-controller-install-2026-10-10.json`. First v3 attempt is the next
-  future local :05 event; do not kickstart or backfill. At 05:17 MSK the first event is 06:05 MSK
-  (03:05Z), not yet due.
+  recorded in lineage; abnormal current-campaign state halts generation. Campaign 1 failed before
+  anchor and RPC at 03:05Z because launchd's default PATH omitted Homebrew zstd. Its immutable STOP
+  records zero requests, bytes, reservations and attempts; only one empty `03:00Z` bucket directory
+  exists. Sol approved one receipt-bound pre-anchor replacement. Recovery preserved the STOPs and
+  bucket, reproduced the failure offline, bound `/opt/homebrew/bin/zstd` by hash, retained the
+  original 72-hour deadline and all aggregate ceilings, and started campaign 2 in a fresh root. The
+  `03:00Z` slot remains uncovered and will never be replayed. Receipt:
+  `docs/evidence/helius-inventory-v3-preanchor-recovery-2026-10-10.json` (SHA-256
+  `d5da27cdf1909065bdbfc5a5cd676141170f742dd6e11cfefbbe120f30d23c2f`). At 06:18 MSK both
+  controller and campaign-2 LaunchAgents are loaded/idle; campaign 2 has zero runs/requests and its
+  first future event is 07:05 MSK / 04:05Z. Do not kickstart or backfill.
 - A separate v3 scheduler implements Sol's per-campaign contract locally: one-frame reservations,
   34-request/byte/disk preflight, anchor-only gap capture followed by terminal STOP, immutable reservation
   releases, split frontiers, fail-closed recovery and read-only status. Controller and related focused
@@ -104,12 +109,39 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
 
 ## Next horizon
 
-1. Check the campaign-1 frame due at 06:05 MSK / 03:05Z and its controller checkpoint. At 05:58
-   MSK the scheduled LaunchAgent is loaded, with zero runs/requests and 69 GiB free. Do not kickstart,
-   backfill missed prospective slots, or duplicate requests.
+1. Check campaign 2 after its scheduled event at 07:05 MSK / 04:05Z. Do not kickstart, backfill
+   missed prospective slots, or duplicate requests. Confirm request journal, capture accounting,
+   STOP/continuation state, and controller checkpoint before drawing any qualification claim.
 2. Keep the 67 unknown-program refs, 11 writable-potential refs, and 10 with both reasons separately
    quarantined. All 1,146 still have unavailable historical extension state and unqualified
    economics; structural instruction labels do not change admission.
-3. Alchemy Account Archive remains unexecutable from this checkout: no PAYG endpoint and no account
-   limit/entitlement verified. Do not make paid calls. Continue the offline evidence horizon and
-   prospective collection; no Cortex.
+3. After the active finite campaign reaches a normal STOP, revisit the sustainable prospective
+   collection design with Sol before its lease expires. Do not assume this 72-hour lease is an
+   indefinite collector; retain no-replay semantics and gaps. Alchemy Account Archive remains
+   unexecutable from this checkout: no PAYG endpoint and no account limit/entitlement verified. Do
+   not make paid calls. Continue Senses work; no Cortex.
+
+## Next service decision (Sol, 2026-10-10)
+
+- Keep the current v3 lease/controller and campaign-2 policy frozen. No limit/deadline extension or
+  generalized automatic recovery. Campaign 2's first allowed event follows the missed `03:00Z`
+  setup interval, so the frozen scheduler should make one anchor-only observation and seal a
+  terminal missed-gap STOP. This is not a normal 24-attempt STOP and cannot pass the unchanged
+  controller's successor verifier.
+- After campaign 2's actual receipt is sealed, if and only if it proves one trusted anchor, explicit
+  gap, zero inventory/body requests, reconciled counters and no ambiguous active epoch, Sol allows a
+  separately versioned, single-use continuation to create campaign 3 under the unchanged 72-hour
+  lease and aggregate caps. Preserve campaign 2 STOP. Adopt its anchor only if the new version
+  explicitly binds and validates it; otherwise acquire a fresh future anchor and record the extra
+  gap. Any discrepancy, duplicate tick, second gap, uncertain request or repeated setup failure
+  halts. The next full qualification boundary is campaign 3's first complete frame and 24-attempt
+  STOP; the current three-ID lease cannot renew automatically.
+- Prepare any longer-lived service as a separately versioned controller/policy. Candidate horizon:
+  finite 7-day lease, up to seven daily campaigns and 5,719 all-in requests, no auto-renewal. Size
+  total byte caps from measured frame tails and free disk at activation, preserving the 50 GiB floor
+  and full-frame peak-write margin; shorten if capacity is insufficient.
+- During campaign 2, gather consecutive frame start/completion times, unique request/journal counts,
+  inventory and 16/16 selected-block checks, explicit gaps/errors, raw/zstd bytes and latency, disk
+  peak/free space, selector/pool concentration, and the STOP plus predecessor-bound campaign-3
+  handoff. Reconcile journal counts and actual retained file sizes at the daily boundary. Failures
+  halt; recovery reconciles local evidence only and never reissues an RPC.

@@ -81,6 +81,32 @@ def test_zstd_capture_round_trip_keeps_original_receipt_and_detects_damage(tmp_p
         Capture.load(root)
 
 
+def test_configured_zstd_is_used_with_minimal_launchd_path(monkeypatch):
+    from memecoin_ai.sources import _zstd_executable
+
+    executable = shutil.which("zstd")
+    assert executable is not None
+    monkeypatch.setenv("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
+    monkeypatch.setenv("BRAIN_ZSTD_EXECUTABLE", executable)
+    _zstd_executable.cache_clear()
+    try:
+        assert _zstd_executable()[0] == executable
+    finally:
+        _zstd_executable.cache_clear()
+
+
+def test_invalid_configured_zstd_fails_closed(monkeypatch):
+    from memecoin_ai.sources import _zstd_executable
+
+    monkeypatch.setenv("BRAIN_ZSTD_EXECUTABLE", "relative/zstd")
+    _zstd_executable.cache_clear()
+    try:
+        with pytest.raises(SourceError, match="configured zstd executable"):
+            _zstd_executable()
+    finally:
+        _zstd_executable.cache_clear()
+
+
 def test_shared_public_rpc_gate_serializes_calls_across_clients(tmp_path, monkeypatch):
     import memecoin_ai.sources as sources
 

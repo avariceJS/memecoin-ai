@@ -14,6 +14,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   but plan and credit usage unavailable from the account tool; no plan mutation or paid RPC made).
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
+- One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:
+  `helius-inventory-v3-preanchor-recovery-2026-10-10.json` (preserves both predecessor STOPs,
+  proves the sole empty attempt directory, binds the fixed zstd executable, and authorizes one
+  fresh-root replacement without extending the original lease or budgets).
 - Closed frozen Helius inventory-v2 pilot:
   `helius-inventory-v2-final-2026-10-10.json` (104 requests, reconciled raw/stored bytes, final
   anchor and inventory interval, and the inherited 00:00Z oversized-frame gap).

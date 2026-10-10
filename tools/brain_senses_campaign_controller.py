@@ -64,6 +64,8 @@ def _policy(state: dict[str, Any]) -> dict[str, Any]:
         "aggregate_stored_byte_cap": LEASE_STORED_BYTES,
         "disk_floor_bytes": DISK_FLOOR_BYTES,
         "predecessor_root": state["predecessor_root"],
+        "recovery_receipt_sha256": state.get("recovery_receipt_sha256"),
+        "recovery_count": state.get("recovery_count", 0),
         "source_sha256": {
             name: hashlib.sha256((REPO_ROOT / name).read_bytes()).hexdigest()
             for name in (
@@ -211,6 +213,64 @@ def _campaign_usage(root: Path) -> dict[str, int]:
     return usage
 
 
+def _validate_recovery_receipt(root: Path, state: dict[str, Any]) -> None:
+    recovery_count = state.get("recovery_count", 0)
+    receipt_sha256 = state.get("recovery_receipt_sha256")
+    if recovery_count == 0 and receipt_sha256 is None:
+        return
+    if recovery_count != 1 or not isinstance(receipt_sha256, str):
+        raise ValueError("recovery_authorization_count_invalid")
+    receipt_path = Path(state.get("recovery_receipt_path", ""))
+    if (
+        not receipt_path.is_file()
+        or hashlib.sha256(receipt_path.read_bytes()).hexdigest() != receipt_sha256
+    ):
+        raise ValueError("recovery_receipt_missing_or_changed")
+    receipt = _read(receipt_path)
+    proof = receipt.get("zero_io_proof") or {}
+    if (
+        receipt.get("schema_version") != 1
+        or receipt.get("recovery_id") != "helius-v3-preanchor-setup-recovery-20261010-1"
+        or receipt.get("predecessor_controller_id") != "helius-inventory-controller-20261010-72h"
+        or receipt.get("predecessor_campaign_id") != "helius-inventory-v3-20261010-1"
+        or receipt.get("predecessor_campaign_stop_sha256")
+        != state.get("recovery_campaign_stop_sha256")
+        or receipt.get("predecessor_controller_stop_sha256")
+        != state.get("recovery_controller_stop_sha256")
+        or proof.get("request_started") is not False
+        or any(proof.get(key) != 0 for key in ("requests", "raw_bytes", "stored_bytes", "attempts"))
+        or proof.get("empty_epoch_directories") != 1
+        or proof.get("empty_epoch_directory") != "epochs/20261010T030000Z"
+        or proof.get("empty_epoch_directory_entries") != []
+        or proof.get("empty_epoch_directory_listing_sha256") != hashlib.sha256(b"[]\n").hexdigest()
+        or proof.get("materialized_epoch_artifacts") != 0
+        or proof.get("request_directories") != 0
+        or any(proof.get(key) != 0 for key in ("request_files", "capture_files"))
+        or receipt.get("root_cause_reproduction", {}).get("status") != "confirmed_before_any_rpc"
+    ):
+        raise ValueError("recovery_receipt_proof_invalid")
+    code_hashes = receipt.get("source_sha256") or {}
+    for name in (
+        "src/memecoin_ai/sources.py",
+        "tools/brain_senses_campaign_controller.py",
+        "tools/brain_senses_block_epoch_v3_schedule.py",
+        "tools/brain_senses_block_epoch_v3_launch.py",
+        "ops/launchd/ai.memecoin.brain.senses.helius-inventory-controller.plist",
+    ):
+        if code_hashes.get(name) != hashlib.sha256((REPO_ROOT / name).read_bytes()).hexdigest():
+            raise ValueError("recovery_code_binding_changed")
+    zstd_path = receipt.get("zstd", {}).get("executable")
+    if (
+        not isinstance(zstd_path, str)
+        or not Path(zstd_path).is_absolute()
+        or os.environ.get("BRAIN_ZSTD_EXECUTABLE") != zstd_path
+        or not Path(zstd_path).is_file()
+        or hashlib.sha256(Path(zstd_path).read_bytes()).hexdigest()
+        != receipt.get("zstd", {}).get("executable_sha256")
+    ):
+        raise ValueError("recovery_zstd_binding_changed")
+
+
 def _verify_normal_campaign(root: Path, stop: dict[str, Any]) -> dict[str, int]:
     if (
         stop.get("reason") != "finite_attempt_cap_reached"
@@ -283,6 +343,9 @@ def _campaign_plist(root: Path, lineage: Path, label: str) -> dict[str, Any]:
             fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
             os.close(fd)
         path.chmod(0o600)
+    zstd_executable = os.environ.get("BRAIN_ZSTD_EXECUTABLE") or shutil.which("zstd")
+    if not zstd_executable or not Path(zstd_executable).is_absolute():
+        raise ValueError("configured_zstd_executable_unavailable")
     return {
         "Label": label,
         "ProgramArguments": [
@@ -296,6 +359,7 @@ def _campaign_plist(root: Path, lineage: Path, label: str) -> dict[str, Any]:
             label,
         ],
         "WorkingDirectory": str(REPO_ROOT),
+        "EnvironmentVariables": {"BRAIN_ZSTD_EXECUTABLE": zstd_executable},
         "StartCalendarInterval": {"Minute": 5},
         "RunAtLoad": False,
         "KeepAlive": False,
@@ -472,6 +536,12 @@ def _tick_locked(
                 "status": "controller_stopped",
                 "reason": "controller_state_or_policy_integrity_failure",
             }
+        try:
+            _validate_recovery_receipt(root, state)
+        except Exception as exc:
+            _stop(root, state, f"recovery_receipt_invalid:{type(exc).__name__}")
+            _bootout(CONTROLLER_LABEL, runner=runner)
+            return {"status": "controller_stopped", "reason": "recovery_receipt_invalid"}
     else:
         lease_start = now_ns
         state = {
