@@ -869,7 +869,9 @@ from the protected local `.env.local` file or process environment; plans and req
 the provider alias and payload hashes, not the endpoint. Transport errors redact endpoint details.
 Keep local credential files mode `0600` and out of Git. Do not place credentials in CLI arguments,
 inline shell assignments or saved command text. The Helius MCP configuration passes its key in the
-child environment; its command arguments do not contain the key.
+child environment; its command arguments do not contain the key. The local Helius MCP package is
+pinned to `helius-mcp@2.2.0`; this matched both the resolved local package and current registry
+version on 2026-10-10, and the pin preserved the existing child environment.
 
 The next finalized-block process is a new versioned sensor. It must pin a finalized numeric slot
 frame, seed, selection rule, provider and request/byte budgets before acquisition; capture and hash
@@ -918,6 +920,19 @@ recheck the actual UTC bucket, disk, and runtime state.
 Missed intervals stay in the same slot-coordinate frame only within the 20,000-slot cap; larger
 intervals seal as unknown gaps. Alchemy pairing stays disabled until an account-level limit is
 verifiable.
+
+The separately versioned Helius v3 successor contract is bounded to 24 future hourly attempts and
+does not auto-renew. Its no-RPC predecessor lineage plus 24 attempts is at most 25 epoch
+directories; its all-in request cap is 817, with 34 request slots required before each anchor.
+Per-frame caps are 256,000,000 raw bytes and 128,000,000 compressed capture bytes; cumulative caps
+are 4,000,000,000 raw and 1,000,000,000 compressed bytes. Preflight reserves one complete frame
+envelope at a time against committed bytes and other reservations, plus the 50 GiB disk floor and a
+peak-write margin. Unused capacity is released only after request journals, captures, summaries and
+file sizes reconcile. A missed hour records a gap and permits an anchor-only observation; it never
+fetches slots from the missed prospective interval. The observed finalized anchor/frontier and the
+last inventoried interval remain separate facts. Any ambiguous request or integrity discrepancy
+stops the finite campaign. The v3 scheduler implementation is under local qualification and is not
+enabled as a LaunchAgent yet.
 
 The prior public and Helius program-address watches stopped on failed requests and remain immutable.
 Neither cursor is resumed. Helius watch v2 made a fresh head query and attempted 1,000 signature

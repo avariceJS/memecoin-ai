@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 03:47 Europe/Moscow. Verify Git, runtime and disk before acting.
+**As of:** 2026-10-10 04:21 Europe/Moscow. Verify Git, runtime and disk before acting.
 
 ## Boundaries
 
@@ -34,12 +34,20 @@ promotions and remote pushes untouched. Do not start Cortex before Senses is obj
   campaign. One (01:00Z) completed; only the future 02:00Z attempt remains. Any successor needs a
   new version, 24-attempt finite horizon, separate observed/inventoried frontier, and full-frame
   request/byte/disk preflight before anchor.
+- A separate v3 scheduler implements Sol's successor contract locally: one-frame reservations,
+  34-request/byte/disk preflight, anchor-only handling after a missed hour, immutable reservation
+  releases, split frontiers, fail-closed recovery and read-only status. Focused validation passes 20
+  tests plus Ruff. It is uncommitted and has no LaunchAgent; do not enable before v2 ends and its
+  predecessor lineage is reconciled. Differential review is under ignored `work/review/`.
 - Owner authorized the current Helius key. It remains in `.env.local` and Codex MCP environment
   configuration, both mode `0600`; collector CLI has no endpoint argument. The exact key was
   redacted from local Codex/shell histories and SQLite thread history. Exact scans found no key in
   reachable Git objects or active process arguments. macOS Unified Log query timed out; remote
   platform logs and filesystem snapshots are outside this checkout's control. Never echo or pass a
   credential in a command argument or shell command text.
+- The Helius MCP package resolved locally and from the registry as 2.2.0; its config is now pinned
+  to `helius-mcp@2.2.0` with the child environment unchanged and mode `0600`. Existing MCP processes
+  were already running the cached 2.2.0 package.
 - Alchemy research HTTP endpoint/plan limits remain unverified. No paid Account Archive query was
   made. The frozen no-RPC control and its three-read ceiling are in
   `docs/evidence/alchemy-account-archive-mint-control-plan-2026-10-10.json`.

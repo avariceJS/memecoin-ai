@@ -15,6 +15,7 @@ from memecoin_ai.domain import canonical
 from memecoin_ai.sources import Capture
 from tools import brain_senses_block_epoch_v2 as epoch_v2
 from tools import brain_senses_block_epoch_v2_schedule as schedule_v2
+from tools import brain_senses_block_epoch_v3_schedule as schedule_v3
 
 
 class FakeRPC:
@@ -760,6 +761,258 @@ def test_failed_anchor_keeps_frontier_and_next_epoch_exposes_accumulated_frame(
         [101, 105, {"commitment": "finalized"}],
     )
     assert accumulated["frontier"]["next_start"] == 106
+
+
+def _v3_lineage(path: Path, *, bucket: str = "20261010T010000Z", anchor: int = 100) -> Path:
+    lineage = {
+        "schema_version": 1,
+        "provider": "helius-free",
+        "predecessor_campaign_id": "frozen-v2-fixture",
+        "last_attempt_bucket": bucket,
+        "last_observed_anchor_slot": anchor,
+        "last_observed_anchor_receipt_ns": 1_800_000_000_000_000_000,
+        "last_inventoried_interval": {
+            "start": 91,
+            "end_exclusive": 101,
+            "provider_returned_produced_slots": 9,
+        },
+        "gap_intervals": [
+            {"start": 81, "end_exclusive": 91, "reason": "predecessor_oversized_frame"}
+        ],
+    }
+    path.write_text(json.dumps(lineage, sort_keys=True))
+    return path
+
+
+def test_v3_preflight_exact_boundaries_and_one_unit_short() -> None:
+    exact = dict(
+        attempts=23,
+        epoch_dirs=24,
+        requests=schedule_v3.REQUESTS_MAX - schedule_v3.REQUESTS_PER_FRAME,
+        raw=schedule_v3.CAMPAIGN_RAW_BYTES - schedule_v3.FRAME_RAW_BYTES,
+        stored=schedule_v3.CAMPAIGN_STORED_BYTES - schedule_v3.FRAME_STORED_BYTES,
+        reserved_raw=0,
+        reserved_stored=0,
+        free_disk=(
+            schedule_v3.DISK_FLOOR_BYTES
+            + schedule_v3.FRAME_RAW_BYTES
+            + schedule_v3.FRAME_STORED_BYTES
+            + schedule_v3.PEAK_WRITE_MARGIN_BYTES
+        ),
+    )
+    assert schedule_v3._preflight(**exact) is None
+
+    boundaries = [
+        ("requests", "campaign_cannot_reserve_full_frame_requests"),
+        ("raw", "campaign_cannot_reserve_full_frame_raw_bytes"),
+        ("stored", "campaign_cannot_reserve_full_frame_stored_bytes"),
+        ("free_disk", "minimum_free_disk_floor_plus_frame_envelope"),
+    ]
+    for dimension, expected_reason in boundaries:
+        short = dict(exact)
+        short[dimension] = (
+            short[dimension] - 1 if dimension == "free_disk" else short[dimension] + 1
+        )
+        assert schedule_v3._preflight(**short) == expected_reason
+
+    assert schedule_v3._preflight(**{**exact, "attempts": 24}) == "attempt_or_epoch_cap"
+    assert schedule_v3._preflight(**{**exact, "epoch_dirs": 25}) == "attempt_or_epoch_cap"
+
+    observed_raw = 71_939_096
+    observed_stored = 15_335_264
+    for attempt in range(schedule_v3.ATTEMPTS_MAX):
+        replay = dict(
+            attempts=attempt,
+            epoch_dirs=attempt + 1,
+            requests=attempt * schedule_v3.REQUESTS_PER_FRAME,
+            raw=attempt * observed_raw,
+            stored=attempt * observed_stored,
+            reserved_raw=0,
+            reserved_stored=0,
+            free_disk=exact["free_disk"],
+        )
+        assert schedule_v3._preflight(**replay) is None
+    assert schedule_v3.ATTEMPTS_MAX * observed_raw == 1_726_538_304
+    assert schedule_v3.ATTEMPTS_MAX * observed_stored == 368_046_336
+
+
+def test_v3_missed_hour_is_anchor_only_and_never_backfilled(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "v3"
+    lineage_path = _v3_lineage(tmp_path / "lineage.json")
+    monkeypatch.setattr(
+        schedule_v3.shutil,
+        "disk_usage",
+        lambda _: SimpleNamespace(
+            free=(
+                schedule_v3.DISK_FLOOR_BYTES
+                + schedule_v3.FRAME_RAW_BYTES
+                + schedule_v3.FRAME_STORED_BYTES
+                + schedule_v3.PEAK_WRITE_MARGIN_BYTES
+            )
+        ),
+    )
+    current = datetime(2026, 10, 10, 3, 5, tzinfo=UTC)
+    client = FakeRPC(anchors=[103])
+    result = schedule_v3.run_bucket(
+        root, lineage_path=lineage_path, now=current, clients={"helius-free": client}
+    )
+    assert result["epoch"]["status"] == "bootstrap_complete"
+    assert [method for method, _ in client.calls] == ["getSlot"]
+    context = json.loads(
+        (root / "epochs" / "20261010T030000Z" / "attempt-context.json").read_text()
+    )
+    plan = json.loads((root / "epochs" / "20261010T030000Z" / "epoch-plan.json").read_text())
+    assert context["missed_schedule_buckets"] == ["20261010T020000Z"]
+    assert context["missed_slot_backfill"] is False
+    assert plan["bootstrap"] is True
+    assert (root / "epochs" / "20261010T030000Z" / "frame-reservation.json").exists()
+    assert (root / "epochs" / "20261010T030000Z" / "frame-reservation-release.json").exists()
+    assert result["frontier"]["gap_intervals"][-1] == {
+        "start": 101,
+        "end_exclusive": 104,
+        "reason": "missed_schedule_no_backfill",
+    }
+    status = schedule_v3.read_status(root)
+    assert status["attempts"] == 1
+    assert status["successful_epochs"] == 1
+    assert status["gapped_epochs"] == 1
+    assert status["requests"] == 1
+    assert status["provider_charge_units"] == "unknown_unverified"
+
+    # Repeated launchd delivery for the same bucket returns the sealed result without RPC.
+    repeated = schedule_v3.run_bucket(
+        root, lineage_path=lineage_path, now=current, clients={"helius-free": client}
+    )
+    assert repeated["status"] == "bucket_already_terminal"
+    assert len(client.calls) == 1
+
+    next_client = FakeRPC(anchors=[105])
+    next_result = schedule_v3.run_bucket(
+        root,
+        lineage_path=lineage_path,
+        now=datetime(2026, 10, 10, 4, 2, tzinfo=UTC),
+        clients={"helius-free": next_client},
+    )
+    assert next_result["epoch"]["status"] == "frame_complete"
+    assert next_result["frontier"]["last_inventoried_interval"]["start"] == 104
+    assert next_result["frontier"]["last_inventoried_interval"]["end_exclusive"] == 106
+    assert [method for method, _ in next_client.calls].count("getBlocks") == 1
+
+
+def test_v3_preflight_failure_stops_before_epoch_or_rpc(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "v3-preflight"
+    lineage_path = _v3_lineage(tmp_path / "lineage-preflight.json")
+    monkeypatch.setattr(
+        schedule_v3.shutil,
+        "disk_usage",
+        lambda _: SimpleNamespace(
+            free=(
+                schedule_v3.DISK_FLOOR_BYTES
+                + schedule_v3.FRAME_RAW_BYTES
+                + schedule_v3.FRAME_STORED_BYTES
+                + schedule_v3.PEAK_WRITE_MARGIN_BYTES
+                - 1
+            )
+        ),
+    )
+    client = FakeRPC(anchors=[101])
+    result = schedule_v3.run_bucket(
+        root,
+        lineage_path=lineage_path,
+        now=datetime(2026, 10, 10, 2, 5, tzinfo=UTC),
+        clients={"helius-free": client},
+    )
+    assert result["status"] == "preflight_stopped_without_epoch_or_rpc"
+    assert result["reason"] == "minimum_free_disk_floor_plus_frame_envelope"
+    assert client.calls == []
+    assert not (root / "epochs" / "20261010T020000Z").exists()
+    assert json.loads((root / "STOP").read_text())["epoch_created"] is False
+
+
+def test_v3_terminal_transport_failure_is_never_replayed(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "v3-failed"
+    lineage_path = _v3_lineage(tmp_path / "lineage-failed.json")
+    monkeypatch.setattr(
+        schedule_v3.shutil,
+        "disk_usage",
+        lambda _: SimpleNamespace(
+            free=(
+                schedule_v3.DISK_FLOOR_BYTES
+                + schedule_v3.FRAME_RAW_BYTES
+                + schedule_v3.FRAME_STORED_BYTES
+                + schedule_v3.PEAK_WRITE_MARGIN_BYTES
+            )
+        ),
+    )
+    client = FakeRPC(anchors=[101], fail_method="getSlot")
+    now = datetime(2026, 10, 10, 2, 5, tzinfo=UTC)
+    result = schedule_v3.run_bucket(
+        root, lineage_path=lineage_path, now=now, clients={"helius-free": client}
+    )
+    assert result["status"] == "campaign_stopped"
+    assert result["epoch"]["status"] == "anchor_failed"
+    assert [method for method, _ in client.calls] == ["getSlot"]
+    stopped = schedule_v3.run_bucket(
+        root, lineage_path=lineage_path, now=now, clients={"helius-free": client}
+    )
+    assert stopped["status"] == "campaign_stopped"
+    assert len(client.calls) == 1
+
+
+def test_v3_crash_after_durable_request_never_replays_ambiguous_rpc(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "v3-crash"
+    lineage_path = _v3_lineage(tmp_path / "lineage-crash.json")
+    monkeypatch.setattr(
+        schedule_v3.shutil,
+        "disk_usage",
+        lambda _: SimpleNamespace(
+            free=(
+                schedule_v3.DISK_FLOOR_BYTES
+                + schedule_v3.FRAME_RAW_BYTES
+                + schedule_v3.FRAME_STORED_BYTES
+                + schedule_v3.PEAK_WRITE_MARGIN_BYTES
+            )
+        ),
+    )
+
+    class CrashAfterReservation:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def fetch(self, method: str, params: list[Any]) -> Capture:
+            self.calls.append(method)
+            raise SystemExit("simulated_process_death_after_request_reservation")
+
+        def close(self) -> None:
+            return
+
+    now = datetime(2026, 10, 10, 2, 5, tzinfo=UTC)
+    crashed = CrashAfterReservation()
+    with pytest.raises(SystemExit, match="simulated_process_death"):
+        schedule_v3.run_bucket(
+            root,
+            lineage_path=lineage_path,
+            now=now,
+            clients={"helius-free": crashed},
+        )
+    request_path = root / "epochs" / "20261010T020000Z" / "requests" / "000000000001.json"
+    assert request_path.exists()
+    assert crashed.calls == ["getSlot"]
+
+    replacement = FakeRPC(anchors=[101])
+    result = schedule_v3.run_bucket(
+        root,
+        lineage_path=lineage_path,
+        now=now,
+        clients={"helius-free": replacement},
+    )
+    assert result["status"] == "campaign_stopped"
+    assert result["epoch"]["status"] == "anchor_ambiguous"
+    assert replacement.calls == []
+    assert json.loads((root / "active-frame-reservation.json").read_text())["status"] == "active"
+    assert not (root / "epochs" / "20261010T020000Z" / "frame-reservation-release.json").exists()
 
 
 def test_scheduler_cli_help_and_explicit_configuration(monkeypatch, capsys, tmp_path: Path) -> None:
