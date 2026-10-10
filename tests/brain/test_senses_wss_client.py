@@ -469,7 +469,7 @@ def test_oversized_signature_is_raw_and_counted_without_projection_amplification
     campaign = make_campaign(tmp_path / "campaign")
     stream = FakeTLSStream()
     connection, clock_ns = start(campaign, stream)
-    payloads = [notification_payload(50 + i, "s" * 3_500_000) for i in range(8)]
+    payloads = [notification_payload(50 + i, "s" * 3_670_016) for i in range(8)]
     payloads.append(notification_payload(99, "s" * (MAX_MESSAGE_BYTES - 512)))
     expected_raw = 0
     for raw in payloads:
