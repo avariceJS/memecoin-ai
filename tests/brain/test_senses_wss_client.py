@@ -303,6 +303,37 @@ def test_subscription_error_is_preserved_then_campaign_stops(tmp_path):
     assert recovered["raw_message_bytes"] == len(error)
 
 
+def test_deeply_nested_subscription_response_is_preserved_and_stops(tmp_path):
+    malformed = b"[" * 10_000 + b"]" * 10_000
+    campaign = make_campaign(tmp_path / "campaign")
+    stream = FakeTLSStream(ack=malformed)
+    with pytest.raises(WssClientError, match="subscription_response_invalid"):
+        start(campaign, stream)
+    stop = json.loads((campaign.root / "CAMPAIGN_STOP.json").read_text())
+    assert stop["reason"] == "subscription_response_invalid"
+    raw_path = next((campaign.root / "sessions/01/raw").glob("*.bin"))
+    assert raw_path.read_bytes() == malformed
+    assert campaign.sessions[0].terminal
+    campaign.close()
+
+
+def test_deeply_nested_notification_is_raw_and_counted_as_parse_failure(tmp_path):
+    malformed = b"[" * 10_000 + b"]" * 10_000
+    campaign = make_campaign(tmp_path / "campaign")
+    stream = FakeTLSStream()
+    connection, clock_ns = start(campaign, stream)
+    stream.buffer.extend(server_frame(malformed))
+    row = connection.receive_notification()
+    assert row["parse_state"] == "malformed_logs_message"
+    assert row["raw_bytes"] == len(malformed)
+    assert (campaign.root / "sessions/01" / row["raw_path"]).read_bytes() == malformed
+    campaign.stop("synthetic_test_end", clock_ns() + 1)
+    stop_path = sorted((campaign.root / "sessions/01/journal").glob("*.json"))[-1]
+    stop = json.loads(stop_path.read_text())
+    assert stop["parse_failures"] == 1
+    campaign.close()
+
+
 def test_bad_upgrade_records_bounded_response_and_never_saves_request_target(tmp_path):
     campaign = make_campaign(tmp_path / "campaign")
     stream = FakeTLSStream(
