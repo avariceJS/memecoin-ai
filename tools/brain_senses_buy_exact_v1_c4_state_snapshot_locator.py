@@ -164,7 +164,12 @@ def _occurrence_side_and_effect(
     side = "earlier" if tx_index < target_index else "later"
     status = occurrence["transaction_status"]
     payer = occurrence.get("fee_payer")
-    if status == "failed" and payer is not None and payer != mint:
+    if (
+        status == "failed"
+        and occurrence.get("fee_payer_resolution") == "resolved_static_account_zero"
+        and isinstance(payer, str)
+        and payer != mint
+    ):
         effect = "failed_nonpayer_nonblocking_for_mint_state"
         blocks = False
     else:
@@ -224,7 +229,7 @@ def _target_message_gate(row: dict[str, Any], block: dict[str, Any]) -> dict[str
     except (AttributeError, IndexError, KeyError, TypeError, ValueError):
         mint_privilege, payer, payer_state = "unresolved", None, "unresolved"
         reasons.append("target_message_resolution_failed")
-    if payer is None:
+    if payer is None or payer_state != "resolved_static_account_zero":
         reasons.append("target_fee_payer_unresolved")
     elif payer == mint:
         reasons.append("target_fee_payer_is_t22_mint")

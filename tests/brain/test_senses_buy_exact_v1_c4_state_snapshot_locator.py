@@ -158,6 +158,18 @@ def test_unresolved_fee_payer_blocks_failed_writable_tx() -> None:
     assert classified["whole_account_blocker"] is True
 
 
+def test_failed_tx_with_unverified_nonmint_payer_still_blocks() -> None:
+    occurrence = {
+        "transaction_index": 0,
+        "transaction_status": "failed",
+        "fee_payer": PAYER,
+        "fee_payer_resolution": "unresolved",
+    }
+
+    classified = locator._occurrence_side_and_effect(occurrence, target_index=1, mint=MINT)
+    assert classified["whole_account_blocker"] is True
+
+
 def test_unknown_status_with_writable_mint_blocks_even_with_distinct_payer() -> None:
     occurrence = locator._writable_occurrences([_tx(unknown_status=True, fee_payer=PAYER)], {MINT})[
         0
