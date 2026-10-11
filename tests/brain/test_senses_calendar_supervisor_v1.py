@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import subprocess
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -470,3 +472,159 @@ def test_cli_is_read_only_status_and_has_no_execution_arguments(tmp_path: Path, 
     assert report["status"] == "eligible"
     assert report["activation_authorized"] is False
     assert before == {p.name: p.read_bytes() for p in root.iterdir() if p.is_file()}
+
+
+def test_supervisor_process_restart_verifies_capture_and_never_replays_started_child(
+    tmp_path: Path,
+):
+    now = time.time_ns()
+    root = tmp_path / "lease"
+    _init(
+        root,
+        now,
+        [
+            {"bucket_id": "anchor", "kind": "anchor", "start_ns": now, "end_ns": now + DAY},
+            {
+                "bucket_id": "frame",
+                "kind": "frame",
+                "start_ns": now + DAY,
+                "end_ns": now + 2 * DAY,
+            },
+        ],
+    )
+    decision_ns = max(now, supervisor._latest_durable_time(calendar._rows(root))) + 1_000_000_000
+    source = r"""
+import importlib.util, json, os, shutil, sys
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location(
+    "supervisor_test_fixture", sys.argv[4]
+)
+t = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(t)
+
+root = Path(sys.argv[1])
+now = int(sys.argv[2])
+action = sys.argv[3]
+t.supervisor.time.time_ns = lambda: now
+t.shutil.disk_usage = lambda _: shutil._ntuple_diskusage(
+    300 * 1024**3, 100 * 1024**3, 200 * 1024**3
+)
+
+if action == "capture-anchor":
+    client = t.FakeRPC(anchor=84)
+    result = t.supervisor.advance_once(
+        root,
+        runner=t.child_v3.run_epoch,
+        clients={"helius-free": client},
+        child_root=lambda parent, bucket_id: parent / "children" / bucket_id,
+        child_plan=t._child_plan,
+    )
+    print(json.dumps({"decision": result["decision"], "calls": len(client.calls)}))
+elif action == "inspect":
+    result = t.supervisor.status(root, now_ns=now)
+    check = t.supervisor.verify_status(result, root, now_ns=now)
+    print(
+        json.dumps(
+            {
+                "status": result["status"],
+                "sealed": result["sealed_operation_count"],
+                "check": check,
+            }
+        )
+    )
+elif action == "crash-frame-before-dispatch":
+    plan = t.calendar._plan(root)
+    bucket = plan["buckets"][1]
+    client = t.FakeRPC(anchor=100)
+    result = t.bridge.reserve_and_run(
+        root,
+        bucket_id=bucket["bucket_id"],
+        operation_id="process-crash-frame",
+        child_root=root / "children" / bucket["bucket_id"],
+        child_plan=t._child_plan(root, bucket, bucket["bucket_id"]),
+        runner=t.child_v3.run_epoch,
+        clients={"helius-free": client},
+        crash_at="after_start_before_dispatch",
+    )
+    assert result["status"] == "crash_injected_after_start_before_child_dispatch"
+    assert client.calls == []
+    os._exit(73)
+elif action == "restart-no-replay":
+    client = t.FakeRPC(anchor=100)
+    result = t.supervisor.advance_once(
+        root,
+        runner=t.child_v3.run_epoch,
+        clients={"helius-free": client},
+        child_root=lambda parent, bucket_id: parent / "children" / bucket_id,
+        child_plan=t._child_plan,
+    )
+    print(
+        json.dumps(
+            {
+                "status": result["status"]["status"],
+                "decision": result["decision"],
+                "calls": len(client.calls),
+                "unknown": result["status"]["unknown_intervals"],
+                "terminal_reason": result["status"]["terminal_reason"],
+                "handoff_valid": t.calendar.verify_handoff(root)["valid"],
+            }
+        )
+    )
+else:
+    raise AssertionError("unknown test action")
+"""
+
+    def invoke(action: str, clock_ns: int) -> dict:
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                source,
+                str(root),
+                str(clock_ns),
+                action,
+                str(Path(__file__).resolve()),
+            ],
+            cwd=Path(__file__).resolve().parents[2],
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=45,
+        )
+        assert completed.returncode == 0, completed.stderr
+        return json.loads(completed.stdout)
+
+    captured = invoke("capture-anchor", decision_ns)
+    assert captured["decision"]["status"] == "captured_bundle"
+    assert captured["calls"] > 0
+
+    reopened = invoke("inspect", decision_ns)
+    assert reopened["status"] == "waiting"
+    assert reopened["sealed"] == 1
+    assert reopened["check"] == {"valid": True, "stale": False, "reason": None}
+
+    frame_clock_ns = decision_ns + DAY
+    crashed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            source,
+            str(root),
+            str(frame_clock_ns),
+            "crash-frame-before-dispatch",
+            str(Path(__file__).resolve()),
+        ],
+        cwd=Path(__file__).resolve().parents[2],
+        capture_output=True,
+        text=True,
+        timeout=45,
+    )
+    assert crashed.returncode == 73
+
+    recovered = invoke("restart-no-replay", frame_clock_ns)
+    assert recovered["status"] == "terminal"
+    assert recovered["calls"] == 0
+    assert recovered["unknown"]
+    assert recovered["terminal_reason"] == "abnormal_unsealed_prefix"
+    assert recovered["handoff_valid"] is True

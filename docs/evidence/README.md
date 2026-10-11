@@ -196,6 +196,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   binding, future-anchor rule, signed storage/charge/review evidence and domain-separated one-use
   claim. Sol accepted this eligibility-only scope; 44 focused tests passed. No provider request,
   activation, or cross-host exclusion is claimed.
+- `senses-calendar-supervisor-v1-process-restart-validation-2026-10-11.json`: Sol-accepted
+  synthetic subprocess recovery check for durable capture verification, abrupt exit after a
+  started-but-undispatched child, terminal no-replay recovery and unknown-interval preservation.
+  Twenty supervisor tests pass; no provider RPC, LaunchAgent or live scheduler is qualified.
 - `helius-c4-launchd-quiescence-2026-10-11.json`: records all 15 installed Senses LaunchAgents
   persistently disabled and unloaded, the exact c4 override, a credential-free process-argument
   scan, and contemporaneous free disk below the 50 GiB floor.

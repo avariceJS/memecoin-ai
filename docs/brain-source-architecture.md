@@ -2698,6 +2698,15 @@ supervisor/calendar/operation-envelope tests pass using synthetic captures only;
 activation occurred. Receipt:
 [`offline one-shot supervisor v1 validation`](evidence/senses-calendar-supervisor-v1-offline-validation-2026-10-11.json).
 
+A subprocess follow-up adds a synthetic process-boundary check without changing supervisor
+runtime code. One process captures an anchor, a fresh process independently verifies the durable
+seal, a third writes the `after_start_before_dispatch` prefix and exits abruptly, and a fourth
+reopens the lease, verifies the `abnormal_unsealed_prefix` terminal handoff and preserved unknown
+interval, and confirms that the injected client receives no replay call. The full supervisor suite
+passes 20 tests. This does not simulate interruption during fsync or a real provider dispatch, and
+does not qualify a LaunchAgent or unattended live scheduler. Receipt:
+[`supervisor process-restart recovery validation`](evidence/senses-calendar-supervisor-v1-process-restart-validation-2026-10-11.json).
+
 The offline activation-preflight v1 verifier now binds each predecessor handoff's terminal time,
 gaps and unknown intervals through the complete lineage; checks the finite operation plan, all
 intersected UTC-day request/byte upper bounds, full-lease storage runway and reviewed churn reserve;

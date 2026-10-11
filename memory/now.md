@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 10:20 UTC. Research remains on `research/active`; production
+**As of:** 2026-10-11 10:30 UTC. Research remains on `research/active`; production
 `/Users/root1/Desktop/memecoin-ai` is untouched. Recheck Git and runtime before new acquisition.
 
 ## Runtime and credentials
@@ -90,3 +90,15 @@ key, and APFS showed 43,386,480 KiB free (~41.38 GiB), below the 50 GiB floor. H
 headroom remains unknown; no RPC or retry was made. Next: preserve the frozen c4 boundary and
 advance an independent offline sensing gate while resolving account-level charge controls and
 durable storage runway; do not treat key authorization as a waiver of those gates.
+
+Sol confirmed the one-shot supervisor already provides locking, single-operation decisions,
+read-only status, clock/disk checks, and in-process crash-prefix recovery. Added a subprocess
+integration test only: synthetic anchor capture, independent process reopen, forced exit after a
+durable started-but-undispatched prefix, then terminal `abnormal_unsealed_prefix` verification
+with the unknown interval retained and zero replay calls. Sol accepted this narrow evidence;
+20 supervisor tests pass. No live scheduler or LaunchAgent is qualified. At 10:29Z, APFS had
+43,369,980 KiB (~41.36 GiB) free, still below the 50 GiB floor; no Senses collector/LaunchAgent
+was loaded. A fresh Helius account-status MCP call again returned `Transport closed`; no RPC was
+made. Next independent offline gate: Token-2022/WSOL witness-fixture semantics. Before a live
+successor, still require provider account/charge controls, storage runway, authenticated trust,
+and a separately reviewed activation boundary. Do not backfill or reopen c4/tail2.
