@@ -2714,6 +2714,16 @@ preflight tests and 131 focused preflight/calendar/bridge/controller/verifier te
 request, activation, live attestation, or real trust root was used. Receipt:
 [`offline activation-preflight v1 validation`](evidence/senses-activation-preflight-v1-offline-validation-2026-10-11.json).
 
+An initial-entry branch now accepts the separately typed c4 discontinuity certificate as a
+predecessor without converting it into a normal v3 handoff. It independently verifies the fixed
+certificate bytes and canonical digest, the candidate file and compiler inputs, and exact candidate
+plan equality; preserves all four certified gaps and the still-open unknown interval; and uses a
+domain-separated, owner-local one-use claim key. The signed host clock must match the candidate's
+clock pin and its first anchor must remain strictly in the future. Sol accepted the branch only for
+offline eligibility/preflight: `activation_authorized` remains false, no RPC or collector was
+started, and external signature truth and cross-host exclusion remain unproven. The focused suite
+passes 44 tests. Receipt: [`initial-entry activation-preflight v1 validation`](evidence/senses-initial-entry-activation-preflight-v1-offline-validation-2026-10-11.json).
+
 ## Candidate-position witness source feasibility (2026-10-11)
 
 Sol reviewed the source-pinned Agave v3.0.0 feasibility contract and approved only an inert

@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 09:59 UTC. Research remains on `research/active`; production
+**As of:** 2026-10-11 10:20 UTC. Research remains on `research/active`; production
 `/Users/root1/Desktop/memecoin-ai` is untouched. Recheck Git and runtime before new acquisition.
 
 ## Runtime and credentials
@@ -75,9 +75,18 @@ real witness, economic decoder, or audit exists.
 
 At 09:59Z, no Senses/Helius collector process or matching LaunchAgent was loaded. APFS had
 43,307,476 KiB (~41.3 GiB) free, still below the 50 GiB floor; existing production-named LaunchAgents
-are unrelated and were not changed. Helius RPC remains idle and c4 is immutable. Next, implement and
-independently validate an offline initial-entry activation-preflight branch that binds the accepted
-c4 discontinuity certificate to a fresh finite-calendar candidate and one-use successor claim.
-Before any live successor, obtain account-specific provider usage/charge controls, durable storage
-above the reviewed floor with full schedule runway, and a fresh Sol-reviewed forward-only lease.
-Never backfill missed slots or reopen frozen tail2. Cortex remains out of scope.
+are unrelated and were not changed. Helius RPC remained idle and c4 immutable. Before any live
+successor, obtain account-specific provider usage/charge controls, durable storage above the
+reviewed floor with full schedule runway, and a fresh Sol-reviewed forward-only lease. Never
+backfill missed slots or reopen frozen tail2. Cortex remains out of scope.
+
+Sol accepted the initial-entry activation-preflight branch for offline eligibility only. Its 44
+focused tests pass; the branch binds the fixed c4 certificate and candidate/compiler inputs, keeps
+the four known gaps and open unknown interval, and uses a domain-separated owner-local one-use
+claim. Activation remains false. Receipt:
+`senses-initial-entry-activation-preflight-v1-offline-validation-2026-10-11.json`. At 10:19Z,
+no Senses collector was present; the Helius MCP worker's visible process arguments contained no
+key, and APFS showed 43,386,480 KiB free (~41.38 GiB), below the 50 GiB floor. Helius charge
+headroom remains unknown; no RPC or retry was made. Next: preserve the frozen c4 boundary and
+advance an independent offline sensing gate while resolving account-level charge controls and
+durable storage runway; do not treat key authorization as a waiver of those gates.

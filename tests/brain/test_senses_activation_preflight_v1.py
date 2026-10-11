@@ -18,6 +18,9 @@ from tools import brain_senses_activation_preflight_v1 as writer
 from tools import brain_senses_activation_preflight_verifier_v1 as verifier
 from tools import brain_senses_finite_calendar_v3 as calendar
 from tools import brain_senses_finite_calendar_verifier_v3 as calendar_verifier
+from tools import brain_senses_initial_entry_calendar_compiler_v1 as initial_compiler
+from tools import brain_senses_initial_entry_calendar_verifier_v1 as initial_verifier
+from tools import brain_senses_initial_entry_discontinuity_verifier_v1 as discontinuity_verifier
 from tools import brain_senses_operation_bundle_v2 as bridge
 
 FLOOR = 50 * 1024**3
@@ -458,6 +461,145 @@ def fake_current_disk(case):
         yield
 
 
+def convert_case_to_initial_entry(case):
+    root = case["root"]
+    manifest_path = root / "preflight-v1.json"
+    manifest = json.loads(manifest_path.read_bytes())
+    schedule = manifest["schedule"]
+    plan_path = root / "successor-plan-v2.json"
+    old_plan = json.loads(plan_path.read_bytes())
+    host_payload = json.loads((root / manifest["host_evidence"]["payload_path"]).read_bytes())
+    clock_now = host_payload["clock_now_ns"]
+    buckets = [
+        {key: row[key] for key in ("bucket_id", "kind", "start_ns", "end_ns")} for row in schedule
+    ]
+    inputs = {
+        "lease_id": "initial-entry-successor-fixture",
+        "created_ns": clock_now,
+        "expires_ns": old_plan["expires_ns"],
+        "clock_source_id": manifest["clock_source_id"],
+        "clock_observed_ns": clock_now,
+        "buckets": buckets,
+        "caps": old_plan["caps"],
+        "source_sha256": old_plan["source_sha256"],
+    }
+    certificate_path = (
+        Path(discontinuity_verifier.__file__).resolve().parents[1]
+        / "docs/evidence/senses-initial-entry-discontinuity-v1-c4-2026-10-11.json"
+    )
+    candidate = initial_compiler.compile_candidate(certificate_path, inputs)
+    candidate_path = root / "initial-entry-candidate-v1.json"
+    candidate_raw = write_json(candidate_path, candidate)
+    successor_plan = candidate["plan"]
+    plan_raw = write_json(plan_path, successor_plan)
+    schedule_sha = sha(canonical(schedule))
+    plan_sha = sha(plan_raw)
+    source_sha = sha(canonical(successor_plan["source_sha256"]))
+    caps_sha = sha(canonical(successor_plan["caps"]))
+    tool_dir = Path(verifier.__file__).resolve().parent
+    pins = code_pins(case["verifier_hash"])
+    pins.update(
+        {
+            "initial_entry_compiler": sha(
+                (tool_dir / "brain_senses_initial_entry_calendar_compiler_v1.py").read_bytes()
+            ),
+            "initial_entry_verifier": sha(Path(initial_verifier.__file__).read_bytes()),
+            "discontinuity_verifier": sha(Path(discontinuity_verifier.__file__).read_bytes()),
+        }
+    )
+    manifest.pop("lineage_anchor")
+    manifest.pop("predecessor_handoffs")
+    manifest["predecessor_digest_kind"] = verifier.INITIAL_ENTRY_PREDECESSOR_KIND
+    manifest["initial_entry"] = {
+        "certificate_repo_path": verifier.INITIAL_ENTRY_CERTIFICATE_REPO_PATH,
+        "certificate_file_sha256": sha(certificate_path.read_bytes()),
+        "predecessor_digest_sha256": candidate["predecessor_digest_sha256"],
+        "candidate_path": candidate_path.name,
+        "candidate_sha256": sha(candidate_raw),
+        "candidate_inputs": inputs,
+    }
+    manifest["code_sha256"] = pins
+    manifest["successor"] = {
+        "lease_id": successor_plan["lease_id"],
+        "plan_sha256": plan_sha,
+        "schedule_sha256": schedule_sha,
+        "source_sha256": source_sha,
+        "caps_sha256": caps_sha,
+        "code_sha256": sha(canonical(pins)),
+    }
+    old_host_ref = manifest["host_evidence"]
+    host_body = json.loads((root / old_host_ref["payload_path"]).read_bytes())
+    host_body.update(
+        {
+            "lease_id": successor_plan["lease_id"],
+            "plan_sha256": plan_sha,
+            "schedule_sha256": schedule_sha,
+        }
+    )
+    manifest["host_evidence"] = signed_ref(
+        root,
+        case["host_key"],
+        host_body,
+        key_id="host-key",
+        role="host_attestor",
+        label="initial-host",
+    )
+    old_helius_ref = manifest["helius_evidence"]
+    charge_body = json.loads((root / old_helius_ref["payload_path"]).read_bytes())
+    charge_body.update(
+        {
+            "plan_sha256": plan_sha,
+            "schedule_sha256": schedule_sha,
+            "source_sha256": successor_plan["source_sha256"],
+        }
+    )
+    price_model = charge_body["method_price_model"]
+    price_model.update(
+        {
+            "plan_sha256": plan_sha,
+            "schedule_sha256": schedule_sha,
+            "source_sha256": successor_plan["source_sha256"],
+        }
+    )
+    price_hash = sha(canonical(price_model))
+    manifest["helius_price_table_sha256"] = price_hash
+    manifest["helius_evidence"] = signed_ref(
+        root,
+        case["helius_key"],
+        charge_body,
+        key_id="helius-checker",
+        role="helius_independent_checker",
+        label="initial-helius-charge",
+    )
+    case["helius_price_table_hash"] = price_hash
+    lineage = verifier._initial_entry_lineage(root.resolve(strict=True), manifest, successor_plan)
+    review_body = {
+        "schema": "senses-sol-preflight-decision-v1",
+        "decision": "approve_offline_preflight",
+        "reviewer_name": "Sol",
+        "reviewed_at_ns": clock_now,
+        "packet_digest": writer.packet_digest(manifest),
+        "lease_id": successor_plan["lease_id"],
+        "lineage_sha256": sha(canonical(lineage)),
+        "host_evidence_sha256": manifest["host_evidence"]["payload_sha256"],
+        "helius_evidence_sha256": manifest["helius_evidence"]["payload_sha256"],
+        "minimum_churn_reserve_bytes": manifest["storage_envelope"]["reserve_bytes"],
+        "scope": "offline_preflight_eligibility_only",
+        "trust_store_sha256": case["trust_hash"],
+        "freshness_limits_ns": manifest["freshness_limits_ns"],
+    }
+    manifest["review_ref"] = signed_ref(
+        root,
+        case["sol_key"],
+        review_body,
+        key_id="sol-review-key",
+        role="sol_reviewer",
+        label="initial-sol-review",
+    )
+    write_json(manifest_path, manifest)
+    return case
+
+
 def verify(case, **overrides):
     args = {
         "registry_root": case["registry_root"],
@@ -569,7 +711,7 @@ def verify_claim(case, *, now_ns: int):
 def test_complete_signed_lineage_and_budget_arithmetic_are_eligible(tmp_path: Path):
     case = make_case(tmp_path)
     result = verify(case)
-    assert result["eligible"] is True
+    assert result["eligible"] is True, result
     assert result["activation_authorized"] is False
     assert result["usage_upper_bound"]["requests"] == 1
     assert result["storage"]["required_free_bytes"] == case["required_free"]
@@ -577,6 +719,101 @@ def test_complete_signed_lineage_and_budget_arithmetic_are_eligible(tmp_path: Pa
     assert result["storage"]["capture_bound_bytes"] > 4_000_000
     assert result["storage"]["required_free_bytes"] > FLOOR
     assert len(result["lineage"]["verified_handoffs"]) == 1
+
+
+def test_initial_entry_candidate_is_verified_as_distinct_predecessor(tmp_path: Path):
+    case = convert_case_to_initial_entry(make_case(tmp_path))
+    result = verify(case)
+    assert result["eligible"] is True, result
+    assert result["activation_authorized"] is False
+    assert result["predecessor_digest_kind"] == verifier.INITIAL_ENTRY_PREDECESSOR_KIND
+    assert result["predecessor_digest_sha256"] != result["predecessor_claim_key_sha256"]
+    assert result["lineage"]["normal_v3_handoff"] is False
+    assert result["lineage"]["unknown_interval_closed"] is False
+    assert len(result["lineage"]["gaps"]) == 4
+    assert result["lineage"]["unknown_intervals"][0]["end_exclusive"] is None
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_failure"),
+    [
+        ("certificate_hash", "initial_entry_certificate_file_hash_mismatch"),
+        ("predecessor_digest", "initial_entry_predecessor_digest_mismatch"),
+        ("candidate_hash", "initial_entry_candidate_file_hash_mismatch"),
+        (
+            "candidate_input_lease",
+            "initial_entry_candidate_invalid:candidate_plan_or_pins_mismatch",
+        ),
+    ],
+)
+def test_initial_entry_candidate_rebinding_fails_closed(
+    tmp_path: Path, mutation: str, expected_failure: str
+):
+    case = convert_case_to_initial_entry(make_case(tmp_path))
+    manifest_path = case["root"] / "preflight-v1.json"
+    manifest = json.loads(manifest_path.read_bytes())
+    entry = manifest["initial_entry"]
+    if mutation == "certificate_hash":
+        entry["certificate_file_sha256"] = "0" * 64
+    elif mutation == "predecessor_digest":
+        entry["predecessor_digest_sha256"] = "1" * 64
+    elif mutation == "candidate_hash":
+        entry["candidate_sha256"] = "2" * 64
+    elif mutation == "candidate_input_lease":
+        entry["candidate_inputs"]["lease_id"] = "other-lease"
+    write_json(manifest_path, manifest)
+    result = verify(case)
+    assert result["eligible"] is False
+    assert result["activation_authorized"] is False
+    assert result["failure"] == expected_failure
+
+
+def test_initial_entry_claim_is_domain_separated_and_one_use(tmp_path: Path):
+    case = convert_case_to_initial_entry(make_case(tmp_path))
+    claim_record = claim(case)
+    assert claim_record["schema"] == writer.INITIAL_ENTRY_CLAIM_SCHEMA
+    assert claim_record["activation_performed"] is False
+    assert claim_record["predecessor_digest_kind"] == verifier.INITIAL_ENTRY_PREDECESSOR_KIND
+    assert claim_record["predecessor_digest_sha256"] != claim_record["claim_key_sha256"]
+    checked = verify_claim(case, now_ns=time.time_ns())
+    assert checked["valid"] is True
+    assert checked["eligible"] is False
+    assert checked["activation_authorized"] is False
+    with pytest.raises(writer.PreflightError, match="predecessor_successor_already_claimed"):
+        claim(case)
+
+
+def test_initial_entry_candidate_cannot_escape_packet_root(tmp_path: Path):
+    case = convert_case_to_initial_entry(make_case(tmp_path))
+    manifest_path = case["root"] / "preflight-v1.json"
+    manifest = json.loads(manifest_path.read_bytes())
+    manifest["initial_entry"]["candidate_path"] = "../candidate.json"
+    write_json(manifest_path, manifest)
+    result = verify(case)
+    assert result["eligible"] is False
+    assert result["failure"] == "artifact_path_invalid"
+
+
+def test_initial_entry_artifact_inode_change_between_checks_fails(tmp_path: Path, monkeypatch):
+    case = convert_case_to_initial_entry(make_case(tmp_path))
+    original_verify = writer.verifier.verify_packet
+    calls = 0
+
+    def replace_after_first_verification(*args, **kwargs):
+        nonlocal calls
+        result = original_verify(*args, **kwargs)
+        calls += 1
+        if calls == 1:
+            candidate = case["root"] / "initial-entry-candidate-v1.json"
+            replacement = candidate.with_suffix(".replacement")
+            replacement.write_bytes(candidate.read_bytes())
+            replacement.chmod(0o600)
+            replacement.replace(candidate)
+        return result
+
+    monkeypatch.setattr(writer.verifier, "verify_packet", replace_after_first_verification)
+    with pytest.raises(writer.PreflightError, match="successor_preflight_became_ineligible"):
+        claim(case)
 
 
 @pytest.mark.parametrize(

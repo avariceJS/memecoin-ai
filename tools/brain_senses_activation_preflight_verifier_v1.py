@@ -27,10 +27,17 @@ from pathlib import Path
 from typing import Any
 
 from tools import brain_senses_finite_calendar_verifier_v3 as calendar_verify
+from tools import brain_senses_initial_entry_calendar_verifier_v1 as initial_candidate_verify
+from tools import brain_senses_initial_entry_discontinuity_verifier_v1 as discontinuity_verify
 
 SCHEMA = "brain-senses-activation-preflight-v1"
 CLAIM_SCHEMA = "brain-senses-successor-claim-v1"
+INITIAL_ENTRY_CLAIM_SCHEMA = "brain-senses-initial-entry-successor-claim-v1"
 REGISTRY_SCHEMA = "brain-senses-successor-claim-registry-v1"
+INITIAL_ENTRY_PREDECESSOR_KIND = "initial_entry_discontinuity_certificate_v1"
+INITIAL_ENTRY_CERTIFICATE_REPO_PATH = (
+    "docs/evidence/senses-initial-entry-discontinuity-v1-c4-2026-10-11.json"
+)
 DAY_NS = 86_400_000_000_000
 MINIMUM_FLOOR = 50 * 1024**3
 METADATA_PER_REQUEST = 64 * 1024
@@ -137,17 +144,62 @@ def _registry_claims(root: Path) -> dict[str, dict[str, Any]]:
     for predecessor_hash, claim in value["claims"].items():
         body = dict(claim)
         supplied = body.pop("claim_sha256", None)
-        if (
+        common_invalid = (
             supplied != _sha(_canonical(body))
-            or claim.get("schema") != CLAIM_SCHEMA
-            or claim.get("predecessor_terminal_sha256") != predecessor_hash
             or not isinstance(claim.get("lease_id"), str)
+            or not claim.get("lease_id")
             or not isinstance(claim.get("packet_digest"), str)
             or claim.get("activation_performed") is not False
             or type(claim.get("claimed_at_ns")) is not int
-        ):
+        )
+        normal_invalid = (
+            claim.get("schema") == CLAIM_SCHEMA
+            and claim.get("predecessor_terminal_sha256") == predecessor_hash
+        )
+        initial_invalid = (
+            claim.get("schema") == INITIAL_ENTRY_CLAIM_SCHEMA
+            and claim.get("predecessor_digest_kind") == INITIAL_ENTRY_PREDECESSOR_KIND
+            and isinstance(claim.get("predecessor_digest_sha256"), str)
+            and HEX64.fullmatch(claim["predecessor_digest_sha256"])
+            and claim.get("claim_key_sha256") == predecessor_hash
+            and predecessor_hash == _initial_entry_claim_key(claim["predecessor_digest_sha256"])
+        )
+        if common_invalid or not (normal_invalid or initial_invalid):
             raise VerificationError("claim_registry_record_invalid")
     return value["claims"]
+
+
+def _initial_entry_claim_key(predecessor_digest_sha256: str) -> str:
+    return _sha(
+        _canonical(
+            {
+                "domain": "brain-senses-initial-entry-successor-claim-key-v1",
+                "predecessor_digest_kind": INITIAL_ENTRY_PREDECESSOR_KIND,
+                "predecessor_digest_sha256": predecessor_digest_sha256,
+            }
+        )
+    )
+
+
+def _predecessor_claim_identity(plan: dict[str, Any]) -> dict[str, str]:
+    predecessor = plan.get("predecessor")
+    digest = predecessor.get("terminal_sha256") if isinstance(predecessor, dict) else None
+    if not isinstance(digest, str) or not HEX64.fullmatch(digest):
+        raise VerificationError("predecessor_terminal_hash_invalid")
+    kind = plan.get("predecessor_digest_kind")
+    if kind is None:
+        return {
+            "kind": "normal_terminal_handoff_sha256_v1",
+            "digest": digest,
+            "claim_key": digest,
+        }
+    if kind != INITIAL_ENTRY_PREDECESSOR_KIND:
+        raise VerificationError("predecessor_digest_kind_unsupported")
+    return {
+        "kind": kind,
+        "digest": digest,
+        "claim_key": _initial_entry_claim_key(digest),
+    }
 
 
 def _inside(root: Path, relative: Any) -> Path:
@@ -378,6 +430,16 @@ def _validate_schedule(plan: dict[str, Any], entries: Any) -> tuple[dict[str, in
 def _lineage(
     root: Path, manifest: dict[str, Any], successor_plan: dict[str, Any]
 ) -> dict[str, Any]:
+    predecessor_kind = manifest.get("predecessor_digest_kind")
+    if predecessor_kind is not None:
+        if predecessor_kind != INITIAL_ENTRY_PREDECESSOR_KIND:
+            raise VerificationError("predecessor_digest_kind_unsupported")
+        return _initial_entry_lineage(root, manifest, successor_plan)
+    if (
+        "initial_entry" in manifest
+        or successor_plan.get("predecessor_digest_kind") == INITIAL_ENTRY_PREDECESSOR_KIND
+    ):
+        raise VerificationError("initial_entry_manifest_kind_missing")
     anchor = manifest.get("lineage_anchor")
     rows = manifest.get("predecessor_handoffs")
     if (
@@ -465,6 +527,112 @@ def _lineage(
     }
 
 
+def _file_identity(path: Path) -> dict[str, int]:
+    st = path.lstat()
+    if not stat.S_ISREG(st.st_mode) or st.st_uid != os.getuid() or st.st_nlink != 1:
+        raise VerificationError("initial_entry_artifact_identity_invalid")
+    return {
+        "device": st.st_dev,
+        "inode": st.st_ino,
+        "size": st.st_size,
+        "mtime_ns": st.st_mtime_ns,
+    }
+
+
+def _initial_entry_lineage(
+    root: Path, manifest: dict[str, Any], successor_plan: dict[str, Any]
+) -> dict[str, Any]:
+    entry = manifest.get("initial_entry")
+    required = {
+        "certificate_repo_path",
+        "certificate_file_sha256",
+        "predecessor_digest_sha256",
+        "candidate_path",
+        "candidate_sha256",
+        "candidate_inputs",
+    }
+    if (
+        not isinstance(entry, dict)
+        or set(entry) != required
+        or entry.get("certificate_repo_path") != INITIAL_ENTRY_CERTIFICATE_REPO_PATH
+        or "lineage_anchor" in manifest
+        or "predecessor_handoffs" in manifest
+    ):
+        raise VerificationError("initial_entry_manifest_schema_invalid")
+    repository_root = Path(__file__).resolve().parents[1]
+    certificate_path = repository_root / INITIAL_ENTRY_CERTIFICATE_REPO_PATH
+    if certificate_path.is_symlink():
+        raise VerificationError("initial_entry_certificate_symlink_forbidden")
+    certificate_raw = _read(certificate_path, owner=os.getuid())
+    certificate_sha = _sha(certificate_raw)
+    if certificate_sha != entry.get("certificate_file_sha256"):
+        raise VerificationError("initial_entry_certificate_file_hash_mismatch")
+    certificate = _json(certificate_raw)
+    source_receipt_raw = _read(discontinuity_verify.RECEIPT, owner=os.getuid())
+    source_receipt = _json(source_receipt_raw)
+    source_receipt_sha = _sha(source_receipt_raw)
+    discontinuity_verify.verify_certificate_data(certificate, source_receipt, source_receipt_sha)
+    predecessor_digest = _sha(discontinuity_verify._canonical(certificate))
+    if predecessor_digest != entry.get("predecessor_digest_sha256"):
+        raise VerificationError("initial_entry_predecessor_digest_mismatch")
+
+    candidate_path = _inside(root, entry.get("candidate_path"))
+    if candidate_path == _inside(root, manifest.get("successor_plan_path")):
+        raise VerificationError("initial_entry_candidate_plan_path_aliased")
+    candidate_raw = _read(candidate_path, owner=os.getuid())
+    if _sha(candidate_raw) != entry.get("candidate_sha256"):
+        raise VerificationError("initial_entry_candidate_file_hash_mismatch")
+    candidate = _json(candidate_raw)
+    if _canonical(candidate) + b"\n" != candidate_raw:
+        raise VerificationError("initial_entry_candidate_noncanonical")
+    try:
+        candidate_proof = initial_candidate_verify.verify_candidate_data(
+            candidate,
+            certificate,
+            certificate_sha,
+            entry.get("candidate_inputs"),
+        )
+    except (TypeError, ValueError, KeyError) as exc:
+        raise VerificationError(f"initial_entry_candidate_invalid:{exc}") from exc
+    if candidate.get("plan") != successor_plan:
+        raise VerificationError("initial_entry_candidate_plan_mismatch")
+    if (
+        successor_plan.get("predecessor_digest_kind") != INITIAL_ENTRY_PREDECESSOR_KIND
+        or successor_plan.get("initial_entry_certificate", {}).get("certificate_file_sha256")
+        != certificate_sha
+        or successor_plan.get("initial_entry_certificate", {}).get("predecessor_digest_sha256")
+        != predecessor_digest
+        or successor_plan.get("predecessor", {}).get("terminal_sha256") != predecessor_digest
+        or successor_plan.get("predecessor", {}).get("certificate_file_sha256") != certificate_sha
+        or successor_plan.get("activation_authorized") is not False
+    ):
+        raise VerificationError("initial_entry_typed_predecessor_binding_invalid")
+    plan_path = _inside(root, manifest.get("successor_plan_path"))
+    plan_raw = _read(plan_path, owner=os.getuid())
+    if _canonical(successor_plan) + b"\n" != plan_raw:
+        raise VerificationError("initial_entry_plan_bytes_changed")
+    return {
+        "lineage_kind": INITIAL_ENTRY_PREDECESSOR_KIND,
+        "predecessor_digest_kind": INITIAL_ENTRY_PREDECESSOR_KIND,
+        "predecessor_digest_sha256": predecessor_digest,
+        "certificate_file_sha256": certificate_sha,
+        "source_receipt_sha256": source_receipt_sha,
+        "candidate_sha256": candidate_proof["candidate_sha256"],
+        "candidate_plan_sha256": candidate_proof["plan_sha256"],
+        "terminal_at_ns": certificate["terminal_observation_ns"],
+        "frontier_slot": certificate["frontier_slot"],
+        "gaps": [gap["id"] for gap in certificate["gaps"]],
+        "unknown_intervals": certificate["unknown_intervals"],
+        "normal_v3_handoff": False,
+        "unknown_interval_closed": False,
+        "artifact_identity": {
+            "certificate": _file_identity(certificate_path),
+            "candidate": _file_identity(candidate_path),
+            "plan": _file_identity(plan_path),
+        },
+    }
+
+
 def _verify_packet(
     root: Path,
     *,
@@ -548,6 +716,7 @@ def _verify_packet(
         raise VerificationError("successor_plan_noncanonical")
     if plan.get("schema") != "brain-senses-prospective-operation-envelope-v2":
         raise VerificationError("successor_plan_schema_invalid")
+    initial_entry_plan = plan.get("predecessor_digest_kind") == INITIAL_ENTRY_PREDECESSOR_KIND
     buckets = plan.get("buckets")
     if (
         type(plan.get("created_ns")) is not int
@@ -609,6 +778,9 @@ def _verify_packet(
     ):
         raise VerificationError("successor_binding_missing")
     schedule_sha = _sha(_canonical(schedule))
+    plan_schedule_sha = (
+        _sha(_canonical(plan.get("buckets"))) if initial_entry_plan else schedule_sha
+    )
     caps_sha = _sha(_canonical(plan.get("caps")))
     source_sha = _sha(_canonical(plan.get("source_sha256")))
     plan_sha = _sha(plan_bytes)
@@ -628,6 +800,17 @@ def _verify_packet(
         "preflight_verifier": Path(__file__).resolve(),
     }
     actual_code = {key: _sha(path.read_bytes()) for key, path in code_files.items()}
+    if initial_entry_plan:
+        tools_root = Path(__file__).resolve().parent
+        initial_code_files = {
+            "initial_entry_compiler": tools_root
+            / "brain_senses_initial_entry_calendar_compiler_v1.py",
+            "initial_entry_verifier": Path(initial_candidate_verify.__file__).resolve(),
+            "discontinuity_verifier": Path(discontinuity_verify.__file__).resolve(),
+        }
+        actual_code.update(
+            {key: _sha(path.read_bytes()) for key, path in initial_code_files.items()}
+        )
     expected_contract = {
         "schema": calendar_verify.CALENDAR_SCHEMA,
         "handoff_schema": calendar_verify.HANDOFF_SCHEMA,
@@ -647,7 +830,7 @@ def _verify_packet(
         successor.get("lease_id") != plan.get("lease_id")
         or successor.get("plan_sha256") != plan_sha
         or successor.get("schedule_sha256") != schedule_sha
-        or plan.get("schedule_sha256") != schedule_sha
+        or (not initial_entry_plan and plan.get("schedule_sha256") != plan_schedule_sha)
         or successor.get("caps_sha256") != caps_sha
         or successor.get("source_sha256") != source_sha
         or successor.get("code_sha256") != code_sha
@@ -655,13 +838,23 @@ def _verify_packet(
         raise VerificationError("successor_plan_schedule_source_code_or_caps_binding_invalid")
     totals, daily = _validate_schedule(plan, schedule)
     lineage = _lineage(root, manifest, plan)
-    predecessor = plan["predecessor"]
-    predecessor_terminal = predecessor.get("terminal_sha256")
-    if not isinstance(predecessor_terminal, str) or not HEX64.fullmatch(predecessor_terminal):
-        raise VerificationError("predecessor_terminal_hash_invalid")
-    existing_claim = registry_claims.get(predecessor_terminal)
+    predecessor_identity = _predecessor_claim_identity(plan)
+    predecessor_terminal = predecessor_identity["digest"]
+    predecessor_claim_key = predecessor_identity["claim_key"]
+    existing_claim = registry_claims.get(predecessor_claim_key)
+    if predecessor_identity["kind"] == INITIAL_ENTRY_PREDECESSOR_KIND and any(
+        claim.get("schema") == CLAIM_SCHEMA
+        and claim.get("predecessor_terminal_sha256") == predecessor_terminal
+        for claim in registry_claims.values()
+    ):
+        raise VerificationError("initial_entry_predecessor_legacy_claim_alias")
     if existing_claim is not None and not allow_existing_claim:
         raise VerificationError("predecessor_successor_already_claimed")
+    if any(
+        key != predecessor_claim_key and claim.get("lease_id") == plan["lease_id"]
+        for key, claim in registry_claims.items()
+    ):
+        raise VerificationError("successor_lease_id_already_claimed")
     host, _, host_sha = _evidence(
         root,
         manifest.get("host_evidence"),
@@ -702,6 +895,14 @@ def _verify_packet(
         or not 0 <= now_ns - disk_sample <= freshness["disk"]
     ):
         raise VerificationError("trusted_local_clock_or_disk_evidence_stale_or_insufficient")
+    if initial_entry_plan and (
+        plan.get("clock_source_id") != clock_source_id
+        or plan.get("clock_observed_ns") != clock_now
+        or plan.get("created_ns", 0) < clock_now
+        or not plan.get("buckets")
+        or plan["buckets"][0].get("start_ns", 0) <= clock_now
+    ):
+        raise VerificationError("initial_entry_clock_or_first_anchor_not_future")
     pinned_capture_root = Path(capture_root_path)
     if not pinned_capture_root.is_absolute():
         raise VerificationError("runtime_capture_root_pin_missing_or_invalid")
@@ -845,6 +1046,9 @@ def _verify_packet(
         "activation_authorized": False,
         "lease_id": plan["lease_id"],
         "predecessor_terminal_sha256": predecessor_terminal,
+        "predecessor_digest_kind": predecessor_identity["kind"],
+        "predecessor_digest_sha256": predecessor_terminal,
+        "predecessor_claim_key_sha256": predecessor_claim_key,
         "claim_exists": existing_claim is not None,
         "packet_digest": manifest_digest,
         "plan_sha256": plan_sha,
@@ -954,12 +1158,11 @@ def verify_claim(
     registry_root, _ = _registry_identity(registry_root)
     plan_raw = _read(root / "successor-plan-v2.json", owner=os.getuid())
     plan = _json(plan_raw)
-    predecessor = plan.get("predecessor")
-    predecessor_terminal = (
-        predecessor.get("terminal_sha256") if isinstance(predecessor, dict) else None
-    )
+    predecessor_identity = _predecessor_claim_identity(plan)
+    predecessor_terminal = predecessor_identity["digest"]
+    claim_key = predecessor_identity["claim_key"]
     claims = _registry_claims(registry_root)
-    claim = claims.get(predecessor_terminal)
+    claim = claims.get(claim_key)
     if not isinstance(claim, dict):
         raise VerificationError("successor_claim_missing")
     if type(claim.get("claimed_at_ns")) is not int:
@@ -984,11 +1187,22 @@ def verify_claim(
     )
     body = dict(claim)
     supplied = body.pop("claim_sha256", None)
+    if predecessor_identity["kind"] == INITIAL_ENTRY_PREDECESSOR_KIND:
+        identity_invalid = (
+            claim.get("schema") != INITIAL_ENTRY_CLAIM_SCHEMA
+            or claim.get("predecessor_digest_kind") != INITIAL_ENTRY_PREDECESSOR_KIND
+            or claim.get("predecessor_digest_sha256") != predecessor_terminal
+            or claim.get("claim_key_sha256") != claim_key
+        )
+    else:
+        identity_invalid = (
+            claim.get("schema") != CLAIM_SCHEMA
+            or claim.get("predecessor_terminal_sha256") != predecessor_terminal
+        )
     if (
         supplied != _sha(_canonical(body))
-        or claim.get("schema") != CLAIM_SCHEMA
+        or identity_invalid
         or claim.get("lease_id") != packet["lease_id"]
-        or claim.get("predecessor_terminal_sha256") != predecessor_terminal
         or claim.get("packet_digest") != packet["packet_digest"]
         or claim.get("plan_sha256") != packet["plan_sha256"]
         or claim.get("schedule_sha256") != packet["schedule_sha256"]

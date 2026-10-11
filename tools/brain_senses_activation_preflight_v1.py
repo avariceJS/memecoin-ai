@@ -22,6 +22,8 @@ from tools import brain_senses_activation_preflight_verifier_v1 as verifier
 
 SCHEMA = "brain-senses-activation-preflight-v1"
 CLAIM_SCHEMA = "brain-senses-successor-claim-v1"
+INITIAL_ENTRY_CLAIM_SCHEMA = "brain-senses-initial-entry-successor-claim-v1"
+INITIAL_ENTRY_PREDECESSOR_KIND = "initial_entry_discontinuity_certificate_v1"
 REGISTRY_SCHEMA = "brain-senses-successor-claim-registry-v1"
 
 
@@ -142,15 +144,16 @@ def claim_successor(
         if eligibility.get("failure") == "predecessor_successor_already_claimed":
             raise PreflightError("predecessor_successor_already_claimed")
         raise PreflightError("successor_preflight_ineligible")
+    initial_artifact_identity = eligibility.get("lineage", {}).get("artifact_identity")
     registry_root = registry_root.resolve(strict=True)
     lock = _registry_lock(registry_root)
     try:
         claims = verifier._registry_claims(registry_root)
-        predecessor_hash = eligibility["predecessor_terminal_sha256"]
-        if predecessor_hash in claims:
+        claim_key = eligibility["predecessor_claim_key_sha256"]
+        if claim_key in claims:
             raise PreflightError("predecessor_successor_already_claimed")
         # Recheck all evidence while holding the exclusive owner lock.
-        eligibility = verifier.verify_packet(
+        rechecked = verifier.verify_packet(
             root,
             registry_root=registry_root,
             trust_store_path=trust_store_path,
@@ -163,21 +166,45 @@ def claim_successor(
             clock_source_id=clock_source_id,
             capture_root_path=capture_root_path,
         )
-        if not eligibility.get("eligible"):
+        if not rechecked.get("eligible"):
             raise PreflightError("successor_preflight_became_ineligible")
-        payload = {
-            "schema": CLAIM_SCHEMA,
-            "lease_id": eligibility["lease_id"],
-            "predecessor_terminal_sha256": eligibility["predecessor_terminal_sha256"],
-            "packet_digest": eligibility["packet_digest"],
-            "plan_sha256": eligibility["plan_sha256"],
-            "schedule_sha256": eligibility["schedule_sha256"],
-            "review_signature_sha256": eligibility["evidence_sha256"]["sol_signature"],
-            "claimed_at_ns": time.time_ns(),
-            "activation_performed": False,
-        }
+        if rechecked.get("predecessor_claim_key_sha256") != claim_key:
+            raise PreflightError("successor_claim_identity_changed_under_lock")
+        if (
+            rechecked.get("predecessor_digest_kind") == INITIAL_ENTRY_PREDECESSOR_KIND
+            and rechecked.get("lineage", {}).get("artifact_identity") != initial_artifact_identity
+        ):
+            raise PreflightError("initial_entry_artifact_identity_changed_under_lock")
+        eligibility = rechecked
+        claim_time = time.time_ns()
+        if eligibility.get("predecessor_digest_kind") == INITIAL_ENTRY_PREDECESSOR_KIND:
+            payload = {
+                "schema": INITIAL_ENTRY_CLAIM_SCHEMA,
+                "lease_id": eligibility["lease_id"],
+                "predecessor_digest_kind": eligibility["predecessor_digest_kind"],
+                "predecessor_digest_sha256": eligibility["predecessor_digest_sha256"],
+                "claim_key_sha256": claim_key,
+                "packet_digest": eligibility["packet_digest"],
+                "plan_sha256": eligibility["plan_sha256"],
+                "schedule_sha256": eligibility["schedule_sha256"],
+                "review_signature_sha256": eligibility["evidence_sha256"]["sol_signature"],
+                "claimed_at_ns": claim_time,
+                "activation_performed": False,
+            }
+        else:
+            payload = {
+                "schema": CLAIM_SCHEMA,
+                "lease_id": eligibility["lease_id"],
+                "predecessor_terminal_sha256": eligibility["predecessor_terminal_sha256"],
+                "packet_digest": eligibility["packet_digest"],
+                "plan_sha256": eligibility["plan_sha256"],
+                "schedule_sha256": eligibility["schedule_sha256"],
+                "review_signature_sha256": eligibility["evidence_sha256"]["sol_signature"],
+                "claimed_at_ns": claim_time,
+                "activation_performed": False,
+            }
         payload["claim_sha256"] = hashlib.sha256(_canonical(payload)).hexdigest()
-        claims[eligibility["predecessor_terminal_sha256"]] = payload
+        claims[claim_key] = payload
         registry_data = _canonical({"schema": REGISTRY_SCHEMA, "claims": claims}) + b"\n"
         pending = registry_root / f".registry-claim-v1-{uuid.uuid4().hex}.pending"
         _write_new(pending, registry_data)

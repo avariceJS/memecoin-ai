@@ -191,6 +191,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   the initial-entry certificate (36 focused cases, including synthetic anchor + 34-request frame,
   exact gap/unknown transfer, mutation and crash/no-replay checks). No candidate schedule, lease,
   provider request, or activation was created.
+- `senses-initial-entry-activation-preflight-v1-offline-validation-2026-10-11.json`: source-bound
+  offline eligibility check for the typed c4 discontinuity predecessor, exact candidate/compiler
+  binding, future-anchor rule, signed storage/charge/review evidence and domain-separated one-use
+  claim. Sol accepted this eligibility-only scope; 44 focused tests passed. No provider request,
+  activation, or cross-host exclusion is claimed.
 - `helius-c4-launchd-quiescence-2026-10-11.json`: records all 15 installed Senses LaunchAgents
   persistently disabled and unloaded, the exact c4 override, a credential-free process-argument
   scan, and contemporaneous free disk below the 50 GiB floor.
