@@ -1,6 +1,8 @@
 # Current Project State
 
-**As of:** 2026-10-10 23:50 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-10 23:59 UTC. Verify live runtime before any campaign or service decision.
+
+**Research HEAD:** `8ebf7a5c522258c9540782df5994474f467da097` on `research/active`.
 
 ## Boundaries and runtime
 
@@ -9,9 +11,9 @@
   holdout access, push, retry or backfill.
 - c3 is terminal after its ambiguous 11:00Z anchor failure; preserve its uncovered interval.
   c4 remains the unchanged finite calendar lease (one bootstrap plus at most 24 hourly frames).
-  Read-only status at 23:50Z: 11/24 frames complete, 374 frame requests plus one bootstrap (375
+  Read-only status at 23:58Z: 11/24 frames complete, 374 frame requests plus one bootstrap (375
   all-in), 769,657,413 raw / 177,576,506 stored bytes, zero failed or gapped epochs, zero open
-  reservations, 13 attempts remaining, frontier 455430160, and 54,775,685,120 free bytes. Exact c4
+  reservations, 13 attempts remaining, frontier 455430160, and 54,601,482,240 free bytes. Exact c4
   LaunchAgent remains loaded and idle between calendar ticks, with fixed path-only arguments; its
   23:00Z frame completed naturally. Old watcher/decode and predecessor-campaign LaunchAgents are
   disabled and unloaded. No manual tick. The eleven-frame method accounting is 12 `getSlot`
@@ -44,8 +46,9 @@
   failures/gaps/open reservations, 375 all-in requests and the free-disk figure above. The next
   frame's pre-reservation requirement is 54,361,091,200 bytes (50 GiB floor plus frame envelope and
   peak margin), leaving about 395 MiB current headroom; the unchanged runner fails closed before
-  RPC if free space falls below that value. No manual RPC or tick was run. A relative-root status
-  attempt failed closed; the absolute-root read succeeded.
+  RPC if free space falls below that value. Current headroom is 240,391,040 bytes (about 229 MiB).
+  No manual RPC or tick was run. A relative-root status attempt failed closed; the absolute-root
+  read succeeded.
 - c4 terminal proof implementation is being frozen offline. The new qualifier independently
   revalidates capture journals, selected-slot derivation, full/signature block agreement, structural
   summaries, request timing, reservation release, accounting and artifact hashes. It creates only
@@ -59,7 +62,9 @@
   Codex app-server; both local npm lockfiles resolve to 2.2.0 with identical tarball integrity.
   A fresh read-only `getHeliusPlanInfo` call at 22:16Z failed with MCP `Transport closed`; current
   account plan and limits remain unknown. Do not restart the app-server during the campaign; new
-  app-server starts should consume the pinned config.
+  app-server starts should consume the pinned config. A further read-only `getAccountStatus` call at
+  23:59Z also returned `Transport closed`; no result or request accounting was available, and it
+  was not retried.
 
 ## Senses evidence and current decision horizon
 
