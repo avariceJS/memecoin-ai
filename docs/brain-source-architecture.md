@@ -499,6 +499,20 @@ birth, an economic event, or admission. The ledger uses about 5 MB of output and
 read 699 MB in 98 seconds on this Mac. Receipt:
 [`program exposure ledger`](evidence/senses-program-exposure-ledger-v1-pair64-c3-2026-10-10.json).
 
+An archival v2 observation projection now publishes 603 positive Pump AMM program-reference counts
+over those same 608 selected finalized slots. Five captured local zeros remain census-only. Its
+slot-native coordinate domain is explicit; each event identity binds network, process, program,
+slot, and blockhash, while the per-slot count is payload. All source `availability_ns` values were
+unknown; `projection_known_utc` is newly recorded as 2026-10-11 13:14:54Z after the frozen ledger
+decision and latest receipt. The projected `Source` is event-only: it does not fabricate enrollment,
+UTC availability, sparse support, or a slot index. The verifier independently checks all 22 sealed
+metadata manifests and their selected-slot bindings, pinned source code, complete ordered source
+list, the ledger reconstruction, and `Source.rows()` equality. `Source.index()` rejects the native
+slot coordinate before creating a database. This remains an archival structural view of selected
+captures: the 44,285 per-slot sum is not global distinct transactions, and zeros do not establish
+global absence. Completeness, economic qualification, training, and production admission remain
+false. Receipt: [`Pair64/c3 program-exposure projection`](evidence/senses-program-exposure-projection-v1-pair64-c3-2026-10-11.json).
+
 The official [Pump AMM IDL pinned at commit `8cda1fa`](https://github.com/pump-fun/pump-public-docs/blob/8cda1fa30ea658b20909d8aedf002047119388d2/idl/pump_amm.json)
 binds 23 fixed `buy_exact_quote_in` accounts and the `spendable_quote_in`,
 `min_base_amount_out`, and `track_volume` arguments. Its docs identify the optional cashback

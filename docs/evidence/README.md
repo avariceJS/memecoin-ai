@@ -446,6 +446,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   capture times, selected-slot denominators, and explicit cross-dataset overlaps. Completeness is
   limited to the sealed selected-block inputs; program exposure is not a market, pool, birth, trade,
   or economic fact.
+- `senses-program-exposure-projection-v1-pair64-c3-2026-10-11.json`: hash-bound archival v2
+  event-only projection with 603 positive selected-slot counts and five census-only local zeros.
+  It preserves native slot coordinates and separately records when this retrospective projection
+  became locally available; it is not sparse/learning-ready, economically qualified, or complete.
 - `senses-pump-wss-reference-payload-benchmark-2026-10-10.json`: reproducible selected-block estimate of standard Pump `logsSubscribe` application payload bytes; it excludes framing/TLS/provider overhead and makes no live-rate or completeness claim.
 - Sell23 c4 audit v2 metadata-only preflight:
   `pumpswap-sell23-c4-audit-v2-metadata-preflight-2026-10-10.json` (confirms unchanged first four
