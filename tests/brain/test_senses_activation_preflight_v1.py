@@ -231,7 +231,9 @@ def make_case(
     packet_root = tmp_path / "packet"
     registry_root = tmp_path / "global-claim-registry"
     registry_root.mkdir(mode=0o700)
-    registry_id = sha(str(registry_root.resolve()).encode("utf-8"))
+    verifier.CANONICAL_CLAIM_REGISTRY_ROOT = registry_root
+    _, registry_identity = verifier._registry_snapshot(registry_root)
+    registry_id = sha(canonical(registry_identity))
     plan_bytes = write_json(packet_root / "successor-plan-v2.json", successor_plan)
     plan_hash = sha(plan_bytes)
     storage_capture = successor_plan["caps"]["raw_bytes"] + successor_plan["caps"]["stored_bytes"]
@@ -366,6 +368,7 @@ def make_case(
         "packet_id": "offline-preflight-test-packet",
         "activation_scope": "offline-preflight-only",
         "claim_registry_id": registry_id,
+        "claim_registry_identity": registry_identity,
         "clock_source_id": "offline-fixture-clock",
         "lineage_anchor": lineage_anchor,
         "predecessor_handoffs": [
@@ -1247,7 +1250,7 @@ def test_packet_is_bound_to_configured_global_claim_registry(tmp_path: Path):
     other_registry.mkdir(mode=0o700)
     result = verify(case, registry_root=other_registry)
     assert result["eligible"] is False
-    assert result["failure"] == "claim_registry_out_of_band_identity_mismatch"
+    assert result["failure"] == "claim_registry_path_invalid"
 
 
 def test_claim_is_write_once_and_claim_verifies_without_activation(tmp_path: Path):

@@ -1,11 +1,12 @@
 # Current Project State
 
-**As of:** 2026-10-11 13:55 UTC. Research branch `research/active`; latest Senses evidence commit `946298c4b00ef86e9d242665f7ca5fe3b8d62627`. Production checkout `/Users/root1/Desktop/memecoin-ai` is untouched.
+**As of:** 2026-10-11 15:09 UTC. Research branch `research/active`; working scope based on `730dce9e61f9f36a70feb6f11eacd43f4902cd44` (offline WSS readiness patch pending commit). Production checkout `/Users/root1/Desktop/memecoin-ai` is untouched.
 
 ## Runtime and acquisition
 
 - User authorizes the current Helius key without rotation. Codex/Cursor active configs point to the owner-only pinned `helius-mcp-secure` wrapper. A stale `helius-mcp@latest` process with credential-bearing argv was stopped. The 13:37Z exact-value rescan found zero matches in 6,449 reachable Git objects, 48 recent files / 19.2 MB, current argv, launchd state, and 1.98 GB Unified Log. Limits and receipt: `docs/evidence/helius-key-post-legacy-mcp-stop-exposure-rescan-2026-10-11T1337Z.json`.
-- No Helius RPC or Senses LaunchAgent is active. c4 is terminal with immutable abnormal STOPs and missed prospective buckets; do not reopen, backfill, or touch frozen tail2. Sol requires a new finite forward-only lease after account-specific billing/overage evidence, eligible storage/runway, verified lineage/trust, and independent activation review. Account controls remain unknown; internal APFS has about 31 GiB free vs a 50-GiB floor and c5 composite estimate >=61.8 GB. No current live cadence is approved.
+- Fresh no-network owner census at about 15:05Z: all 15 expected Senses labels are disabled and unloaded, zero Senses writers, and four identifiable Helius MCP key-bearing worker environments (count only; no value read; activity not inferred). The 13:37Z exposure receipt found zero exact matches in argv/logs; it remains a historical exposure scan, not current process census. c4 is terminal with immutable abnormal STOPs and missed prospective buckets; do not reopen, backfill, or touch frozen tail2. Internal APFS has about 31 GiB free vs a 50-GiB floor. No current live cadence is approved.
+- Owner wrapper is pinned to `helius-mcp@2.2.0`, mode 0700, and transfers the API key via child environment, not arguments; `.env.local` is mode 0600. Four identifiable MCP worker pairs still exist; clean argv was observed and no request activity is inferred. No RPC or LaunchAgent was started in this continuation.
 
 ## Evidence boundary
 
@@ -15,4 +16,4 @@
 
 ## Next horizon
 
-Await Sol's next bounded offline Senses decision after parser acceptance. Continue durable sensing only; do not begin Cortex. `work/` is about 33 GiB and the Agave build target about 7 GiB; even safe build-cache cleanup alone cannot satisfy the reviewed lease runway.
+The WSS first-entry v2 gate remains offline signed-assertion-only; its production claim API is disabled and activation is false. Public Helius docs state 2 credits per 0.1 MB uncompressed standard WSS and monthly→prepaid→autoscaling order, but account headroom, overage controls, rounding scope, and control/handshake charges remain unverified. The account MCP returned `Transport closed`; disk remains below the reviewed 50 GiB floor. Receipt: `docs/evidence/helius-public-wss-billing-source-capture-2026-10-11.json`. The frozen readiness v1 receipt is superseded and non-authoritative; its MCP environment-presence classifier is stale/incorrect. Focused WSS validation passed (75), focused shared-claim validation passed (11; one immutable c4-replay-dependent test excluded). Root differential review and commit are pending; next horizon is a Sol decision between offline buyExact25 qualification and forward-only autonomous collection groundwork. Do not begin Cortex.

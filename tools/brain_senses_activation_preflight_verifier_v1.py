@@ -34,6 +34,10 @@ SCHEMA = "brain-senses-activation-preflight-v1"
 CLAIM_SCHEMA = "brain-senses-successor-claim-v1"
 INITIAL_ENTRY_CLAIM_SCHEMA = "brain-senses-initial-entry-successor-claim-v1"
 REGISTRY_SCHEMA = "brain-senses-successor-claim-registry-v1"
+REGISTRY_CLAIMS_FILENAME = "successor-claims-v1.json"
+CANONICAL_CLAIM_REGISTRY_ROOT = (
+    Path.home() / "Library" / "Application Support" / "MemecoinResearch" / "senses-successor-claim-registry-v1"
+)
 INITIAL_ENTRY_PREDECESSOR_KIND = "initial_entry_discontinuity_certificate_v1"
 INITIAL_ENTRY_CERTIFICATE_REPO_PATH = (
     "docs/evidence/senses-initial-entry-discontinuity-v1-c4-2026-10-11.json"
@@ -98,11 +102,17 @@ def _read(path: Path, *, owner: int, max_bytes: int = MAX_JSON_BYTES) -> bytes:
     return body
 
 
-def _registry_identity(path: Path) -> tuple[Path, str]:
+def _registry_snapshot(path: Path) -> tuple[Path, dict[str, Any]]:
     original = Path(path)
-    if not original.is_absolute() or stat.S_ISLNK(original.lstat().st_mode):
+    if (
+        not original.is_absolute()
+        or original != CANONICAL_CLAIM_REGISTRY_ROOT
+        or stat.S_ISLNK(original.lstat().st_mode)
+    ):
         raise VerificationError("claim_registry_path_invalid")
     root = original.resolve(strict=True)
+    if root != CANONICAL_CLAIM_REGISTRY_ROOT:
+        raise VerificationError("claim_registry_canonical_path_mismatch")
     st = root.lstat()
     if (
         not stat.S_ISDIR(st.st_mode)
@@ -110,14 +120,25 @@ def _registry_identity(path: Path) -> tuple[Path, str]:
         or stat.S_IMODE(st.st_mode) != 0o700
     ):
         raise VerificationError("claim_registry_owner_or_mode_invalid")
-    return root, _sha(str(root).encode("utf-8"))
+    return root, {
+        "path": str(root),
+        "device_id": st.st_dev,
+        "inode": st.st_ino,
+        "owner_uid": st.st_uid,
+        "directory_mode": stat.S_IMODE(st.st_mode),
+    }
+
+
+def _registry_identity(path: Path) -> tuple[Path, str]:
+    root, identity = _registry_snapshot(path)
+    return root, _sha(_canonical(identity))
 
 
 def _registry_claims(root: Path) -> dict[str, dict[str, Any]]:
     pending = list(root.glob(".registry-claim-v1-*.pending"))
     if pending:
         raise VerificationError("claim_registry_crash_prefix_present")
-    path = root / "successor-claims-v1.json"
+    path = root / REGISTRY_CLAIMS_FILENAME
     try:
         st = path.lstat()
     except FileNotFoundError:
@@ -677,6 +698,7 @@ def _verify_packet(
     ):
         raise VerificationError("packet_root_owner_or_mode_invalid")
     registry_root, registry_id = _registry_identity(registry_root)
+    _, registry_snapshot = _registry_snapshot(registry_root)
     registry_claims = _registry_claims(registry_root)
     if not HEX64.fullmatch(trust_store_sha256) or not HEX64.fullmatch(openssl_sha256):
         raise VerificationError("out_of_band_source_pin_invalid")
@@ -700,6 +722,8 @@ def _verify_packet(
         raise VerificationError("activation_scope_invalid")
     if manifest.get("claim_registry_id") != registry_id:
         raise VerificationError("claim_registry_out_of_band_identity_mismatch")
+    if manifest.get("claim_registry_identity") != registry_snapshot:
+        raise VerificationError("claim_registry_canonical_identity_mismatch")
     toolchain = manifest.get("crypto_tool")
     if (
         not isinstance(toolchain, dict)
@@ -1044,6 +1068,7 @@ def _verify_packet(
     return {
         "eligible": True,
         "activation_authorized": False,
+        "claim_registry_identity": registry_snapshot,
         "lease_id": plan["lease_id"],
         "predecessor_terminal_sha256": predecessor_terminal,
         "predecessor_digest_kind": predecessor_identity["kind"],

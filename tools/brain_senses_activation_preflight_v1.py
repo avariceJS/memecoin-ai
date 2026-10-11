@@ -126,6 +126,8 @@ def claim_successor(
     root = Path(root)
     _private_root(root)
     registry_root = Path(registry_root)
+    if registry_root != verifier.CANONICAL_CLAIM_REGISTRY_ROOT:
+        raise PreflightError("claim_registry_not_canonical_owner_root")
     _private_root(registry_root, create=True)
     eligibility = verifier.verify_packet(
         root,
@@ -168,6 +170,8 @@ def claim_successor(
         )
         if not rechecked.get("eligible"):
             raise PreflightError("successor_preflight_became_ineligible")
+        if rechecked.get("claim_registry_identity") != eligibility.get("claim_registry_identity"):
+            raise PreflightError("claim_registry_identity_changed_under_lock")
         if rechecked.get("predecessor_claim_key_sha256") != claim_key:
             raise PreflightError("successor_claim_identity_changed_under_lock")
         if (
@@ -208,7 +212,7 @@ def claim_successor(
         registry_data = _canonical({"schema": REGISTRY_SCHEMA, "claims": claims}) + b"\n"
         pending = registry_root / f".registry-claim-v1-{uuid.uuid4().hex}.pending"
         _write_new(pending, registry_data)
-        os.replace(pending, registry_root / "successor-claims-v1.json")
+        os.replace(pending, registry_root / verifier.REGISTRY_CLAIMS_FILENAME)
         dfd = os.open(registry_root, os.O_RDONLY)
         try:
             os.fsync(dfd)

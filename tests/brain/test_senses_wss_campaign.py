@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import socket
+from pathlib import Path
 
 import pytest
 
@@ -11,6 +12,7 @@ from memecoin_collector.wss_campaign import (
     default_authorization,
 )
 from memecoin_collector.wss_reference import DISK_FLOOR_BYTES, MAX_SESSION_NS
+from memecoin_collector import wss_campaign as campaign_module, wss_reference as reference_module
 
 
 def authorization():
@@ -173,6 +175,7 @@ def test_one_writer_lock_and_recovery_seal_without_resume(tmp_path):
 
 
 def test_authorization_expiry_and_binding_mutation_fail_closed(tmp_path):
+    assert authorization()["schema_version"] == 2
     bad = default_authorization(
         c4_stop_sha256="0" * 64,
         account_budget_evidence_sha256="1" * 64,
@@ -287,3 +290,71 @@ def test_receive_reassembles_text_and_answers_ping_with_masked_pong(tmp_path):
     assert len(response) == 1 and response[0][0] == 0x8A and response[0][1] & 0x80
     campaign.stop("synthetic_test_end", 110)
     campaign.close()
+
+
+def test_billable_message_cap_stops_before_next_header_read(tmp_path):
+    campaign = acknowledged_campaign(tmp_path / "billable-cap")
+    campaign.authorization["max_billable_messages"] = 0
+    reader = Reader(frame(0x9, b"x"))
+    assert campaign.receive_json_message(
+        reader, at_ns=105, free_disk_bytes=DISK_FLOOR_BYTES + 1,
+        clock_ns=lambda: 105,
+    ) is None
+    assert reader.read_sizes == []
+    row = json.loads((campaign.root / "CAMPAIGN_STOP.json").read_bytes())
+    assert row["reason"] == "billable_message_cap"
+    campaign.close()
+
+
+def test_transport_control_frame_cap_stops_after_header_before_payload(tmp_path):
+    campaign = acknowledged_campaign(tmp_path / "control-frame-cap")
+    campaign.authorization["max_transport_control_frames"] = 0
+    reader = Reader(frame(0x9, b"payload"))
+    assert campaign.receive_json_message(
+        reader, at_ns=105, free_disk_bytes=DISK_FLOOR_BYTES + 1,
+        clock_ns=lambda: 105,
+    ) is None
+    assert reader.read_sizes == [2]
+    row = json.loads((campaign.root / "CAMPAIGN_STOP.json").read_bytes())
+    assert row["reason"] == "transport_control_frame_cap"
+    campaign.close()
+
+
+def test_ping_control_accounting_is_saved_before_failed_pong_write(tmp_path):
+    campaign = acknowledged_campaign(tmp_path / "ping-write-failure")
+    reader = Reader(frame(0x9, b"ping"))
+
+    def fail_write(_payload):
+        raise OSError("synthetic write failure")
+
+    with pytest.raises(OSError, match="synthetic write failure"):
+        campaign.receive_json_message(
+            reader, at_ns=105, free_disk_bytes=DISK_FLOOR_BYTES + 1,
+            clock_ns=lambda: 105, send_client_frame=fail_write,
+        )
+    assert campaign.sessions[0].transport_control_frames == 1
+    assert campaign.sessions[0].transport_control_bytes > 0
+    campaign.close()
+
+
+def test_campaign_stop_billing_counters_are_rederived_on_recovery(tmp_path):
+    root = tmp_path / "billing-stop"
+    campaign = acknowledged_campaign(root)
+    raw = notification(50, "cap-stop")
+    assert campaign.prepare_receive(at_ns=105, free_disk_bytes=DISK_FLOOR_BYTES + 1)
+    campaign.record_message(raw, received_ns=105, clock_ns=lambda: 106)
+    campaign.stop("synthetic_test_end", 110)
+    campaign.close()
+    path = root / "CAMPAIGN_STOP.json"
+    row = json.loads(path.read_bytes())
+    assert row["billable_message_count"] == 1
+    assert row["billable_uncompressed_bytes"] == len(raw)
+    row.pop("sha256")
+    row["billable_message_count"] += 1
+    row["sha256"] = hashlib.sha256(
+        json.dumps(row, sort_keys=True, separators=(",", ":"), allow_nan=False).encode() + b"\n"
+    ).hexdigest()
+    path.write_text(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
+    path.chmod(0o600)
+    with pytest.raises(ValueError, match="wss_campaign_stop_accounting_mismatch"):
+        WssReferenceCampaign.recover_interrupted(root, at_ns=120)

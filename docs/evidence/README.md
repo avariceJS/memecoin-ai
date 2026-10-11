@@ -6,6 +6,17 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- Helius public WSS billing source capture:
+  `helius-public-wss-billing-source-capture-2026-10-11.json` (public rate and credit consumption
+  order only; account balance/overage, rounding scope and control/handshake billing remain unknown).
+- Senses first-entry readiness v2:
+  `senses-first-entry-readiness-v2-2026-10-11.json` (supersedes the v1 readiness view; inert
+  signed-assertion contract, production claim disabled, activation false).
+- Senses first-entry readiness v1:
+  `senses-first-entry-readiness-v1-2026-10-11.json` (frozen, superseded and non-authoritative;
+  its Helius MCP environment-presence classifier is stale/incorrect and must not be used as current
+  process evidence. Use the v2 receipt and fresh runtime census instead.)
+
 - Alchemy Free/PAYG endpoint behavior, metered CU reconciliation and bounded errors: `alchemy-endpoint-qualification-2026-10-09.json` (no secrets; endpoint behavior only, no completeness claim).
 - Alchemy MCP authenticated-account usage snapshot:
   `alchemy-account-usage-summary-mcp-2026-10-10.json` (18,680 CU / $0.01 month-to-date as of

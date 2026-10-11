@@ -17,6 +17,10 @@ from memecoin_collector.wss_reference import (
     MAX_CONTROL_RESPONSE_BYTES,
     MAX_MESSAGE_BYTES,
     MAX_SESSION_NS,
+    MAX_BILLABLE_MESSAGES,
+    MAX_BILLABLE_UNCOMPRESSED_BYTES,
+    MAX_TRANSPORT_CONTROL_FRAMES,
+    MAX_TRANSPORT_CONTROL_WIRE_BYTES,
     RAW_LIMIT_BYTES,
     RECONNECTABLE_REASONS,
     STORED_LIMIT_BYTES,
@@ -47,7 +51,7 @@ def default_authorization(
     socket_adapter = Path(__file__).with_name("wss_socket.py")
     resolver = Path(__file__).resolve().parents[2] / "tools" / "brain_senses_wss_resolver.py"
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "provider": "helius-standard-wss",
         "program_id": default_binding()["program_id"],
         "method": "logsSubscribe",
@@ -72,6 +76,10 @@ def default_authorization(
         "raw_limit_bytes": RAW_LIMIT_BYTES,
         "stored_limit_bytes": STORED_LIMIT_BYTES,
         "max_message_bytes": MAX_MESSAGE_BYTES,
+        "max_billable_messages": MAX_BILLABLE_MESSAGES,
+        "max_billable_uncompressed_bytes": MAX_BILLABLE_UNCOMPRESSED_BYTES,
+        "max_transport_control_frames": MAX_TRANSPORT_CONTROL_FRAMES,
+        "max_transport_control_wire_bytes": MAX_TRANSPORT_CONTROL_WIRE_BYTES,
         "minimum_free_disk_bytes": DISK_FLOOR_BYTES,
         "credential_transport": "private_env_in_process; never_argv_or_log",
         "resume_after_process_interruption": False,
@@ -203,6 +211,14 @@ class WssReferenceCampaign:
         if sum(item.raw_bytes for item in self.sessions) + MAX_MESSAGE_BYTES > RAW_LIMIT_BYTES:
             self.stop("aggregate_raw_cap", at_ns)
             raise ValueError("wss_campaign_raw_cap")
+        if (
+            sum(item.billable_message_count for item in self.sessions) + 1
+            > self.authorization["max_billable_messages"]
+            or sum(item.billable_uncompressed_bytes for item in self.sessions) + MAX_MESSAGE_BYTES
+            > self.authorization["max_billable_uncompressed_bytes"]
+        ):
+            self.stop("billable_message_cap", at_ns)
+            raise ValueError("wss_campaign_billable_message_cap")
         gap = None
         if self.sessions:
             previous_stop = self._last_stop(self.sessions[-1])
@@ -250,6 +266,14 @@ class WssReferenceCampaign:
         if sum(item.raw_bytes for item in self.sessions) + MAX_MESSAGE_BYTES > RAW_LIMIT_BYTES:
             self.stop("aggregate_raw_cap", at_ns)
             return False
+        if (
+            sum(item.billable_message_count for item in self.sessions) + 1
+            > self.authorization["max_billable_messages"]
+            or sum(item.billable_uncompressed_bytes for item in self.sessions) + MAX_MESSAGE_BYTES
+            > self.authorization["max_billable_uncompressed_bytes"]
+        ):
+            self.stop("billable_message_cap", at_ns)
+            return False
         if self._stored_bytes() + MAX_MESSAGE_BYTES + 16_384 > STORED_LIMIT_BYTES:
             self.stop("aggregate_stored_cap", at_ns)
             return False
@@ -274,6 +298,14 @@ class WssReferenceCampaign:
             > RAW_LIMIT_BYTES
         ):
             self.stop("aggregate_raw_cap", at_ns)
+            return False
+        if (
+            sum(item.billable_message_count for item in self.sessions) + 1
+            > self.authorization["max_billable_messages"]
+            or sum(item.billable_uncompressed_bytes for item in self.sessions) + MAX_CONTROL_RESPONSE_BYTES
+            > self.authorization["max_billable_uncompressed_bytes"]
+        ):
+            self.stop("billable_message_cap", at_ns)
             return False
         if self._stored_bytes() + MAX_CONTROL_RESPONSE_BYTES + 16_384 > STORED_LIMIT_BYTES:
             self.stop("aggregate_stored_cap", at_ns)
@@ -359,6 +391,24 @@ class WssReferenceCampaign:
                     max(observed_ns, self.active.last_event_ns),
                 )
                 raise
+            if (
+                header.opcode in {0x8, 0x9, 0xA}
+                and (
+                    sum(item.transport_control_frames for item in self.sessions)
+                    >= self.authorization["max_transport_control_frames"]
+                    or sum(item.transport_control_bytes for item in self.sessions)
+                    + len(header.raw) + header.payload_length + 131
+                    > self.authorization["max_transport_control_wire_bytes"]
+                )
+            ):
+                self.active.reject_transport_header(
+                    raw_header=header.raw,
+                    declared_payload_bytes=header.payload_length,
+                    received_ns=observed_ns,
+                    reason="transport_control_frame_cap",
+                )
+                self.stop("transport_control_frame_cap", observed_ns)
+                return None
             try:
                 payload = reader.read_exactly(header.payload_length)
             except (OSError, EOFError):
@@ -402,15 +452,29 @@ class WssReferenceCampaign:
                     max(observed_ns, self.active.last_event_ns),
                 )
                 raise
+            control = message if message is not None and message[0] in {"ping", "pong", "close"} else None
             if message is None:
                 continue
             kind, body = message
             if kind == "ping":
                 if send_client_frame is None:
+                    self.active.record_transport_control(
+                        control_kind=kind,
+                        inbound_wire_bytes=len(header.raw) + len(payload),
+                        outbound_wire_bytes=None,
+                        at_ns=observed_ns,
+                    )
                     self.stop("transport_ping_without_pong_writer", observed_ns)
                     raise ValueError("wss_transport_ping_writer_missing")
                 try:
-                    send_client_frame(encode_client_frame(0xA, body))
+                    pong = encode_client_frame(0xA, body)
+                    self.active.record_transport_control(
+                        control_kind=kind,
+                        inbound_wire_bytes=len(header.raw) + len(payload),
+                        outbound_wire_bytes=len(pong),
+                        at_ns=observed_ns,
+                    )
+                    send_client_frame(pong)
                 except BaseException:
                     failure_ns = observed_ns
                     if self.active is not None:
@@ -426,8 +490,20 @@ class WssReferenceCampaign:
                     raise
                 continue
             if kind == "pong":
+                self.active.record_transport_control(
+                    control_kind=kind,
+                    inbound_wire_bytes=len(header.raw) + len(payload),
+                    outbound_wire_bytes=0,
+                    at_ns=observed_ns,
+                )
                 continue
             if kind == "close":
+                self.active.record_transport_control(
+                    control_kind=kind,
+                    inbound_wire_bytes=len(header.raw) + len(payload),
+                    outbound_wire_bytes=0,
+                    at_ns=observed_ns,
+                )
                 self.stop_session("connection_disconnected", observed_ns)
                 return None
             received_ns = _safe_now(clock_ns())
@@ -472,6 +548,10 @@ class WssReferenceCampaign:
             "authorization_sha256": self.authorization_sha256,
             "session_count": len(self.sessions),
             "raw_message_bytes": sum(item.raw_bytes for item in self.sessions),
+            "billable_message_count": sum(item.billable_message_count for item in self.sessions),
+            "billable_uncompressed_bytes": sum(item.billable_uncompressed_bytes for item in self.sessions),
+            "transport_control_frames": sum(item.transport_control_frames for item in self.sessions),
+            "transport_control_wire_bytes": sum(item.transport_control_bytes for item in self.sessions),
             "stored_bytes_before_stop_record": self._stored_bytes(),
             "no_resume": True,
             "no_backfill_or_http_retrieval": True,
@@ -605,6 +685,12 @@ class WssReferenceCampaign:
             if existing.get("authorization_sha256") != auth_sha:
                 raise ValueError("wss_campaign_stop_binding_mismatch")
             raw_total = sum(row["stop"].get("raw_bytes", 0) for row in session_stops)
+            billing_totals = {
+                "billable_message_count": sum(row["stop"].get("billable_message_count", 0) for row in session_stops),
+                "billable_uncompressed_bytes": sum(row["stop"].get("billable_uncompressed_bytes", 0) for row in session_stops),
+                "transport_control_frames": sum(row["stop"].get("transport_control_frames", 0) for row in session_stops),
+                "transport_control_wire_bytes": sum(row["stop"].get("transport_control_wire_bytes", 0) for row in session_stops),
+            }
             stored_before_stop = (
                 sum(
                     path.stat().st_size
@@ -617,10 +703,24 @@ class WssReferenceCampaign:
                 existing.get("session_count") != len(paths)
                 or existing.get("raw_message_bytes") != raw_total
                 or existing.get("stored_bytes_before_stop_record") != stored_before_stop
+                or any(existing.get(key) != value for key, value in billing_totals.items())
             ):
                 raise ValueError("wss_campaign_stop_accounting_mismatch")
             return existing
         raw_total = sum(row["stop"].get("raw_bytes", 0) for row in session_stops)
+        billing_totals = {
+            "billable_message_count": sum(row["stop"].get("billable_message_count", 0) for row in session_stops),
+            "billable_uncompressed_bytes": sum(row["stop"].get("billable_uncompressed_bytes", 0) for row in session_stops),
+            "transport_control_frames": sum(row["stop"].get("transport_control_frames", 0) for row in session_stops),
+            "transport_control_wire_bytes": sum(row["stop"].get("transport_control_wire_bytes", 0) for row in session_stops),
+        }
+        if (
+            billing_totals["billable_message_count"] > authorization["max_billable_messages"]
+            or billing_totals["billable_uncompressed_bytes"] > authorization["max_billable_uncompressed_bytes"]
+            or billing_totals["transport_control_frames"] > authorization["max_transport_control_frames"]
+            or billing_totals["transport_control_wire_bytes"] > authorization["max_transport_control_wire_bytes"]
+        ):
+            raise ValueError("wss_campaign_recovered_billable_cap_exceeded")
         stored_total = sum(
             path.stat().st_size
             for path in root.rglob("*")
@@ -635,6 +735,7 @@ class WssReferenceCampaign:
             "authorization_sha256": auth_sha,
             "session_count": len(paths),
             "raw_message_bytes": raw_total,
+            **billing_totals,
             "stored_bytes_before_stop_record": stored_total,
             "session_stops": session_stops,
             "no_resume": True,

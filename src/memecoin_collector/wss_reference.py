@@ -23,6 +23,10 @@ PUMP_BONDING_CURVE_PROGRAM = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
 RAW_LIMIT_BYTES = 128 * 1024 * 1024
 STORED_LIMIT_BYTES = 64 * 1024 * 1024
 MAX_MESSAGE_BYTES = 4 * 1024 * 1024
+MAX_BILLABLE_MESSAGES = 32_768
+MAX_BILLABLE_UNCOMPRESSED_BYTES = RAW_LIMIT_BYTES
+MAX_TRANSPORT_CONTROL_FRAMES = 32_768
+MAX_TRANSPORT_CONTROL_WIRE_BYTES = MAX_TRANSPORT_CONTROL_FRAMES * (10 + 125 + 6 + 125)
 MAX_CONTROL_RESPONSE_BYTES = 64 * 1024
 DISK_FLOOR_BYTES = 50 * 1024**3
 MAX_SESSION_NS = 4 * 60 * 60 * 1_000_000_000
@@ -199,7 +203,7 @@ class WssReferenceSession:
         if root.exists():
             raise ValueError("wss_session_root_exists")
         required = {
-            "schema_version": 1,
+            "schema_version": 2,
             "provider": "helius-standard-wss",
             "program_id": PUMP_BONDING_CURVE_PROGRAM,
             "method": "logsSubscribe",
@@ -208,6 +212,10 @@ class WssReferenceSession:
             "raw_limit_bytes": RAW_LIMIT_BYTES,
             "stored_limit_bytes": STORED_LIMIT_BYTES,
             "max_message_bytes": MAX_MESSAGE_BYTES,
+            "max_billable_messages": MAX_BILLABLE_MESSAGES,
+            "max_billable_uncompressed_bytes": MAX_BILLABLE_UNCOMPRESSED_BYTES,
+            "max_transport_control_frames": MAX_TRANSPORT_CONTROL_FRAMES,
+            "max_transport_control_wire_bytes": MAX_TRANSPORT_CONTROL_WIRE_BYTES,
             "max_duration_ns": MAX_SESSION_NS,
             "credential_transport": "private_env_in_process; never_argv_or_log",
         }
@@ -223,6 +231,10 @@ class WssReferenceSession:
         self.seq = 0
         self.parent_sha256 = hashlib.sha256(_canonical(binding)).hexdigest()
         self.raw_bytes = 0
+        self.billable_message_count = 0
+        self.billable_uncompressed_bytes = 0
+        self.transport_control_frames = 0
+        self.transport_control_bytes = 0
         self.stored_bytes = (root / "binding.json").stat().st_size
         self.seen_signatures: set[tuple[int, str]] = set()
         self.acknowledged = False
@@ -474,6 +486,13 @@ class WssReferenceSession:
             self.stop("disk_floor", at_ns)
             return False
         if (
+            self.billable_message_count + 1 > self.binding["max_billable_messages"]
+            or self.billable_uncompressed_bytes + MAX_CONTROL_RESPONSE_BYTES
+            > self.binding["max_billable_uncompressed_bytes"]
+        ):
+            self.stop("billable_message_cap", at_ns)
+            return False
+        if (
             self.raw_bytes + MAX_CONTROL_RESPONSE_BYTES > RAW_LIMIT_BYTES
             or self.stored_bytes + MAX_CONTROL_RESPONSE_BYTES + 8192 > STORED_LIMIT_BYTES
         ):
@@ -516,6 +535,13 @@ class WssReferenceSession:
             )
             self.stop("byte_cap_gap", received_ns)
             raise ValueError("wss_control_response_byte_cap")
+        if (
+            self.billable_message_count + 1 > self.binding["max_billable_messages"]
+            or self.billable_uncompressed_bytes + len(raw)
+            > self.binding["max_billable_uncompressed_bytes"]
+        ):
+            self.stop("billable_message_cap", received_ns)
+            raise ValueError("wss_control_response_billable_cap")
         seq = self.seq + 1
         raw_path = self.root / "raw" / f"{seq:08d}.bin"
         _write_new(raw_path, raw)
@@ -524,6 +550,8 @@ class WssReferenceSession:
             raise ValueError("wss_availability_precedes_receipt")
         raw_sha256 = hashlib.sha256(raw).hexdigest()
         self.raw_bytes += len(raw)
+        self.billable_message_count += 1
+        self.billable_uncompressed_bytes += len(raw)
         self.stored_bytes += len(raw)
         row = self._event(
             "protocol_response",
@@ -597,6 +625,13 @@ class WssReferenceSession:
             self.stop("disk_floor", at_ns)
             return False
         if (
+            self.billable_message_count + 1 > self.binding["max_billable_messages"]
+            or self.billable_uncompressed_bytes + MAX_MESSAGE_BYTES
+            > self.binding["max_billable_uncompressed_bytes"]
+        ):
+            self.stop("billable_message_cap", at_ns)
+            return False
+        if (
             self.raw_bytes + MAX_MESSAGE_BYTES > RAW_LIMIT_BYTES
             or self.stored_bytes + MAX_MESSAGE_BYTES + 8192 > STORED_LIMIT_BYTES
         ):
@@ -647,6 +682,13 @@ class WssReferenceSession:
             )
             self.stop("byte_cap_gap", received_ns)
             raise ValueError("wss_byte_cap")
+        if (
+            self.billable_message_count + 1 > self.binding["max_billable_messages"]
+            or self.billable_uncompressed_bytes + len(raw)
+            > self.binding["max_billable_uncompressed_bytes"]
+        ):
+            self.stop("billable_message_cap", received_ns)
+            raise ValueError("wss_message_billable_cap")
 
         next_seq = self.seq + 1
         raw_path = self.root / "raw" / f"{next_seq:08d}.bin"
@@ -656,6 +698,8 @@ class WssReferenceSession:
         if available_ns < received_ns:
             raise ValueError("wss_availability_precedes_receipt")
         self.raw_bytes += len(raw)
+        self.billable_message_count += 1
+        self.billable_uncompressed_bytes += len(raw)
         self.stored_bytes += len(raw)
         try:
             facts = parse_logs_message(raw)
@@ -690,8 +734,47 @@ class WssReferenceSession:
             },
         )
 
+    def record_transport_control(
+        self,
+        *,
+        control_kind: str,
+        inbound_wire_bytes: int,
+        outbound_wire_bytes: int | None,
+        at_ns: int,
+    ) -> dict[str, Any]:
+        """Count protocol control frames without copying payload bytes into the journal."""
+        if (
+            self.terminal
+            or control_kind not in {"ping", "pong", "close"}
+            or type(inbound_wire_bytes) is not int
+            or inbound_wire_bytes < 2
+            or (outbound_wire_bytes is not None and (type(outbound_wire_bytes) is not int or outbound_wire_bytes < 0))
+        ):
+            raise ValueError("wss_transport_control_accounting_invalid")
+        if self.transport_control_frames + 1 > self.binding["max_transport_control_frames"]:
+            raise ValueError("wss_transport_control_frame_cap")
+        if (
+            self.transport_control_bytes + inbound_wire_bytes + (outbound_wire_bytes or 0)
+            > self.binding["max_transport_control_wire_bytes"]
+        ):
+            raise ValueError("wss_transport_control_wire_byte_cap")
+        row = self._event(
+            "transport_control",
+            at_ns,
+            {
+                "control_kind": control_kind,
+                "inbound_wire_bytes": inbound_wire_bytes,
+                "outbound_wire_bytes": outbound_wire_bytes,
+                "payload_captured": False,
+            },
+        )
+        self.transport_control_frames += 1
+        self.transport_control_bytes += inbound_wire_bytes + (outbound_wire_bytes or 0)
+        return row
+
     def reject_transport_header(
-        self, *, raw_header: bytes, declared_payload_bytes: int, received_ns: int
+        self, *, raw_header: bytes, declared_payload_bytes: int, received_ns: int,
+        reason: str = "websocket_frame_payload_cap",
     ) -> dict[str, Any]:
         """Record only the bounded frame header when its payload is refused pre-read."""
         if self.terminal or not self.receive_prepared:
@@ -709,13 +792,13 @@ class WssReferenceSession:
             "message_rejected",
             received_ns,
             {
-                "reason": "websocket_frame_payload_cap",
+                "reason": reason,
                 "frame_header_hex": raw_header.hex(),
                 "declared_payload_bytes": declared_payload_bytes,
                 "payload_read": False,
             },
         )
-        return self.stop("websocket_frame_payload_cap", received_ns)
+        return self.stop(reason, received_ns)
 
     def stop(
         self,
@@ -766,6 +849,17 @@ class WssReferenceSession:
             {
                 "reason": reason,
                 "raw_bytes": self.raw_bytes,
+                "billable_message_count": sum(
+                    row.get("kind") in {"message", "protocol_response"}
+                    for row in (json.loads(path.read_text()) for path in (self.root / "journal").glob("*.json"))
+                ),
+                "billable_uncompressed_bytes": sum(
+                    row.get("raw_bytes", 0)
+                    for row in (json.loads(path.read_text()) for path in (self.root / "journal").glob("*.json"))
+                    if row.get("kind") in {"message", "protocol_response"}
+                ),
+                "transport_control_frames": self.transport_control_frames,
+                "transport_control_wire_bytes": self.transport_control_bytes,
                 "stored_bytes_before_stop": self.stored_bytes,
                 "notifications": len(messages),
                 "control_responses": control_responses,
@@ -882,6 +976,7 @@ class WssReferenceSession:
                 "subscription_ack",
                 "protocol_response",
                 "transport_failure",
+                "transport_control",
                 "message",
                 "message_rejected",
                 "session_stop",
@@ -1109,6 +1204,19 @@ class WssReferenceSession:
                     or hashlib.sha256(raw).hexdigest() != row.get("raw_sha256")
                 ):
                     raise ValueError("wss_raw_capture_hash_mismatch")
+            if row.get("kind") == "transport_control":
+                if (
+                    row.get("control_kind") not in {"ping", "pong", "close"}
+                    or type(row.get("inbound_wire_bytes")) is not int
+                    or row["inbound_wire_bytes"] < 2
+                    or (
+                        row.get("outbound_wire_bytes") is not None
+                        and (type(row["outbound_wire_bytes"]) is not int or row["outbound_wire_bytes"] < 0)
+                    )
+                    or row.get("payload_captured") is not False
+                    or not ack_subscription_id
+                ):
+                    raise ValueError("wss_transport_control_accounting_invalid")
             if row.get("kind") == "message":
                 if ack_subscription_id is None:
                     raise ValueError("wss_notification_before_ack")
@@ -1177,6 +1285,25 @@ class WssReferenceSession:
         obj.raw_bytes = sum(
             row["raw_bytes"] for row in rows if row.get("kind") in {"message", "protocol_response"}
         )
+        obj.billable_message_count = sum(
+            row.get("kind") in {"message", "protocol_response"} for row in rows
+        )
+        obj.billable_uncompressed_bytes = sum(
+            row.get("raw_bytes", 0)
+            for row in rows
+            if row.get("kind") in {"message", "protocol_response"}
+        )
+        obj.transport_control_frames = sum(row.get("kind") == "transport_control" for row in rows)
+        obj.transport_control_bytes = sum(
+            row.get("inbound_wire_bytes", 0) + (row.get("outbound_wire_bytes") or 0)
+            for row in rows if row.get("kind") == "transport_control"
+        )
+        if (
+            obj.billable_message_count > binding["max_billable_messages"]
+            or obj.billable_uncompressed_bytes > binding["max_billable_uncompressed_bytes"]
+            or obj.transport_control_frames > binding["max_transport_control_frames"]
+        ):
+            raise ValueError("wss_recovered_billable_cap_exceeded")
         obj.stored_bytes = sum(
             path.stat().st_size
             for path in root.rglob("*")
@@ -1242,6 +1369,10 @@ class WssReferenceSession:
                     for row in rows
                     if row.get("kind") == "transport_failure"
                 )
+                or stop_row.get("billable_message_count") != obj.billable_message_count
+                or stop_row.get("billable_uncompressed_bytes") != obj.billable_uncompressed_bytes
+                or stop_row.get("transport_control_frames") != obj.transport_control_frames
+                or stop_row.get("transport_control_wire_bytes") != obj.transport_control_bytes
             ):
                 raise ValueError("wss_session_stop_accounting_mismatch")
             return obj
@@ -1268,7 +1399,7 @@ class WssReferenceSession:
 
 def default_binding() -> dict[str, Any]:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "provider": "helius-standard-wss",
         "program_id": PUMP_BONDING_CURVE_PROGRAM,
         "method": "logsSubscribe",
@@ -1277,6 +1408,10 @@ def default_binding() -> dict[str, Any]:
         "raw_limit_bytes": RAW_LIMIT_BYTES,
         "stored_limit_bytes": STORED_LIMIT_BYTES,
         "max_message_bytes": MAX_MESSAGE_BYTES,
+        "max_billable_messages": MAX_BILLABLE_MESSAGES,
+        "max_billable_uncompressed_bytes": MAX_BILLABLE_UNCOMPRESSED_BYTES,
+        "max_transport_control_frames": MAX_TRANSPORT_CONTROL_FRAMES,
+        "max_transport_control_wire_bytes": MAX_TRANSPORT_CONTROL_WIRE_BYTES,
         "max_duration_ns": MAX_SESSION_NS,
         "credential_transport": "private_env_in_process; never_argv_or_log",
     }

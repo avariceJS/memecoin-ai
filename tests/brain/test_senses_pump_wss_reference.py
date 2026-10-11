@@ -27,6 +27,7 @@ def message(slot, signature, *, err=None, logs=None, subscription=9):
 
 def session(tmp_path):
     value = WssReferenceSession(tmp_path / "session", default_binding(), opened_ns=100)
+    assert value.binding["schema_version"] == 2
     record_connected(value, 101)
     value.request_subscribe(102)
     value.acknowledge(9, 103)

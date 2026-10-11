@@ -2490,8 +2490,10 @@ program ID at `finalized` as the next population-discovery horizon. The program 
 Pump's official source at commit `91db6800e55bf341696564bd30a08ed4e3fc7491`; the exact
 `docs/PUMP_PROGRAM_README.md` SHA-256 is
 `3532f985fcab38480392759a6c2f01015b7178b9f2c7dc0db8c9f85ce9f72571`. Solana's official
-`logsSubscribe` contract permits one address in `mentions`; Helius documents standard WSS as
-available across plans and, effective April 2026, streaming at 20 credits per decimal MB.
+`logsSubscribe` contract permits one address in `mentions`; Helius's public billing page currently
+states standard Solana WSS at 2 credits per 0.1 MB uncompressed across plans, with monthly credits
+consumed before prepaid credits and autoscaling. This public rate and ordering do not establish
+account-specific balance, overage/autoscaling controls, rounding scope, or control/handshake charges.
 References: [Pump source](https://github.com/pumpr-fun/pump-fun/blob/91db6800e55bf341696564bd30a08ed4e3fc7491/docs/PUMP_PROGRAM_README.md),
 [Solana `logsSubscribe`](https://solana.com/docs/rpc/websocket/logssubscribe), and
 [Helius WSS pricing and connection notes](https://www.helius.dev/blog/laserstream-websockets).
@@ -2546,15 +2548,17 @@ No provider request, live endpoint connection, service activation, or WSS Launch
 The frozen *future* pilot envelope is at most four hours per session, one subscription, two
 sequential sessions at most, 128 MiB inbound message bytes, 64 MiB physically stored bytes, and a
 50 GiB free-disk floor. Reconnection creates a new window and an explicit gap: no catch-up or HTTP
-transaction retrieval. Helius publishes two LaserStream WSS credits per 0.1 MB of uncompressed
-data; the 128 MiB cap gives a conservative aggregate-rounding estimate of 2,686 credits
-(`2 * ceil(128 * 2^20 / 100,000)`). The separate seven-day HTTP service's 5,719 standard-call
-envelope plus this WSS estimate is 8,405 published credits before overhead. These are rate-based
-planning estimates, not charge ceilings: the billing source does not establish per-message versus
-aggregate rounding for this workload, account-specific plan/headroom, or all overhead. Before
-activation verify the connected key's plan/remaining credits and billing units, concurrent use, and
-an explicit bounded TLS/reconnect/other-overhead allowance; do not assume paid overage. See
-[Helius credit schedule](https://www.helius.dev/docs/billing/credits). `src/memecoin_collector/wss_campaign.py` adds an offline single-writer wrapper.
+transaction retrieval. The arithmetic `2 * ceil(128 * 2^20 / 100,000) = 2,686` is only an
+aggregate-rounding scenario for the documented rate; the source does not establish that rounding
+scope or billable control/handshake overhead. The separate seven-day HTTP service's 5,719-call
+envelope plus that scenario is not a charge ceiling. A credential-free source capture is recorded
+in [`Helius public WSS billing source capture`](evidence/helius-public-wss-billing-source-capture-2026-10-11.json);
+the Helius account knowledge tool returned `Transport closed`, so account balance, plan, overage,
+autoscaling, and concurrent-use evidence remain unavailable. The first-entry v2 artifact is an
+offline signed-assertion contract only: its rate/rounding/control model is not parsed from and
+qualified against provider account artifacts, its live-gate flag is false, and its production claim
+entry point fails closed without touching the owner registry. See
+[Helius credit schedule](https://www.helius.dev/docs/billing/credits). `src/memecoin_collector/wss_campaign.py` contains the offline single-writer campaign implementation; it is not activated.
 Its immutable credential-free authorization binds a c4 STOP hash, account-budget evidence hash,
 source/filter, exact hashes for the campaign/reference/transport code, caps, and an expiry of at most
 seven days. It enforces two sequential windows maximum,
