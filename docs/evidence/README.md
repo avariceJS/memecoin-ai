@@ -110,6 +110,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   independent read-only controller lease verifier, including durable crash prefixes, no-replay
   recommendations, STOP marker/ledger crash ordering, cap/floor checks, terminal transfer, and
   rejection of abnormal predecessors; no service activation or RPC is authorized.
+- `senses-operation-envelope-v2-child-v3-offline-validation-2026-10-11.json`: Sol-accepted offline
+  parent envelope and v3 child-bundle validation, including provider/source identity, bounded zstd,
+  receipt versus fsynced availability, frontier continuity, STOP precedence and no-replay recovery;
+  fake captures only, no live RPC or activation authority.
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:

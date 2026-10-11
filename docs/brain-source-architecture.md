@@ -2324,3 +2324,31 @@ operation, or continuous throughput. The 2026-10-11 rerun passed all 126 focused
 source-hash-bound [offline operational review receipt](evidence/senses-wss-offline-operational-review-2026-10-11.json)
 records that no WSS process or LaunchAgent was present, free disk was below the floor, and live
 activation remains unauthorized.
+
+## Offline v3 block child envelope (2026-10-11)
+
+The separately versioned operation-envelope v2 binds a scheduled parent operation to the existing
+finalized inventory-first child journal v3. Bootstrap captures one finalized anchor; a frame binds
+its start to the next unobserved slot and its end to the later anchor. Gaps require a later
+anchor-only reset. Each frame reserves exactly 34 child attempts: anchor, inventory, 16 full blocks,
+and 16 signature checks. The verifier binds plan, provider identity (`helius-free`), request/result
+records, capture `source_alias`, receipt and stored/raw bytes, manifest paths, parent events and
+recomputed totals. A configured zstd executable is pinned by resolved path, version and SHA-256.
+
+Receipt time is taken from the response capture; availability is sampled only after response,
+receipt and containing directories have been fsynced. Request, persistence and clock failures retain
+unknown/null payload availability rather than inventing a time. A started ambiguous child is never
+replayed. Terminal STOP takes precedence over any incomplete recovery suggestion. The independent
+parent claim is deliberately limited to a captured request/response bundle: the bridge does not
+independently qualify the child's structural checks or prove provider inventory truth, market
+completeness, or economic zero. Local hashes and host timestamps do not attest provider, account,
+reviewer, or historical disk truth.
+
+This is an offline fixture gate. The child requires an explicitly supplied client and no longer
+constructs a provider RPC client or loads credentials. Code that explicitly supplies a real client
+could still invoke the injected interface; no such adapter, scheduler, service or authorization is
+included. Any live adapter and RPC requires a separate Sol activation review plus fresh account,
+charge, disk, predecessor and schedule evidence. The focused offline suite passes 64 cases,
+including a zstd-compressed 34-attempt frame, provider/source mismatches, crash/recovery and failed
+timestamp persistence. Sol accepted this bounded offline gate. Receipt:
+[`offline operation-envelope/child-v3 validation`](evidence/senses-operation-envelope-v2-child-v3-offline-validation-2026-10-11.json).
