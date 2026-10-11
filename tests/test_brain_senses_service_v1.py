@@ -4,6 +4,7 @@ import fcntl
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -57,7 +58,14 @@ def _proof(root: Path) -> tuple[Path, Path]:
 @pytest.fixture(autouse=True)
 def _stub_terminal_verification_for_service_policy_tests(monkeypatch: pytest.MonkeyPatch):
     # These tests exercise service policy/recovery with deliberately small proof
-    # fixtures. Deep c4 terminal qualification has its own tests.
+    # fixtures. Disk capacity is supplied explicitly to service reservations; the
+    # epoch gates also need a deterministic adequate test volume. Real low-space
+    # rejection is covered by the dedicated epoch-v2 disk tests.
+    monkeypatch.setattr(
+        service.epoch_v2.shutil,
+        "disk_usage",
+        lambda _path: SimpleNamespace(free=128 * 1024**3),
+    )
     calls: list[tuple[Path, Path | None]] = []
 
     def verify(root: Path, receipt: Path | None = None) -> dict:
