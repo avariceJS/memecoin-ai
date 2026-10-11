@@ -1,96 +1,56 @@
 # Current Project State
 
-**As of:** 2026-10-11 01:34 UTC. Recheck runtime before any prospective service decision.
+**As of:** 2026-10-11 02:46 UTC. Recheck host state before any acquisition decision.
 
 **Research checkout:** `/Users/root1/Developer/memecoin-research`
 **Branch:** `research/active`
-**Latest implementation commit:** `d6aa86b7d03ef80acc249bf6864da92ff69281ff`.
+**Latest implementation commit:** `4090c8afd229e3c7a5bd85677f85cb30f4f1b78e`; c4 replay `37134ec` and c5 runner `4f504cf` are its parents.
 
 ## Boundaries and runtime
 
-- Continue Senses in the research checkout only. Production `/Users/root1/Desktop/memecoin-ai` remains
-  untouched. No trades, signing, paid upgrades, protected holdouts, push, retry, or backfill.
-- User authorized continued use of the current Helius key without rotation. The 00:47Z delta scan
-  found no exact matches in all 5,905 local Git objects, 83 files / 322 MB changed since the prior
-  broad scan, current process arguments, or 284 MB of recent Unified Log; `.env.local` remains
-  owner-only mode 0600. The existing transport is path-only for LaunchAgents and environment-based
-  for the pinned MCP process, with no secret in argv. Receipt:
-  `docs/evidence/helius-key-post-resume-exposure-scan-2026-10-11T0047Z.json`. Prior process-list
-  disclosure remains in session history; provider/remote logs and backups are not inspectable. A
-  post-commit exact Git recheck covered 5,913 objects with zero matches.
-- c4 is naturally and immutably stopped at 00:05:00Z with
-  `minimum_free_disk_floor_plus_frame_envelope`, after 11/24 successful hourly frames. Keep STOP,
-  frames, reservations, journals, and captures unchanged. No c4 LaunchAgent or other Senses
-  LaunchAgent is loaded; no prospective collector is currently accumulating observations. All 15
-  Senses plists in `~/Library/LaunchAgents` now have persistent disabled overrides. The exact c4
-  label was disabled after finding its plist still present without an override; it was unloaded
-  before and remains unloaded. Receipt: `docs/evidence/helius-c4-launchd-quiescence-2026-10-11.json`.
-- c4 frame-only accounting is 374 requests, 769,657,370 raw bytes and 177,576,450 stored bytes.
-  Bootstrap-only is 1 request, 43 raw / 56 stored bytes. Campaign all-in is 375 requests,
-  769,657,413 raw / 177,576,506 stored bytes. Provider charge units and account headroom remain
-  unknown. Receipt: `docs/evidence/helius-inventory-v3-c4-abnormal-stop-accounting-2026-10-11.json`.
-- Latest measured free disk is 47,405,981,696 bytes at 01:24:55Z, 6,281,109,504 bytes below the
-  50 GiB floor and about 14.43 GB below the current composite c5 safety requirement. Do not
-  initialize prospective acquisition on this storage state. `work/` occupies about 27.7 GB; no
-  external data volume is mounted. c4 allocated 202,719,232 bytes.
-  The prior 00:08Z sizing snapshot had 614,572,928 bytes over the old floor-plus-frame gate; that is
-  not current runway. The user cache is not disposable project storage.
-- An offline-only c5 two-bucket policy model is in `tools/brain_senses_c5_forward_pilot_v1.py`.
-  It binds c4's abnormal terminal metadata and enforces one future anchor bucket followed by one
-  adjacent frame bucket, with hard caps and STOP on any miss/failure/ambiguity. Twenty synthetic
-  tests pass. No operational buckets/root were instantiated, no credentials/provider access
-  occurred, and activation remains blocked by disk and unknown account limits.
-- Differential review found and fixed an empty-gap boundary: c5 now rejects an anchor at
-  `frontier - 1`, which would have produced an empty interval while closing the unknown-ended gap.
-  Commit `92705cb`; the c5 suite passes 20 tests. Review note is ignored under `work/evidence/`.
-- WSS synthetic protocol/TLS/socket/campaign validation passes 126 focused tests. The local review
-  found no WSS LaunchAgent/process, no live connection, and free disk below the 50 GiB floor; receipt
-  `docs/evidence/senses-wss-offline-operational-review-2026-10-11.json` is source-hash-bound.
-  It does not qualify provider authentication, billing, live recovery, sustained rate, or coverage.
-- Helius MCP tools are listed, but the last read-only `getHeliusPlanInfo` and `getAccountStatus`
-  calls returned `Transport closed`; they were not retried. No account plan/limits are established.
+- Continue Senses in this checkout only; production `/Users/root1/Desktop/memecoin-ai` is untouched.
+  No trade/signing, paid upgrade, remote push, protected holdout, c4 tail2 opening, backfill, or
+  unapproved repeat request.
+- User authorized the existing Helius key without rotation. Post-resume exact scan receipt
+  `docs/evidence/helius-key-post-resume-exposure-scan-2026-10-11T0218Z.json`: zero matches in 5,961
+  local Git objects, 75,127 accessible recent files / 1.26 GB, process arguments and 1.26 GB of
+  Unified Log; `.env.local` is owner-only mode 0600. Provider/remote storage, inaccessible backups
+  and one unreadable file were outside scan scope; prior disclosure remains in session history.
+  Senses runner passes config path only and reads the endpoint in-process.
+- No Senses LaunchAgent is loaded. Current free disk was 40,392,872 KiB (~40.4 GB), below both the
+  50 GiB floor and c5 composite minimum of 61,834,628,800 bytes. Helius account/charge headroom is
+  unknown; the last read-only Helius MCP account calls returned `Transport closed` and were not
+  retried. No Helius RPC was made in this continuation.
+- c4 campaign `work/brain-senses-live-helius-inventory-v3-20261010-4` remains terminally stopped;
+  its abnormal STOP and 23:00Z frozen tail2 body stay unchanged/unopened. All prospective Senses
+  collectors are stopped; none is accumulating observations.
 
-## Frozen audit and terminal qualification
+## Completed this continuation
 
-- The frozen c4 PumpSwap buyExact tail2 audit ended incomplete at 1/4 eligible frames. The 23:00Z
-  payload remains unopened and has no qualified estimate. Receipt:
-  `docs/evidence/pumpswap-buy-exact-tail2-c4-incomplete-outcome-2026-10-11.json`.
-- Sol approved a separately versioned abnormal terminal receipt that validates control, accounting,
-  provenance and stopped state from metadata only. It must not open/decompress response bodies or
-  claim a replayed structural census; it grants no service activation. Implementation and focused
-  tests are in commit `572b728`.
-- Real offline replay reconciled all 11 frame summaries and bootstrap with a guard that raises on any
-  capture-body read: 374 frame requests + one bootstrap, exact frame/all-in raw and stored byte
-  denominators, frontier 455430160, no open reservations, and an unknown-ended continuation. Focused
-  tests: 15 passed; Ruff, format, and `py_compile` passed. Synthetic test receipt SHA-256:
-  `d3d8832a0777985e3c6fbf49bade649d9225abc0a21217c72e8693cd19c369bd` in ignored `work/evidence/`.
-- The original 00:08:11Z snapshot remains a process/LaunchAgent/artifact fact only; its wrong-window
-  log portion is excluded. At 01:16Z the metadata-only abnormal terminal receipt completed and
-  replayed successfully. The corrected local log interval is 00:05:00Z–01:16:26Z with nine
-  allowlisted OS events; paired snapshots show no c4 process, Senses writer or loaded Senses label.
-  Canonical receipt:
-  `docs/evidence/helius-inventory-v3-c4-abnormal-terminal-2026-10-11.json`, SHA-256
-  `8b97dd4936ddcd6e8494d35e06cb2a86d01929589e4c4c4c5ff7ba91825cbe65`. This does not qualify
-  response bodies, prove provider-side silence, close the unknown-ended gap or authorize a
-  successor. Provider RPC after STOP remains zero.
-- The frozen c4 buyExact tail2 audit remains incomplete at 1/4; the 23:00Z body stays unopened.
-  Helius account/credit status is still unknown after the prior MCP `Transport closed`; do not
-  retry it without policy. User authorized this key without rotation but did not authorize paid
-  upgrades. Service v1's normal predecessor gate still cannot accept this abnormal 11-frame STOP.
-- An offline c3 sell23 process-field replay is committed in `d6aa86b`. Its pre-replay manifest pins
-  six successful frames/96 full blocks; all 485 censored rows join, with destination ownership,
-  closed-account token endpoints, and rent unresolved. It used no Pair64, c4/tail2, or RPC data.
-- Obtain a fresh Sol successor decision with the terminal receipt, current 47.63 GB free disk,
-  unknown provider headroom, anchor-only bootstrap and explicit unknown-ended gap. No Helius
-  successor or WSS session is approved; the 50 GiB floor fails by 5.64 GiB.
+- c5 finite forward runner/template is commit `4f504cf`; it has source/predecessor/time/disk/process
+  gates, path-only credential loading, no ambiguous replay, and fails closed until production account,
+  disk/churn and independent-review evidence are source-bound. Template is uninstalled. Fake-only
+  focused tests pass; no runtime root, LaunchAgent, endpoint read or provider call occurred.
+- Frozen c4 captured-class replay is commit `37134ec`. Receipt
+  `docs/evidence/pumpswap-c4-captured-class-replay-2026-10-11.json` independently pins the freeze
+  digest, manifest bytes, old repository HEAD and campaign root; the 23:00Z body is excluded. It
+  covers 10 frames / 160 selected full blocks, 173,899 transactions, 591,869 resolved instruction
+  refs, 22,319 PumpSwap refs, 3,555 buyExact candidates / 3,556 refs. Published 13:00Z and 18:00Z
+  census matrices/counts reproduce exactly. This is structural selected-block exposure only, not
+  discovery/economic completeness, exact economic zero, settlement qualification or admission.
+- Offline prospective controller is committed in `4090c8a`: finite lease with declared source
+  hashes, append-only hashed event chain, daily/lease request and byte caps, physical floor and width
+  caps, distinct times, one reservation per scheduled bucket, explicit gaps, anchor-only reset,
+  no-replay recovery, first-reason STOP, and terminal frontier/gap transfer to a new lease carrying
+  a fresh review digest. It has no live adapter, credential loader, scheduler, LaunchAgent or
+  activation parser. Focused tests: 20 passed.
 
 ## Next decision horizon
 
-1. Keep the c4 tail2 audit closed. Refresh disk/account evidence before considering a concrete
-   c5 bucket pair; any missed pre-pinned bucket permanently stops that pilot for review.
-2. Continue offline Senses engineering while seeking a fresh Sol decision after the c5 fix and
-   WSS receipt. Do not initialize/activate c5 or start Cortex until external resource gates and a
-   concrete future schedule are settled.
-
-Canonical technical state: `docs/brain-source-architecture.md`; evidence locator:
-`docs/evidence/README.md`.
+1. Commit the credential exposure receipt/index and current handoff; keep the c4 terminal and tail2 frozen.
+2. Route the next buyExact economic-contract decision to Sol with the new captured-class census and
+   clearly separated dev/audit populations. Do not open frozen tail2 or tune on it.
+3. Before any Helius RPC, obtain a new exact future lease/schedule decision, fresh source-bound
+   provider account/charge evidence, disk/churn evidence above the floor, predecessor/quiescence
+   proof, and independent reviewer binding. Missed prospective ticks remain gaps; never backfill.
+4. Continue offline Senses work while these external gates are absent. Cortex has not started.

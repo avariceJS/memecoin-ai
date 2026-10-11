@@ -65,6 +65,19 @@ contain large exact payloads, so open only the named artifact needed for a speci
   284 MB of recent Unified Log; current private `.env.local` remains owner-only mode 0600. The
   pinned MCP configuration supplies credentials through environment configuration, while Senses
   launch entries remain path-only; remote services and backups are outside local visibility).
+- Helius pre-commit post-resume scan:
+  `helius-key-post-resume-exposure-scan-2026-10-11T0212Z.json` (zero exact matches in 5,961 local
+  Git objects, 21,090 accessible recent files / 1.22 GB, current process arguments, and 1.25 GB of
+  recent Unified Log; followed by the broader 02:18Z scan below).
+- Helius key post-resume exact exposure scan:
+  `helius-key-post-resume-exposure-scan-2026-10-11T0218Z.json` (zero exact matches in 5,961
+  local Git objects, 75,127 accessible recent files / 1.26 GB, current process arguments, and
+  1.26 GB of recent Unified Log; `.env.local` remains owner-only mode 0600. Provider/remote
+  storage, inaccessible backups and one unreadable file are outside the complete scan scope).
+- Frozen c4 selected-block structural replay:
+  `pumpswap-c4-captured-class-replay-2026-10-11.json` (independently pinned metadata freeze and
+  source-bound offline replay of 10 frames / 160 selected blocks; excludes unopened 23:00 body and
+  makes no global completeness, economic exact-zero, training or execution claim).
 - `helius-inventory-v3-c4-abnormal-stop-sizing-2026-10-11.json`: offline sizing over the 11 sealed
   c4 frame summaries, STOP accounting, allocated campaign bytes, and post-STOP `df` snapshot. It
   records finite-sample raw/stored throughput and limited headroom above the prior floor-plus-frame
