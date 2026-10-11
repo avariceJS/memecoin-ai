@@ -79,6 +79,13 @@ saved Cursor history config did not contain the current exact endpoint/key. No R
 activation occurred. Remote/provider storage, backups, Time Machine, inaccessible files, and prior
 session storage remain outside the scan. Receipt:
 [`13:37Z post-stop exposure rescan`](evidence/helius-key-post-legacy-mcp-stop-exposure-rescan-2026-10-11T1337Z.json).
+A 15:12Z delta rescan found zero exact URL/key matches across all 6,522 local Git objects,
+36,343 recent accessible files (10.26 GB) under Codex, Cursor, Logs, and the research checkout,
+current process arguments, launchd text, and 621 MB of the last two hours of Unified Log. The
+owner-only wrapper still passes the key through its child environment; clean arguments do not prove
+the key is absent from intentionally credential-bearing process environments. This scan excludes
+provider-side or remote conversation storage, backups, inaccessible files, oversized files, and
+other sessions. Receipt: [`15:12Z exposure delta rescan`](evidence/helius-key-current-exposure-delta-rescan-2026-10-11T1512Z.json).
 A follow-up scan at 19:04Z found no exact endpoint/path/hostname matches across 2,861 Git blobs, no exact endpoint/path matches in 3,452 recent saved files (2.05 GB), no process-argument matches, and no match in 213.6 MB of the last hour of Unified Log. Two Codex history files had 67 public-hostname-only mentions; no endpoint path or key component was present. The c4 LaunchAgent remained path-only and the scheduled 19:05Z frame was active at the 19:06Z status read. Receipt: [`19:04Z exposure rescan`](evidence/helius-key-followup-exposure-rescan-2026-10-10T1904Z.json).
 At 23:18Z a credential-config enumeration accidentally emitted the current value in one tool result
 in this interactive agent session. The active session transcript cannot be retracted from this

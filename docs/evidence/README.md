@@ -6,6 +6,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- Helius key current exposure delta rescan at 15:12Z:
+  `helius-key-current-exposure-delta-rescan-2026-10-11T1512Z.json` (zero exact matches in all
+  6,522 Git objects, 36,343 recent accessible files / 10.26 GB, current process arguments,
+  launchd, or 621 MB of Unified Log; exact values were compared in memory only).
 - Helius public WSS billing source capture:
   `helius-public-wss-billing-source-capture-2026-10-11.json` (public rate and credit consumption
   order only; account balance/overage, rounding scope and control/handshake billing remain unknown).
