@@ -2737,6 +2737,25 @@ settings changed, and restart/reconnect durability remains unverified. Prospecti
 disabled until an owner-enabled journaling filesystem with sufficient free capacity is provided and
 qualified. Receipt: [`Senses storage recovery feasibility`](evidence/senses-storage-recovery-feasibility-v1-2026-10-11.json).
 
+The durable research-data interface is a logical root identity, not a disk number, volume label,
+or absolute host path. A host binding records a random root ID and the expected filesystem volume
+UUID; each campaign binds that root ID and volume UUID plus a relative capture path, while receipts
+retain content hashes and separately record the observed mount locator. Before reservation or write,
+a versioned resolver must prove the expected owner-enabled APFS volume is mounted, writable, has
+enforced owner/mode semantics, and has fresh free-space headroom. It must fail closed for an absent,
+renamed, read-only, wrong-UUID, `noowners`, or mountpoint-directory fallback; recheck identity under
+the writer lock and before dispatch. No implicit internal-SSD fallback is allowed. Capture-coupled
+journals and raw payloads stay on one filesystem so the design does not claim cross-volume atomicity.
+
+Migration is group-based and preserves the internal original until verification completes: inventory
+closed roots and receipt pins, copy to a temporary external group, fsync, compare exact path/type/size
+and hashes, publish a create-only group manifest and immutable old-to-new locator receipt, run
+independent read-only verifiers, and only then release the old copy. Active roots are never moved.
+The worktree `work/` remains a legacy location during migration; no writer may treat an unchecked
+symlink as an external-storage binding. Current implementation and host configuration remain
+unqualified until a specific volume passes filesystem, disconnect/reconnect, permission, locking,
+seal, and recovery checks.
+
 ## Offline v3 block child envelope (2026-10-11)
 
 The separately versioned operation-envelope v2 binds a scheduled parent operation to the existing
