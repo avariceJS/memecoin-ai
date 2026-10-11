@@ -2352,3 +2352,24 @@ charge, disk, predecessor and schedule evidence. The focused offline suite passe
 including a zstd-compressed 34-attempt frame, provider/source mismatches, crash/recovery and failed
 timestamp persistence. Sol accepted this bounded offline gate. Receipt:
 [`offline operation-envelope/child-v3 validation`](evidence/senses-operation-envelope-v2-child-v3-offline-validation-2026-10-11.json).
+
+## Finite-calendar prospective envelope v3 (2026-10-11)
+
+An offline lifecycle driver wraps the parent operation envelope with a caller-supplied finite
+schedule. It independently verifies the parent prefix before each decision, writes elapsed buckets
+as explicit gaps, and emits an independently verified terminal handoff on expiry, STOP, or complete
+schedule exhaustion. The handoff transfers the next-planned-start frontier, all gaps and unknown
+intervals, and conservative reserved-versus-actual request/byte accounting. The frontier is not
+proof that all earlier slots were observed. Started child operations are never replayed; unknown
+interval lineage is preserved through successor handoffs. A regressed anchor cannot seal or advance
+the frontier and instead stops with the prior frontier intact.
+
+The driver accepts no cadence, provider factory, credential path, scheduler, LaunchAgent, or live
+activation. Successor creation checks a distinct lease, terminal transfer, not-before time and a
+fresh review digest; hashes/digests do not authenticate the reviewer, independently prove the
+predecessor chain from a successor directory, or prevent multiple successor claims. Those are
+activation-gate obligations. The focused operation-envelope, child-v3 and calendar suite passes 82
+cases, including a 34-attempt fake frame over UTC day rollover, gap-to-anchor recovery, no-replay
+crash prefixes, stale time, disk floor, writer exclusion, transitive unknown lineage and anchor
+frontier regression. No provider request or live activation occurred. Receipt:
+[`finite-calendar-v3 offline validation`](evidence/senses-finite-calendar-v3-offline-validation-2026-10-11.json).

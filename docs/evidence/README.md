@@ -74,6 +74,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   local Git objects, 75,127 accessible recent files / 1.26 GB, current process arguments, and
   1.26 GB of recent Unified Log; `.env.local` remains owner-only mode 0600. Provider/remote
   storage, inaccessible backups and one unreadable file are outside the complete scan scope).
+- Helius key exposure delta check at 04:35Z:
+  `helius-key-exposure-delta-2026-10-11T0435Z.json` (zero exact matches in 6,055 local Git
+  objects, current process arguments, 124 accessible files changed since 02:19Z / 403.9 MB, and
+  the subsequent Unified Log window; `.env.local` remains mode 0600. Unreadable files, remote
+  storage and backups remain outside the local scan).
 - Frozen c4 selected-block structural replay:
   `pumpswap-c4-captured-class-replay-2026-10-11.json` (independently pinned metadata freeze and
   source-bound offline replay of 10 frames / 160 selected blocks; excludes unopened 23:00 body and
@@ -114,6 +119,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   parent envelope and v3 child-bundle validation, including provider/source identity, bounded zstd,
   receipt versus fsynced availability, frontier continuity, STOP precedence and no-replay recovery;
   fake captures only, no live RPC or activation authority.
+- `senses-finite-calendar-v3-offline-validation-2026-10-11.json`: Sol-accepted caller-scheduled
+  lifecycle and handoff around the operation envelope; binds gaps, next-start frontier, unknown
+  interval lineage, conservative usage and no-replay terminal states. The 82 focused tests use fake
+  clients only; no RPC, live activation, reviewer authentication, or predecessor-chain activation
+  proof is claimed.
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:
