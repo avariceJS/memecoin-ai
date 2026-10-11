@@ -18,6 +18,9 @@
   files / 403,864,321 bytes since 02:19Z, and 1,203,999,439 bytes of subsequent Unified Log.
   1,194 inaccessible files and remote/provider logs, backups, Time Machine and session transcript
   storage were outside this check; prior disclosure remains in session history.
+- Follow-up `docs/evidence/helius-key-launchd-exposure-check-2026-10-11T0439Z.json`: zero exact
+  matches in 65 user/system launchd plists and process arguments; no Senses/Helius/inventory label
+  is loaded.
 - Host check at 04:35Z: 27,569,748 KiB free (~26.3 GiB), below the 50 GiB acquisition floor; no
   Senses/Helius/inventory LaunchAgent was loaded, although 15 Senses plists remain installed.
   Helius charge headroom is unknown. No provider request or collector process was started. All

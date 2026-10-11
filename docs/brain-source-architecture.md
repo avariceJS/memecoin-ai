@@ -56,6 +56,9 @@ The 04:35Z delta scan then found zero exact matches in 6,055 Git objects, the cu
 `.env.local` remained owner-only mode 0600. It does not inspect provider/remote storage, backups,
 Time Machine, prior session transcript storage, or 1,194 inaccessible files. Receipt:
 [`04:35Z exposure delta`](evidence/helius-key-exposure-delta-2026-10-11T0435Z.json).
+A separate 04:39Z check found no exact credential in 65 user/system launchd property lists or
+current process arguments, and no Senses/Helius/inventory label loaded:
+[`launchd exposure check`](evidence/helius-key-launchd-exposure-check-2026-10-11T0439Z.json).
 Read-only Helius MCP plan info and current pricing confirm Free at 1M credits/month and 10 standard
 RPC requests/s; standard `getBlock`, `getBlocks`, `getSignaturesForAddress`, and `getTransaction` each cost one
 credit. Account-level usage is not exposed. Standard WSS is available; enhanced

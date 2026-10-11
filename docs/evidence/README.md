@@ -79,6 +79,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
   objects, current process arguments, 124 accessible files changed since 02:19Z / 403.9 MB, and
   the subsequent Unified Log window; `.env.local` remains mode 0600. Unreadable files, remote
   storage and backups remain outside the local scan).
+- Helius launchd exposure check at 04:39Z:
+  `helius-key-launchd-exposure-check-2026-10-11T0439Z.json` (zero exact matches in 65 user/system
+  launchd property lists and current process arguments; no Senses/Helius/inventory labels loaded).
 - Frozen c4 selected-block structural replay:
   `pumpswap-c4-captured-class-replay-2026-10-11.json` (independently pinned metadata freeze and
   source-bound offline replay of 10 frames / 160 selected blocks; excludes unopened 23:00 body and
