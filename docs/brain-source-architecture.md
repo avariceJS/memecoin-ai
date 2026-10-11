@@ -2114,15 +2114,28 @@ passed that narrow diagnostic. This zero is a decoder-acceptance count, not an e
 was excluded and not opened. Receipt:
 [`buyExact c4 pool-v2 development replay`](evidence/pumpswap-buy-exact-v1-c4-pool-v2-development-replay-2026-10-11.json).
 
-Sol's next buyExact feasibility horizon keeps the same development population and separates (a)
-instruction/IDL/SDK identity and transaction status, (b) ordered candidate-descendant BuyEvent and
-legacy/Token-2022 transfer wire facts, and (c) whole-transaction endpoint/touch attribution plus
-bank-time state availability. Token-2022 encoded transfer amounts remain instruction arguments,
-not realized credits/debits without historical mint/account extension and fee state at transaction
-position. No decoder promotion or sealed audit follows unless an exact, source-bound development
-stratum has complete candidate and negative denominators and independent transaction-boundary
-evidence. Any future four-frame audit remains disjoint, prospective, one-pass, and separately
-leased; this replay grants no RPC authority.
+The offline evidence-feasibility taxonomy is recorded at
+[`buyExact c4 evidence-feasibility taxonomy`](evidence/pumpswap-buy-exact-v1-c4-evidence-feasibility-2026-10-11.json).
+It replays all 2,333 candidates against the same 160 full blocks, preserving the 780 failed attempts,
+the 13 failed structural writability mismatches, and the three successful structural counterexamples.
+Transaction-tree ancestry identifies 1,621 candidate-descendant exact BuyEvent wire records (1,553
+successful transactions and 68 failed attempts); all decoded roles and four instruction-argument
+fields agree, but those event claims still do not prove committed effects, especially for failed
+attempts. The replay records ordered Token and Token-2022
+transfer operands, account roles, mint/program matches, target-account touches outside the candidate
+subtree, and provider transaction-boundary endpoints. It preserves the four legacy diagnostic
+censorings as two missing user-quote endpoints and two residuals: candidate-subtree user-base deltas
+of 4,392,114 and 160,993,911 atomic units versus transaction-boundary deltas of zero, alongside
+user-quote subtree deltas of -529,450 and -2,089,402 versus transaction-boundary balance deltas of
+9,235 and 18,226. No unexplained residual is assigned to SyncNative, rent, close, fees, or another process.
+All 160 source captures are full-block `getBlock` responses; historical bank-time mint/account and
+Token-2022 extension state are absent. The detailed row-level output is compressed under ignored
+`work/` and bound by the receipt hashes. This remains development evidence only: no decoder
+promotion, exact economic zero, global completeness, or RPC/audit authority.
+
+Any later audit decision requires a separately frozen contract, a fresh disjoint prospective
+sample, source-bound completeness and independent transaction-boundary evidence. Missed intervals
+remain gaps; the current evidence grants no RPC authority.
 
 Sol's current prospective-collection decision supersedes the earlier c5 activation horizon: c5's
 offline policy and runner may remain available for review, but c4's abnormal STOP does not satisfy

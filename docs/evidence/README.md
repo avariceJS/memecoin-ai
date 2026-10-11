@@ -84,6 +84,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   16 structural mismatches, classifies 767 failed attempts, 1,546 Token-2022 quarantines and four
   censored legacy cases; it does not open 23:00Z, establish an exact economic zero or grant audit/RPC
   authority.
+- `pumpswap-buy-exact-v1-c4-evidence-feasibility-2026-10-11.json`: transaction-tree descendant
+  event/transfer wire facts, whole-transaction target-account touches and endpoints, and the four
+  legacy censored traces over the same 2,333 development candidates / 160 blocks. The complete
+  row-level taxonomy is zstd-compressed under ignored `work/` and bound by source/tool/output hashes;
+  no bank-time Token-2022 extension state or economic admission is claimed.
 - `helius-inventory-v3-c4-abnormal-stop-sizing-2026-10-11.json`: offline sizing over the 11 sealed
   c4 frame summaries, STOP accounting, allocated campaign bytes, and post-STOP `df` snapshot. It
   records finite-sample raw/stored throughput and limited headroom above the prior floor-plus-frame
