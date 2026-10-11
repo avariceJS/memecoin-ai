@@ -38,3 +38,4 @@ files = ["src/memecoin_ai", "src/memecoin_registry", "src/memecoin_research"]
 
 [tool.setuptools.package-data]
 memecoin_ai = ["py.typed"]
+memecoin_research_storage = ["py.typed"]
