@@ -1,10 +1,10 @@
 # Current Project State
 
-**As of:** 2026-10-11 03:02 UTC. Recheck host state before any acquisition decision.
+**As of:** 2026-10-11 03:16 UTC. Recheck host state before any acquisition decision.
 
 **Research checkout:** `/Users/root1/Developer/memecoin-research`
 **Branch:** `research/active`
-**Latest implementation/evidence commit:** `8ba6eeef3d8acfe41d9962003c9240241006e965` (c4 buyExact pool-v2 development replay); offline controller `4090c8a` is an ancestor.
+**Latest implementation/evidence commit:** `50efc1aaf7b8e6a3452f0811a6b2aa4bc737232a` (c4 buyExact evidence-feasibility taxonomy); offline controller `4090c8a` is an ancestor.
 
 ## Boundaries and runtime
 
@@ -52,13 +52,27 @@
   successful transaction refs; 1,546 remain Token-2022 quarantined and four legacy refs are
   censored (two endpoint missing, two endpoint residuals). Zero pass the existing narrow diagnostic;
   that is not an economic zero. 23:00Z remains unopened.
+- The Sol-approved c4 evidence-feasibility taxonomy is committed as `50efc1a`. It
+  source-binds all 2,333 candidate traces across the same 160 full blocks. Transaction-tree ancestry
+  identifies 1,621 exact BuyEvent wire descendants (1,553 successful and 68 failed attempts), with
+  roles and four instruction arguments matching; this remains wire/event evidence only. It records
+  6,392 legacy and 1,710 Token-2022 descendant TransferChecked operands plus outside-subtree transfer
+  wires. The four successful dual-legacy rows reproduce two missing user-quote endpoints and two
+  explicit user-base/user-quote boundary residuals. Bank-time mint/account/Token-2022 extension state
+  is absent. Receipt: `docs/evidence/pumpswap-buy-exact-v1-c4-evidence-feasibility-2026-10-11.json`;
+  full row output is compressed under ignored `work/` and hash-bound by the receipt.
+- Sol decided no buyExact25 economic stratum is qualified. Keep all four rows censored, the 68
+  failed transactions attempt-only, and Token-2022 quarantined. A future four-frame event/wire audit
+  could test only that narrower claim under a separately approved lease; do not freeze an economic
+  audit until transaction-position effects and outside touches reconcile.
 
 ## Next decision horizon
 
-1. Continue the Sol-approved offline feasibility taxonomy on the same ten c4 dev frames. Separate
-   candidate-descendant event/transfer wire facts from whole-transaction endpoint/touch attribution
-   and bank-time Token-2022 state availability; trace the four censored legacy refs and three
-   successful structural mismatches. No decoder promotion or audit tuning.
+1. Sol-approved next horizon: implement and qualify an offline independent verifier and crash-prefix
+   recovery for the versioned prospective controller. Include source-bound lease/event/capture/STOP
+   lineage, one reservation per bucket, charged started ambiguity with no replay, writer ordering,
+   explicit gaps/anchor lineage, caps/floor STOP, terminal transfer, and rejection of c4 abnormal
+   STOP as a normal predecessor. Keep verifier/recovery separate from activation.
 2. Before any Helius RPC, obtain a new exact future lease/schedule decision, fresh source-bound
    provider account/charge evidence, disk/churn evidence above the floor, predecessor/quiescence
    proof, and independent reviewer binding. Missed prospective ticks remain gaps; never backfill.
