@@ -131,19 +131,34 @@ def _validate_class_inventory(
         discriminator = fingerprint.get("discriminator_hex")
         length = fingerprint.get("wire_data_length")
         status = fingerprint.get("transaction_status")
+        account_count = fingerprint.get("observed_account_count")
         first_seen = row.get("first_seen_in")
         also_seen = row.get("also_seen_in")
+        suffix = fingerprint.get("suffix")
         if (
             not isinstance(discriminator, str)
             or not HEX16.fullmatch(discriminator)
             or fingerprint.get("fixed_account_count") is not None
             or type(length) is not int
             or length < 8
+            or type(account_count) is not int
+            or account_count < 0
             or not isinstance(status, str)
             or status not in {"success", "failed"}
             or first_seen not in INCLUDED_BUCKETS
             or not isinstance(also_seen, list)
             or any(bucket not in INCLUDED_BUCKETS for bucket in also_seen)
+            or not isinstance(suffix, list)
+            or len(suffix) != account_count
+            or [entry.get("position") for entry in suffix if isinstance(entry, dict)]
+            != list(range(account_count))
+            or any(
+                not isinstance(entry, dict)
+                or not isinstance(entry.get("privilege"), dict)
+                or type(entry["privilege"].get("signer")) is not bool
+                or type(entry["privilege"].get("writable")) is not bool
+                for entry in suffix
+            )
         ):
             raise InventoryError("unknown_discriminator_class_invalid")
         grouped[discriminator].append(row)
@@ -163,6 +178,8 @@ def _summarize_discriminators(
     for discriminator, classes in sorted(grouped.items()):
         lengths: Counter[str] = Counter()
         statuses: Counter[str] = Counter()
+        account_counts: Counter[str] = Counter()
+        position_privileges: dict[int, Counter[str]] = defaultdict(Counter)
         first_seen: set[str] = set()
         observed_in: set[str] = set()
         for row in classes:
@@ -170,6 +187,23 @@ def _summarize_discriminators(
             count = row["count"]
             lengths[str(fingerprint["wire_data_length"])] += count
             statuses[fingerprint["transaction_status"]] += count
+            account_counts[str(fingerprint["observed_account_count"])] += count
+            for entry in fingerprint["suffix"]:
+                privilege = entry["privilege"]
+                observed = position_privileges[entry["position"]]
+                if not observed:
+                    observed.update(
+                        {
+                            "references": 0,
+                            "signer_false": 0,
+                            "signer_true": 0,
+                            "writable_false": 0,
+                            "writable_true": 0,
+                        }
+                    )
+                observed["references"] += count
+                observed[f"signer_{str(privilege['signer']).lower()}"] += count
+                observed[f"writable_{str(privilege['writable']).lower()}"] += count
             first_seen.add(row["first_seen_in"])
             observed_in.add(row["first_seen_in"])
             observed_in.update(row.get("also_seen_in", []))
@@ -177,8 +211,20 @@ def _summarize_discriminators(
         if (
             sum(lengths.values()) != discriminator_refs
             or sum(statuses.values()) != discriminator_refs
+            or sum(account_counts.values()) != discriminator_refs
         ):
             raise InventoryError("discriminator_partition_mismatch")
+        expected_position_counts = {
+            position: sum(
+                count for length, count in account_counts.items() if int(length) > position
+            )
+            for position in position_privileges
+        }
+        if any(
+            position_privileges[position]["references"] != expected
+            for position, expected in expected_position_counts.items()
+        ):
+            raise InventoryError("account_position_partition_mismatch")
         items.append(
             {
                 "discriminator_hex": discriminator,
@@ -189,6 +235,14 @@ def _summarize_discriminators(
                     for length, count in sorted(lengths.items(), key=lambda x: int(x[0]))
                 },
                 "transaction_status_reference_counts": dict(sorted(statuses.items())),
+                "observed_account_count_reference_counts": {
+                    int(count): refs
+                    for count, refs in sorted(account_counts.items(), key=lambda row: int(row[0]))
+                },
+                "observed_account_position_privilege_reference_counts": [
+                    {"position": position, **dict(sorted(counts.items()))}
+                    for position, counts in sorted(position_privileges.items())
+                ],
                 "first_seen_frames": sorted(first_seen),
                 "frames_with_any_class_observation": sorted(observed_in),
             }

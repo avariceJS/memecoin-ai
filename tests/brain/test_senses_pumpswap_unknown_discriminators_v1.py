@@ -32,7 +32,12 @@ def _class_row(
         "discriminator_hex": discriminator,
         "fixed_account_count": None,
         "wire_data_length": wire_length,
+        "observed_account_count": 2,
         "transaction_status": status,
+        "suffix": [
+            {"position": 0, "privilege": {"signer": False, "writable": True}},
+            {"position": 1, "privilege": {"signer": True, "writable": True}},
+        ],
     }
     return {
         "class_sha256": _sha(_canonical(fingerprint)),
@@ -138,6 +143,14 @@ def test_class_aggregation_is_permutation_invariant_and_partitions_each_group() 
             sum(row["transaction_status_reference_counts"].values())
             == row["instruction_references"]
         )
+        assert (
+            sum(row["observed_account_count_reference_counts"].values())
+            == row["instruction_references"]
+        )
+        for position in row["observed_account_position_privilege_reference_counts"]:
+            assert position["references"] == row["instruction_references"]
+            assert position["signer_false"] + position["signer_true"] == position["references"]
+            assert position["writable_false"] + position["writable_true"] == position["references"]
 
 
 def test_duplicate_class_and_missing_or_extra_class_rows_fail_closed() -> None:
