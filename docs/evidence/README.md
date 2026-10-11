@@ -140,6 +140,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   legacy censored traces over the same 2,333 development candidates / 160 blocks. The complete
   row-level taxonomy is zstd-compressed under ignored `work/` and bound by source/tool/output hashes;
   no bank-time Token-2022 extension state or economic admission is claimed.
+- `pumpswap-buy-exact-v1-c4-economic-identifiability-validation-v1-2026-10-11.json`: joins the
+  hash-pinned 2,333 taxonomy identities to their ten-frame full-block evidence, adding transaction-
+  wide fee/lamport metadata, ordered target-account wire facts and explicit settlement missingness.
+  Six focused tests and offline replay pass; this defines no economic admission or zero claim.
 - `helius-inventory-v3-c4-abnormal-stop-sizing-2026-10-11.json`: offline sizing over the 11 sealed
   c4 frame summaries, STOP accounting, allocated campaign bytes, and post-STOP `df` snapshot. It
   records finite-sample raw/stored throughput and limited headroom above the prior floor-plus-frame

@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 08:25 UTC. Research remains on `research/active`; production
+**As of:** 2026-10-11 08:41 UTC. Research remains on `research/active`; production
 `/Users/root1/Desktop/memecoin-ai` is untouched. Recheck Git and runtime before new acquisition.
 
 ## Runtime and credentials
@@ -42,6 +42,7 @@
 - The new source-bound feasibility receipt `pumpswap-c4-event-layout-feasibility-validation-v1-2026-10-11.json` records full-byte Borsh parsing for the 9,130 BuyEvent/SellEvent references in the ten included frames against all 18 pinned IDL layouts. All are uniquely consistent with the 2026-10-07 schema; this does not establish deployed layout or event validity. Tests include deterministic Hypothesis value/offset properties and malformed wire mutations. Other 468 event refs and frozen tail2 remain excluded; no RPC or activation occurred.
 - Receipt SHA-256: `443b38dbd1211ce321283a3cc858483ed5c9d54b4bc19c6f9c0fd6408bd40b9d`. Current external gates remain closed as above.
 - Sol accepted the exact source-bound development replay; commit `6c6aa08` records it. No RPC or activation occurred.
+- New offline buyExact identifiability receipt `pumpswap-buy-exact-v1-c4-economic-identifiability-validation-v1-2026-10-11.json`, SHA-256 `29e9d00c326f10973dde8f953b16bac136e7774d3fe94e67190a43c6832228c2`: revalidates the 2,333 hash-pinned taxonomy identities against ten included full blocks and records transaction-wide fee/lamport evidence, ordered target touches, event fields and explicit unknown settlement state. Population remains 1,550 successful structural passes, 16 mismatches (overlapping the 780 failed attempts), and four legacy pass censorings. Six focused tests and replay pass. No economic admission predicate, settlement claim or economic zero; tail2 remains unopened.
 
 ## Next decision horizon
 

@@ -2293,6 +2293,30 @@ Token-2022 extension state are absent. The detailed row-level output is compress
 `work/` and bound by the receipt hashes. This remains development evidence only: no decoder
 promotion, exact economic zero, global completeness, or RPC/audit authority.
 
+The follow-up [`buyExact c4 economic-identifiability inventory`](evidence/pumpswap-buy-exact-v1-c4-economic-identifiability-validation-v1-2026-10-11.json)
+joins those exact 2,333 taxonomy identities to the ten pinned full blocks. It inherits the
+taxonomy's identity-set equality receipt, revalidates each row against its transaction signature,
+instruction path, program and 23 fixed account roles, and records candidate-descendant BuyEvent
+fields, ordered transfer operands, outside-subtree target touches, transaction fee/lamport metadata,
+WSOL roles, and token endpoints/residuals. It does not repeat the full census scan. The partition is
+1,550 successful structural passes, 3 successful mismatches, 767 failed structural-pass attempts,
+and 13 failed mismatches: 16 mismatches overall, overlapping the 780 failed attempts. Four
+dual-legacy success-pass rows remain censored (two missing endpoints and two subtree/boundary
+residuals); the existing diagnostic separately quarantines successful Token-2022 cases.
+
+The pinned official `buy_exact_quote_in` IDL lists 23 fixed accounts and documents that fees are
+deducted from `spendable_quote_in`, that the payer may need rent for three account creations, and
+that a cashback WSOL accumulator ATA may be supplied. The captured three-tail candidate class is
+selected by the pinned SDK/census prefix, not the 23-account IDL list. Event and instruction u64
+values remain raw atomic/wire observations; this schema does not declare decimal scale or prove
+deployed behavior. Transaction fee, lamport, and token balances are whole-transaction boundaries,
+not amounts settled at the candidate instruction position. Historical bank-time account/mint bytes,
+Token-2022 extension/withheld-fee/hook state, and position-specific state are unavailable. Thus the
+inventory sets no economic predicate, admission threshold, audit result, decoder promotion, or zero
+claim. It excludes all 1,223 other buyExact references and the unopened 23:00Z tail2 body; no
+backfill, RPC, or provider request occurred. Its row artifact is source-bound under ignored
+`work/pumpswap-buy-exact-v1-c4-economic-identifiability-v1-final/`.
+
 Any later audit decision requires a separately frozen contract, a fresh disjoint prospective
 sample, source-bound completeness and independent transaction-boundary evidence. Missed intervals
 remain gaps; the current evidence grants no RPC authority.
