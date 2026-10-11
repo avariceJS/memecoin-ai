@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 00:45 UTC. Recheck runtime before any prospective service decision.
+**As of:** 2026-10-11 00:47 UTC. Recheck runtime before any prospective service decision.
 
 **Research checkout:** `/Users/root1/Developer/memecoin-research`
 **Branch:** `research/active`
@@ -10,13 +10,13 @@
 
 - Continue Senses in the research checkout only. Production `/Users/root1/Desktop/memecoin-ai` remains
   untouched. No trades, signing, paid upgrades, protected holdouts, push, retry, or backfill.
-- User authorized continued use of the current Helius key without rotation. The latest saved exact
-  exposure scan (`docs/evidence/helius-key-post-tool-output-rescan-2026-10-10T2318Z.json`) found no
-  matches outside the three expected private mode-0600 configs, across Git objects, recent saved
-  files, process/LaunchAgent arguments, and recent Unified Log. A fresh in-memory process-list check
-  at 00:24Z also found no endpoint in active arguments; `.env.local` remains mode 0600. Earlier
-  process-list disclosure is in accepted session history; remote/provider logs and backups are not
-  inspectable. No rotation was performed.
+- User authorized continued use of the current Helius key without rotation. The 00:47Z delta scan
+  found no exact matches in all 5,905 local Git objects, 83 files / 322 MB changed since the prior
+  broad scan, current process arguments, or 284 MB of recent Unified Log; `.env.local` remains
+  owner-only mode 0600. The existing transport is path-only for LaunchAgents and environment-based
+  for the pinned MCP process, with no secret in argv. Receipt:
+  `docs/evidence/helius-key-post-resume-exposure-scan-2026-10-11T0047Z.json`. Prior process-list
+  disclosure remains in session history; provider/remote logs and backups are not inspectable.
 - c4 is naturally and immutably stopped at 00:05:00Z with
   `minimum_free_disk_floor_plus_frame_envelope`, after 11/24 successful hourly frames. Keep STOP,
   frames, reservations, journals, and captures unchanged. No c4 LaunchAgent or other Senses

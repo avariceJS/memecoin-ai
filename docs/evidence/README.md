@@ -59,6 +59,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   object, 177 recent local saved files / 1.05 GB, process and LaunchAgent arguments, and 82.2 MB
   of Unified Log; three expected private configs remain mode 0600. The receipt records the separate
   active-session tool-output disclosure and local/remote scan limits without storing the value).
+- Helius post-resume delta exposure scan:
+  `helius-key-post-resume-exposure-scan-2026-10-11T0047Z.json` (zero exact matches in all 5,905
+  local Git objects, 83 recently changed accessible saved files / 322 MB, process arguments, and
+  284 MB of recent Unified Log; current private `.env.local` remains owner-only mode 0600. The
+  pinned MCP configuration supplies credentials through environment configuration, while Senses
+  launch entries remain path-only; remote services and backups are outside local visibility).
 - `helius-inventory-v3-c4-abnormal-stop-sizing-2026-10-11.json`: offline sizing over the 11 sealed
   c4 frame summaries, STOP accounting, allocated campaign bytes, and post-STOP `df` snapshot. It
   records finite-sample raw/stored throughput and limited headroom above the prior floor-plus-frame
