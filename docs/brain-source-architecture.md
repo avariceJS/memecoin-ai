@@ -70,6 +70,15 @@ occurred. The preceding 11:48Z scan covered all then-local Git objects; this sca
 the listed post-scan roots. The active transcript, remote/provider storage, backups, Time Machine,
 and inaccessible files remain outside visibility. Receipt:
 [`12:41Z exposure rescan`](evidence/helius-key-post-resume-exposure-rescan-2026-10-11T1241Z.json).
+A 13:37Z follow-up caught and stopped a stale `helius-mcp@latest` npm process whose argv contained
+a credential-bearing environment assignment; its Node child was stopped as well. The subsequent
+exact current endpoint/key scan found zero matches across 6,449 reachable Git objects, 48 recent
+accessible files / 19.2 MB, current process argv, launchd state, and 1.98 GB of the prior two hours
+of Unified Log. Active Codex and Cursor configs point to the owner-only pinned wrapper; the matching
+saved Cursor history config did not contain the current exact endpoint/key. No RPC or collector
+activation occurred. Remote/provider storage, backups, Time Machine, inaccessible files, and prior
+session storage remain outside the scan. Receipt:
+[`13:37Z post-stop exposure rescan`](evidence/helius-key-post-legacy-mcp-stop-exposure-rescan-2026-10-11T1337Z.json).
 A follow-up scan at 19:04Z found no exact endpoint/path/hostname matches across 2,861 Git blobs, no exact endpoint/path matches in 3,452 recent saved files (2.05 GB), no process-argument matches, and no match in 213.6 MB of the last hour of Unified Log. Two Codex history files had 67 public-hostname-only mentions; no endpoint path or key component was present. The c4 LaunchAgent remained path-only and the scheduled 19:05Z frame was active at the 19:06Z status read. Receipt: [`19:04Z exposure rescan`](evidence/helius-key-followup-exposure-rescan-2026-10-10T1904Z.json).
 At 23:18Z a credential-config enumeration accidentally emitted the current value in one tool result
 in this interactive agent session. The active session transcript cannot be retracted from this

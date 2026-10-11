@@ -118,6 +118,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   Git objects, 27 recent Codex logs / 500.4 MB, 82 recent repository files / 2.8 MB, 57 launchd
   plists, current argv, or 846.7 MB of Unified Log. Remote, inaccessible, backup, Time Machine, and
   prior session-transcript storage remain outside scan visibility.)
+- Helius post-stop exact-value exposure rescan at 13:37Z:
+  `helius-key-post-legacy-mcp-stop-exposure-rescan-2026-10-11T1337Z.json` (stopped a stale legacy
+  `@latest` process that exposed a credential-bearing argv assignment; zero exact matches in 6,449
+  reachable Git objects, 48 recent accessible files / 19.2 MB, current argv, launchd state, and
+  1.98 GB of Unified Log. Remote, inaccessible, backup, Time Machine, and prior session-transcript
+  storage remain outside scan visibility.)
 - Helius account-status retry at 06:51Z returned `Transport closed`. Public billing materials checked
   2026-10-11 conflict on archival `getBlock`/`getBlocks` units; see `docs/brain-source-architecture.md`
   for official source links, the 10-credit offline scenario, unknown account controls, and conditions
