@@ -47,6 +47,13 @@ Time Machine, and inaccessible services remain outside the scan. See the
 [`resume exposure rescan`](evidence/helius-key-resume-exposure-rescan-2026-10-10.json).
 The follow-up config/process remediation and delta scan are recorded in
 [`Helius MCP wrapper remediation`](evidence/helius-key-exposure-delta-rescan-2026-10-11T0824Z.json).
+A later runtime check found one legacy `helius-mcp@latest` process with the credential in its
+arguments; that process and child were stopped. The pinned process remained credential-free in
+argv. The exact-value scan then found no match in 6,385 Git objects, 1,073 recently modified
+accessible files (509,279,953 bytes), current process arguments, or 1,313,273,944 bytes of
+Unified Log output. The active session transcript still contains that process-list output and
+cannot be erased; remote storage, backups, Time Machine, and inaccessible files were not scanned.
+Receipt: [`stale MCP process stop and rescan`](evidence/helius-stale-latest-process-stop-rescan-2026-10-11T1043Z.json).
 A follow-up scan at 19:04Z found no exact endpoint/path/hostname matches across 2,861 Git blobs, no exact endpoint/path matches in 3,452 recent saved files (2.05 GB), no process-argument matches, and no match in 213.6 MB of the last hour of Unified Log. Two Codex history files had 67 public-hostname-only mentions; no endpoint path or key component was present. The c4 LaunchAgent remained path-only and the scheduled 19:05Z frame was active at the 19:06Z status read. Receipt: [`19:04Z exposure rescan`](evidence/helius-key-followup-exposure-rescan-2026-10-10T1904Z.json).
 At 23:18Z a credential-config enumeration accidentally emitted the current value in one tool result
 in this interactive agent session. The active session transcript cannot be retracted from this

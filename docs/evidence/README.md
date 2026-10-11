@@ -103,6 +103,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   environment, pins `helius-mcp@2.2.0`, and passed an argv-isolation probe; 22 stale processes
   stopped; zero exact matches in 6,303 Git objects, current process args, 1,100 recent files / 480
   MB, or 78.5 MB of recent Unified Log. MCP transport remains closed; no RPC occurred.)
+- Helius stale legacy MCP process stop and exact-value rescan:
+  `helius-stale-latest-process-stop-rescan-2026-10-11T1043Z.json` (stopped the old `@latest`
+  process that exposed the key in argv; zero matches in 6,385 Git objects, 1,073 recent accessible
+  files / 509 MB, current argv, and 1.31 GB of Unified Log. The current session transcript still
+  contains the process-list result; remote and backup storage remain outside scope.)
 - Helius account-status retry at 06:51Z returned `Transport closed`. Public billing materials checked
   2026-10-11 conflict on archival `getBlock`/`getBlocks` units; see `docs/brain-source-architecture.md`
   for official source links, the 10-credit offline scenario, unknown account controls, and conditions
