@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 08:41 UTC. Research remains on `research/active`; production
+**As of:** 2026-10-11 09:20 UTC. Research remains on `research/active`; production
 `/Users/root1/Desktop/memecoin-ai` is untouched. Recheck Git and runtime before new acquisition.
 
 ## Runtime and credentials
@@ -43,12 +43,21 @@
 - Receipt SHA-256: `443b38dbd1211ce321283a3cc858483ed5c9d54b4bc19c6f9c0fd6408bd40b9d`. Current external gates remain closed as above.
 - Sol accepted the exact source-bound development replay; commit `6c6aa08` records it. No RPC or activation occurred.
 - New offline buyExact identifiability receipt `pumpswap-buy-exact-v1-c4-economic-identifiability-validation-v1-2026-10-11.json`, SHA-256 `29e9d00c326f10973dde8f953b16bac136e7774d3fe94e67190a43c6832228c2`: revalidates the 2,333 hash-pinned taxonomy identities against ten included full blocks and records transaction-wide fee/lamport evidence, ordered target touches, event fields and explicit unknown settlement state. Population remains 1,550 successful structural passes, 16 mismatches (overlapping the 780 failed attempts), and four legacy pass censorings. Six focused tests and replay pass. No economic admission predicate, settlement claim or economic zero; tail2 remains unopened.
+- Sol-accepted offline `buyExact` position-state proof: `pumpswap-buy-exact-v1-position-state-source-feasibility-v1-2026-10-11.json` binds the accepted row ledger and official RPC/Token-2022/Agave v3.0.0 sources. Population: 780 exact failed-attempt transaction dispositions, 1,550 successful structural passes without candidate-position state from the captured documented sources, and 3 successful mismatches unknown. The row schema separates disposition from candidate position state; failed attempts are not economic zeros. Eight focused Hypothesis tests pass. No c4 bodies or RPC.
+- Separate Alchemy Archive feasibility receipt `pumpswap-buy-exact-v1-alchemy-account-archive-feasibility-v1-2026-10-11.json`: all 2,333 identities mapped. 2,330 exceed one request containing the entire same-slot prefix plus candidate; this screen does not prove predecessor causal necessity or replay feasibility. The only three within the request count are failed attempts. Candidate-role lower bound is 17,584 non-program account×slot pairs (7,617 addresses); one-read-per-pair would be a nominal 175,840 CU scenario at published 10 CU/method, not measured usage or dollars. Historical slot bytes do not establish instruction-position state. No archive RPC or audit.
+- Read-only Alchemy usage snapshot: 18,680 aggregate CU / $0.01 MTD through 09:02Z; method series reports Oct 8 `getSlot` 15,000 CU, `getSignaturesForAddress` 3,520, `getTransaction` 160. Usage limit field absent; Archive entitlement and spend caps remain unverified. Current internal free space is 42,393,532 KiB (~40.45 GiB), below the 50 GiB floor.
 
 ## Next decision horizon
 
-The key-based pause is removed, but c4 is terminal and there is no eligible live lease: disk remains
-below the 50 GiB floor, Helius account/charge limits are unknown, and the Helius MCP transport is
-closed. Do not backfill c4, repeat captured requests, or start a replacement campaign from its old
-lease. Continue offline Senses engineering and close remaining gates; prospective activation needs
-fresh resource evidence and Sol review of a new forward-only lease/schedule and c4 gap lineage. No
-Cortex work.
+The key-based pause is removed. The broader 08:24Z exposure scan found no key in Git objects,
+recent files, current argv or recent Unified Log; a current exact-value check also found no key in
+the dirty diff, six untracked source files or current process arguments. c4 remains terminal; no
+Senses collector is loaded, disk is below the 50 GiB floor, and there is no valid successor lease.
+Helius MCP is running through the secure
+wrapper without secret argv, but its most recent read-only account-status attempt returned
+`Transport closed`; no chain RPC succeeded. Do not backfill c4 or repeat charged requests. Continue offline Senses engineering; before
+prospective activation, verify provider/account caps and storage headroom, then obtain Sol review of
+a fresh forward-only lease/schedule and explicit c4 gap lineage. The next offline horizon is a
+source-pinned feasibility contract for exact candidate-position witnesses from a prospective runtime
+hook, with fork/path/availability binding and adversarial economic-state fixtures. Sol reviews this
+contract before any adapter. No Cortex work.

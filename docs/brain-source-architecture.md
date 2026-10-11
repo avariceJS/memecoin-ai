@@ -2321,6 +2321,53 @@ Any later audit decision requires a separately frozen contract, a fresh disjoint
 sample, source-bound completeness and independent transaction-boundary evidence. Missed intervals
 remain gaps; the current evidence grants no RPC authority.
 
+The follow-up [`buyExact position-state source-feasibility proof`](evidence/pumpswap-buy-exact-v1-position-state-source-feasibility-v1-2026-10-11.json)
+uses only the accepted 2,333-row ledger plus byte-pinned official Solana RPC, Token-2022, and Agave
+v3.0.0 Geyser sources; no c4 response body was reopened. This scoped proof does not assess the
+separate Alchemy Account Archive path, which has now received its own offline feasibility screen;
+no Alchemy chain request was made. The row ledger separates 780 exact failed-attempt transaction
+dispositions from candidate-position state (not economic zeros), 1,550 successful structural
+passes for which the captured documented sources do not provide candidate-position state, and
+three successful structural mismatches that remain unknown. Of 2,333 candidates, 2,328 contain a
+Token-2022 program role and five are dual
+legacy. Standard RPC transaction responses expose ordered instruction facts and transaction-level
+pre/post balances, while `getAccountInfo` and `simulateTransaction` do not document an original
+instruction-position selector. Geyser v3 account updates carry account data, `write_version`, and
+an optional transaction reference; the pinned interface does not provide an instruction/CPI index
+or per-instruction checkpoint. Token-2022 fee and transfer-hook semantics require mint,
+token-account, hook-program, and ordered invocation state that these boundaries do not supply. This
+is a conservative insufficiency finding for the captured documented source set, not a claim that no
+custom or future source can provide the witness. A custom prospective runtime checkpoint adapter
+remains a candidate to investigate, not a qualified source. Historical replay would require a
+specific pre-slot snapshot, complete ordered ledger/fork, era-correct runtime,
+feature/program state, and independent boundary checks; current docs do not establish c4 replay
+feasibility. A property-based integer-unit counterexample shows identical
+`atomic_units_of_mint` transaction endpoints can hide different candidate-position balances. This
+is source feasibility only: no
+economic predicate, audit, decoder, admission, or collector change.
+
+The separate [`Alchemy Account Archive feasibility screen`](evidence/pumpswap-buy-exact-v1-alchemy-account-archive-feasibility-v1-2026-10-11.json)
+pins Alchemy's public account-archive, historical simulation, token-account, and CU docs and
+classifies the same 2,333 accepted candidate identities without reopening c4 response bodies. Alchemy
+documents finalized `getAccountInfo(slot=S)` as the latest write at or before S; its history cursors
+are slot-scoped. `simulateTransactionsAtSlot` is a hypothetical shared-overlay simulation with a
+five-transaction request limit, 128 referenced-account limit, 100 state overrides per entry, and
+25 MiB rendered-result cap, using one pinned SVM release. Of the 2,333 candidates, 2,330 exceed a
+single request containing the entire same-slot transaction prefix and candidate (transaction
+index ≥5); the three within that capacity are failed attempts. This count does not establish that
+every predecessor is causally necessary, nor does passing the screen prove historical replay. No
+transaction-index or instruction-index selector is documented, and the archive slot snapshot is
+finalized slot state. Alchemy's `firstUpdateAfterSlot` table says strictly after S while its prose
+says at or after S; this feasibility screen does not rely on that cursor boundary. The taxonomy
+gives a lower-bound 17,584 candidate
+state-account×slot pairs across 7,617 addresses (18,544 pairs including program roles), including
+2,328 Token-2022 and 2,246 WSOL rows. One `getAccountInfo` per state pair at its published 10 CU
+reference is a nominal 175,840 CU sizing scenario only; it is not measured traffic, a paid request
+plan, or a dollar estimate. Read-only Alchemy MCP usage showed 18,680 aggregate CU / $0.01 month to
+date through 09:02Z, with no usage-limit field returned. Archive entitlement and account-specific
+spend/overage limits remain unverified. No Alchemy chain RPC or archive read occurred; all rows keep
+`economic_admission=false` and the frozen audit remains sealed.
+
 Sol's current prospective-collection decision supersedes the earlier c5 activation horizon: c5's
 offline policy and runner may remain available for review, but c4's abnormal STOP does not satisfy
 the service-v1 normal-stop gate and neither c5 nor another successor may make live calls now. The

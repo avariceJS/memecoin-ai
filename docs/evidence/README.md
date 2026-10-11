@@ -144,6 +144,21 @@ contain large exact payloads, so open only the named artifact needed for a speci
   hash-pinned 2,333 taxonomy identities to their ten-frame full-block evidence, adding transaction-
   wide fee/lamport metadata, ordered target-account wire facts and explicit settlement missingness.
   Six focused tests and offline replay pass; this defines no economic admission or zero claim.
+- `pumpswap-buy-exact-v1-position-state-source-feasibility-v1-2026-10-11.json`: classifies all
+  2,333 accepted row-ledger identities against byte-pinned official RPC, Token-2022, and Agave
+  Geyser source snapshots. It separates exact failed-attempt transaction dispositions from
+  candidate-position state, which is not applicable to those failures; captured documented sources
+  lack position state for 1,550 successful structural passes, while three successful mismatches
+  remain unknown. A property-based integer-unit counterexample demonstrates that transaction
+  endpoints do not identify an intermediate instruction state. No c4 response body, RPC, admission,
+  or audit was used.
+- `pumpswap-buy-exact-v1-alchemy-account-archive-feasibility-v1-2026-10-11.json`: separately
+  screens the same 2,333 identities against byte-pinned Alchemy Archive and simulation docs. It
+  distinguishes slot-boundary bytes from transaction/instruction-position state; 2,330 exceed one
+  request containing the entire same-slot prefix plus candidate, without implying every predecessor
+  is causally necessary or that other replay paths are impossible. It records lower-bound account×slot
+  sizing and read-only usage evidence. No Alchemy chain RPC, c4 body, economic admission, or audit was
+  used.
 - `helius-inventory-v3-c4-abnormal-stop-sizing-2026-10-11.json`: offline sizing over the 11 sealed
   c4 frame summaries, STOP accounting, allocated campaign bytes, and post-STOP `df` snapshot. It
   records finite-sample raw/stored throughput and limited headroom above the prior floor-plus-frame
