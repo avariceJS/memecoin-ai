@@ -86,6 +86,18 @@ owner-only wrapper still passes the key through its child environment; clean arg
 the key is absent from intentionally credential-bearing process environments. This scan excludes
 provider-side or remote conversation storage, backups, inaccessible files, oversized files, and
 other sessions. Receipt: [`15:12Z exposure delta rescan`](evidence/helius-key-current-exposure-delta-rescan-2026-10-11T1512Z.json).
+At 15:44Z, a broader delta scan found 57 exact-key copies in three local Cursor SQLite databases:
+one workspace-state value, one conversation-search body mirrored in its FTS content, and 54 values
+in global state. The values were replaced with `[REDACTED]`; secure deletion, FTS optimization,
+checkpoint and vacuum completed, SQLite integrity checks passed, and the databases/WALs are mode
+0600. The post-redaction scan found zero exact key or endpoint matches in 364,193 recent files /
+49.78 GB, all 6,540 Git objects, current process arguments, and 500 MB of last-hour Unified Log.
+No local Time Machine snapshots were listed. A separate ChatGPT-hosted `helius-mcp@latest` worker
+was present with no key or endpoint in argv; the project Codex config remains on the pinned owner-only
+wrapper. Cursor stayed open while its 1.7 GB global SQLite store was redacted, so later in-memory
+reserialization is not ruled out. Remote/provider storage, cloud/external backups, inaccessible or
+oversized files, and prior session transcripts remain outside the scan. No provider RPC or Senses
+activation occurred. Receipt: [`Cursor state redaction and exposure rescan`](evidence/helius-key-cursor-state-redaction-2026-10-11T1544Z.json).
 A follow-up scan at 19:04Z found no exact endpoint/path/hostname matches across 2,861 Git blobs, no exact endpoint/path matches in 3,452 recent saved files (2.05 GB), no process-argument matches, and no match in 213.6 MB of the last hour of Unified Log. Two Codex history files had 67 public-hostname-only mentions; no endpoint path or key component was present. The c4 LaunchAgent remained path-only and the scheduled 19:05Z frame was active at the 19:06Z status read. Receipt: [`19:04Z exposure rescan`](evidence/helius-key-followup-exposure-rescan-2026-10-10T1904Z.json).
 At 23:18Z a credential-config enumeration accidentally emitted the current value in one tool result
 in this interactive agent session. The active session transcript cannot be retracted from this

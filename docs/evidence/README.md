@@ -10,6 +10,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `helius-key-current-exposure-delta-rescan-2026-10-11T1512Z.json` (zero exact matches in all
   6,522 Git objects, 36,343 recent accessible files / 10.26 GB, current process arguments,
   launchd, or 621 MB of Unified Log; exact values were compared in memory only).
+- Helius Cursor-state redaction and exposure rescan at 15:44Z:
+  `helius-key-cursor-state-redaction-2026-10-11T1544Z.json` (57 exact-key copies redacted across
+  three local SQLite databases; integrity passed, files restricted to mode 0600, and the subsequent
+  49.78 GB recent-file scan found no exact key or endpoint match).
 - Helius public WSS billing source capture:
   `helius-public-wss-billing-source-capture-2026-10-11.json` (public rate and credit consumption
   order only; account balance/overage, rounding scope and control/handshake billing remain unknown).
