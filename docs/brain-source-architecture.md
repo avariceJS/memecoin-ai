@@ -2097,6 +2097,33 @@ transaction discovery or economic-process completeness, exact economic zero, set
 or model admission. The source-bound replay tool is
 `tools/brain_senses_c4_captured_class_replay_v1.py`.
 
+An offline development replay then applied the already-pinned Pump SDK 2.1.0 pool-v2 prefix
+classifier and existing pool-v2 candidate-subtree diagnostic to the exact 25-byte/valid-bool,
+23-fixed-account/three-tail class in those same ten c4 frames. All ten reports were byte-hash-bound
+to the c4 replay; each selected candidate set was re-normalized against all 160 captured full
+blocks with exact identity-set equality and zero normalization errors. Of 3,556 buyExact references,
+2,333 met the structural predicate; 2,317 matched the SDK-derived pool-v2/fee-wallet/ATA and
+transaction-privilege checks, while 16 remain structural mismatches (13 failed attempts with a
+transaction-wide writability conflict and three successful references with ATA, fee-wallet, PDA, or
+privilege mismatches). The 2,317 matches comprise 767 failed attempt-only references and 1,550
+successful transaction references. The existing economic diagnostic classified 1,546 successful
+references as quarantined for Token-2022 effects and four legacy-token references as censored (two
+missing token-account endpoints, two candidate-subtree/transaction-endpoint residuals); zero rows
+passed that narrow diagnostic. This zero is a decoder-acceptance count, not an economic zero. The
+1,223 other buyExact references remain outside this three-tail stratum. The 23:00Z frozen tail2 body
+was excluded and not opened. Receipt:
+[`buyExact c4 pool-v2 development replay`](evidence/pumpswap-buy-exact-v1-c4-pool-v2-development-replay-2026-10-11.json).
+
+Sol's next buyExact feasibility horizon keeps the same development population and separates (a)
+instruction/IDL/SDK identity and transaction status, (b) ordered candidate-descendant BuyEvent and
+legacy/Token-2022 transfer wire facts, and (c) whole-transaction endpoint/touch attribution plus
+bank-time state availability. Token-2022 encoded transfer amounts remain instruction arguments,
+not realized credits/debits without historical mint/account extension and fee state at transaction
+position. No decoder promotion or sealed audit follows unless an exact, source-bound development
+stratum has complete candidate and negative denominators and independent transaction-boundary
+evidence. Any future four-frame audit remains disjoint, prospective, one-pass, and separately
+leased; this replay grants no RPC authority.
+
 Sol's current prospective-collection decision supersedes the earlier c5 activation horizon: c5's
 offline policy and runner may remain available for review, but c4's abnormal STOP does not satisfy
 the service-v1 normal-stop gate and neither c5 nor another successor may make live calls now. The

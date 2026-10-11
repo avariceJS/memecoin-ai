@@ -78,6 +78,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `pumpswap-c4-captured-class-replay-2026-10-11.json` (independently pinned metadata freeze and
   source-bound offline replay of 10 frames / 160 selected blocks; excludes unopened 23:00 body and
   makes no global completeness, economic exact-zero, training or execution claim).
+- `pumpswap-buy-exact-v1-c4-pool-v2-development-replay-2026-10-11.json`: source-bound development
+  replay of all ten included c4 frames through the existing SDK 2.1.0 structural qualifier and
+  pool-v2 diagnostic. It binds all full-block capture hashes and report/epoch receipts, preserves
+  16 structural mismatches, classifies 767 failed attempts, 1,546 Token-2022 quarantines and four
+  censored legacy cases; it does not open 23:00Z, establish an exact economic zero or grant audit/RPC
+  authority.
 - `helius-inventory-v3-c4-abnormal-stop-sizing-2026-10-11.json`: offline sizing over the 11 sealed
   c4 frame summaries, STOP accounting, allocated campaign bytes, and post-STOP `df` snapshot. It
   records finite-sample raw/stored throughput and limited headroom above the prior floor-plus-frame
