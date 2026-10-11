@@ -111,6 +111,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
   reported 18,680 compute units / $0.01 for month-to-date, last 7 days, and last 30 days through
   07:27Z. It has no repository/app attribution, no returned account limit, and is not an invoice or
   raw RPC capture; it does not establish available headroom or authorize requests.
+- `alchemy-usage-summary-mcp-2026-10-11T0947Z.json`: read-only follow-up still reports 18,680 CU /
+  $0.01 through 09:47Z. The account-specific usage limit remains unreturned; no Alchemy RPC was
+  issued by this snapshot.
 - Frozen c4 selected-block structural replay:
   `pumpswap-c4-captured-class-replay-2026-10-11.json` (independently pinned metadata freeze and
   source-bound offline replay of 10 frames / 160 selected blocks; excludes unopened 23:00 body and
@@ -152,6 +155,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   remain unknown. A property-based integer-unit counterexample demonstrates that transaction
   endpoints do not identify an intermediate instruction state. No c4 response body, RPC, admission,
   or audit was used.
+- `solana-candidate-position-witness-synthetic-checker-validation-v1-2026-10-11.json`: binds the
+  Sol-reviewed Agave v3.0.0 source-feasibility contract, narrow core inert synthetic checker,
+  54-test suite and source hashes. Sol accepted core consistency only; economic admission,
+  runtime/source qualification, and provider completeness are always false. Token-2022 fee/epoch/
+  withheld/hook binding and WSOL account/rent/frame-path binding remain open fixture gates. No
+  validator, RPC, replay, c4 body, audit, or economic admission was used.
 - `pumpswap-buy-exact-v1-alchemy-account-archive-feasibility-v1-2026-10-11.json`: separately
   screens the same 2,333 identities against byte-pinned Alchemy Archive and simulation docs. It
   distinguishes slot-boundary bytes from transaction/instruction-position state; 2,330 exceed one

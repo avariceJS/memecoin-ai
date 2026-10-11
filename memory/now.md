@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 09:20 UTC. Research remains on `research/active`; production
+**As of:** 2026-10-11 09:59 UTC. Research remains on `research/active`; production
 `/Users/root1/Desktop/memecoin-ai` is untouched. Recheck Git and runtime before new acquisition.
 
 ## Runtime and credentials
@@ -49,15 +49,35 @@
 
 ## Next decision horizon
 
-The key-based pause is removed. The broader 08:24Z exposure scan found no key in Git objects,
-recent files, current argv or recent Unified Log; a current exact-value check also found no key in
-the dirty diff, six untracked source files or current process arguments. c4 remains terminal; no
-Senses collector is loaded, disk is below the 50 GiB floor, and there is no valid successor lease.
-Helius MCP is running through the secure
-wrapper without secret argv, but its most recent read-only account-status attempt returned
-`Transport closed`; no chain RPC succeeded. Do not backfill c4 or repeat charged requests. Continue offline Senses engineering; before
-prospective activation, verify provider/account caps and storage headroom, then obtain Sol review of
-a fresh forward-only lease/schedule and explicit c4 gap lineage. The next offline horizon is a
-source-pinned feasibility contract for exact candidate-position witnesses from a prospective runtime
-hook, with fork/path/availability binding and adversarial economic-state fixtures. Sol reviews this
-contract before any adapter. No Cortex work.
+The key-based pause is removed. The 08:24Z exact-value scan found no key in 6,303 Git objects,
+current argv, recent accessible files or recent Unified Log; the exact-key check also found no value
+in the dirty diff or six untracked source files. The secure wrapper reads the owner-only
+`.env.local`; remote/session stores and backups remain outside local scan scope, and the agent-session
+transcript retains the known prior process-list output. Do not rotate absent a new exposure or user
+direction.
+
+At 09:46Z, no Senses/Helius collector process or matching LaunchAgent was loaded. Internal APFS had
+42,251,576 KiB (~40.29 GiB) free, below the reviewed 50 GiB floor. Helius MCP's last read-only
+account-status attempt returned `Transport closed`; do not repeat it without a specific reason. No
+RPC, c4 backfill, or retry occurred in this resumed work. c4 remains terminal with its gaps and
+unknown-ended STOP interval preserved; no successor lease exists.
+Alchemy MCP's read-only usage summary succeeded at 09:47Z and remains 18,680 CU / $0.01 MTD, but
+does not return the account limit or repository attribution. Receipt:
+`alchemy-usage-summary-mcp-2026-10-11T0947Z.json`.
+
+Sol accepted the source-pinned Agave v3.0.0 candidate-position hook feasibility contract and the
+narrow core synthetic consistency checker. Receipt
+`solana-candidate-position-witness-synthetic-checker-validation-v1-2026-10-11.json` binds 11
+official-source hashes and 54 passing focused tests. Economic admission, real source qualification,
+and provider completeness remain false. Token-2022 fee/epoch/withheld/hook binding and WSOL
+account/rent/frame-path binding remain unimplemented synthetic fixture gates. No Agave patch/build,
+real witness, economic decoder, or audit exists.
+
+At 09:59Z, no Senses/Helius collector process or matching LaunchAgent was loaded. APFS had
+43,307,476 KiB (~41.3 GiB) free, still below the 50 GiB floor; existing production-named LaunchAgents
+are unrelated and were not changed. Helius RPC remains idle and c4 is immutable. Next, implement and
+independently validate an offline initial-entry activation-preflight branch that binds the accepted
+c4 discontinuity certificate to a fresh finite-calendar candidate and one-use successor claim.
+Before any live successor, obtain account-specific provider usage/charge controls, durable storage
+above the reviewed floor with full schedule runway, and a fresh Sol-reviewed forward-only lease.
+Never backfill missed slots or reopen frozen tail2. Cortex remains out of scope.

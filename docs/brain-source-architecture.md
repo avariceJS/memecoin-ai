@@ -22,11 +22,11 @@ Alchemy Free and PAYG share one provider family. Read-only block verification ca
 endpoint through `MEMECOIN_ALCHEMY_PAYG_HTTP_URL`; the current research `.env.local` has no PAYG
 endpoint, so no paid acquisition is currently configured. Helius remains a separate provider family.
 
-At 2026-10-11 07:27Z, Alchemy's read-only MCP usage summary returned 18,680 compute units and
-$0.01 for month-to-date, last 7 days, and last 30 days, with data through 07:27Z. This is an
-authenticated-team aggregate, not repository/workload attribution, an invoice, or a raw RPC capture;
-the account limit was not returned. Do not infer remaining headroom or research cost from this
-summary. Receipt: [`Alchemy MCP usage summary`](evidence/alchemy-usage-summary-mcp-2026-10-11T0727Z.json).
+At 2026-10-11 09:47Z, Alchemy's read-only MCP usage summary remained at 18,680 compute units and
+$0.01 for month-to-date, last 7 days, and last 30 days. This authenticated-team aggregate is not
+repository/workload attribution, an invoice, or a raw RPC capture; the account limit was not returned.
+Do not infer remaining headroom or research cost from it. Receipt:
+[`Alchemy MCP usage summary`](evidence/alchemy-usage-summary-mcp-2026-10-11T0947Z.json).
 
 The user-authorized Helius RPC credential remains in ignored, mode-0600 `.env.local` under
 `MEMECOIN_HELIUS_RPC_URL`. On Oct 11, the Codex and Cursor MCP configs were found to also contain the
@@ -2713,3 +2713,35 @@ lease cap to every intersected bucket/day and may conservatively reject larger s
 preflight tests and 131 focused preflight/calendar/bridge/controller/verifier tests pass; no provider
 request, activation, live attestation, or real trust root was used. Receipt:
 [`offline activation-preflight v1 validation`](evidence/senses-activation-preflight-v1-offline-validation-2026-10-11.json).
+
+## Candidate-position witness source feasibility (2026-10-11)
+
+Sol reviewed the source-pinned Agave v3.0.0 feasibility contract and approved only an inert
+synthetic consistency checker. The pinned `InvokeContext::process_instruction` boundary appears
+capable in principle of exposing current frame account bytes for top-level instructions and nested
+CPI; precompiles require a separate path. Standard Geyser does not supply candidate-instruction
+position snapshots. This is a custom-runtime instrumentation hypothesis, not an implemented or
+qualified source.
+
+The required evidence chain separates frame attempts, successful/failed SVM execution, the later
+`Bank::commit_transactions` result, post-freeze bank state hashes, ledger block hashes and the final
+root binding. Commit batch order is distinct from block transaction order. A source-bound unique
+bank-instance → freeze → block transaction → root join is required; same-slot or receipt ambiguity
+stays unknown. Failure snapshots are attempted state, while fee/nonce rollback-account changes are
+tracked separately. Availability uses conservative UTC upper bounds only when every required
+receipt has finite evidenced clock uncertainty; an unknown bound leaves availability unknown.
+
+The narrow core checker validates typed synthetic receipt/path/account consistency, bank-to-root
+joins, shared execution runtime identity, and dimensional field labels; 54 focused tests pass and
+Sol accepted this scope. Its outputs permanently set economic admission, source qualification and
+real provider/runtime completeness to false. Two protocol-specific synthetic gates remain open:
+the current Token-2022 fixture checks readonly role presence and hook path only, without binding fee
+config bytes, epoch-selected fee terms, withheld amount transitions, or hook account semantics; the
+WSOL fixture checks effect labels/order and unit labels only, without account snapshots, rent reserve,
+balance effects, or frame-path binding. Neither is a qualified economic decoder. Receipt:
+[`candidate-position synthetic checker validation`](evidence/solana-candidate-position-witness-synthetic-checker-validation-v1-2026-10-11.json).
+No validator was built or run, no c4 body or historical replay was opened, and no provider RPC,
+decoder promotion, audit or economic admission occurred. A real instrumentation prototype would
+need a separate source-bound implementation and independent Sol review. Prospective activation also
+remains closed: c4 is terminal with gaps preserved, no successor lease exists, Helius MCP transport
+is still unavailable, and internal disk remains below the reviewed floor.
