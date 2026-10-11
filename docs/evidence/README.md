@@ -82,6 +82,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - Helius launchd exposure check at 04:39Z:
   `helius-key-launchd-exposure-check-2026-10-11T0439Z.json` (zero exact matches in 65 user/system
   launchd property lists and current process arguments; no Senses/Helius/inventory labels loaded).
+- Helius key continuation exposure rescan at 05:12Z:
+  `helius-key-continuation-exposure-rescan-2026-10-11T0512Z.json` (zero exact matches in 6,123 local
+  Git objects, current process arguments, 65 launchd property lists, 7,384 recently changed
+  accessible files, and 934.8 MB of subsequent Unified Log; provider/remote storage, inaccessible
+  files and backups remain outside the scan).
 - Frozen c4 selected-block structural replay:
   `pumpswap-c4-captured-class-replay-2026-10-11.json` (independently pinned metadata freeze and
   source-bound offline replay of 10 frames / 160 selected blocks; excludes unopened 23:00 body and
@@ -118,6 +123,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   independent read-only controller lease verifier, including durable crash prefixes, no-replay
   recommendations, STOP marker/ledger crash ordering, cap/floor checks, terminal transfer, and
   rejection of abnormal predecessors; no service activation or RPC is authorized.
+- `senses-prospective-controller-v1-recovery-qualification-2026-10-11.json`: follow-up validation
+  requires a captured seal or elapsed gap for every bucket before normal terminal close, preserves
+  early-cancelled buckets separately from gaps, repairs failed-result STOP crash prefixes without
+  replay, and independently verifies a supplied predecessor's ledger/head; 49 focused tests, no
+  activation or provider requests.
 - `senses-operation-envelope-v2-child-v3-offline-validation-2026-10-11.json`: Sol-accepted offline
   parent envelope and v3 child-bundle validation, including provider/source identity, bounded zstd,
   receipt versus fsynced availability, frontier continuity, STOP precedence and no-replay recovery;

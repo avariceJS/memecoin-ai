@@ -59,6 +59,13 @@ Time Machine, prior session transcript storage, or 1,194 inaccessible files. Rec
 A separate 04:39Z check found no exact credential in 65 user/system launchd property lists or
 current process arguments, and no Senses/Helius/inventory label loaded:
 [`launchd exposure check`](evidence/helius-key-launchd-exposure-check-2026-10-11T0439Z.json).
+After the user's explicit no-rotation authorization, the 05:12Z continuation scan again found no
+exact current credential or URL match in 6,123 local Git objects, current process arguments, 65
+launchd property lists, 7,384 recently changed accessible files, or 934.8 MB of subsequent Unified
+Log. `.env.local` remained owner-only mode 0600. Provider/remote tool/session storage, inaccessible
+files, backups, and Time Machine remain uninspectable. The prospective adapter continues to receive
+only the private config path and resolve the endpoint in process. Receipt:
+[`05:12Z continuation exposure rescan`](evidence/helius-key-continuation-exposure-rescan-2026-10-11T0512Z.json).
 Read-only Helius MCP plan info and current pricing confirm Free at 1M credits/month and 10 standard
 RPC requests/s; standard `getBlock`, `getBlocks`, `getSignaturesForAddress`, and `getTransaction` each cost one
 credit. Account-level usage is not exposed. Standard WSS is available; enhanced
@@ -2161,16 +2168,22 @@ caps. Its durable event chain records one reservation per bucket before the requ
 method and request digest, start-time/disk rechecks, immutable raw artifact hash, event/receipt/
 availability times, result, seal, gap and first-reason STOP. Ambiguous or unsealed attempts remain
 fully charged and STOP without replay. A missed bucket is explicit; only a later anchor can reset
-the frontier before another frame. `close_lease` writes a terminal receipt, and
+the frontier before another frame. Normal `close_lease` requires every scheduled bucket to have
+exactly one captured seal or an elapsed gap, no outstanding reservation, and no failed/unknown seal.
+It can close before lease expiry once the finite schedule is fully accounted. A premature close
+fails without writing STOP or TERMINAL. Explicit `cancel_lease` writes the abnormal
+`owner_cancelled_before_schedule_exhaustion` STOP only when no request is outstanding; untouched
+bucket IDs remain `cancelled_unstarted` in derived status, never gaps, and cannot seed a successor.
+An outstanding reservation is neither cancelled nor reclassified. A failed/unknown result crash
+between result, seal and STOP recovers as abnormal STOP and cannot reserve another request.
 `initialize_successor` transfers its verified frontier/gaps and a new review-decision digest to a
-distinct lease under a local shared writer lock; there is no auto-renewal. Twenty focused
-transition/boundary tests pass. This remains an offline protocol implementation: declared source and
-review hashes are not independently parsed or authenticated here. It has no provider adapter,
-credential loader, LaunchAgent, activation evidence parser, autonomous calendar scheduler, or live
-generation root. It does not prove provider charge units, disk churn, capture completeness, or
-remote/multi-host locking. Those remain activation and scale-out gates; future multi-worker
-coordination must preserve the immutable lease and evidence contracts while replacing the local
-coordination backend.
+distinct lease under a local shared writer lock; there is no auto-renewal. This remains an offline
+protocol implementation: declared source and review hashes are not independently parsed or
+authenticated here. It has no provider adapter, credential loader, LaunchAgent, activation evidence
+parser, autonomous calendar scheduler, or live generation root. It does not prove provider charge
+units, disk churn, capture completeness, or remote/multi-host locking. Those remain activation and
+scale-out gates; future multi-worker coordination must preserve the immutable lease and evidence
+contracts while replacing the local coordination backend.
 
 The separate read-only verifier/CLI is `tools/brain_senses_prospective_verifier_v1.py`. It
 independently parses canonical plan and JSONL bytes, validates the event hash chain and lease/day
@@ -2178,7 +2191,8 @@ accounting, checks each reservation/start/result/seal transition, reads allowlis
 files through no-follow descriptors, binds receipt/availability/decision times, and verifies STOP,
 terminal, frontier/gaps, and a supplied predecessor. It returns a recovery recommendation for every
 valid durable prefix; it never repairs files, retries a request, creates STOP, or authorizes
-activation. A predecessor is verified only when its root is explicitly supplied. Declared source
+activation. A supplied predecessor's own plan, event chain and terminal-to-ledger head are checked;
+its own predecessor is not recursively checked. Declared source
 hashes are shape-checked; they match source content only when compared with independently computed
 digests supplied by the caller. A review digest is similarly an external binding, not reviewer
 authentication. The local SHA-256 chain detects accidental or partial changes but is not a signature
@@ -2195,6 +2209,14 @@ inventory, 16 full-block bodies, and 16 signature checks). Do not present one fr
 v1 response artifact or accept a parent seal without child-journal verification. A separately
 versioned operation-envelope/child-bundle contract and verifier are required before any prospective
 runner can use that scheduler.
+
+The 2026-10-11 recovery requalification checks a supplied predecessor's plan, event chain and
+terminal-to-ledger head before reporting a normal terminal. Terminal closure requires the exact
+scheduled bucket set to be covered by captured seals or elapsed gaps. Early owner cancellation
+records unstarted buckets as censored, not gaps, rejects outstanding requests, and cannot produce a
+normal terminal or successor. Crash prefixes after failed/unknown results recover to STOP without
+dispatch or replay. The focused controller/verifier suite passes 49 cases. Receipt:
+[`prospective controller recovery requalification`](evidence/senses-prospective-controller-v1-recovery-qualification-2026-10-11.json).
 
 ## Prospective Pump bonding-curve references (offline gate, 2026-10-10)
 
