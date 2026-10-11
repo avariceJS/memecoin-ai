@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 05:50 UTC. Research work continues on `research/active` in
+**As of:** 2026-10-11 06:09 UTC. Research work continues on `research/active` in
 `/Users/root1/Developer/memecoin-research`; production `/Users/root1/Desktop/memecoin-ai` is
 untouched. Read this state, then check Git/runtime before acquisition.
 
@@ -73,3 +73,14 @@ continuation end unknown, and treats any successor schedule as an inert proposal
 anchor first. No initialization, activation, RPC, response-body access, or tail2 access occurred.
 Validation: 21 focused tests; independent verifier replay passed. Receipt:
 `docs/evidence/senses-initial-entry-discontinuity-v1-offline-validation-2026-10-11.json`.
+
+Sol approved the offline initial-entry calendar compiler/verifier v1. The inert candidate pins the
+certificate file and canonical predecessor digest separately, all four gaps/open unknown interval,
+caller-supplied future schedule/caps/source hashes, and compiler/verifier/calendar/bridge/child code.
+Independent verification and a synthetic finalized-anchor + 34-request frame handoff passed, along
+with mutation and crash/no-replay cases (36 focused tests). No schedule was selected, owner lease
+initialized, activation, RPC, or provider-body/tail2 access occurred. Local Unified Log may no
+longer preserve durable c4 observation provenance; activation still requires requalification and a
+separate initial-entry preflight branch. Caller clock/source values are pins, not authenticated
+evidence; stateless candidate generation does not ensure global lease-ID uniqueness. Receipt:
+`docs/evidence/senses-initial-entry-calendar-compiler-v1-offline-validation-2026-10-11.json`.

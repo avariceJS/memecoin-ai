@@ -2075,6 +2075,32 @@ Certificate: [`senses initial-entry/discontinuity v1 c4`](evidence/senses-initia
 Its source-bound offline validation receipt records 21 focused tests:
 [`initial-entry/discontinuity v1 validation`](evidence/senses-initial-entry-discontinuity-v1-offline-validation-2026-10-11.json).
 
+Sol approved a separately versioned offline compiler/verifier for an inert candidate mapping from
+that certificate to finite-calendar-v3 / operation-envelope-v2. The candidate records
+`predecessor_digest_kind=initial_entry_discontinuity_certificate_v1` separately from
+`predecessor.terminal_sha256` (the certificate's canonical digest), and also binds the exact
+certificate-file SHA, frontier, all four ordered gap IDs, and the open unknown interval. Caller
+inputs supply the new lease ID, UTC-nanosecond clock/lease/bucket times, finite schedule, caps, and
+source hashes. The first bucket must be a future anchor; schedule order, duplicate IDs, expiry,
+cap shape, source hash shape, clock watermark, and the 50 GiB physical floor are checked. Candidate
+metadata includes hashes of the compiler, independent verifier, calendar driver, operation bridge,
+child-v3 runner, and their verifiers; the compiler/verifier hashes are computed from the source
+files at run time, with no embedded self-hash. The independent verifier reconstructs these pins
+and the plan from separate expected inputs. Slot heights and UTC nanoseconds remain distinct units.
+Clock values and source hashes are caller-supplied pins, not authenticated fresh evidence. The
+stateless compiler cannot establish lease-ID uniqueness across separate candidate packets; a future
+activation gate must verify evidence and claim one successor atomically.
+
+The compiler only replays the metadata-only c4 certificate verifier and emits a hash-bound JSON
+candidate. It does not initialize a lease or authorize activation. Synthetic qualification proves
+that four inherited gaps clear only after a captured finalized anchor, and the next frame begins at
+that anchor slot plus one; the handoff preserves the exact gaps and unknown interval. The 36 focused
+tests include crash-prefix checks that prove no child replay. A durable observation source for the
+c4 terminal watermark may expire from local Unified Log; requalification and an initial-entry
+activation-preflight branch remain future gates. No candidate schedule was selected, no lease was
+initialized, and no provider request or production mutation occurred. Receipt:
+[`initial-entry calendar compiler v1 validation`](evidence/senses-initial-entry-calendar-compiler-v1-offline-validation-2026-10-11.json).
+
 Sol approved a separately versioned, two-bucket c5 forward-only HTTP pilot policy. Its offline
 state model is `tools/brain_senses_c5_forward_pilot_v1.py`: one explicitly pre-pinned future UTC
 bucket may reserve one finalized `getSlot` anchor; only the immediately following pre-pinned bucket

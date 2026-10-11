@@ -125,6 +125,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - `senses-initial-entry-discontinuity-v1-offline-validation-2026-10-11.json`: source-bound
   validation of the independent certificate/proposal verifier (21 focused tests, Ruff, format,
   compile, diff and verifier CLI); opaque c4 bodies and the frozen tail2 body were not accessed.
+- `senses-initial-entry-calendar-compiler-v1-offline-validation-2026-10-11.json`: source-bound
+  offline compilation and independent verification of an inert finite-calendar-v3 candidate from
+  the initial-entry certificate (36 focused cases, including synthetic anchor + 34-request frame,
+  exact gap/unknown transfer, mutation and crash/no-replay checks). No candidate schedule, lease,
+  provider request, or activation was created.
 - `helius-c4-launchd-quiescence-2026-10-11.json`: records all 15 installed Senses LaunchAgents
   persistently disabled and unloaded, the exact c4 override, a credential-free process-argument
   scan, and contemporaneous free disk below the 50 GiB floor.
