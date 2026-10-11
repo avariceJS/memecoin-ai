@@ -8,6 +8,7 @@ import pytest
 
 from tools import brain_senses_buy_exact_tail2_c4_manifest as manifest
 from tools.brain_senses_buy_exact_tail2_c4_plan import (
+    SOURCE_PATHS,
     TEST_RECEIPT_CONTRACT,
     TEST_SOURCE_PATHS,
     _path_hash,
@@ -89,6 +90,9 @@ def test_synthetic_receipt_binds_clean_junit_result_and_test_sources(tmp_path):
                 "test_source_hashes": {
                     name: _path_hash(repository_root / name)["sha256"] for name in TEST_SOURCE_PATHS
                 },
+                "tested_source_hashes": {
+                    name: _path_hash(repository_root / name)["sha256"] for name in SOURCE_PATHS
+                },
                 "test_result_artifact": {
                     "path": str(result_path),
                     "sha256": _path_hash(result_path)["sha256"],
@@ -121,6 +125,9 @@ def test_synthetic_receipt_rejects_junit_count_mismatch(tmp_path):
                 "test_exit_code": 0,
                 "test_source_hashes": {
                     name: _path_hash(repository_root / name)["sha256"] for name in TEST_SOURCE_PATHS
+                },
+                "tested_source_hashes": {
+                    name: _path_hash(repository_root / name)["sha256"] for name in SOURCE_PATHS
                 },
                 "test_result_artifact": {
                     "path": str(result_path),

@@ -543,16 +543,31 @@ decompressed, displayed, classified, or used to select a frame or infer an outco
 request, or campaign-state change occurred. Sol accepted this as a disclosed procedural deviation;
 the original frame remains eligible and no replacement is allowed. Receipt:
 [`23:00Z hash-only preplan deviation`](evidence/pumpswap-buy-exact-tail2-c4-manifest-preplan-hash-only-deviation-2026-10-10.json).
-At the current 11/24 campaign point, only that one post-freeze frame is eligible; semantic payloads
-remain unopened. The corrected builder now stops before content hashing unless four metadata
-candidates are complete.
+The c4 campaign naturally stopped after its 11th successful frame, before the 24-attempt lease
+completed, with immutable reason `minimum_free_disk_floor_plus_frame_envelope`. The 11 captured
+frame summaries contain 769,657,370 raw bytes and 177,576,450 stored bytes (69.97 MB raw and 16.14
+MB stored per frame on average); campaign `du` was 202,719,232 allocated bytes. This is a bounded
+sample, not a growth guarantee. At 00:08Z after STOP, free space was 54,975,664,128 bytes, only
+614,572,928 bytes above the existing 50 GiB floor plus 674 MB frame peak. The prior ten-frame mean
+projection is not revised into a service budget: disk headroom and host churn leave no defensible
+multi-day runway. Account headroom and Helius charge units remain unknown. Sizing receipt:
+[`c4 abnormal-stop sizing`](evidence/helius-inventory-v3-c4-abnormal-stop-sizing-2026-10-11.json).
+The sole eligible post-freeze frame is 23:00Z; the next natural invocation wrote STOP, so the preregistered audit is
+closed incomplete at 1 of 4 required frames. Its semantic payload remains unopened, and it supports
+no qualified estimate. The corrected builder stops before content hashing unless four metadata
+candidates are complete. Sol ruled that the existing service-v1 normal-STOP predecessor gate must
+reject this c4 STOP; c4 cannot be relabeled or reused as a normal terminal. Any successor requires
+a separately versioned abnormal-stop lineage and fresh review, with no c4 retry/backfill, a future
+anchor-only start, verified disk runway and defensible account headroom.
 
 The metadata-only final-plan builder and offline one-pass audit runner are now implemented in
 `tools/brain_senses_buy_exact_tail2_c4_plan.py` and
 `tools/brain_senses_buy_exact_tail2_c4_audit.py`. The plan binds every scheduled bucket through the
 fourth natural success, selected-frame capture identities, the deviation receipt, frozen source and
 dependency hashes, and a synthetic-only test receipt. It publishes a separate create-only freeze
-receipt; both must be durable before semantic decompression. The runner independently rechecks the
+receipt; both must be durable before semantic decompression. The synthetic test receipt binds test
+files, all tested source/dependency hashes, the Python implementation/version and the result artifact.
+The runner independently rechecks the
 schedule denominator, source and artifact hashes, reservation state, request/capture identities,
 full/signature block agreement and transaction-signature order, then opens each response once. A
 post-start provenance or parsing error seals an incomplete receipt and prohibits replay. Semantic
@@ -562,16 +577,18 @@ at plan and audit preflight.
 
 Sol's population gate requires an explicit success/failure status for every captured transaction
 and resolvable instruction programs for every successful transaction. Unresolved instruction
-indexes, unknown PumpSwap instruction bytes, parser-unknown successful candidates or unknown
-transaction status withhold the exact captured successful-class denominator; observed tail2
+indexes, unknown PumpSwap instruction bytes, parser-unknown successful candidates, malformed
+candidate detection or unknown transaction status withhold the exact captured successful-class
+denominator; observed tail2
 candidate checks are reported only as a lower bound. Known failed attempts remain separate:
 unresolved failed instructions can make that attempt census incomplete without reducing or
 contaminating the successful denominator. Parseable but unsupported instruction variants stay
 classified and quarantined. If the population gate passes, a positive result can claim only candidate
 checked-transfer and BuyEvent agreement on the selected captured block class. Fee equalities remain
 hypotheses; no settlement, wallet-net price, global completeness, exact economic zero or admission
-follows. Focused tests are synthetic only. The current campaign still has 11/24 frames; no eligible
-payload has been semantically opened and no audit result exists.
+follows. Focused tests are synthetic only. The stopped campaign has 11/24 successful frames; no
+eligible payload has been semantically opened and the frozen audit is incomplete, with no qualified
+result.
 
 A new Helius Free epoch was then captured for the frozen one-pass audit: 512/512 selected full
 blocks parsed, 512/512 signature-only checks matched the full-response signature hashes, and the

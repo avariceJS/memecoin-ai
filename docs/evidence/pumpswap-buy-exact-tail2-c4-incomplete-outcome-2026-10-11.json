@@ -1,0 +1,33 @@
+{
+  "campaign_id": "helius-inventory-v3-20261010-4",
+  "campaign_root": "/Users/root1/Developer/memecoin-research/work/brain-senses-live-helius-inventory-v3-20261010-4",
+  "campaign_stop": {
+    "all_in_requests": 375,
+    "last_attempt_bucket": "20261010T230000Z",
+    "path": "STOP",
+    "raw_bytes": 769657370,
+    "reason": "minimum_free_disk_floor_plus_frame_envelope",
+    "sha256": "a7ac1fdd02615491fbea494d35f5bbcba8b03d5bf2a4d11f2516616b39f00098",
+    "stored_bytes": 177576450,
+    "successful_frames": 11,
+    "time_ns": 1791677100418875000
+  },
+  "contract": "pumpswap_buy_exact_tail2_c4_incomplete_outcome_v1",
+  "eligible_frame_bucket": "20261010T230000Z",
+  "eligible_frame_epoch_summary_sha256": "6c4139ff64ea94c9b5ba60bcc95a50ed6d0380f375dd2515fe7aeeb02644d3e3",
+  "eligible_post_freeze_frames_completed": 1,
+  "eligible_post_freeze_frames_required": 4,
+  "limitations": [
+    "Captured-class prospective audit only; no global discovery or completeness claim.",
+    "The campaign stopped before four eligible frames; no substitute, retry, manual tick, or backfill is permitted.",
+    "The sole eligible frame remains unopened semantically."
+  ],
+  "preregistration": {
+    "path": "docs/evidence/pumpswap-buy-exact-tail2-c4-audit-prereg-2026-10-10.json",
+    "sha256": "d7b8fc352ef2039a722febbf54465834dd8a954f850905bc3c9fdda5da903350"
+  },
+  "qualified_estimate": null,
+  "schema_version": 1,
+  "semantic_payloads_opened": 0,
+  "status": "incomplete"
+}

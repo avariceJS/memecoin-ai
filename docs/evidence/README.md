@@ -59,6 +59,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   object, 177 recent local saved files / 1.05 GB, process and LaunchAgent arguments, and 82.2 MB
   of Unified Log; three expected private configs remain mode 0600. The receipt records the separate
   active-session tool-output disclosure and local/remote scan limits without storing the value).
+- `helius-inventory-v3-c4-abnormal-stop-sizing-2026-10-11.json`: offline sizing over the 11 sealed
+  c4 frame summaries, STOP accounting, allocated campaign bytes, and post-STOP `df` snapshot. It
+  records finite-sample raw/stored throughput and limited headroom above the prior floor-plus-frame
+  gate; it does not establish a long-term disk trend or authorize a successor.
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:
@@ -440,18 +444,24 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   was opened. A later hash-only preplan access to the 23:00Z frame was adjudicated as a disclosed
   procedural deviation; its receipt records the limits and retained eligibility:
   `pumpswap-buy-exact-tail2-c4-manifest-preplan-hash-only-deviation-2026-10-10.json`.
+- `pumpswap-buy-exact-tail2-c4-incomplete-outcome-2026-10-11.json`: binds the frozen preregistration
+  to c4's immutable abnormal disk STOP. Only the 23:00Z frame was eligible (1/4 required); its
+  semantic payload remains unopened and no qualified estimate is available. No substitute or
+  backfill is permitted.
 - The c4 tail2 metadata manifest builder and its focused tests are in
   `tools/brain_senses_buy_exact_tail2_c4_manifest.py` and
   `tests/test_brain_senses_buy_exact_tail2_c4_manifest.py`. They enforce the preregistered freeze,
   source/runtime pins, natural-frame selection, request/capture accounting, and compressed-byte
   hashes without decompressing eligible payloads. It emits no manifest until four eligible frames
-  are successfully source-bound; the current campaign has fewer than four.
+  are successfully source-bound; c4 stopped at 1/4 eligible frames, so no manifest or semantic
+  audit was created.
 - The metadata-only final-plan builder and one-pass audit runner are
   `tools/brain_senses_buy_exact_tail2_c4_plan.py` and
   `tools/brain_senses_buy_exact_tail2_c4_audit.py`; focused synthetic tests are in the matching
   `tests/test_brain_senses_buy_exact_tail2_c4_{plan,audit}.py`. The plan requires the complete
   scheduled-bucket denominator and hashes of the preregistration, source modules, dependencies,
-  deviation receipt, test source files and a JUnit result artifact with checked outcome counts. The
+  deviation receipt, test source files, all tested source/dependency hashes, the Python runtime and
+  a JUnit result artifact with checked outcome counts. The
   runner distinguishes successful, failed and
   unknown transaction status; an unknown status or unresolved successful instruction withholds an
   exact successful-class denominator. It retains observed candidates as a lower bound while the

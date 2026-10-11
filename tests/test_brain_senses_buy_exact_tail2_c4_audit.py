@@ -106,6 +106,7 @@ def test_population_scope_keeps_failed_attempt_uncertainty_out_of_success_denomi
         "transaction_outcome:unknown",
         "successful_tx_unresolved_instruction_transactions",
         "successful_tx_normalization_unknown_transactions",
+        "successful_tx_candidate_detection_unknown_transactions",
         "unknown_frozen_population_reference_rows",
     ),
 )
@@ -176,6 +177,10 @@ def test_unresolvable_program_index_is_recorded_as_unknown():
         "meta": {"loadedAddresses": {}, "innerInstructions": []},
     }
     assert audit._raw_program_resolution_unknowns(tx) == (1, 0)
+
+
+def test_malformed_candidate_scan_is_unknown_not_non_candidate():
+    assert audit._candidate_detection_state({"transaction": None, "meta": None}) == "unknown"
 
 
 def test_post_start_failure_seals_incomplete_and_blocks_a_second_pass(tmp_path, monkeypatch):

@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import platform
 import subprocess
 import sys
 import time
@@ -165,6 +166,8 @@ def _preflight(plan_path: Path, freeze_path: Path) -> tuple[dict[str, Any], dict
         or test_receipt.get("semantic_campaign_payloads_opened") != 0
         or test_receipt.get("test_source_hashes") != synthetic.get("test_source_hashes")
         or synthetic.get("test_source_hashes") != expected_test_hashes
+        or test_receipt.get("tested_source_hashes") != synthetic.get("tested_source_hashes")
+        or synthetic.get("tested_source_hashes") != source_pins
     ):
         raise ValueError("audit_synthetic_preflight_receipt_invalid")
     test_binding = plan_tool._test_binding(synthetic_path, REPO_ROOT, campaign4.ROOT.resolve())
@@ -172,6 +175,12 @@ def _preflight(plan_path: Path, freeze_path: Path) -> tuple[dict[str, Any], dict
         "result_artifact"
     ] != synthetic.get("test_result_artifact"):
         raise ValueError("audit_synthetic_test_result_binding_invalid")
+    python_runtime = plan.get("python_runtime", {})
+    if (
+        python_runtime.get("implementation") != platform.python_implementation()
+        or python_runtime.get("version") != platform.python_version()
+    ):
+        raise ValueError("audit_python_runtime_binding_mismatch")
     manifest_path = Path(plan.get("manifest_path", ""))
     if manifest_path.resolve().is_relative_to(Path(plan["campaign_root"]).resolve()):
         raise ValueError("audit_manifest_inside_frozen_campaign")
@@ -416,6 +425,14 @@ def _transaction_outcome(transaction: Any) -> str:
     return "unknown"
 
 
+def _candidate_detection_state(transaction: Any) -> str:
+    """Keep malformed candidate scans unknown instead of treating them as noncandidate."""
+    try:
+        return "candidate" if census_tool._is_candidate_transaction(transaction) else "noncandidate"
+    except (AttributeError, TypeError):
+        return "unknown"
+
+
 def _replication_claim(
     denominator: int | None,
     exact_flow_count: int,
@@ -451,6 +468,7 @@ def _population_scope(counters: Counter[str]) -> dict[str, Any]:
         counters["transaction_outcome:unknown"]
         + counters["successful_tx_unresolved_instruction_transactions"]
         + counters["successful_tx_normalization_unknown_transactions"]
+        + counters["successful_tx_candidate_detection_unknown_transactions"]
         + counters["unknown_frozen_population_reference_rows"]
     )
     return {
@@ -461,6 +479,7 @@ def _population_scope(counters: Counter[str]) -> dict[str, Any]:
         "failed_attempt_reference_census_complete": (
             counters["failed_tx_unresolved_instruction_transactions"] == 0
             and counters["failed_tx_normalization_unknown_transactions"] == 0
+            and counters["failed_tx_candidate_detection_unknown_transactions"] == 0
         ),
     }
 
@@ -585,7 +604,15 @@ def _audit_frame(
                     counters["failed_tx_unresolved_instruction_transactions"] += 1
                 else:
                     counters["unknown_status_unresolved_instruction_transactions"] += 1
-            if not census_tool._is_candidate_transaction(transaction):
+            candidate_state = _candidate_detection_state(transaction)
+            if candidate_state == "unknown":
+                counters["candidate_detection_unknown_transactions"] += 1
+                if transaction_outcome == "successful":
+                    counters["successful_tx_candidate_detection_unknown_transactions"] += 1
+                elif transaction_outcome == "failed":
+                    counters["failed_tx_candidate_detection_unknown_transactions"] += 1
+                continue
+            if candidate_state == "noncandidate":
                 continue
             inspected = inspect_buy_exact_quote_in_v1(transaction)
             if inspected.get("status") == "malformed_or_missing_trace":
@@ -837,6 +864,9 @@ def run_audit(plan_path: Path, freeze_receipt_path: Path, output_dir: Path) -> d
                 "normalization_unknown_pump_candidate_transactions": counters[
                     "normalization_unknown_pump_candidate_transactions"
                 ],
+                "candidate_detection_unknown_transactions": counters[
+                    "candidate_detection_unknown_transactions"
+                ],
                 "transactions_with_program_resolution_unknowns": counters[
                     "transactions_with_program_resolution_unknowns"
                 ],
@@ -851,6 +881,12 @@ def run_audit(plan_path: Path, freeze_receipt_path: Path, output_dir: Path) -> d
                 ],
                 "failed_tx_normalization_unknown_transactions": counters[
                     "failed_tx_normalization_unknown_transactions"
+                ],
+                "successful_tx_candidate_detection_unknown_transactions": counters[
+                    "successful_tx_candidate_detection_unknown_transactions"
+                ],
+                "failed_tx_candidate_detection_unknown_transactions": counters[
+                    "failed_tx_candidate_detection_unknown_transactions"
                 ],
                 "unknown_status_unresolved_instruction_transactions": counters[
                     "unknown_status_unresolved_instruction_transactions"

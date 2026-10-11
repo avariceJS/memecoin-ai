@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import platform
 import shutil
 import subprocess
 import time
@@ -22,7 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEVIATION_PATH = REPO_ROOT / (
     "docs/evidence/pumpswap-buy-exact-tail2-c4-manifest-preplan-hash-only-deviation-2026-10-10.json"
 )
-TEST_RECEIPT_CONTRACT = "pumpswap_buy_exact_tail2_c4_synthetic_preflight_v2"
+TEST_RECEIPT_CONTRACT = "pumpswap_buy_exact_tail2_c4_synthetic_preflight_v3"
 TEST_SOURCE_PATHS = (
     "tests/test_brain_senses_buy_exact_tail2_c4_manifest.py",
     "tests/test_brain_senses_buy_exact_tail2_c4_plan.py",
@@ -175,6 +176,8 @@ def _test_binding(path: Path, repository_root: Path, campaign_root: Path) -> dic
         or value.get("test_exit_code") != 0
         or not isinstance(value.get("test_source_hashes"), dict)
         or set(value["test_source_hashes"]) != set(TEST_SOURCE_PATHS)
+        or not isinstance(value.get("tested_source_hashes"), dict)
+        or set(value["tested_source_hashes"]) != set(SOURCE_PATHS)
         or not isinstance(value.get("test_result_artifact"), dict)
     ):
         raise ValueError("plan_synthetic_test_receipt_invalid")
@@ -183,6 +186,9 @@ def _test_binding(path: Path, repository_root: Path, campaign_root: Path) -> dic
             raise ValueError("plan_synthetic_test_source_invalid")
         if _path_hash(repository_root / name)["sha256"] != digest:
             raise ValueError("plan_synthetic_test_source_hash_mismatch")
+    for name, digest in value["tested_source_hashes"].items():
+        if not isinstance(digest, str) or _path_hash(repository_root / name)["sha256"] != digest:
+            raise ValueError("plan_tested_source_hash_mismatch")
     result_path = Path(value["test_result_artifact"].get("path", ""))
     if result_path.is_symlink() or result_path.resolve().is_relative_to(campaign_root):
         raise ValueError("plan_test_result_artifact_path_invalid")
@@ -369,6 +375,7 @@ def freeze_plan(
             "sha256": test_binding["sha256"],
             "status": test_binding["receipt"]["status"],
             "test_source_hashes": test_binding["receipt"]["test_source_hashes"],
+            "tested_source_hashes": test_binding["receipt"]["tested_source_hashes"],
             "test_exit_code": test_binding["receipt"]["test_exit_code"],
             "test_result_artifact": test_binding["result_artifact"],
         },
@@ -390,6 +397,10 @@ def freeze_plan(
             "amount_units": "integer token atomic units; no UI conversion or lamport mixing",
         },
         "zstd": zstd_binding,
+        "python_runtime": {
+            "implementation": platform.python_implementation(),
+            "version": platform.python_version(),
+        },
         "created_ns": time.time_ns(),
         "limits": [
             "No discovery, transaction, process or market completeness claim.",

@@ -1,8 +1,8 @@
 # Current Project State
 
-**As of:** 2026-10-11 00:01 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-11 00:10 UTC. Recheck runtime before any campaign or service decision.
 
-**Research HEAD:** `8ebf7a5c522258c9540782df5994474f467da097` on `research/active`.
+**Research HEAD:** `53b1d9a623139e162100d9dec9a4fc676b236159` on `research/active`.
 
 ## Boundaries and runtime
 
@@ -10,13 +10,18 @@
   Production `/Users/root1/Desktop/memecoin-ai` is untouched. No trades, signing, paid upgrade,
   holdout access, push, retry or backfill.
 - c3 is terminal after its ambiguous 11:00Z anchor failure; preserve its uncovered interval.
-  c4 remains the unchanged finite calendar lease (one bootstrap plus at most 24 hourly frames).
-  Read-only status at 23:58Z: 11/24 frames complete, 374 frame requests plus one bootstrap (375
-  all-in), 769,657,413 raw / 177,576,506 stored bytes, zero failed or gapped epochs, zero open
-  reservations, 13 attempts remaining, frontier 455430160, and 54,601,482,240 free bytes. Exact c4
-  LaunchAgent remains loaded and idle between calendar ticks, with fixed path-only arguments; its
-  23:00Z frame completed naturally. Old watcher/decode and predecessor-campaign LaunchAgents are
-  disabled and unloaded. No manual tick. The eleven-frame method accounting is 12 `getSlot`
+  c4 is immutable and terminal after a natural 00:05Z `minimum_free_disk_floor_plus_frame_envelope`
+  STOP following 11/24 successful frames. It records 374 frame requests plus one bootstrap (375
+  all-in), 769,657,370 raw / 177,576,450 stored bytes, zero failed/gapped epochs, zero open
+  reservations, and frontier 455430160. Its exact LaunchAgent is unloaded; no retry, backfill, or
+  manual tick. The last successful 23:00Z frame is the only eligible c4 tail2 observation; the
+  frozen cohort closed incomplete at 1/4 with no semantic payload opened or qualified estimate.
+  Receipt: `docs/evidence/pumpswap-buy-exact-tail2-c4-incomplete-outcome-2026-10-11.json`.
+  Offline 11-frame sizing: 69.97 MB raw / 16.14 MB stored per frame mean; c4 allocated 202,719,232
+  bytes. At 00:08Z free space was 54,975,664,128 bytes, 614,572,928 above the prior floor-plus-
+  frame gate. No multi-day runway; account headroom/charge units unknown. Receipt:
+  `docs/evidence/helius-inventory-v3-c4-abnormal-stop-sizing-2026-10-11.json`.
+  The eleven-frame method accounting is 12 `getSlot`
   (including bootstrap), 11 `getBlocks`, 176 full `getBlock`, and 176 signature checks; provider
   charge units remain unknown.
   Preserve all gaps.
@@ -40,22 +45,23 @@
   GB), current process/LaunchAgent arguments, and 82.2 MB of Unified Log. All three expected private
   config files remain mode 0600. Provider and remote conversation storage remain inaccessible.
   Receipt: `docs/evidence/helius-key-post-tool-output-rescan-2026-10-10T2318Z.json`.
-- The user authorized continued use without rotation. The c4 LaunchAgent is loaded and idle between
-  natural calendar triggers; its arguments contain fixed paths only and the runner reads the private
-  endpoint in process. Read-only status confirms 11/24 successful frames, 13 remaining, zero
-  failures/gaps/open reservations, 375 all-in requests and the free-disk figure above. The next
-  frame's pre-reservation requirement is 54,361,091,200 bytes (50 GiB floor plus frame envelope and
-  peak margin), leaving about 395 MiB current headroom; the unchanged runner fails closed before
-  RPC if free space falls below that value. Current headroom is 240,391,040 bytes (about 229 MiB).
-  No manual RPC or tick was run. A relative-root status attempt failed closed; the absolute-root
-  read succeeded.
-- c4 terminal proof implementation is being frozen offline. The new qualifier independently
+- User authorized continued use without key rotation; the current endpoint is loaded in-process from
+  private mode-0600 config and is absent from process arguments. c4's exact LaunchAgent is unloaded.
+  After STOP, a regenerable 1.366 GB pip HTTP cache was purged; immutable captures and campaign
+  state were untouched. At 00:08Z free disk was 53,687,172 KiB (54,975,664,128 bytes), only
+  614,572,928 bytes above c4's floor-plus-frame gate. No post-STOP RPC or manual tick occurred.
+- c4 terminal proof implementation has a committed fix (`53b1d9a`) for macOS `log show` timestamp
+  syntax. The first successful external snapshot was captured within seven minutes of STOP at
+  `work/evidence/c4-terminal-observations-20261011/`; wait 70 minutes from STOP before capturing
+  the second and qualifying. No terminal receipt exists yet. Sol rejected service-v1 predecessor
+  reuse from abnormal STOP; any abnormal successor requires a fresh versioned lineage and review.
+  The qualifier independently
   revalidates capture journals, selected-slot derivation, full/signature block agreement, structural
   summaries, request timing, reservation release, accounting and artifact hashes. It creates only
   the derived `terminal-receipt.json` after natural STOP and a 70-minute external observation window;
   no campaign bytes, lease, runtime or request state changed. Service predecessor validation now
   reruns this verifier and pins its source. Focused suite, including final hardening: 87 passed.
-  No terminal receipt exists while c4 is active. Review notes: ignored `work/reviews/` artifact.
+  Snapshot evidence is local-scope only. Review notes: ignored `work/reviews/` artifact.
 - No Cortex. Do not alter c4's frozen lease or the previously frozen PumpSwap audits.
 - Helius MCP reproducibility check: persistent `~/.codex/config.toml` is pinned to
   `helius-mcp@2.2.0`. Two Helius child processes inherited `@latest` from the already-running
@@ -102,13 +108,14 @@
   observed candidate checks remain a lower bound. Failed-attempt uncertainty is separate. The
   runner audits every transaction/reference once and seals an incomplete receipt after any
   post-start provenance or parsing failure. Synthetic test evidence now binds the JUnit result hash
-  and test/failure/error/skip counts as well as test-source hashes. No eligible frame payload is opened yet. Synthetic
-  focused verification: 26 tests pass; Ruff, format and py_compile pass; `make smoke` passes with
+  and test/failure/error/skip counts, all 22 tested source/dependency hashes, and Python runtime
+  identity. No eligible frame payload was semantically opened; the frozen cohort is incomplete.
+  Synthetic focused verification: 28 tests pass; Ruff, format and py_compile pass; `make smoke` passes with
   synthetic-only evidence. Differential review is complete with no open findings; details are in
   ignored `work/reviews/tail2-c4-plan-audit-differential-review-20261011.md`.
   Sealed reusable synthetic receipt at
-  `work/evidence/tail2-c4-synthetic-20261010/test-receipt.json` (26 passed, 0 failed/errors/skipped;
-  receipt SHA-256 `f8742a618bc9ff46d143b868c76934244c2023941ead3bc53e59c5464831b7db`).
+  `work/evidence/tail2-c4-synthetic-20261011-v6/test-receipt.json` (28 passed, 0 failed/errors/skipped;
+  receipt SHA-256 `9e8949d6f46e3e609e4ab4b4cd015de1d4d4b13719114db1868ee10921ae88f9`).
 - Verification: focused PumpSwap suite 44 passed, targeted Ruff/format passed, and `make smoke`
   passed with synthetic-only evidence. Repository-wide `make check` stops on 43 E501 findings in
   two unchanged pool-v2 qualifier tools. `make test` cannot collect three unrelated legacy tests
