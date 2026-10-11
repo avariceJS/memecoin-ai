@@ -118,6 +118,13 @@ contain large exact payloads, so open only the named artifact needed for a speci
   verifier-replayed after publication; binds the 11-frame/bootstrap denominators, two process/
   LaunchAgent snapshots, and corrected 71-minute local Unified Log window. It grants no successor
   authorization and does not qualify response bodies or provider-side silence.
+- `senses-initial-entry-discontinuity-v1-c4-2026-10-11.json`: offline certificate derived from
+  the pinned abnormal-terminal receipt and metadata-only verifier. It preserves c4's complete
+  preexisting gaps and unknown-ended STOP discontinuity as a distinct predecessor digest, not a
+  normal v3 handoff; a matching lease proposal remains inert and activation is false.
+- `senses-initial-entry-discontinuity-v1-offline-validation-2026-10-11.json`: source-bound
+  validation of the independent certificate/proposal verifier (21 focused tests, Ruff, format,
+  compile, diff and verifier CLI); opaque c4 bodies and the frozen tail2 body were not accessed.
 - `helius-c4-launchd-quiescence-2026-10-11.json`: records all 15 installed Senses LaunchAgents
   persistently disabled and unloaded, the exact c4 override, a credential-free process-argument
   scan, and contemporaneous free disk below the 50 GiB floor.

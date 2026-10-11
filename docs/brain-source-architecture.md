@@ -2053,6 +2053,28 @@ or authorize any successor. Free disk after verification was 47,633,055,744 byte
 bytes below the 50 GiB floor; refresh disk and account evidence and obtain a fresh Sol decision
 before any prospective acquisition.
 
+Sol approved `initial-entry/discontinuity-v1` as an offline certificate and inert proposal gate only.
+`tools/brain_senses_initial_entry_discontinuity_v1.py` rebuilds the certificate from the pinned c4
+abnormal-terminal receipt after the existing metadata-only qualifier replays it;
+`tools/brain_senses_initial_entry_discontinuity_verifier_v1.py` independently reconstructs and
+checks the certificate and any proposal. The certificate preserves all three c4 preexisting gap
+objects, adds a deterministic c4 STOP discontinuity gap, and carries the full unknown continuation
+separately with `end_exclusive=null`. Its SHA is a distinct predecessor digest, never a normal v3
+terminal handoff. A proposed lease must use a new ID, be created after the verified terminal
+observation, start with a future anchor bucket, and carry the exact frontier, gap IDs, and unknown
+interval. Later caller-scheduled anchor buckets may reset after gaps; schedule monotonicity and
+lease expiry are checked without inventing a cadence. Time fields are UTC nanoseconds; frontier,
+anchor, and gap endpoints are slot heights.
+The verifier reports both `certificate_file_sha256` (exact artifact bytes) and
+`predecessor_digest_sha256` (canonical sorted compact JSON); proposals bind the latter under that
+same `predecessor_digest_sha256` name.
+This protocol cannot validate a future anchor, close the unknown interval, initialize or activate a
+lease, or authorize RPC. Its metadata-only evidence boundary leaves all c4 response bodies and the
+frozen 23:00Z tail2 body unopened; no provider-side silence or account-headroom claim is added.
+Certificate: [`senses initial-entry/discontinuity v1 c4`](evidence/senses-initial-entry-discontinuity-v1-c4-2026-10-11.json).
+Its source-bound offline validation receipt records 21 focused tests:
+[`initial-entry/discontinuity v1 validation`](evidence/senses-initial-entry-discontinuity-v1-offline-validation-2026-10-11.json).
+
 Sol approved a separately versioned, two-bucket c5 forward-only HTTP pilot policy. Its offline
 state model is `tools/brain_senses_c5_forward_pilot_v1.py`: one explicitly pre-pinned future UTC
 bucket may reserve one finalized `getSlot` anchor; only the immediately following pre-pinned bucket

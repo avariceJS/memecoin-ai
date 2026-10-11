@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 05:29 UTC. Research work continues on `research/active` in
+**As of:** 2026-10-11 05:50 UTC. Research work continues on `research/active` in
 `/Users/root1/Developer/memecoin-research`; production `/Users/root1/Desktop/memecoin-ai` is
 untouched. Read this state, then check Git/runtime before acquisition.
 
@@ -66,3 +66,10 @@ separately versioned discontinuity gate:
 c4's abnormal stop is not a normal predecessor; bind verified terminal/gaps/unknowns and start at a
 fresh future anchor without claiming continuity or reopening tail2. Receipt:
 `docs/evidence/senses-calendar-supervisor-v1-offline-validation-2026-10-11.json`.
+
+The offline initial-entry/discontinuity-v1 certificate is now bound to the metadata-only c4
+abnormal-terminal verifier. It carries all predecessor gaps plus the c4 STOP gap, keeps the
+continuation end unknown, and treats any successor schedule as an inert proposal with a future
+anchor first. No initialization, activation, RPC, response-body access, or tail2 access occurred.
+Validation: 21 focused tests; independent verifier replay passed. Receipt:
+`docs/evidence/senses-initial-entry-discontinuity-v1-offline-validation-2026-10-11.json`.
