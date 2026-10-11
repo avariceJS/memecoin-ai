@@ -2631,6 +2631,31 @@ source-hash-bound [offline operational review receipt](evidence/senses-wss-offli
 records that no WSS process or LaunchAgent was present, free disk was below the floor, and live
 activation remains unauthorized.
 
+`tools/brain_senses_wss_operator_bridge_v1.py` is an inert process/operator harness for the
+existing campaign journal. Its CLI exposes only an explicitly read-only status projection; run
+execution exists only as a Python API with a caller-injected client factory, and no default live
+client, credential loader, network adapter, LaunchAgent operation, or source-qualified claim writer
+is present. Before factory construction it revalidates the immutable plan/source bindings,
+authorization hash and nanosecond lease, wall clock, and current free-disk floor. A pre-existing
+campaign is passed only to the existing recovery routine, which seals it terminally without
+reconnect or replay, even when the external dispatch lease has expired or disk is below the
+dispatch floor. Recovery receipts bind the root's actual authorization and separately record
+whether the supplied external authorization matches. The bridge receipt records
+`activation_authorized=false` and `provider_io_performed_by_bridge=false`; I/O by a caller-injected
+client is `unknown_not_observed`, and status does not infer provider activity from local files.
+These synthetic tests and this validation made no provider requests. A repeat invocation returns a
+separate no-dispatch result referencing the immutable original receipt by hash; it does not reuse
+the original receipt's historical factory flag as the current invocation result. One campaign
+window is enforced for each bridge invocation even though the underlying campaign supports two.
+Plan and authorization files are read through no-follow, owner-only, mode-0600 descriptors and
+checked for identity stability around the read. A first-preflight rejection before campaign-root
+creation has no campaign receipt; a post-root pre-factory denial terminalizes with
+`pre_factory_preflight_denied`. Focused synthetic tests exercise fresh-process reopen, crash
+prefixes, ambiguous partial-input accounting, source and lease changes, cap/disk/clock denials,
+root-authorization mismatch, one-window enforcement, and owner-lock exclusion. This remains
+offline harness validation only; no credential was accessed, no campaign restarted, and no
+activation occurred. Live activation still requires a separate Sol review.
+
 ## Offline v3 block child envelope (2026-10-11)
 
 The separately versioned operation-envelope v2 binds a scheduled parent operation to the existing
