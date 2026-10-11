@@ -1,10 +1,10 @@
 # Current Project State
 
-**As of:** 2026-10-11 01:22 UTC. Recheck runtime before any prospective service decision.
+**As of:** 2026-10-11 01:25 UTC. Recheck runtime before any prospective service decision.
 
 **Research checkout:** `/Users/root1/Developer/memecoin-research`
 **Branch:** `research/active`
-**Latest implementation commit:** `572b728ae7afb1664c9d166060aa8ffbbdb8d923`.
+**Latest implementation commit:** `92705cbc354afa2cc45d31e1e4a243caae3578f1`.
 
 ## Boundaries and runtime
 
@@ -29,9 +29,10 @@
   Bootstrap-only is 1 request, 43 raw / 56 stored bytes. Campaign all-in is 375 requests,
   769,657,413 raw / 177,576,506 stored bytes. Provider charge units and account headroom remain
   unknown. Receipt: `docs/evidence/helius-inventory-v3-c4-abnormal-stop-accounting-2026-10-11.json`.
-- Latest measured free disk is 47,631,126,528 bytes at 01:18:04Z, 6,055,964,672 bytes below the
-  50 GiB floor; do not initialize prospective acquisition on this storage state. `work/` occupies
-  about 26 GB; no external data volume is mounted. c4 allocated 202,719,232 bytes.
+- Latest measured free disk is 47,405,981,696 bytes at 01:24:55Z, 6,281,109,504 bytes below the
+  50 GiB floor and about 14.43 GB below the current composite c5 safety requirement. Do not
+  initialize prospective acquisition on this storage state. `work/` occupies about 27.7 GB; no
+  external data volume is mounted. c4 allocated 202,719,232 bytes.
   The prior 00:08Z sizing snapshot had 614,572,928 bytes over the old floor-plus-frame gate; that is
   not current runway. The user cache is not disposable project storage.
 - An offline-only c5 two-bucket policy model is in `tools/brain_senses_c5_forward_pilot_v1.py`.
@@ -39,6 +40,13 @@
   adjacent frame bucket, with hard caps and STOP on any miss/failure/ambiguity. Twenty synthetic
   tests pass. No operational buckets/root were instantiated, no credentials/provider access
   occurred, and activation remains blocked by disk and unknown account limits.
+- Differential review found and fixed an empty-gap boundary: c5 now rejects an anchor at
+  `frontier - 1`, which would have produced an empty interval while closing the unknown-ended gap.
+  Commit `92705cb`; the c5 suite passes 20 tests. Review note is ignored under `work/evidence/`.
+- WSS synthetic protocol/TLS/socket/campaign validation passes 126 focused tests. The local review
+  found no WSS LaunchAgent/process, no live connection, and free disk below the 50 GiB floor; receipt
+  `docs/evidence/senses-wss-offline-operational-review-2026-10-11.json` is source-hash-bound.
+  It does not qualify provider authentication, billing, live recovery, sustained rate, or coverage.
 - Helius MCP tools are listed, but the last read-only `getHeliusPlanInfo` and `getAccountStatus`
   calls returned `Transport closed`; they were not retried. No account plan/limits are established.
 
@@ -77,8 +85,9 @@
 
 1. Keep the c4 tail2 audit closed. Refresh disk/account evidence before considering a concrete
    c5 bucket pair; any missed pre-pinned bucket permanently stops that pilot for review.
-2. Continue offline Senses engineering only. Do not initialize/activate c5 or start Cortex until
-   the external resource gates and a concrete future schedule are settled.
+2. Continue offline Senses engineering while seeking a fresh Sol decision after the c5 fix and
+   WSS receipt. Do not initialize/activate c5 or start Cortex until external resource gates and a
+   concrete future schedule are settled.
 
 Canonical technical state: `docs/brain-source-architecture.md`; evidence locator:
 `docs/evidence/README.md`.

@@ -2147,7 +2147,7 @@ using `tools/brain_senses_wss_reference_benchmark.py`.
 This source yields only provider notifications delivered inside recorded connection windows. It
 does not establish complete Pump births, a pool/market census, economic execution, inactivity,
 absence, lifecycle or death. Comparison with selected captured blocks can measure only overlap in
-that selected scope. Focused offline validation: 95 tests, including 300 deterministic generated
+that selected scope. Focused offline validation: 126 tests, including 300 deterministic generated
 deliveries with duplicates, crash-prefix recovery, raw mutation, subscription mismatch, transport
 header preflight, fragmented text messages, ping/pong masking, strict Upgrade and raw ack/error
 binding over fake deadline-aware streams, pre-I/O authorization/disk gates, fresh monotonic origin,
@@ -2163,4 +2163,7 @@ expiry, rejection of forged TLS verification flags without the internal handshak
 sanitized private-config descriptor I/O errors and file-change detection. These establish only the
 tested local adapter behavior. They do not prove public DNS/TCP,
 provider authentication or acceptance, live provider deadlines, account billing, LaunchAgent
-operation, or continuous throughput.
+operation, or continuous throughput. The 2026-10-11 rerun passed all 126 focused tests; a
+source-hash-bound [offline operational review receipt](evidence/senses-wss-offline-operational-review-2026-10-11.json)
+records that no WSS process or LaunchAgent was present, free disk was below the floor, and live
+activation remains unauthorized.

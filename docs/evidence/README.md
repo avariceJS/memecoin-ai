@@ -79,6 +79,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - `helius-c4-launchd-quiescence-2026-10-11.json`: records all 15 installed Senses LaunchAgents
   persistently disabled and unloaded, the exact c4 override, a credential-free process-argument
   scan, and contemporaneous free disk below the 50 GiB floor.
+- `senses-wss-offline-operational-review-2026-10-11.json`: source-hash-bound synthetic validation
+  (126 tests) and local WSS service inventory; no live provider connection, account billing evidence,
+  or activation is claimed.
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:
