@@ -477,6 +477,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   capture times, selected-slot denominators, and explicit cross-dataset overlaps. Completeness is
   limited to the sealed selected-block inputs; program exposure is not a market, pool, birth, trade,
   or economic fact.
+- `pumpswap-create-pool-feasibility-v1-pair64-c3-2026-10-11.json`: commit-bound offline replay and
+  independent raw-block re-enumeration of the fixed Pump AMM `create_pool` discriminator across
+  those 608 selected blocks. Two successful Pair64 inner references remain unsupported by pinned
+  historical profiles; the receipt makes no pool-birth, population, economic, settlement, or
+  admission claim. The full stage and candidate result remain under ignored `work/` and are bound by
+  hashes in the receipt.
 - `senses-program-exposure-projection-v1-pair64-c3-2026-10-11.json`: hash-bound archival v2
   event-only projection with 603 positive selected-slot counts and five census-only local zeros.
   It preserves native slot coordinates and separately records when this retrospective projection

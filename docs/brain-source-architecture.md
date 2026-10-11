@@ -541,6 +541,17 @@ captures: the 44,285 per-slot sum is not global distinct transactions, and zeros
 global absence. Completeness, economic qualification, training, and production admission remain
 false. Receipt: [`Pair64/c3 program-exposure projection`](evidence/senses-program-exposure-projection-v1-pair64-c3-2026-10-11.json).
 
+A commit-bound `create_pool` feasibility census independently replayed those same 608 sealed
+selected blocks. The verifier reconciled 741,305 transactions, 1,613,839 outer and 961,070 inner
+instruction references, and 85,456 Pump AMM references to the venue-neutral ledger and structural
+novelty digest. It found two successful inner references in Pair64 with 18 accounts and 70-byte
+instruction data; neither matches a pinned historical layout, so event CPI and pool/mint/vault tuple
+checks remain unassessed. All six c3 frames had zero fixed-discriminator references within their
+qualified selected-block processes. This is a captured-class identity/feasibility result only: it
+does not establish pool birth, market population, lifecycle, economic activity, settlement, or
+admission. Receipt:
+[`PumpSwap create_pool feasibility census`](evidence/pumpswap-create-pool-feasibility-v1-pair64-c3-2026-10-11.json).
+
 The official [Pump AMM IDL pinned at commit `8cda1fa`](https://github.com/pump-fun/pump-public-docs/blob/8cda1fa30ea658b20909d8aedf002047119388d2/idl/pump_amm.json)
 binds 23 fixed `buy_exact_quote_in` accounts and the `spendable_quote_in`,
 `min_base_amount_out`, and `track_volume` arguments. Its docs identify the optional cashback
