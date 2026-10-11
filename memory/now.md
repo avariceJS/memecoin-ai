@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 12:17 UTC. Research branch `research/active`, HEAD `f52bd0bd5c077097e7d65635c2edfe0c69782305`, worktree clean before this handoff update. Production checkout `/Users/root1/Desktop/memecoin-ai` is untouched.
+**As of:** 2026-10-11 12:22 UTC. Research branch `research/active`, HEAD `151fc584d66a20d499d9521147950e5c33eb0991` before this memory update. Production checkout `/Users/root1/Desktop/memecoin-ai` is untouched.
 
 ## Runtime and acquisition
 
@@ -12,8 +12,8 @@
 - Pair64 offline receipt: 64/64 same-slot block identity/signature order matched; 80,321/80,467 transaction trees matched, with 146 explicit Helius log truncations. Alchemy inventory completeness remains unknown.
 - `buyExact25` is not economically qualified; sell23 remains captured-class only. See `docs/brain-source-architecture.md`.
 - Commit `46f6b46` records synthetic Token-2022/WSOL transition consistency (63 focused checks), not raw decoding/economic admission. `f7f26df` records source-pinned Agave hook-location feasibility, not a qualified transaction witness.
-- Sol rejected Agave observer v2 and v3; v4 is also rejected for freeze until boundary-level execution ID/attempt identity, selected-account validation at every account-carrying phase, and frame program/data agreement are independently checked with mutations. Luna is implementing only these bounded v5 changes in ignored `work/agave-v3.0.0-full-source`; offline only, no c4/tail2/provider access or default/production hooks. Re-review with Sol before acceptance.
+- Sol accepted Agave observer v5 for local synthetic ProgramTest feasibility only. Patch SHA `e8c977c70a13988213a30a57d3dca36e5f94fab26d1574844c2a378c55cfe5c3`; review receipt SHA `cdd875a8d123e452086dc9d62826ef448f96604fd8dba54e8c7ce6539cc2c4b9`; root decision receipt is `docs/evidence/agave-v3.0.0-candidate-position-observer-v5-review-2026-10-11.json`. No production, replay, persistence/finality or economic claim. Luna is starting the next offline raw Token-2022/WSOL account parser and fixture gate with pinned source/program/epoch/Rent inputs and independent invariants; failures remain attempted-only. No c4/tail2/provider/audit access.
 
 ## Next horizon
 
-Finish and review v5, then run the Sol-approved bounded synthetic ProgramTest raw Token-2022/WSOL witness/parser gate. This does not qualify a real source or economic admission. In parallel, prepare official account-evidence interpretation and a storage/runway dossier without RPC. Current free disk is 33 GiB versus the 50-GiB floor; c4 ended abnormally; Helius account charge controls and live trust/review evidence are unknown. No prospective service is activatable. Do not backfill, reopen frozen tail2, retry failed MCP status requests, or issue duplicate requests. A future service requires a fresh forward-only lease, verified c4 discontinuity with gaps/open unknown preserved, exact caps/schedule, adequate measured storage and account controls, and separate Sol activation review. Cortex remains out of scope.
+Continue the raw Token-2022/WSOL fixture gate and independently review it with Sol. Current free disk is 33 GiB; `work/` is about 33 GiB, including 16 GiB stratified captures and a 6.6-GiB Agave checkout/6.5-GiB target. No external volume is mounted. c4 ended abnormally; Helius account charge controls and live trust/review evidence are unknown. No prospective service is activatable. Do not backfill, reopen frozen tail2, retry failed MCP status requests, or issue duplicate requests. A future service requires a fresh forward-only lease, verified c4 discontinuity with gaps/open unknown preserved, exact caps/schedule, adequate measured storage and account controls, and separate Sol activation review. Cortex remains out of scope.
