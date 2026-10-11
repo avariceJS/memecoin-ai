@@ -66,6 +66,13 @@ Log. `.env.local` remained owner-only mode 0600. Provider/remote tool/session st
 files, backups, and Time Machine remain uninspectable. The prospective adapter continues to receive
 only the private config path and resolve the endpoint in process. Receipt:
 [`05:12Z continuation exposure rescan`](evidence/helius-key-continuation-exposure-rescan-2026-10-11T0512Z.json).
+After the account-status MCP call failed with `Transport closed`, a 05:26Z wider scan also found no
+exact current credential/URL matches in 6,146 local Git objects, 65 launchd plists, current process
+arguments, 14,449 recently changed files / 390.8 MB, 26,650 npm cache/installer files / 4.66 GB,
+shell history/startup files, or 874.0 MB of subsequent Unified Log. Alchemy MCP health returned
+`pong`; no blockchain RPC was made. Remote/provider storage, inaccessible files, backups and Time
+Machine remain outside this inspection. Receipt:
+[`05:26Z broad exposure rescan`](evidence/helius-key-broad-exposure-rescan-2026-10-11T0526Z.json).
 Read-only Helius MCP plan info and current pricing confirm Free at 1M credits/month and 10 standard
 RPC requests/s; standard `getBlock`, `getBlocks`, `getSignaturesForAddress`, and `getTransaction` each cost one
 credit. Account-level usage is not exposed. Standard WSS is available; enhanced

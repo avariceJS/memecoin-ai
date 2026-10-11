@@ -87,6 +87,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   Git objects, current process arguments, 65 launchd property lists, 7,384 recently changed
   accessible files, and 934.8 MB of subsequent Unified Log; provider/remote storage, inaccessible
   files and backups remain outside the scan).
+- Helius key broad exposure rescan at 05:26Z:
+  `helius-key-broad-exposure-rescan-2026-10-11T0526Z.json` (zero exact matches in 6,146 local Git
+  objects, current process arguments, 65 launchd property lists, 14,449 recently changed files /
+  390.8 MB, all 26,650 files / 4.66 GB under `~/.npm`, shell history/startup files, and 874.0 MB of
+  subsequent Unified Log; remote/provider storage, inaccessible files and backups remain outside).
 - Frozen c4 selected-block structural replay:
   `pumpswap-c4-captured-class-replay-2026-10-11.json` (independently pinned metadata freeze and
   source-bound offline replay of 10 frames / 160 selected blocks; excludes unopened 23:00 body and
