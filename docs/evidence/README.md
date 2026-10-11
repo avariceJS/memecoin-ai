@@ -124,6 +124,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   reachable Git objects, 48 recent accessible files / 19.2 MB, current argv, launchd state, and
   1.98 GB of Unified Log. Remote, inaccessible, backup, Time Machine, and prior session-transcript
   storage remain outside scan visibility.)
+- Agave v3.0.0 Token-2022/WSOL parser-only scaffold v3:
+  [`agave-token-raw-parser-scaffold-corrected-v3-2026-10-11.json`](agave-token-raw-parser-scaffold-corrected-v3-2026-10-11.json)
+  and exact source patch
+  [`agave-token-raw-parser-scaffold-corrected-v3-2026-10-11.patch`](agave-token-raw-parser-scaffold-corrected-v3-2026-10-11.patch).
+  Accepted for unsigned synthetic byte parsing/mapping only; hook effects/order, runtime fee law,
+  Rent/epoch binding, trace/witness, and economic admission remain unqualified.
 - Helius account-status retry at 06:51Z returned `Transport closed`. Public billing materials checked
   2026-10-11 conflict on archival `getBlock`/`getBlocks` units; see `docs/brain-source-architecture.md`
   for official source links, the 10-credit offline scenario, unknown account controls, and conditions

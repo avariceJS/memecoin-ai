@@ -2843,3 +2843,24 @@ execution does not invoke it. The next bounded offline gate is raw Token-2022/WS
 decoding from disposable ProgramTest traces with source-pinned fee, hook, native-token, Rent, epoch,
 and runtime inputs; failed executions remain attempted-only. No c4/tail2, provider, archive, or audit
 data is in scope.
+
+### Raw Token-2022/WSOL parser scaffold v3 (2026-10-11)
+
+Sol accepted a source-pinned, feature-gated pure parser and unsigned synthetic mapping scaffold only.
+The corrected patch applies to Agave `v3.0.0` commit `b6c96e84b10396b92912d4574dae7d03f606da26`,
+adds the mapping module export once, and leaves `Cargo.lock` unchanged. Legacy Token, Token-2022,
+and legacy WSOL identities are constants cross-checked against pinned upstream source; supplied
+program/mint IDs and account owners reject on mismatch. Feature-on tests pass 16/16; feature-off
+check passes and the feature-off library has two tests. The patch is independently re-applied and
+validated in the exact clean checkout; its SHA-256 is
+`3d1347ffbca5c5023d2d235835ee0ff7eca2c95bfbf5ff6bf10ec831af0ebbee`.
+
+This is not a transaction witness or economic decoder. Hook execution, ordering, and effects remain
+unknown/unsupported; Rent and epoch are caller-supplied; fee arithmetic is local consistency only,
+not Token-2022 runtime-law evidence. Raw bytes and mapping inputs are separate from observer traces.
+No signed fixture, runtime capture, RPC, source completeness, economic qualification, training,
+settlement, or production admission occurred. A proptest run was omitted because the offline cache
+lacked `bit-set v0.8.0`; no dependency was fetched. Existing edge tests and a deterministic fee
+sweep remain. The exact patch and unique receipt are
+[`parser scaffold v3 patch`](evidence/agave-token-raw-parser-scaffold-corrected-v3-2026-10-11.patch)
+and [`parser scaffold v3 receipt`](evidence/agave-token-raw-parser-scaffold-corrected-v3-2026-10-11.json).
