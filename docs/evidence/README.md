@@ -163,6 +163,13 @@ contain large exact payloads, so open only the named artifact needed for a speci
   current code pins, no-replay/mutation cases and `activation_authorized=false` were checked using
   disposable fixtures. Existing receipts remain immutable and are linked by digest; no RPC or live
   activation is claimed.
+- `senses-storage-readiness-2026-10-11T065300Z.json`: timestamped, hashed read-only `df`, APFS,
+  volume identity, work/Docker/Steam allocation and local-snapshot inventory for the intended
+  capture root. Current free space is ~19.06 GiB, 30.94 GiB below the reviewed 50 GiB floor;
+  `diskutil`'s zero `FreeSpace` field is recorded as inconsistent, not used for gating. No lease
+  schedule is selected, no Helius headroom is established, and no cleanup or RPC occurred. Raw
+  command captures are under the ignored mode-0700 `work/brain-senses-host-readiness-20261011T065300Z/`
+  tree, with each artifact mode 0600.
 - `senses-finite-calendar-v3-offline-validation-2026-10-11.json`: Sol-accepted caller-scheduled
   lifecycle and handoff around the operation envelope; binds gaps, next-start frontier, unknown
   interval lineage, conservative usage and no-replay terminal states. The 82 focused tests use fake

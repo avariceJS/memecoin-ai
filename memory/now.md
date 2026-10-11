@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 06:51 UTC. Research work continues on `research/active` in
+**As of:** 2026-10-11 06:59 UTC. Research work continues on `research/active` in
 `/Users/root1/Developer/memecoin-research`; production `/Users/root1/Desktop/memecoin-ai` is
 untouched. Read this state, then check Git/runtime before acquisition.
 
@@ -95,6 +95,15 @@ aggregate receipt binds their file digests and current source/test pins. Root's 
 20,504,848 KiB (~19.55 GiB), below the 50 GiB floor. Historical 10-frame stored-throughput estimate
 is ~388 MB/day, not a tail guarantee. Helius account headroom remains unverified; no runtime activity.
 Receipt: `docs/evidence/senses-dependent-gates-requalification-2026-10-11.json`.
+
+2026-10-11 06:58Z: Read-only host packet binds the intended capture path to APFS `disk3s5`/`disk3`.
+`df` reports 19,990,468 KiB free (~19.06 GiB), 30.94 GiB below the reviewed 50 GiB floor; APFS
+container free agrees within 8 KiB. No local Time Machine snapshots. Research `work/` is 27,779,080
+KiB; Docker 69,823,064 KiB and Steam 106,697,988 KiB are inventory only; no deletion. `diskutil`
+reports `FreeSpace=0` inconsistently, preserved in receipt but excluded from gating. No successor
+schedule is selected, so no lease runway is claimed. Helius account-status MCP retry returned
+`Transport closed` at 06:51Z; usage/reset/overage remain unknown. No RPC, backfill, lease, or
+LaunchAgent change. Receipt: `docs/evidence/senses-storage-readiness-2026-10-11T065300Z.json`.
 
 Sol approved the offline initial-entry calendar compiler/verifier v1. The inert candidate pins the
 certificate file and canonical predecessor digest separately, all four gaps/open unknown interval,

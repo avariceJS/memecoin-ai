@@ -1951,6 +1951,20 @@ exclude other observed writers but are not an atomic lock against a newly launch
 process. Activation therefore remains prohibited until the full c4 terminal, storage-tail,
 account-limit, and independent-review gates pass.
 
+A source-bound host readiness snapshot at 2026-10-11 06:58Z binds the intended `work/` capture
+root to APFS `disk3s5` in container `disk3`, with a 494,384,795,648-byte container. `df -Pk`
+reported 19,990,468 KiB available (~19.06 GiB); APFS reported 20,470,231,040 bytes unallocated,
+consistent within 8 KiB. This is 30.94 GiB below the 50 GiB floor. `tmutil` reported no local
+snapshots. `du -sk` measured the research `work/` tree at 27,779,080 KiB, Docker at 69,823,064
+KiB, and Steam at 106,697,988 KiB; the latter two are inventory-only and were not modified. The
+`diskutil info` `FreeSpace` field returned zero for this APFS volume and conflicts with `df` and
+container unallocated space; it is excluded from free-space decisions. The historical c4 mean
+stored rate is about 388 MB/day over ten frames, not a long-term tail. No successor finite schedule
+is selected, so no lease runway is claimed. Helius account status again returned `Transport closed`;
+available units, reset and overage terms remain unknown. No RPC, lease, deletion or LaunchAgent
+change occurred. Receipt:
+[`current storage/account readiness snapshot`](evidence/senses-storage-readiness-2026-10-11T065300Z.json).
+
 The exclusive writer marker spans v2 reservation, epoch
 execution/reconciliation, immutable capture/result/summary lineage, and v3 campaign initialization.
 Restart reconciles both roots, validates their hashes and accounting, and does not replay a started
