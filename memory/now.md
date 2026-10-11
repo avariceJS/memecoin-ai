@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 00:43 UTC. Recheck runtime before any prospective service decision.
+**As of:** 2026-10-11 00:45 UTC. Recheck runtime before any prospective service decision.
 
 **Research checkout:** `/Users/root1/Developer/memecoin-research`
 **Branch:** `research/active`
@@ -23,12 +23,12 @@
   LaunchAgent is loaded; no prospective collector is currently accumulating observations. All 15
   Senses plists in `~/Library/LaunchAgents` now have persistent disabled overrides. The exact c4
   label was disabled after finding its plist still present without an override; it was unloaded
-  before and remains unloaded.
+  before and remains unloaded. Receipt: `docs/evidence/helius-c4-launchd-quiescence-2026-10-11.json`.
 - c4 frame-only accounting is 374 requests, 769,657,370 raw bytes and 177,576,450 stored bytes.
   Bootstrap-only is 1 request, 43 raw / 56 stored bytes. Campaign all-in is 375 requests,
   769,657,413 raw / 177,576,506 stored bytes. Provider charge units and account headroom remain
   unknown. Receipt: `docs/evidence/helius-inventory-v3-c4-abnormal-stop-accounting-2026-10-11.json`.
-- Latest measured free disk is 48,660,864 KiB (49,828,724,736 bytes), below c4's 50 GiB floor;
+- Latest measured free disk is 49,089,638,400 bytes at 00:43:31Z, below c4's 50 GiB floor;
   do not initialize prospective acquisition on this storage state. c4 allocated 202,719,232 bytes.
   The prior 00:08Z sizing snapshot had 614,572,928 bytes over the old floor-plus-frame gate; that is
   not current runway. The user cache is not disposable project storage.

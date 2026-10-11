@@ -556,6 +556,12 @@ These are frame-only byte totals. The separate bootstrap used one `getSlot` requ
 stored bytes; campaign all-in is 375 requests, 769,657,413 raw bytes and 177,576,506 stored bytes.
 The immutable denominator receipt is
 [`c4 abnormal-stop accounting`](evidence/helius-inventory-v3-c4-abnormal-stop-accounting-2026-10-11.json).
+At 00:43:31Z, free disk had fallen to 49,089,638,400 bytes, below the 50 GiB floor. All 15
+Senses LaunchAgents found in the user LaunchAgents directory have persistent disabled overrides and
+none is loaded. The c4 plist remains on disk but its exact label is persistently disabled; the
+process-argument scan found no current Helius endpoint. Receipt:
+[`c4 LaunchAgent quiescence`](evidence/helius-c4-launchd-quiescence-2026-10-11.json). No prospective
+collector is accumulating observations at this time.
 The sole eligible post-freeze frame is 23:00Z; the next natural invocation wrote STOP, so the preregistered audit is
 closed incomplete at 1 of 4 required frames. Its semantic payload remains unopened, and it supports
 no qualified estimate. The corrected builder stops before content hashing unless four metadata
