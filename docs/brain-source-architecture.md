@@ -2223,6 +2223,25 @@ transaction discovery or economic-process completeness, exact economic zero, set
 or model admission. The source-bound replay tool is
 `tools/brain_senses_c4_captured_class_replay_v1.py`.
 
+An offline source-first qualification compared the 16 c4 IDL-unrecognized discriminator values
+against 18 captured Pump AMM IDL revisions available by the c4 capture. Its immutable input
+inventory is [`c4 unrecognized discriminator census`](evidence/pumpswap-c4-idl-unrecognized-discriminators-v1-2026-10-11.json).
+Fifteen values resolve to
+one documented instruction name each, pinned to the historical IDL commit, time, blob digest, and
+Pump AMM program ID. These are source identities only; they do not establish deployed behavior,
+valid account roles, or economic semantics. The remaining value matches Anchor's generic
+`EVENT_IX_TAG_LE`. In all 9,598 included c4 references, the captured inner instruction has the tag
+and a unique historical IDL event discriminator, exactly one account resolving to Pump AMM's
+`__event_authority` PDA, and direct Pump AMM parent ancestry in the transaction instruction trace.
+The ten nested event-name counts reconcile across the references; 8,903 are in successful-status
+transactions and 695 in failed-status transactions. This freezes only structural event-CPI shape:
+event payloads are not decoded or validated, failed transactions do not become successful events,
+and no settlement/economic admission, global completeness, or exact economic zero follows.
+The replay implementation is `tools/brain_senses_pumpswap_idl_history_qualification_v1.py`; its
+focused primitive/stack tests include a sibling-program ancestry counterexample. The 23:00Z c4 tail2
+body remains unopened. Receipt:
+[`c4 historical IDL and event-CPI structural qualification`](evidence/pumpswap-c4-idl-history-qualification-v3-2026-10-11.json).
+
 An offline development replay then applied the already-pinned Pump SDK 2.1.0 pool-v2 prefix
 classifier and existing pool-v2 candidate-subtree diagnostic to the exact 25-byte/valid-bool,
 23-fixed-account/three-tail class in those same ten c4 frames. All ten reports were byte-hash-bound
