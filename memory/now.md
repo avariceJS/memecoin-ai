@@ -1,10 +1,10 @@
 # Current Project State
 
-**As of:** 2026-10-11 03:16 UTC. Recheck host state before any acquisition decision.
+**As of:** 2026-10-11 03:29 UTC. Recheck host state before any acquisition decision.
 
 **Research checkout:** `/Users/root1/Developer/memecoin-research`
 **Branch:** `research/active`
-**Latest implementation/evidence commit:** `50efc1aaf7b8e6a3452f0811a6b2aa4bc737232a` (c4 buyExact evidence-feasibility taxonomy); offline controller `4090c8a` is an ancestor.
+**Latest implementation/evidence commit:** `14ff00843be688626ccf942dfb3a5b8f98be1830` (independent controller-v1 lease verifier).
 
 ## Boundaries and runtime
 
@@ -17,8 +17,9 @@
   Unified Log; `.env.local` is owner-only mode 0600. Provider/remote storage, inaccessible backups
   and one unreadable file were outside scan scope; prior disclosure remains in session history.
   Senses runner passes config path only and reads the endpoint in-process.
-- All 15 Senses LaunchAgents remain disabled/unloaded. Current free disk is 38,904,756 KiB (~39.8 GB), below both the
-  50 GiB floor and c5 composite minimum of 61,834,628,800 bytes. Helius account/charge headroom is
+- Read-only host check at 03:26Z found all 15 Senses LaunchAgents disabled, no collector process, and
+  34,877,620 KiB free (~35.7 GB), below both the 50 GiB floor and c5 composite minimum of
+  61,834,628,800 bytes. Helius account/charge headroom is
   unknown; the last read-only Helius MCP account calls returned `Transport closed` and were not
   retried. No Helius RPC was made in this continuation; do not retry without a new reviewed lease.
 - c4 campaign `work/brain-senses-live-helius-inventory-v3-20261010-4` remains terminally stopped;
@@ -65,16 +66,26 @@
   failed transactions attempt-only, and Token-2022 quarantined. A future four-frame event/wire audit
   could test only that narrower claim under a separately approved lease; do not freeze an economic
   audit until transaction-position effects and outside touches reconcile.
+- Independent read-only prospective controller-v1 verifier is commit `14ff008`. Receipt
+  `docs/evidence/senses-prospective-verifier-v1-2026-10-11.json` binds verifier, controller and test
+  hashes; 18 verifier + 20 controller cases pass. It verifies local canonical/hash-chain evidence,
+  crash prefixes, capture identity, accounting, gaps, STOP and terminal transfer, but does not
+  authenticate source/reviewer/provider/disk truth or authorize activation. v1 is one request/capture
+  per bucket and is explicitly unsuitable for the existing 34-request v3 frame.
 
 ## Next decision horizon
 
-1. Sol-approved next horizon: implement and qualify an offline independent verifier and crash-prefix
-   recovery for the versioned prospective controller. Include source-bound lease/event/capture/STOP
-   lineage, one reservation per bucket, charged started ambiguity with no replay, writer ordering,
-   explicit gaps/anchor lineage, caps/floor STOP, terminal transfer, and rejection of c4 abnormal
-   STOP as a normal predecessor. Keep verifier/recovery separate from activation.
-2. Before any Helius RPC, obtain a new exact future lease/schedule decision, fresh source-bound
-   provider account/charge evidence, disk/churn evidence above the floor, predecessor/quiescence
-   proof, and independent reviewer binding. Missed prospective ticks remain gaps; never backfill.
+1. Sol-selected next gate: build an offline versioned operation-envelope/child-bundle bridge between
+   durable lease ownership and the existing v3 frame journal. A frame has 34 child attempts: one
+   anchor, one inventory request, 16 full blocks, and 16 signature checks. Bind all child plans,
+   request identities, receipts, captures, selection, summary and recomputed raw/stored totals before
+   parent seal. Fault-inject dispatch/fsync/seal crashes; no started child request may replay. One
+   anchor and one complete fake frame must reconcile. Mutate/drop each child record and reject. Keep
+   v1 bytes unchanged; new persisted semantics need a new contract identity. Sol review is required
+   after implementation; no Astra question is indicated.
+2. This is offline fake-client work only: no runtime, RPC, c4/tail2 access, activation, backfill, or
+   new lease. Any later Helius call still needs an exact schedule/lease, fresh source-bound account
+   and charge evidence, disk/churn evidence above floor, predecessor/quiescence proof and independent
+   review. Missed prospective ticks remain gaps; never backfill.
 3. Keep c4 terminal and tail2 frozen; continue offline Senses work while acquisition gates are
    absent. Cortex has not started.
