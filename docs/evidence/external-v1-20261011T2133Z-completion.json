@@ -1,0 +1,32 @@
+{
+  "actual_provider_charge": "unknown_unverified",
+  "archived_plist_path": "/Users/root1/.config/brain-research/external-v1/external-v1-20261011T2133Z/completed-launchagent.plist",
+  "archived_plist_sha256": "4fd72ecbd3ed21110742447bbc0d016d97f05ce47de7d3141a0e1b83dd44d30c",
+  "at_ns": 1791754900472823000,
+  "bootstrap_and_frame_sealed": true,
+  "c4_pins_unchanged": true,
+  "clean_expired_without_stop": true,
+  "files_unchanged_after_real_launchd_recovery": 153,
+  "launchagent_disabled_unloaded": true,
+  "launchd_last_exit_code": 0,
+  "launchd_runs": 3,
+  "logical_bytes_all_service_files": 68872141,
+  "manifest_sha256": "91408a22d940238145be12671363a51f7f6ca61d8a4caea2880b2fcefa7e48c4",
+  "next_authority": "No successor activation authorized by this completion receipt.",
+  "old_plist_absent": true,
+  "plan_sha256": "dcbddd60c4b017e230ee073f1050865363a9c8cdeae91a5ba5e097ef9f1a376b",
+  "raw_payload_bytes": 64223372,
+  "recovered_checkpoint_sha256": "2c58965b66108cffec8f9b4801d758df0e1933236c51016c284dbb5a2cacd6d9",
+  "recovery_claim": "No new local request intents or corpus mutations; reviewed sealed path returns before provider-loader. Provider-side billing is not observable.",
+  "request_count_before_after": [
+    35,
+    35
+  ],
+  "schema": "external-v1-clean-finite-completion",
+  "service_id": "external-v1-20261011T2133Z",
+  "source_commit": "27d729497a1d14df5c9938faed331a031a11df17",
+  "storage_health_status": "ready",
+  "stored_payload_bytes": 64223372,
+  "terminal_checkpoint_sha256": "e31b710a097b55cdc167aed23e55cc7230831014c0b16735ea93214f4953a04a",
+  "volume_free_bytes": 220975820800
+}

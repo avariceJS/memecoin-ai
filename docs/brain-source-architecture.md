@@ -2835,8 +2835,9 @@ uncovered interval from c4's terminal frontier to the fresh anchor.
 The independent reader recomputes request wire hashes, response hashes, receipts, selected slots,
 block structure/signature agreement, event ordering, availability and byte/request denominators.
 It accepts valid incomplete prefixes without granting activation or replay authority. Response event
-time remains separate from receipt and post-fsync availability; bundle/seal/decision times follow
-availability. Recovery may publish missing local terminal evidence, never repeat provider I/O.
+time remains separate from receipt and post-fsync availability. Per-request `decision_ns` records
+the acquisition dispatch decision before its own response; bundle/seal publication follows
+availability. It is not a downstream economic decision timestamp. Recovery may publish missing local terminal evidence, never repeat provider I/O.
 The launch entry point binds reviewed plan/source/qualification/plist/config hashes, all c4 terminal
 pins, disabled/unloaded legacy agents, its launchd PID and exact argv. Credentials load in-process
 only after gates; plists contain paths only and logs point to `/dev/null`.
@@ -2846,6 +2847,55 @@ bounded RTT, age, date agreement and wall/monotonic drift checks. This supports 
 windows with a five-second dispatch margin; it does not establish nanosecond clock accuracy or NTP
 synchronization. Source changes invalidate the lease. Activation requires a concrete Sol review and
 future calendar schedule; passing a synthetic test or hash verifier alone does not authorize RPC.
+
+The reviewed finite lease `external-v1-20261011T2133Z` then ran through launchd on Oct 11 UTC:
+bootstrap 21:33, frame 21:38, expiry 21:41. Both buckets sealed; all 35 RPC intents have captured
+results (2 getSlot, 1 getBlocks, 32 getBlock), with 16 signature/full pairs from 1,373 inventoried
+slots. Raw/stored payload totals are 64,223,372 bytes; all service files total 68,872,141 logical
+bytes. The independent frontier is 455802008. The three inherited gaps plus the fresh uncovered
+`[455430160,455800635)` interval remain explicit; this does not establish market-wide completeness.
+Each of the 35 dispatch decisions was also checked against prior durable availability, including
+the bootstrap seal before the frame's first decision. This strengthens the actual chronology check
+beyond v1's request-start ordering predicate, without claiming precise external clock truth.
+
+Bootstrap/frame exited 0. One separately approved terminal launchd restart exited 0 and left all
+153 files, hashes and request count unchanged (35 before/after). After expiry the finite label was
+disabled/unloaded and its exact plist archived. c4's terminal metadata stayed unchanged and the
+300-second research storage-health monitor remained ready. This is a clean finite operational
+qualification, not an automatically renewed acquisition campaign. Actual provider charges remain
+unknown. Receipt: [`finite external lease completion`](evidence/external-v1-20261011T2133Z-completion.json),
+with its hash-bound checkpoints and [`dispatch chronology`](evidence/external-v1-20261011T2133Z-dispatch-causal-order.json).
+
+Repository-wide validation is not green: the full module-run reports 2,612 passed, 25 skipped and
+13 failed; frozen log-evidence replay, symlink-rejecting readers and a suite-wide low-FD condition
+remain explicit. Focused external/migration runs have no observed FD leak. The bare pytest launcher
+omits the repository root; use `python -m pytest` or `PYTHONPATH=.`. Do not alter frozen campaign
+sources or receipts to conceal these failures. See the
+[`full-suite diagnosis`](evidence/senses-external-full-suite-validation-2026-10-12.json).
+Its `recorded_date_utc` label uses the Oct 12 Moscow date; actual observation was Oct 11 UTC. It is
+not an execution timestamp, and no full-run log was persisted.
+
+The additive `tools/brain_senses_external_successor_v2.py` is an **offline, nonauthorizing**
+compiler, not a v2 runtime. It accepts a held reader and caller-pinned plan/root identity, derives
+predecessor facts from independently verified v1 bytes, and requires both sealed buckets, no STOP
+or unresolved prefix, stable metadata around verification and a final frame-seal event. It binds
+both bundle/seal digests, the chain tip separately from the entire events-file digest, source pins,
+all gaps, frontier, exact request/byte totals and actual terminal seal time. Every dispatch decision
+must follow prior durable availability; the frame must additionally follow the bootstrap seal.
+The new future minute-aligned windows must follow the maximum of expiry, seal and final event time
+with a one-minute margin and use a distinct service/bucket identity. Missing/ambiguous evidence
+requires separate failure review; it never becomes clean continuity.
+
+Real-root callers must establish quiescence and hold host/storage/service locks. The compiler
+compares metadata snapshots before/after independent verification and never writes, loads a
+credential, calls a provider or emits authority. Caller time/root pins are not live attestations.
+The real expired lease produced a candidate under those locks with the full 153-file manifest
+unchanged; all activation/dispatch/replay flags remain false. The candidate's sample future windows
+are a qualification artifact, must be regenerated for any later lease, and have no installed runtime.
+A separate v2 plan/runtime/verifier and fresh Sol-reviewed operational evidence remain required.
+Receipt: [`actual-root successor-v2 qualification`](evidence/external-v1-20261011T2133Z-successor-v2-validation.json).
+The compiler/verifier focused suite passes 34 tests; all seven external suites pass 91 with FD count
+4→4. New-file Ruff/format and targeted mypy pass. No v1 source hash was changed.
 
 All 15 previously installed Senses plists were disabled/unloaded, hash-verified and archived under
 `~/.config/brain-research/retired-launchagents-20261011/`; their installed files were removed so they
