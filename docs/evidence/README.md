@@ -268,6 +268,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - `senses-wss-offline-operational-review-2026-10-11.json`: source-hash-bound synthetic validation
   (126 tests) and local WSS service inventory; no live provider connection, account billing evidence,
   or activation is claimed.
+- `senses-operational-readiness-inventory-v1-2026-10-11.json`: fresh host-only APFS/LaunchAgent and
+  campaign-root metadata inventory. All 15 installed Senses labels were disabled and unloaded; the
+  eligible internal volume had 29,293,846,528 free bytes, below both the 50-GiB floor and the
+  61,834,628,800-byte c5 minimum. Account plan/credits/overage/WSS charge class remain unknown;
+  no API calls, cleanup, moves, runtime changes, or activation occurred.
 - `senses-prospective-verifier-v1-2026-10-11.json`: source-bound offline validation of the
   independent read-only controller lease verifier, including durable crash prefixes, no-replay
   recommendations, STOP marker/ledger crash ordering, cap/floor checks, terminal transfer, and

@@ -2690,6 +2690,17 @@ root-authorization mismatch, one-window enforcement, and owner-lock exclusion. T
 offline harness validation only; no credential was accessed, no campaign restarted, and no
 activation occurred. Live activation still requires a separate Sol review.
 
+A host-only readiness snapshot at 2026-10-11 16:10Z found all 15 installed Senses LaunchAgents
+disabled and unloaded, with no matching running collector process. The only eligible persistent
+volume, `/System/Volumes/Data`, had 29,293,846,528 bytes free: 24,393,244,672 bytes below the
+50-GiB floor and 32,540,782,272 bytes below the documented 61,834,628,800-byte c5 minimum. The
+full-lease peak/churn composite is still unsubstantiated. Account plan, credits, overage, and WSS
+charge class remain unknown (`Transport closed`); no provider/account call was made. Pair64/c3
+inventory identified named derived-review files but authorized none as reclaimable; raw captures,
+journals and manifests remain preserved. Any future collector needs a new source-bound label, root,
+manifest and finite lease. Receipt:
+[`Senses operational readiness inventory`](evidence/senses-operational-readiness-inventory-v1-2026-10-11.json).
+
 ## Offline v3 block child envelope (2026-10-11)
 
 The separately versioned operation-envelope v2 binds a scheduled parent operation to the existing
