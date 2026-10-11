@@ -321,7 +321,10 @@ def transition(
         if receipt_ns <= 0 or availability_ns < receipt_ns:
             return _stop(state, "bootstrap_time_order_invalid")
         frontier = C4_LINEAGE["last_committed"]["frontier_slot"]
-        if anchor + 1 < frontier:
+        # The newly observed anchor must extend beyond the old frontier. An
+        # anchor at frontier - 1 would produce [frontier, frontier), which is
+        # empty and cannot close the unknown-ended continuation gap.
+        if anchor < frontier:
             return _stop(state, "bootstrap_anchor_regression")
         bootstrap = {
             "anchor_slot": anchor,

@@ -186,6 +186,7 @@ def test_wrong_bucket_duplicates_and_bootstrap_failures_stop_without_replay() ->
         ({"commitment": "processed"}, "bootstrap_not_finalized"),
         ({"request_sha256": "not-a-hash"}, "bootstrap_hash_binding_incomplete"),
         ({"anchor_slot": 455430158}, "bootstrap_anchor_regression"),
+        ({"anchor_slot": 455430159}, "bootstrap_anchor_regression"),
         ({"raw_bytes": c5.BOOTSTRAP_RAW_BYTES + 1}, "bootstrap_byte_cap"),
         ({"stored_bytes": c5.BOOTSTRAP_STORED_BYTES + 1}, "bootstrap_byte_cap"),
         ({"availability_ns": 1}, "bootstrap_time_order_invalid"),
