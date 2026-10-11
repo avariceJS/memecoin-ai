@@ -3,6 +3,11 @@
 
 This adapter requires an initialized UUID-bound research root. It does not
 activate a LaunchAgent or synthesize service authorization evidence.
+
+The frozen runner and service still perform path-based writes. A detach between
+the adapter's pre-dispatch check and those writes is not safely bound to the
+external volume. Mutating modes stay blocked until a versioned dirfd writer and
+detach fault test qualify that boundary.
 """
 
 from __future__ import annotations
@@ -39,6 +44,12 @@ from tools import brain_senses_service_v1_runner as runner  # noqa: E402
 
 ADAPTER_BINDING = "external-adapter-binding-v1.json"
 BINDING_VERSION = 1
+EXTERNAL_WRITER_DETACH_QUALIFIED = False
+
+
+def _require_external_writer_qualification() -> None:
+    if not EXTERNAL_WRITER_DETACH_QUALIFIED:
+        raise StorageError("external_writer_detach_not_qualified")
 
 
 def _sha(payload: bytes) -> str:
@@ -449,6 +460,7 @@ def initialize_offline(
     runner_module: Any = runner,
     service_api: Any = service,
 ) -> dict[str, Any]:
+    _require_external_writer_qualification()
     relative_root = validate_relative_root(relative_root)
     if relative_root != f"services/{service_id}":
         raise StorageError("service_id_relative_root_mismatch")
@@ -503,6 +515,8 @@ def scheduled_tick(
     scheduler: Callable[..., dict[str, Any]] = schedule_v3.run_bucket,
     **runner_options: Any,
 ) -> dict[str, Any]:
+    if not EXTERNAL_WRITER_DETACH_QUALIFIED:
+        return {"status": "no_rpc", "reason": "external_writer_detach_not_qualified"}
     relative_root = validate_relative_root(relative_root)
     if relative_root != f"services/{service_id}":
         raise StorageError("service_id_relative_root_mismatch")

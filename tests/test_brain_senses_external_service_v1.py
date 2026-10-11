@@ -95,6 +95,9 @@ def _patch_adapter(
             guard.close()
 
     monkeypatch.setattr(adapter, "writer_guard", fake_writer_guard)
+    # Synthetic tests opt into the adapter path; live execution stays blocked by
+    # the module-level release gate until detach safety is independently proven.
+    monkeypatch.setattr(adapter, "EXTERNAL_WRITER_DETACH_QUALIFIED", True)
     monkeypatch.setattr(adapter, "_binding", lambda *args, **kwargs: {"binding": "fixed"})
     monkeypatch.setattr(adapter, "_check_adapter_binding", lambda *_args: True)
     monkeypatch.setattr(adapter, "_validate_runner_binding", lambda *_args: True)
@@ -122,6 +125,65 @@ def _tick(monkeypatch: pytest.MonkeyPatch, runner: Any, **kwargs: Any) -> dict[s
 def test_relative_root_rejects_noncanonical_paths(relative_root: str) -> None:
     with pytest.raises(StorageError, match="invalid_relative_root"):
         adapter.validate_relative_root(relative_root)
+
+
+def test_initialize_is_blocked_before_external_mutation_by_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(adapter, "EXTERNAL_WRITER_DETACH_QUALIFIED", False)
+    monkeypatch.setattr(
+        adapter,
+        "writer_guard",
+        lambda *_args, **_kwargs: pytest.fail("writer guard reached while release gate is closed"),
+    )
+
+    with pytest.raises(StorageError, match="external_writer_detach_not_qualified"):
+        adapter.initialize_offline(
+            tmp_path / "binding.json",
+            "services/svc1",
+            service_id="svc1",
+            plist_path=tmp_path / "service.plist",
+            authorized_at_ns=1,
+            expires_at_ns=2,
+            predecessor_stop_path=tmp_path / "stop.json",
+            terminal_receipt_path=tmp_path / "terminal.json",
+        )
+
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_scheduled_tick_is_blocked_before_guard_and_client_loading_by_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(adapter, "EXTERNAL_WRITER_DETACH_QUALIFIED", False)
+    monkeypatch.setattr(
+        adapter,
+        "writer_guard",
+        lambda *_args, **_kwargs: pytest.fail("writer guard reached while release gate is closed"),
+    )
+    client_loads = 0
+
+    def load_clients() -> dict[str, Any]:
+        nonlocal client_loads
+        client_loads += 1
+        return {"helius-free": FakeClient()}
+
+    result = adapter.scheduled_tick(
+        tmp_path / "binding.json",
+        "services/svc1",
+        service_id="svc1",
+        plist_path=tmp_path / "service.plist",
+        gate_path=tmp_path / "gate.json",
+        predecessor_stop_path=tmp_path / "stop.json",
+        terminal_receipt_path=tmp_path / "terminal.json",
+        runner_module=FakeRunner("reserve"),
+        client_loader=load_clients,
+        service_api=FakeService(),
+    )
+
+    assert result == {"status": "no_rpc", "reason": "external_writer_detach_not_qualified"}
+    assert client_loads == 0
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_unplug_before_reservation_prevents_service_call(
