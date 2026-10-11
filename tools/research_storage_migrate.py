@@ -9,6 +9,7 @@ import json
 import os
 import stat
 import sys
+import time
 from pathlib import Path
 
 from memecoin_research_storage import StorageError, writer_guard
@@ -90,6 +91,26 @@ def _mkdir_private_under_root(root: Path, relative: str) -> Path:
     return target
 
 
+class _MigrationGuardCheck:
+    """Run cheap identity checks often and full resolution within five seconds."""
+
+    def __init__(self, guard: object) -> None:
+        self.guard = guard
+        self.last_full_check = float("-inf")
+
+    def __call__(self) -> None:
+        self.guard.revalidate_identity()
+        now = time.monotonic()
+        if now - self.last_full_check >= 5.0:
+            self.guard.revalidate()
+            self.last_full_check = time.monotonic()
+
+    def before_publish(self) -> None:
+        self.guard.revalidate_identity()
+        self.guard.revalidate()
+        self.last_full_check = time.monotonic()
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -150,12 +171,13 @@ def main(argv: list[str] | None = None) -> int:
             )
             receipt_hash = hashlib.sha256(receipt_raw).hexdigest()
             with writer_guard(args.config) as guard:
+                checks = _MigrationGuardCheck(guard)
+                checks.before_publish()
                 source_parent = source.relative_to(
                     Path(__file__).resolve().parents[1] / "work"
                 ).parent
                 destination_parent_relative = Path(args.destination_relative) / source_parent
                 destination_parent = guard.create_directory(str(destination_parent_relative))
-                guard.revalidate()
 
                 def recheck_preflight(_root: Path) -> None:
                     _value, current_raw = load_preflight_receipt(
@@ -176,7 +198,8 @@ def main(argv: list[str] | None = None) -> int:
                     closed_preflight=recheck_preflight,
                     preflight_receipt_path=args.preflight_receipt,
                     preflight_receipt_sha256=receipt_hash,
-                    before_write=guard.revalidate,
+                    before_write=checks,
+                    before_publish=checks.before_publish,
                     expected_destination_device=guard.root.mount_device,
                 )
         elif args.command == "verify":
@@ -184,6 +207,8 @@ def main(argv: list[str] | None = None) -> int:
                 args.source_root, args.expected_source_root, Path(args.source_root).name
             )
             with writer_guard(args.config) as guard:
+                checks = _MigrationGuardCheck(guard)
+                checks.before_publish()
                 destination = _under_root(guard.path, args.destination_relative)
                 result = verify_migration(
                     source,
@@ -191,7 +216,7 @@ def main(argv: list[str] | None = None) -> int:
                     destination.with_name(destination.name + ".manifest.json"),
                     expected_source_root=source,
                     expected_destination_root=destination,
-                    before_read=guard.revalidate,
+                    before_read=checks,
                     expected_destination_device=guard.root.mount_device,
                 )
                 if args.verification_output:
@@ -217,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
                     finally:
                         os.close(external_fd)
                     try:
-                        guard.revalidate()
+                        checks.before_publish()
                         _write_create_only_at(
                             parent_fd,
                             relative_output.name,
@@ -226,10 +251,13 @@ def main(argv: list[str] | None = None) -> int:
                             ).encode(),
                             0o444,
                         )
+                        checks.before_publish()
                     finally:
                         os.close(parent_fd)
         else:
             with writer_guard(args.config) as guard:
+                checks = _MigrationGuardCheck(guard)
+                checks.before_publish()
                 result = publish_locator(
                     guard.path,
                     _under_root(guard.path, args.locator_relative),
@@ -238,7 +266,8 @@ def main(argv: list[str] | None = None) -> int:
                     new_root=_under_root(guard.path, args.new_relative),
                     verification_receipt_path=args.verification,
                     verification_receipt_sha256=args.verification_sha256,
-                    before_write=guard.revalidate,
+                    before_write=checks,
+                    before_publish=checks.before_publish,
                     expected_destination_device=guard.root.mount_device,
                 )
         print(json.dumps(result, sort_keys=True))

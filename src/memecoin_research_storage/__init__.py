@@ -17,7 +17,7 @@ import stat
 import subprocess
 import uuid
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol
 
@@ -639,6 +639,16 @@ def _verify_marker_in_root_fd(root_fd: int, config: StorageConfig) -> None:
         os.close(marker_fd)
 
 
+def _validate_lock_stat(lock_stat: os.stat_result) -> None:
+    if (
+        not stat.S_ISREG(lock_stat.st_mode)
+        or lock_stat.st_uid != os.getuid()
+        or stat.S_IMODE(lock_stat.st_mode) != 0o600
+        or lock_stat.st_nlink != 1
+    ):
+        raise StorageError("unsafe_writer_lock")
+
+
 def resolve(
     config_path: Path, *, min_free_bytes: int | None = None, probe: VolumeProbe | None = None
 ) -> ResolvedRoot:
@@ -690,6 +700,81 @@ class StorageGuard:
     @property
     def available_bytes(self) -> int:
         return self.root.available_bytes
+
+    def revalidate_identity(self, *, min_free_bytes: int | None = None) -> ResolvedRoot:
+        """Recheck a held binding without diskutil or mount subprocesses.
+
+        This fast path is intended for migration inventory/copy loops. Live writer
+        dispatches continue to use ``revalidate`` for a full volume inspection.
+        """
+        if min_free_bytes is not None:
+            min_free_bytes = _validate_min_free(min_free_bytes)
+        required = self.config.min_free_bytes
+        if self.min_free_bytes is not None:
+            required = max(required, self.min_free_bytes)
+        if min_free_bytes is not None:
+            required = max(required, min_free_bytes)
+
+        if StorageConfig.load(self.config_path) != self.config:
+            raise StorageError("binding_changed_under_lock")
+        pinned_stat = os.fstat(self.mount_fd)
+        lock_fd_stat = os.fstat(self.lock_fd)
+        _validate_lock_stat(lock_fd_stat)
+        if not os.path.ismount(self.config.mount_path):
+            raise StorageError("mountpoint_directory_fallback")
+
+        try:
+            current_mount_fd = _open_directory(self.config.mount_path)
+        except StorageError:
+            raise
+        try:
+            current_mount_stat = os.fstat(current_mount_fd)
+            identity = (pinned_stat.st_dev, pinned_stat.st_ino)
+            if identity != (current_mount_stat.st_dev, current_mount_stat.st_ino):
+                raise StorageError("mounted_directory_replaced")
+
+            try:
+                lock_path_stat = os.stat(
+                    LOCK_NAME,
+                    dir_fd=current_mount_fd,
+                    follow_symlinks=False,
+                )
+            except OSError as exc:
+                raise StorageError("writer_lock_replaced") from exc
+            _validate_lock_stat(lock_path_stat)
+            if (lock_fd_stat.st_dev, lock_fd_stat.st_ino) != (
+                lock_path_stat.st_dev,
+                lock_path_stat.st_ino,
+            ):
+                raise StorageError("writer_lock_replaced")
+
+            if not self.bootstrap:
+                root_fd = _open_relative_directory(self.mount_fd, self.config.data_root)
+                try:
+                    _verify_marker_in_root_fd(root_fd, self.config)
+                finally:
+                    os.close(root_fd)
+
+            vfs = os.fstatvfs(current_mount_fd)
+            if vfs.f_flag & getattr(os, "ST_RDONLY", 1):
+                raise StorageError("volume_not_writable")
+            if not os.access(self.config.mount_path, os.W_OK):
+                raise StorageError("volume_not_writable")
+            available = int(vfs.f_bavail * vfs.f_frsize)
+            if available < required:
+                raise StorageError("insufficient_free_space")
+            if not os.path.ismount(self.config.mount_path):
+                raise StorageError("mountpoint_directory_fallback")
+
+            result = replace(self.root, available_bytes=available)
+            self.root = result
+            return result
+        except StorageError:
+            raise
+        except OSError as exc:
+            raise StorageError(f"identity_revalidation_failed: {exc}") from exc
+        finally:
+            os.close(current_mount_fd)
 
     def revalidate(self, *, min_free_bytes: int | None = None) -> ResolvedRoot:
         if min_free_bytes is not None:

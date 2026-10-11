@@ -369,3 +369,108 @@ def test_guard_rejects_replaced_lock_inode(tmp_path: Path) -> None:
         lock.chmod(0o600)
         with pytest.raises(StorageError, match="writer_lock_replaced"):
             guard.revalidate()
+
+
+def test_migration_identity_check_rejects_missing_mount_without_volume_probe(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _ = make_binding(tmp_path)
+    probe = FakeProbe(mount)
+    create_root(config_path, probe=probe)
+    monkeypatch.setattr(
+        research_storage.os.path,
+        "ismount",
+        lambda path: Path(path) == mount and mount.exists(),
+    )
+    with writer_guard(config_path, probe=probe) as guard:
+        calls_before = probe.calls
+        moved = tmp_path / "unmounted-volume"
+        mount.rename(moved)
+        with pytest.raises(StorageError, match="mountpoint_directory_fallback"):
+            guard.revalidate_identity()
+        assert probe.calls == calls_before
+
+
+def test_migration_identity_check_rejects_changed_config(tmp_path: Path) -> None:
+    config_path, mount, _ = make_binding(tmp_path)
+    probe = FakeProbe(mount)
+    create_root(config_path, probe=probe)
+    with writer_guard(config_path, probe=probe) as guard:
+        payload = json.loads(config_path.read_text())
+        payload["data_root"] = "research/other"
+        config_path.write_text(json.dumps(payload))
+        config_path.chmod(0o600)
+        with pytest.raises(StorageError, match="binding_changed_under_lock"):
+            guard.revalidate_identity()
+
+
+def test_migration_identity_check_enforces_free_space_floor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _ = make_binding(tmp_path, min_free_bytes=100)
+    probe = FakeProbe(mount)
+    create_root(config_path, probe=probe)
+    monkeypatch.setattr(research_storage.os.path, "ismount", lambda path: Path(path) == mount)
+    monkeypatch.setattr(
+        research_storage.os,
+        "fstatvfs",
+        lambda _fd: type(
+            "StatVFS",
+            (),
+            {"f_flag": 0, "f_bavail": 99, "f_frsize": 1},
+        )(),
+    )
+    with writer_guard(config_path, probe=probe) as guard:
+        with pytest.raises(StorageError, match="insufficient_free_space"):
+            guard.revalidate_identity()
+
+
+def test_migration_identity_check_rejects_readonly_statvfs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _ = make_binding(tmp_path)
+    probe = FakeProbe(mount)
+    create_root(config_path, probe=probe)
+    monkeypatch.setattr(research_storage.os.path, "ismount", lambda path: Path(path) == mount)
+    monkeypatch.setattr(
+        research_storage.os,
+        "fstatvfs",
+        lambda _fd: type(
+            "StatVFS",
+            (),
+            {"f_flag": os.ST_RDONLY, "f_bavail": 1_000, "f_frsize": 1},
+        )(),
+    )
+    with writer_guard(config_path, probe=probe) as guard:
+        with pytest.raises(StorageError, match="volume_not_writable"):
+            guard.revalidate_identity()
+
+
+def test_migration_identity_check_rejects_replaced_lock(tmp_path: Path) -> None:
+    config_path, mount, _ = make_binding(tmp_path)
+    probe = FakeProbe(mount)
+    create_root(config_path, probe=probe)
+    with writer_guard(config_path, probe=probe) as guard:
+        lock = mount / ".research-storage.lock"
+        lock.unlink()
+        lock.write_text("replacement")
+        lock.chmod(0o600)
+        with pytest.raises(StorageError, match="unsafe_writer_lock|writer_lock_replaced"):
+            guard.revalidate_identity()
+
+
+def test_migration_identity_check_rejects_unsafe_root_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _ = make_binding(tmp_path)
+    probe = FakeProbe(mount)
+    root = create_root(config_path, probe=probe).path
+    monkeypatch.setattr(
+        research_storage.os.path,
+        "ismount",
+        lambda path: Path(path) == mount and mount.exists(),
+    )
+    with writer_guard(config_path, probe=probe) as guard:
+        (root / ROOT_MARKER).chmod(0o644)
+        with pytest.raises(StorageError, match="unsafe_root_marker"):
+            guard.revalidate_identity()

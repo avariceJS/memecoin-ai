@@ -10,7 +10,7 @@ import pytest
 
 from memecoin_research_storage import migration
 from memecoin_research_storage.migration import MigrationError
-from tools.research_storage_migrate import _read_preflight
+from tools.research_storage_migrate import _MigrationGuardCheck, _read_preflight
 
 
 def setup_tree(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
@@ -84,6 +84,80 @@ def test_stage_and_verify_preserve_tree_bytes_modes_symlinks_and_hardlinks(tmp_p
     assert os.readlink(destination / "receipt-link") == "nested/receipt.bin"
     assert (destination / "nested" / "receipt.bin").stat().st_mode & 0o777 == 0o640
     assert manifest_path.stat().st_mode & 0o777 == 0o444
+
+
+def test_stage_runs_full_checks_at_each_publication_boundary(tmp_path: Path) -> None:
+    source, external, dest_parent, receipt = setup_tree(tmp_path)
+    calls = 0
+
+    def full_check() -> None:
+        nonlocal calls
+        calls += 1
+
+    migration.stage_migration(
+        source,
+        external,
+        dest_parent / source.name,
+        group=source.name,
+        expected_source_root=source,
+        closed_preflight=lambda _: None,
+        preflight_receipt_path=receipt,
+        preflight_receipt_sha256=hashlib.sha256(receipt.read_bytes()).hexdigest(),
+        before_publish=full_check,
+    )
+    assert calls == 4
+
+
+def test_copy_revalidates_at_each_bounded_chunk(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source, external, dest_parent, receipt = setup_tree(tmp_path)
+    payload = source / "large.bin"
+    payload.write_bytes(b"x" * (3 * 128 * 1024))
+    monkeypatch.setattr(migration, "CHUNK_SIZE", 128 * 1024)
+    checks = 0
+
+    def check() -> None:
+        nonlocal checks
+        checks += 1
+
+    migration.stage_migration(
+        source,
+        external,
+        dest_parent / source.name,
+        group=source.name,
+        expected_source_root=source,
+        closed_preflight=lambda _: None,
+        preflight_receipt_path=receipt,
+        preflight_receipt_sha256=hashlib.sha256(receipt.read_bytes()).hexdigest(),
+        before_write=check,
+    )
+    assert checks >= 3
+
+
+def test_migration_guard_check_runs_cheap_each_time_and_full_by_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeGuard:
+        identity_checks = 0
+        full_checks = 0
+
+        def revalidate_identity(self) -> None:
+            self.identity_checks += 1
+
+        def revalidate(self) -> None:
+            self.full_checks += 1
+
+    guard = FakeGuard()
+    checks = _MigrationGuardCheck(guard)
+    times = iter((10.0, 10.1, 12.0, 16.0, 16.1, 16.2))
+    monkeypatch.setattr("tools.research_storage_migrate.time.monotonic", lambda: next(times))
+    checks()
+    checks()
+    checks()
+    checks.before_publish()
+    assert guard.identity_checks == 4
+    assert guard.full_checks == 3
 
 
 def test_stage_rejects_source_change_after_initial_snapshot(tmp_path: Path) -> None:

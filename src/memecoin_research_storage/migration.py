@@ -217,7 +217,7 @@ def _snapshot_full(
                             file_xattrs = _check_metadata_fd(file_fd, opened, rel)
                             if _stat_signature(before) != _stat_signature(opened):
                                 _fail(f"source_changed_during_hash: {rel}")
-                            digest = _hash_fd(file_fd)
+                            digest = _hash_fd(file_fd, check=before_read)
                             after = os.fstat(file_fd)
                             if _stat_signature(before) != _stat_signature(after):
                                 _fail(f"source_changed_during_hash: {rel}")
@@ -719,7 +719,7 @@ def load_preflight_receipt(
     return body, raw
 
 
-def _hash_fd(fd: int) -> str:
+def _hash_fd(fd: int, *, check: Callable[[], None] | None = None) -> str:
     digest = hashlib.sha256()
     before = os.fstat(fd)
     if not stat.S_ISREG(before.st_mode):
@@ -727,6 +727,8 @@ def _hash_fd(fd: int) -> str:
     os.lseek(fd, 0, os.SEEK_SET)
     while chunk := os.read(fd, CHUNK_SIZE):
         digest.update(chunk)
+        if check is not None:
+            check()
     after = os.fstat(fd)
     if _stat_signature(before) != _stat_signature(after):
         _fail("source_file_changed_during_hash")
@@ -1023,6 +1025,14 @@ def _copy_tree(
                             if written <= 0:
                                 raise OSError("short copy write")
                             view = view[written:]
+                        # Bounded chunk callbacks enforce the 64 MiB copy limit and let the
+                        # CLI maintain its five-second full-check deadline.
+                        _check_write_location(external_fd, expected_device, before_write)
+                        if (
+                            expected_device is not None
+                            and os.fstat(dst_fd).st_dev != expected_device
+                        ):
+                            _fail("destination_file_volume_changed")
                     after = os.fstat(src_fd)
                     if _stat_signature(before) != _stat_signature(after):
                         _fail(f"source_changed_during_copy: {rel}")
@@ -1184,6 +1194,7 @@ def stage_migration(
     preflight_receipt_path: Path,
     preflight_receipt_sha256: str,
     before_write: Callable[[], None] | None = None,
+    before_publish: Callable[[], None] | None = None,
     expected_destination_device: int | None = None,
 ) -> dict[str, Any]:
     """Copy one explicitly approved closed root, then write its create-only manifest.
@@ -1301,16 +1312,30 @@ def stage_migration(
             "summary": _summary(source_before),
         }
         encoded = (json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n").encode()
-        if before_write is not None:
+        if before_publish is not None:
+            before_publish()
+        elif before_write is not None:
             before_write()
         _assert_locked_root(external, root_fd, lock_fd, expected_destination_device)
         _write_create_only_at(destination_parent_fd, manifest_name, encoded, 0o444)
-        if before_write is not None:
+        if before_publish is not None:
+            before_publish()
+        elif before_write is not None:
+            before_write()
+        _assert_locked_root(external, root_fd, lock_fd, expected_destination_device)
+        if before_publish is not None:
+            before_publish()
+        elif before_write is not None:
             before_write()
         _assert_locked_root(external, root_fd, lock_fd, expected_destination_device)
         _rename_create_only_at(temp.name, root_fd, destination_name, destination_parent_fd)
         _fsync_dir_fd(root_fd)
         _fsync_dir_fd(destination_parent_fd)
+        if before_publish is not None:
+            before_publish()
+        elif before_write is not None:
+            before_write()
+        _assert_locked_root(external, root_fd, lock_fd, expected_destination_device)
         manifest["manifest_path"] = str(manifest_path)
         manifest["manifest_sha256"] = hashlib.sha256(encoded).hexdigest()
         return manifest
@@ -1441,7 +1466,7 @@ def verify_migration(
     records = manifest.get("entries")
     if not isinstance(records, list):
         _fail("manifest_entries_invalid")
-    source_records, source_root_metadata = _snapshot_full(source)
+    source_records, source_root_metadata = _snapshot_full(source, before_read=before_read)
     if not _same_source_inventory(source_records, records):
         _fail("source_does_not_match_manifest")
     if source_root_metadata.get("xattrs") != manifest.get("source_root_xattrs"):
@@ -1456,7 +1481,9 @@ def verify_migration(
         before_read=before_read,
         expected_device=expected_destination_device,
     )
-    source_records_after, source_root_metadata_after = _snapshot_full(source)
+    source_records_after, source_root_metadata_after = _snapshot_full(
+        source, before_read=before_read
+    )
     if (
         not _same_source_inventory(source_records, source_records_after)
         or list(_stat_signature(source.lstat())) != source_root_signature
@@ -1496,6 +1523,7 @@ def publish_locator(
     verification_receipt_sha256: str,
     expected_destination_device: int | None = None,
     before_write: Callable[[], None] | None = None,
+    before_publish: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     """Freshly replay a pinned independent receipt, then publish a create-only locator."""
     external = _plain_absolute(external_root, "external_root")
@@ -1563,7 +1591,9 @@ def publish_locator(
             before_write=None,
             expected_device=expected_destination_device,
         )
-        if before_write is not None:
+        if before_publish is not None:
+            before_publish()
+        elif before_write is not None:
             before_write()
         _assert_locked_root(external, root_fd, lock_fd, expected_destination_device)
         _write_create_only_at(
@@ -1572,6 +1602,10 @@ def publish_locator(
             (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode(),
             0o444,
         )
+        if before_publish is not None:
+            before_publish()
+        elif before_write is not None:
+            before_write()
         _assert_locked_root(external, root_fd, lock_fd, expected_destination_device)
         return payload
     finally:
