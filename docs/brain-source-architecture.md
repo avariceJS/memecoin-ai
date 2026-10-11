@@ -2015,6 +2015,22 @@ or authorize any successor. Free disk after verification was 47,633,055,744 byte
 bytes below the 50 GiB floor; refresh disk and account evidence and obtain a fresh Sol decision
 before any prospective acquisition.
 
+Sol approved a separately versioned, two-bucket c5 forward-only HTTP pilot policy. Its offline
+state model is `tools/brain_senses_c5_forward_pilot_v1.py`: one explicitly pre-pinned future UTC
+bucket may reserve one finalized `getSlot` anchor; only the immediately following pre-pinned bucket
+may reserve one 34-request frame. Starts are accepted only during the scheduled UTC minute 05–15.
+The plan binds the c4 abnormal terminal receipt, STOP, 23:00Z
+frontier/anchor/request times, predecessor gaps, and the unknown-ended disk-STOP continuation.
+The new anchor can close only the interval `[455430160, anchor + 1)` and seed forward capture.
+The hard envelope is 35 total requests, 1 MB bootstrap raw/stored, 256 MB frame raw, 128 MB frame
+stored, and 20,000 slots. A missed bucket, interruption, failed or ambiguous request, journal
+uncertainty, or intervening gap is terminal for review; there is no retry, replacement bucket,
+third bucket, manual tick, or backfill. The offline implementation does not initialize a root,
+reserve a real request, load credentials, call a provider, or authorize activation. No operational
+bucket pair has been instantiated. Focused synthetic validation covers the transition and cap
+boundaries (20 tests); it establishes policy behavior only. Current disk remains below the 50 GiB
+floor and Helius account/credit capacity remains unknown, so both external gates remain closed.
+
 ## Prospective Pump bonding-curve references (offline gate, 2026-10-10)
 
 Sol selected standard Helius WSS `logsSubscribe` filtered by the single Pump bonding-curve

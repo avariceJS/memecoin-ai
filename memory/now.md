@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 01:17 UTC. Recheck runtime before any prospective service decision.
+**As of:** 2026-10-11 01:22 UTC. Recheck runtime before any prospective service decision.
 
 **Research checkout:** `/Users/root1/Developer/memecoin-research`
 **Branch:** `research/active`
@@ -34,6 +34,11 @@
   about 26 GB; no external data volume is mounted. c4 allocated 202,719,232 bytes.
   The prior 00:08Z sizing snapshot had 614,572,928 bytes over the old floor-plus-frame gate; that is
   not current runway. The user cache is not disposable project storage.
+- An offline-only c5 two-bucket policy model is in `tools/brain_senses_c5_forward_pilot_v1.py`.
+  It binds c4's abnormal terminal metadata and enforces one future anchor bucket followed by one
+  adjacent frame bucket, with hard caps and STOP on any miss/failure/ambiguity. Twenty synthetic
+  tests pass. No operational buckets/root were instantiated, no credentials/provider access
+  occurred, and activation remains blocked by disk and unknown account limits.
 - Helius MCP tools are listed, but the last read-only `getHeliusPlanInfo` and `getAccountStatus`
   calls returned `Transport closed`; they were not retried. No account plan/limits are established.
 
@@ -70,11 +75,10 @@
 
 ## Next decision horizon
 
-1. Ask Sol for a fresh bounded successor/horizon decision using the exact abnormal receipt,
-   current disk runway, unavailable account-limit evidence and the no-backfill constraint.
-2. Continue offline Senses engineering in parallel. Pair64 comparison is already audited; keep the
-   c4 tail2 audit closed. Do not start Cortex or activate acquisition until the fresh Sol and
-   resource gates pass.
+1. Keep the c4 tail2 audit closed. Refresh disk/account evidence before considering a concrete
+   c5 bucket pair; any missed pre-pinned bucket permanently stops that pilot for review.
+2. Continue offline Senses engineering only. Do not initialize/activate c5 or start Cortex until
+   the external resource gates and a concrete future schedule are settled.
 
 Canonical technical state: `docs/brain-source-architecture.md`; evidence locator:
 `docs/evidence/README.md`.
