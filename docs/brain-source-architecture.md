@@ -2041,11 +2041,88 @@ The new anchor can close only the interval `[455430160, anchor + 1)` and seed fo
 The hard envelope is 35 total requests, 1 MB bootstrap raw/stored, 256 MB frame raw, 128 MB frame
 stored, and 20,000 slots. A missed bucket, interruption, failed or ambiguous request, journal
 uncertainty, or intervening gap is terminal for review; there is no retry, replacement bucket,
-third bucket, manual tick, or backfill. The offline implementation does not initialize a root,
-reserve a real request, load credentials, call a provider, or authorize activation. No operational
-bucket pair has been instantiated. Focused synthetic validation covers the transition and cap
-boundaries (20 tests); it establishes policy behavior only. Current disk remains below the 50 GiB
-floor and Helius account/credit capacity remains unknown, so both external gates remain closed.
+third bucket, manual tick, or backfill. The separate runner shell is
+`tools/brain_senses_c5_http_runner_v1.py`; imports and its `status` command are read-only. A future
+scheduled run requires a create-only mode-0600 activation receipt binding the reviewed plan,
+source/plist hashes, exact c4 terminal/STOP/root/label pins, reviewer decision and expiry, the two
+future buckets, 35-request cap, and hashed account/disk/review/churn evidence. The production
+activation verifier currently fails closed: official raw-source parsers and the independently
+pinned reviewer-decision digest are not yet present. Local summaries or synthetic fixtures cannot
+establish provider account headroom, no-overage enforcement, disk churn, or reviewer provenance.
+The future account parser must bind hashed official source bytes, request/receipt times, account/key
+fingerprint, plan/reset/validity, used and available units, the pinned 35-method charge schedule or
+provider-enforced no-overage rule, and shared-client use through frame expiry. The disk parser must
+bind target-volume identity/free-space evidence plus source-hashed comparable historical peak/churn
+samples, then recompute the composite against the 61,834,628,800-byte minimum. The uninstalled
+path-only template is
+`ops/launchd/ai.memecoin.brain.senses.c5-forward-pilot-v1.plist.template` (`RunAtLoad=false`,
+`KeepAlive=false`). Before credential access it checks the exact plan/source/predecessor pins, the
+scheduled UTC minute and bucket, exact `launchctl print gui/<uid>` service table and disabled-label
+inventory (including c4 disabled and unloaded), launchd PID-to-runner PID linkage, exact tokenized
+path-only runner argv, root reconciliation, fresh disk headroom and real-clock window, and the same
+shared host-writer lock used by service-v1.
+It validates the existing mode-0600 `MEMECOIN_HELIUS_RPC_URL` using the service-v1 Helius host and
+query rules in-process only. The v2 bootstrap adapter
+reserves one `getSlot`; the unchanged v3 scheduler reserves one 34-request frame. Both adapter
+journals prohibit replay: an outstanding reservation or uncertain outcome is terminal and keeps
+an explicit uncovered interval. The bootstrap lineage binds the plan hash and a finite controller
+lease through minute 15:59 of the frame bucket’s UTC hour. The service ledger is hash-chained and
+reserves before dispatch; wall clock and disk headroom are checked again before reservation and immediately
+before adapter dispatch. STOP creation is atomic and create-only, preserving the first terminal
+reason across outer error handling.
+No production runner/default adapter, real private config, provider call, production-root
+initialization, or LaunchAgent operation was invoked in this implementation task; the template
+remains uninstalled and no operational bucket pair has been instantiated. Focused fake-only runner
+and policy validation passed 66 tests; these checks cover synthetic transitions, evidence predicates,
+endpoint rules, lease/clock/STOP behavior, and lock/preflight gates, not live provider account/disk
+evidence. The sanitized parser was also exercised against read-only target-host command output. The
+observed short host-disk samples do not substantiate an adverse-churn margin; activation-gate
+validation therefore fails closed until reviewed raw-source parsers, a pinned reviewer decision,
+and matching account/disk evidence exist. Synthetic churn fixtures test predicates only and are not
+operational evidence. A target-host inventory probe and fresh account/disk evidence are required
+before any activation decision.
+Current disk remains below the 50 GiB floor and Helius account/credit capacity remains unknown, so
+both external gates remain closed. Independent review and a fresh activation decision remain
+required.
+
+The frozen c4 captured-class replay is recorded at
+[`pumpswap-c4-captured-class-replay-2026-10-11.json`](evidence/pumpswap-c4-captured-class-replay-2026-10-11.json).
+Its metadata manifest was independently pinned by internal freeze digest, manifest-byte digest,
+repository HEAD, and campaign root before replay; the 23:00Z body remained unopened. The 10 included
+frames contain 160 selected full blocks, 173,899 transactions, 591,869 resolved instruction
+references, 22,319 PumpSwap instruction references, and 3,555 buyExact candidate transactions / 3,556
+instruction references. The 13:00Z and 18:00Z census counts and matrices reproduce their previously
+published receipts exactly. This broadens captured-class structural exposure only; it does not prove
+transaction discovery or economic-process completeness, exact economic zero, settlement semantics,
+or model admission. The source-bound replay tool is
+`tools/brain_senses_c4_captured_class_replay_v1.py`.
+
+Sol's current prospective-collection decision supersedes the earlier c5 activation horizon: c5's
+offline policy and runner may remain available for review, but c4's abnormal STOP does not satisfy
+the service-v1 normal-stop gate and neither c5 nor another successor may make live calls now. The
+separately versioned durable controller is approved for offline implementation only. Any future
+activation needs a new finite reviewed lease, source-bound account and disk/churn evidence, exact
+future UTC schedule and caps, c4 terminal/quiescence proof, and independent reviewer binding. Missed
+buckets are gaps; restart is anchor-only; ambiguous started requests are never replayed; renewal is
+a new reviewed lease. No default live cadence or aggregate envelope is approved.
+
+The offline state-machine contract is `tools/brain_senses_prospective_controller_v1.py`. It binds
+one finite lease to declared source hashes, predecessor terminal/STOP hashes, a frontier, explicit inherited
+gaps, future UTC buckets and lease/day request, raw-byte, stored-byte, physical-disk and slot-width
+caps. Its durable event chain records one reservation per bucket before the request boundary, the
+method and request digest, start-time/disk rechecks, immutable raw artifact hash, event/receipt/
+availability times, result, seal, gap and first-reason STOP. Ambiguous or unsealed attempts remain
+fully charged and STOP without replay. A missed bucket is explicit; only a later anchor can reset
+the frontier before another frame. `close_lease` writes a terminal receipt, and
+`initialize_successor` transfers its verified frontier/gaps and a new review-decision digest to a
+distinct lease under a local shared writer lock; there is no auto-renewal. Twenty focused
+transition/boundary tests pass. This remains an offline protocol implementation: declared source and
+review hashes are not independently parsed or authenticated here. It has no provider adapter,
+credential loader, LaunchAgent, activation evidence parser, autonomous calendar scheduler, or live
+generation root. It does not prove provider charge units, disk churn, capture completeness, or
+remote/multi-host locking. Those remain activation and scale-out gates; future multi-worker
+coordination must preserve the immutable lease and evidence contracts while replacing the local
+coordination backend.
 
 ## Prospective Pump bonding-curve references (offline gate, 2026-10-10)
 
