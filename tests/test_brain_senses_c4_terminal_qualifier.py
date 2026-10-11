@@ -10,6 +10,10 @@ from memecoin_ai.domain import canonical
 from tools import brain_senses_c4_terminal_qualifier as qualifier
 
 
+def test_unified_log_timestamp_uses_macos_log_show_format() -> None:
+    assert qualifier._iso_utc(1791677100418875000) == "2026-10-11 00:05:00"
+
+
 @pytest.mark.parametrize(
     "values",
     [

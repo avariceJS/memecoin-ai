@@ -611,7 +611,8 @@ def _inventory_digest(rows: list[dict[str, Any]]) -> str:
 
 
 def _iso_utc(ns: int) -> str:
-    return datetime.fromtimestamp(ns / 1_000_000_000, UTC).isoformat(timespec="seconds")
+    # `log show --start/--end` expects a space-separated timestamp, not ISO's `T`.
+    return datetime.fromtimestamp(ns / 1_000_000_000, UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _collect_snapshot(root: Path, output_dir: Path) -> Path:
