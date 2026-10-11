@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-10 23:59 UTC. Verify live runtime before any campaign or service decision.
+**As of:** 2026-10-11 00:01 UTC. Verify live runtime before any campaign or service decision.
 
 **Research HEAD:** `8ebf7a5c522258c9540782df5994474f467da097` on `research/active`.
 
@@ -106,6 +106,9 @@
   focused verification: 26 tests pass; Ruff, format and py_compile pass; `make smoke` passes with
   synthetic-only evidence. Differential review is complete with no open findings; details are in
   ignored `work/reviews/tail2-c4-plan-audit-differential-review-20261011.md`.
+  Sealed reusable synthetic receipt at
+  `work/evidence/tail2-c4-synthetic-20261010/test-receipt.json` (26 passed, 0 failed/errors/skipped;
+  receipt SHA-256 `f8742a618bc9ff46d143b868c76934244c2023941ead3bc53e59c5464831b7db`).
 - Verification: focused PumpSwap suite 44 passed, targeted Ruff/format passed, and `make smoke`
   passed with synthetic-only evidence. Repository-wide `make check` stops on 43 E501 findings in
   two unchanged pool-v2 qualifier tools. `make test` cannot collect three unrelated legacy tests
