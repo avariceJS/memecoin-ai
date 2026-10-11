@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 CONTRACT = "solana_candidate_position_witness_hook_feasibility_v4"
+TRANSITION_EFFECTS_SCHEMA = "synthetic_transition_effects_v1"
 RECEIPT_ORDER = ("capture_seal", "bank_commit", "bank_freeze", "block_join", "root_status")
 PROGRAM_KINDS = {"deployed_bytecode", "builtin_or_runtime", "precompile"}
 FRAME_LIFECYCLES = {"returned_success", "returned_error"}
@@ -60,6 +61,17 @@ def _check(condition: bool, code: str, errors: list[str]) -> None:
 
 def _exact_int(value: Any) -> bool:
     return type(value) is int
+
+
+def _u64(value: Any) -> bool:
+    return _exact_int(value) and 0 <= value <= 2**64 - 1
+
+
+def _check_keys(
+    value: Mapping[str, Any], required: set[str], optional: set[str], code: str, errors: list[str]
+) -> None:
+    keys = set(value)
+    _check(required <= keys and keys <= required | optional, code, errors)
 
 
 def _is_sha256_hex(value: Any) -> bool:
@@ -663,6 +675,717 @@ def _check_ordered_effects(witness: Mapping[str, Any], errors: list[str]) -> Non
             )
 
 
+def _expected_role_pubkeys(witness: Mapping[str, Any], path: list[int]) -> dict[str, str]:
+    expected = witness.get("expected_candidate_frames")
+    if not isinstance(expected, list):
+        return {}
+    for frame in expected:
+        frame_path = frame.get("path") if isinstance(frame, Mapping) else None
+        if (
+            not isinstance(frame, Mapping)
+            or not isinstance(frame_path, list)
+            or not all(_exact_int(item) for item in frame_path)
+            or frame_path != path
+        ):
+            continue
+        accounts = frame.get("required_accounts")
+        if not isinstance(accounts, list):
+            return {}
+        return {
+            str(account["semantic_role"]): str(account["pubkey"])
+            for account in accounts
+            if isinstance(account, Mapping)
+            and isinstance(account.get("semantic_role"), str)
+            and isinstance(account.get("pubkey"), str)
+        }
+    return {}
+
+
+def _frame_lifecycle(witness: Mapping[str, Any], path: list[int]) -> str | None:
+    frames = witness.get("frames")
+    if not isinstance(frames, list):
+        return None
+    for frame in frames:
+        if isinstance(frame, Mapping) and frame.get("path") == path:
+            lifecycle = frame.get("lifecycle")
+            return lifecycle if isinstance(lifecycle, str) else None
+    return None
+
+
+def _check_token_2022_transition(
+    witness: Mapping[str, Any], transition: Any, errors: list[str]
+) -> None:
+    execution = witness.get("execution")
+    successful = (
+        isinstance(execution, Mapping) and execution.get("outcome") == "successful_execution"
+    )
+    if not isinstance(transition, Mapping):
+        errors.append("token_2022_transition_missing")
+        return
+    if not successful:
+        _check(
+            transition == {"status": "attempted_only"},
+            "failed_execution_committed_transition_assertion",
+            errors,
+        )
+        return
+    _check_keys(
+        transition,
+        {
+            "status",
+            "path",
+            "sequence",
+            "mint_pubkey",
+            "gross_token_atomic_units",
+            "fee_token_atomic_units",
+            "source_is_native",
+            "accounts",
+            "hook_entry",
+        },
+        set(),
+        "token_2022_transition_fields_invalid",
+        errors,
+    )
+    accounts = transition.get("accounts")
+    if isinstance(accounts, Mapping):
+        _check(
+            set(accounts) == {"source_token_account", "destination_token_account"},
+            "token_2022_transition_account_roles_invalid",
+            errors,
+        )
+    _check(
+        transition.get("status") == "committed_core_before_hook",
+        "token_2022_transition_status_invalid",
+        errors,
+    )
+    _check(
+        _frame_lifecycle(witness, [0, 0]) == "returned_success"
+        and _frame_lifecycle(witness, [0, 0, 0]) == "returned_success",
+        "token_2022_transition_frame_not_successful",
+        errors,
+    )
+    path = transition.get("path")
+    _check(
+        isinstance(path, list)
+        and len(path) == 2
+        and all(_exact_int(item) for item in path)
+        and path == [0, 0],
+        "token_2022_transition_path_invalid",
+        errors,
+    )
+    _check(
+        _exact_int(transition.get("sequence")) and transition.get("sequence") == 0,
+        "token_2022_transition_order_invalid",
+        errors,
+    )
+    gross = transition.get("gross_token_atomic_units")
+    fee = transition.get("fee_token_atomic_units")
+    _check(
+        transition.get("mint_pubkey")
+        == _expected_role_pubkeys(witness, [0, 0]).get("mint_readonly"),
+        "token_2022_mint_pubkey_unbound",
+        errors,
+    )
+    _check(
+        type(transition.get("source_is_native")) is bool,
+        "token_2022_source_native_flag_invalid",
+        errors,
+    )
+    _check(_u64(gross), "token_2022_gross_unit_or_value_invalid", errors)
+    _check(
+        _u64(fee) and _u64(gross) and fee <= gross, "token_2022_fee_unit_or_value_invalid", errors
+    )
+    if not isinstance(accounts, Mapping):
+        errors.append("token_2022_transition_accounts_missing")
+        return
+    source = accounts.get("source_token_account")
+    destination = accounts.get("destination_token_account")
+    for role, account in (
+        ("source_token_account", source),
+        ("destination_token_account", destination),
+    ):
+        _check(isinstance(account, Mapping), f"token_2022_{role}_missing", errors)
+        if not isinstance(account, Mapping):
+            continue
+        required_fields = {
+            "pubkey",
+            "pre_base_amount_token_atomic_units",
+            "core_post_base_amount_token_atomic_units",
+        }
+        optional_fields = {
+            "pre_withheld_token_atomic_units",
+            "core_post_withheld_token_atomic_units",
+        }
+        if transition.get("source_is_native") is True:
+            optional_fields |= {
+                "pre_lamports_atomic_units",
+                "core_post_lamports_atomic_units",
+            }
+        if role == "destination_token_account":
+            required_fields |= {
+                "pre_withheld_token_atomic_units",
+                "core_post_withheld_token_atomic_units",
+            }
+        _check_keys(
+            account,
+            required_fields,
+            optional_fields,
+            f"token_2022_{role}_fields_invalid",
+            errors,
+        )
+        _check(
+            account.get("pubkey") == _expected_role_pubkeys(witness, [0, 0]).get(role),
+            f"token_2022_{role}_pubkey_unbound",
+            errors,
+        )
+        for field in (
+            "pre_base_amount_token_atomic_units",
+            "core_post_base_amount_token_atomic_units",
+        ):
+            _check(_u64(account.get(field)), f"token_2022_{field}_invalid", errors)
+    if not isinstance(source, Mapping) or not isinstance(destination, Mapping):
+        return
+    source_before = source.get("pre_base_amount_token_atomic_units")
+    source_after = source.get("core_post_base_amount_token_atomic_units")
+    destination_before = destination.get("pre_base_amount_token_atomic_units")
+    destination_after = destination.get("core_post_base_amount_token_atomic_units")
+    _check(
+        source.get("pubkey") != destination.get("pubkey"),
+        "token_2022_self_transfer_unsupported",
+        errors,
+    )
+    if _u64(gross) and _u64(source_before):
+        _check(source_before >= gross, "token_2022_source_balance_insufficient", errors)
+        if source_before >= gross:
+            _check(
+                source_after == source_before - gross, "token_2022_source_delta_mismatch", errors
+            )
+    if _u64(gross) and _u64(fee) and fee <= gross and _u64(destination_before):
+        expected = destination_before + gross - fee
+        _check(expected <= 2**64 - 1, "token_2022_destination_overflow", errors)
+        if expected <= 2**64 - 1:
+            _check(destination_after == expected, "token_2022_destination_delta_mismatch", errors)
+    source_withheld = source.get("pre_withheld_token_atomic_units")
+    _check(
+        ("pre_withheld_token_atomic_units" in source)
+        == ("core_post_withheld_token_atomic_units" in source),
+        "token_2022_source_withheld_pair_incomplete",
+        errors,
+    )
+    if source_withheld is not None:
+        _check(_u64(source_withheld), "token_2022_source_withheld_invalid", errors)
+        _check(
+            _u64(source.get("core_post_withheld_token_atomic_units")),
+            "token_2022_source_withheld_post_invalid",
+            errors,
+        )
+        _check(
+            source.get("core_post_withheld_token_atomic_units") == source_withheld,
+            "token_2022_source_withheld_changed",
+            errors,
+        )
+    destination_withheld = destination.get("pre_withheld_token_atomic_units")
+    destination_withheld_after = destination.get("core_post_withheld_token_atomic_units")
+    _check(_u64(destination_withheld), "token_2022_destination_withheld_invalid", errors)
+    _check(_u64(destination_withheld_after), "token_2022_destination_withheld_post_invalid", errors)
+    if _u64(destination_withheld) and _u64(fee):
+        expected = destination_withheld + fee
+        _check(expected <= 2**64 - 1, "token_2022_withheld_overflow", errors)
+        if expected <= 2**64 - 1:
+            _check(
+                destination_withheld_after == expected, "token_2022_withheld_delta_mismatch", errors
+            )
+    if transition.get("source_is_native") is True and _u64(gross):
+        for account in (source, destination):
+            _check(
+                _u64(account.get("pre_lamports_atomic_units")),
+                "token_2022_native_pre_lamports_invalid",
+                errors,
+            )
+            _check(
+                _u64(account.get("core_post_lamports_atomic_units")),
+                "token_2022_native_post_lamports_invalid",
+                errors,
+            )
+        source_lamports = source.get("pre_lamports_atomic_units")
+        destination_lamports = destination.get("pre_lamports_atomic_units")
+        if _u64(source_lamports):
+            _check(
+                source_lamports >= gross,
+                "token_2022_native_source_lamports_insufficient",
+                errors,
+            )
+            if source_lamports >= gross:
+                _check(
+                    source.get("core_post_lamports_atomic_units") == source_lamports - gross,
+                    "token_2022_native_source_lamports_delta_mismatch",
+                    errors,
+                )
+        if _u64(destination_lamports):
+            expected = destination_lamports + gross
+            _check(expected <= 2**64 - 1, "token_2022_native_destination_lamports_overflow", errors)
+            if expected <= 2**64 - 1:
+                _check(
+                    destination.get("core_post_lamports_atomic_units") == expected,
+                    "token_2022_native_destination_lamports_delta_mismatch",
+                    errors,
+                )
+    hook = transition.get("hook_entry")
+    _check(isinstance(hook, Mapping), "token_2022_hook_entry_missing", errors)
+    if isinstance(hook, Mapping):
+        _check_keys(
+            hook,
+            {"path", "sequence", "gross_token_atomic_units"},
+            set(),
+            "token_2022_hook_fields_invalid",
+            errors,
+        )
+        hook_path = hook.get("path")
+        _check(
+            isinstance(hook_path, list)
+            and len(hook_path) == 3
+            and all(_exact_int(item) for item in hook_path)
+            and hook_path == [0, 0, 0],
+            "token_2022_hook_path_invalid",
+            errors,
+        )
+        _check(
+            _exact_int(hook.get("sequence")) and hook.get("sequence") == 1,
+            "token_2022_hook_order_invalid",
+            errors,
+        )
+        _check(
+            _u64(hook.get("gross_token_atomic_units"))
+            and hook.get("gross_token_atomic_units") == gross,
+            "token_2022_hook_amount_mismatch",
+            errors,
+        )
+
+
+def _check_wsol_transitions(
+    witness: Mapping[str, Any], operations: Any, trace: Any, errors: list[str]
+) -> None:
+    if not isinstance(operations, list):
+        errors.append("wsol_transition_operations_invalid")
+        return
+    if not isinstance(trace, list) or len(trace) != len(operations):
+        errors.append("wsol_instruction_trace_incomplete")
+        trace = []
+    committed = (
+        isinstance(witness.get("execution"), Mapping)
+        and witness["execution"].get("outcome") == "successful_execution"
+    )
+    if not committed:
+        _check(not operations, "failed_execution_committed_wsol_transition", errors)
+        return
+    sequences: list[int] = []
+    names: list[str] = []
+    paths: list[tuple[int, ...]] = []
+    sync_pubkey: str | None = None
+    sync_after: Mapping[str, Any] | None = None
+    sync_program_id: str | None = None
+    for operation in operations:
+        if not isinstance(operation, Mapping):
+            errors.append("wsol_transition_operation_shape_invalid")
+            continue
+        sequence = operation.get("sequence")
+        _check(_exact_int(sequence) and sequence >= 0, "wsol_transition_sequence_invalid", errors)
+        if _exact_int(sequence):
+            sequences.append(sequence)
+        path = operation.get("path")
+        _check(
+            isinstance(path, list) and bool(path) and all(_exact_int(i) and i >= 0 for i in path),
+            "wsol_transition_path_invalid",
+            errors,
+        )
+        if isinstance(path, list) and all(_exact_int(i) and i >= 0 for i in path):
+            paths.append(tuple(path))
+        kind = operation.get("kind")
+        names.append(kind if isinstance(kind, str) else "")
+        if kind == "SyncNative":
+            _check_keys(
+                operation,
+                {
+                    "kind",
+                    "sequence",
+                    "path",
+                    "program_id",
+                    "account",
+                    "reported_rent_reserve_lamports",
+                    "before",
+                    "after",
+                },
+                set(),
+                "wsol_sync_native_fields_invalid",
+                errors,
+            )
+            account = operation.get("account")
+            before, after = operation.get("before"), operation.get("after")
+            reserve = operation.get("reported_rent_reserve_lamports")
+            _check(
+                isinstance(account, Mapping)
+                and isinstance(account.get("pubkey"), str)
+                and bool(account.get("pubkey")),
+                "wsol_sync_native_account_invalid",
+                errors,
+            )
+            if isinstance(account, Mapping):
+                _check_keys(
+                    account, {"pubkey"}, set(), "wsol_sync_native_account_fields_invalid", errors
+                )
+            if isinstance(account, Mapping) and isinstance(account.get("pubkey"), str):
+                sync_pubkey = account["pubkey"]
+            if isinstance(operation.get("program_id"), str):
+                sync_program_id = operation["program_id"]
+            _check(
+                isinstance(before, Mapping) and isinstance(after, Mapping),
+                "wsol_sync_native_snapshots_missing",
+                errors,
+            )
+            if isinstance(before, Mapping) and isinstance(after, Mapping):
+                _check_keys(
+                    before,
+                    {
+                        "lamports_atomic_units",
+                        "token_amount_atomic_units",
+                        "is_native",
+                        "is_native_reserve_lamports",
+                    },
+                    set(),
+                    "wsol_sync_native_before_fields_invalid",
+                    errors,
+                )
+                _check(
+                    _u64(before.get("is_native_reserve_lamports")),
+                    "wsol_sync_native_before_reserve_invalid",
+                    errors,
+                )
+                if isinstance(account, Mapping):
+                    _check_keys(
+                        account,
+                        {"pubkey"},
+                        set(),
+                        "wsol_sync_native_account_fields_invalid",
+                        errors,
+                    )
+                _check_keys(
+                    after,
+                    {
+                        "lamports_atomic_units",
+                        "token_amount_atomic_units",
+                        "is_native",
+                        "is_native_reserve_lamports",
+                    },
+                    set(),
+                    "wsol_sync_native_after_fields_invalid",
+                    errors,
+                )
+                for state in (before, after):
+                    for field in ("lamports_atomic_units", "token_amount_atomic_units"):
+                        _check(_u64(state.get(field)), f"wsol_sync_native_{field}_invalid", errors)
+                    _check(
+                        type(state.get("is_native")) is bool and state.get("is_native") is True,
+                        "wsol_sync_native_account_not_native",
+                        errors,
+                    )
+                _check(
+                    _u64(after.get("is_native_reserve_lamports")),
+                    "wsol_sync_native_stored_reserve_invalid",
+                    errors,
+                )
+                _check(_u64(reserve), "wsol_sync_native_reported_reserve_invalid", errors)
+                if _u64(reserve) and _u64(after.get("lamports_atomic_units")):
+                    lamports = after["lamports_atomic_units"]
+                    _check(lamports >= reserve, "wsol_sync_native_reserve_exceeds_lamports", errors)
+                    if lamports >= reserve:
+                        _check(
+                            after.get("token_amount_atomic_units") == lamports - reserve,
+                            "wsol_sync_native_amount_mismatch",
+                            errors,
+                        )
+                    _check(
+                        after.get("is_native_reserve_lamports") == reserve,
+                        "wsol_sync_native_stored_reserve_mismatch",
+                        errors,
+                    )
+                _check(
+                    before.get("lamports_atomic_units") == after.get("lamports_atomic_units"),
+                    "wsol_sync_native_lamports_changed",
+                    errors,
+                )
+                sync_after = after
+        elif kind == "CloseAccount":
+            _check_keys(
+                operation,
+                {"kind", "sequence", "path", "program_id", "source", "destination"},
+                set(),
+                "wsol_close_fields_invalid",
+                errors,
+            )
+            source, destination = operation.get("source"), operation.get("destination")
+            _check(
+                isinstance(source, Mapping) and isinstance(destination, Mapping),
+                "wsol_close_accounts_missing",
+                errors,
+            )
+            if isinstance(source, Mapping) and isinstance(destination, Mapping):
+                _check_keys(
+                    source,
+                    {
+                        "pubkey",
+                        "pre_lamports_atomic_units",
+                        "post_lamports_atomic_units",
+                        "is_native",
+                        "post_state",
+                    },
+                    {"base_amount_token_atomic_units"},
+                    "wsol_close_source_fields_invalid",
+                    errors,
+                )
+                _check_keys(
+                    destination,
+                    {"pubkey", "pre_lamports_atomic_units", "post_lamports_atomic_units"},
+                    set(),
+                    "wsol_close_destination_fields_invalid",
+                    errors,
+                )
+                _check(
+                    isinstance(source.get("pubkey"), str) and bool(source.get("pubkey")),
+                    "wsol_close_source_pubkey_missing",
+                    errors,
+                )
+                _check(
+                    isinstance(destination.get("pubkey"), str) and bool(destination.get("pubkey")),
+                    "wsol_close_destination_pubkey_missing",
+                    errors,
+                )
+                _check(
+                    source.get("pubkey") != destination.get("pubkey"),
+                    "wsol_close_accounts_not_distinct",
+                    errors,
+                )
+                if sync_pubkey is not None:
+                    _check(
+                        source.get("pubkey") == sync_pubkey,
+                        "wsol_sync_close_account_identity_mismatch",
+                        errors,
+                    )
+                _check(
+                    source.get("is_native") is True,
+                    "wsol_close_source_not_native",
+                    errors,
+                )
+                if sync_program_id is not None:
+                    _check(
+                        operation.get("program_id") == sync_program_id,
+                        "wsol_sync_close_program_mismatch",
+                        errors,
+                    )
+                if sync_after is not None:
+                    _check(
+                        source.get("pre_lamports_atomic_units")
+                        == sync_after.get("lamports_atomic_units"),
+                        "wsol_sync_close_lamports_discontinuous",
+                        errors,
+                    )
+                    _check(
+                        source.get("base_amount_token_atomic_units")
+                        == sync_after.get("token_amount_atomic_units"),
+                        "wsol_sync_close_amount_discontinuous",
+                        errors,
+                    )
+                for account, prefix in ((source, "source"), (destination, "destination")):
+                    for field in ("pre_lamports_atomic_units", "post_lamports_atomic_units"):
+                        _check(
+                            _u64(account.get(field)), f"wsol_close_{prefix}_{field}_invalid", errors
+                        )
+                _check(
+                    source.get("post_lamports_atomic_units") == 0,
+                    "wsol_close_source_not_closed",
+                    errors,
+                )
+                _check(
+                    source.get("post_state") == "closed",
+                    "wsol_close_source_state_not_closed",
+                    errors,
+                )
+                src, dst0, dst1 = (
+                    source.get("pre_lamports_atomic_units"),
+                    destination.get("pre_lamports_atomic_units"),
+                    destination.get("post_lamports_atomic_units"),
+                )
+                if _u64(src) and _u64(dst0):
+                    expected = dst0 + src
+                    _check(expected <= 2**64 - 1, "wsol_close_destination_overflow", errors)
+                    if expected <= 2**64 - 1:
+                        _check(
+                            dst1 == expected, "wsol_close_lamports_conservation_mismatch", errors
+                        )
+                _check(
+                    type(source.get("is_native")) is bool, "wsol_close_native_flag_invalid", errors
+                )
+                if source.get("base_amount_token_atomic_units") is not None:
+                    _check(
+                        _u64(source.get("base_amount_token_atomic_units")),
+                        "wsol_close_source_base_amount_invalid",
+                        errors,
+                    )
+                if source.get("is_native") is False:
+                    _check(
+                        _u64(source.get("base_amount_token_atomic_units"))
+                        and source.get("base_amount_token_atomic_units") == 0,
+                        "wsol_close_nonnative_nonzero_balance",
+                        errors,
+                    )
+        else:
+            errors.append("wsol_transition_kind_invalid")
+    _check(
+        len(sequences) == len(operations) and sequences == ([0, 1] if operations else []),
+        "wsol_transition_order_invalid",
+        errors,
+    )
+    if operations:
+        _check(paths == [(0, 1), (0, 2)], "wsol_transition_path_binding_invalid", errors)
+        _check(
+            names == ["SyncNative", "CloseAccount"],
+            "wsol_transition_lifecycle_incomplete_or_reordered",
+            errors,
+        )
+    trace_paths: list[tuple[int, ...]] = []
+    for item in trace:
+        if not isinstance(item, Mapping):
+            errors.append("wsol_instruction_trace_entry_invalid")
+            continue
+        _check_keys(
+            item,
+            {"sequence", "path", "kind", "program_id", "lifecycle"},
+            set(),
+            "wsol_instruction_trace_fields_invalid",
+            errors,
+        )
+        path = item.get("path")
+        _check(
+            isinstance(path, list)
+            and bool(path)
+            and all(_exact_int(part) and part >= 0 for part in path),
+            "wsol_instruction_trace_path_invalid",
+            errors,
+        )
+        if isinstance(path, list) and all(_exact_int(part) and part >= 0 for part in path):
+            trace_paths.append(tuple(path))
+        _check(
+            isinstance(item.get("program_id"), str) and bool(item.get("program_id")),
+            "wsol_instruction_trace_program_id_invalid",
+            errors,
+        )
+        _check(_exact_int(item.get("sequence")), "wsol_instruction_trace_sequence_invalid", errors)
+        _check(
+            item.get("kind") in {"SyncNative", "CloseAccount"},
+            "wsol_instruction_trace_kind_invalid",
+            errors,
+        )
+        _check(
+            item.get("lifecycle") == "returned_success",
+            "wsol_instruction_trace_not_successful",
+            errors,
+        )
+    _check(
+        len(trace_paths) == len(set(trace_paths)),
+        "wsol_instruction_trace_path_duplicate",
+        errors,
+    )
+    for operation in operations:
+        if not isinstance(operation, Mapping):
+            continue
+        matches = [
+            item
+            for item in trace
+            if isinstance(item, Mapping) and item.get("path") == operation.get("path")
+        ]
+        _check(len(matches) == 1, "wsol_instruction_trace_path_not_unique", errors)
+        if len(matches) == 1:
+            item = matches[0]
+            _check(
+                _exact_int(item.get("sequence"))
+                and item.get("sequence") == operation.get("sequence"),
+                "wsol_instruction_trace_sequence_mismatch",
+                errors,
+            )
+            _check(
+                item.get("kind") == operation.get("kind"),
+                "wsol_instruction_trace_kind_mismatch",
+                errors,
+            )
+            _check(
+                item.get("program_id") == operation.get("program_id"),
+                "wsol_instruction_trace_program_mismatch",
+                errors,
+            )
+            _check(
+                item.get("lifecycle") == "returned_success",
+                "wsol_instruction_trace_operation_not_successful",
+                errors,
+            )
+    ordered = witness.get("ordered_effects")
+    if operations:
+        roles = witness.get("wsol_role_names")
+        _check(
+            isinstance(roles, list)
+            and bool(roles)
+            and all(isinstance(role, str) and role for role in roles),
+            "wsol_transition_roles_missing_or_invalid",
+            errors,
+        )
+        _check(
+            isinstance(ordered, list) and len(ordered) == len(operations),
+            "wsol_ordered_effect_list_mismatch",
+            errors,
+        )
+    if isinstance(ordered, list) and len(ordered) == len(operations):
+        for index, (operation, legacy_effect) in enumerate(zip(operations, ordered, strict=True)):
+            if isinstance(operation, Mapping) and isinstance(legacy_effect, Mapping):
+                _check(
+                    _exact_int(operation.get("sequence"))
+                    and operation.get("sequence") == index
+                    and legacy_effect.get("sequence") == index,
+                    "wsol_ordered_effect_sequence_mismatch",
+                    errors,
+                )
+                _check(
+                    operation.get("kind") == legacy_effect.get("effect"),
+                    "wsol_ordered_effect_kind_mismatch",
+                    errors,
+                )
+
+
+def _check_transition_effects(witness: Mapping[str, Any], errors: list[str]) -> None:
+    effects = witness.get("transition_effects")
+    if not isinstance(effects, Mapping):
+        errors.append("transition_effects_missing_or_invalid")
+        return
+    _check(
+        effects.get("schema") == TRANSITION_EFFECTS_SCHEMA,
+        "transition_effects_schema_invalid",
+        errors,
+    )
+    _check_keys(
+        effects,
+        {"schema", "token_2022_transfer", "wsol_operations", "wsol_instruction_trace"},
+        set(),
+        "transition_effects_fields_invalid",
+        errors,
+    )
+    if witness.get("wsol_role_names") and not effects.get("wsol_operations"):
+        errors.append("wsol_structured_transition_missing")
+    _check_token_2022_transition(witness, effects.get("token_2022_transfer"), errors)
+    _check_wsol_transitions(
+        witness,
+        effects.get("wsol_operations"),
+        effects.get("wsol_instruction_trace"),
+        errors,
+    )
+
+
 def _check_witness(witness: Mapping[str, Any]) -> dict[str, Any]:
     errors: list[str] = []
     _check(witness.get("contract") == CONTRACT, "contract_version_mismatch", errors)
@@ -681,6 +1404,7 @@ def _check_witness(witness: Mapping[str, Any]) -> dict[str, Any]:
         errors,
     )
     _check_ordered_effects(witness, errors)
+    _check_transition_effects(witness, errors)
     _check(
         witness.get("unit_contract")
         == {

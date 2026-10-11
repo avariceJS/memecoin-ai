@@ -18,6 +18,7 @@ from tools.brain_senses_candidate_position_witness_check_v1 import (  # noqa: E4
     SELECTOR_ID,
     SELECTOR_SOURCE_SHA256,
     SYNTHETIC_EXECUTION_RUNTIME,
+    TRANSITION_EFFECTS_SCHEMA,
     canonical_json_bytes,
     check_witness,
     receipt_sha256,
@@ -278,6 +279,43 @@ def _witness(
             "disposition": "failed_attempt_exact" if failed else "successful_transaction",
             "candidate_effect_state": "attempted_only" if failed else "committed_candidate_state",
         },
+        "transition_effects": {
+            "schema": TRANSITION_EFFECTS_SCHEMA,
+            "token_2022_transfer": {"status": "attempted_only"}
+            if failed
+            else {
+                "status": "committed_core_before_hook",
+                "path": [0, 0],
+                "sequence": 0,
+                "mint_pubkey": "mint",
+                "gross_token_atomic_units": 5,
+                "fee_token_atomic_units": 1,
+                "source_is_native": False,
+                "accounts": {
+                    "source_token_account": {
+                        "pubkey": "source",
+                        "pre_base_amount_token_atomic_units": 11,
+                        "core_post_base_amount_token_atomic_units": 6,
+                        "pre_withheld_token_atomic_units": 2,
+                        "core_post_withheld_token_atomic_units": 2,
+                    },
+                    "destination_token_account": {
+                        "pubkey": "destination",
+                        "pre_base_amount_token_atomic_units": 20,
+                        "core_post_base_amount_token_atomic_units": 24,
+                        "pre_withheld_token_atomic_units": 3,
+                        "core_post_withheld_token_atomic_units": 4,
+                    },
+                },
+                "hook_entry": {
+                    "path": [0, 0, 0],
+                    "sequence": 1,
+                    "gross_token_atomic_units": 5,
+                },
+            },
+            "wsol_operations": [],
+            "wsol_instruction_trace": [],
+        },
         "fork_finality_axis": "rooted",
         "candidate_position_label": "unknown_or_exact_frame_state_only",
     }
@@ -301,6 +339,19 @@ def _assert_synthetic_only(result: dict) -> None:
     assert result["economic_admission"] is False
     assert result["source_capability_qualified"] is False
     assert result["real_runtime_or_provider_completeness_certified"] is False
+
+
+def _bind_wsol_instruction_trace(witness: dict) -> None:
+    witness["transition_effects"]["wsol_instruction_trace"] = [
+        {
+            "sequence": operation["sequence"],
+            "path": copy.deepcopy(operation["path"]),
+            "kind": operation["kind"],
+            "program_id": operation["program_id"],
+            "lifecycle": "returned_success",
+        }
+        for operation in witness["transition_effects"]["wsol_operations"]
+    ]
 
 
 def test_non_object_input_fails_closed_and_never_sets_admission_flags():
@@ -369,10 +420,136 @@ def test_wsol_sync_close_fixture_keeps_lamports_and_raw_token_units_distinct():
             "token_amount_encoding": "raw_account_bytes_without_decimal_conversion",
         },
     ]
+    witness["transition_effects"]["wsol_operations"] = [
+        {
+            "kind": "SyncNative",
+            "sequence": 0,
+            "path": [0, 1],
+            "program_id": "synthetic-token-program",
+            "account": {"pubkey": "wsol-account"},
+            "reported_rent_reserve_lamports": 2,
+            "before": {
+                "lamports_atomic_units": 10_000_000,
+                "token_amount_atomic_units": 8,
+                "is_native": True,
+                "is_native_reserve_lamports": 2,
+            },
+            "after": {
+                "lamports_atomic_units": 10_000_000,
+                "token_amount_atomic_units": 9_999_998,
+                "is_native": True,
+                "is_native_reserve_lamports": 2,
+            },
+        },
+        {
+            "kind": "CloseAccount",
+            "sequence": 1,
+            "path": [0, 2],
+            "program_id": "synthetic-token-program",
+            "source": {
+                "pubkey": "wsol-account",
+                "pre_lamports_atomic_units": 10_000_000,
+                "post_lamports_atomic_units": 0,
+                "is_native": True,
+                "post_state": "closed",
+                "base_amount_token_atomic_units": 9_999_998,
+            },
+            "destination": {
+                "pubkey": "wallet",
+                "pre_lamports_atomic_units": 100,
+                "post_lamports_atomic_units": 10_000_100,
+            },
+        },
+    ]
+    witness["transition_effects"]["wsol_instruction_trace"] = [
+        {
+            "sequence": 0,
+            "path": [0, 1],
+            "kind": "SyncNative",
+            "program_id": "synthetic-token-program",
+            "lifecycle": "returned_success",
+        },
+        {
+            "sequence": 1,
+            "path": [0, 2],
+            "kind": "CloseAccount",
+            "program_id": "synthetic-token-program",
+            "lifecycle": "returned_success",
+        },
+    ]
     witness["unit_contract"]["token_amounts"] = "raw_account_bytes_without_decimal_conversion"
     result = check_witness(_reseal(witness))
     assert result["synthetic_contract_valid"] is True
     _assert_synthetic_only(result)
+
+    failed_trace = copy.deepcopy(witness)
+    failed_trace["transition_effects"]["wsol_instruction_trace"][0]["lifecycle"] = "returned_error"
+    result = check_witness(_reseal(failed_trace))
+    assert "wsol_instruction_trace_not_successful" in result["diagnostics"]
+
+    discontinuous = copy.deepcopy(witness)
+    discontinuous["transition_effects"]["wsol_operations"][1]["source"][
+        "pre_lamports_atomic_units"
+    ] += 1
+    result = check_witness(_reseal(discontinuous))
+    assert "wsol_sync_close_lamports_discontinuous" in result["diagnostics"]
+
+    nonnative = copy.deepcopy(witness)
+    nonnative["transition_effects"]["wsol_operations"][0]["before"]["is_native"] = False
+    result = check_witness(_reseal(nonnative))
+    assert "wsol_sync_native_account_not_native" in result["diagnostics"]
+
+    bad_prior_reserve = copy.deepcopy(witness)
+    bad_prior_reserve["transition_effects"]["wsol_operations"][0]["before"][
+        "is_native_reserve_lamports"
+    ] = "two"
+    result = check_witness(_reseal(bad_prior_reserve))
+    assert "wsol_sync_native_before_reserve_invalid" in result["diagnostics"]
+
+    nonnative_close = copy.deepcopy(witness)
+    nonnative_close["transition_effects"]["wsol_operations"][1]["source"]["is_native"] = False
+    result = check_witness(_reseal(nonnative_close))
+    assert "wsol_close_source_not_native" in result["diagnostics"]
+
+    different_program = copy.deepcopy(witness)
+    different_program["transition_effects"]["wsol_operations"][1]["program_id"] = (
+        "different-synthetic-token-program"
+    )
+    different_program["transition_effects"]["wsol_instruction_trace"][1]["program_id"] = (
+        "different-synthetic-token-program"
+    )
+    result = check_witness(_reseal(different_program))
+    assert "wsol_sync_close_program_mismatch" in result["diagnostics"]
+
+    nonzero_sequence = copy.deepcopy(witness)
+    for item, legacy in zip(
+        nonzero_sequence["transition_effects"]["wsol_operations"],
+        nonzero_sequence["ordered_effects"],
+        strict=True,
+    ):
+        item["sequence"] += 5
+        legacy["sequence"] += 5
+    for item in nonzero_sequence["transition_effects"]["wsol_instruction_trace"]:
+        item["sequence"] += 5
+    result = check_witness(_reseal(nonzero_sequence))
+    assert "wsol_transition_order_invalid" in result["diagnostics"]
+
+    mismatched_kind = copy.deepcopy(witness)
+    mismatched_kind["ordered_effects"][0]["effect"] = "CloseAccount"
+    result = check_witness(_reseal(mismatched_kind))
+    assert "wsol_ordered_effect_kind_mismatch" in result["diagnostics"]
+
+    unbound_labels = copy.deepcopy(witness)
+    unbound_labels["wsol_role_names"] = []
+    unbound_labels["ordered_effects"] = None
+    result = check_witness(_reseal(unbound_labels))
+    assert "wsol_transition_roles_missing_or_invalid" in result["diagnostics"]
+    assert "wsol_ordered_effect_list_mismatch" in result["diagnostics"]
+
+    missing_structured_list = copy.deepcopy(witness)
+    missing_structured_list["transition_effects"]["wsol_operations"] = None
+    result = check_witness(_reseal(missing_structured_list))
+    assert "wsol_transition_operations_invalid" in result["diagnostics"]
 
 
 def test_wsol_wrong_unit_or_effect_order_fails_closed():
@@ -395,6 +572,243 @@ def test_wsol_wrong_unit_or_effect_order_fails_closed():
     result = check_witness(_reseal(witness))
     assert "wsol_lamports_unit_mismatch" in result["diagnostics"]
     assert "wsol_token_unit_mismatch" in result["diagnostics"]
+
+
+def test_token_2022_transition_requires_checked_core_deltas_and_hook_amount():
+    witness = _witness()
+    transfer = witness["transition_effects"]["token_2022_transfer"]
+    transfer["accounts"]["destination_token_account"][
+        "core_post_base_amount_token_atomic_units"
+    ] += 1
+    transfer["hook_entry"]["gross_token_atomic_units"] += 1
+    result = check_witness(_reseal(witness))
+    assert "token_2022_destination_delta_mismatch" in result["diagnostics"]
+    assert "token_2022_hook_amount_mismatch" in result["diagnostics"]
+
+
+def test_failed_hook_execution_never_claims_committed_token_effects():
+    witness = _witness(failed=True)
+    witness["transition_effects"]["token_2022_transfer"] = {
+        "status": "attempted_only",
+        "gross_token_atomic_units": 5,
+    }
+    result = check_witness(_reseal(witness))
+    assert "failed_execution_committed_transition_assertion" in result["diagnostics"]
+
+
+def test_successful_transaction_cannot_claim_a_failed_transfer_hook_checkpoint():
+    witness = _witness()
+    witness["frames"][2]["lifecycle"] = "returned_error"
+    result = check_witness(_reseal(witness))
+    assert "token_2022_transition_frame_not_successful" in result["diagnostics"]
+
+
+def test_native_token_transfer_rejects_lamport_underfunding():
+    witness = _witness()
+    transfer = witness["transition_effects"]["token_2022_transfer"]
+    transfer["source_is_native"] = True
+    source = transfer["accounts"]["source_token_account"]
+    source.update(
+        {
+            "pre_lamports_atomic_units": 10,
+            "core_post_lamports_atomic_units": 5,
+        }
+    )
+    destination = transfer["accounts"]["destination_token_account"]
+    destination.update(
+        {
+            "pre_lamports_atomic_units": 100,
+            "core_post_lamports_atomic_units": 105,
+        }
+    )
+    valid = check_witness(_reseal(witness))
+    assert valid["synthetic_contract_valid"] is True
+    _assert_synthetic_only(valid)
+
+    source["pre_lamports_atomic_units"] = 4
+    source["core_post_lamports_atomic_units"] = 0
+    result = check_witness(_reseal(witness))
+    assert "token_2022_native_source_lamports_insufficient" in result["diagnostics"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "diagnostic"),
+    [
+        ("sequence", True, "token_2022_transition_order_invalid"),
+        ("path", [False, 0], "token_2022_transition_path_invalid"),
+    ],
+)
+def test_token_2022_transition_rejects_bool_aliases(field: str, value, diagnostic: str):
+    witness = _witness()
+    witness["transition_effects"]["token_2022_transfer"][field] = value
+    result = check_witness(_reseal(witness))
+    assert diagnostic in result["diagnostics"]
+
+
+def test_wsol_sync_and_close_reject_wrong_reserve_or_lamport_conservation():
+    witness = _witness()
+    witness["transition_effects"]["wsol_operations"] = [
+        {
+            "kind": "SyncNative",
+            "sequence": 0,
+            "path": [0, 1],
+            "program_id": "synthetic-token-program",
+            "account": {"pubkey": "wsol-account"},
+            "reported_rent_reserve_lamports": 2,
+            "before": {
+                "lamports_atomic_units": 10,
+                "token_amount_atomic_units": 0,
+                "is_native": True,
+                "is_native_reserve_lamports": 2,
+            },
+            "after": {
+                "lamports_atomic_units": 10,
+                "token_amount_atomic_units": 7,
+                "is_native": True,
+                "is_native_reserve_lamports": 3,
+            },
+        },
+        {
+            "kind": "CloseAccount",
+            "sequence": 1,
+            "path": [0, 2],
+            "program_id": "synthetic-token-program",
+            "source": {
+                "pubkey": "wsol-account",
+                "pre_lamports_atomic_units": 10,
+                "post_lamports_atomic_units": 0,
+                "is_native": True,
+                "post_state": "closed",
+                "base_amount_token_atomic_units": 8,
+            },
+            "destination": {
+                "pubkey": "wallet",
+                "pre_lamports_atomic_units": 4,
+                "post_lamports_atomic_units": 13,
+            },
+        },
+    ]
+    _bind_wsol_instruction_trace(witness)
+    result = check_witness(_reseal(witness))
+    assert "wsol_sync_native_amount_mismatch" in result["diagnostics"]
+    assert "wsol_sync_native_stored_reserve_mismatch" in result["diagnostics"]
+    assert "wsol_close_lamports_conservation_mismatch" in result["diagnostics"]
+
+
+@st.composite
+def _valid_transfer_balances(draw):
+    u64_max = 2**64 - 1
+    gross = draw(st.integers(min_value=0, max_value=u64_max))
+    fee = draw(st.integers(min_value=0, max_value=gross))
+    source_after = draw(st.integers(min_value=0, max_value=u64_max - gross))
+    destination_before = draw(st.integers(min_value=0, max_value=u64_max - (gross - fee)))
+    withheld_before = draw(st.integers(min_value=0, max_value=u64_max - fee))
+    return gross, fee, source_after, destination_before, withheld_before
+
+
+@given(values=_valid_transfer_balances())
+def test_token_2022_transition_equations_hold_over_u64_domain(values):
+    gross, fee, source_after, destination_before, withheld_before = values
+    witness = _witness()
+    transfer = witness["transition_effects"]["token_2022_transfer"]
+    transfer["gross_token_atomic_units"] = gross
+    transfer["fee_token_atomic_units"] = fee
+    transfer["accounts"]["source_token_account"].update(
+        {
+            "pre_base_amount_token_atomic_units": gross + source_after,
+            "core_post_base_amount_token_atomic_units": source_after,
+            "pre_withheld_token_atomic_units": 17,
+            "core_post_withheld_token_atomic_units": 17,
+        }
+    )
+    transfer["accounts"]["destination_token_account"].update(
+        {
+            "pre_base_amount_token_atomic_units": destination_before,
+            "core_post_base_amount_token_atomic_units": destination_before + gross - fee,
+            "pre_withheld_token_atomic_units": withheld_before,
+            "core_post_withheld_token_atomic_units": withheld_before + fee,
+        }
+    )
+    transfer["hook_entry"]["gross_token_atomic_units"] = gross
+    result = check_witness(_reseal(witness))
+    assert result["synthetic_contract_valid"] is True
+    _assert_synthetic_only(result)
+
+
+@st.composite
+def _valid_wsol_reserve_cases(draw):
+    u64_max = 2**64 - 1
+    lamports = draw(st.integers(min_value=0, max_value=u64_max))
+    reserve = draw(st.integers(min_value=0, max_value=lamports))
+    destination_before = draw(st.integers(min_value=0, max_value=u64_max - lamports))
+    return lamports, reserve, destination_before
+
+
+@given(values=_valid_wsol_reserve_cases())
+def test_wsol_sync_reserve_and_close_conservation_hold_at_boundaries(values):
+    lamports, reserve, destination_before = values
+    witness = _witness()
+    amount = lamports - reserve
+    witness["wsol_role_names"] = ["wsol_token_account"]
+    witness["ordered_effects"] = [
+        {
+            "sequence": 0,
+            "effect": "SyncNative",
+            "lamports_field": "lamports_atomic_units",
+            "token_amount_encoding": "raw_account_bytes_without_decimal_conversion",
+        },
+        {
+            "sequence": 1,
+            "effect": "CloseAccount",
+            "lamports_field": "lamports_atomic_units",
+            "token_amount_encoding": "raw_account_bytes_without_decimal_conversion",
+        },
+    ]
+    witness["transition_effects"]["wsol_operations"] = [
+        {
+            "kind": "SyncNative",
+            "sequence": 0,
+            "path": [0, 1],
+            "program_id": "synthetic-token-program",
+            "account": {"pubkey": "wsol-account"},
+            "reported_rent_reserve_lamports": reserve,
+            "before": {
+                "lamports_atomic_units": lamports,
+                "token_amount_atomic_units": 0,
+                "is_native": True,
+                "is_native_reserve_lamports": reserve,
+            },
+            "after": {
+                "lamports_atomic_units": lamports,
+                "token_amount_atomic_units": amount,
+                "is_native": True,
+                "is_native_reserve_lamports": reserve,
+            },
+        },
+        {
+            "kind": "CloseAccount",
+            "sequence": 1,
+            "path": [0, 2],
+            "program_id": "synthetic-token-program",
+            "source": {
+                "pubkey": "wsol-account",
+                "pre_lamports_atomic_units": lamports,
+                "post_lamports_atomic_units": 0,
+                "is_native": True,
+                "post_state": "closed",
+                "base_amount_token_atomic_units": amount,
+            },
+            "destination": {
+                "pubkey": "wallet",
+                "pre_lamports_atomic_units": destination_before,
+                "post_lamports_atomic_units": destination_before + lamports,
+            },
+        },
+    ]
+    _bind_wsol_instruction_trace(witness)
+    result = check_witness(_reseal(witness))
+    assert result["synthetic_contract_valid"] is True
+    _assert_synthetic_only(result)
 
 
 def test_signature_mismatch_across_block_join_fails_closed():
