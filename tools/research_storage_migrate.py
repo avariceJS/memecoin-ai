@@ -12,7 +12,7 @@ import sys
 import time
 from pathlib import Path
 
-from memecoin_research_storage import StorageError, writer_guard
+from memecoin_research_storage import StorageError, StorageGuard, writer_guard
 from memecoin_research_storage.migration import (
     MigrationError,
     _is_protected_name,
@@ -94,7 +94,7 @@ def _mkdir_private_under_root(root: Path, relative: str) -> Path:
 class _MigrationGuardCheck:
     """Run cheap identity checks often and full resolution within five seconds."""
 
-    def __init__(self, guard: object) -> None:
+    def __init__(self, guard: StorageGuard) -> None:
         self.guard = guard
         self.last_full_check = float("-inf")
 
@@ -236,7 +236,7 @@ def main(argv: list[str] | None = None) -> int:
                             external_fd,
                             "/".join(relative_output.parts[:-1]),
                             create=False,
-                            before_write=guard.revalidate,
+                            before_write=checks,
                             expected_device=guard.root.mount_device,
                         )
                     finally:
