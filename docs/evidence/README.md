@@ -113,6 +113,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `@latest` processes; zero matches in 6,412 Git objects, 2,292 recent files / 533.6 MB, 65
   launchd plists, current argv, and 295.5 MB of Unified Log. Credential values were not persisted;
   remote, inaccessible, backup, and Time Machine storage remain outside scan scope.)
+- Helius post-resume exact-value exposure rescan at 12:41Z:
+  `helius-key-post-resume-exposure-rescan-2026-10-11T1241Z.json` (zero matches in 6,416 reachable
+  Git objects, 27 recent Codex logs / 500.4 MB, 82 recent repository files / 2.8 MB, 57 launchd
+  plists, current argv, or 846.7 MB of Unified Log. Remote, inaccessible, backup, Time Machine, and
+  prior session-transcript storage remain outside scan visibility.)
 - Helius account-status retry at 06:51Z returned `Transport closed`. Public billing materials checked
   2026-10-11 conflict on archival `getBlock`/`getBlocks` units; see `docs/brain-source-architecture.md`
   for official source links, the 10-credit offline scenario, unknown account controls, and conditions

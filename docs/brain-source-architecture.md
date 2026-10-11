@@ -62,6 +62,14 @@ continues to pass the key through child environment, not argv. No RPC or collect
 occurred. The prior agent transcript remains outside filesystem erasure; remote storage, backups,
 Time Machine, inaccessible files, and other sessions remain outside scan visibility. Receipt:
 [`11:48Z exposure rescan`](evidence/helius-key-post-resume-exposure-scan-2026-10-11T1148Z.json).
+At 12:41Z, a follow-up exact-value scan found no matches in 6,416 reachable Git objects, 27 recent
+Codex log files / 500.4 MB, 82 recent repository files / 2.8 MB, 57 launchd plists, current process
+arguments, or 846.7 MB of Unified Log. `.env.local` remains mode 0600 and the mode-0700 wrapper
+passes the endpoint through child environment, not argv. No Helius RPC or collector activation
+occurred. The preceding 11:48Z scan covered all then-local Git objects; this scan covers refs and
+the listed post-scan roots. The active transcript, remote/provider storage, backups, Time Machine,
+and inaccessible files remain outside visibility. Receipt:
+[`12:41Z exposure rescan`](evidence/helius-key-post-resume-exposure-rescan-2026-10-11T1241Z.json).
 A follow-up scan at 19:04Z found no exact endpoint/path/hostname matches across 2,861 Git blobs, no exact endpoint/path matches in 3,452 recent saved files (2.05 GB), no process-argument matches, and no match in 213.6 MB of the last hour of Unified Log. Two Codex history files had 67 public-hostname-only mentions; no endpoint path or key component was present. The c4 LaunchAgent remained path-only and the scheduled 19:05Z frame was active at the 19:06Z status read. Receipt: [`19:04Z exposure rescan`](evidence/helius-key-followup-exposure-rescan-2026-10-10T1904Z.json).
 At 23:18Z a credential-config enumeration accidentally emitted the current value in one tool result
 in this interactive agent session. The active session transcript cannot be retracted from this
