@@ -73,6 +73,53 @@ def test_missed_frame_becomes_gap_and_only_later_anchor_is_eligible(tmp_path: Pa
     assert bridge._frontier_before(root, p, rows) == (84, True)
 
 
+def test_missed_anchor_blocks_frames_until_later_anchor_without_stopping(tmp_path: Path, host):
+    root = tmp_path / "lease"
+    p = plan(
+        host[0],
+        [
+            {"bucket_id": "a0", "kind": "anchor", "start_ns": host[0], "end_ns": host[0] + 10},
+            {
+                "bucket_id": "f0",
+                "kind": "frame",
+                "start_ns": host[0] + 10,
+                "end_ns": host[0] + 20,
+            },
+            {
+                "bucket_id": "a1",
+                "kind": "anchor",
+                "start_ns": host[0] + 20,
+                "end_ns": host[0] + 30,
+            },
+            {
+                "bucket_id": "f1",
+                "kind": "frame",
+                "start_ns": host[0] + 30,
+                "end_ns": host[0] + 40,
+            },
+        ],
+    )
+    calendar.initialize(root, p)
+
+    blocked = calendar.drive_once(root, now_ns=host[0] + 10)
+    assert blocked == {
+        "status": "waiting_for_anchor",
+        "bucket_id": "f0",
+        "eligible_at_ns": host[0] + 20,
+        "reason": "gap_requires_future_anchor",
+    }
+    assert not any(row["kind"] == "stop" for row in calendar._rows(root))
+
+    recovered = calendar.drive_once(root, now_ns=host[0] + 20)
+    assert recovered == {"status": "eligible", "bucket_id": "a1", "kind": "anchor"}
+    assert [
+        (row["bucket_id"], row["reason"]) for row in calendar._rows(root) if row["kind"] == "gap"
+    ] == [
+        ("a0", "elapsed_without_start"),
+        ("f0", "elapsed_without_start"),
+    ]
+
+
 def test_expiry_handoff_is_independently_verified_and_binds_conservative_usage(
     tmp_path: Path, host
 ):

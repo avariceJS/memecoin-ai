@@ -127,6 +127,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
   interval lineage, conservative usage and no-replay terminal states. The 82 focused tests use fake
   clients only; no RPC, live activation, reviewer authentication, or predecessor-chain activation
   proof is claimed.
+- `senses-finite-calendar-v3-gap-anchor-followup-2026-10-11.json`: source-bound missed-anchor
+  recovery check; an active frame waits until its end, becomes a gap, and leaves the later anchor
+  eligible without dispatch. The calendar/bridge/child suite passes 83 focused cases; no RPC.
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:

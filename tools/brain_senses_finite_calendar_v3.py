@@ -305,6 +305,15 @@ def _drive_once(
                 "bucket_id": bucket["bucket_id"],
                 "eligible_at_ns": bucket["start_ns"],
             }
+        if bucket["kind"] == "frame":
+            _, reset_required = bridge._frontier_before(root, plan, rows)
+            if reset_required:
+                return {
+                    "status": "waiting_for_anchor",
+                    "bucket_id": bucket["bucket_id"],
+                    "eligible_at_ns": bucket["end_ns"],
+                    "reason": "gap_requires_future_anchor",
+                }
         if runner is None or clients is None or child_root is None or child_plan is None:
             return {"status": "eligible", "bucket_id": bucket["bucket_id"], "kind": bucket["kind"]}
         oid = f"{operation_prefix}-{bucket['bucket_id']}"

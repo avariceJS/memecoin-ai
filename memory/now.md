@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 04:37 UTC. Recheck host, disk, account meter and LaunchAgents before any acquisition decision.
+**As of:** 2026-10-11 04:45 UTC. Recheck host, disk, account meter and LaunchAgents before any acquisition decision.
 
 **Research checkout:** `/Users/root1/Developer/memecoin-research`
 **Branch:** `research/active`
@@ -40,17 +40,16 @@
   `docs/evidence/senses-finite-calendar-v3-offline-validation-2026-10-11.json`.
 - Focused validation: 82 tests passed across finite calendar, operation envelope and v3 child; Ruff,
   format, compile and diff checks pass. No RPC, live activation or c4/tail2 access.
+- Uncommitted calendar follow-up makes an active frame wait and expire as a gap when a prior anchor
+  was missed; the later anchor can proceed without STOP or dispatch. Calendar/bridge/child suite: 83.
 - buyExact25 remains structurally/evidentially unresolved: four dual-legacy successes censored,
   Token-2022 quarantined, failed transactions attempt-only; no economic stratum is qualified. See
   existing buyExact feasibility receipts; do not open c4 tail2.
 
 ## Next horizon
 
-Sol-selected: build a narrow offline activation/lineage preflight, then produce a reviewable packet
-only. Verify the complete predecessor handoff chain, bind one exact successor lease/schedule/source/
-code/cap set, and durably prevent duplicate successor claims. Require fresh trusted clock/disk
-probes, independently checked Helius charge headroom, conservative full-lease storage envelope over
-50 GiB, and an externally authenticated named reviewer decision. Hashes/review digests alone are
-not authentication. Missing/stale/forged evidence must yield `eligible=false`. No scheduler, provider,
-credential or request path; separate Sol activation review remains required. Current disk/headroom
-make live acquisition ineligible. Do not begin Cortex.
+Sol reviewed the uncommitted offline activation preflight and blocked eligibility pending fixes:
+unknown-interval/time lineage, enforceable storage and bound filesystem/churn, cross-midnight daily
+bounds, plan-specific charge-unit recomputation, stale claim semantics, and one global successor
+claim keyed by predecessor. Fix these offline, retest and seek Sol review. Current disk/headroom
+make live acquisition ineligible. No scheduler/provider/credential/request path; do not begin Cortex.

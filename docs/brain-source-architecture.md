@@ -2381,3 +2381,8 @@ cases, including a 34-attempt fake frame over UTC day rollover, gap-to-anchor re
 crash prefixes, stale time, disk floor, writer exclusion, transitive unknown lineage and anchor
 frontier regression. No provider request or live activation occurred. Receipt:
 [`finite-calendar-v3 offline validation`](evidence/senses-finite-calendar-v3-offline-validation-2026-10-11.json).
+
+A follow-up closes the missed-anchor transition: while reset is required, an active frame waits
+until its bucket expires, then that bucket is recorded as a gap; a later anchor can proceed without
+an unnecessary STOP or request. The focused calendar/bridge/child suite now passes 83 cases.
+Receipt: [`finite-calendar gap/anchor follow-up`](evidence/senses-finite-calendar-v3-gap-anchor-followup-2026-10-11.json).
