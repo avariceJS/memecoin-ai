@@ -122,6 +122,7 @@ contain large exact payloads, so open only the named artifact needed for a speci
   Pump AMM parent checks, with transaction success/failure and checked/failed/unresolved denominators
   preserved. No payload decode or economic admission; c4 tail2 remains unopened. This is the final
   Sol-accepted receipt hash-bound to the corrected stack implementation and sibling counterexample.
+- `pumpswap-c4-event-layout-feasibility-validation-v1-2026-10-11.json`: offline full-byte Borsh feasibility replay for the 9,130 BuyEvent/SellEvent payloads in the ten included frames against all 18 pinned IDL layouts; source-bound to Anchor/Borsh serialization sources and generated parser tests. Reports IDL-consistent development observations only; no deployed layout, event validity, economic admission, completeness or activation claim. Other 468 event references and tail2 remain excluded.
 - `pumpswap-buy-exact-v1-c4-pool-v2-development-replay-2026-10-11.json`: source-bound development
   replay of all ten included c4 frames through the existing SDK 2.1.0 structural qualifier and
   pool-v2 diagnostic. It binds all full-block capture hashes and report/epoch receipts, preserves

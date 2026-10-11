@@ -2242,6 +2242,21 @@ focused primitive/stack tests include a sibling-program ancestry counterexample.
 body remains unopened. Receipt:
 [`c4 historical IDL and event-CPI structural qualification`](evidence/pumpswap-c4-idl-history-qualification-v3-2026-10-11.json).
 
+A separate offline development replay then parsed only the 4,384 BuyEvent and 4,746 SellEvent
+payloads in those same ten included frames against all 18 captured official IDL layouts. Each of the
+9,130 references consumed its full bytes under exactly one historical schema: the 2026-10-07 IDL
+(commit `8cda1fa30ea658b20909d8aedf002047119388d2`, 40 BuyEvent fields and 33 SellEvent fields).
+This is an IDL-consistent development observation, not a deployed-layout or event-validity claim;
+no layout was selected from the c4 date. Failed-transaction references remain failed. Observed wire
+lengths, including Anchor tag and event discriminator, are BuyEvent 497 bytes (1,169), 500 (178),
+508 (35), 512 (2,576), 515 (426), and SellEvent 449 bytes (4,746). The parser is independently
+checked against Anchor 0.27.0 / lock-resolved Borsh 0.9.3 serialization sources, with bounded string
+length, strict UTF-8, canonical bool, fixed pubkey, signed integer and exact-consumption checks.
+Development-only Hypothesis coverage exercises generated values and field offsets across distinct
+historical schemas. The 468 other event references and unopened 23:00Z tail2 body were excluded; no
+settlement, economic admission, completeness, or zero claim follows. Receipt:
+[`c4 BuyEvent/SellEvent IDL-layout feasibility`](evidence/pumpswap-c4-event-layout-feasibility-validation-v1-2026-10-11.json).
+
 An offline development replay then applied the already-pinned Pump SDK 2.1.0 pool-v2 prefix
 classifier and existing pool-v2 candidate-subtree diagnostic to the exact 25-byte/valid-bool,
 23-fixed-account/three-tail class in those same ten c4 frames. All ten reports were byte-hash-bound

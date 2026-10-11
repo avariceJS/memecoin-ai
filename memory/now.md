@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 08:03 UTC. Research remains on `research/active`; production
+**As of:** 2026-10-11 08:18 UTC. Research remains on `research/active`; production
 `/Users/root1/Desktop/memecoin-ai` is untouched. Recheck Git and runtime before new acquisition.
 
 ## Runtime and credentials
@@ -31,6 +31,11 @@
   Helius log-truncation differences; Alchemy inventory completeness is unknown. The sell23 census
   is captured-class only. `buyExact25` remains economically unqualified: 16 structural mismatches,
   Token-2022 cases quarantined and four legacy outcomes censored.
+
+## Offline event-layout feasibility
+
+- The new source-bound feasibility receipt `pumpswap-c4-event-layout-feasibility-validation-v1-2026-10-11.json` records full-byte Borsh parsing for the 9,130 BuyEvent/SellEvent references in the ten included frames against all 18 pinned IDL layouts. All are uniquely consistent with the 2026-10-07 schema; this does not establish deployed layout or event validity. Tests include deterministic Hypothesis value/offset properties and malformed wire mutations. Other 468 event refs and frozen tail2 remain excluded; no RPC or activation occurred.
+- Receipt SHA-256: `443b38dbd1211ce321283a3cc858483ed5c9d54b4bc19c6f9c0fd6408bd40b9d`. Current external gates remain closed as above.
 
 ## Next decision horizon
 

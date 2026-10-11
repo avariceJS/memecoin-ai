@@ -11,7 +11,7 @@ dependencies = []
 
 [project.optional-dependencies]
 ml = ["torch==2.14.1", "numpy==2.5.3"]
-dev = ["pytest>=8", "ruff>=0.11", "mypy>=1.15", "build>=1.2"]
+dev = ["pytest>=8", "ruff>=0.11", "mypy>=1.15", "build>=1.2", "hypothesis==6.168.0"]
 
 [project.scripts]
 mcai = "memecoin_ai.cli:main"
