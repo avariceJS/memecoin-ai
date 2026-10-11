@@ -1,121 +1,65 @@
 # Current Project State
 
-**As of:** 2026-10-11 07:00 UTC. Research work continues on `research/active` in
+**As of:** 2026-10-11 07:30 UTC. Research work is on `research/active` in
 `/Users/root1/Developer/memecoin-research`; production `/Users/root1/Desktop/memecoin-ai` is
-untouched. Read this state, then check Git/runtime before acquisition.
+untouched. Check Git and runtime again before any acquisition.
 
-## Boundaries and runtime
+## Runtime and boundaries
 
-- User authorizes the existing Helius key without rotation. It is loaded in-process from private
-  config, not process arguments. Prior exposure scans found no exact key in checked Git objects,
-  saved logs/files, current process args or 65 LaunchAgent plists. Their inaccessible-file and
-  remote/backup/session-storage exclusions remain in the scan receipts. Do not print or expose it.
-- The user authorizes the current Helius key without rotation. The 05:26Z broad scan found no exact
-  credential/URL matches in 6,146 Git objects, current process args, 65 launchd plists, 14,449
-  accessible recent files / 390.8 MB, the full 26,650-file `~/.npm` tree / 4.66 GB, shell
-  history/startup files, or 874.0 MB of subsequent Unified Log. Remote/provider, inaccessible-file,
-  backup, session-storage and Time Machine limits remain. `.env.local` is mode 0600; the collector
-  takes only a config path and resolves the URL in process. Alchemy MCP ping returned `pong`; Helius
-  account-status MCP returned `Transport closed`, so current account headroom is unverified. No
-  Senses LaunchAgent/collector is running. Free disk at 05:22Z was 24,655,904 KiB (~23.5 GiB),
-  below the reviewed 50 GiB floor. No RPC or backfill was made; key rotation is not the blocker.
-  Recheck runtime before any future request. Receipt:
+- The user authorizes the existing Helius key without rotation and accepts the prior process-list
+  exposure. Do not print it. The 05:26Z broad scan found no exact credential matches in 6,146 Git
+  objects, 65 launchd plists, current process args, 14,449 recent accessible files / 390.8 MB,
+  `~/.npm` / 4.66 GB, shell files or 874 MB Unified Log. `.env.local` is mode 0600; the collector
+  resolves the URL in-process and launchd arguments carry only a config path. Remote/provider data,
+  backups, inaccessible files and session storage remain outside scan visibility. Receipt:
   `docs/evidence/helius-key-broad-exposure-rescan-2026-10-11T0526Z.json`.
-- c4 `work/brain-senses-live-helius-inventory-v3-20261010-4` is terminal. The 23:00Z tail2 body
-  remains frozen/unopened; missed prospective slots remain gaps. No trading, signing, paid upgrade,
-  protected holdout access, backfill, remote push or Cortex work.
+- Helius MCP account-status retry returned `Transport closed` at 07:27Z. Account plan, usage, reset,
+  prepaid balance, overage and autoscaling settings are unknown. Public billing docs conflict:
+  reserve 10 credits per archival `getBlock`/`getBlocks` and 1 per `getSlot` for offline capacity
+  scenarios only; this is neither actual billing nor a ceiling. Do no provider schedule planning
+  until an official account-specific usage/settings export or written support clarification and
+  fresh disk/full-runway evidence exist. Alchemy MCP returned an account-wide 18,680 CU / $0.01
+  usage summary for MTD, 7d and 30d through 07:27Z, but omitted its limit and does not attribute
+  usage to this research. It does not establish headroom. Canonical detail and source links are in
+  `docs/brain-source-architecture.md`.
+- At 07:27Z internal APFS had 41,669,092 KiB free (~39.74 GiB), still below the reviewed 50
+  GiB floor. External Kingston ExFAT has 164.6 GB free (~153.3 GiB) but is not eligible under the
+  durable collector contract: permissions, hard-link seals, fsync, flock, mount identity and
+  unplug/recovery are unqualified. Sol requires separately authorized disposable volume tests and
+  owner intent; no contents were inspected and no writes were made. No Senses/Helius
+  collector LaunchAgent is loaded. Helius MCP processes are present (pinned `2.2.0` and `@latest`);
+  the latter are tool-host processes, not the Senses collector. Current process arguments had zero
+  exact matches against the private endpoint. c4 is terminal; no successor, RPC, backfill or retry was
+  started. Its frozen 23:00Z tail2 body remains unopened; missed prospective intervals remain gaps.
+  Do not touch protected holdouts, trade, sign, push, or begin Cortex.
 
-## Completed this continuation
+## Qualified sensing evidence
 
-- Offline finite-calendar-v3 plus operation-envelope-v2/child-v3 now has a safe missed-anchor
-  transition: an expired frame becomes a gap, then a later anchor may proceed without request or
-  unnecessary STOP. Sol accepted the offline gate. See the finite-calendar receipts in
-  `docs/evidence/README.md`.
-- Sol conditionally accepted the new activation-preflight verifier strictly as offline eligibility
-  after distinct Ed25519 keys across host, Helius checker and Sol roles were enforced. It preserves
-  transitive gaps/unknown/time lineage, conservative every-day bounds, full-lease storage runway,
-  bound disk/clock evidence, signed plan-specific Helius charge units and one owner-local claim per
-  predecessor. It never authorizes activation; no calendar/runtime consumes it. Cross-host locking,
-  real trust/charge evidence and a reviewed adapter remain future gates. Receipt:
-  `docs/evidence/senses-activation-preflight-v1-offline-validation-2026-10-11.json`.
-- Focused verification passed: 36 preflight cases and 131 combined preflight/calendar/bridge/
-  controller/verifier cases; Ruff, format, compile and diff checks passed. No RPC or live activation.
-- Prospective controller v1 recovery was requalified offline: normal close requires every bucket to
-  have a captured seal or elapsed gap; early cancellation is an abnormal STOP with separate
-  `cancelled_unstarted` status; failed-result crash prefixes stop without replay; a supplied
-  predecessor's plan, event chain and terminal head are independently checked. Backdated STOPs and
-  seals before capture availability are rejected. Sol accepted this offline contract. The 52 focused
-  tests and 145 combined activation/calendar/operation/controller/verifier tests pass; Ruff, format,
-  compile and diff checks pass. 58 WSS socket/TLS credential-transport tests also pass. No RPC/
-  activation. Commit: `8044baa`. Receipt:
-  `docs/evidence/senses-prospective-controller-v1-recovery-qualification-2026-10-11.json`.
-- buyExact25 economic feasibility remains negative: four legacy settlement rows are censored,
-  Token-2022 economics quarantined, failed transactions attempt-only. Do not reopen frozen c4 tail2.
+- Offline calendar, operation-envelope-v2/child-v3, initial-entry, supervisor and signed
+  activation-preflight dependencies were requalified at current source pins: 239 tests; activation
+  remains false. No service consumes the offline candidate. Aggregate receipt:
+  `docs/evidence/senses-dependent-gates-requalification-2026-10-11.json`.
+- Pair64 offline audit: 64/64 sampled Helius/Alchemy pairs match block identity and ordered
+  signatures. Of 80,467 paired transactions, 146 differ only in Helius logs with explicit truncation
+  markers. Alchemy inventory failed once; unsampled slots and global discovery remain unknown.
+  Receipt: `helius-alchemy-pair64-offline-audit-2026-10-09.json`.
+- Added c4 structural novelty replay over the ten included frames: 160 full blocks, 173,899
+  transactions and 22,319 PumpSwap instruction refs reconcile to frozen per-slot counts and
+  buyExact censuses; 1,336 wire-family and 19,751 exact fingerprint classes are detector keys, not
+  layout/economic-process counts. The compressed detail binds capture receipts, event/receipt times,
+  and class fingerprints; tail2 is excluded. No completeness/admission claim. Receipt:
+  `pumpswap-c4-structural-novelty-v1-2026-10-11.json`.
+- PumpSwap `sell23` captured-class ledger census remains narrow evidence. `buyExact25` is not
+  economically qualified: failed attempts, Token-2022 and four censored legacy settlements remain
+  quarantined/censored. Frozen c4 tail2 is not an audit sample.
+- c4 metadata-only STOP and storage packets preserve terminal/gap accounting. Latest host receipt:
+  `senses-storage-readiness-2026-10-11T071800Z.json`; ~388 MB/day is only a 10-frame mean, not a
+  forward storage guarantee. No cleanup or external-volume writes were done.
 
-## Next decision horizon
+## Next horizon
 
-Keep Senses runtime inactive until current disk/account headroom, real out-of-band trust/price
-inputs, and a separate Sol lease activation review pass. Current free disk remains below the 50 GiB
-floor; do not backfill missed intervals or reuse the terminal c4 campaign. Sol approved the offline
-one-shot supervisor over calendar-v3 → operation-envelope-v2 → child-v3. Its status-only CLI and
-explicit-injection API are source-bound and qualified by 19 focused / 76 combined tests; it samples
-UTC after the shared lock and after each decision; stale inputs and even ledger-newer post-clock
-regressions are reported. A transient regression with no new event is not durably journaled; each
-later call resamples under lock. No RPC or live activation occurred. First live entry still needs a
-separately versioned discontinuity gate:
-c4's abnormal stop is not a normal predecessor; bind verified terminal/gaps/unknowns and start at a
-fresh future anchor without claiming continuity or reopening tail2. Receipt:
-`docs/evidence/senses-calendar-supervisor-v1-offline-validation-2026-10-11.json`.
-
-The offline initial-entry/discontinuity-v1 certificate is now bound to the metadata-only c4
-abnormal-terminal verifier. It carries all predecessor gaps plus the c4 STOP gap, keeps the
-continuation end unknown, and treats any successor schedule as an inert proposal with a future
-anchor first. No initialization, activation, RPC, response-body access, or tail2 access occurred.
-Validation: 21 focused tests; independent verifier replay passed. Receipt:
-`docs/evidence/senses-initial-entry-discontinuity-v1-offline-validation-2026-10-11.json`.
-
-2026-10-11 06:43Z: The v2 operation-envelope verifier independently recomputes child-v3 structural
-rows from captures and validates JSON-RPC envelopes, all capture-to-result-journal fields (slot,
-inventory, block metadata, event slot), STOP/summary causal times (including unbundled, unsealed and
-STOP-only prefixes), source/cap bindings, contiguous crash prefixes, and immediately written
-frame/selection artifacts without replay. Bundle charge is explicitly unknown/unverified; no cost
-is inferred. Validation: 84 operation-envelope tests / 110 combined child-v2 tests; Ruff, format,
-compile and diff checks pass. Sol accepted the frozen verifier/source hash and receipt after
-independent hash verification. No RPC or activation. Its source change invalidated prior source-bound
-calendar, initial-entry, activation-preflight and supervisor eligibility receipts; those dependency
-suites were subsequently requalified in the aggregate receipt below. Parent bundle events prove
-journal order only; v2 records no bundle persistence timestamp.
-
-2026-10-11 06:49Z: Dependent finite-calendar/operation/child, initial-entry certificate/candidate,
-supervisor and synthetic signed activation-preflight suites all pass after requalification at the
-current v2 verifier hash (127 + 57 + 19 + 36 = 239 tests). One crash-test fixture was corrected to
-bind its synthetic child identity to the scheduled parent bucket. No source/runtime adapter change,
-RPC or activation; `activation_authorized=false`. Existing receipts remain historical and immutable;
-aggregate receipt binds their file digests and current source/test pins. Root's 06:48Z disk snapshot:
-20,504,848 KiB (~19.55 GiB), below the 50 GiB floor. Historical 10-frame stored-throughput estimate
-is ~388 MB/day, not a tail guarantee. Helius account headroom remains unverified; no runtime activity.
-Receipt: `docs/evidence/senses-dependent-gates-requalification-2026-10-11.json`.
-
-2026-10-11 06:58Z: Read-only host packet binds the intended capture path to APFS `disk3s5`/`disk3`.
-`df` reports 19,990,468 KiB free (~19.06 GiB), 30.94 GiB below the reviewed 50 GiB floor; APFS
-container free agrees within 8 KiB. No local Time Machine snapshots. Research `work/` is 27,779,080
-KiB; Docker 69,823,064 KiB and Steam 106,697,988 KiB are inventory only; no deletion. `diskutil`
-reports `FreeSpace=0` inconsistently, preserved in receipt but excluded from gating. No successor
-schedule is selected, so no lease runway is claimed. Helius account-status MCP retry returned
-`Transport closed` at 06:51Z; usage/reset/overage remain unknown. No RPC, backfill, lease, or
-LaunchAgent change. Receipt: `docs/evidence/senses-storage-readiness-2026-10-11T065300Z.json`.
-
-07:00Z runtime recheck: `launchctl list` has no matching Senses/Helius labels. `diskutil list` shows
-only the internal APFS data volume and the ChatGPT Installer disk image; no external capture volume.
-`df -Pk work` reports 19,894,824 KiB free. Current repository worktree is clean at `ecb5690`.
-
-Sol approved the offline initial-entry calendar compiler/verifier v1. The inert candidate pins the
-certificate file and canonical predecessor digest separately, all four gaps/open unknown interval,
-caller-supplied future schedule/caps/source hashes, and compiler/verifier/calendar/bridge/child code.
-Independent verification and a synthetic finalized-anchor + 34-request frame handoff passed, along
-with mutation and crash/no-replay cases (36 focused tests). No schedule was selected, owner lease
-initialized, activation, RPC, or provider-body/tail2 access occurred. Local Unified Log may no
-longer preserve durable c4 observation provenance; activation still requires requalification and a
-separate initial-entry preflight branch. Caller clock/source values are pins, not authenticated
-evidence; stateless candidate generation does not ensure global lease-ID uniqueness. Receipt:
-`docs/evidence/senses-initial-entry-calendar-compiler-v1-offline-validation-2026-10-11.json`.
+Keep runtime inactive while account and storage gates are closed. Continue useful offline Senses
+engineering and evidence reconciliation; do not repeat captured provider requests or reopen c4.
+After account-specific billing controls and fresh disk/runway evidence, seek separate Sol review of
+a new forward-only lease before activation. Keep `memory/now.md` short and record detailed evidence
+in the canonical source document/immutable receipts.

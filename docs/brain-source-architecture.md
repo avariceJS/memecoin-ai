@@ -22,6 +22,12 @@ Alchemy Free and PAYG share one provider family. Read-only block verification ca
 endpoint through `MEMECOIN_ALCHEMY_PAYG_HTTP_URL`; the current research `.env.local` has no PAYG
 endpoint, so no paid acquisition is currently configured. Helius remains a separate provider family.
 
+At 2026-10-11 07:27Z, Alchemy's read-only MCP usage summary returned 18,680 compute units and
+$0.01 for month-to-date, last 7 days, and last 30 days, with data through 07:27Z. This is an
+authenticated-team aggregate, not repository/workload attribution, an invoice, or a raw RPC capture;
+the account limit was not returned. Do not infer remaining headroom or research cost from this
+summary. Receipt: [`Alchemy MCP usage summary`](evidence/alchemy-usage-summary-mcp-2026-10-11T0727Z.json).
+
 The user-provided Helius RPC credential is configured in ignored, mode-0600 `.env.local` under
 `MEMECOIN_HELIUS_RPC_URL`; the current Codex and Cursor MCP configs also hold it as private
 mode-0600 configuration. The collector loads its endpoint inside the process, and LaunchAgent
@@ -73,16 +79,41 @@ shell history/startup files, or 874.0 MB of subsequent Unified Log. Alchemy MCP 
 `pong`; no blockchain RPC was made. Remote/provider storage, inaccessible files, backups and Time
 Machine remain outside this inspection. Receipt:
 [`05:26Z broad exposure rescan`](evidence/helius-key-broad-exposure-rescan-2026-10-11T0526Z.json).
-Read-only Helius MCP plan info and current pricing confirm Free at 1M credits/month and 10 standard
-RPC requests/s; standard `getBlock`, `getBlocks`, `getSignaturesForAddress`, and `getTransaction` each cost one
-credit. Account-level usage is not exposed. Standard WSS is available; enhanced
-`transactionSubscribe` and mainnet LaserStream gRPC are not in Free. The old address-signature
-watch stopped after 4,350 reserved/captured requests, with three transport failures and a growing
-backlog; it is preserved as a stopped source run, not resumed as a per-signature completeness path.
-The 20,000/day setting was only that run's bound, not a Brain quota or architecture ceiling. Use
-Helius Free broadly where independent comparisons improve evidence, with per-wave credit, request,
-raw-byte, and recovery accounting. See [Helius plan pricing](https://www.helius.dev/pricing),
-[RPC rates](https://www.helius.dev/solana-rpc-nodes), and [Helius WebSocket capabilities](https://www.helius.dev/blog/laserstream-websockets).
+Helius's public materials checked 2026-10-11 describe Free as 1M credits/month and 10 standard
+RPC requests/s, but these public defaults do not establish the current key's plan or headroom. The
+dedicated [credit table](https://www.helius.dev/docs/billing/credits) lists `getBlock` and
+`getBlocks` at 1 credit each, while the [pricing FAQ](https://www.helius.dev/pricing) says archival
+calls cost 10 credits. Treat this as an unresolved published-source conflict. For offline capacity
+scenarios only, reserve 10 credits per `getBlock`/`getBlocks` and 1 per `getSlot`; a 34-request
+frame (1 `getSlot`, 1 `getBlocks`, 32 `getBlock`) is therefore 322 assumed credits, or 7,728 for
+24 frames. These are planning assumptions, not verified charges, a billing ceiling, or lease
+authorization. Actual key account gate is `unknown_transport_closed`: read-only account-status
+calls at 06:51Z and 07:27Z returned `Transport closed`; plan, usage, reset, prepaid balance,
+overage and autoscaling settings remain unknown. Helius documents that extra-credit autoscaling can
+create charges, with defaults varying by plan ([additional credits](https://www.helius.dev/docs/billing/additional-credits)).
+No provider schedule planning or lease is eligible until an official account-specific usage/settings
+export or written support clarification is available together with fresh disk and full-runway
+evidence. Standard WSS is available; enhanced `transactionSubscribe` and mainnet LaserStream gRPC
+are not in Free. The old address-signature watch stopped after 4,350 reserved/captured requests,
+with three transport failures and a growing backlog; it is preserved as a stopped source run, not
+resumed as a per-signature completeness path. The 20,000/day setting was only that run's bound, not
+a Brain quota or architecture ceiling. See [RPC rates](https://www.helius.dev/solana-rpc-nodes) and
+[Helius WebSocket capabilities](https://www.helius.dev/blog/laserstream-websockets).
+
+At 2026-10-11 07:18Z, the internal APFS capture volume had 40,637,412 KiB free (~38.76 GiB), below
+the reviewed 50 GiB floor; there is no selected successor schedule, so this is not a runway estimate.
+A separate read-only inventory found an external 239.8 GB ExFAT volume with 164.6 GB free. It is not
+eligible under the durable collector contract: the read-only check does not establish enforceable
+0700/0600 ownership, create-only hard-link seals, file/directory `fsync`, `flock`, stable
+device/mount identity, or no-replay recovery after disconnect. macOS can be configured to ignore
+external-volume ownership and present files as owned by the current user, so reported ownership
+alone would not prove access enforcement ([Apple Support](https://support.apple.com/en-il/guide/mac-help/mchlp1204/mac)).
+The volume was not written to or inspected for contents; owner intent for use/retention, encryption,
+throughput, durability and unplug/remount behavior are unknown. Any future qualification needs
+separately authorized disposable writes on this exact mount and complete lease-runway evidence; do
+not relax the current checks. Receipts:
+[`07:18Z host readiness`](evidence/senses-storage-readiness-2026-10-11T071800Z.json) and
+[`external volume candidate`](evidence/senses-external-volume-candidate-2026-10-11T072000Z.json).
 
 A 2026-10-09 bounded PumpSwap program-address request returned zero signatures from Alchemy Free,
 while public RPC returned five finalized references for the same address/limit/commitment shortly
@@ -421,6 +452,17 @@ hashes and event/receipt times, records exact wire bytes and instruction paths, 
 accounts positional. Exact trailing bytes are structural fingerprints only; this is not global
 discovery, an economic classification, or an admission result. Receipt:
 [`PumpSwap structural novelty digest`](evidence/pumpswap-structural-novelty-v1-2026-10-10.json).
+
+The follow-up c4 replay extends that novelty scan across the ten included frames (160 selected full
+blocks), independently reproducing 173,899 transactions and 22,319 PumpSwap instruction references
+from the frozen captures. Per-slot success/failure structural counts and each frame's buyExact
+census reconcile to the frozen metadata/replay receipt; the 23:00Z tail2 remains excluded. The
+replay reports 1,336 wire-family fingerprints and 19,751 exact structural fingerprints across these
+frames. Those are detector keys built from wire arguments, instruction paths, privilege context and
+transaction status, not counts of protocol layouts or new economic processes. Detailed
+capture/block/class bindings are zstd-compressed under ignored `work/` and hash-bound by the compact
+receipt. This adds no economic qualification, exact-zero permission, global discovery, or admission.
+Receipt: [`c4 structural novelty replay`](evidence/pumpswap-c4-structural-novelty-v1-2026-10-11.json).
 
 A separate venue-neutral program-exposure ledger covers all 608 same captured blocks: 512 Pair64
 selected slots and six c3 frames of 16 slots each. It reconciles 741,305 normalized transactions
@@ -1290,10 +1332,10 @@ loaded. The Helius MCP account status check confirmed an API key is configured b
 or credit usage; no account upgrade or paid RPC was made. Receipt:
 [`helius-account-status-mcp-2026-10-10.json`](evidence/helius-account-status-mcp-2026-10-10.json).
 Frame receipt: [`helius-inventory-v2-first-frame-2026-10-09.json`](evidence/helius-inventory-v2-first-frame-2026-10-09.json).
-The current public Helius credit reference lists 1 method credit each for `getSlot`, `getBlocks`,
-and `getBlock`; that yields an estimated 34 credits for a complete frame or 816 for 24 frames if
-those generic rates apply. Keep this separate from RPC request counts and actual account credits,
-which remain unverified. Receipt:
+The historical MCP reference receipt below captured a 1-credit-per-method interpretation and its
+34/816-credit estimates. The current public sources conflict as described above, so retain that
+receipt as historical evidence only; do not use it as an account billing model or activation input.
+Request count, public cost scenario, and actual account credits are distinct quantities. Receipt:
 [`Helius public credit-cost reference`](evidence/helius-public-credit-cost-reference-mcp-2026-10-10.json).
 
 The `20261010T000000Z` scheduler invocation occurred at 00:43Z. Its single captured `getSlot`

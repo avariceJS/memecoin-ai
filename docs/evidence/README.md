@@ -92,10 +92,23 @@ contain large exact payloads, so open only the named artifact needed for a speci
   objects, current process arguments, 65 launchd property lists, 14,449 recently changed files /
   390.8 MB, all 26,650 files / 4.66 GB under `~/.npm`, shell history/startup files, and 874.0 MB of
   subsequent Unified Log; remote/provider storage, inaccessible files and backups remain outside).
+- Helius account-status retry at 06:51Z returned `Transport closed`. Public billing materials checked
+  2026-10-11 conflict on archival `getBlock`/`getBlocks` units; see `docs/brain-source-architecture.md`
+  for official source links, the 10-credit offline scenario, unknown account controls, and conditions
+  for reopening schedule planning. No RPC or lease activation followed.
+- `alchemy-usage-summary-mcp-2026-10-11T0727Z.json`: read-only authenticated-team MCP aggregate
+  reported 18,680 compute units / $0.01 for month-to-date, last 7 days, and last 30 days through
+  07:27Z. It has no repository/app attribution, no returned account limit, and is not an invoice or
+  raw RPC capture; it does not establish available headroom or authorize requests.
 - Frozen c4 selected-block structural replay:
   `pumpswap-c4-captured-class-replay-2026-10-11.json` (independently pinned metadata freeze and
   source-bound offline replay of 10 frames / 160 selected blocks; excludes unopened 23:00 body and
   makes no global completeness, economic exact-zero, training or execution claim).
+- `pumpswap-c4-structural-novelty-v1-2026-10-11.json`: reproducible offline novelty scan of the
+  same ten included c4 frames. Reconciles 173,899 transactions, 22,319 PumpSwap instruction
+  references, per-slot structural outcomes and buyExact census. The 23:00Z tail2 body remains
+  excluded. Exact class/block bindings are zstd-compressed under ignored `work/` and hash-bound by
+  the compact receipt; fingerprints are not protocol-layout counts or economic facts.
 - `pumpswap-buy-exact-v1-c4-pool-v2-development-replay-2026-10-11.json`: source-bound development
   replay of all ten included c4 frames through the existing SDK 2.1.0 structural qualifier and
   pool-v2 diagnostic. It binds all full-block capture hashes and report/epoch receipts, preserves
@@ -165,11 +178,22 @@ contain large exact payloads, so open only the named artifact needed for a speci
   activation is claimed.
 - `senses-storage-readiness-2026-10-11T065300Z.json`: timestamped, hashed read-only `df`, APFS,
   volume identity, work/Docker/Steam allocation and local-snapshot inventory for the intended
-  capture root. Current free space is ~19.06 GiB, 30.94 GiB below the reviewed 50 GiB floor;
+  capture root at 06:58Z. Free space then was ~19.06 GiB, 30.94 GiB below the reviewed 50 GiB floor;
   `diskutil`'s zero `FreeSpace` field is recorded as inconsistent, not used for gating. No lease
   schedule is selected, no Helius headroom is established, and no cleanup or RPC occurred. Raw
   command captures are under the ignored mode-0700 `work/brain-senses-host-readiness-20261011T065300Z/`
   tree, with each artifact mode 0600.
+- `senses-storage-readiness-2026-10-11T071800Z.json`: fresh read-only internal APFS/df/volume,
+  local-snapshot, disk inventory, and launchd snapshot after the c4 novelty replay. Internal free
+  space was 40,637,412 KiB (~38.76 GiB), still below the 50 GiB floor; no cleanup or activation.
+  Hashed raw outputs are under ignored mode-0700 `work/brain-senses-host-readiness-20261011T071800Z/`.
+- `senses-external-volume-candidate-2026-10-11T072000Z.json`: read-only metadata/free-space check of
+  the mounted external Kingston ExFAT volume (239.8 GB total, 164.6 GB free). No contents were
+  enumerated and no writes occurred. Sol ruled it ineligible under the current durable collector
+  contract until separately authorized disposable qualification proves permissions, create-only
+  sealing, fsync, locking, mount identity, and unplug/remount recovery; see the canonical source
+  document and [Apple's external-volume ownership note](https://support.apple.com/en-il/guide/mac-help/mchlp1204/mac).
+  Hashed command captures are under ignored mode-0700 `work/brain-senses-volume-candidate-20261011T072000Z/`.
 - `senses-finite-calendar-v3-offline-validation-2026-10-11.json`: Sol-accepted caller-scheduled
   lifecycle and handoff around the operation envelope; binds gaps, next-start frontier, unknown
   interval lineage, conservative usage and no-replay terminal states. The 82 focused tests use fake
