@@ -54,6 +54,14 @@ accessible files (509,279,953 bytes), current process arguments, or 1,313,273,94
 Unified Log output. The active session transcript still contains that process-list output and
 cannot be erased; remote storage, backups, Time Machine, and inaccessible files were not scanned.
 Receipt: [`stale MCP process stop and rescan`](evidence/helius-stale-latest-process-stop-rescan-2026-10-11T1043Z.json).
+At 11:48Z, two unexpected legacy `helius-mcp@latest` processes were found beside the pinned
+2.2.0 pair and stopped. The follow-up exact-value scan found zero matches in 6,412 local Git
+objects, 2,292 recent accessible files / 533.6 MB, 65 launchd plists, current process arguments,
+or 295.5 MB of Unified Log output. `.env.local` remains mode 0600 and the owner-only wrapper
+continues to pass the key through child environment, not argv. No RPC or collector activation
+occurred. The prior agent transcript remains outside filesystem erasure; remote storage, backups,
+Time Machine, inaccessible files, and other sessions remain outside scan visibility. Receipt:
+[`11:48Z exposure rescan`](evidence/helius-key-post-resume-exposure-scan-2026-10-11T1148Z.json).
 A follow-up scan at 19:04Z found no exact endpoint/path/hostname matches across 2,861 Git blobs, no exact endpoint/path matches in 3,452 recent saved files (2.05 GB), no process-argument matches, and no match in 213.6 MB of the last hour of Unified Log. Two Codex history files had 67 public-hostname-only mentions; no endpoint path or key component was present. The c4 LaunchAgent remained path-only and the scheduled 19:05Z frame was active at the 19:06Z status read. Receipt: [`19:04Z exposure rescan`](evidence/helius-key-followup-exposure-rescan-2026-10-10T1904Z.json).
 At 23:18Z a credential-config enumeration accidentally emitted the current value in one tool result
 in this interactive agent session. The active session transcript cannot be retracted from this
