@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 00:47 UTC. Recheck runtime before any prospective service decision.
+**As of:** 2026-10-11 01:17 UTC. Recheck runtime before any prospective service decision.
 
 **Research checkout:** `/Users/root1/Developer/memecoin-research`
 **Branch:** `research/active`
@@ -16,7 +16,8 @@
   owner-only mode 0600. The existing transport is path-only for LaunchAgents and environment-based
   for the pinned MCP process, with no secret in argv. Receipt:
   `docs/evidence/helius-key-post-resume-exposure-scan-2026-10-11T0047Z.json`. Prior process-list
-  disclosure remains in session history; provider/remote logs and backups are not inspectable.
+  disclosure remains in session history; provider/remote logs and backups are not inspectable. A
+  post-commit exact Git recheck covered 5,913 objects with zero matches.
 - c4 is naturally and immutably stopped at 00:05:00Z with
   `minimum_free_disk_floor_plus_frame_envelope`, after 11/24 successful hourly frames. Keep STOP,
   frames, reservations, journals, and captures unchanged. No c4 LaunchAgent or other Senses
@@ -28,8 +29,9 @@
   Bootstrap-only is 1 request, 43 raw / 56 stored bytes. Campaign all-in is 375 requests,
   769,657,413 raw / 177,576,506 stored bytes. Provider charge units and account headroom remain
   unknown. Receipt: `docs/evidence/helius-inventory-v3-c4-abnormal-stop-accounting-2026-10-11.json`.
-- Latest measured free disk is 49,089,638,400 bytes at 00:43:31Z, below c4's 50 GiB floor;
-  do not initialize prospective acquisition on this storage state. c4 allocated 202,719,232 bytes.
+- Latest measured free disk is 47,631,126,528 bytes at 01:18:04Z, 6,055,964,672 bytes below the
+  50 GiB floor; do not initialize prospective acquisition on this storage state. `work/` occupies
+  about 26 GB; no external data volume is mounted. c4 allocated 202,719,232 bytes.
   The prior 00:08Z sizing snapshot had 614,572,928 bytes over the old floor-plus-frame gate; that is
   not current runway. The user cache is not disposable project storage.
 - Helius MCP tools are listed, but the last read-only `getHeliusPlanInfo` and `getAccountStatus`
@@ -49,32 +51,30 @@
   denominators, frontier 455430160, no open reservations, and an unknown-ended continuation. Focused
   tests: 15 passed; Ruff, format, and `py_compile` passed. Synthetic test receipt SHA-256:
   `d3d8832a0777985e3c6fbf49bade649d9225abc0a21217c72e8693cd19c369bd` in ignored `work/evidence/`.
-- The 00:08:11Z external snapshot still proves its contemporaneous process, LaunchAgent and artifact
-  state. Its saved `log show` query used UTC wall time interpreted as local time and therefore covered
-  the wrong interval; preserve it and never relabel it. Sol approved a later-received corrected
-  historical Unified Log query with explicit Europe/Moscow arguments, bound to that first snapshot.
-- A corrected read-only diagnostic through 00:33Z returned six expected OS records from
-  `UserEventAgent`, `launchd`, and `backgroundtaskmanagementd`; none came from the c4 collector. Two
-  background-task records followed my read-only `launchctl print`. Unknown processes and any c4
-  script remain fail-closed. This diagnostic is not the final log receipt.
-- STOP + 70 minutes is 01:15:00.418Z. Use a 71-minute margin: after 01:16:01Z, create one new
-  metadata-only process/LaunchAgent snapshot, one corrected log receipt, then qualify and verify.
-  No RPC is needed. If either receipt fails, leave c4 terminal and report incomplete.
-- Service v1's normal predecessor gate cannot accept this 11-frame disk STOP. Do not initialize or
-  activate a successor until a fresh Sol review binds the abnormal receipt, current disk runway,
-  account/quota evidence or conservative cap, anchor-only bootstrap and unknown-ended gap. No
-  successor is currently approved.
+- The original 00:08:11Z snapshot remains a process/LaunchAgent/artifact fact only; its wrong-window
+  log portion is excluded. At 01:16Z the metadata-only abnormal terminal receipt completed and
+  replayed successfully. The corrected local log interval is 00:05:00Z–01:16:26Z with nine
+  allowlisted OS events; paired snapshots show no c4 process, Senses writer or loaded Senses label.
+  Canonical receipt:
+  `docs/evidence/helius-inventory-v3-c4-abnormal-terminal-2026-10-11.json`, SHA-256
+  `8b97dd4936ddcd6e8494d35e06cb2a86d01929589e4c4c4c5ff7ba91825cbe65`. This does not qualify
+  response bodies, prove provider-side silence, close the unknown-ended gap or authorize a
+  successor. Provider RPC after STOP remains zero.
+- The frozen c4 buyExact tail2 audit remains incomplete at 1/4; the 23:00Z body stays unopened.
+  Helius account/credit status is still unknown after the prior MCP `Transport closed`; do not
+  retry it without policy. User authorized this key without rotation but did not authorize paid
+  upgrades. Service v1's normal predecessor gate still cannot accept this abnormal 11-frame STOP.
+- Obtain a fresh Sol successor decision with the terminal receipt, current 47.63 GB free disk,
+  unknown provider headroom, anchor-only bootstrap and explicit unknown-ended gap. No Helius
+  successor or WSS session is approved; the 50 GiB floor fails by 5.64 GiB.
 
 ## Next decision horizon
 
-1. After 01:16:01Z, capture and verify the two external operational observations and corrected local
-   log receipt. Keep the wrong-window log portion of the first snapshot explicitly excluded.
-2. If metadata-only terminal proof passes, ask Sol for a fresh, bounded successor-service decision
-   using the exact receipt, current 49.8 GB free disk, unavailable Helius account MCP, and no-provider-
-   backfill constraint. Do not activate while disk/account gates fail.
-3. Then resume engineering Senses gates; do not start Cortex. Pair64 comparison is already audited;
-   buyExact25 development work remains quarantined to its prior evidence and the c4 tail2 sample is
-   closed.
+1. Ask Sol for a fresh bounded successor/horizon decision using the exact abnormal receipt,
+   current disk runway, unavailable account-limit evidence and the no-backfill constraint.
+2. Continue offline Senses engineering in parallel. Pair64 comparison is already audited; keep the
+   c4 tail2 audit closed. Do not start Cortex or activate acquisition until the fresh Sol and
+   resource gates pass.
 
 Canonical technical state: `docs/brain-source-architecture.md`; evidence locator:
 `docs/evidence/README.md`.

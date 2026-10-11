@@ -2004,6 +2004,17 @@ query is captured after a 71-minute safety margin and covers at least the full 7
 it establishes only local retained-log coverage, not provider-side or host-wide network silence. If
 the corrected query or metadata reconciliation fails, terminal proof stays incomplete.
 
+The corrected metadata-only proof completed at 01:16Z on 2026-10-11. Its log receipt covers
+00:05:00Z–01:16:26Z (71 minutes 26 seconds) and records nine allowlisted OS events; the paired
+observations show no c4 process, Senses writer, or loaded Senses LaunchAgent. The immutable
+[`abnormal c4 terminal receipt`](evidence/helius-inventory-v3-c4-abnormal-terminal-2026-10-11.json)
+has SHA-256 `8b97dd4936ddcd6e8494d35e06cb2a86d01929589e4c4c4c5ff7ba91825cbe65` and passed verifier
+replay after publication. It proves local abnormal-stop control, accounting and provenance only.
+It does not qualify c4 response bodies, prove provider-side silence, close the unknown-ended gap,
+or authorize any successor. Free disk after verification was 47,633,055,744 bytes, 6,054,035,456
+bytes below the 50 GiB floor; refresh disk and account evidence and obtain a fresh Sol decision
+before any prospective acquisition.
+
 ## Prospective Pump bonding-curve references (offline gate, 2026-10-10)
 
 Sol selected standard Helius WSS `logsSubscribe` filtered by the single Pump bonding-curve

@@ -72,6 +72,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - `helius-inventory-v3-c4-abnormal-stop-accounting-2026-10-11.json`: separates frame-only, bootstrap-
   only and campaign all-in request/raw/stored byte denominators, bound to the 11 immutable frame
   summaries, bootstrap receipts and c4 STOP.
+- `helius-inventory-v3-c4-abnormal-terminal-2026-10-11.json`: metadata-only c4 terminal proof,
+  verifier-replayed after publication; binds the 11-frame/bootstrap denominators, two process/
+  LaunchAgent snapshots, and corrected 71-minute local Unified Log window. It grants no successor
+  authorization and does not qualify response bodies or provider-side silence.
 - `helius-c4-launchd-quiescence-2026-10-11.json`: records all 15 installed Senses LaunchAgents
   persistently disabled and unloaded, the exact c4 override, a credential-free process-argument
   scan, and contemporaneous free disk below the 50 GiB floor.
