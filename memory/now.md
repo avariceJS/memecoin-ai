@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 06:09 UTC. Research work continues on `research/active` in
+**As of:** 2026-10-11 06:43 UTC. Research work continues on `research/active` in
 `/Users/root1/Developer/memecoin-research`; production `/Users/root1/Desktop/memecoin-ai` is
 untouched. Read this state, then check Git/runtime before acquisition.
 
@@ -73,6 +73,18 @@ continuation end unknown, and treats any successor schedule as an inert proposal
 anchor first. No initialization, activation, RPC, response-body access, or tail2 access occurred.
 Validation: 21 focused tests; independent verifier replay passed. Receipt:
 `docs/evidence/senses-initial-entry-discontinuity-v1-offline-validation-2026-10-11.json`.
+
+2026-10-11 06:43Z: The v2 operation-envelope verifier independently recomputes child-v3 structural
+rows from captures and validates JSON-RPC envelopes, all capture-to-result-journal fields (slot,
+inventory, block metadata, event slot), STOP/summary causal times (including unbundled, unsealed and
+STOP-only prefixes), source/cap bindings, contiguous crash prefixes, and immediately written
+frame/selection artifacts without replay. Bundle charge is explicitly unknown/unverified; no cost
+is inferred. Validation: 84 operation-envelope tests / 110 combined child-v2 tests; Ruff, format,
+compile and diff checks pass. Sol accepted the frozen verifier/source hash and receipt after
+independent hash verification. No RPC or activation. Its source change invalidates
+prior source-bound calendar, initial-entry, activation-preflight and supervisor eligibility
+receipts pending requalification. Parent bundle events prove journal order only; v2 records no
+bundle persistence timestamp.
 
 Sol approved the offline initial-entry calendar compiler/verifier v1. The inert candidate pins the
 certificate file and canonical predecessor digest separately, all four gaps/open unknown interval,

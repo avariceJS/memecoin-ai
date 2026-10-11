@@ -1,0 +1,53 @@
+{
+  "base_commit": "a49297c5500a86b99a0cecfc0a8cbe80094bd543",
+  "created_utc": "2026-10-11T06:43:00Z",
+  "limits": [
+    "does not prove provider truth, inventory completeness, market completeness, or economic zero",
+    "parent bundle event sequence attests local journal order only; no wall-clock bundle persistence time exists in v2",
+    "no live activation, provider adapter, credential path, RPC, c4 response-body/tail2 access, or production changes",
+    "change to this transitive verifier source invalidates prior source-bound calendar, initial-entry, activation-preflight, and supervisor eligibility receipts until requalified"
+  ],
+  "receipt_id": "senses-operation-envelope-v2-child-v3-independent-qualification-2026-10-11",
+  "schema_version": 1,
+  "scope": "offline synthetic fake-client verifier qualification only; no RPC, live activation, c4 body/tail2 access, credential access, production mutation, scheduler, or runtime change",
+  "source_sha256": {
+    "docs/brain-source-architecture.md": "b45e24a123ab8af4427f3c03c540c090316a16193c2dc089bb3df3b1071900dd",
+    "docs/evidence/README.md": "1dcb1f29b91def3728bc4891e8c4939aab0bb0387b1c6193d2cf6f302d8bac3d",
+    "tests/brain/test_senses_operation_bundle_v2.py": "9a89e8984fa7a73a0874758764108e9269a49d579991436159b95a495cb84d79",
+    "tools/brain_senses_block_epoch_v3.py": "977aaeca55532031b24d84f1ebf86c0a3ab0143567a7567e2960ce2a2773cc8b",
+    "tools/brain_senses_block_provider_pilot.py": "c2a56de9e0f3ef740967345908dca2a120022e11434ce9ec4ca8251e095ebe3f",
+    "tools/brain_senses_operation_bundle_v2.py": "faf0d02ff2bd97e435a9a007b92c25c079670e9dff40b142e3fae033ecadf097",
+    "tools/brain_senses_operation_bundle_verifier_v2.py": "1293ea8010066928e32833057868fe050f346ae40c4b05b6dae7bd3671e109b5"
+  },
+  "validation": {
+    "command": "PYTHONPATH=. .venv/bin/pytest -q tests/brain/test_senses_operation_bundle_v2.py tests/test_brain_senses_block_epoch_v2.py",
+    "coverage_facts": [
+      "recomputed 16 full-block and 16 signatures-only payload structures for a synthetic frame",
+      "checked block identity, ordered signatures, transaction/instruction resolution, Pump-program reference counts, structural check rows, per-slot outcomes, and frame status",
+      "rejected rebound semantic payload, ordered-signature, invalid program index, and forged summary mutations",
+      "bound child plan to parent bucket, frame width/selection and byte/disk caps, and optional parent source pins",
+      "bound child STOP and summary hash/status/reason/time/extra fields and verified capture availability before child STOP and parent seal",
+      "verified parent event sequence bundle-before-seal; parent v2 has no bundle-persistence wall-clock timestamp",
+      "checked started no-replay prefixes, selection recomputation, request/result/capture/receipt records, source alias, orphan artifacts, and crash after capture fsync",
+      "tested parent cap/source/timestamp changes, STOP hash/status/time mutations, response corruption and orphan capture rejection",
+      "independently validated captured JSON-RPC success envelopes and rejected malformed anchor, inventory, full-block, signatures-only, and success-mislabeled response_error payloads after rebinding",
+      "bound started-prefix anchor slot_value to captured JSON-RPC result and required result files to be a contiguous prefix with at most one unresolved final request",
+      "recomputed frame and full selection-plan artifacts as soon as durably present, including schema, epoch, branch-specific fields, inclusion probability, sparse selected populations, empty frames, and oversized frames",
+      "accepted STOP-only child crash prefixes only as incomplete unknown/no-replay evidence and checked parent STOP ordering for children with or without bundle and parent seal",
+      "recomputed writer result status and capture-to-result-journal fields for sealed and partial prefixes, including event_slot, anchor slot, inventory fields, and block metadata/signatures",
+      "preserved provider_null, result_shape_unknown, response_error and sparse/malformed inventory as no-replay prefixes; only usable parsed results derive later operations",
+      "required bundle-level provider_charge_units=null and provider_charge_status=unknown_unverified; no provider charge/cost inferred"
+    ],
+    "diff_check": "passed",
+    "focused_operation_envelope_cases": 84,
+    "py_compile": "passed for verifier and focused test module",
+    "result": "110 passed in 6.05s (independent rerun)",
+    "ruff": "passed",
+    "ruff_format_check": "passed"
+  },
+  "sol_review": {
+    "decision": "accepted",
+    "verifier_sha256": "1293ea8010066928e32833057868fe050f346ae40c4b05b6dae7bd3671e109b5",
+    "scope": "local structural consistency and no-replay recovery only; no provider truth, economic claim, bundle persistence-time attestation, RPC, or activation"
+  }
+}

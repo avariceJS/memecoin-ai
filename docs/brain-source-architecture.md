@@ -2426,20 +2426,45 @@ recomputed totals. A configured zstd executable is pinned by resolved path, vers
 Receipt time is taken from the response capture; availability is sampled only after response,
 receipt and containing directories have been fsynced. Request, persistence and clock failures retain
 unknown/null payload availability rather than inventing a time. A started ambiguous child is never
-replayed. Terminal STOP takes precedence over any incomplete recovery suggestion. The independent
-parent claim is deliberately limited to a captured request/response bundle: the bridge does not
-independently qualify the child's structural checks or prove provider inventory truth, market
+replayed. The independent v2 verifier recomputes selected-slot block identity and ordered signatures,
+compiled transaction/instruction structure and Pump-program reference counts from captured response
+bytes; it compares every structural-check and per-slot outcome row and frame status, then binds child
+STOP, summary and byte totals. Partial recovery validates exact request/result/capture prefixes,
+selection derivation, source alias, receipt/availability ordering and orphan artifacts before
+returning no-replay status. Capture availability must precede child STOP/summary sealing and parent
+seal. A later parent STOP must follow every verified completed child STOP and latest capture
+availability, including an unsealed bundle or a completed child without a parent bundle; when a
+parent seal exists, STOP must also follow its time. A durable child STOP without its summary is
+accepted only as incomplete no-replay evidence; summary-only is invalid. Parent event sequence proves
+bundle-before-seal journal order, but v2 has no wall-clock bundle persistence timestamp, so no
+bundle-time attestation is claimed. These are observed clock coordinates and local journal order,
+not attested time or measured bundle durability. A future decision-time proof needs a separate
+post-fsync availability contract. Every captured response marked parsed is independently checked
+for JSON-RPC 2.0, exact integer ID 1, a present result and no error member, including started-prefix
+recovery. Captured anchor/inventory values are rebound to their payloads. Prefix result files must
+be contiguous, and written frame/selection artifacts are recomputed immediately, including sparse
+inventory selections and empty/oversized frames.
+
+This verifier qualifies local structure only. It does not prove provider inventory truth, market
 completeness, or economic zero. Local hashes and host timestamps do not attest provider, account,
-reviewer, or historical disk truth.
+reviewer, or historical disk truth. Updating this transitive source invalidates prior source-bound
+calendar, initial-entry, activation-preflight and supervisor eligibility receipts until requalified.
 
 This is an offline fixture gate. The child requires an explicitly supplied client and no longer
 constructs a provider RPC client or loads credentials. Code that explicitly supplies a real client
 could still invoke the injected interface; no such adapter, scheduler, service or authorization is
 included. Any live adapter and RPC requires a separate Sol activation review plus fresh account,
-charge, disk, predecessor and schedule evidence. The focused offline suite passes 64 cases,
-including a zstd-compressed 34-attempt frame, provider/source mismatches, crash/recovery and failed
-timestamp persistence. Sol accepted this bounded offline gate. Receipt:
-[`offline operation-envelope/child-v3 validation`](evidence/senses-operation-envelope-v2-child-v3-offline-validation-2026-10-11.json).
+charge, disk, predecessor and schedule evidence. The focused offline suite passes 84
+operation-envelope cases (110 combined with child-v2 compatibility tests), including independent
+structural recomputation over a 34-attempt fake frame, rebound JSON-RPC envelope and semantic
+mutations, capture-to-result-journal bindings for slot/inventory/block metadata and event slots,
+STOP/summary and parent/child time checks, unbundled/unsealed/STOP-only crash prefixes, immediate
+frame/selection verification, sparse selections, orphan/corrupt artifacts, zstd capture, and
+provider/source mismatches. The bundle must retain `provider_charge_units=null` and
+`provider_charge_status=unknown_unverified`; no cost is inferred. Sol accepted this bounded offline
+qualification at the verifier source hash recorded in the independent receipt. Receipts:
+[`offline operation-envelope/child-v3 validation`](evidence/senses-operation-envelope-v2-child-v3-offline-validation-2026-10-11.json)
+and [`independent child-v3 verifier qualification`](evidence/senses-operation-envelope-v2-child-v3-independent-qualification-2026-10-11.json).
 
 ## Finite-calendar prospective envelope v3 (2026-10-11)
 

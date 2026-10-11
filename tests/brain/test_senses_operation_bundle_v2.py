@@ -35,7 +35,7 @@ class FakeRPC:
     def __init__(
         self,
         *,
-        anchor: int,
+        anchor: int | None,
         start: int | None = None,
         end: int | None = None,
         fail_method: str | None = None,
@@ -131,6 +131,201 @@ def _rebind_bundle_parent(root: Path, bundle_path: Path) -> None:
         previous = row["event_sha256"]
         output.append(bundle_v2._canonical(row).decode())
     path.write_text("\n".join(output) + "\n")
+
+
+def _rebind_specific_bundle_parent(root: Path, bundle_path: Path, operation_id: str) -> None:
+    bundle_sha = hashlib.sha256(bundle_path.read_bytes()).hexdigest()
+    path = root / "events-v2.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    previous = bundle_v2.ZERO
+    output = []
+    for row in rows:
+        row.pop("event_sha256", None)
+        row["previous_sha256"] = previous
+        if row.get("operation_id") == operation_id and row.get("kind") in {"bundle", "seal"}:
+            row["bundle_sha256"] = bundle_sha
+        row["event_sha256"] = hashlib.sha256(bundle_v2._canonical(row)).hexdigest()
+        previous = row["event_sha256"]
+        output.append(bundle_v2._canonical(row).decode())
+    path.write_text("\n".join(output) + "\n")
+
+
+def _rewrite_frame_capture(
+    root: Path,
+    bundle_path: Path,
+    operation_id: str,
+    item: dict[str, Any],
+    mutate: Any,
+) -> None:
+    bundle = json.loads(bundle_path.read_text())
+    item = next(row for row in bundle["children"] if row["sequence"] == item["sequence"])
+    child = root.joinpath(*Path(item["response_path"]).parts[:2])
+    response_path, receipt_path, result_path = (
+        root / item[key] for key in ("response_path", "receipt_path", "result_path")
+    )
+    response = json.loads(response_path.read_text())
+    mutate(response)
+    raw = canonical(response).encode()
+    old_raw_size, old_stored_size = item["raw_bytes"], item["stored_bytes"]
+    response_path.write_bytes(raw)
+    digest = hashlib.sha256(raw).hexdigest()
+    receipt = json.loads(receipt_path.read_text())
+    receipt.update(response_sha256=digest, response_bytes=len(raw))
+    receipt_path.write_text(canonical(receipt) + "\n")
+    result = json.loads(result_path.read_text())
+    result.update(response_sha256=digest, response_bytes=len(raw), stored_response_bytes=len(raw))
+    result_path.write_text(canonical(result) + "\n")
+    item.update(
+        response_raw_sha256=digest,
+        response_stored_sha256=digest,
+        receipt_sha256=hashlib.sha256(receipt_path.read_bytes()).hexdigest(),
+        result_file_sha256=hashlib.sha256(result_path.read_bytes()).hexdigest(),
+        raw_bytes=len(raw),
+        stored_bytes=len(raw),
+    )
+    delta_raw, delta_stored = len(raw) - old_raw_size, len(raw) - old_stored_size
+    summary_path = child / "epoch-summary.json"
+    summary = json.loads(summary_path.read_text())
+    summary["captured_response_bytes"] += delta_raw
+    summary["stored_response_bytes"] += delta_stored
+    summary_path.write_text(canonical(summary) + "\n")
+    bundle["summary"] = summary
+    bundle["summary_sha256"] = hashlib.sha256(summary_path.read_bytes()).hexdigest()
+    bundle["actual_raw_bytes"] += delta_raw
+    bundle["actual_stored_bytes"] += delta_stored
+    bundle_path.write_text(canonical(bundle) + "\n")
+    events_path = root / "events-v2.jsonl"
+    rows = [json.loads(line) for line in events_path.read_text().splitlines()]
+    previous = bundle_v2.ZERO
+    output = []
+    bundle_sha = hashlib.sha256(bundle_path.read_bytes()).hexdigest()
+    for row in rows:
+        row.pop("event_sha256", None)
+        row["previous_sha256"] = previous
+        if row.get("operation_id") == operation_id and row.get("kind") in {"bundle", "seal"}:
+            row["bundle_sha256"] = bundle_sha
+            row["actual_raw_bytes"] += delta_raw
+            row["actual_stored_bytes"] += delta_stored
+        row["event_sha256"] = hashlib.sha256(bundle_v2._canonical(row)).hexdigest()
+        previous = row["event_sha256"]
+        output.append(bundle_v2._canonical(row).decode())
+    events_path.write_text("\n".join(output) + "\n")
+
+
+def _trim_child_to_request_prefix(child: Path, count: int) -> None:
+    for directory_name in ("requests", "request-results"):
+        for path in (child / directory_name).glob("*.json"):
+            if int(path.stem) > count:
+                path.unlink()
+    captures = child / "captures"
+    for path in captures.iterdir():
+        if int(path.name) > count:
+            shutil.rmtree(path)
+    for name in ("STOP", "epoch-summary.json"):
+        (child / name).unlink(missing_ok=True)
+
+
+def _rewrite_unbundled_capture(
+    child: Path, sequence: int, mutate_body: Any, mutate_result: Any | None = None
+) -> None:
+    stem = f"{sequence:012d}"
+    capture = child / f"captures/{stem}"
+    response_path = capture / "response.json"
+    body = json.loads(response_path.read_text())
+    mutate_body(body)
+    encoded = canonical(body).encode()
+    response_path.write_bytes(encoded)
+    digest = hashlib.sha256(encoded).hexdigest()
+    receipt_path = capture / "receipt.json"
+    receipt = json.loads(receipt_path.read_text())
+    receipt.update(response_sha256=digest, response_bytes=len(encoded))
+    receipt_path.write_text(canonical(receipt) + "\n")
+    result_path = child / f"request-results/{stem}.json"
+    result = json.loads(result_path.read_text())
+    result.update(
+        response_sha256=digest,
+        response_bytes=len(encoded),
+        stored_response_bytes=len(encoded),
+    )
+    if mutate_result is not None:
+        mutate_result(result)
+    result_path.write_text(canonical(result) + "\n")
+
+
+def _rewrite_frame_summary(root: Path, bundle_path: Path, operation_id: str, mutate: Any) -> None:
+    child = root / "children/frame"
+    summary_path = child / "epoch-summary.json"
+    summary = json.loads(summary_path.read_text())
+    mutate(summary)
+    summary_path.write_text(canonical(summary) + "\n")
+    bundle = json.loads(bundle_path.read_text())
+    bundle["summary"] = summary
+    bundle["summary_sha256"] = hashlib.sha256(summary_path.read_bytes()).hexdigest()
+    bundle_path.write_text(canonical(bundle) + "\n")
+    _rebind_specific_bundle_parent(root, bundle_path, operation_id)
+
+
+def _rebind_parent_plan(root: Path, mutate: Any) -> None:
+    plan_path = root / "plan-v2.json"
+    plan = json.loads(plan_path.read_text())
+    mutate(plan)
+    plan_path.write_text(canonical(plan) + "\n")
+    rows = [json.loads(line) for line in (root / "events-v2.jsonl").read_text().splitlines()]
+    previous = bundle_v2.ZERO
+    output = []
+    for row in rows:
+        row.pop("event_sha256", None)
+        row["previous_sha256"] = previous
+        if row.get("kind") == "initialized":
+            row["plan_sha256"] = hashlib.sha256(plan_path.read_bytes()).hexdigest()
+        row["event_sha256"] = hashlib.sha256(bundle_v2._canonical(row)).hexdigest()
+        previous = row["event_sha256"]
+        output.append(bundle_v2._canonical(row).decode())
+    (root / "events-v2.jsonl").write_text("\n".join(output) + "\n")
+
+
+def _rewrite_parent_events(root: Path, mutate: Any) -> None:
+    path = root / "events-v2.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    previous = bundle_v2.ZERO
+    output = []
+    for row in rows:
+        row.pop("event_sha256", None)
+        row["previous_sha256"] = previous
+        mutate(row)
+        row["event_sha256"] = hashlib.sha256(bundle_v2._canonical(row)).hexdigest()
+        previous = row["event_sha256"]
+        output.append(bundle_v2._canonical(row).decode())
+    path.write_text("\n".join(output) + "\n")
+
+
+def _rebind_child_plan(root: Path, operation_id: str, mutate: Any) -> None:
+    child_plan_path = root / "children/anchor/epoch-plan.json"
+    child_plan = json.loads(child_plan_path.read_text())
+    mutate(child_plan)
+    child_plan_path.write_text(canonical(child_plan) + "\n")
+    plan_hash = hashlib.sha256(child_plan_path.read_bytes()).hexdigest()
+    bundle_path = root / f"bundles/{operation_id}.json"
+    bundle = json.loads(bundle_path.read_text())
+    bundle["child_plan_sha256"] = plan_hash
+    bundle_path.write_text(canonical(bundle) + "\n")
+    bundle_sha = hashlib.sha256(bundle_path.read_bytes()).hexdigest()
+    events_path = root / "events-v2.jsonl"
+    rows = [json.loads(line) for line in events_path.read_text().splitlines()]
+    previous = bundle_v2.ZERO
+    output = []
+    for row in rows:
+        row.pop("event_sha256", None)
+        row["previous_sha256"] = previous
+        if row.get("operation_id") == operation_id:
+            if row.get("kind") in {"reservation", "started", "bundle"}:
+                row["child_plan_sha256"] = plan_hash
+            if row.get("kind") in {"bundle", "seal"}:
+                row["bundle_sha256"] = bundle_sha
+        row["event_sha256"] = hashlib.sha256(bundle_v2._canonical(row)).hexdigest()
+        previous = row["event_sha256"]
+        output.append(bundle_v2._canonical(row).decode())
+    events_path.write_text("\n".join(output) + "\n")
 
 
 def _parent_plan(now: int) -> dict[str, Any]:
@@ -235,6 +430,1014 @@ def test_anchor_and_full_34_child_frame_reconcile_independently(
         row = json.loads(result_path.read_bytes())
         assert row["request_started_ns"] <= row["receipt_ns"] <= row["availability_ns"]
     assert verifier_v2.verify(root)["usage"]["requests"] == 35
+
+
+def test_independent_verifier_recomputes_frame_payload_structure_after_rebound_hashes(
+    tmp_path: Path, controlled_host: list[int]
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    controlled_host[0] = now + 60_000_000_001
+    result = bundle_v2.reserve_and_run(
+        root,
+        bucket_id="frame",
+        operation_id="op-frame",
+        child_root=root / "children/frame",
+        child_plan=_child_plan(root / "children/frame", bootstrap=False, next_start=85),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=102, start=85, end=103)},
+    )
+    assert verifier_v2.verify(root)["recovery"] == "sealed"
+    bundle_path = Path(result["bundle"])
+    bundle = json.loads(bundle_path.read_text())
+    item = next(
+        row
+        for row in bundle["children"]
+        if row["method"] == "getBlock"
+        and json.loads((root / row["request_path"]).read_text())["params"][1]["transactionDetails"]
+        == "full"
+    )
+    response_path = root / item["response_path"]
+    receipt_path = root / item["receipt_path"]
+    result_path = root / item["result_path"]
+    response = json.loads(response_path.read_text())
+    old_hash = response["result"]["blockhash"]
+    response["result"]["blockhash"] = "evil-" + old_hash[-2:]
+    response_bytes = canonical(response).encode()
+    assert len(response_bytes) == response_path.stat().st_size
+    response_path.write_bytes(response_bytes)
+    response_hash = hashlib.sha256(response_bytes).hexdigest()
+    receipt = json.loads(receipt_path.read_text())
+    receipt["response_sha256"] = response_hash
+    receipt["response_bytes"] = len(response_bytes)
+    receipt_path.write_text(canonical(receipt) + "\n")
+    child_result = json.loads(result_path.read_text())
+    child_result["response_sha256"] = response_hash
+    child_result["response_bytes"] = len(response_bytes)
+    result_path.write_text(canonical(child_result) + "\n")
+    item["response_raw_sha256"] = response_hash
+    item["response_stored_sha256"] = response_hash
+    item["receipt_sha256"] = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+    item["result_file_sha256"] = hashlib.sha256(result_path.read_bytes()).hexdigest()
+    bundle_path.write_text(canonical(bundle) + "\n")
+    _rebind_specific_bundle_parent(root, bundle_path, "op-frame")
+    with pytest.raises(verifier_v2.VerificationError, match="child_result_payload_field_mismatch"):
+        verifier_v2.verify(root)
+
+
+@pytest.mark.parametrize(
+    "mutation", ["ordered_signatures", "invalid_program_index", "forged_structural_summary"]
+)
+def test_frame_structural_verifier_rejects_rebound_semantic_mutations(
+    tmp_path: Path, controlled_host: list[int], mutation: str
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    controlled_host[0] = now + 60_000_000_001
+    result = bundle_v2.reserve_and_run(
+        root,
+        bucket_id="frame",
+        operation_id="op-frame",
+        child_root=root / "children/frame",
+        child_plan=_child_plan(root / "children/frame", bootstrap=False, next_start=85),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=102, start=85, end=103)},
+    )
+    bundle_path = Path(result["bundle"])
+    bundle = json.loads(bundle_path.read_text())
+    full_item = next(
+        row
+        for row in bundle["children"]
+        if row["method"] == "getBlock"
+        and json.loads((root / row["request_path"]).read_text())["params"][1]["transactionDetails"]
+        == "full"
+    )
+    if mutation == "ordered_signatures":
+        full_request = json.loads((root / full_item["request_path"]).read_text())
+        slot = full_request["params"][0]
+        sig_item = next(
+            row
+            for row in bundle["children"]
+            if row["method"] == "getBlock"
+            and json.loads((root / row["request_path"]).read_text())["params"][0] == slot
+            and json.loads((root / row["request_path"]).read_text())["params"][1][
+                "transactionDetails"
+            ]
+            == "signatures"
+        )
+        _rewrite_frame_capture(
+            root,
+            bundle_path,
+            "op-frame",
+            sig_item,
+            lambda body: body["result"].update(signatures=["bad-signature"]),
+        )
+    elif mutation == "invalid_program_index":
+
+        def invalid_program(body: dict[str, Any]) -> None:
+            body["result"]["transactions"][0]["transaction"]["message"]["instructions"] = [
+                {"programIdIndex": 9, "accounts": [], "data": "1"}
+            ]
+
+        _rewrite_frame_capture(root, bundle_path, "op-frame", full_item, invalid_program)
+    else:
+        _rewrite_frame_summary(
+            root,
+            bundle_path,
+            "op-frame",
+            lambda summary: summary["structural_checks"][0]["structural_references"].update(
+                structural_reference_count=7
+            ),
+        )
+    with pytest.raises(verifier_v2.VerificationError):
+        verifier_v2.verify(root)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["anchor_id", "inventory_version", "full_error_with_result", "signature_missing_result"],
+)
+def test_captured_jsonrpc_envelope_is_independently_recomputed(
+    tmp_path: Path, controlled_host: list[int], mutation: str
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    anchor = bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    if mutation == "anchor_id":
+        bundle_path = Path(anchor["bundle"])
+        bundle = json.loads(bundle_path.read_text())
+        item = bundle["children"][0]
+
+        def mutate(body: dict[str, Any]) -> None:
+            body.update(id=True)
+
+        operation_id = "op-anchor"
+    else:
+        controlled_host[0] = now + 60_000_000_001
+        frame = bundle_v2.reserve_and_run(
+            root,
+            bucket_id="frame",
+            operation_id="op-frame",
+            child_root=root / "children/frame",
+            child_plan=_child_plan(root / "children/frame", bootstrap=False, next_start=85),
+            runner=epoch_v3.run_epoch,
+            clients={"helius-free": FakeRPC(anchor=102, start=85, end=103)},
+        )
+        bundle_path = Path(frame["bundle"])
+        bundle = json.loads(bundle_path.read_text())
+        if mutation == "inventory_version":
+            item = next(
+                row
+                for row in bundle["children"]
+                if json.loads((root / row["request_path"]).read_text())["phase"] == "inventory"
+            )
+
+            def mutate(body: dict[str, Any]) -> None:
+                body.update(jsonrpc="1.0")
+
+        else:
+            phase = "full_block" if mutation == "full_error_with_result" else "signature_check"
+            item = next(
+                row
+                for row in bundle["children"]
+                if json.loads((root / row["request_path"]).read_text())["phase"] == phase
+            )
+            if mutation == "full_error_with_result":
+
+                def mutate(body: dict[str, Any]) -> None:
+                    body.update(error={"code": -1, "message": "fixture"})
+
+            else:
+
+                def mutate(body: dict[str, Any]) -> None:
+                    body.pop("result")
+
+        operation_id = "op-frame"
+    _rewrite_frame_capture(root, bundle_path, operation_id, item, mutate)
+    with pytest.raises(verifier_v2.VerificationError, match="child_result_status_payload_mismatch"):
+        verifier_v2.verify(root)
+
+
+def test_started_prefix_jsonrpc_error_with_result_is_rejected_after_rebinding(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+        crash_at="after_capture_fsync",
+    )
+    child = root / "children/anchor"
+    response_path = child / "captures/000000000001/response.json"
+    body = json.loads(response_path.read_text())
+    body.pop("error", None)
+    encoded = canonical(body).encode()
+    response_path.write_bytes(encoded)
+    digest = hashlib.sha256(encoded).hexdigest()
+    receipt_path = child / "captures/000000000001/receipt.json"
+    receipt = json.loads(receipt_path.read_text())
+    receipt.update(response_sha256=digest, response_bytes=len(encoded))
+    receipt_path.write_text(canonical(receipt) + "\n")
+    result_path = child / "request-results/000000000001.json"
+    result = json.loads(result_path.read_text())
+    result.update(
+        response_sha256=digest,
+        response_bytes=len(encoded),
+        stored_response_bytes=len(encoded),
+        result_status="response_error",
+    )
+    result_path.write_text(canonical(result) + "\n")
+    with pytest.raises(verifier_v2.VerificationError, match="child_result_status_payload_mismatch"):
+        verifier_v2.verify(root)
+
+
+def test_started_prefix_anchor_slot_value_must_match_captured_result(tmp_path: Path) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+        crash_at="after_capture_fsync",
+    )
+    child = root / "children/anchor"
+    result_path = child / "request-results/000000000001.json"
+    result = json.loads(result_path.read_text())
+    result["slot_value"] = 999
+    result_path.write_text(canonical(result) + "\n")
+    stop_path = child / "STOP"
+    stop = json.loads(stop_path.read_text())
+    stop["bootstrap_slot"] = 999
+    stop_path.write_text(canonical(stop) + "\n")
+    summary_path = child / "epoch-summary.json"
+    summary = json.loads(summary_path.read_text())
+    summary["bootstrap_slot"] = 999
+    summary["stop_sha256"] = hashlib.sha256(stop_path.read_bytes()).hexdigest()
+    summary_path.write_text(canonical(summary) + "\n")
+    with pytest.raises(
+        verifier_v2.VerificationError, match="child_prefix_anchor_result_binding_invalid"
+    ):
+        verifier_v2.verify(root)
+
+
+def test_started_prefix_result_records_must_form_contiguous_request_prefix(
+    tmp_path: Path, controlled_host: list[int]
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    controlled_host[0] = now + 60_000_000_001
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="frame",
+        operation_id="op-frame",
+        child_root=root / "children/frame",
+        child_plan=_child_plan(root / "children/frame", bootstrap=False, next_start=85),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=102, start=85, end=103)},
+        crash_at="after_capture_fsync",
+    )
+    (root / "children/frame/request-results/000000000002.json").unlink()
+    with pytest.raises(verifier_v2.VerificationError, match="child_result_prefix_not_contiguous"):
+        verifier_v2.verify(root)
+
+
+@pytest.mark.parametrize(
+    "artifact,keep_requests,error_code",
+    [
+        ("frame", 1, "child_prefix_frame_binding_invalid"),
+        ("selection", 2, "child_prefix_selection_recomputation_mismatch"),
+    ],
+)
+def test_started_prefix_verifies_frame_and_selection_as_soon_as_written(
+    tmp_path: Path,
+    controlled_host: list[int],
+    artifact: str,
+    keep_requests: int,
+    error_code: str,
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    controlled_host[0] = now + 60_000_000_001
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="frame",
+        operation_id="op-frame",
+        child_root=root / "children/frame",
+        child_plan=_child_plan(root / "children/frame", bootstrap=False, next_start=85),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=102, start=85, end=103)},
+        crash_at="after_capture_fsync",
+    )
+    child = root / "children/frame"
+    _trim_child_to_request_prefix(child, keep_requests)
+    if artifact == "frame":
+        (child / "selection-plan.json").unlink(missing_ok=True)
+        path = child / "frame.json"
+        value = json.loads(path.read_text())
+        value["claim"] = "forged"
+    else:
+        path = child / "selection-plan.json"
+        value = json.loads(path.read_text())
+        value["inclusion_probability"] = "1/1"
+    path.write_text(canonical(value) + "\n")
+    with pytest.raises(verifier_v2.VerificationError, match=error_code):
+        verifier_v2.verify(root)
+
+
+@pytest.mark.parametrize(
+    "boundary,expected_status", [("empty", "empty_frame"), ("oversized", "oversized_frame")]
+)
+def test_unbundled_terminal_frame_artifacts_match_child_v3_contract(
+    tmp_path: Path, controlled_host: list[int], boundary: str, expected_status: str
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    anchor = 84 if boundary == "empty" else 200
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    controlled_host[0] = now + 60_000_000_001
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="frame",
+        operation_id="op-frame",
+        child_root=root / "children/frame",
+        child_plan=_child_plan(root / "children/frame", bootstrap=False, next_start=85),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=anchor, start=85, end=103)},
+        crash_at="after_capture_fsync",
+    )
+    frame = json.loads((root / "children/frame/frame.json").read_text())
+    assert frame["status"] == expected_status
+    assert verifier_v2.verify(root)["recovery"] == "stop_unknown_started_operation_no_replay"
+
+
+def test_unbundled_sparse_inventory_prefix_recomputes_short_selection(
+    tmp_path: Path, controlled_host: list[int]
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    controlled_host[0] = now + 60_000_000_001
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="frame",
+        operation_id="op-frame",
+        child_root=root / "children/frame",
+        child_plan=_child_plan(root / "children/frame", bootstrap=False, next_start=85),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=86, start=85, end=87)},
+        crash_at="after_capture_fsync",
+    )
+    assert verifier_v2.verify(root)["recovery"] == "stop_unknown_started_operation_no_replay"
+    selection = json.loads((root / "children/frame/selection-plan.json").read_text())
+    assert selection["selection_count"] == 2
+    assert len(selection["selected_slots"]) == 2
+
+
+def test_child_stop_only_prefix_is_incomplete_no_replay_state(tmp_path: Path) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+        crash_at="after_capture_fsync",
+    )
+    (root / "children/anchor/epoch-summary.json").unlink()
+    result = verifier_v2.verify(root)
+    assert result["valid"] is True
+    assert result["recovery"] == "stop_unknown_started_operation_no_replay"
+
+
+def test_started_anchor_provider_null_is_verified_as_unknown_no_replay(tmp_path: Path) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=None)},
+        crash_at="after_capture_fsync",
+    )
+    result = json.loads((root / "children/anchor/request-results/000000000001.json").read_text())
+    assert result["result_status"] == "provider_null"
+    assert result["slot_value"] is None
+    assert verifier_v2.verify(root)["recovery"] == "stop_unknown_started_operation_no_replay"
+
+
+def test_started_prefix_result_event_slot_matches_request_slot(tmp_path: Path) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+        crash_at="after_capture_fsync",
+    )
+    result_path = root / "children/anchor/request-results/000000000001.json"
+    result = json.loads(result_path.read_text())
+    result["event_slot"] = 84
+    result_path.write_text(canonical(result) + "\n")
+    with pytest.raises(verifier_v2.VerificationError, match="child_result_event_slot_mismatch"):
+        verifier_v2.verify(root)
+
+
+def test_started_getblock_result_shape_unknown_is_verified_no_replay(
+    tmp_path: Path, controlled_host: list[int]
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    controlled_host[0] = now + 60_000_000_001
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="frame",
+        operation_id="op-frame",
+        child_root=root / "children/frame",
+        child_plan=_child_plan(root / "children/frame", bootstrap=False, next_start=85),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=102, start=85, end=103)},
+        crash_at="after_capture_fsync",
+    )
+    child = root / "children/frame"
+    _trim_child_to_request_prefix(child, 3)
+
+    def wrong_shape(body: dict[str, Any]) -> None:
+        body["result"] = "not-a-block-object"
+
+    def rebind_result(result: dict[str, Any]) -> None:
+        result["result_status"] = "result_shape_unknown"
+        for key in ("blockhash", "parent_slot", "block_time_seconds", "transaction_count"):
+            result.pop(key, None)
+
+    _rewrite_unbundled_capture(child, 3, wrong_shape, rebind_result)
+    assert verifier_v2.verify(root)["recovery"] == "stop_unknown_started_operation_no_replay"
+
+
+def test_inventory_result_journal_is_bound_before_selection_artifact(
+    tmp_path: Path, controlled_host: list[int]
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    controlled_host[0] = now + 60_000_000_001
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="frame",
+        operation_id="op-frame",
+        child_root=root / "children/frame",
+        child_plan=_child_plan(root / "children/frame", bootstrap=False, next_start=85),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=102, start=85, end=103)},
+        crash_at="after_capture_fsync",
+    )
+    child = root / "children/frame"
+    _trim_child_to_request_prefix(child, 2)
+    (child / "selection-plan.json").unlink()
+    result_path = child / "request-results/000000000002.json"
+    result = json.loads(result_path.read_text())
+    result.update(inventory_slots=[999], inventory_count=1)
+    result_path.write_text(canonical(result) + "\n")
+    with pytest.raises(verifier_v2.VerificationError, match="child_result_payload_field_mismatch"):
+        verifier_v2.verify(root)
+
+
+def test_malformed_inventory_without_selection_is_preserved_as_unknown_prefix(
+    tmp_path: Path, controlled_host: list[int]
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    controlled_host[0] = now + 60_000_000_001
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="frame",
+        operation_id="op-frame",
+        child_root=root / "children/frame",
+        child_plan=_child_plan(root / "children/frame", bootstrap=False, next_start=85),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=102, start=85, end=103)},
+        crash_at="after_capture_fsync",
+    )
+    child = root / "children/frame"
+    _trim_child_to_request_prefix(child, 2)
+    (child / "selection-plan.json").unlink()
+
+    def malformed_inventory(body: dict[str, Any]) -> None:
+        body["result"] = [999]
+
+    def rebind_inventory(result: dict[str, Any]) -> None:
+        result.update(inventory_slots=[999], inventory_count=1)
+
+    _rewrite_unbundled_capture(child, 2, malformed_inventory, rebind_inventory)
+    assert verifier_v2.verify(root)["recovery"] == "stop_unknown_started_operation_no_replay"
+
+
+@pytest.mark.parametrize("mutation", ["stop_hash", "stop_status", "stop_time"])
+def test_child_stop_must_bind_status_and_capture_availability(
+    tmp_path: Path, mutation: str
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    result = bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    child = root / "children/anchor"
+    stop_path = child / "STOP"
+    stop = json.loads(stop_path.read_text())
+    summary_path = child / "epoch-summary.json"
+    summary = json.loads(summary_path.read_text())
+    if mutation == "stop_hash":
+        stop["unbound_mutation"] = True
+    elif mutation == "stop_status":
+        stop["status"] = "partial"
+        stop["reason"] = "partial"
+        summary["status"] = "partial"
+        summary["reason"] = "partial"
+    else:
+        availability = json.loads((child / "request-results/000000000001.json").read_text())[
+            "availability_ns"
+        ]
+        stop["time_ns"] = availability - 1
+        summary["sealed_ns"] = stop["time_ns"]
+    stop_path.write_text(canonical(stop) + "\n")
+    summary["stop_sha256"] = hashlib.sha256(stop_path.read_bytes()).hexdigest()
+    summary_path.write_text(canonical(summary) + "\n")
+    bundle_path = Path(result["bundle"])
+    bundle = json.loads(bundle_path.read_text())
+    bundle["summary"] = summary
+    bundle["summary_sha256"] = hashlib.sha256(summary_path.read_bytes()).hexdigest()
+    bundle_path.write_text(canonical(bundle) + "\n")
+    _rebind_specific_bundle_parent(root, bundle_path, "op-anchor")
+    with pytest.raises(verifier_v2.VerificationError):
+        verifier_v2.verify(root)
+
+
+def test_parent_child_width_cap_mutation_is_independently_rejected(
+    tmp_path: Path, controlled_host: list[int]
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    controlled_host[0] = now + 60_000_000_001
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="frame",
+        operation_id="op-frame",
+        child_root=root / "children/frame",
+        child_plan=_child_plan(root / "children/frame", bootstrap=False, next_start=85),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=102, start=85, end=103)},
+    )
+    _rebind_parent_plan(root, lambda plan: plan["caps"].update(width=32))
+    with pytest.raises(
+        verifier_v2.VerificationError, match="child_plan_parent_caps_or_schedule_mismatch"
+    ):
+        verifier_v2.verify(root)
+
+
+def test_started_prefix_rejects_orphan_capture_artifact(tmp_path: Path) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+        crash_at="after_start_before_dispatch",
+    )
+    rogue = root / "children/anchor/captures/000000000099"
+    rogue.mkdir(mode=0o700, parents=True)
+    (root / "children/anchor/captures").chmod(0o700)
+    rogue.chmod(0o700)
+    (rogue / "response.json").write_text("{}")
+    with pytest.raises(verifier_v2.VerificationError, match="child_prefix_orphan_capture_artifact"):
+        verifier_v2.verify(root)
+
+
+def test_unbundled_captured_prefix_rejects_response_corruption(tmp_path: Path) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+        crash_at="after_capture_fsync",
+    )
+    response = root / "children/anchor/captures/000000000001/response.json"
+    response.write_bytes(response.read_bytes() + b" ")
+    with pytest.raises(verifier_v2.VerificationError):
+        verifier_v2.verify(root)
+
+
+def test_child_source_pin_mutation_is_independently_rejected(tmp_path: Path) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    _rebind_parent_plan(root, lambda plan: plan["source_sha256"].update(child_v3_runner="f" * 64))
+    with pytest.raises(verifier_v2.VerificationError, match="parent_child_source_pin_mismatch"):
+        verifier_v2.verify(root)
+
+
+@pytest.mark.parametrize("mutation", ["charge_claim", "manifest_event_slot"])
+def test_sealed_bundle_rejects_charge_or_event_slot_rebinding(
+    tmp_path: Path, mutation: str
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    result = bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    bundle_path = Path(result["bundle"])
+    bundle = json.loads(bundle_path.read_text())
+    if mutation == "charge_claim":
+        bundle["provider_charge_units"] = 0
+    else:
+        bundle["children"][0]["event_slot"] = 84
+    bundle_path.write_text(canonical(bundle) + "\n")
+    _rebind_specific_bundle_parent(root, bundle_path, "op-anchor")
+    with pytest.raises(verifier_v2.VerificationError):
+        verifier_v2.verify(root)
+
+
+@pytest.mark.parametrize("artifact", ["frame", "selection"])
+def test_sealed_frame_and_selection_artifacts_are_exactly_recomputed(
+    tmp_path: Path, controlled_host: list[int], artifact: str
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    controlled_host[0] = now + 60_000_000_001
+    result = bundle_v2.reserve_and_run(
+        root,
+        bucket_id="frame",
+        operation_id="op-frame",
+        child_root=root / "children/frame",
+        child_plan=_child_plan(root / "children/frame", bootstrap=False, next_start=85),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=102, start=85, end=103)},
+    )
+    bundle_path = Path(result["bundle"])
+    bundle = json.loads(bundle_path.read_text())
+    filename = "frame.json" if artifact == "frame" else "selection-plan.json"
+    digest_key = "frame_sha256" if artifact == "frame" else "selection_sha256"
+    path = root / "children/frame" / filename
+    value = json.loads(path.read_text())
+    if artifact == "frame":
+        value["claim"] = "rebound forged claim"
+    else:
+        value["inclusion_probability"] = "1/1"
+    path.write_text(canonical(value) + "\n")
+    bundle[digest_key] = hashlib.sha256(path.read_bytes()).hexdigest()
+    bundle_path.write_text(canonical(bundle) + "\n")
+    _rebind_specific_bundle_parent(root, bundle_path, "op-frame")
+    with pytest.raises(verifier_v2.VerificationError):
+        verifier_v2.verify(root)
+
+
+def test_sealed_inventory_journal_fields_match_captured_result(
+    tmp_path: Path, controlled_host: list[int]
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    controlled_host[0] = now + 60_000_000_001
+    frame = bundle_v2.reserve_and_run(
+        root,
+        bucket_id="frame",
+        operation_id="op-frame",
+        child_root=root / "children/frame",
+        child_plan=_child_plan(root / "children/frame", bootstrap=False, next_start=85),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=102, start=85, end=103)},
+    )
+    bundle_path = Path(frame["bundle"])
+    bundle = json.loads(bundle_path.read_text())
+    inventory_item = next(
+        item
+        for item in bundle["children"]
+        if json.loads((root / item["request_path"]).read_text())["phase"] == "inventory"
+    )
+    result_path = root / inventory_item["result_path"]
+    result = json.loads(result_path.read_text())
+    result["inventory_slots"] = [999]
+    result["inventory_count"] = 1
+    result_path.write_text(canonical(result) + "\n")
+    inventory_item["result_file_sha256"] = hashlib.sha256(result_path.read_bytes()).hexdigest()
+    bundle_path.write_text(canonical(bundle) + "\n")
+    _rebind_specific_bundle_parent(root, bundle_path, "op-frame")
+    with pytest.raises(verifier_v2.VerificationError, match="child_result_payload_field_mismatch"):
+        verifier_v2.verify(root)
+
+
+@pytest.mark.parametrize(
+    "field,phase", [("blockhash", "full_block"), ("signatures", "signature_check")]
+)
+def test_sealed_block_result_journal_fields_match_captured_payload(
+    tmp_path: Path, controlled_host: list[int], field: str, phase: str
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    controlled_host[0] = now + 60_000_000_001
+    frame = bundle_v2.reserve_and_run(
+        root,
+        bucket_id="frame",
+        operation_id="op-frame",
+        child_root=root / "children/frame",
+        child_plan=_child_plan(root / "children/frame", bootstrap=False, next_start=85),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=102, start=85, end=103)},
+    )
+    bundle_path = Path(frame["bundle"])
+    bundle = json.loads(bundle_path.read_text())
+    item = next(
+        child
+        for child in bundle["children"]
+        if json.loads((root / child["request_path"]).read_text())["phase"] == phase
+    )
+    result_path = root / item["result_path"]
+    result = json.loads(result_path.read_text())
+    result[field] = "rebound-mismatch"
+    result_path.write_text(canonical(result) + "\n")
+    item["result_file_sha256"] = hashlib.sha256(result_path.read_bytes()).hexdigest()
+    bundle_path.write_text(canonical(bundle) + "\n")
+    _rebind_specific_bundle_parent(root, bundle_path, "op-frame")
+    with pytest.raises(verifier_v2.VerificationError, match="child_result_payload_field_mismatch"):
+        verifier_v2.verify(root)
+
+
+@pytest.mark.parametrize(
+    "mutation", ["width_missing", "width_zero", "selection_over_width", "bucket_id"]
+)
+def test_child_plan_binding_mutations_are_independently_rejected(
+    tmp_path: Path, mutation: str
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+
+    def mutate(plan: dict[str, Any]) -> None:
+        if mutation == "width_missing":
+            plan.pop("frame_width_cap")
+        elif mutation == "width_zero":
+            plan["frame_width_cap"] = 0
+        elif mutation == "selection_over_width":
+            plan["selection_count"] = plan["frame_width_cap"] + 1
+        else:
+            plan["bucket"] = "other"
+
+    _rebind_child_plan(root, "op-anchor", mutate)
+    with pytest.raises(verifier_v2.VerificationError):
+        verifier_v2.verify(root)
+
+
+def test_parent_seal_timestamp_must_follow_child_stop(tmp_path: Path) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    child_stop_ns = json.loads((root / "children/anchor/STOP").read_text())["time_ns"]
+    _rewrite_parent_events(
+        root,
+        lambda row: (
+            row.update(at_ns=child_stop_ns - 1)
+            if row.get("kind") == "seal" and row.get("operation_id") == "op-anchor"
+            else None
+        ),
+    )
+    with pytest.raises(verifier_v2.VerificationError, match="parent_seal_precedes_child_seal"):
+        verifier_v2.verify(root)
+
+
+def test_parent_terminal_stop_must_follow_child_and_parent_seal(
+    tmp_path: Path, controlled_host: list[int]
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+    )
+    child_ns = json.loads((root / "children/anchor/STOP").read_text())["time_ns"]
+    controlled_host[0] = child_ns + 10
+    bundle_v2._stop(root, "op-anchor", "anchor", "fixture_terminal")
+    _rewrite_parent_events(
+        root,
+        lambda row: row.update(at_ns=child_ns - 1) if row.get("kind") == "stop" else None,
+    )
+    with pytest.raises(verifier_v2.VerificationError, match="parent_stop_precedes_completed_child"):
+        verifier_v2.verify(root)
 
 
 def test_availability_is_after_durable_capture_with_delayed_capture_return(
@@ -828,7 +2031,7 @@ def test_child_root_is_unique_across_operations(tmp_path: Path, controlled_host:
         "end_ns": now + 120_000_000_000,
     }
     bundle_v2.initialize(root, plan)
-    child_root = root / "children/reused"
+    child_root = root / "children/anchor"
     child_plan = _child_plan(child_root, bootstrap=True)
     first = FakeRPC(anchor=84)
     bundle_v2.reserve_and_run(
@@ -896,6 +2099,53 @@ def test_terminal_stop_dominates_verified_unsealed_bundle_recovery(tmp_path: Pat
     result = verifier_v2.verify(root)
     assert result["recovery"] == "stopped_no_replay"
     assert len(client.calls) == 1
+
+
+def test_parent_stop_cannot_precede_unsealed_bundled_child_terminal(tmp_path: Path) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+        crash_at="before_parent_seal",
+    )
+    child_stop_ns = json.loads((root / "children/anchor/STOP").read_text())["time_ns"]
+    bundle_v2._stop(root, "op-anchor", "anchor", "fixture_terminal_stop")
+    _rewrite_parent_events(
+        root,
+        lambda row: row.update(at_ns=child_stop_ns - 1) if row.get("kind") == "stop" else None,
+    )
+    with pytest.raises(verifier_v2.VerificationError, match="parent_stop_precedes_completed_child"):
+        verifier_v2.verify(root)
+
+
+def test_parent_stop_cannot_precede_unbundled_child_terminal_pair(tmp_path: Path) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    bundle_v2.initialize(root, _parent_plan(now))
+    bundle_v2.reserve_and_run(
+        root,
+        bucket_id="anchor",
+        operation_id="op-anchor",
+        child_root=root / "children/anchor",
+        child_plan=_child_plan(root / "children/anchor", bootstrap=True),
+        runner=epoch_v3.run_epoch,
+        clients={"helius-free": FakeRPC(anchor=84)},
+        crash_at="after_capture_fsync",
+    )
+    child_stop_ns = json.loads((root / "children/anchor/STOP").read_text())["time_ns"]
+    _rewrite_parent_events(
+        root,
+        lambda row: row.update(at_ns=child_stop_ns - 1) if row.get("kind") == "stop" else None,
+    )
+    with pytest.raises(verifier_v2.VerificationError, match="parent_stop_precedes_completed_child"):
+        verifier_v2.verify(root)
 
 
 def test_expired_started_operation_is_stopped_without_resume_dispatch(

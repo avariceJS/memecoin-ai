@@ -149,6 +149,14 @@ contain large exact payloads, so open only the named artifact needed for a speci
   parent envelope and v3 child-bundle validation, including provider/source identity, bounded zstd,
   receipt versus fsynced availability, frontier continuity, STOP precedence and no-replay recovery;
   fake captures only, no live RPC or activation authority.
+- `senses-operation-envelope-v2-child-v3-independent-qualification-2026-10-11.json`: independent
+  verifier qualification of child structural summaries, selected block payloads, JSON-RPC success
+  envelopes and capture-to-result-journal metadata, STOP/summary causal times (including unbundled
+  and unsealed children), malformed/orphan prefix rejection, immediate artifact validation, sparse
+  selections and STOP-only recovery. The bundle charge fields remain unknown/unverified; no cost is
+  inferred. 84 focused verifier cases / 110 combined tests. Synthetic fake-client evidence only;
+  Sol accepted the bounded qualification. Prior transitive eligibility receipts are invalidated until
+  requalified.
 - `senses-finite-calendar-v3-offline-validation-2026-10-11.json`: Sol-accepted caller-scheduled
   lifecycle and handoff around the operation envelope; binds gaps, next-start frontier, unknown
   interval lineage, conservative usage and no-replay terminal states. The 82 focused tests use fake
