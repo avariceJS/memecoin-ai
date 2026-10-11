@@ -1,10 +1,10 @@
 # Current Project State
 
-**As of:** 2026-10-11 01:25 UTC. Recheck runtime before any prospective service decision.
+**As of:** 2026-10-11 01:34 UTC. Recheck runtime before any prospective service decision.
 
 **Research checkout:** `/Users/root1/Developer/memecoin-research`
 **Branch:** `research/active`
-**Latest implementation commit:** `92705cbc354afa2cc45d31e1e4a243caae3578f1`.
+**Latest implementation commit:** `d6aa86b7d03ef80acc249bf6864da92ff69281ff`.
 
 ## Boundaries and runtime
 
@@ -77,6 +77,9 @@
   Helius account/credit status is still unknown after the prior MCP `Transport closed`; do not
   retry it without policy. User authorized this key without rotation but did not authorize paid
   upgrades. Service v1's normal predecessor gate still cannot accept this abnormal 11-frame STOP.
+- An offline c3 sell23 process-field replay is committed in `d6aa86b`. Its pre-replay manifest pins
+  six successful frames/96 full blocks; all 485 censored rows join, with destination ownership,
+  closed-account token endpoints, and rent unresolved. It used no Pair64, c4/tail2, or RPC data.
 - Obtain a fresh Sol successor decision with the terminal receipt, current 47.63 GB free disk,
   unknown provider headroom, anchor-only bootstrap and explicit unknown-ended gap. No Helius
   successor or WSS session is approved; the 50 GiB floor fails by 5.64 GiB.

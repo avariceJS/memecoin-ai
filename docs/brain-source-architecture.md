@@ -311,6 +311,22 @@ denominator. This result supports account-level conservation and existing qualif
 facts only; it does not infer historical rent, wrapped-token amount from SyncNative, wallet proceeds,
 or admission. Receipt:
 [`c3 native-account flow gate`](evidence/pumpswap-sell23-c3-native-account-flow-2026-10-10.json).
+
+A separate process-level c3 check froze its exact six-frame inputs before opening transaction bodies
+for this replay. The immutable source manifest pins 96 selected full-block captures, frame/plan/
+summary hashes, request/response/capture identities, receipt and availability times, the three prior
+c3 receipts, and decoder/source hashes. Replay independently joined all 485 censored rows to their
+successful transactions; 68 exact-ledger rows were excluded from this process check and two failed
+structural references remain separately counted. All 485 rows have transaction fee and destination
+boundary lamports in the transaction response, but destination owner is absent, closed-account token
+endpoints are absent, historical rent is unknown, and sibling destination instructions prevent
+attributing the boundary delta to `CloseAccount`. Outcomes are 0 exact, 485 ambiguous, 0 unsupported.
+This is bounded to the six successful c3 frames and does not establish ownership, rent, wrapped
+token amount, destination proceeds, wallet net, price, USD PnL, edge, or training eligibility. No
+Pair64 replay or provider request was needed. The [process qualification receipt](../work/brain-senses-sell23-process-qualification-v1/process-receipt-final-v1.json)
+binds the frozen source manifest and committed analyzer; the manifest is at
+`work/brain-senses-sell23-process-qualification-v1/source-manifest-v1.json`.
+
 The implementation is frozen before a prospective audit: inspect all eligible sell23 native-close
 references in the first four completed scheduled c4 hourly frames after the freeze, including pass,
 fail, and unsupported rows. If a scheduled bucket fails or is incomplete, preserve it as a gap and
