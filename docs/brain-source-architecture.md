@@ -574,6 +574,18 @@ economic validity, or admission. Private artifact SHA-256 is
 mode 0600 under ignored `work/pumpswap-create-pool-source-feasibility-v1/`; no reusable decoder is
 promoted from this two-transaction sample.
 
+Sol then commissioned a venue-neutral System/ATA wire-shape census over the same seven accepted,
+sealed datasets (Pair64 512 plus six c3 frames × 16). The replay reconciled all 608 selected slots,
+741,305 transactions, and 2,574,909 outer/inner instruction references, including 407,729 System/ATA
+references. It found 103,357 six-account and 675 seven-account ATA instructions with one-byte tags
+0/1; 636 of the latter have `SysvarRent` as the seventh observed key and 39 have other keys. The two
+prior `create_pool` candidate transactions still contain 19/17 System/ATA references, 18/16 of them
+touching declared roles, with four seven-account shapes each. This is only wire-shape prevalence in
+these selected captures, including failed transactions; it does not qualify deployed ATA semantics
+or effects. Keep the seventh-account forms partitioned as unknown; no decoder or economic meaning is
+promoted. The private artifact, implementation and test hashes are bound by the
+[`System/ATA selected-block census`](evidence/senses-system-ata-wire-census-v1-2026-10-11.json).
+
 The official [Pump AMM IDL pinned at commit `8cda1fa`](https://github.com/pump-fun/pump-public-docs/blob/8cda1fa30ea658b20909d8aedf002047119388d2/idl/pump_amm.json)
 binds 23 fixed `buy_exact_quote_in` accounts and the `spendable_quote_in`,
 `min_base_amount_out`, and `track_volume` arguments. Its docs identify the optional cashback
@@ -2711,6 +2723,19 @@ inventory identified named derived-review files but authorized none as reclaimab
 journals and manifests remain preserved. Any future collector needs a new source-bound label, root,
 manifest and finite lease. Receipt:
 [`Senses operational readiness inventory`](evidence/senses-operational-readiness-inventory-v1-2026-10-11.json).
+
+A fresh read-only storage feasibility check at 2026-10-11 16:54Z measured 26,090,602,496 bytes
+available on the internal APFS container, 27,596,488,704 bytes below the 50-GiB floor. The
+maximum identified rebuildable cache plus `dist/` allocation was 110,530,560 bytes and would still
+leave the volume below both that floor and the documented c5 minimum; no cache removal or evidence
+movement is authorized. The attached external Kingston volume is 239.8 GB ExFAT with 166,798,032,896
+bytes free. A disposable write/fsync/rename/lock probe succeeded, but a file requested and chmoded
+to 0600 was reported as 0700 under the `noowners` mount; ExFAT also provides no journaling guarantee
+for metadata recovery after abrupt disconnect/power loss. It is therefore ineligible for the
+current capture/journal contract. The scratch probe was removed. No data was migrated, no mount
+settings changed, and restart/reconnect durability remains unverified. Prospective collection stays
+disabled until an owner-enabled journaling filesystem with sufficient free capacity is provided and
+qualified. Receipt: [`Senses storage recovery feasibility`](evidence/senses-storage-recovery-feasibility-v1-2026-10-11.json).
 
 ## Offline v3 block child envelope (2026-10-11)
 

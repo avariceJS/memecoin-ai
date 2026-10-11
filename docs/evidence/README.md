@@ -273,6 +273,15 @@ contain large exact payloads, so open only the named artifact needed for a speci
   eligible internal volume had 29,293,846,528 free bytes, below both the 50-GiB floor and the
   61,834,628,800-byte c5 minimum. Account plan/credits/overage/WSS charge class remain unknown;
   no API calls, cleanup, moves, runtime changes, or activation occurred.
+- [`Senses storage recovery feasibility`](senses-storage-recovery-feasibility-v1-2026-10-11.json):
+  fresh read-only internal APFS capacity/candidate audit and a disposable Kingston ExFAT probe.
+  The current internal volume remains below the WSS floor, and Kingston cannot satisfy the current
+  capture contract (`noowners`; requested 0600 file observed as 0700). The temporary probe was
+  removed; no existing data was moved or changed, and no service was activated.
+- [`Senses storage recovery feasibility`](senses-storage-recovery-feasibility-v1-2026-10-11.json):
+  read-only APFS recovery plan with current df/container cross-check, large-path classifications,
+  rebuildable-cache upper bound, and a no-action dry run. It finds insufficient eligible capacity;
+  it authorizes no cleanup or movement.
 - `senses-prospective-verifier-v1-2026-10-11.json`: source-bound offline validation of the
   independent read-only controller lease verifier, including durable crash prefixes, no-replay
   recommendations, STOP marker/ledger crash ordering, cap/floor checks, terminal transfer, and
@@ -493,6 +502,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   official IDL snapshots, with independent parser agreement and Anchor event-CPI tag provenance.
   Deployed program identity and pool/mint/vault state remain unknown; this is not a birth or economic
   qualification.
+- [`System/ATA selected-block census`](senses-system-ata-wire-census-v1-2026-10-11.json): binds the
+  private replay of all System/ATA instruction wire references in those same seven sealed datasets,
+  including denominator reconciliation, the 675 seven-account ATA tag-0/1 observations, and the
+  bounded recovery of the two prior `create_pool` transactions. This is selected-sample wire-shape
+  evidence only; it does not qualify account effects or deployed ATA behavior.
 - `senses-program-exposure-projection-v1-pair64-c3-2026-10-11.json`: hash-bound archival v2
   event-only projection with 603 positive selected-slot counts and five census-only local zeros.
   It preserves native slot coordinates and separately records when this retrospective projection

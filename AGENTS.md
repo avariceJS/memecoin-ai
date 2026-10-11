@@ -38,6 +38,20 @@ is available from historical Git commits.
 - Keep `memory/now.md` short and dated. Do not recreate the old append-only narrative memory bank;
   Git history and immutable evidence hold the detailed chronology.
 
+## Git branch and push policy
+
+- Keep `main` as the canonical verified baseline and `research/active` as the only long-lived
+  development branch. Start new research work from `main` after the preceding verified milestone
+  has been fast-forwarded there.
+- Push logically complete work to `origin/research/active` regularly; batch related atomic commits
+  when useful. Before handoff, every completed scope must be committed and pushed. Do not create a
+  commit solely to publish dirty or incomplete work.
+- After a verified capability milestone, fast-forward `main` to the accepted `research/active`
+  commit, push both branches, then continue on `research/active`. Preserve published history; do
+  not force-push `main` or rewrite shared commits.
+- Retire temporary and superseded branches after checking ancestry and unique commits. Keep no
+  additional long-lived branch unless a concrete architecture need requires it.
+
 ## Model routing and planning
 
 - Luna High is the primary long-running agent and handles ordinary engineering within settled
