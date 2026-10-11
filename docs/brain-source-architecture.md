@@ -563,6 +563,17 @@ Pump AMM binary identity and pool/mint/vault account state are unknown; no pool 
 economic, settlement, population, or admission claim follows. Receipt:
 [`PumpSwap create_pool source feasibility`](evidence/pumpswap-create-pool-source-feasibility-v1-2026-10-11.json).
 
+A private, hash-bound wire-layout replay of only those two transactions enumerated 19 and 17
+System/ATA references (18 and 16 touching declared roles); 15 and 13 matched the exact bounded
+profiles, while four seven-account ATA shapes in each transaction remain unsupported. The replay
+does not attribute balance deltas to instructions or establish final account state, pool birth,
+economic validity, or admission. Private artifact SHA-256 is
+`4d2dd08e35da6db6d1fa900b8b872704890b666b35efeabf4b6c42e9ebf6fdd5`; builder SHA-256 is
+`f1a9efe19a732ac2f18844d79932f432660a28829e14b0598c7a85c937efa4f3`; focused test SHA-256 is
+`8cf5093068d665ac54e43edc4763b9941f8241daf83475949d22938cb8ea2b55`. All three artifacts remain
+mode 0600 under ignored `work/pumpswap-create-pool-source-feasibility-v1/`; no reusable decoder is
+promoted from this two-transaction sample.
+
 The official [Pump AMM IDL pinned at commit `8cda1fa`](https://github.com/pump-fun/pump-public-docs/blob/8cda1fa30ea658b20909d8aedf002047119388d2/idl/pump_amm.json)
 binds 23 fixed `buy_exact_quote_in` accounts and the `spendable_quote_in`,
 `min_base_amount_out`, and `track_volume` arguments. Its docs identify the optional cashback
