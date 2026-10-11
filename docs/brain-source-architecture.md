@@ -545,12 +545,23 @@ A commit-bound `create_pool` feasibility census independently replayed those sam
 selected blocks. The verifier reconciled 741,305 transactions, 1,613,839 outer and 961,070 inner
 instruction references, and 85,456 Pump AMM references to the venue-neutral ledger and structural
 novelty digest. It found two successful inner references in Pair64 with 18 accounts and 70-byte
-instruction data; neither matches a pinned historical layout, so event CPI and pool/mint/vault tuple
-checks remain unassessed. All six c3 frames had zero fixed-discriminator references within their
-qualified selected-block processes. This is a captured-class identity/feasibility result only: it
-does not establish pool birth, market population, lifecycle, economic activity, settlement, or
-admission. Receipt:
+instruction data; at census time, neither matched a profile in the existing birth decoder, so event
+CPI and pool/mint/vault tuple checks remained unassessed. All six c3 frames had zero fixed-discriminator
+references within their qualified selected-block processes. This is a captured-class
+identity/feasibility result only: it does not establish pool birth, market population, lifecycle,
+economic activity, settlement, or admission. Receipt:
 [`PumpSwap create_pool feasibility census`](evidence/pumpswap-create-pool-feasibility-v1-pair64-c3-2026-10-11.json).
+
+A follow-up source-bound investigation examined only those two sealed instruction identities and
+all 18 IDL revisions returned by the pinned Pump public-docs history capture. Both 70-byte
+`create_pool` instructions and 352-byte nested `CreatePoolEvent` payloads exactly match the
+Sep 12 and Oct 7 official IDL snapshots; a separate explicit-offset parser agrees with the IDL
+type walker. The 18 ordered account roles, eight shared argument/event fields, and seven
+event/account role bindings match, and the Anchor `emit_cpi` source-derived tag matches the observed
+CPI prefix. This establishes an official interface match for these captured bytes only. The deployed
+Pump AMM binary identity and pool/mint/vault account state are unknown; no pool birth, lifecycle,
+economic, settlement, population, or admission claim follows. Receipt:
+[`PumpSwap create_pool source feasibility`](evidence/pumpswap-create-pool-source-feasibility-v1-2026-10-11.json).
 
 The official [Pump AMM IDL pinned at commit `8cda1fa`](https://github.com/pump-fun/pump-public-docs/blob/8cda1fa30ea658b20909d8aedf002047119388d2/idl/pump_amm.json)
 binds 23 fixed `buy_exact_quote_in` accounts and the `spendable_quote_in`,

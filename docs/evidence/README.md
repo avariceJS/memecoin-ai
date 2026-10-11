@@ -483,6 +483,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   historical profiles; the receipt makes no pool-birth, population, economic, settlement, or
   admission claim. The full stage and candidate result remain under ignored `work/` and are bound by
   hashes in the receipt.
+- `pumpswap-create-pool-source-feasibility-v1-2026-10-11.json`: source-bound follow-up of only the
+  two sealed Pair64 identities. Both instruction and nested event bytes exactly match two pinned
+  official IDL snapshots, with independent parser agreement and Anchor event-CPI tag provenance.
+  Deployed program identity and pool/mint/vault state remain unknown; this is not a birth or economic
+  qualification.
 - `senses-program-exposure-projection-v1-pair64-c3-2026-10-11.json`: hash-bound archival v2
   event-only projection with 603 positive selected-slot counts and five census-only local zeros.
   It preserves native slot coordinates and separately records when this retrospective projection
