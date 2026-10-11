@@ -333,6 +333,8 @@ def _frontier_before(
             bundle_row = bundles[oid]
             bundle = _json(root / bundle_row["bundle_path"])
             if reservation["bucket_kind"] == "anchor":
+                if bundle["frontier_after"] < frontier:
+                    raise EnvelopeError("sealed_anchor_frontier_regression")
                 frontier = bundle["frontier_after"]
                 reset_required = False
             else:

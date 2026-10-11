@@ -644,6 +644,98 @@ def test_gap_requires_future_anchor_and_utc_day_caps_roll_over(
     assert verifier_v2.verify(root)["usage"]["requests"] == 2
 
 
+@pytest.mark.parametrize("after_gap", [False, True])
+def test_anchor_frontier_regression_stops_without_sealing_or_advancing(
+    tmp_path: Path, controlled_host: list[int], after_gap: bool
+) -> None:
+    root = tmp_path / "parent"
+    now = time.time_ns()
+    plan = _parent_plan(now)
+    if after_gap:
+        plan["expires_ns"] = now + 3 * bundle_v2.UTC_DAY_NS
+        plan["buckets"] = [
+            {"bucket_id": "a0", "kind": "anchor", "start_ns": now, "end_ns": now + 60_000_000_000},
+            {
+                "bucket_id": "missed",
+                "kind": "frame",
+                "start_ns": now + 60_000_000_000,
+                "end_ns": now + 120_000_000_000,
+            },
+            {
+                "bucket_id": "a1",
+                "kind": "anchor",
+                "start_ns": now + bundle_v2.UTC_DAY_NS,
+                "end_ns": now + bundle_v2.UTC_DAY_NS + 60_000_000_000,
+            },
+        ]
+    bundle_v2.initialize(root, plan)
+
+    if after_gap:
+        first = FakeRPC(anchor=84)
+        bundle_v2.reserve_and_run(
+            root,
+            bucket_id="a0",
+            operation_id="op-a0",
+            child_root=root / "children/a0",
+            child_plan=_child_plan(root / "children/a0", bootstrap=True),
+            runner=epoch_v3.run_epoch,
+            clients={"helius-free": first},
+        )
+        bundle_v2.record_gap(
+            root,
+            bucket_id="missed",
+            at_ns=now + 120_000_000_000,
+            reason="fixture_gap_before_reset_anchor",
+        )
+        controlled_host[0] = now + bundle_v2.UTC_DAY_NS + 1
+        bucket_id, operation_id = "a1", "op-a1"
+        expected_frontier = 85
+    else:
+        bucket_id, operation_id = "anchor", "op-anchor-regressed"
+        expected_frontier = 84
+
+    regressed = FakeRPC(anchor=82)
+    with pytest.raises(
+        bundle_v2.EnvelopeError, match="independent_child_bundle_verification_failed"
+    ):
+        bundle_v2.reserve_and_run(
+            root,
+            bucket_id=bucket_id,
+            operation_id=operation_id,
+            child_root=root / f"children/{bucket_id}",
+            child_plan=_child_plan(root / f"children/{bucket_id}", bootstrap=True),
+            runner=epoch_v3.run_epoch,
+            clients={"helius-free": regressed},
+        )
+
+    rows = bundle_v2._events(root)
+    assert len(regressed.calls) == 1
+    assert not any(
+        row["kind"] == "seal" and row.get("operation_id") == operation_id for row in rows
+    )
+    assert rows[-1]["kind"] == "stop"
+    assert rows[-1]["unknown_interval"] is True
+    sealed_anchors = [
+        row
+        for row in rows
+        if row["kind"] == "seal"
+        and next(
+            event
+            for event in rows
+            if event["kind"] == "reservation" and event["operation_id"] == row["operation_id"]
+        )["bucket_kind"]
+        == "anchor"
+    ]
+    if sealed_anchors:
+        last_bundle = next(
+            row
+            for row in rows
+            if row["kind"] == "bundle" and row["operation_id"] == sealed_anchors[-1]["operation_id"]
+        )
+        assert last_bundle["frontier_after"] == expected_frontier
+    assert verifier_v2.verify(root)["recovery"] == "stopped_no_replay"
+
+
 def test_parent_writer_lock_is_exclusive(tmp_path: Path) -> None:
     root = tmp_path / "parent"
     now = time.time_ns()

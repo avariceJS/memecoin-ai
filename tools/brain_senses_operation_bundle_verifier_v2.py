@@ -674,7 +674,7 @@ def verify(root: Path) -> dict[str, Any]:
         or rows[0].get("plan_sha256") != _sha(plan_bytes)
     ):
         raise VerificationError("parent_plan_not_bound")
-    _verify_transitions(plan, rows)
+    regressed_frontier_operations = _verify_transitions(plan, rows)
     reservations = {r["operation_id"]: r for r in rows if r["kind"] == "reservation"}
     starts = {r["operation_id"]: r for r in rows if r["kind"] == "started"}
     bundles = {r["operation_id"]: r for r in rows if r["kind"] == "bundle"}
@@ -731,6 +731,8 @@ def verify(root: Path) -> dict[str, Any]:
                 "valid": True,
                 "recovery": "stopped_no_replay"
                 if any(row["kind"] == "stop" for row in rows)
+                else "frontier_regression_stop_required_no_replay"
+                if oid in regressed_frontier_operations
                 else "verified_bundle_ready_to_seal_no_replay",
                 "verified_child_totals": totals,
                 "activation_authorized": False,
@@ -835,7 +837,7 @@ def _validate_plan(plan: Any, encoded: bytes) -> None:
         raise VerificationError("parent_plan_predecessor_invalid")
 
 
-def _verify_transitions(plan: dict[str, Any], rows: list[dict[str, Any]]) -> None:
+def _verify_transitions(plan: dict[str, Any], rows: list[dict[str, Any]]) -> set[str]:
     if not rows or rows[0].get("kind") != "initialized":
         raise VerificationError("parent_initialization_missing")
     if any(row.get("kind") == "initialized" for row in rows[1:]):
@@ -845,6 +847,7 @@ def _verify_transitions(plan: dict[str, Any], rows: list[dict[str, Any]]) -> Non
     starts: set[str] = set()
     bundles: dict[str, dict[str, Any]] = {}
     seals: dict[str, dict[str, Any]] = {}
+    regressed_frontier_operations: set[str] = set()
     gapped: set[str] = set()
     child_paths: set[str] = set()
     frontier = plan["predecessor"]["frontier_slot"]
@@ -958,6 +961,8 @@ def _verify_transitions(plan: dict[str, Any], rows: list[dict[str, Any]]) -> Non
                 or row.get("bundle_path") != f"bundles/{oid}.json"
             ):
                 raise VerificationError("parent_bundle_transition_invalid")
+            if row["frontier_after"] < reservation["frontier_before"]:
+                regressed_frontier_operations.add(oid)
             bundles[oid] = row
         elif kind == "seal":
             reservation = reservations.get(oid)
@@ -973,7 +978,11 @@ def _verify_transitions(plan: dict[str, Any], rows: list[dict[str, Any]]) -> Non
                 or row.get("actual_stored_bytes", 0) > reservation["stored_bytes"]
             ):
                 raise VerificationError("parent_seal_invalid")
+            if oid in regressed_frontier_operations:
+                raise VerificationError("parent_bundle_frontier_regression_seal_forbidden")
             if reservation["bucket_kind"] == "anchor":
+                if bundle["frontier_after"] < frontier:
+                    raise VerificationError("parent_anchor_frontier_regression")
                 frontier = bundle["frontier_after"]
                 reset_required = False
             else:
@@ -1038,3 +1047,4 @@ def _verify_transitions(plan: dict[str, Any], rows: list[dict[str, Any]]) -> Non
     }
     if any(amount[key] > daily_caps[key] for amount in daily.values() for key in usage):
         raise VerificationError("parent_utc_day_budget_exceeded")
+    return regressed_frontier_operations
