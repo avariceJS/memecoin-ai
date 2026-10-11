@@ -1,9 +1,9 @@
 # Current Project State
 
-**As of:** 2026-10-11, external-storage handoff. Research checkout:
+**As of:** 2026-10-12, descriptor-writer qualification in progress. Research checkout:
 `/Users/root1/Developer/memecoin-research`; production `/Users/root1/Desktop/memecoin-ai` untouched.
-Do not start Cortex. This session ends after infrastructure handoff; the next Luna High session
-continues Senses under Luna → Sol → Astra routing.
+Do not start Cortex. Continue Senses under Luna → Sol → Astra routing. Current source qualification
+is complete; a concrete reviewed finite LaunchAgent lease is the next operational gate.
 
 ## Git and authority
 
@@ -86,13 +86,19 @@ continues Senses under Luna → Sol → Astra routing.
   evidence); broader causally enrolled population/lifecycle/modalities and systematic unknown-case
   qualification. Those have work that can be done now. Weeks/months of future history cannot be
   manufactured and must be separated from engineering work. Cortex bottleneck has not yet been reached.
-- **Next decision horizon:** inspect AGENTS, this file, Git/runtime, INDEX and only relevant canonical
-  sources. Have Sol settle the minimal versioned dirfd writer integration before Luna implements it;
-  preserve frozen campaign code. In parallel obtain authentic read-only Helius account/charge evidence
-  (previous account MCP returned `Transport closed`) and recheck trusted clock, storage peak/churn
-  envelope and source/plist bindings. Only then seek Sol qualification of a fresh finite prospective
-  lease and actual LaunchAgent activation/checkpoint. Billing evidence is an external-information gate;
-  the current key and SSD permissions are not blockers. Never repair calendar gaps by backfill.
+- **Current decision horizon:** the separate descriptor-bound writer/orchestrator/independent verifier
+  and path-only LaunchAgent CLI are implemented. Ten forced detach-at-write points, reservation/remount
+  no-replay and real Kingston scratch ownership/lock/fsync checks pass. Final pins are detach/recovery
+  v5 and Kingston v4 receipts dated 2026-10-12. The inactive adapter remains blocked. Sol reviews the
+  concrete future bootstrap plus one-frame lease before activation; c4 stays terminal.
+- Helius account MCP now authenticates the existing key, but no JWT/credit meter is available. Charge
+  remains unknown. User resource authorization permits bounded Free acquisition without an exact
+  account meter; this is no global blocker. Alchemy aggregate usage remains 18,680 CU/$0.01, not
+  workload attribution. See the 2026-10-11 v2 provider-account and external-readiness receipts.
+- New focused suite: 78 passed; new-file Ruff/format and targeted mypy passed; synthetic smoke passed.
+  Full make check is not green: 107 pre-existing lint errors in eight unchanged frozen files, plus
+  36 baseline mypy errors in five unchanged WSS files. Full pytest runner diagnosis is in progress.
+  Do not rewrite frozen campaign sources to hide these pre-existing failures.
 - After that bounded horizon, replan within Senses: the 608-slot System/ATA census leaves 675
   seven-account ATA shapes (636 Rent-key, 39 other-key) as unknown extra-account partitions; buyExact25
   is deferred without a candidate-position witness. Dirty Agave work is preserved, not qualified.

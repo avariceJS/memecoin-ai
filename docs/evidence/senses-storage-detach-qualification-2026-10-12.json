@@ -1,0 +1,169 @@
+{
+  "configured_kingston_touched": false,
+  "contract": "research_storage_detach_qualify_v1",
+  "image_directory": "temporary /private/tmp sparse APFS image; removed on exit",
+  "image_filesystem": "case-sensitive APFS",
+  "image_owners_enabled_by_os": false,
+  "image_uuid": "93c23ee6-c6e9-4dc0-8d93-9ebebf206339",
+  "limitations": [
+    "Exercises this host's APFS image detach behavior and descriptor writer operations; it does not establish physical cable removal or device-specific behavior.",
+    "Does not test a provider call or authorize lease activation.",
+    "Does not qualify live Kingston identity or owner-enforcement policy."
+  ],
+  "provenance": {
+    "command": "PYTHONPATH=src python3 tools/research_storage_detach_qualify_v1.py",
+    "completed_utc": "2026-10-11T21:12:58.333939+00:00",
+    "elapsed_monotonic_ns": 16989864750,
+    "macos_version": "26.5.2",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.6",
+    "source_sha256": {
+      "descriptor_writer": "ff9bd4c0e9b5226f0e576ae9053aee3b41b572a9078090e7b8258b5e72a68f00",
+      "orchestrator": "aace222553e213ccd296077017b83277ae2afd9914065af5c5a7667797d61baf",
+      "qualification_harness": "baed3e5aa1a53330bd0d36b1e97725088634a698dd745f19fe1b4df1bd42a882",
+      "storage_library": "672f6d1af8291579a9a2b0d25343f11b23875b4dd9f4598658d95d034e0dfbd5"
+    },
+    "started_utc": "2026-10-11T21:12:41.344092+00:00"
+  },
+  "provider_requests": 0,
+  "reservation_replay_gate": "passed",
+  "results": [
+    {
+      "detached_after_precheck": true,
+      "error": "OSError:[Errno 9] Bad file descriptor",
+      "held_volume_result": true,
+      "name": "mkdir",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 1,
+      "trigger": "mkdir",
+      "underlay_unchanged": true
+    },
+    {
+      "name": "reservation_remount_no_replay",
+      "outcome": {
+        "provider_io": false,
+        "status": "stopped",
+        "stop": {
+          "bundle_sha256": null,
+          "last_bucket": "20261011T211400Z",
+          "post_stop_requests": 0,
+          "reason": "interrupted_no_replay",
+          "schema": "brain-senses-external-v1-stop",
+          "schema_version": 1,
+          "stopped_ns": 1791753166908299000
+        }
+      },
+      "provider_io": false,
+      "provider_loader_calls": 0,
+      "remounted_before_reconciliation": true,
+      "reservation_sha256": "3c80262e1aeddd964ad0ff2f71219b64bc6ca3394f59568504087baf583ec952",
+      "status": "passed",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "OSError:[Errno 9] Bad file descriptor",
+      "held_volume_result": true,
+      "name": "create",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 1,
+      "trigger": "create",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "OSError:[Errno 9] Bad file descriptor",
+      "held_volume_result": true,
+      "name": "append_open",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 1,
+      "trigger": "append_open",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "OSError:[Errno 9] Bad file descriptor",
+      "held_volume_result": true,
+      "name": "append_write",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 2,
+      "trigger": "append_write",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "NotADirectoryError:[Errno 20] Not a directory: '.atomic-create.json.25069.f11b4dce78f046ad.tmp'",
+      "held_volume_result": true,
+      "name": "atomic_create",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 1,
+      "trigger": "atomic_create",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "NotADirectoryError:[Errno 20] Not a directory: '.atomic-rename.json.25069.bd8960d6ee2a2c86.tmp'",
+      "held_volume_result": true,
+      "name": "atomic_rename",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 2,
+      "trigger": "atomic_rename",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "OSError:[Errno 9] Bad file descriptor",
+      "held_volume_result": true,
+      "name": "unlink",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 1,
+      "trigger": "unlink",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "OSError:[Errno 9] Bad file descriptor",
+      "held_volume_result": true,
+      "name": "lock_open",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 1,
+      "trigger": "lock_open",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "NotADirectoryError:[Errno 20] Not a directory: '.response.json.25069.933d1d1befde3e70.tmp'",
+      "held_volume_result": true,
+      "name": "capture_response_atomic_rename",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 6,
+      "trigger": "atomic_rename",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "NotADirectoryError:[Errno 20] Not a directory: '.receipt.json.25069.438f2746ccb631b5.tmp'",
+      "held_volume_result": true,
+      "name": "capture_receipt_atomic_rename",
+      "occurrence": 2,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 10,
+      "trigger": "atomic_rename",
+      "underlay_unchanged": true
+    }
+  ],
+  "schema_version": 1,
+  "status": "passed",
+  "storage_guard_precheck": "StorageGuard.revalidate before each injected mutation, with test-only ownership normalization for the disposable noowners APFS image",
+  "test_only_noowners_probe_normalization": true,
+  "underlay_directory": "writable internal temporary mountpoint mirror with sentinel bait files"
+}

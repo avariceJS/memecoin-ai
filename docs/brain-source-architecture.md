@@ -2803,6 +2803,50 @@ Predecessor, terminal, billing, clock and finite-lease gates also remain require
 campaign sources and receipts are unchanged. This limitation does not affect the descriptor-anchored
 migration tool or read-only storage monitor.
 
+The separate `brain_senses_external_writer_v1` / `external_orchestrator_v1` /
+`external_verify_v1` stack now implements descriptor-bound create, append, lock, atomic rename,
+unlink and capture persistence. It does not enable the prototype or rewrite frozen campaign sources.
+The held root descriptor, private no-follow descendants and same-volume identity prevent a detach
+from redirecting mutations to the internal mountpoint underlay. Repeated guard checks additionally
+stop dispatch and writes when identity, ownership or the free-space envelope is unavailable.
+
+Final qualification uses ten forced `diskutil unmount force` injection points on a disposable APFS
+image after successful guards and before mutation; every internal underlay trap remains byte/mode
+unchanged. Reservation-before-detach recovery remounts the image and proves zero provider-loader
+calls and no replay. The scratch-image harness normalizes only its OS-disabled ownership flag, so
+this is detach-mechanism evidence, not ownership qualification. A separate real Kingston scratch
+run enforces enabled ownership, pinned UUID/root, fsync, create-only collision, atomic rename,
+readback and independent-process flock exclusion, then removes its scratch subtree. Receipts:
+[`forced detach v5`](evidence/senses-storage-detach-qualification-2026-10-12-v5.json),
+[`Kingston writer v4`](evidence/senses-kingston-writer-qualification-2026-10-12-v4.json), and
+[`remount no-replay v5`](evidence/senses-external-recovery-qualification-2026-10-12-v5.json).
+Earlier qualification revisions remain immutable source snapshots, not current activation pins.
+
+The first release is deliberately a finite operational qualification: one prospective finalized
+anchor and one inventory-first frame five to ten minutes later. It reserves at most 35 requests,
+288,000,000 raw/stored payload bytes, 32,000,000 bytes per response and 20,000 slots per frame;
+16 deterministic inventory members receive signature/full-block pairing. The 50-GiB floor plus
+all 288 MB of lease bytes and a 290-MB peak margin is checked before mutation and dispatch. These
+are local envelopes, not provider charge or market-completeness estimates. Transport is limited to
+four requests/second, rejects redirects, and stops on quota/HTTP/provider/transport errors. Ambiguous
+or spent requests never replay; missed buckets never backfill. Bootstrap explicitly records the
+uncovered interval from c4's terminal frontier to the fresh anchor.
+
+The independent reader recomputes request wire hashes, response hashes, receipts, selected slots,
+block structure/signature agreement, event ordering, availability and byte/request denominators.
+It accepts valid incomplete prefixes without granting activation or replay authority. Response event
+time remains separate from receipt and post-fsync availability; bundle/seal/decision times follow
+availability. Recovery may publish missing local terminal evidence, never repeat provider I/O.
+The launch entry point binds reviewed plan/source/qualification/plist/config hashes, all c4 terminal
+pins, disabled/unloaded legacy agents, its launchd PID and exact argv. Credentials load in-process
+only after gates; plists contain paths only and logs point to `/dev/null`.
+
+Each bucket obtains fresh verified-TLS HEAD Date corroboration from Cloudflare and Google, with
+bounded RTT, age, date agreement and wall/monotonic drift checks. This supports coarse prospective
+windows with a five-second dispatch margin; it does not establish nanosecond clock accuracy or NTP
+synchronization. Source changes invalidate the lease. Activation requires a concrete Sol review and
+future calendar schedule; passing a synthetic test or hash verifier alone does not authorize RPC.
+
 All 15 previously installed Senses plists were disabled/unloaded, hash-verified and archived under
 `~/.config/brain-research/retired-launchagents-20261011/`; their installed files were removed so they
 cannot restart as parallel login collectors. Historical direct scripts are unsupported forensic
