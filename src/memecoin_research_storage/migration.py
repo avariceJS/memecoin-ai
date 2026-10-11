@@ -19,10 +19,11 @@ import sys
 import time
 from collections.abc import Callable
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, NoReturn, cast
 
 CHUNK_SIZE = 8 * 1024 * 1024
-MANIFEST_VERSION = 2
+LEGACY_MANIFEST_VERSION = 2
+MANIFEST_VERSION = 3
 # The names are intentionally narrow. Callers must still provide the exact expected
 # source path for the selected group; this is not a general-purpose directory copier.
 PROTECTED_PARTS = frozenset({"f01", "d43", "holdout", "reserved", "protected"})
@@ -48,7 +49,7 @@ class MigrationError(RuntimeError):
     """A migration precondition or exact-copy verification failed."""
 
 
-def _fail(message: str) -> None:
+def _fail(message: str) -> NoReturn:
     raise MigrationError(message)
 
 
@@ -292,7 +293,7 @@ def _stat_signature(st: os.stat_result) -> tuple[int, ...]:
 def _native_xattrs_fd(fd: int) -> list[str]:
     if hasattr(os, "listxattr"):
         try:
-            return os.listxattr(fd)
+            return cast(list[str], os.listxattr(fd))
         except TypeError:
             pass
     if sys.platform != "darwin":
@@ -324,7 +325,7 @@ def _native_xattrs_fd(fd: int) -> list[str]:
 def _native_xattrs_path(path: Path) -> list[str]:
     if hasattr(os, "listxattr"):
         try:
-            return os.listxattr(path, follow_symlinks=False)
+            return cast(list[str], os.listxattr(path, follow_symlinks=False))
         except TypeError:
             pass
     if sys.platform != "darwin":
@@ -358,7 +359,7 @@ def _native_xattrs_path(path: Path) -> list[str]:
 def _get_xattr_fd(fd: int, name: str) -> bytes:
     if hasattr(os, "getxattr"):
         try:
-            return os.getxattr(fd, name)
+            return cast(bytes, os.getxattr(fd, name))
         except TypeError:
             pass
     if sys.platform != "darwin":
@@ -413,10 +414,28 @@ def _set_xattr_fd(fd: int, name: str, value: bytes) -> None:
         raise OSError(error, os.strerror(error))
 
 
+def _remove_xattr_fd(fd: int, name: str) -> None:
+    if hasattr(os, "removexattr"):
+        try:
+            os.removexattr(fd, name)
+            return
+        except TypeError:
+            pass
+    if sys.platform != "darwin":
+        _fail("xattr_remove_unavailable")
+    libc = ctypes.CDLL(None, use_errno=True)
+    function = libc.fremovexattr
+    function.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+    function.restype = ctypes.c_int
+    if function(fd, os.fsencode(name), 0) != 0:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error))
+
+
 def _get_xattr_path(path: Path, name: str) -> bytes:
     if hasattr(os, "getxattr"):
         try:
-            return os.getxattr(path, name, follow_symlinks=False)
+            return cast(bytes, os.getxattr(path, name, follow_symlinks=False))
         except TypeError:
             pass
     if sys.platform != "darwin":
@@ -492,16 +511,44 @@ def _xattr_records_path(path: Path) -> list[dict[str, Any]]:
     return result
 
 
-def _copy_xattrs_fd(src_fd: int, dst_fd: int, expected: list[dict[str, Any]], rel: str) -> None:
+def _destination_xattr_additions(
+    dst_fd: int, expected: list[dict[str, Any]], rel: str
+) -> list[dict[str, Any]]:
+    actual = _xattr_records_fd(dst_fd)
+    expected_by_name = {record["name"]: record for record in expected}
+    actual_by_name = {record["name"]: record for record in actual}
+    for name, record in expected_by_name.items():
+        if actual_by_name.get(name) != record:
+            _fail(f"destination_source_xattr_mismatch: {rel}")
+    additions = [record for record in actual if record["name"] not in expected_by_name]
+    if any(record["name"] != "com.apple.provenance" for record in additions):
+        _fail(f"unsupported_destination_xattr: {rel}")
+    return additions
+
+
+def _copy_xattrs_fd(
+    src_fd: int, dst_fd: int, expected: list[dict[str, Any]], rel: str
+) -> list[dict[str, Any]]:
     source_names = sorted(_native_xattrs_fd(src_fd))
     copied = []
+    source_values: list[tuple[str, bytes]] = []
     for name in source_names:
         value = _get_xattr_fd(src_fd, name)
         record = {"name": name, "size": len(value), "sha256": hashlib.sha256(value).hexdigest()}
         copied.append(record)
-        _set_xattr_fd(dst_fd, name, value)
-    if copied != expected or _xattr_records_fd(dst_fd) != expected:
+        source_values.append((name, value))
+    if copied != expected:
         _fail(f"source_xattrs_changed_during_copy: {rel}")
+    expected_names = {item["name"] for item in expected}
+    try:
+        for name in _native_xattrs_fd(dst_fd):
+            if name not in expected_names:
+                _remove_xattr_fd(dst_fd, name)
+        for name, value in source_values:
+            _set_xattr_fd(dst_fd, name, value)
+    except OSError as exc:
+        raise MigrationError(f"destination_xattr_reconciliation_failed: {rel}") from exc
+    return _destination_xattr_additions(dst_fd, expected, rel)
 
 
 def _copy_xattrs_path(
@@ -675,7 +722,7 @@ def load_independent_receipt(
         raise MigrationError("verification_receipt_invalid") from exc
     if not isinstance(body, dict):
         _fail("verification_receipt_invalid")
-    return body
+    return cast(dict[str, Any], body)
 
 
 def load_preflight_receipt(
@@ -938,7 +985,7 @@ def _copy_tree(
     root_xattrs: list[dict[str, Any]],
     before_write: Callable[[], None] | None,
     expected_device: int | None,
-) -> None:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     _check_write_location(external_fd, expected_device, before_write)
     os.mkdir(temporary_name, mode=0o700, dir_fd=external_fd)
     _fsync_dir_fd(external_fd)
@@ -951,6 +998,8 @@ def _copy_tree(
     files = [r for r in records if r["type"] == "file"]
     symlinks = [r for r in records if r["type"] == "symlink"]
     hardlink_targets: dict[str, str] = {}
+    destination_added_xattrs: list[dict[str, Any]] = []
+    destination_added_root_xattrs: list[dict[str, Any]] = []
     try:
         for record in directories:
             relative = record["path"]
@@ -986,7 +1035,7 @@ def _copy_tree(
                     target_parent, target_name = (
                         target_rel.rsplit("/", 1) if "/" in target_rel else ("", target_rel)
                     )
-                    target_fd = _open_dir_at(
+                    target_parent_fd = _open_dir_at(
                         temp_fd,
                         target_parent,
                         create=False,
@@ -997,13 +1046,26 @@ def _copy_tree(
                         os.link(
                             target_name,
                             name,
-                            src_dir_fd=target_fd,
+                            src_dir_fd=target_parent_fd,
                             dst_dir_fd=parent_fd,
                             follow_symlinks=False,
                         )
                         os.fsync(parent_fd)
+                        target_file_fd = os.open(
+                            target_name,
+                            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+                            dir_fd=target_parent_fd,
+                        )
+                        try:
+                            additions = _destination_xattr_additions(
+                                target_file_fd, record["xattrs"], rel
+                            )
+                        finally:
+                            os.close(target_file_fd)
+                        if additions:
+                            destination_added_xattrs.append({"path": rel, "xattrs": additions})
                     finally:
-                        os.close(target_fd)
+                        os.close(target_parent_fd)
                     continue
                 src_fd = _open_source_file(source, rel)
                 dst_fd = os.open(
@@ -1039,7 +1101,9 @@ def _copy_tree(
                     if digest.hexdigest() != record["sha256"]:
                         _fail(f"source_hash_changed_during_copy: {rel}")
                     os.fchmod(dst_fd, record["mode"])
-                    _copy_xattrs_fd(src_fd, dst_fd, record["xattrs"], rel)
+                    additions = _copy_xattrs_fd(src_fd, dst_fd, record["xattrs"], rel)
+                    if additions:
+                        destination_added_xattrs.append({"path": rel, "xattrs": additions})
                     os.utime(dst_fd, ns=(record["atime_ns"], record["mtime_ns"]))
                     os.fsync(dst_fd)
                 finally:
@@ -1069,7 +1133,11 @@ def _copy_tree(
                 try:
                     source_link_fd = _open_link_at(source_parent_fd, source_name)
                     destination_link_fd = _open_link_at(parent_fd, name)
-                    _copy_xattrs_fd(source_link_fd, destination_link_fd, record["xattrs"], rel)
+                    additions = _copy_xattrs_fd(
+                        source_link_fd, destination_link_fd, record["xattrs"], rel
+                    )
+                    if additions:
+                        destination_added_xattrs.append({"path": rel, "xattrs": additions})
                 finally:
                     if destination_link_fd >= 0:
                         os.close(destination_link_fd)
@@ -1098,7 +1166,11 @@ def _copy_tree(
                 os.fchmod(directory_fd, record["mode"])
                 src_directory_fd = _open_source_dir(source, relative)
                 try:
-                    _copy_xattrs_fd(src_directory_fd, directory_fd, record["xattrs"], relative)
+                    additions = _copy_xattrs_fd(
+                        src_directory_fd, directory_fd, record["xattrs"], relative
+                    )
+                    if additions:
+                        destination_added_xattrs.append({"path": relative, "xattrs": additions})
                 finally:
                     os.close(src_directory_fd)
                 os.utime(directory_fd, ns=(record["atime_ns"], record["mtime_ns"]))
@@ -1108,7 +1180,9 @@ def _copy_tree(
         os.fchmod(temp_fd, root_mode)
         src_root_fd = _open_source_dir(source, ".")
         try:
-            _copy_xattrs_fd(src_root_fd, temp_fd, root_xattrs, "<root>")
+            destination_added_root_xattrs = _copy_xattrs_fd(
+                src_root_fd, temp_fd, root_xattrs, "<root>"
+            )
         finally:
             os.close(src_root_fd)
         os.utime(temp_fd, ns=(root_atime_ns, root_mtime_ns))
@@ -1116,6 +1190,8 @@ def _copy_tree(
         _fsync_dir_fd(external_fd)
     finally:
         os.close(temp_fd)
+    destination_added_xattrs.sort(key=lambda item: item["path"])
+    return destination_added_xattrs, destination_added_root_xattrs
 
 
 def _assert_locked_root(
@@ -1251,7 +1327,7 @@ def stage_migration(
             except FileNotFoundError:
                 continue
             _fail("destination_or_manifest_already_exists")
-        _copy_tree(
+        destination_added_xattrs, destination_added_root_xattrs = _copy_tree(
             source,
             root_fd,
             temp.name,
@@ -1262,6 +1338,15 @@ def stage_migration(
             root_xattrs=source_root_metadata["xattrs"],
             before_write=before_write,
             expected_device=expected_destination_device,
+        )
+        destination_added_xattrs_by_path = _validate_destination_xattr_additions(
+            destination_added_xattrs,
+            source_before,
+            label="destination_added_xattrs",
+        )
+        destination_added_root_xattrs = _validate_root_xattr_additions(
+            destination_added_root_xattrs,
+            source_root_metadata["xattrs"],
         )
         if before_write is not None:
             before_write()
@@ -1291,9 +1376,16 @@ def stage_migration(
             source_root_metadata["xattrs"],
             before_read=before_write,
             expected_device=expected_destination_device,
+            destination_added_xattrs=destination_added_xattrs_by_path,
+            destination_added_root_xattrs=destination_added_root_xattrs,
+        )
+        manifest_version = (
+            MANIFEST_VERSION
+            if destination_added_xattrs or destination_added_root_xattrs
+            else LEGACY_MANIFEST_VERSION
         )
         manifest: dict[str, Any] = {
-            "version": MANIFEST_VERSION,
+            "version": manifest_version,
             "group": group,
             "source_root": str(source),
             "destination_root": str(destination),
@@ -1311,6 +1403,9 @@ def stage_migration(
             "entries": source_before,
             "summary": _summary(source_before),
         }
+        if manifest_version == MANIFEST_VERSION:
+            manifest["destination_added_xattrs"] = destination_added_xattrs
+            manifest["destination_added_root_xattrs"] = destination_added_root_xattrs
         encoded = (json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n").encode()
         if before_publish is not None:
             before_publish()
@@ -1369,6 +1464,74 @@ def _same_source_inventory(before: list[dict[str, Any]], after: list[dict[str, A
     return normalize(before) == normalize(after)
 
 
+def _validate_destination_xattr_additions(
+    additions: Any,
+    source_records: list[dict[str, Any]],
+    *,
+    label: str,
+) -> dict[str, list[dict[str, Any]]]:
+    if not isinstance(additions, list):
+        _fail(f"manifest_{label}_invalid")
+    source_by_path = {record["path"]: record for record in source_records}
+    mapped: dict[str, list[dict[str, Any]]] = {}
+    previous_path = ""
+    for item in additions:
+        if not isinstance(item, dict) or set(item) != {"path", "xattrs"}:
+            _fail(f"manifest_{label}_invalid")
+        path = item["path"]
+        attrs = item["xattrs"]
+        if (
+            not isinstance(path, str)
+            or path not in source_by_path
+            or path <= previous_path
+            or not isinstance(attrs, list)
+            or len(attrs) != 1
+        ):
+            _fail(f"manifest_{label}_invalid")
+        previous_path = path
+        attr = attrs[0]
+        if (
+            not isinstance(attr, dict)
+            or set(attr) != {"name", "size", "sha256"}
+            or attr.get("name") != "com.apple.provenance"
+            or not isinstance(attr.get("size"), int)
+            or attr["size"] < 0
+            or not isinstance(attr.get("sha256"), str)
+            or len(attr["sha256"]) != 64
+            or any(character not in "0123456789abcdef" for character in attr["sha256"])
+        ):
+            _fail(f"manifest_{label}_invalid")
+        source_names = {xattr["name"] for xattr in source_by_path[path].get("xattrs", [])}
+        if "com.apple.provenance" in source_names:
+            _fail(f"manifest_{label}_source_contains_exception")
+        mapped[path] = attrs
+    return mapped
+
+
+def _validate_root_xattr_additions(
+    additions: Any, source_root_xattrs: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    if not isinstance(additions, list) or len(additions) > 1:
+        _fail("manifest_destination_added_root_xattrs_invalid")
+    if not additions:
+        return []
+    attr = additions[0]
+    if (
+        not isinstance(attr, dict)
+        or set(attr) != {"name", "size", "sha256"}
+        or attr.get("name") != "com.apple.provenance"
+        or not isinstance(attr.get("size"), int)
+        or attr["size"] < 0
+        or not isinstance(attr.get("sha256"), str)
+        or len(attr["sha256"]) != 64
+        or any(character not in "0123456789abcdef" for character in attr["sha256"])
+    ):
+        _fail("manifest_destination_added_root_xattrs_invalid")
+    if any(item["name"] == "com.apple.provenance" for item in source_root_xattrs):
+        _fail("manifest_destination_added_root_xattrs_source_contains_exception")
+    return cast(list[dict[str, Any]], additions)
+
+
 def _verify_records(
     root: Path,
     expected: list[dict[str, Any]],
@@ -1378,14 +1541,25 @@ def _verify_records(
     root_xattrs: list[dict[str, Any]] | None = None,
     before_read: Callable[[], None] | None = None,
     expected_device: int | None = None,
+    destination_added_xattrs: dict[str, list[dict[str, Any]]] | None = None,
+    destination_added_root_xattrs: list[dict[str, Any]] | None = None,
 ) -> None:
     actual, actual_root_metadata = _snapshot_full(
         root, before_read=before_read, expected_device=expected_device
     )
-    normalized_expected = [
-        {key: value for key, value in record.items() if key not in {"source_signature", "atime_ns"}}
-        for record in expected
-    ]
+    destination_added_xattrs = destination_added_xattrs or {}
+    normalized_expected = []
+    for record in expected:
+        normalized = {
+            key: value
+            for key, value in record.items()
+            if key not in {"source_signature", "atime_ns"}
+        }
+        normalized["xattrs"] = sorted(
+            [*record.get("xattrs", []), *destination_added_xattrs.get(record["path"], [])],
+            key=lambda item: item["name"],
+        )
+        normalized_expected.append(normalized)
     normalized_actual = [
         {key: value for key, value in record.items() if key not in {"source_signature", "atime_ns"}}
         for record in actual
@@ -1396,7 +1570,11 @@ def _verify_records(
         _fail("tree_root_mode_mismatch")
     if root_mtime_ns is not None and actual_root_metadata["mtime_ns"] != root_mtime_ns:
         _fail("tree_root_mtime_mismatch")
-    if root_xattrs is not None and actual_root_metadata["xattrs"] != root_xattrs:
+    expected_root_xattrs = sorted(
+        [*(root_xattrs or []), *(destination_added_root_xattrs or [])],
+        key=lambda item: item["name"],
+    )
+    if root_xattrs is not None and actual_root_metadata["xattrs"] != expected_root_xattrs:
         _fail("tree_root_xattr_mismatch")
     # The inventory derives hardlink groups from opened inode identities, so matching
     # groups above verifies equivalence without path lookups that could escape the pin.
@@ -1440,8 +1618,9 @@ def verify_migration(
         manifest = json.loads(raw, object_pairs_hook=_unique_object_pairs)
     except (OSError, ValueError) as exc:
         raise MigrationError(f"manifest_unreadable: {exc}") from exc
+    version = manifest.get("version")
     if (
-        manifest.get("version") != MANIFEST_VERSION
+        version not in {LEGACY_MANIFEST_VERSION, MANIFEST_VERSION}
         or manifest.get("source_root") != str(source)
         or manifest.get("destination_root") != str(destination)
         or manifest.get("metadata_scope") != PRESERVED_METADATA
@@ -1464,8 +1643,35 @@ def verify_migration(
         expected_sha256=receipt_sha,
     )
     records = manifest.get("entries")
-    if not isinstance(records, list):
+    if not isinstance(records, list) or any(
+        not isinstance(record, dict) or not isinstance(record.get("path"), str)
+        for record in records
+    ):
         _fail("manifest_entries_invalid")
+    if version == LEGACY_MANIFEST_VERSION:
+        if "destination_added_xattrs" in manifest or "destination_added_root_xattrs" in manifest:
+            _fail("legacy_manifest_has_destination_xattr_exceptions")
+        added_xattrs: dict[str, list[dict[str, Any]]] = {}
+        added_root_xattrs: list[dict[str, Any]] = []
+    else:
+        if (
+            "destination_added_xattrs" not in manifest
+            or "destination_added_root_xattrs" not in manifest
+        ):
+            _fail("manifest_destination_xattr_exceptions_missing")
+        added_xattrs = _validate_destination_xattr_additions(
+            manifest["destination_added_xattrs"],
+            records,
+            label="destination_added_xattrs",
+        )
+        source_root_xattrs = manifest.get("source_root_xattrs")
+        if not isinstance(source_root_xattrs, list):
+            _fail("manifest_source_root_xattrs_invalid")
+        added_root_xattrs = _validate_root_xattr_additions(
+            manifest["destination_added_root_xattrs"], source_root_xattrs
+        )
+        if not added_xattrs and not added_root_xattrs:
+            _fail("unaffected_manifest_must_use_legacy_version")
     source_records, source_root_metadata = _snapshot_full(source, before_read=before_read)
     if not _same_source_inventory(source_records, records):
         _fail("source_does_not_match_manifest")
@@ -1480,6 +1686,8 @@ def verify_migration(
         manifest.get("source_root_xattrs"),
         before_read=before_read,
         expected_device=expected_destination_device,
+        destination_added_xattrs=added_xattrs,
+        destination_added_root_xattrs=added_root_xattrs,
     )
     source_records_after, source_root_metadata_after = _snapshot_full(
         source, before_read=before_read

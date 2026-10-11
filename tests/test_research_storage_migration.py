@@ -86,6 +86,67 @@ def test_stage_and_verify_preserve_tree_bytes_modes_symlinks_and_hardlinks(tmp_p
     assert manifest_path.stat().st_mode & 0o777 == 0o444
 
 
+def test_stage_and_replay_record_persistent_destination_provenance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source, external, dest_parent, receipt = setup_tree(tmp_path)
+    source_inodes: set[tuple[int, int]] = set()
+    for directory, child_dirs, files in os.walk(source, followlinks=False):
+        parent = Path(directory)
+        source_inodes.add((parent.stat().st_dev, parent.stat().st_ino))
+        for name in [*child_dirs, *files]:
+            item = parent / name
+            info = item.lstat()
+            source_inodes.add((info.st_dev, info.st_ino))
+    provenance = b"persistent destination provenance"
+    provenance_record = {
+        "name": "com.apple.provenance",
+        "size": len(provenance),
+        "sha256": hashlib.sha256(provenance).hexdigest(),
+    }
+
+    def fd_xattrs(fd: int) -> list[str]:
+        info = os.fstat(fd)
+        return [] if (info.st_dev, info.st_ino) in source_inodes else ["com.apple.provenance"]
+
+    def path_xattrs(path: Path) -> list[str]:
+        try:
+            path.relative_to(source)
+        except ValueError:
+            return ["com.apple.provenance"]
+        return []
+
+    monkeypatch.setattr(migration, "_native_xattrs_fd", fd_xattrs)
+    monkeypatch.setattr(migration, "_get_xattr_fd", lambda _fd, _name: provenance)
+    # Simulate macOS provenance that remains present even after a removal attempt.
+    monkeypatch.setattr(migration, "_remove_xattr_fd", lambda _fd, _name: None)
+    monkeypatch.setattr(migration, "_native_xattrs_path", path_xattrs)
+    monkeypatch.setattr(migration, "_get_xattr_path", lambda _path, _name: provenance)
+
+    result = stage(source, external, dest_parent, receipt)
+    destination = dest_parent / source.name
+    manifest_path = destination.with_name(destination.name + ".manifest.json")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["version"] == migration.MANIFEST_VERSION == 3
+    assert manifest["destination_added_root_xattrs"] == [provenance_record]
+    additions_by_path = {
+        item["path"]: item["xattrs"] for item in manifest["destination_added_xattrs"]
+    }
+    assert additions_by_path["nested/receipt.bin"] == [provenance_record]
+    assert additions_by_path["receipt-hardlink.bin"] == [provenance_record]
+    assert additions_by_path["receipt-link"] == [provenance_record]
+
+    verified = migration.verify_migration(
+        source,
+        destination,
+        manifest_path,
+        expected_source_root=source,
+        expected_destination_root=destination,
+    )
+    assert verified["accepted"] is True
+    assert verified["manifest_sha256"] == result["manifest_sha256"]
+
+
 def test_stage_runs_full_checks_at_each_publication_boundary(tmp_path: Path) -> None:
     source, external, dest_parent, receipt = setup_tree(tmp_path)
     calls = 0
@@ -133,6 +194,176 @@ def test_copy_revalidates_at_each_bounded_chunk(
         before_write=check,
     )
     assert checks >= 3
+
+
+def test_copy_xattrs_removes_destination_only_provenance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source_path = tmp_path / "source"
+    destination_path = tmp_path / "destination"
+    source_path.write_bytes(b"source")
+    destination_path.write_bytes(b"destination")
+    source_fd = os.open(source_path, os.O_RDONLY)
+    destination_fd = os.open(destination_path, os.O_RDONLY)
+    attrs = {source_fd: {}, destination_fd: {"com.apple.provenance": b"automatic"}}
+    monkeypatch.setattr(migration, "_native_xattrs_fd", lambda fd: sorted(attrs[fd]))
+    monkeypatch.setattr(migration, "_get_xattr_fd", lambda fd, name: attrs[fd][name])
+    monkeypatch.setattr(
+        migration,
+        "_remove_xattr_fd",
+        lambda fd, name: attrs[fd].pop(name),
+    )
+    monkeypatch.setattr(
+        migration,
+        "_set_xattr_fd",
+        lambda fd, name, value: attrs[fd].__setitem__(name, value),
+    )
+    try:
+        migration._copy_xattrs_fd(source_fd, destination_fd, [], "capture.bin")
+        assert attrs[destination_fd] == {}
+    finally:
+        os.close(source_fd)
+        os.close(destination_fd)
+
+
+def test_copy_xattrs_reports_source_drift_before_destination_reconciliation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source_path = tmp_path / "source"
+    destination_path = tmp_path / "destination"
+    source_path.write_bytes(b"source")
+    destination_path.write_bytes(b"destination")
+    source_fd = os.open(source_path, os.O_RDONLY)
+    destination_fd = os.open(destination_path, os.O_RDONLY)
+    attrs = {
+        source_fd: {"user.note": b"changed"},
+        destination_fd: {"com.apple.provenance": b"automatic"},
+    }
+    monkeypatch.setattr(migration, "_native_xattrs_fd", lambda fd: sorted(attrs[fd]))
+    monkeypatch.setattr(migration, "_get_xattr_fd", lambda fd, name: attrs[fd][name])
+    removed: list[str] = []
+    monkeypatch.setattr(
+        migration,
+        "_remove_xattr_fd",
+        lambda _fd, name: removed.append(name),
+    )
+    try:
+        with pytest.raises(MigrationError, match="source_xattrs_changed_during_copy"):
+            migration._copy_xattrs_fd(source_fd, destination_fd, [], "capture.bin")
+        assert not removed
+        assert attrs[destination_fd] == {"com.apple.provenance": b"automatic"}
+    finally:
+        os.close(source_fd)
+        os.close(destination_fd)
+
+
+def test_copy_xattrs_records_persisting_destination_provenance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source_path = tmp_path / "source"
+    destination_path = tmp_path / "destination"
+    source_path.write_bytes(b"source")
+    destination_path.write_bytes(b"destination")
+    source_fd = os.open(source_path, os.O_RDONLY)
+    destination_fd = os.open(destination_path, os.O_RDONLY)
+    attrs = {source_fd: {}, destination_fd: {"com.apple.provenance": b"automatic"}}
+    monkeypatch.setattr(migration, "_native_xattrs_fd", lambda fd: sorted(attrs[fd]))
+    monkeypatch.setattr(migration, "_get_xattr_fd", lambda fd, name: attrs[fd][name])
+    monkeypatch.setattr(migration, "_remove_xattr_fd", lambda _fd, _name: None)
+    try:
+        added = migration._copy_xattrs_fd(source_fd, destination_fd, [], "capture.bin")
+        assert added == [
+            {
+                "name": "com.apple.provenance",
+                "size": len(b"automatic"),
+                "sha256": hashlib.sha256(b"automatic").hexdigest(),
+            }
+        ]
+    finally:
+        os.close(source_fd)
+        os.close(destination_fd)
+
+
+def test_v3_verifier_accepts_only_manifested_destination_provenance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = tmp_path / "destination"
+    destination.mkdir()
+    (destination / "capture.bin").write_bytes(b"payload")
+    original_snapshot = migration._snapshot_full
+    actual, metadata = original_snapshot(destination)
+    source_records = [{**record, "xattrs": []} for record in actual]
+    provenance = {
+        "name": "com.apple.provenance",
+        "size": 11,
+        "sha256": hashlib.sha256(b"provenance").hexdigest(),
+    }
+
+    def snapshot_with_provenance(root: Path, **kwargs: object):
+        records, root_metadata = original_snapshot(root, **kwargs)
+        if root == destination:
+            records[0]["xattrs"] = [provenance]
+            root_metadata["xattrs"] = [provenance]
+        return records, root_metadata
+
+    monkeypatch.setattr(migration, "_snapshot_full", snapshot_with_provenance)
+    with pytest.raises(MigrationError, match="tree_manifest_mismatch"):
+        migration._verify_records(
+            destination,
+            source_records,
+            root_mode=metadata["mode"],
+            root_mtime_ns=metadata["mtime_ns"],
+            root_xattrs=[],
+        )
+    additions = migration._validate_destination_xattr_additions(
+        [{"path": "capture.bin", "xattrs": [provenance]}],
+        source_records,
+        label="destination_added_xattrs",
+    )
+    migration._verify_records(
+        destination,
+        source_records,
+        root_mode=metadata["mode"],
+        root_mtime_ns=metadata["mtime_ns"],
+        root_xattrs=[],
+        destination_added_xattrs=additions,
+        destination_added_root_xattrs=[provenance],
+    )
+
+    altered_hash = {**provenance, "sha256": "0" * 64}
+    altered_additions = migration._validate_destination_xattr_additions(
+        [{"path": "capture.bin", "xattrs": [altered_hash]}],
+        source_records,
+        label="destination_added_xattrs",
+    )
+    with pytest.raises(MigrationError, match="tree_manifest_mismatch"):
+        migration._verify_records(
+            destination,
+            source_records,
+            root_mode=metadata["mode"],
+            root_mtime_ns=metadata["mtime_ns"],
+            root_xattrs=[],
+            destination_added_xattrs=altered_additions,
+            destination_added_root_xattrs=[provenance],
+        )
+
+
+def test_destination_provenance_exception_rejects_other_names_and_source_presence() -> None:
+    source_records = [{"path": "capture.bin", "xattrs": []}]
+    provenance = {"name": "com.apple.provenance", "size": 1, "sha256": "a" * 64}
+    with pytest.raises(MigrationError, match="manifest_destination_added_xattrs_invalid"):
+        migration._validate_destination_xattr_additions(
+            [{"path": "capture.bin", "xattrs": [{**provenance, "name": "user.extra"}]}],
+            source_records,
+            label="destination_added_xattrs",
+        )
+    source_with_provenance = [{"path": "capture.bin", "xattrs": [provenance]}]
+    with pytest.raises(MigrationError, match="source_contains_exception"):
+        migration._validate_destination_xattr_additions(
+            [{"path": "capture.bin", "xattrs": [provenance]}],
+            source_with_provenance,
+            label="destination_added_xattrs",
+        )
 
 
 def test_migration_guard_check_runs_cheap_each_time_and_full_by_deadline(
@@ -215,8 +446,10 @@ def test_stage_rejects_copy_corruption(tmp_path: Path, monkeypatch: pytest.Monke
     source, external, dest_parent, receipt = setup_tree(tmp_path)
     original = migration._copy_tree
 
-    def corrupt_copy(*args: object, **kwargs: object) -> None:
-        original(*args, **kwargs)
+    def corrupt_copy(
+        *args: object, **kwargs: object
+    ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+        result = original(*args, **kwargs)
         external_fd = args[1]
         temp_name = args[2]
         temp_fd = os.open(
@@ -236,6 +469,7 @@ def test_stage_rejects_copy_corruption(tmp_path: Path, monkeypatch: pytest.Monke
                 os.close(nested_fd)
         finally:
             os.close(temp_fd)
+        return result
 
     monkeypatch.setattr(migration, "_copy_tree", corrupt_copy)
     with pytest.raises(MigrationError, match="tree_manifest_mismatch"):
