@@ -100,6 +100,30 @@ and transfer only required pinned inputs through verified incoming storage. Allo
 research ownership/output paths and non-overlapping acquisition reservations. Return sealed outputs
 for Mac 1 verification. Owner runtime and credentials stay on Mac 1; activation is not promotion.
 
+## Finite external Senses operation
+
+The separately reviewed external-v1 entry point is `tools/brain_senses_external_launch_v1.py`.
+Its `init`, `status`, and launchd-only `run` commands take private activation and storage-config
+paths. The activation binds an immutable plan, Sol review, qualification receipts, source hashes
+and installed plist. Initialization is offline and requires at least 60 seconds before the first
+bucket. `run` requires the bound launchd PID, parent and exact argv; manual invocation is rejected.
+No secret belongs in command arguments, plist environment or logs.
+
+Calendar starts have no RunAtLoad/KeepAlive behavior. Bootstrap and frame are separate processes;
+the latter independently verifies the former's durable prefix before dispatch. A spent reservation
+or ambiguous intent is terminal and never retried. Do not kickstart to recover a missed bucket,
+edit an active lease, or reuse its service directory. Read-only status verifies the corpus but its
+`activation_authorized=false` result intentionally grants no operational authority of its own.
+Its current implementation also requires the bound volume and full lease free-space envelope;
+under storage failure preserve the root and inspect the separate storage-health status first.
+
+At terminal, verify captures and STOP through the independent descriptor reader, record exact
+request/byte/gap accounting and launchd exits, then disable/unload the finite label and archive its
+hash-bound plist. The recurring read-only storage-health agent stays enabled. A successor needs a
+new immutable predecessor handoff and separately reviewed future lease; this version does not
+renew itself. c4 remains terminal. The source architecture owns storage, timing and acquisition
+semantics; this procedure never changes the production operator or champion.
+
 ## Integrated Observatory UI
 
 `apps/control-center` is a separate React read-only Observatory over its immutable historical
