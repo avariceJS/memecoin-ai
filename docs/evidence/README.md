@@ -181,6 +181,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   Sol accepted only local hook-location/raw-boundary feasibility;
   the exact patch is retained alongside the receipt. It does not qualify a transaction-scoped
   witness, finality, real-source replay, completeness, or economics.
+- [`Agave v3 observer v5 review`](agave-v3.0.0-candidate-position-observer-v5-review-2026-10-11.json):
+  Sol accepted a hash-bound, transaction-scoped V5 observer for local synthetic ProgramTest
+  feasibility only (11 feature-on CPI tests; feature-off package check). This closes the recorded
+  boundary identity, phase snapshot, and frame instruction-binding defects. It does not qualify
+  production integration, historical replay, Bank persistence/finality, real-source completeness,
+  or economic admission. Exact patch/captures and logs remain in ignored `work/`.
 - `pumpswap-buy-exact-v1-alchemy-account-archive-feasibility-v1-2026-10-11.json`: separately
   screens the same 2,333 identities against byte-pinned Alchemy Archive and simulation docs. It
   distinguishes slot-boundary bytes from transaction/instruction-position state; 2,330 exceed one

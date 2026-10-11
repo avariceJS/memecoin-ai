@@ -2789,8 +2789,26 @@ witness, real-source qualification, or economic decoder. Receipt and exact patch
 [`Agave v3 boundary-capture feasibility`](evidence/agave-v3.0.0-candidate-position-boundary-capture-feasibility-v1-2026-10-11.json),
 [`source patch`](evidence/agave-v3.0.0-candidate-position-boundary-capture-feasibility-v1.patch).
 No c4 body or historical replay was opened, and no provider RPC, decoder promotion, audit or economic
-admission occurred. The next offline gate is a transaction-scoped, fail-closed observer contract
-with per-context identity/sequence, guarded frame cleanup, explicit push/pop/transaction terminal
+admission occurred. That v1 capture was not transaction-scoped. The v5 gate below adds local
+execution identity and sequencing, guarded frame cleanup, explicit push/pop/transaction terminal
 outcomes, complete selected-role account-set checks, and independent replay tests. Prospective
 activation remains closed: c4 is terminal with gaps preserved, no successor lease exists, provider
 account charge controls are unknown, and internal disk is below the reviewed floor.
+
+### Transaction-scoped local observer v5 (2026-10-11)
+
+Sol accepted the source-pinned Agave v3.0.0 v5 patch for local synthetic ProgramTest observer
+feasibility only. Each boundary binds execution ID and attempt ordinal; account-bearing phases check
+the selected raw snapshots, terminal events carry no account snapshot, and each instruction frame
+retains the same program/data identity through its phases. Mutation cases cover cross-attempt splicing,
+missing/unavailable selected fields outside pre/post, and program/data drift. Feature-on CPI tests
+passed 11/11; feature-off packages compile; patch whitespace check is clean. The source patch and
+review receipt are hash-bound in the immutable [v5 review record](evidence/agave-v3.0.0-candidate-position-observer-v5-review-2026-10-11.json).
+
+This does not qualify production integration, historical replay, Bank persistence/finality,
+settlement, real-source completeness, or economic admission. Precompiles remain unsupported. The
+additive `SVMTransaction::signed_message_hash` default method is unconditional, although feature-off
+execution does not invoke it. The next bounded offline gate is raw Token-2022/WSOL account-byte
+decoding from disposable ProgramTest traces with source-pinned fee, hook, native-token, Rent, epoch,
+and runtime inputs; failed executions remain attempted-only. No c4/tail2, provider, archive, or audit
+data is in scope.
