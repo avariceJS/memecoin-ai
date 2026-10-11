@@ -157,6 +157,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   inferred. 84 focused verifier cases / 110 combined tests. Synthetic fake-client evidence only;
   Sol accepted the bounded qualification. Prior transitive eligibility receipts are invalidated until
   requalified.
+- `senses-dependent-gates-requalification-2026-10-11.json`: aggregate offline requalification of
+  finite-calendar/operation/child, initial-entry certificate/candidate, supervisor and synthetic
+  signed activation-preflight gates after the v2 verifier hash changed. 239 tests passed in order;
+  current code pins, no-replay/mutation cases and `activation_authorized=false` were checked using
+  disposable fixtures. Existing receipts remain immutable and are linked by digest; no RPC or live
+  activation is claimed.
 - `senses-finite-calendar-v3-offline-validation-2026-10-11.json`: Sol-accepted caller-scheduled
   lifecycle and handoff around the operation envelope; binds gaps, next-start frontier, unknown
   interval lineage, conservative usage and no-replay terminal states. The 82 focused tests use fake

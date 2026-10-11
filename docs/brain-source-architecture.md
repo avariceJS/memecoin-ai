@@ -2466,6 +2466,23 @@ qualification at the verifier source hash recorded in the independent receipt. R
 [`offline operation-envelope/child-v3 validation`](evidence/senses-operation-envelope-v2-child-v3-offline-validation-2026-10-11.json)
 and [`independent child-v3 verifier qualification`](evidence/senses-operation-envelope-v2-child-v3-independent-qualification-2026-10-11.json).
 
+### Dependent gate requalification after verifier update (2026-10-11)
+
+After the operation-envelope verifier changed, its finite-calendar, initial-entry candidate,
+supervisor and activation-preflight dependents were re-run in dependency order against disposable
+synthetic fixtures. The current source pins were recomputed by the suites; the candidate anchor then
+completed a synthetic 34-request frame with independent bundle verification, and the calendar
+covered gap-to-future-anchor recovery and transfer of gaps/unknown intervals. Structural mutations,
+crash/STOP no-replay behavior, stale-pin rejection and synthetic signed activation-preflight inputs
+were exercised. The aggregate result is 239 passing tests: 127 finite-calendar/operation/child,
+57 initial-entry certificate/candidate, 19 supervisor, and 36 activation-preflight. The existing
+initial-entry crash fixture was corrected to use the scheduled parent bucket identity required by
+the independent verifier. Historical gate receipts remain immutable; this receipt binds their
+digests and the current source/test hashes. This is offline requalification only: no provider or
+runtime use, and `activation_authorized=false`. It does not establish current account/disk
+headroom, reviewer authentication, or durable c4 observation provenance. Receipt:
+[`dependent-gates offline requalification`](evidence/senses-dependent-gates-requalification-2026-10-11.json).
+
 ## Finite-calendar prospective envelope v3 (2026-10-11)
 
 An offline lifecycle driver wraps the parent operation envelope with a caller-supplied finite

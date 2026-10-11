@@ -411,9 +411,10 @@ def test_candidate_crash_prefixes_never_replay_started_anchor(
     )
     root = tmp_path / crash_at / plan["lease_id"]
     calendar.initialize(root, plan)
+    anchor_bucket_id = plan["buckets"][0]["bucket_id"]
     child = epoch_v3.build_epoch_plan(
-        epoch_id="crash-anchor",
-        bucket="crash-anchor",
+        epoch_id=anchor_bucket_id,
+        bucket=anchor_bucket_id,
         schedule_id="synthetic-crash-test",
         schedule_sha256="d" * 64,
         seed="synthetic",
@@ -430,9 +431,9 @@ def test_candidate_crash_prefixes_never_replay_started_anchor(
     client = FakeRPC(anchor=ANCHOR_SLOT)
     injected = bridge.reserve_and_run(
         root,
-        bucket_id=plan["buckets"][0]["bucket_id"],
+        bucket_id=anchor_bucket_id,
         operation_id=f"crash-{crash_at}",
-        child_root=root / "children" / "crash-anchor",
+        child_root=root / "children" / anchor_bucket_id,
         child_plan=child,
         runner=epoch_v3.run_epoch,
         clients={"helius-free": client},

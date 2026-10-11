@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 06:43 UTC. Research work continues on `research/active` in
+**As of:** 2026-10-11 06:51 UTC. Research work continues on `research/active` in
 `/Users/root1/Developer/memecoin-research`; production `/Users/root1/Desktop/memecoin-ai` is
 untouched. Read this state, then check Git/runtime before acquisition.
 
@@ -81,10 +81,20 @@ STOP-only prefixes), source/cap bindings, contiguous crash prefixes, and immedia
 frame/selection artifacts without replay. Bundle charge is explicitly unknown/unverified; no cost
 is inferred. Validation: 84 operation-envelope tests / 110 combined child-v2 tests; Ruff, format,
 compile and diff checks pass. Sol accepted the frozen verifier/source hash and receipt after
-independent hash verification. No RPC or activation. Its source change invalidates
-prior source-bound calendar, initial-entry, activation-preflight and supervisor eligibility
-receipts pending requalification. Parent bundle events prove journal order only; v2 records no
-bundle persistence timestamp.
+independent hash verification. No RPC or activation. Its source change invalidated prior source-bound
+calendar, initial-entry, activation-preflight and supervisor eligibility receipts; those dependency
+suites were subsequently requalified in the aggregate receipt below. Parent bundle events prove
+journal order only; v2 records no bundle persistence timestamp.
+
+2026-10-11 06:49Z: Dependent finite-calendar/operation/child, initial-entry certificate/candidate,
+supervisor and synthetic signed activation-preflight suites all pass after requalification at the
+current v2 verifier hash (127 + 57 + 19 + 36 = 239 tests). One crash-test fixture was corrected to
+bind its synthetic child identity to the scheduled parent bucket. No source/runtime adapter change,
+RPC or activation; `activation_authorized=false`. Existing receipts remain historical and immutable;
+aggregate receipt binds their file digests and current source/test pins. Root's 06:48Z disk snapshot:
+20,504,848 KiB (~19.55 GiB), below the 50 GiB floor. Historical 10-frame stored-throughput estimate
+is ~388 MB/day, not a tail guarantee. Helius account headroom remains unverified; no runtime activity.
+Receipt: `docs/evidence/senses-dependent-gates-requalification-2026-10-11.json`.
 
 Sol approved the offline initial-entry calendar compiler/verifier v1. The inert candidate pins the
 certificate file and canonical predecessor digest separately, all four gaps/open unknown interval,
