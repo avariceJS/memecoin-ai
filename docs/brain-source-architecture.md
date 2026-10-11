@@ -2386,3 +2386,19 @@ A follow-up closes the missed-anchor transition: while reset is required, an act
 until its bucket expires, then that bucket is recorded as a gap; a later anchor can proceed without
 an unnecessary STOP or request. The focused calendar/bridge/child suite now passes 83 cases.
 Receipt: [`finite-calendar gap/anchor follow-up`](evidence/senses-finite-calendar-v3-gap-anchor-followup-2026-10-11.json).
+
+The offline activation-preflight v1 verifier now binds each predecessor handoff's terminal time,
+gaps and unknown intervals through the complete lineage; checks the finite operation plan, all
+intersected UTC-day request/byte upper bounds, full-lease storage runway and reviewed churn reserve;
+and verifies signed host disk evidence against the caller-pinned capture path, device, filesystem,
+clock source and current free space. A separately pinned per-method Helius price model includes a
+canonical billing unit and recomputed method multiplicities. Claim records are owner-local,
+write-once by predecessor terminal hash, and historical claim verification never reports current
+eligibility. Trust roles require distinct Ed25519 public keys. Sol accepted this only as an offline
+eligibility gate: `activation_authorized` remains false; no calendar/bridge runtime consumes it,
+cross-host exclusion is not established, and the caller must supply real out-of-band trust, price,
+clock and capture-root pins before a future adapter can use it. The byte bound charges the full
+lease cap to every intersected bucket/day and may conservatively reject larger schedules. The 36
+preflight tests and 131 focused preflight/calendar/bridge/controller/verifier tests pass; no provider
+request, activation, live attestation, or real trust root was used. Receipt:
+[`offline activation-preflight v1 validation`](evidence/senses-activation-preflight-v1-offline-validation-2026-10-11.json).

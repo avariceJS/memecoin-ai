@@ -1,55 +1,45 @@
 # Current Project State
 
-**As of:** 2026-10-11 04:45 UTC. Recheck host, disk, account meter and LaunchAgents before any acquisition decision.
-
-**Research checkout:** `/Users/root1/Developer/memecoin-research`
-**Branch:** `research/active`
-**Latest Senses commits:** `3e733b9` (anchor frontier guard), `8d757a9` (finite calendar and handoff).
+**As of:** 2026-10-11 05:01 UTC. Research work continues on `research/active` in
+`/Users/root1/Developer/memecoin-research`; production `/Users/root1/Desktop/memecoin-ai` is
+untouched. Read this state, then check Git/runtime before acquisition.
 
 ## Boundaries and runtime
 
-- Continue Senses in this checkout only. Production `/Users/root1/Desktop/memecoin-ai` is untouched.
-  No trading/signing, paid upgrade, remote push, protected holdout, c4 tail2 access, backfill, or
-  unapproved repeated request. User authorizes continued use of the existing Helius key without
-  rotation. `.env.local` is owner-only mode 0600; collector passes a private config path and loads
-  credentials in process.
-- Exposure delta receipt `docs/evidence/helius-key-exposure-delta-2026-10-11T0435Z.json`: zero
-  exact matches in 6,055 local Git objects, current process arguments, 124 changed accessible saved
-  files / 403,864,321 bytes since 02:19Z, and 1,203,999,439 bytes of subsequent Unified Log.
-  1,194 inaccessible files and remote/provider logs, backups, Time Machine and session transcript
-  storage were outside this check; prior disclosure remains in session history.
-- Follow-up `docs/evidence/helius-key-launchd-exposure-check-2026-10-11T0439Z.json`: zero exact
-  matches in 65 user/system launchd plists and process arguments; no Senses/Helius/inventory label
-  is loaded.
-- Host check at 04:35Z: 27,569,748 KiB free (~26.3 GiB), below the 50 GiB acquisition floor; no
-  Senses/Helius/inventory LaunchAgent was loaded, although 15 Senses plists remain installed.
-  Helius charge headroom is unknown. No provider request or collector process was started. All
-  Senses prospective collectors are stopped and accumulating no new observations.
-- c4 `work/brain-senses-live-helius-inventory-v3-20261010-4` remains terminal; its 23:00Z tail2
-  body stays frozen/unopened. Missed prospective buckets stay gaps.
+- User authorizes the existing Helius key without rotation. It is loaded in-process from private
+  config, not process arguments. Prior exposure scans found no exact key in checked Git objects,
+  saved logs/files, current process args or 65 LaunchAgent plists. Their inaccessible-file and
+  remote/backup/session-storage exclusions remain in the scan receipts. Do not print or expose it.
+- No Senses/Helius collector process or LaunchAgent is loaded. Free disk is 26,346,692 KiB (~25.1
+  GiB), below the 50 GiB floor. Helius charge headroom is unknown. No RPC was made this continuation;
+  live acquisition is still ineligible due disk/headroom and no runtime-adapter approval, not key
+  rotation. Check these facts again before any future request.
+- c4 `work/brain-senses-live-helius-inventory-v3-20261010-4` is terminal. The 23:00Z tail2 body
+  remains frozen/unopened; missed prospective slots remain gaps. No trading, signing, paid upgrade,
+  protected holdout access, backfill, remote push or Cortex work.
 
 ## Completed this continuation
 
-- Base `d16b904` adds operation-envelope-v2 / child-v3 offline bridge (34 requests/frame) and
-  fake-only validation.
-- Commits `3e733b9` and `8d757a9` add a caller-driven finite-calendar-v3 lifecycle and independent
-  handoff verifier, plus a strict anchor frontier-regression STOP. Handoffs preserve gaps, unknown
-  intervals and conservative request/byte accounting across successor generations; a started child
-  is never replayed. Calendar accepts no cadence, credential loader, provider factory, scheduler,
-  LaunchAgent or activation path. Sol accepted this offline gate. Receipt:
-  `docs/evidence/senses-finite-calendar-v3-offline-validation-2026-10-11.json`.
-- Focused validation: 82 tests passed across finite calendar, operation envelope and v3 child; Ruff,
-  format, compile and diff checks pass. No RPC, live activation or c4/tail2 access.
-- Uncommitted calendar follow-up makes an active frame wait and expire as a gap when a prior anchor
-  was missed; the later anchor can proceed without STOP or dispatch. Calendar/bridge/child suite: 83.
-- buyExact25 remains structurally/evidentially unresolved: four dual-legacy successes censored,
-  Token-2022 quarantined, failed transactions attempt-only; no economic stratum is qualified. See
-  existing buyExact feasibility receipts; do not open c4 tail2.
+- Offline finite-calendar-v3 plus operation-envelope-v2/child-v3 now has a safe missed-anchor
+  transition: an expired frame becomes a gap, then a later anchor may proceed without request or
+  unnecessary STOP. Sol accepted the offline gate. See the finite-calendar receipts in
+  `docs/evidence/README.md`.
+- Sol conditionally accepted the new activation-preflight verifier strictly as offline eligibility
+  after distinct Ed25519 keys across host, Helius checker and Sol roles were enforced. It preserves
+  transitive gaps/unknown/time lineage, conservative every-day bounds, full-lease storage runway,
+  bound disk/clock evidence, signed plan-specific Helius charge units and one owner-local claim per
+  predecessor. It never authorizes activation; no calendar/runtime consumes it. Cross-host locking,
+  real trust/charge evidence and a reviewed adapter remain future gates. Receipt:
+  `docs/evidence/senses-activation-preflight-v1-offline-validation-2026-10-11.json`.
+- Focused verification passed: 36 preflight cases and 131 combined preflight/calendar/bridge/
+  controller/verifier cases; Ruff, format, compile and diff checks passed. No RPC or live activation.
+- buyExact25 economic feasibility remains negative: four legacy settlement rows are censored,
+  Token-2022 economics quarantined, failed transactions attempt-only. Do not reopen frozen c4 tail2.
 
-## Next horizon
+## Next decision horizon
 
-Sol reviewed the uncommitted offline activation preflight and blocked eligibility pending fixes:
-unknown-interval/time lineage, enforceable storage and bound filesystem/churn, cross-midnight daily
-bounds, plan-specific charge-unit recomputation, stale claim semantics, and one global successor
-claim keyed by predecessor. Fix these offline, retest and seek Sol review. Current disk/headroom
-make live acquisition ineligible. No scheduler/provider/credential/request path; do not begin Cortex.
+Continue offline independent prospective verifier/recovery qualification per Sol: source-bound
+lineage, accounting/caps, gaps, crash recovery, and no replay of started requests. Then integrate
+only after its acceptance review. Before any live prospective lease, recheck disk/account headroom,
+provide real out-of-band trust and price inputs, and obtain separate Sol activation review; missed
+slots remain gaps. The current 50 GiB floor blocks RPC; do useful offline Senses work meanwhile.

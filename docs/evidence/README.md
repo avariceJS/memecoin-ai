@@ -572,3 +572,9 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   pre-registration for a single structural replay on the first complete scheduled c4 frame at or
   after 18:00Z. It binds the existing qualifier and source pins, excludes already-opened frames,
   and provides no economic audit or new-request authority.
+- `senses-activation-preflight-v1-offline-validation-2026-10-11.json`: source-hash-bound validation
+  and Sol review of the offline-only successor eligibility verifier, including transitive gap/time
+  lineage, exact filesystem and clock-source evidence, conservative daily byte/request caps,
+  signed plan-specific Helius charge units, historical-only claim checks and owner-local
+  predecessor claim uniqueness. Fake cryptographic fixtures only; no real trust root, provider
+  request, scheduler or live activation.
