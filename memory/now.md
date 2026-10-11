@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 10:30 UTC. Research remains on `research/active`; production
+**As of:** 2026-10-11 11:17 UTC. Research remains on `research/active`; production
 `/Users/root1/Desktop/memecoin-ai` is untouched. Recheck Git and runtime before new acquisition.
 
 ## Runtime and credentials
@@ -102,3 +102,28 @@ was loaded. A fresh Helius account-status MCP call again returned `Transport clo
 made. Next independent offline gate: Token-2022/WSOL witness-fixture semantics. Before a live
 successor, still require provider account/charge controls, storage runway, authenticated trust,
 and a separately reviewed activation boundary. Do not backfill or reopen c4/tail2.
+
+At 10:43Z, a stale `helius-mcp@latest` process was found with the key in argv, stopped, and child
+terminated. A post-stop exact-value scan found no matches in 6,385 Git objects, 1,073 recently
+modified accessible files / 509 MB, current process argv, or 1.31 GB of Unified Log. The active
+session transcript retains that process-list output; remote storage and backups were not scanned.
+The pinned `helius-mcp@2.2.0` wrapper remains the credential path. Receipt:
+`helius-stale-latest-process-stop-rescan-2026-10-11T1043Z.json`.
+
+Sol accepted the synthetic Token-2022/WSOL transition-consistency extension. The source-bound
+receipt `solana-candidate-position-witness-transition-consistency-v1-2026-10-11.json` binds the
+checker/test hashes and 63 passing focused tests. It validates supplied synthetic claims only.
+
+Sol then accepted a narrow offline Agave v3.0.0 hook-location feasibility proof. Its receipt
+`agave-v3.0.0-candidate-position-boundary-capture-feasibility-v1-2026-10-11.json` binds the exact
+patch, source commit/toolchain/lockfile, two isolated raw CPI success/error captures and 16
+passing focused test cases, including the feature-off regression run. This is not a transaction-
+scoped witness, finality, source/economic qualification or admission. Next offline horizon:
+Sol-reviewed per-context observer identity/sequence, guarded frame
+cleanup, explicit push/pop/transaction terminal states, selected-account-set completeness, and
+independent replay. At 11:14Z no Senses collector/LaunchAgent was active; APFS had ~35 GiB free,
+below the 50-GiB floor. The pinned Helius wrapper remains path-only on argv. A read-only Helius
+account-status MCP call at 11:17Z returned `Transport closed`; no RPC, c4 retry, backfill, frozen
+tail2 read or collector activation occurred. Account-specific Helius charge controls remain unknown.
+Preserve c4 gaps and STOP; do not start a successor until separate charge, storage, trust, lease and
+activation gates pass.

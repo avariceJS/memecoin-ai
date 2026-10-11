@@ -166,6 +166,16 @@ contain large exact payloads, so open only the named artifact needed for a speci
   runtime/source qualification, and provider completeness are always false. Token-2022 fee/epoch/
   withheld/hook binding and WSOL account/rent/frame-path binding remain open fixture gates. No
   validator, RPC, replay, c4 body, audit, or economic admission was used.
+- `solana-candidate-position-witness-transition-consistency-v1-2026-10-11.json`: binds the
+  Sol-accepted synthetic Token-2022 and WSOL transition-consistency checks and 63 focused tests.
+  This validates supplied transition claims only; raw decoding, fee/Rent derivation, runtime
+  instrumentation and economic/source admission remain false.
+- `agave-v3.0.0-candidate-position-boundary-capture-feasibility-v1-2026-10-11.json`: pins a
+  disposable Agave v3.0.0 patch, toolchain, lockfile, isolated ProgramTest success/error captures,
+  and 16 focused passes, including the same InvokeContext regression cases with the feature disabled.
+  Sol accepted only local hook-location/raw-boundary feasibility;
+  the exact patch is retained alongside the receipt. It does not qualify a transaction-scoped
+  witness, finality, real-source replay, completeness, or economics.
 - `pumpswap-buy-exact-v1-alchemy-account-archive-feasibility-v1-2026-10-11.json`: separately
   screens the same 2,333 identities against byte-pinned Alchemy Archive and simulation docs. It
   distinguishes slot-boundary bytes from transaction/instruction-position state; 2,330 exceed one

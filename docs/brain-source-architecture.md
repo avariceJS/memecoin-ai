@@ -2758,16 +2758,31 @@ tracked separately. Availability uses conservative UTC upper bounds only when ev
 receipt has finite evidenced clock uncertainty; an unknown bound leaves availability unknown.
 
 The narrow core checker validates typed synthetic receipt/path/account consistency, bank-to-root
-joins, shared execution runtime identity, and dimensional field labels; 54 focused tests pass and
-Sol accepted this scope. Its outputs permanently set economic admission, source qualification and
-real provider/runtime completeness to false. Two protocol-specific synthetic gates remain open:
-the current Token-2022 fixture checks readonly role presence and hook path only, without binding fee
-config bytes, epoch-selected fee terms, withheld amount transitions, or hook account semantics; the
-WSOL fixture checks effect labels/order and unit labels only, without account snapshots, rent reserve,
-balance effects, or frame-path binding. Neither is a qualified economic decoder. Receipt:
+joins, shared execution runtime identity, and dimensional field labels; its initial 54-test
+qualification is recorded in the core receipt. Sol accepted a follow-on synthetic transition
+consistency gate, bringing the focused suite to 63 passing tests. It checks supplied Token-2022
+gross/fee balance transitions and hook ordering, plus supplied WSOL SyncNative/CloseAccount account,
+lamport, token-unit and path/order continuity. These are consistency checks over synthetic claims:
+they do not decode raw account bytes, derive fee terms or Rent, validate hook effects, or establish
+runtime/source/economic correctness. Neither protocol fixture is a qualified economic decoder.
+Receipt: [`candidate-position transition consistency`](evidence/solana-candidate-position-witness-transition-consistency-v1-2026-10-11.json).
+The checker's outputs permanently set economic admission, source qualification and real
+provider/runtime completeness to false. The remaining work requires source-bound runtime witness
+instrumentation and independent validation. Receipt:
 [`candidate-position synthetic checker validation`](evidence/solana-candidate-position-witness-synthetic-checker-validation-v1-2026-10-11.json).
-No validator was built or run, no c4 body or historical replay was opened, and no provider RPC,
-decoder promotion, audit or economic admission occurred. A real instrumentation prototype would
-need a separate source-bound implementation and independent Sol review. Prospective activation also
-remains closed: c4 is terminal with gaps preserved, no successor lease exists, Helius MCP transport
-is still unavailable, and internal disk remains below the reviewed floor.
+A disposable, source-pinned Agave v3.0.0 patch then verified the narrow hook-location hypothesis:
+isolated ProgramTest CPI success and child-error paths each emitted ordered after-push/pre-execution
+and post-execution/pre-pop account snapshots. Seven InvokeContext regression cases passed with the
+feature enabled and again with it disabled, preserving the default path. Sol accepted this only as
+local raw boundary-capture feasibility. The collector uses a global buffer,
+has no transaction identity or guarded panic cleanup, omits failed pushes, and observes executable-
+chain return rather than final instruction/transaction or Bank commit. It is not a transaction-scoped
+witness, real-source qualification, or economic decoder. Receipt and exact patch:
+[`Agave v3 boundary-capture feasibility`](evidence/agave-v3.0.0-candidate-position-boundary-capture-feasibility-v1-2026-10-11.json),
+[`source patch`](evidence/agave-v3.0.0-candidate-position-boundary-capture-feasibility-v1.patch).
+No c4 body or historical replay was opened, and no provider RPC, decoder promotion, audit or economic
+admission occurred. The next offline gate is a transaction-scoped, fail-closed observer contract
+with per-context identity/sequence, guarded frame cleanup, explicit push/pop/transaction terminal
+outcomes, complete selected-role account-set checks, and independent replay tests. Prospective
+activation remains closed: c4 is terminal with gaps preserved, no successor lease exists, provider
+account charge controls are unknown, and internal disk is below the reviewed floor.

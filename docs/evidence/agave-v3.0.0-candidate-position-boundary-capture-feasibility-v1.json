@@ -1,0 +1,104 @@
+{
+  "schema": "agave_candidate_position_boundary_capture_feasibility_v1",
+  "created_utc": "2026-10-11T11:17:11Z",
+  "scope": "source-pinned local hook-location and raw boundary-capture feasibility only",
+  "source": {
+    "repository": "anza-xyz/agave",
+    "tag": "v3.0.0",
+    "tag_object": "f77a8f7acf96695cce161d94666643f32a1ce398",
+    "commit": "b6c96e84b10396b92912d4574dae7d03f606da26",
+    "rust_version": "rustc 1.86.0 (05f9846f8 2025-03-31)",
+    "rust_toolchain_toml_sha256": "822f346fdc08de4f9d915c43c93210c43136a8994fa39f5b3f6157295ba825f4",
+    "cargo_lock_sha256": "fc3fdf681e0c0a89399c07376747e13cdd5a31d61f6b209df5437a9594fc76a5"
+  },
+  "patch": {
+    "path": "agave-v3.0.0-candidate-position-boundary-capture-feasibility-v1.patch",
+    "bytes": 18452,
+    "sha256": "378b1d4661cdf5beb56df973ceb2771d715475e2fd59d9fcf1fbf5e2f912097e"
+  },
+  "bindings": [
+    {
+      "path": "work/agave-v3.0.0-full-source/program-runtime/src/invoke_context.rs",
+      "bytes": 72416,
+      "sha256": "186d87b747cd71ac325fc0e0c795b129e676daec07cd8b9f028ebfffa550e7f6"
+    },
+    {
+      "path": "work/agave-v3.0.0-full-source/program-runtime/Cargo.toml",
+      "bytes": 3123,
+      "sha256": "9831a4e68462029eef64bb5cb3584ce9a3612adfadc48205c38fda57843cf791"
+    },
+    {
+      "path": "work/agave-v3.0.0-full-source/program-test/Cargo.toml",
+      "bytes": 2812,
+      "sha256": "edbfaeac100973a8046d45dbf78f214e2314d0f3a3292902f711a7ecf7bb35d1"
+    },
+    {
+      "path": "work/agave-v3.0.0-full-source/program-test/tests/cpi.rs",
+      "bytes": 13019,
+      "sha256": "37e08c286564f75e2becbc3621517d30f6d94a9524c853093964c22a995b592d"
+    },
+    {
+      "path": "work/agave-v3.0.0-full-source/Cargo.lock",
+      "bytes": 325533,
+      "sha256": "fc3fdf681e0c0a89399c07376747e13cdd5a31d61f6b209df5437a9594fc76a5"
+    },
+    {
+      "path": "work/brain-senses-agave-witness-v3-20261011/cpi-boundary-witness.json",
+      "bytes": 2387,
+      "sha256": "2d348a849a2669f7a9172ea0f615d4d58a15ad24377f2b05499294a283020726",
+      "mode": "0600"
+    },
+    {
+      "path": "work/brain-senses-agave-witness-v3-20261011/cpi-failed-boundary-witness.json",
+      "bytes": 2523,
+      "sha256": "df2e9d646afda998b24447867babf42ed6dd96979841086c60d9b6f98d678565",
+      "mode": "0600"
+    }
+  ],
+  "commands": [
+    "BRAIN_SENSES_AGAVE_WITNESS_CAPTURE=<private work path> cargo test --locked --offline -p solana-program-test --features solana-program-runtime/dev-context-only-utils --test cpi -- --exact cpi --test-threads=1",
+    "BRAIN_SENSES_AGAVE_FAILURE_WITNESS_CAPTURE=<private work path> cargo test --locked --offline -p solana-program-test --features solana-program-runtime/dev-context-only-utils --test cpi -- --exact cpi_child_failure_is_attempted_only --test-threads=1",
+    "cargo test --locked --offline -p solana-program-runtime --features dev-context-only-utils invoke_context::tests::test_process_instruction_account_modifications -- --test-threads=1",
+    "rustfmt --check --edition 2021 program-runtime/src/invoke_context.rs program-test/tests/cpi.rs",
+    "git diff --check",
+    "cargo test --locked --offline -p solana-program-runtime invoke_context::tests::test_process_instruction_account_modifications -- --test-threads=1"
+  ],
+  "validation": {
+    "program_test_cpi_success": "passed; 1 test; isolated single test thread; 4 boundaries with sequences 0..3",
+    "program_test_cpi_child_error": "passed; 1 test; isolated single test thread; 4 boundaries with sequences 0..3",
+    "invoke_context_account_modifications": "passed; 7 tests",
+    "rustfmt_targeted": "passed",
+    "source_diff_check": "passed",
+    "total_focused_tests_passed": 16,
+    "feature_disabled_regression": "passed; 7 InvokeContext account-modification tests with dev-context-only-utils disabled",
+    "patch_round_trip": "passed; exact binary patch reversed to the pinned pristine commit, checked, and reapplied byte-for-byte"
+  },
+  "observed_boundary_contract": {
+    "pre_instruction": "after successful InvokeContext push bookkeeping and before executable-chain/precompile processing",
+    "post_execution_before_pop": "after executable-chain/precompile processing returns and before InvokeContext pop",
+    "sequence": "assigned while holding the same mutex used to append; isolated captures preserve append order",
+    "accounts": "snapshots of instruction-listed account metadata and bytes only"
+  },
+  "review": {
+    "reviewer": "Sol",
+    "decision": "accepted only as an isolated local hook-location feasibility result after sequence assignment moved inside the append lock",
+    "status": "accepted_feasibility_only"
+  },
+  "invariants": {
+    "real_candidate_position_witness_qualified": false,
+    "transaction_or_bank_finality_established": false,
+    "economic_semantics_or_admission": false,
+    "provider_or_population_completeness": false,
+    "production_or_collector_integration": false
+  },
+  "limitations": [
+    "The global Vec and clear operation are not transaction-scoped; concurrent transactions or captures can interleave. These results are valid only for isolated tests.",
+    "The thread-local frame stack has no transaction identity and panic cleanup is not guarded.",
+    "A failed InvokeContext push emits no boundary; no exhaustive attempted-instruction claim is supported.",
+    "returned_success/error describes the executable-chain/precompile return only, not final instruction status, transaction rollback/commit, Bank commit, or rooted block state.",
+    "No transaction signature, slot, transaction index, bank identity, receipt time, availability time, or decision-time identity is captured.",
+    "Snapshots include only accounts listed by each instruction; complete transaction account roles, mint/sysvar state, Token-2022 extension interpretation, Rent derivation, and economic settlement are not established.",
+    "The synthetic ProgramTest paths do not qualify real-source replay, precompile coverage, provider acquisition, completeness, or market-population coverage.",
+    "No c4 body or tail2 data was opened; no RPC, retry, backfill, lease, collector activation, or economic admission occurred."
+  ]
+}
