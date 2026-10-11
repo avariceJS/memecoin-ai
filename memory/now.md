@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 11:48 UTC. Research branch `research/active`, HEAD checked after credential-scan commit `6a6e3c59479f0bdf6855fec3addd23254b288d48`. Production checkout `/Users/root1/Desktop/memecoin-ai` is untouched.
+**As of:** 2026-10-11 12:17 UTC. Research branch `research/active`, HEAD `f52bd0bd5c077097e7d65635c2edfe0c69782305`, worktree clean before this handoff update. Production checkout `/Users/root1/Desktop/memecoin-ai` is untouched.
 
 ## Runtime and acquisition
 
@@ -12,8 +12,8 @@
 - Pair64 offline receipt: 64/64 same-slot block identity/signature order matched; 80,321/80,467 transaction trees matched, with 146 explicit Helius log truncations. Alchemy inventory completeness remains unknown.
 - `buyExact25` is not economically qualified; sell23 remains captured-class only. See `docs/brain-source-architecture.md`.
 - Commit `46f6b46` records synthetic Token-2022/WSOL transition consistency (63 focused checks), not raw decoding/economic admission. `f7f26df` records source-pinned Agave hook-location feasibility, not a qualified transaction witness.
-- Sol rejected Luna's Agave v2 observer patch for freeze. Bounded v3 fixes are underway in ignored `work/agave-v3.0.0-full-source`; offline only, no c4/tail2/provider access or default/production hooks. Re-review with Sol before acceptance.
+- Sol rejected Agave observer v2 and v3; v4 is also rejected for freeze until boundary-level execution ID/attempt identity, selected-account validation at every account-carrying phase, and frame program/data agreement are independently checked with mutations. Luna is implementing only these bounded v5 changes in ignored `work/agave-v3.0.0-full-source`; offline only, no c4/tail2/provider access or default/production hooks. Re-review with Sol before acceptance.
 
 ## Next horizon
 
-Continue v3 observer qualification and offline evidence. Separately resolve account-specific charge controls and durable storage/runway before any fresh prospective lease. Do not retry failed MCP status requests or activate a collector without the required policy. Cortex remains out of scope.
+Finish and review v5, then run the Sol-approved bounded synthetic ProgramTest raw Token-2022/WSOL witness/parser gate. This does not qualify a real source or economic admission. In parallel, prepare official account-evidence interpretation and a storage/runway dossier without RPC. Current free disk is 33 GiB versus the 50-GiB floor; c4 ended abnormally; Helius account charge controls and live trust/review evidence are unknown. No prospective service is activatable. Do not backfill, reopen frozen tail2, retry failed MCP status requests, or issue duplicate requests. A future service requires a fresh forward-only lease, verified c4 discontinuity with gaps/open unknown preserved, exact caps/schedule, adequate measured storage and account controls, and separate Sol activation review. Cortex remains out of scope.
