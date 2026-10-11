@@ -2419,6 +2419,34 @@ until its bucket expires, then that bucket is recorded as a gap; a later anchor 
 an unnecessary STOP or request. The focused calendar/bridge/child suite now passes 83 cases.
 Receipt: [`finite-calendar gap/anchor follow-up`](evidence/senses-finite-calendar-v3-gap-anchor-followup-2026-10-11.json).
 
+The offline one-shot supervisor v1 wraps an already initialized finite-calendar lease. Its immutable
+owner-only binding pins the lease root identity, exact plan digest, and source hashes for the
+supervisor, calendar driver/verifiers, operation envelope/verifier, and child-v3 runner. Before
+each decision it independently verifies the parent prefix and any terminal handoff, then uses the
+calendar's exclusive owner lock to serialize the single decision. The existing finite calendar
+accounts elapsed buckets as gaps and may dispatch at most one due operation; ambiguous prefixes,
+STOP, regressed UTC, disk evidence faults, and a failed floor cannot dispatch or replay. UTC wall
+time is sampled after lock acquisition and again after the decision; stale injected times are
+rejected and any post-decision regression is reported as `clock_fault`, even if it remains later
+than the last ledger event. A no-event transient regression is not durably journaled; a later
+invocation resamples under the lock, while started-operation failures use the existing STOP and
+no-replay rules. Read-only status reports the frontier, gaps, unknown intervals, caps, next bucket and terminal reason; its
+snapshot verifier detects changes to the bound plan, code, or event prefix. The command line only
+emits status. Programmatic operation execution has no default client and accepts only explicitly
+injected runner/client objects; qualification used synthetic clients. No client construction,
+credential lookup, scheduler, LaunchAgent or activation path is included. `activation_authorized`
+remains false.
+
+This supervisor cannot establish an initial lease or a discontinuous successor. The first live
+entry remains a separately versioned and reviewed gate: c4's abnormal STOP is not a normal
+predecessor, and its verified terminal/gaps/unknowns must be bound before a fresh future anchor can
+be considered. Do not claim continuity, backfill missed intervals, reopen c4, or inspect its frozen
+tail2. Local hashes do not authenticate plan/reviewer identity, and an external caller that injects
+a live client is outside this offline qualification. The 19 supervisor tests and 76 combined
+supervisor/calendar/operation-envelope tests pass using synthetic captures only; no RPC or live
+activation occurred. Receipt:
+[`offline one-shot supervisor v1 validation`](evidence/senses-calendar-supervisor-v1-offline-validation-2026-10-11.json).
+
 The offline activation-preflight v1 verifier now binds each predecessor handoff's terminal time,
 gaps and unknown intervals through the complete lineage; checks the finite operation plan, all
 intersected UTC-day request/byte upper bounds, full-lease storage runway and reviewed churn reserve;

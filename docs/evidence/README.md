@@ -145,6 +145,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - `senses-finite-calendar-v3-gap-anchor-followup-2026-10-11.json`: source-bound missed-anchor
   recovery check; an active frame waits until its end, becomes a gap, and leaves the later anchor
   eligible without dispatch. The calendar/bridge/child suite passes 83 focused cases; no RPC.
+- `senses-calendar-supervisor-v1-offline-validation-2026-10-11.json`: source-bound one-shot wrapper
+  over an already initialized finite-calendar-v3 lease, operation-envelope-v2 and child-v3. It
+  verifies prefixes, serializes decisions with the calendar owner lock, exposes stale-checkable
+  read-only status; offline qualification used synthetic clients (19 focused tests / 76 combined
+  cases), with no RPC or activation. The Python API accepts caller-injected clients; live injection,
+  initial entry and discontinuity remain separate review gates.
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:
