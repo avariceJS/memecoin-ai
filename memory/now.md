@@ -1,10 +1,10 @@
 # Current Project State
 
-**As of:** 2026-10-11 04:35 UTC. Recheck host, disk, account meter and LaunchAgents before any acquisition decision.
+**As of:** 2026-10-11 04:37 UTC. Recheck host, disk, account meter and LaunchAgents before any acquisition decision.
 
 **Research checkout:** `/Users/root1/Developer/memecoin-research`
 **Branch:** `research/active`
-**Current base before this milestone commit:** `d16b904cc782fd912e12c034556cdb8be45618de`
+**Latest Senses commits:** `3e733b9` (anchor frontier guard), `8d757a9` (finite calendar and handoff).
 
 ## Boundaries and runtime
 
@@ -27,9 +27,9 @@
 
 ## Completed this continuation
 
-- Committed base `d16b904` adds operation-envelope-v2 / child-v3 offline bridge (34 requests/frame)
-  and fake-only validation.
-- Current uncommitted milestone adds a caller-driven finite-calendar-v3 lifecycle and independent
+- Base `d16b904` adds operation-envelope-v2 / child-v3 offline bridge (34 requests/frame) and
+  fake-only validation.
+- Commits `3e733b9` and `8d757a9` add a caller-driven finite-calendar-v3 lifecycle and independent
   handoff verifier, plus a strict anchor frontier-regression STOP. Handoffs preserve gaps, unknown
   intervals and conservative request/byte accounting across successor generations; a started child
   is never replayed. Calendar accepts no cadence, credential loader, provider factory, scheduler,

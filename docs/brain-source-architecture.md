@@ -51,6 +51,11 @@ LaunchAgent arguments, or 82.2 MB of Unified Log; the three expected private con
 The user authorized continued use without rotation. The current c4 LaunchAgent carries only fixed
 paths and reads the private endpoint in process. Receipt:
 [`23:18Z post-output exposure rescan`](evidence/helius-key-post-tool-output-rescan-2026-10-10T2318Z.json).
+The 04:35Z delta scan then found zero exact matches in 6,055 Git objects, the current process list,
+124 accessible saved files changed since 02:19Z (403.9 MB), and 1.204 GB of subsequent Unified Log;
+`.env.local` remained owner-only mode 0600. It does not inspect provider/remote storage, backups,
+Time Machine, prior session transcript storage, or 1,194 inaccessible files. Receipt:
+[`04:35Z exposure delta`](evidence/helius-key-exposure-delta-2026-10-11T0435Z.json).
 Read-only Helius MCP plan info and current pricing confirm Free at 1M credits/month and 10 standard
 RPC requests/s; standard `getBlock`, `getBlocks`, `getSignaturesForAddress`, and `getTransaction` each cost one
 credit. Account-level usage is not exposed. Standard WSS is available; enhanced
