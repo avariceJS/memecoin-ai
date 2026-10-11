@@ -2752,23 +2752,73 @@ closed roots and receipt pins, copy to a temporary external group, fsync, compar
 and hashes, publish a create-only group manifest and immutable old-to-new locator receipt, run
 independent read-only verifiers, and only then release the old copy. Active roots are never moved.
 The worktree `work/` remains a legacy location during migration; no writer may treat an unchecked
-symlink as an external-storage binding. Current implementation and host configuration remain
-unqualified until a specific volume passes filesystem, disconnect/reconnect, permission, locking,
-seal, and recovery checks.
+symlink as an external-storage binding. `memecoin_research_storage` implements the versioned
+resolver, root marker, descriptor-anchored private configuration, writer lock and identity checks.
+`tools/research_storage.py` separates volume qualification, create-only host configuration,
+root creation and read-only checks. Campaign journals stay beneath the verified root.
+`tools/research_storage_migrate.py` accepts only explicitly attested closed research `work/` groups;
+it copies with bounded-memory hashing, preserves supported metadata, verifies source and destination
+again, and publishes create-only manifests/locators. It never deletes an original. Protected names,
+unsupported metadata or changed source evidence fail closed. Independent application replay is a
+separate release gate; a migration hash match alone does not qualify legacy absolute-path readers.
+Published v2 manifests retain strict xattr equality. The v3 contract permits only a destination-added
+`com.apple.provenance` attribute absent from the corresponding source object, recorded separately
+with its actual size and SHA-256 and verified unchanged. Every source xattr remains exact; other
+extras, altered values or unstable attributes fail closed. This records an OS-added destination
+property and does not alter blockchain provenance. Offline migration checks pinned identity on every
+entry/chunk, performs full volume checks at least every five seconds during callbacks and at all
+publication boundaries, and never weakens the live service's full dispatch check.
 
-On 2026-10-11 the user-authorized dedicated external 240.1 GB physical USB disk was reformatted as
-GUID + case-sensitive APFS, volume `Kingston` (volume UUID
-`8F8F1081-9BE4-4914-9111-75F1B90255BF`). The prior ExFAT contents were intentionally erased. A
-safe unmount/remount preserved the UUID and `/Volumes/Kingston` locator. However, macOS reports
-`Owners: Disabled` and mounts it with `noowners`; explicit `diskutil enableOwnership` requires
-administrator credentials unavailable to this session. A disposable file probe reported mode
-0600, but this does not establish enforced ownership while `noowners` is active. No research root
-or corpus was created or migrated, and all Senses writers remain disabled until ownership is
-enabled and the full storage qualification is repeated. Physical disconnect/reconnect and login
-mount persistence remain untested. A 32 MiB disposable I/O probe also passed file/directory fsync,
-same-volume rename, create-only hard-link behavior, cross-process flock exclusion, and hash replay;
-its apparent read rate was cache-influenced and is not a sustained-throughput measurement. These
-filesystem operation checks do not qualify a `noowners` mount for research data.
+After exact verification and independent replay, source release uses a reversible internal rename
+and old-path alias trial. An incompatible reader causes restoration of the original. Accepted
+archives receive an owner-reversible APFS `uchg` flag plus a separate flag-aware hash seal before
+original removal; this prevents accidental writes, not privileged or owner removal. The generic
+migration verifier intentionally rejects flagged trees: use the recorded pre-seal verification and
+final archive seal together. Aliases support only qualified read-only legacy readers; they are not
+writer configuration. Experience/Snapshot readers reject symlink ancestors, so their frozen roots
+remain internal until a separately qualified relocation-aware reader can preserve their pins.
+
+The new `tools/brain_senses_external_service_v1.py` is an **inactive adapter prototype** for the
+existing service-v1 runner. Its storage/config/source/plist bindings, per-call guard, and RPC
+transport guard are tested, but frozen service internals still perform absolute-path recursive
+writes. A physical detach between a guard and those calls could redirect a write to an underlying
+mountpoint. Therefore `EXTERNAL_WRITER_DETACH_QUALIFIED = False` blocks initialization and scheduled
+ticks before mutation or client loading; no CLI override exists. Synthetic tests may patch the gate
+only to exercise downstream contracts. Before live activation, a separately versioned writer must
+anchor every write/lock/rename to the verified directory descriptor and pass detach-at-write fault
+injection (or an independently proved equivalent OS-enforced scheme). Do not just flip the flag.
+Predecessor, terminal, billing, clock and finite-lease gates also remain required. Existing frozen
+campaign sources and receipts are unchanged. This limitation does not affect the descriptor-anchored
+migration tool or read-only storage monitor.
+
+All 15 previously installed Senses plists were disabled/unloaded, hash-verified and archived under
+`~/.config/brain-research/retired-launchagents-20261011/`; their installed files were removed so they
+cannot restart as parallel login collectors. Historical direct scripts are unsupported forensic
+entry points. The only new enabled research LaunchAgent is
+`ai.memecoin.brain.research-storage-health-v1`, running every 300 seconds and at load. It writes only
+bounded private internal `~/.config/brain-research/storage-health/status.json`; no RPC or acquisition
+occurs. Launchd stdout/stderr use `/dev/null` because external log paths would be opened before any
+storage guard. Unmount/remount and launchd reload qualification proved `ready → storage_unavailable
+→ ready` with no fallback corpus creation. Physical cable removal and login remain untested.
+
+On 2026-10-11 the dedicated 240.1 GB external USB disk was reformatted under explicit user
+authorization as GUID + case-sensitive APFS, volume `Kingston`, UUID
+`8F8F1081-9BE4-4914-9111-75F1B90255BF`. The user then enabled filesystem ownership and assigned
+the mount root to `root1:staff`. The configured root is `/Volumes/Kingston/BrainData` (0700), logical
+ID `9428695af6d4f46c08e1a444cdc66de8`; private host binding is
+`~/.config/brain-research/storage-v1.json` (0600), with a 50 GiB minimum free-space floor.
+Code, Git, environments, documentation and small operational state remain internal. Future large
+roots must use this explicit binding and relative paths; the volume label is only a host locator.
+Physical disconnect/reconnect and login persistence are distinct from safe unmount/remount tests.
+See `memory/now.md` for current migration, runtime and capacity state.
+The completed host handoff is recorded in
+[`external storage qualification and migration`](evidence/senses-external-storage-handoff-2026-10-11.json):
+three closed capture groups totaling 18,285,310,608 logical bytes were released from internal storage
+only after replay and final seals. At that snapshot internal/external free space was 44.61/205.86 GiB.
+With no market collector active, current acquisition growth is zero; the prior conservative 18-GiB/day
+scenario leaves 8.66 days above the configured reserve. This is temporary capacity, not a new budget
+approval or a replicated corpus. Qualification datasets with symlink-rejecting frozen readers and
+dirty Agave source/build state remain explicit internal exceptions.
 
 ## Offline v3 block child envelope (2026-10-11)
 

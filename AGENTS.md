@@ -105,6 +105,12 @@ is available from historical Git commits.
   splits. Do not silently treat missing data as zero or retry a charged request.
 - Prefer existing project interfaces. Keep raw captures outside Git; never store secrets or keys
   in documentation/logs. A new venue adapter requires independent semantic and execution review.
+- Put new large research artifacts beneath the explicitly configured research-data root using
+  `memecoin_research_storage`; verify volume identity and write ownership before use. Never treat
+  a legacy `work/` alias as writer configuration or fall back to internal storage when the bound
+  volume is unavailable. Live writers require descriptor-bound writes or a separately qualified
+  equivalent; a pre-write guard alone is insufficient. Follow the source architecture's migration
+  and collector release gates.
 - In worker checkout, follow `docs/two-mac-workflow.md`; do not restore owner runtime or credentials.
 - For code changes, use focused tests scaled to risk. Standard checks are `make check` and `make smoke`.
 - Runtime dependencies use the standard library; development pins are in `requirements-dev.lock`.

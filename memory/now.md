@@ -1,24 +1,103 @@
 # Current Project State
 
-**As of:** 2026-10-11 17:18Z. Research checkout: `/Users/root1/Developer/memecoin-research`; production `/Users/root1/Desktop/memecoin-ai` untouched. Current branch is `research/active`; `main` and `research/active` were both pushed at `5854e66497478cd13d46d6a7e63fbf34aae0a537` before this storage update. `origin` is the only configured push remote. Commit and push the finished handoff update, then fast-forward/push `main` per `AGENTS.md`.
+**As of:** 2026-10-11, external-storage handoff. Research checkout:
+`/Users/root1/Developer/memecoin-research`; production `/Users/root1/Desktop/memecoin-ai` untouched.
+Do not start Cortex. This session ends after infrastructure handoff; the next Luna High session
+continues Senses under Luna → Sol → Astra routing.
 
-## Git and credential state
+## Git and authority
 
-- At consolidation review, local `research/active` was a direct descendant of `main` by 317 commits; there were no commits unique to `research/mac1-active`, `control-center/observatory-handoff`, `worker/mac2-bootstrap`, or `handoff/mac2`. Remote `worker/mac2-bootstrap` was already deleted. Superseded branches were removed after ancestry verification; only `main` and `research/active` remain as long-lived branches. Both are pushed. `AGENTS.md` now defines regular active-branch pushes and milestone fast-forward policy.
-- User permits current Helius key without rotation. Private `.env.local` remains 0600; pinned secure wrapper passes it through child environment, not argv. On Oct 11, 57 Cursor SQLite copies were redacted; SQLite/FTS integrity passed. A later scan found no exact copies in accessible files, Git objects, argv or scanned Unified Log. Cursor remained open during audit, so future in-memory reserialization cannot be excluded. Receipt: `docs/evidence/helius-key-cursor-state-redaction-2026-10-11T1544Z.json`.
+- Only `main` and `research/active` remain locally and on `origin` (plus `origin/HEAD`). Obsolete
+  branches were removed after ancestry/unique-commit review. No history rewrite. Continue work on
+  `research/active`; regular batch pushes and verified milestone fast-forwards are policy in AGENTS.
+- Verified code baseline: `35da772` (storage/migration, inactive external service adapter). The final
+  documentation handoff commit is pushed to both branches, with a clean worktree. Its exact full
+  `main`/`research/active`/remote hashes are recorded after push in the small host snapshot
+  `~/.config/brain-research/git-handoff-v1.json`; always verify live Git before continuing. This avoids
+  a self-referential commit hash inside its own tracked file.
+- Current Helius key remains authorized without rotation. Credentials stay in private files/env,
+  never argv/plists/logs. Latest scoped scan: zero exact secret/endpoint matches in 3,338 Git blobs,
+  process argv, 45 installed LaunchAgent plists, handoff/config files. Previous Cursor redaction and
+  its limits remain in the source architecture; do not reopen the user's accepted rotation decision.
 
-## Runtime and storage
+## Storage: actual configuration and migration
 
-- All 15 installed Senses LaunchAgents are disabled/unloaded; no Senses collector is active. The unrelated `ai.memecoin.brain.operator` LaunchAgent remains enabled; do not alter it. c4 is terminal with missed prospective buckets/gaps preserved. No retry, resume, or backfill. Helius MCP processes exist, but no Senses RPC was made. No credential-bearing process arguments were observed in the last audit.
-- Internal eligible storage is `/System/Volumes/Data` on APFS. At 2026-10-11 16:54Z, conservative `df` free was 26,090,602,496 bytes, 27,596,488,704 below the 50-GiB WSS floor; the full two-session peak/churn envelope is unmeasured. Cache+`dist/` maximum candidate yield is 110,530,560 bytes and cannot close the gap. No internal cleanup or evidence movement occurred.
-- Current storage after user-authorized erase: the dedicated external USB disk was reformatted GUID + case-sensitive APFS, volume `Kingston`, UUID `8F8F1081-9BE4-4914-9111-75F1B90255BF`, mounted at `/Volumes/Kingston`. Former ExFAT contents (~73.0 GB reported used) were erased under the user's explicit whole-disk dedication/reformat instruction. Latest `df` showed 239,709,892,608 bytes external free and 34,282,492 KiB internal available. Safe unmount/remount preserved mount locator and volume UUID. Physical disconnect/reconnect and login persistence remain untested. macOS reports `Owners: Disabled` and `noowners`; `diskutil enableOwnership` failed because administrator credentials are unavailable. A 32 MiB scratch probe passed fsync, directory fsync, hash replay, same-volume rename, create-only hardlink behavior, and cross-process flock; 0600 displayed on stat, but enforced ownership is unproven and the cache-influenced read figure is not a throughput estimate. Probe was removed. No corpus root was created and no evidence was migrated; all large data remains internal. No Senses collector or provider activity is authorized by formatting.
-- Sol's storage contract remains: owner-enabled case-sensitive APFS; bind a random logical research-root ID + volume UUID; fail closed for missing/renamed/read-only/noowners/wrong-volume mounts or a mountpoint-directory fallback; verify identity and space under lock and before dispatch. Campaign paths are relative to the logical root; receipts retain content hashes and observed mount locator. No internal fallback. Keep capture journals with raw data on the same filesystem.
-- Names/allocation-only overview found largest internal `work/` roots: live Helius stratified capture ~16.6 GiB; Agave v3.0.0 source ~7.3 GiB; System qualification ~2.1 GiB; sparse qualification ~1.25 GiB; population-scale ~1.0 GiB; pair64 ~0.71 GiB. This is not a seal/immutability or migratability determination. Never move an active/open root; inventory protected holdouts without reading or migrating them. Migration sequence: copy closed root group to temporary external path, fsync, exact path/type/size/hash and receipt-pin verification, immutable old→new locator record, independent read-only replay checks, then release old copies groupwise. A `work/` symlink is not a storage contract.
+- Primary new research-data root: `/Volumes/Kingston/BrainData` (0700), case-sensitive APFS,
+  ownership enabled; mount root is writable by `root1:staff`. UUID
+  `8f8f1081-9be4-4914-9111-75f1b90255bf`, logical root ID
+  `9428695af6d4f46c08e1a444cdc66de8`. Private host binding:
+  `~/.config/brain-research/storage-v1.json` (0600), minimum available reserve **50 GiB**.
+- Code/Git/venvs/docs/config and small operational state stay internal. Future large roots use the
+  explicit binding and relative paths, not unchecked `work/` paths. No internal fallback.
+- Three closed roots moved to `BrainData/archive/work/`, **18,285,310,608 logical bytes** total:
+  `brain-senses-live-helius-public-stratified-20261006-09`,
+  `brain-senses-live-helius-alchemy-512-pair64-20261009`,
+  `brain-senses-live-helius-alchemy-512-20261009`. Originals were released only after exact manifests,
+  independent verification, application replay on real external paths and reversible old-path aliases,
+  unchanged-original rehash, then final flag-aware archive seals. Old paths are read-only compatibility
+  symlinks. Archives have owner-reversible `uchg`; hashes/receipts remain the integrity authority.
+- Manifests are beside archive roots; verification/locator/seal/release receipts and reproduction
+  scripts are under `BrainData/migration/20261011/` (operator copy manifest under `operator/`). v2
+  remains strict; v3 separately records and verifies only OS-added destination `com.apple.provenance`
+  absent from source. Generic migration verification precedes `uchg`; use the final seal afterward.
+- Deliberately retained internal: System/Sparse/Population qualification roots (~4.4 GiB combined;
+  frozen Experience/Snapshot readers reject symlink ancestors), dirty Agave source plus mutable
+  `target/` (~7 GiB; qualify guarded external `CARGO_TARGET_DIR` before future rebuilds), environments,
+  c4 and other frozen absolute-path roots. No protected payload read/move and no duplicate copy of
+  these exceptions. Do not blanket-move `work/` or delete dirty Agave work.
+- At receipt time: internal free **44.61 GiB**, external free **205.86 GiB**. No market collection is
+  currently growing the corpus. Prior bounded calibration was 14.9 GB/day; at a conservative
+  **18 GiB/day**, external runway above the 50-GiB floor is **8.66 days**. This is a scenario, not a
+  new lease or measured current rate. The 240-GB tier is temporary; a larger tier/replication will be
+  needed for sustained history. One external copy is not a backup or recovery-from-hardware-loss claim.
 
-## Senses state and next decision horizon
+## Runtime and recovery
 
-- Approximate engineering readiness remains ~60%, a management estimate, not a metric. Existing meaningful qualifications include OHLCV baseline; selected-class PumpSwap sell23 ledger v2 (1,255 candidates: 410 exact target-account settlements, 843 censored native settlement, 2 unsupported); provider-paired selected-block structural comparison; and bounded PumpSwap create_pool source-interface matching for two candidates. None proves market-wide completeness or trading advantage.
-- The new 608-slot System/ATA census reconciles 741,305 transactions and 2,574,909 instruction references; it finds 675 seven-account ATA tag-0/1 shapes (636 Rent key, 39 other keys). Sol deferred semantic qualification: preserve these as unknown extra-account partitions. BuyExact25 economic work remains deferred without a candidate-position witness.
-- Current external blockers: eligible storage with adequate free space/durability; authentic Helius account/billing evidence (Helius account MCP returned `Transport closed`); then a fresh trusted clock/storage/source review and one-use finite prospective lease. No RPC or lease was approved. Do not begin Cortex.
-- The 2026-10-11 storage recovery and filesystem check are recorded in `docs/evidence/senses-storage-recovery-feasibility-v1-2026-10-11.json`; selected wire counts are in `docs/evidence/senses-system-ata-wire-census-v1-2026-10-11.json`. Census tests: 8 passed; both receipts JSON-validated.
-- **Immediate next session:** enable filesystem ownership on the new Kingston APFS volume as administrator and verify `Owners: Enabled` / no `noowners`, then perform full storage qualification (owner/mode enforcement, create-only seals, file/directory fsync, same-volume rename, flock, absent/wrong-mount fail-closed behavior, disconnect/replug and login mount behavior). Implement/configure the UUID-bound versioned research root only after qualification. Migrate only closed evidence groups with verified manifests; do not move active/open or protected roots. Test fail-closed runtime/reload before any collector activation; keep all Senses agents disabled. c4 stays terminal; never backfill/retry. Separately obtain authentic read-only Helius account/charge evidence and request Sol review of a finite prospective lease. Do not modify production or begin Cortex. Next broad Senses gates remain independently validated economic-process semantics, wide population/lifecycle/modalities, then calendar accumulation.
+- All **15** legacy Senses agents are disabled/unloaded; installed plists were hash-verified and
+  archived under `~/.config/brain-research/retired-launchagents-20261011/`. No market collector is
+  active. Unrelated production owner services were not changed. No provider request was made here.
+- Enabled research agent: `ai.memecoin.brain.research-storage-health-v1` (RunAtLoad + every 300 s).
+  It only reads storage and writes bounded private internal
+  `~/.config/brain-research/storage-health/status.json`; stdout/stderr are `/dev/null`. Latest status
+  `ready`, last tested exit 0. Actual unmount/remount produced `ready → storage_unavailable → ready`
+  with no fallback corpus; reload also passed. Physical cable removal/login persistence remain untested.
+- Owned APFS scratch checks passed file/directory fsync, enforced readonly mode, create-only
+  collision, same-volume rename/hash replay, and independent-process flock exclusion.
+- **Live writer remains gated:** `tools/brain_senses_external_service_v1.py` is an inactive prototype.
+  `EXTERNAL_WRITER_DETACH_QUALIFIED = False` blocks initialization/ticks before writes/client loading.
+  Guard checks cannot make frozen absolute-path recursive writes safe against detach between check
+  and lookup. A separately versioned dirfd-bound writer plus forced detach-at-write testing is required;
+  do not simply flip the flag. Storage migration itself is descriptor-anchored and qualified.
+- c4 remains terminal: STOP `minimum_free_disk_floor_plus_frame_envelope`, observed frontier
+  **455430160**, last attempted bucket `20261010T230000Z`, active-frame reservation **reconciled**.
+  Historical gaps remain explicit. No c4 resume, missed-slot backfill, or ambiguous-request replay.
+
+## Senses boundary and next Luna horizon
+
+- Readiness remains approximately **60%**, a management estimate, not a metric. Senses is incomplete.
+  Closed foundations include temporal/provenance/missing-state contracts, OHLCV baseline, sparse
+  experience plumbing, selected-class sell23 ledger v2 (1,255: 410 exact target-account settlements,
+  843 censored native settlements, 2 unsupported), selected-block provider comparisons and bounded
+  create_pool source-interface matching. These are scoped qualifications, not market-wide economic
+  completeness or training/trading admission. External corpus storage is now usable with explicit
+  legacy exceptions; safe autonomous market writing is still a separate release gate.
+- Large remaining gates: dependable prospective operations and resource/retention monitoring;
+  independent economic-process qualification (including buyExact25/native settlement candidate-position
+  evidence); broader causally enrolled population/lifecycle/modalities and systematic unknown-case
+  qualification. Those have work that can be done now. Weeks/months of future history cannot be
+  manufactured and must be separated from engineering work. Cortex bottleneck has not yet been reached.
+- **Next decision horizon:** inspect AGENTS, this file, Git/runtime, INDEX and only relevant canonical
+  sources. Have Sol settle the minimal versioned dirfd writer integration before Luna implements it;
+  preserve frozen campaign code. In parallel obtain authentic read-only Helius account/charge evidence
+  (previous account MCP returned `Transport closed`) and recheck trusted clock, storage peak/churn
+  envelope and source/plist bindings. Only then seek Sol qualification of a fresh finite prospective
+  lease and actual LaunchAgent activation/checkpoint. Billing evidence is an external-information gate;
+  the current key and SSD permissions are not blockers. Never repair calendar gaps by backfill.
+- After that bounded horizon, replan within Senses: the 608-slot System/ATA census leaves 675
+  seven-account ATA shapes (636 Rent-key, 39 other-key) as unknown extra-account partitions; buyExact25
+  is deferred without a candidate-position witness. Dirty Agave work is preserved, not qualified.
+  Use evidence-dependent Sol decisions; do not start a venue/model campaign merely to create activity.
+- Latest receipt: `docs/evidence/senses-external-storage-handoff-2026-10-11.json` (runtime, capacity,
+  migration hashes, credential scope and validation). **188 focused tests**, Ruff, targeted mypy
+  (4 new source files) and synthetic `make smoke` passed. Canonical storage/release contracts are in
+  `docs/brain-source-architecture.md`; do not reread the entire evidence archive.
