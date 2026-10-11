@@ -2164,6 +2164,30 @@ remote/multi-host locking. Those remain activation and scale-out gates; future m
 coordination must preserve the immutable lease and evidence contracts while replacing the local
 coordination backend.
 
+The separate read-only verifier/CLI is `tools/brain_senses_prospective_verifier_v1.py`. It
+independently parses canonical plan and JSONL bytes, validates the event hash chain and lease/day
+accounting, checks each reservation/start/result/seal transition, reads allowlisted immutable capture
+files through no-follow descriptors, binds receipt/availability/decision times, and verifies STOP,
+terminal, frontier/gaps, and a supplied predecessor. It returns a recovery recommendation for every
+valid durable prefix; it never repairs files, retries a request, creates STOP, or authorizes
+activation. A predecessor is verified only when its root is explicitly supplied. Declared source
+hashes are shape-checked; they match source content only when compared with independently computed
+digests supplied by the caller. A review digest is similarly an external binding, not reviewer
+authentication. The local SHA-256 chain detects accidental or partial changes but is not a signature
+against an actor able to rewrite the whole lease. Capture files must be owner-held, single-link,
+read-only regular files under the lease root or an explicit allowlist. A normal terminal result only
+establishes the controller-v1 close/STOP contract; `activation_authorized` is always false. It cannot
+establish that a recorded disk measurement, provider charge, request outcome, or external approval is
+truthful. Focused offline validation covered 18 verifier cases and the controller's 20
+transition/boundary cases; receipt:
+[`prospective controller independent verifier v1`](evidence/senses-prospective-verifier-v1-2026-10-11.json).
+The v1 contract represents one request/capture per reserved bucket. It is not an integration gate
+for the existing v3 inventory scheduler, whose frame is 34 child RPC requests (one anchor, one
+inventory, 16 full-block bodies, and 16 signature checks). Do not present one frame manifest as the
+v1 response artifact or accept a parent seal without child-journal verification. A separately
+versioned operation-envelope/child-bundle contract and verifier are required before any prospective
+runner can use that scheduler.
+
 ## Prospective Pump bonding-curve references (offline gate, 2026-10-10)
 
 Sol selected standard Helius WSS `logsSubscribe` filtered by the single Pump bonding-curve

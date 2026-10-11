@@ -106,6 +106,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - `senses-wss-offline-operational-review-2026-10-11.json`: source-hash-bound synthetic validation
   (126 tests) and local WSS service inventory; no live provider connection, account billing evidence,
   or activation is claimed.
+- `senses-prospective-verifier-v1-2026-10-11.json`: source-bound offline validation of the
+  independent read-only controller lease verifier, including durable crash prefixes, no-replay
+  recommendations, STOP marker/ledger crash ordering, cap/floor checks, terminal transfer, and
+  rejection of abnormal predecessors; no service activation or RPC is authorized.
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:
