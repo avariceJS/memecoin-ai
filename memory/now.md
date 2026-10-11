@@ -1,16 +1,21 @@
 # Current Project State
 
-**As of:** 2026-10-11 08:18 UTC. Research remains on `research/active`; production
+**As of:** 2026-10-11 08:25 UTC. Research remains on `research/active`; production
 `/Users/root1/Desktop/memecoin-ai` is untouched. Recheck Git and runtime before new acquisition.
 
 ## Runtime and credentials
 
 - The existing Helius key remains authorized without rotation. The Senses runner reads its endpoint
   in-process from owner-only mode-0600 `.env.local`; LaunchAgent arguments carry paths only. The
-  07:51Z exact-value delta rescan found no matches in 6,267 local Git objects, current argv, 117,006
-  recent accessible files / 1.16 GB, or 1.66 GB of Unified Log. Receipt:
-  `docs/evidence/helius-key-exposure-delta-rescan-2026-10-11T0751Z.json`. Remote/session stores,
-  inaccessible files, backups and Time Machine remain outside local visibility.
+  Codex/Cursor MCP configs were found to also contain the literal key and had launched 22 MCP
+  processes with it in argv. Both configs now invoke `~/.local/bin/helius-mcp-secure` (mode 0700),
+  which reads `.env.local` and starts pinned `helius-mcp@2.2.0` with the key in child environment
+  only; a stub launch probe passed and stale processes were terminated. Follow-up exact-value scan:
+  zero in 6,303 Git objects, current argv, 1,100 recent files / 480 MB, or 78.5 MB recent Unified
+  Log. Receipt: `docs/evidence/helius-key-exposure-delta-rescan-2026-10-11T0824Z.json`. MCP still
+  returns `Transport closed`; no RPC or account-status request succeeded. Remote/session stores,
+  inaccessible files, backups, Time Machine remain outside scan. The agent-session tool transcript
+  retains one process-list output with the known key.
 - At 08:03Z all Senses LaunchAgents were disabled; no Senses/Helius collector process was present.
   Internal APFS had 43,745,020 KiB (~41.72 GiB) free, below the existing 50 GiB floor. Kingston
   ExFAT remains unqualified. Helius account-specific usage/charge limits are unknown; its MCP
@@ -36,10 +41,13 @@
 
 - The new source-bound feasibility receipt `pumpswap-c4-event-layout-feasibility-validation-v1-2026-10-11.json` records full-byte Borsh parsing for the 9,130 BuyEvent/SellEvent references in the ten included frames against all 18 pinned IDL layouts. All are uniquely consistent with the 2026-10-07 schema; this does not establish deployed layout or event validity. Tests include deterministic Hypothesis value/offset properties and malformed wire mutations. Other 468 event refs and frozen tail2 remain excluded; no RPC or activation occurred.
 - Receipt SHA-256: `443b38dbd1211ce321283a3cc858483ed5c9d54b4bc19c6f9c0fd6408bd40b9d`. Current external gates remain closed as above.
+- Sol accepted the exact source-bound development replay; commit `6c6aa08` records it. No RPC or activation occurred.
 
 ## Next decision horizon
 
-Keep advancing offline Senses engineering. Before prospective activation, obtain account-specific
-Helius usage/charge controls, a qualified durable storage root with fresh full-runway evidence, and
-Sol review of the exact forward-only schedule, c4 discontinuity lineage, provider adapter and new
-finite lease. Do not resume missed c4 intervals or repeat captured requests. No Cortex work.
+The key-based pause is removed, but c4 is terminal and there is no eligible live lease: disk remains
+below the 50 GiB floor, Helius account/charge limits are unknown, and the Helius MCP transport is
+closed. Do not backfill c4, repeat captured requests, or start a replacement campaign from its old
+lease. Continue offline Senses engineering and close remaining gates; prospective activation needs
+fresh resource evidence and Sol review of a new forward-only lease/schedule and c4 gap lineage. No
+Cortex work.

@@ -97,6 +97,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   objects, current process arguments, 117,006 files modified within the three-hour delta / 1.16 GB,
   and 1.66 GB of subsequent Unified Log. Current `.env.local` remains mode 0600; inaccessible,
   remote/provider, backup, and Time Machine storage remain outside local visibility).
+- Helius MCP credential transport remediation and follow-up scan:
+  `helius-key-exposure-delta-rescan-2026-10-11T0824Z.json` (removed literal key values from Codex
+  and Cursor MCP configs; path-only wrapper reads `.env.local`, passes the key through child
+  environment, pins `helius-mcp@2.2.0`, and passed an argv-isolation probe; 22 stale processes
+  stopped; zero exact matches in 6,303 Git objects, current process args, 1,100 recent files / 480
+  MB, or 78.5 MB of recent Unified Log. MCP transport remains closed; no RPC occurred.)
 - Helius account-status retry at 06:51Z returned `Transport closed`. Public billing materials checked
   2026-10-11 conflict on archival `getBlock`/`getBlocks` units; see `docs/brain-source-architecture.md`
   for official source links, the 10-credit offline scenario, unknown account controls, and conditions

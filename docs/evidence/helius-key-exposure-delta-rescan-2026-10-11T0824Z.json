@@ -1,0 +1,52 @@
+{
+  "checked_at_utc": "2026-10-11T08:24:52Z",
+  "credential_values_written": false,
+  "evidence_id": "helius-key-exposure-delta-rescan-2026-10-11T0824Z",
+  "matching": "The endpoint query value was compared in memory only. No credential value, hash, prefix, or matching content was persisted.",
+  "git_objects": {
+    "all_local_objects_scanned": 6303,
+    "exact_match_objects": 0
+  },
+  "process_arguments": {
+    "all_current_process_command_lines_scanned": true,
+    "exact_matches": 0
+  },
+  "recent_accessible_files": {
+    "bytes_scanned": 480372344,
+    "files_scanned": 1100,
+    "matching_files": 0,
+    "window_start_utc": "2026-10-11T07:54:52Z",
+    "roots": [
+      "~/.codex",
+      "~/.cursor",
+      "~/Library/Logs",
+      "~/Library/Application Support/Codex",
+      "research checkout",
+      "/tmp"
+    ],
+    "expected_private_credential_source_excluded": "research/.env.local"
+  },
+  "unified_log": {
+    "bytes_scanned": 78507845,
+    "exact_match_chunks": 0,
+    "window": "last 30 minutes"
+  },
+  "configuration_remediation": {
+    "codex_config": "Literal key removed; config now invokes owner-only local wrapper with no credential argument or environment entry.",
+    "cursor_config": "Literal key removed; config now invokes owner-only local wrapper with no credential argument or environment entry.",
+    "wrapper": "~/.local/bin/helius-mcp-secure; mode 0700; reads the endpoint from mode-0600 research/.env.local and execs pinned helius-mcp 2.2.0 with the key in child environment only.",
+    "wrapper_probe": "Passed with a stub npx executable; confirmed child environment contains the key and argv does not.",
+    "stale_processes_terminated": 22
+  },
+  "transport": {
+    "helius_mcp_account_status": "Transport closed after configuration remediation",
+    "rpc_requests": 0,
+    "campaign_or_launchagent_started": false
+  },
+  "limitations": [
+    "Provider-side or remote tool/session storage, inaccessible files, backups and Time Machine are outside local scan visibility.",
+    "The agent-session process-list output itself included the already-known credential and cannot be retroactively erased from the session transcript."
+  ],
+  "schema": "helius-key-exposure-delta-rescan-v1",
+  "source": "Existing user-authorized Helius key in owner-only research/.env.local; no rotation performed."
+}

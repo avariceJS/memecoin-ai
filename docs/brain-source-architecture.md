@@ -28,25 +28,25 @@ authenticated-team aggregate, not repository/workload attribution, an invoice, o
 the account limit was not returned. Do not infer remaining headroom or research cost from this
 summary. Receipt: [`Alchemy MCP usage summary`](evidence/alchemy-usage-summary-mcp-2026-10-11T0727Z.json).
 
-The user-provided Helius RPC credential is configured in ignored, mode-0600 `.env.local` under
-`MEMECOIN_HELIUS_RPC_URL`; the current Codex and Cursor MCP configs also hold it as private
-mode-0600 configuration. The collector loads its endpoint inside the process, and LaunchAgent
-arguments contain only paths. Do not claim that all historical logs are clean: an Oct 10 exact-value
-scan found three old copies in two Cursor JSONL transcripts, redacted them, reset both files to
-mode 0600, and validated all JSONL records. The earlier history scan missed these transcript
-directories; the correction receipt supersedes its saved-history zero-match field. Post-cleanup
-scans found no match in process command lines, tracked Git, c3 captures, or other saved Codex/Cursor
-data beyond the current private configs. A two-hour Unified Log scan also found no match. One initial
-credential-bearing process-list result remains in this agent-session tool transcript and cannot be
-retroactively removed. See the
+The user-authorized Helius RPC credential remains in ignored, mode-0600 `.env.local` under
+`MEMECOIN_HELIUS_RPC_URL`. On Oct 11, the Codex and Cursor MCP configs were found to also contain the
+literal value and had launched MCP processes with it in argv. Both configs now invoke the same
+owner-only mode-0700 local wrapper; it reads the key from `.env.local` and execs pinned
+`helius-mcp@2.2.0` with the key in child environment only. A stub launch probe passed, and 22 stale
+Helius MCP processes were terminated. The actual MCP transport still returns `Transport closed`, so
+this does not qualify a live MCP connection. A fresh exact-value scan found zero matches in 6,303
+local Git objects, current process arguments, 1,100 recently modified accessible files
+(480,372,344 bytes), or 78,507,845 bytes of recent Unified Log. `.env.local` was excluded as the
+expected private credential source. Do not claim that all historical logs are clean: an Oct 10 scan
+found three old copies in two Cursor JSONL transcripts, which were redacted and validated; see the
 [`saved-transcript correction`](evidence/helius-mcp-saved-transcript-redaction-correction-2026-10-10.json)
 and [`process remediation`](evidence/helius-mcp-credential-process-list-remediation-2026-10-10.json).
-The post-resume scan before the current c4 work rechecked all Git objects, the complete checkout,
-accessible saved Codex/Cursor/work/evidence/log/temp roots, active process command lines, and the
-prior hour of Unified Log; it found no credential components outside the three expected mode-0600
-private configs. Provider-side logs, remote conversation storage, backups, Time Machine, and
-inaccessible services remain outside the scan. See the
+This agent-session process-list output also included the already-known credential and cannot be
+retroactively erased from its transcript. Provider-side logs, remote conversation storage, backups,
+Time Machine, and inaccessible services remain outside the scan. See the
 [`resume exposure rescan`](evidence/helius-key-resume-exposure-rescan-2026-10-10.json).
+The follow-up config/process remediation and delta scan are recorded in
+[`Helius MCP wrapper remediation`](evidence/helius-key-exposure-delta-rescan-2026-10-11T0824Z.json).
 A follow-up scan at 19:04Z found no exact endpoint/path/hostname matches across 2,861 Git blobs, no exact endpoint/path matches in 3,452 recent saved files (2.05 GB), no process-argument matches, and no match in 213.6 MB of the last hour of Unified Log. Two Codex history files had 67 public-hostname-only mentions; no endpoint path or key component was present. The c4 LaunchAgent remained path-only and the scheduled 19:05Z frame was active at the 19:06Z status read. Receipt: [`19:04Z exposure rescan`](evidence/helius-key-followup-exposure-rescan-2026-10-10T1904Z.json).
 At 23:18Z a credential-config enumeration accidentally emitted the current value in one tool result
 in this interactive agent session. The active session transcript cannot be retracted from this
