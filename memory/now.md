@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 00:41 UTC. Recheck runtime before any prospective service decision.
+**As of:** 2026-10-11 00:43 UTC. Recheck runtime before any prospective service decision.
 
 **Research checkout:** `/Users/root1/Developer/memecoin-research`
 **Branch:** `research/active`
@@ -20,7 +20,10 @@
 - c4 is naturally and immutably stopped at 00:05:00Z with
   `minimum_free_disk_floor_plus_frame_envelope`, after 11/24 successful hourly frames. Keep STOP,
   frames, reservations, journals, and captures unchanged. No c4 LaunchAgent or other Senses
-  LaunchAgent is loaded; no prospective collector is currently accumulating observations.
+  LaunchAgent is loaded; no prospective collector is currently accumulating observations. All 15
+  Senses plists in `~/Library/LaunchAgents` now have persistent disabled overrides. The exact c4
+  label was disabled after finding its plist still present without an override; it was unloaded
+  before and remains unloaded.
 - c4 frame-only accounting is 374 requests, 769,657,370 raw bytes and 177,576,450 stored bytes.
   Bootstrap-only is 1 request, 43 raw / 56 stored bytes. Campaign all-in is 375 requests,
   769,657,413 raw / 177,576,506 stored bytes. Provider charge units and account headroom remain
