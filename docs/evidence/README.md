@@ -63,6 +63,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
   c4 frame summaries, STOP accounting, allocated campaign bytes, and post-STOP `df` snapshot. It
   records finite-sample raw/stored throughput and limited headroom above the prior floor-plus-frame
   gate; it does not establish a long-term disk trend or authorize a successor.
+- `helius-inventory-v3-c4-abnormal-stop-accounting-2026-10-11.json`: separates frame-only, bootstrap-
+  only and campaign all-in request/raw/stored byte denominators, bound to the 11 immutable frame
+  summaries, bootstrap receipts and c4 STOP.
 - Finite Helius campaign-controller launchd installation and first campaign, still idle before its
   first scheduled RPC: `helius-inventory-controller-install-2026-10-10.json`.
 - One-use pre-anchor setup recovery for the first v3 campaign's zero-I/O zstd preflight failure:

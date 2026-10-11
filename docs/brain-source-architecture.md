@@ -552,6 +552,10 @@ sample, not a growth guarantee. At 00:08Z after STOP, free space was 54,975,664,
 projection is not revised into a service budget: disk headroom and host churn leave no defensible
 multi-day runway. Account headroom and Helius charge units remain unknown. Sizing receipt:
 [`c4 abnormal-stop sizing`](evidence/helius-inventory-v3-c4-abnormal-stop-sizing-2026-10-11.json).
+These are frame-only byte totals. The separate bootstrap used one `getSlot` request and 43 raw / 56
+stored bytes; campaign all-in is 375 requests, 769,657,413 raw bytes and 177,576,506 stored bytes.
+The immutable denominator receipt is
+[`c4 abnormal-stop accounting`](evidence/helius-inventory-v3-c4-abnormal-stop-accounting-2026-10-11.json).
 The sole eligible post-freeze frame is 23:00Z; the next natural invocation wrote STOP, so the preregistered audit is
 closed incomplete at 1 of 4 required frames. Its semantic payload remains unopened, and it supports
 no qualified estimate. The corrected builder stops before content hashing unless four metadata
@@ -1931,7 +1935,8 @@ Sol conditionally approved the existing service's post-c4 activation procedure o
 has no effect on the running c4 lease. Activation requires, in order: a normal durable STOP at the
 24-attempt cap; a terminal receipt binding STOP, epoch plans/summaries, request journals, and
 reservation release; no ambiguous/open reservation or post-STOP request; and the exact c4
-LaunchAgent unloaded. Early/abnormal STOP does not qualify and requires a new Sol decision. Reconcile
+LaunchAgent unloaded. Early/abnormal STOP cannot satisfy this normal service-v1 gate; a distinct
+successor requires its own Sol review even if an abnormal terminal receipt is completed. Reconcile
 all 24 real frame request/raw/stored/latency/width tails, `du`, and free-disk headroom before fixing
 the new service's finite budget. The first five c4 frames initially projected about 12.4 GB raw
 across 167 service frames, above the provisional 12 GB raw cap. An interim ten-frame sizing replay
@@ -1970,8 +1975,28 @@ seven minutes of STOP, exact c4 LaunchAgent/process absence, stable artifact inv
 complete filtered Unified Log query. The post-STOP zero-request claim is scoped to c4-attributable
 activity through pinned local collector paths; it is not provider-side or host-wide network silence.
 The service predecessor gate reruns the verifier and pins its source hash. Focused offline tests
-cover accounting helpers, late request/reservation rejection, and service-gate delegation. The live
-24-frame terminal receipt and post-STOP window remain unqualified until the current c4 lease ends.
+cover accounting helpers, late request/reservation rejection, and service-gate delegation. This
+normal verifier requires the 24-attempt finite STOP and cannot qualify c4's 11-frame disk STOP.
+
+For this specific abnormal STOP, Sol approved a separately versioned metadata-only terminal
+qualifier in `tools/brain_senses_c4_abnormal_terminal_qualifier.py`. It reconciles frame and
+bootstrap request/byte denominators from immutable summaries and request-result metadata, binds
+plans, reservation releases, response digests, journal hashes, frontier and STOP, and does not open
+or decompress response bodies. Its stated result is limited to terminal control, accounting and
+provenance; it does not independently replay response bodies or the structural census, does not
+requalify market semantics, and grants no successor activation. The 23:00Z payload remains closed
+under the frozen four-frame tail2 preregistration (1/4, incomplete).
+
+The first operational snapshot remains evidence of process, LaunchAgent and artifact state at
+00:08:11Z. Its saved `log show` window was formatted as UTC wall time and interpreted by macOS as
+Europe/Moscow local time, so it queried the wrong three-hour interval; that original receipt is
+preserved and explicitly excluded from post-STOP log coverage. The abnormal path performs a separate
+read-only historical Unified Log query with explicit Europe/Moscow conversion and records its actual
+later capture time, UTC event interval, local arguments, timezone offset, output hash and event
+summary. A second process/LaunchAgent observation must occur after the 70-minute STOP window. The
+query is captured after a 71-minute safety margin and covers at least the full 70-minute interval;
+it establishes only local retained-log coverage, not provider-side or host-wide network silence. If
+the corrected query or metadata reconciliation fails, terminal proof stays incomplete.
 
 ## Prospective Pump bonding-curve references (offline gate, 2026-10-10)
 
