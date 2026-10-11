@@ -92,6 +92,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   objects, current process arguments, 65 launchd property lists, 14,449 recently changed files /
   390.8 MB, all 26,650 files / 4.66 GB under `~/.npm`, shell history/startup files, and 874.0 MB of
   subsequent Unified Log; remote/provider storage, inaccessible files and backups remain outside).
+- Helius credential delta scan at 07:51Z:
+  `helius-key-exposure-delta-rescan-2026-10-11T0751Z.json` (zero exact matches in 6,267 local Git
+  objects, current process arguments, 117,006 files modified within the three-hour delta / 1.16 GB,
+  and 1.66 GB of subsequent Unified Log. Current `.env.local` remains mode 0600; inaccessible,
+  remote/provider, backup, and Time Machine storage remain outside local visibility).
 - Helius account-status retry at 06:51Z returned `Transport closed`. Public billing materials checked
   2026-10-11 conflict on archival `getBlock`/`getBlocks` units; see `docs/brain-source-architecture.md`
   for official source links, the 10-credit offline scenario, unknown account controls, and conditions
@@ -109,6 +114,14 @@ contain large exact payloads, so open only the named artifact needed for a speci
   references, per-slot structural outcomes and buyExact census. The 23:00Z tail2 body remains
   excluded. Exact class/block bindings are zstd-compressed under ignored `work/` and hash-bound by
   the compact receipt; fingerprints are not protocol-layout counts or economic facts.
+- `pumpswap-c4-idl-unrecognized-discriminators-v1-2026-10-11.json`: immutable 16-value / 11,623-reference inventory used as the input denominator for the historical IDL and event-CPI source qualification.
+- `pumpswap-c4-idl-history-qualification-v3-2026-10-11.json`: source-first comparison against 18
+  historical official Pump AMM IDL blobs and pinned Anchor event-CPI source. Fifteen names are
+  discriminator/name identities only. All 9,598 generic event-tag references in the included c4
+  blocks pass exact nested-event discriminator, one-account PDA identity, and active-stack direct
+  Pump AMM parent checks, with transaction success/failure and checked/failed/unresolved denominators
+  preserved. No payload decode or economic admission; c4 tail2 remains unopened. This is the final
+  Sol-accepted receipt hash-bound to the corrected stack implementation and sibling counterexample.
 - `pumpswap-buy-exact-v1-c4-pool-v2-development-replay-2026-10-11.json`: source-bound development
   replay of all ten included c4 frames through the existing SDK 2.1.0 structural qualifier and
   pool-v2 diagnostic. It binds all full-block capture hashes and report/epoch receipts, preserves
