@@ -2756,6 +2756,20 @@ symlink as an external-storage binding. Current implementation and host configur
 unqualified until a specific volume passes filesystem, disconnect/reconnect, permission, locking,
 seal, and recovery checks.
 
+On 2026-10-11 the user-authorized dedicated external 240.1 GB physical USB disk was reformatted as
+GUID + case-sensitive APFS, volume `Kingston` (volume UUID
+`8F8F1081-9BE4-4914-9111-75F1B90255BF`). The prior ExFAT contents were intentionally erased. A
+safe unmount/remount preserved the UUID and `/Volumes/Kingston` locator. However, macOS reports
+`Owners: Disabled` and mounts it with `noowners`; explicit `diskutil enableOwnership` requires
+administrator credentials unavailable to this session. A disposable file probe reported mode
+0600, but this does not establish enforced ownership while `noowners` is active. No research root
+or corpus was created or migrated, and all Senses writers remain disabled until ownership is
+enabled and the full storage qualification is repeated. Physical disconnect/reconnect and login
+mount persistence remain untested. A 32 MiB disposable I/O probe also passed file/directory fsync,
+same-volume rename, create-only hard-link behavior, cross-process flock exclusion, and hash replay;
+its apparent read rate was cache-influenced and is not a sustained-throughput measurement. These
+filesystem operation checks do not qualify a `noowners` mount for research data.
+
 ## Offline v3 block child envelope (2026-10-11)
 
 The separately versioned operation-envelope v2 binds a scheduled parent operation to the existing
