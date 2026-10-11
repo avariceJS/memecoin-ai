@@ -33,8 +33,9 @@ The user-authorized Helius RPC credential remains in ignored, mode-0600 `.env.lo
 literal value and had launched MCP processes with it in argv. Both configs now invoke the same
 owner-only mode-0700 local wrapper; it reads the key from `.env.local` and execs pinned
 `helius-mcp@2.2.0` with the key in child environment only. A stub launch probe passed, and 22 stale
-Helius MCP processes were terminated. The actual MCP transport still returns `Transport closed`, so
-this does not qualify a live MCP connection. A fresh exact-value scan found zero matches in 6,303
+Helius MCP processes were terminated. At that remediation snapshot the MCP transport returned
+`Transport closed`; the later read-only account check below supersedes that transport status.
+A fresh exact-value scan found zero matches in 6,303
 local Git objects, current process arguments, 1,100 recently modified accessible files
 (480,372,344 bytes), or 78,507,845 bytes of recent Unified Log. `.env.local` was excluded as the
 expected private credential source. Do not claim that all historical logs are clean: an Oct 10 scan
@@ -138,18 +139,29 @@ calls cost 10 credits. Treat this as an unresolved published-source conflict. Fo
 scenarios only, reserve 10 credits per `getBlock`/`getBlocks` and 1 per `getSlot`; a 34-request
 frame (1 `getSlot`, 1 `getBlocks`, 32 `getBlock`) is therefore 322 assumed credits, or 7,728 for
 24 frames. These are planning assumptions, not verified charges, a billing ceiling, or lease
-authorization. Actual key account gate is `unknown_transport_closed`: read-only account-status
-calls at 06:51Z and 07:27Z returned `Transport closed`; plan, usage, reset, prepaid balance,
-overage and autoscaling settings remain unknown. Helius documents that extra-credit autoscaling can
+authorization. Earlier read-only account-status calls at 06:51Z and 07:27Z returned
+`Transport closed`; plan, usage, reset, prepaid balance, overage and autoscaling settings remain
+unknown. Helius documents that extra-credit autoscaling can
 create charges, with defaults varying by plan ([additional credits](https://www.helius.dev/docs/billing/additional-credits)).
-No provider schedule planning or lease is eligible until an official account-specific usage/settings
-export or written support clarification is available together with fresh disk and full-runway
-evidence. Standard WSS is available; enhanced `transactionSubscribe` and mainnet LaserStream gRPC
+The user's 2026-10-11 continuation instruction supersedes the former requirement for an exact
+account meter before any schedule planning. Actively use available Helius/Alchemy Free quotas for
+research value; bounded, reasonable Alchemy PAYG use is also authorized. Missing billing telemetry
+is not a global acquisition blocker: use conservative published assumptions and local hard caps,
+record actual charges as unknown/unverified, and stop on quota, 429, billing, payment or provider
+errors without replaying ambiguous requests. Escalate only materially different substantial paid
+risk. This does not authorize plan upgrades or waive source, storage, clock, lineage and independently
+reviewed finite-lease release gates. Standard WSS is available; enhanced `transactionSubscribe` and mainnet LaserStream gRPC
 are not in Free. The old address-signature watch stopped after 4,350 reserved/captured requests,
 with three transport failures and a growing backlog; it is preserved as a stopped source run, not
 resumed as a per-signature completeness path. The 20,000/day setting was only that run's bound, not
 a Brain quota or architecture ceiling. See [RPC rates](https://www.helius.dev/solana-rpc-nodes) and
 [Helius WebSocket capabilities](https://www.helius.dev/blog/laserstream-websockets).
+
+The later read-only account check succeeds: Helius reports an API key configured, but no JWT
+session, so plan and credit usage are unavailable. No signup or account mutation was performed.
+Alchemy's authenticated-team summary through 20:54Z still reports 18,680 CU and $0.01, without an
+account usage-limit field; it does not attribute charges to this checkout. The source-bound result
+and limitations are in [`provider account evidence v2`](evidence/senses-provider-account-readonly-2026-10-11-v2.json).
 
 At 2026-10-11 07:18Z, the internal APFS capture volume had 40,637,412 KiB free (~38.76 GiB), below
 the reviewed 50 GiB floor; there is no selected successor schedule, so this is not a runway estimate.

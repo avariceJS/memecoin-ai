@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "observed_at_utc": "2026-10-11T20:54:46.611Z",
+  "scope": "Read-only provider account evidence; no blockchain RPC, signup, key change, purchase, upgrade, or collection activation.",
+  "helius": {
+    "getAccountStatus": {
+      "authenticated": true,
+      "api_key_configured": true,
+      "credit_usage": null,
+      "reason": "no JWT session found",
+      "tool_response_text": "## Account Status\n\n**Auth:** Authenticated (API key configured)\n**Credit usage:** Not available — no JWT session found\n\nTo see your plan, rate limits, and credit balance, call `signup`. Your existing account will be detected automatically — no payment needed.\n\nresultId: 962f8c44-b194-4f67-97d0-5ad66a0d82a4\nexpand: full, section, range"
+    },
+    "getAccountPlan": {
+      "plan": null,
+      "tool_response_text": "## Account Plan\n\n**Auth:** API key configured, plan unknown\n\nTo see your plan and tool eligibility, call `signup`.\nYour existing account will be detected automatically — no payment needed."
+    },
+    "actual_provider_charge": "unknown_unverified",
+    "remaining_credits": null,
+    "reset": null,
+    "prepaid_balance": null,
+    "autoscaling": null,
+    "transport_status": "responding",
+    "public_references": [
+      "https://www.helius.dev/docs/billing/credits",
+      "https://www.helius.dev/pricing",
+      "https://www.helius.dev/docs/billing/additional-credits"
+    ],
+    "planning_assumption": {
+      "free_monthly_credits": 1000000,
+      "free_standard_rpc_rps": 10,
+      "getSlot": 1,
+      "getBlocks": 10,
+      "getBlock": 10,
+      "reason": "Dedicated credit docs list getBlock/getBlocks as 1, pricing FAQ says archival calls 10. Conservative scenario, not actual charge or account headroom."
+    }
+  },
+  "alchemy": {
+    "requested_at": "2026-10-11T20:54:24.803Z",
+    "received_at": "2026-10-11T20:54:26.177Z",
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"data\": {\n    \"billingPeriod\": {\n      \"startTime\": \"2026-10-01T00:00:00.000Z\",\n      \"endTime\": \"2026-11-01T00:00:00.000Z\"\n    },\n    \"totals\": {\n      \"monthToDate\": {\n        \"amount\": \"18680\",\n        \"unit\": \"ALCHEMY_COMPUTE_UNIT\",\n        \"usd\": \"0.01\"\n      },\n      \"last7Days\": {\n        \"amount\": \"18680\",\n        \"unit\": \"ALCHEMY_COMPUTE_UNIT\",\n        \"usd\": \"0.01\"\n      },\n      \"last30Days\": {\n        \"amount\": \"18680\",\n        \"unit\": \"ALCHEMY_COMPUTE_UNIT\",\n        \"usd\": \"0.01\"\n      }\n    },\n    \"freshness\": {\n      \"dataThrough\": \"2026-10-11T20:54:00.000Z\",\n      \"containsPartialToday\": true,\n      \"updateCadence\": \"minute\"\n    }\n  }\n}"
+        }
+      ]
+    }
+  },
+  "authority": {
+    "source": "User instruction for this autonomous continuation, 2026-10-11",
+    "exact_meter_global_blocker": false,
+    "free_resources": "Use actively for research value within available quotas and normal provider policy",
+    "payg": "Bounded reasonable Alchemy PAYG use authorized; materially new substantial monetary risk requires escalation",
+    "constraints": [
+      "local hard request and byte caps",
+      "stop on quota,429,billing,payment,provider errors",
+      "no ambiguous request replay",
+      "actual charge unknown unless authentic account evidence proves it",
+      "no signup or paid plan changes authorized"
+    ]
+  },
+  "limitations": [
+    "Helius API key configuration is not proof of plan or headroom",
+    "Alchemy summary is authenticated-team aggregate, not attribution to this repository or invoice",
+    "No account usage limit returned by Alchemy",
+    "Account evidence alone is not live lease activation authorization"
+  ]
+}
