@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-11 06:59 UTC. Research work continues on `research/active` in
+**As of:** 2026-10-11 07:00 UTC. Research work continues on `research/active` in
 `/Users/root1/Developer/memecoin-research`; production `/Users/root1/Desktop/memecoin-ai` is
 untouched. Read this state, then check Git/runtime before acquisition.
 
@@ -104,6 +104,10 @@ reports `FreeSpace=0` inconsistently, preserved in receipt but excluded from gat
 schedule is selected, so no lease runway is claimed. Helius account-status MCP retry returned
 `Transport closed` at 06:51Z; usage/reset/overage remain unknown. No RPC, backfill, lease, or
 LaunchAgent change. Receipt: `docs/evidence/senses-storage-readiness-2026-10-11T065300Z.json`.
+
+07:00Z runtime recheck: `launchctl list` has no matching Senses/Helius labels. `diskutil list` shows
+only the internal APFS data volume and the ChatGPT Installer disk image; no external capture volume.
+`df -Pk work` reports 19,894,824 KiB free. Current repository worktree is clean at `ecb5690`.
 
 Sol approved the offline initial-entry calendar compiler/verifier v1. The inert candidate pins the
 certificate file and canonical predecessor digest separately, all four gaps/open unknown interval,
