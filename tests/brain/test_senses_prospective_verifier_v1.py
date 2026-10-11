@@ -231,6 +231,155 @@ def test_stop_event_without_marker_requires_marker_restore_only(tmp_path: Path) 
     assert result["recovery_recommendation"] == "restore_stop_marker_only"
 
 
+def test_early_owner_cancel_is_censored_and_never_successor_eligible(tmp_path: Path) -> None:
+    root = _init(tmp_path)
+    _reserve(root)
+    _start(root)
+    _capture(root)
+    _result(root)
+    _seal(root)
+    state = controller.cancel_lease(root, at_ns=1_100)
+    assert state["cancelled_unstarted"] == ["frame-1"]
+    before = {path.name: path.read_bytes() for path in root.iterdir() if path.is_file()}
+    result = _verify(root)
+    after = {path.name: path.read_bytes() for path in root.iterdir() if path.is_file()}
+    assert result["valid"] is True
+    assert result["state"] == "stopped"
+    assert result["recovery_recommendation"] == "stopped_no_successor"
+    assert result["cancelled_unstarted"] == ["frame-1"]
+    assert result["gap_count"] == 0
+    assert result["normal_terminal_verified"] is False
+    assert result["activation_authorized"] is False
+    assert before == after
+
+
+def test_independent_verifier_rejects_backdated_stop_marker_and_event(tmp_path: Path) -> None:
+    root = _init(tmp_path)
+    _reserve(root)
+    _start(root)
+    _capture(root)
+    _result(root)
+    _seal(root)
+    controller.cancel_lease(root, at_ns=1_100)
+    marker_path = root / "STOP"
+    marker = json.loads(marker_path.read_bytes())
+    marker["stopped_ns"] = 1_003
+    marker_path.write_bytes(controller._canonical(marker) + b"\n")
+    ledger_path = root / "events-v1.jsonl"
+    events = [json.loads(line) for line in ledger_path.read_text().splitlines()]
+    events[-1]["at_ns"] = 1_003
+    events[-1].pop("event_sha256")
+    events[-1]["event_sha256"] = hashlib.sha256(controller._canonical(events[-1])).hexdigest()
+    ledger_path.write_bytes(b"".join(controller._canonical(event) + b"\n" for event in events))
+    before = {path.name: path.read_bytes() for path in root.iterdir() if path.is_file()}
+    result = _verify(root)
+    after = {path.name: path.read_bytes() for path in root.iterdir() if path.is_file()}
+    assert result["valid"] is False
+    assert result["error"] == "stop_time_precedes_durable_event"
+    assert result["activation_authorized"] is False
+    assert before == after
+
+
+def test_controller_and_verifier_reject_seal_before_capture_availability(tmp_path: Path) -> None:
+    root = _init(tmp_path)
+    _reserve(root)
+    _start(root)
+    _capture(root)
+    controller.record_result(
+        root,
+        request_id="request-1",
+        status_value="captured",
+        actual_requests=1,
+        actual_raw_bytes=9,
+        actual_stored_bytes=9,
+        receipt_ns=1_002,
+        availability_ns=1_003,
+    )
+    before = (root / "events-v1.jsonl").read_bytes()
+    with pytest.raises(controller.ControllerError, match="captured_seal_precedes_availability"):
+        controller.seal(root, request_id="request-1", at_ns=1_002)
+    assert (root / "events-v1.jsonl").read_bytes() == before
+
+    events = [json.loads(line) for line in before.splitlines()]
+    seal = {
+        "kind": "seal",
+        "request_id": "request-1",
+        "bucket_id": "anchor-1",
+        "bucket_kind": "anchor",
+        "status": "captured",
+        "actual_requests": 1,
+        "actual_raw_bytes": 9,
+        "actual_stored_bytes": 9,
+        "at_ns": 1_002,
+        "seq": len(events),
+        "previous_sha256": events[-1]["event_sha256"],
+    }
+    seal["event_sha256"] = hashlib.sha256(controller._canonical(seal)).hexdigest()
+    (root / "events-v1.jsonl").write_bytes(before + controller._canonical(seal) + b"\n")
+    rejected = _verify(root)
+    assert rejected["valid"] is False
+    assert rejected["error"] == "seal_result_binding_invalid"
+    assert rejected["activation_authorized"] is False
+
+
+def test_failed_or_unknown_seal_cannot_form_normal_terminal(tmp_path: Path) -> None:
+    root = _init(tmp_path)
+    _reserve(root)
+    _start(root)
+    controller.record_result(
+        root,
+        request_id="request-1",
+        status_value="failed",
+        actual_requests=1,
+        actual_raw_bytes=0,
+        actual_stored_bytes=0,
+        receipt_ns=1_010,
+        availability_ns=None,
+    )
+    with pytest.raises(
+        controller.ControllerError, match="abnormal_stop_cannot_auto_close_or_renew"
+    ):
+        controller.close_lease(root, frontier_slot=123, at_ns=1_020)
+    result = _verify(root)
+    assert result["valid"] is True
+    assert result["state"] == "stopped"
+    assert result["normal_terminal_verified"] is False
+    assert result["activation_authorized"] is False
+
+
+def test_independent_verifier_rejects_terminal_with_unaccounted_bucket(tmp_path: Path) -> None:
+    root = _init(tmp_path)
+    _reserve(root)
+    _start(root)
+    _capture(root)
+    _result(root)
+    _seal(root)
+    controller.stop(root, reason="finite_lease_complete", at_ns=1_100)
+    events = controller._events(root)
+    stop_bytes = (root / "STOP").read_bytes()
+    plan_bytes = (root / "plan-v1.json").read_bytes()
+    terminal = {
+        "schema": f"{controller.SCHEMA}-terminal-v1",
+        "status": "lease_closed",
+        "lease_id": _plan()["lease_id"],
+        "closed_ns": 1_100,
+        "plan_sha256": hashlib.sha256(plan_bytes).hexdigest(),
+        "stop_sha256": hashlib.sha256(stop_bytes).hexdigest(),
+        "ledger_head_sha256": events[-1]["event_sha256"],
+        "frontier_slot": 501,
+        "gaps": _plan()["predecessor"]["gaps"],
+        "usage": controller._usage(events),
+    }
+    terminal["terminal_sha256"] = hashlib.sha256(controller._canonical(terminal)).hexdigest()
+    path = root / "TERMINAL.json"
+    path.write_bytes(controller._canonical(terminal) + b"\n")
+    path.chmod(0o600)
+    result = _verify(root)
+    assert result["valid"] is False
+    assert result["error"] == "terminal_receipt_or_frontier_invalid"
+    assert result["activation_authorized"] is False
+
+
 def test_durable_started_append_then_caller_error_never_replays(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -306,7 +455,8 @@ def test_terminal_frontier_gaps_and_successor_transfer_are_independently_verifie
     _capture(prior)
     _result(prior)
     _seal(prior)
-    terminal = controller.close_lease(prior, frontier_slot=501, at_ns=1_100)
+    controller.record_gap(prior, bucket_id="frame-1", at_ns=4_000, reason="elapsed_unobserved")
+    terminal = controller.close_lease(prior, frontier_slot=501, at_ns=4_100)
     closed = _verify(prior)
     assert closed["valid"] is True
     assert closed["state"] == "closed"
@@ -316,25 +466,77 @@ def test_terminal_frontier_gaps_and_successor_transfer_are_independently_verifie
 
     successor_plan = _plan()
     successor_plan.update(
-        {"lease_id": "lease-verifier-002", "created_ns": 1_200, "expires_ns": 9_000}
+        {"lease_id": "lease-verifier-002", "created_ns": 4_200, "expires_ns": 9_000}
     )
     successor_plan["buckets"] = [
-        {"bucket_id": "anchor-next", "kind": "anchor", "start_ns": 2_000, "end_ns": 2_500}
+        {"bucket_id": "anchor-next", "kind": "anchor", "start_ns": 5_000, "end_ns": 5_500}
     ]
     successor_plan["review"] = {"review_id": "fresh-review", "decision_sha256": "f" * 64}
     successor = tmp_path / "successor"
     controller.initialize_successor(
-        prior, successor, successor_plan, frontier_slot=501, at_ns=1_200
+        prior, successor, successor_plan, frontier_slot=501, at_ns=4_200
     )
     checked = _verify(
         successor,
-        now_ns=1_300,
+        now_ns=4_300,
         previous_root=prior,
         expected_review_sha256="f" * 64,
     )
     assert checked["valid"] is True
     assert checked["predecessor_state"] == "normal_terminal_verified"
     assert checked["activation_authorized"] is False
+
+    ledger = prior / "events-v1.jsonl"
+    ledger.write_bytes(ledger.read_bytes() + b"\n")
+    before = {path.name: path.read_bytes() for path in prior.iterdir() if path.is_file()}
+    rejected = _verify(successor, now_ns=4_300, previous_root=prior)
+    assert rejected["valid"] is False
+    assert rejected["error"] == "predecessor_lease_not_independently_verified"
+    assert rejected["activation_authorized"] is False
+    assert before == {path.name: path.read_bytes() for path in prior.iterdir() if path.is_file()}
+
+
+def test_predecessor_terminal_head_must_match_its_verified_ledger(tmp_path: Path) -> None:
+    prior = _init(tmp_path, name="prior-head-mismatch")
+    _reserve(prior)
+    _start(prior)
+    _capture(prior)
+    _result(prior)
+    _seal(prior)
+    controller.record_gap(prior, bucket_id="frame-1", at_ns=4_000, reason="elapsed_unobserved")
+    terminal = controller.close_lease(prior, frontier_slot=501, at_ns=4_100)
+    terminal.pop("terminal_sha256")
+    terminal["ledger_head_sha256"] = "f" * 64
+    terminal["terminal_sha256"] = hashlib.sha256(controller._canonical(terminal)).hexdigest()
+    terminal_bytes = controller._canonical(terminal) + b"\n"
+    (prior / "TERMINAL.json").write_bytes(terminal_bytes)
+    (prior / "TERMINAL.json").chmod(0o600)
+
+    successor_plan = _plan()
+    successor_plan.update(
+        {"lease_id": "successor-head-mismatch", "created_ns": 4_200, "expires_ns": 9_000}
+    )
+    successor_plan["buckets"] = [
+        {"bucket_id": "anchor-next", "kind": "anchor", "start_ns": 5_000, "end_ns": 5_500}
+    ]
+    successor_plan["predecessor"].update(
+        {
+            "lease_id": terminal["lease_id"],
+            "terminal_receipt_sha256": hashlib.sha256(terminal_bytes).hexdigest(),
+            "stop_sha256": hashlib.sha256((prior / "STOP").read_bytes()).hexdigest(),
+            "frontier_slot": terminal["frontier_slot"],
+            "gaps": terminal["gaps"],
+        }
+    )
+    successor = tmp_path / "successor-head-mismatch"
+    controller.initialize(successor, successor_plan, now_ns=4_200)
+    prior_before = {path.name: path.read_bytes() for path in prior.iterdir() if path.is_file()}
+    result = _verify(successor, now_ns=4_300, previous_root=prior)
+    assert result["valid"] is False
+    assert result["error"] == "predecessor_lease_not_independently_verified"
+    assert prior_before == {
+        path.name: path.read_bytes() for path in prior.iterdir() if path.is_file()
+    }
 
 
 def test_abnormal_predecessor_stop_is_never_accepted_for_successor(tmp_path: Path) -> None:
@@ -411,7 +613,8 @@ def test_gap_requires_new_anchor_and_crash_between_close_and_successor_does_not_
     _capture(prior)
     _result(prior)
     _seal(prior)
-    controller.close_lease(prior, frontier_slot=501, at_ns=1_100)
+    controller.record_gap(prior, bucket_id="frame-1", at_ns=4_000, reason="elapsed_unobserved")
+    controller.close_lease(prior, frontier_slot=501, at_ns=4_100)
     # Simulate process death after predecessor close and before successor creation.
     after_crash = _verify(prior)
     assert after_crash["valid"] is True

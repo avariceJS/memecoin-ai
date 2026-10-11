@@ -126,8 +126,8 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - `senses-prospective-controller-v1-recovery-qualification-2026-10-11.json`: follow-up validation
   requires a captured seal or elapsed gap for every bucket before normal terminal close, preserves
   early-cancelled buckets separately from gaps, repairs failed-result STOP crash prefixes without
-  replay, and independently verifies a supplied predecessor's ledger/head; 49 focused tests, no
-  activation or provider requests.
+  replay, independently verifies a supplied predecessor's ledger/head, and rejects backdated STOPs
+  or seals before capture availability; 52 focused tests, no activation or provider requests.
 - `senses-operation-envelope-v2-child-v3-offline-validation-2026-10-11.json`: Sol-accepted offline
   parent envelope and v3 child-bundle validation, including provider/source identity, bounded zstd,
   receipt versus fsynced availability, frontier continuity, STOP precedence and no-replay recovery;

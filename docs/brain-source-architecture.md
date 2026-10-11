@@ -2175,7 +2175,9 @@ fails without writing STOP or TERMINAL. Explicit `cancel_lease` writes the abnor
 `owner_cancelled_before_schedule_exhaustion` STOP only when no request is outstanding; untouched
 bucket IDs remain `cancelled_unstarted` in derived status, never gaps, and cannot seed a successor.
 An outstanding reservation is neither cancelled nor reclassified. A failed/unknown result crash
-between result, seal and STOP recovers as abnormal STOP and cannot reserve another request.
+between result, seal and STOP recovers as abnormal STOP and cannot reserve another request. STOP
+times cannot predate the latest durable reservation, start, gap, seal, receipt, or availability
+time; captured seals and terminal receipts cannot predate capture availability.
 `initialize_successor` transfers its verified frontier/gaps and a new review-decision digest to a
 distinct lease under a local shared writer lock; there is no auto-renewal. This remains an offline
 protocol implementation: declared source and review hashes are not independently parsed or
@@ -2215,7 +2217,8 @@ terminal-to-ledger head before reporting a normal terminal. Terminal closure req
 scheduled bucket set to be covered by captured seals or elapsed gaps. Early owner cancellation
 records unstarted buckets as censored, not gaps, rejects outstanding requests, and cannot produce a
 normal terminal or successor. Crash prefixes after failed/unknown results recover to STOP without
-dispatch or replay. The focused controller/verifier suite passes 49 cases. Receipt:
+dispatch or replay. The focused controller/verifier suite passes 52 cases, including rejection of
+backdated STOP/cancel records and seals before capture availability. Receipt:
 [`prospective controller recovery requalification`](evidence/senses-prospective-controller-v1-recovery-qualification-2026-10-11.json).
 
 ## Prospective Pump bonding-curve references (offline gate, 2026-10-10)

@@ -151,6 +151,8 @@ def _validate_plan(plan: Any, *, expected_source_sha256: dict[str, str] | None) 
         or not isinstance(predecessor.get("gaps"), list)
     ):
         raise VerificationError("plan_predecessor_binding_invalid")
+    if predecessor.get("lease_id") == plan["lease_id"]:
+        raise VerificationError("successor_lease_id_not_distinct")
     buckets = plan.get("buckets")
     if not isinstance(buckets, list) or not buckets:
         raise VerificationError("plan_buckets_invalid")
@@ -253,7 +255,12 @@ def _usage(
     return totals
 
 
-def _verify_predecessor(plan: dict[str, Any], previous_root: Path | None) -> str:
+def _verify_predecessor(
+    plan: dict[str, Any],
+    previous_root: Path | None,
+    *,
+    allowed_artifact_roots: tuple[Path, ...],
+) -> str:
     if previous_root is None:
         return "unverified"
     prior_root = previous_root.resolve(strict=True)
@@ -285,6 +292,22 @@ def _verify_predecessor(plan: dict[str, Any], previous_root: Path | None) -> str
         raise VerificationError("predecessor_terminal_semantics_invalid")
     if pred.get("lease_id") is not None and terminal.get("lease_id") != pred["lease_id"]:
         raise VerificationError("predecessor_lease_id_mismatch")
+    if (
+        plan["created_ns"] < terminal["closed_ns"]
+        or plan["buckets"][0]["start_ns"] < terminal["closed_ns"]
+    ):
+        raise VerificationError("successor_created_before_predecessor_terminal")
+    prior_verification = verify_lease(
+        prior_root,
+        now_ns=terminal["closed_ns"],
+        allowed_artifact_roots=allowed_artifact_roots,
+    )
+    if (
+        not prior_verification.get("valid")
+        or prior_verification.get("state") != "closed"
+        or not prior_verification.get("normal_terminal_verified")
+    ):
+        raise VerificationError("predecessor_lease_not_independently_verified")
     return "normal_terminal_verified"
 
 
@@ -386,6 +409,15 @@ def verify_lease(
                 raise VerificationError("event_time_missing")
             if stop_event is not None:
                 raise VerificationError("event_after_stop")
+            failed_request_ids = {
+                request_id
+                for request_id, result in results.items()
+                if result.get("status") in {"failed", "unknown"}
+            }
+            if failed_request_ids and not (
+                kind == "stop" or (kind == "seal" and event.get("request_id") in failed_request_ids)
+            ):
+                raise VerificationError("event_after_failed_or_unknown_result")
 
             if kind == "initialized":
                 if seq != 0 or len(events) < 1:
@@ -579,6 +611,7 @@ def verify_lease(
                         for metric in ("requests", "raw_bytes", "stored_bytes")
                     )
                     or at < result["receipt_ns"]
+                    or (result["status"] == "captured" and at < captures[rid]["availability_ns"])
                 ):
                     raise VerificationError("seal_result_binding_invalid")
                 seals[rid] = event
@@ -587,8 +620,6 @@ def verify_lease(
                     if not _integer(slot) or slot < 0:
                         raise VerificationError("captured_anchor_slot_invalid")
                     latest_anchor_seq = seq
-                if event["status"] in {"failed", "unknown"} and seq != len(events) - 1:
-                    raise VerificationError("event_after_failed_or_unknown_result")
 
             elif kind == "gap":
                 bucket_id = event.get("bucket_id")
@@ -611,6 +642,16 @@ def verify_lease(
                     raise VerificationError("stop_reason_invalid")
                 stop_event = event
 
+        latest_durable_time = max(
+            (
+                value
+                for event in events
+                for field in ("at_ns", "receipt_ns", "availability_ns")
+                if field != "at_ns" or event["kind"] != "stop"
+                if _integer(value := event.get(field))
+            ),
+            default=plan["created_ns"],
+        )
         usage = _usage(reservations, seals)
         stop_path = root / "STOP"
         terminal_path = root / "TERMINAL.json"
@@ -627,6 +668,10 @@ def verify_lease(
                 or not _integer(stop_marker.get("stopped_ns"))
             ):
                 raise VerificationError("stop_marker_shape_invalid")
+            if stop_marker["stopped_ns"] < latest_durable_time:
+                raise VerificationError("stop_time_precedes_durable_event")
+        if stop_event is not None and stop_event["at_ns"] < latest_durable_time:
+            raise VerificationError("stop_time_precedes_durable_event")
         if (
             stop_event
             and stop_marker
@@ -678,10 +723,16 @@ def verify_lease(
                 or terminal.get("gaps") != expected_gaps
                 or terminal.get("usage") != usage
                 or len(reservations) != len(seals)
+                or {
+                    seal["bucket_id"] for seal in seals.values() if seal.get("status") == "captured"
+                }
+                | set(gaps)
+                != set(buckets)
+                or terminal.get("closed_ns", -1) < latest_durable_time
             ):
                 raise VerificationError("terminal_receipt_or_frontier_invalid")
 
-        predecessor_state = _verify_predecessor(plan, previous_root)
+        predecessor_state = _verify_predecessor(plan, previous_root, allowed_artifact_roots=allowed)
         outstanding = set(reservations) - set(seals)
         started_unresolved = (set(starts) | {rid for rid, capture in captures.items()}) - set(
             results
@@ -714,6 +765,18 @@ def verify_lease(
             recommendation = "ledger_consistent_offline_only"
             state = "open_consistent"
 
+        cancelled_unstarted = []
+        if (
+            stop_marker
+            and stop_marker.get("reason") == "owner_cancelled_before_schedule_exhaustion"
+        ):
+            observed_bucket_ids = {event["bucket_id"] for event in reservations.values()} | set(
+                gaps
+            )
+            cancelled_unstarted = [
+                bucket_id for bucket_id in buckets if bucket_id not in observed_bucket_ids
+            ]
+
         return {
             "schema": f"{SCHEMA}-verifier-v1",
             "valid": True,
@@ -725,6 +788,7 @@ def verify_lease(
             "reservation_count": len(reservations),
             "sealed_count": len(seals),
             "gap_count": len(gaps),
+            "cancelled_unstarted": cancelled_unstarted,
             "state": state,
             "recovery_recommendation": recommendation,
             "predecessor_state": predecessor_state,

@@ -23,6 +23,7 @@ HEX64 = re.compile(r"^[0-9a-f]{64}$")
 EVENTS = {"initialized", "gap", "reservation", "started", "capture", "result", "seal", "stop"}
 # All *_ns values are Unix epoch nanoseconds. Byte caps and observations are integer bytes.
 UTC_DAY_NS = 86_400_000_000_000
+OWNER_CANCEL_REASON = "owner_cancelled_before_schedule_exhaustion"
 
 
 class ControllerError(ValueError):
@@ -126,6 +127,8 @@ def validate_plan(plan: dict[str, Any], *, now_ns: int) -> None:
             raise ControllerError("predecessor_binding_invalid")
     if type(predecessor.get("frontier_slot")) is not int or predecessor["frontier_slot"] < 0:
         raise ControllerError("predecessor_frontier_invalid")
+    if predecessor.get("lease_id") == plan.get("lease_id"):
+        raise ControllerError("successor_lease_id_not_distinct")
     if not isinstance(predecessor.get("gaps"), list):
         raise ControllerError("predecessor_gaps_invalid")
     seen: set[str] = set()
@@ -168,6 +171,7 @@ def _events(root: Path) -> list[dict[str, Any]]:
     started: set[str] = set()
     captures: set[str] = set()
     results: set[str] = set()
+    result_status: dict[str, str] = {}
     seals: set[str] = set()
     stopped = False
     for seq, line in enumerate(path.read_bytes().splitlines()):
@@ -184,6 +188,15 @@ def _events(root: Path) -> list[dict[str, Any]]:
         rid = event.get("request_id")
         if stopped:
             raise ControllerError("event_after_stop")
+        failed_result_ids = {
+            request_id
+            for request_id, status_value in result_status.items()
+            if status_value in {"failed", "unknown"}
+        }
+        if failed_result_ids and not (
+            kind == "stop" or (kind == "seal" and rid in failed_result_ids and rid not in seals)
+        ):
+            raise ControllerError("event_after_failed_or_unknown_result")
         if kind == "initialized":
             if seq != 0:
                 raise ControllerError("duplicate_initialization")
@@ -242,6 +255,7 @@ def _events(root: Path) -> list[dict[str, Any]]:
                 ):
                     raise ControllerError("captured_result_artifact_binding_mismatch")
             results.add(rid)
+            result_status[rid] = event["status"]
         elif kind == "seal":
             if rid not in results or rid in seals:
                 raise ControllerError("seal_without_unique_result")
@@ -314,6 +328,15 @@ def _validate_next(root: Path, events: list[dict[str, Any]], event: dict[str, An
     results = {e["request_id"]: e for e in events if e["kind"] == "result"}
     seals = {e["request_id"] for e in events if e["kind"] == "seal"}
     rid = event.get("request_id")
+    failed_result_ids = {
+        request_id
+        for request_id, result in results.items()
+        if result.get("status") in {"failed", "unknown"}
+    }
+    if failed_result_ids and not (
+        kind == "stop" or (kind == "seal" and rid in failed_result_ids and rid not in seals)
+    ):
+        raise ControllerError("event_after_failed_or_unknown_result")
     if kind == "reservation":
         plan = _plan(root)
         if not isinstance(rid, str) or rid in reservations:
@@ -449,6 +472,15 @@ def _validate_next(root: Path, events: list[dict[str, Any]], event: dict[str, An
     elif kind == "seal":
         if rid not in results or rid in seals:
             raise ControllerError("seal_without_unique_result")
+        result = results[rid]
+        if type(event.get("at_ns")) is not int or event["at_ns"] < result["receipt_ns"]:
+            raise ControllerError("seal_without_result_or_bad_time")
+        if result["status"] == "captured":
+            capture = next(
+                (e for e in events if e["kind"] == "capture" and e["request_id"] == rid), None
+            )
+            if capture is None or event["at_ns"] < capture["availability_ns"]:
+                raise ControllerError("captured_seal_precedes_availability")
     elif kind == "gap":
         plan = _plan(root)
         bucket = next(
@@ -514,6 +546,18 @@ def _usage(events: list[dict[str, Any]]) -> dict[str, int]:
     return usage
 
 
+def _latest_event_time(events: list[dict[str, Any]]) -> int:
+    return max(
+        (
+            value
+            for event in events
+            for field in ("at_ns", "receipt_ns", "availability_ns")
+            if type(value := event.get(field)) is int
+        ),
+        default=0,
+    )
+
+
 def _usage_for_utc_day(events: list[dict[str, Any]], day_index: int) -> dict[str, int]:
     ids = {
         event["request_id"]
@@ -539,6 +583,19 @@ def status(root: Path, *, now_ns: int) -> dict[str, Any]:
     outstanding = {e["request_id"] for e in events if e["kind"] == "reservation"} - {
         e["request_id"] for e in events if e["kind"] == "seal"
     }
+    stop_marker = json.loads((root / "STOP").read_bytes()) if (root / "STOP").exists() else None
+    stop_event = next((e for e in events if e["kind"] == "stop"), None)
+    stop_reason = (stop_marker or stop_event or {}).get("reason")
+    observed_buckets = {e.get("bucket_id") for e in events if e["kind"] in {"reservation", "gap"}}
+    cancelled_unstarted = (
+        [
+            bucket["bucket_id"]
+            for bucket in plan["buckets"]
+            if bucket["bucket_id"] not in observed_buckets
+        ]
+        if stop_reason == OWNER_CANCEL_REASON
+        else []
+    )
     return {
         "schema": SCHEMA,
         "lease_id": plan["lease_id"],
@@ -549,6 +606,7 @@ def status(root: Path, *, now_ns: int) -> dict[str, Any]:
         "usage": _usage(events),
         "outstanding_request_ids": sorted(outstanding),
         "recovery_required": bool(outstanding),
+        "cancelled_unstarted": cancelled_unstarted,
     }
 
 
@@ -767,6 +825,10 @@ def record_result(
     )
     if status_value == "captured" and (capture is None or actual_raw_bytes != capture["raw_bytes"]):
         raise ControllerError("captured_raw_byte_denominator_mismatch")
+    if status_value == "captured" and (
+        receipt_ns != capture["receipt_ns"] or availability_ns != capture["availability_ns"]
+    ):
+        raise ControllerError("captured_result_time_binding_mismatch")
     if availability_ns is not None and availability_ns < receipt_ns:
         raise ControllerError("availability_precedes_receipt")
     row = _append(
@@ -802,6 +864,12 @@ def seal(root: Path, *, request_id: str, at_ns: int) -> dict[str, Any]:
     )
     if result is None or at_ns < result["receipt_ns"]:
         raise ControllerError("seal_without_result_or_bad_time")
+    if result["status"] == "captured":
+        capture = next(
+            e for e in events if e["kind"] == "capture" and e["request_id"] == request_id
+        )
+        if at_ns < capture["availability_ns"]:
+            raise ControllerError("captured_seal_precedes_availability")
     reservation = next(
         e for e in events if e["kind"] == "reservation" and e["request_id"] == request_id
     )
@@ -827,17 +895,87 @@ def stop(root: Path, *, reason: str, at_ns: int) -> dict[str, Any]:
         return _stop_locked(root, reason=reason, at_ns=at_ns)
 
 
+def cancel_lease(root: Path, *, at_ns: int) -> dict[str, Any]:
+    """Stop an incomplete schedule as owner-cancelled, never as normal completion."""
+    root = root.resolve()
+    with _locked(root):
+        plan = _plan(root)
+        events = _events(root)
+        _verify_plan_binding(root, events)
+        outstanding = {
+            event["request_id"] for event in events if event["kind"] == "reservation"
+        } - {event["request_id"] for event in events if event["kind"] == "seal"}
+        if outstanding:
+            raise ControllerError("owner_cancel_with_outstanding_request_forbidden")
+        _, gaps = _normal_completion_state_partial(plan, events)
+        captured = {
+            event["bucket_id"]
+            for event in events
+            if event["kind"] == "seal" and event.get("status") == "captured"
+        }
+        if len(captured | gaps) == len(plan["buckets"]):
+            raise ControllerError("schedule_already_exhausted")
+        _stop_locked(root, reason=OWNER_CANCEL_REASON, at_ns=at_ns)
+    return status(root, now_ns=at_ns)
+
+
 def _stop_locked(root: Path, *, reason: str, at_ns: int) -> dict[str, Any]:
     prior = root / "STOP"
+    events = _events(root)
     if prior.exists():
         row = json.loads(prior.read_bytes())
+        if type(row.get("stopped_ns")) is not int or row["stopped_ns"] < _latest_event_time(events):
+            raise ControllerError("stop_time_precedes_durable_event")
     else:
+        if type(at_ns) is not int or at_ns < _latest_event_time(events):
+            raise ControllerError("stop_time_precedes_durable_event")
         row = {"schema": SCHEMA, "status": "stopped", "reason": reason, "stopped_ns": at_ns}
         _write_create(prior, _canonical(row) + b"\n")
-    events = _events(root)
     if events and not any(event["kind"] == "stop" for event in events):
         _append_locked(root, {"kind": "stop", "reason": row["reason"], "at_ns": row["stopped_ns"]})
     return row
+
+
+def _write_uncertain_stop_marker(root: Path, *, at_ns: int) -> None:
+    """Seal parseable corrupt state without pretending its event chain is valid."""
+
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate event key")
+            result[key] = value
+        return result
+
+    with _locked(root):
+        path = root / "events-v1.jsonl"
+        try:
+            lines = path.read_bytes().splitlines()
+            rows = [json.loads(line, object_pairs_hook=unique_object) for line in lines]
+        except (OSError, UnicodeDecodeError, ValueError) as exc:
+            raise ControllerError("durable_event_time_unverifiable") from exc
+        if any(not isinstance(row, dict) for row in rows):
+            raise ControllerError("durable_event_time_unverifiable")
+        durable_times = [
+            value
+            for row in rows
+            for field in ("at_ns", "receipt_ns", "availability_ns")
+            if type(value := row.get(field)) is int
+        ]
+        if type(at_ns) is not int or at_ns < max(durable_times, default=0):
+            raise ControllerError("stop_time_precedes_durable_event")
+        _write_create(
+            root / "STOP",
+            _canonical(
+                {
+                    "schema": SCHEMA,
+                    "status": "stopped",
+                    "reason": "local_evidence_uncertain",
+                    "stopped_ns": at_ns,
+                }
+            )
+            + b"\n",
+        )
 
 
 def recover(root: Path, *, at_ns: int) -> dict[str, Any]:
@@ -860,6 +998,20 @@ def recover(root: Path, *, at_ns: int) -> dict[str, Any]:
             return status(root, now_ns=at_ns)
         starts = {e["request_id"] for e in events if e["kind"] == "started"}
         results = {e["request_id"] for e in events if e["kind"] == "result"}
+        failed_results = [
+            event
+            for event in events
+            if event["kind"] == "result" and event.get("status") in {"failed", "unknown"}
+        ]
+        if failed_results:
+            failed = failed_results[0]
+            reason = (
+                "ambiguous_started_request_no_replay"
+                if failed["status"] == "unknown"
+                else "provider_request_failed"
+            )
+            stop(root, reason=reason, at_ns=at_ns)
+            raise ControllerError(reason)
         ambiguous = starts - results
         outstanding = {e["request_id"] for e in events if e["kind"] == "reservation"} - {
             e["request_id"] for e in events if e["kind"] == "seal"
@@ -882,7 +1034,10 @@ def recover(root: Path, *, at_ns: int) -> dict[str, Any]:
         return status(root, now_ns=at_ns)
     except Exception as exc:
         if not (root / "STOP").exists():
-            stop(root, reason="local_evidence_uncertain", at_ns=at_ns)
+            try:
+                _write_uncertain_stop_marker(root, at_ns=at_ns)
+            except ControllerError:
+                pass
         if isinstance(exc, ControllerError):
             raise
         raise ControllerError("local_evidence_uncertain") from exc
@@ -934,6 +1089,41 @@ def _verify_terminal(root: Path, terminal: dict[str, Any]) -> dict[str, Any]:
     return terminal
 
 
+def _normal_completion_state(
+    plan: dict[str, Any], events: list[dict[str, Any]]
+) -> tuple[set[str], set[str]]:
+    gaps = {event["bucket_id"] for event in events if event["kind"] == "gap"}
+    captured = {
+        event["bucket_id"]
+        for event in events
+        if event["kind"] == "seal" and event.get("status") == "captured"
+    }
+    failed = {
+        event["bucket_id"]
+        for event in events
+        if event["kind"] == "seal" and event.get("status") in {"failed", "unknown"}
+    }
+    if failed:
+        raise ControllerError("failed_or_unknown_seal_prevents_normal_close")
+    scheduled = {bucket["bucket_id"] for bucket in plan["buckets"]}
+    if captured | gaps != scheduled:
+        raise ControllerError("schedule_not_exhausted")
+    return captured, gaps
+
+
+def _normal_completion_state_partial(
+    plan: dict[str, Any], events: list[dict[str, Any]]
+) -> tuple[set[str], set[str]]:
+    """Return only fully successful seals and elapsed gaps for cancellation/status checks."""
+    gaps = {event["bucket_id"] for event in events if event["kind"] == "gap"}
+    captured = {
+        event["bucket_id"]
+        for event in events
+        if event["kind"] == "seal" and event.get("status") == "captured"
+    }
+    return captured, gaps
+
+
 def close_lease(root: Path, *, frontier_slot: int, at_ns: int) -> dict[str, Any]:
     """Seal one finite generation and its prospective frontier/gaps, without renewal."""
     root = root.resolve()
@@ -955,6 +1145,10 @@ def close_lease(root: Path, *, frontier_slot: int, at_ns: int) -> dict[str, Any]
             and prior_stop_event.get("reason") != "finite_lease_complete"
         ):
             raise ControllerError("abnormal_stop_cannot_auto_close_or_renew")
+        _normal_completion_state(plan, events)
+        accounted_at = max(plan["created_ns"], _latest_event_time(events))
+        if type(at_ns) is not int or at_ns < accounted_at:
+            raise ControllerError("terminal_time_precedes_accounted_schedule_event")
         prior_frontier = plan["predecessor"]["frontier_slot"]
         if type(frontier_slot) is not int or frontier_slot < prior_frontier:
             raise ControllerError("terminal_frontier_regression")
@@ -1032,6 +1226,10 @@ def initialize_successor(
             raise ControllerError("predecessor_terminal_receipt_invalid")
         _verify_terminal(previous_root, prior)
         plan = json.loads(_canonical(successor_plan))
+        if plan.get("lease_id") == prior.get("lease_id"):
+            raise ControllerError("successor_lease_id_not_distinct")
+        if plan.get("created_ns", -1) < prior["closed_ns"]:
+            raise ControllerError("successor_created_before_predecessor_terminal")
         review = plan.get("review")
         if (
             not isinstance(review, dict)

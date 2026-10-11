@@ -240,6 +240,159 @@ def test_failed_attempt_consumes_full_reservation_and_stops(tmp_path: Path) -> N
     assert state["usage"] == {"requests": 2, "raw_bytes": 10, "stored_bytes": 8}
 
 
+def test_premature_normal_close_is_byte_preserving_and_does_not_stop(tmp_path: Path) -> None:
+    root = _initialized(tmp_path)
+    _capture_and_seal(root, tmp_path, bucket="anchor-1", request_id="anchor", t=1_000)
+    before = {path.name: path.read_bytes() for path in root.iterdir() if path.is_file()}
+    with pytest.raises(controller.ControllerError, match="schedule_not_exhausted"):
+        controller.close_lease(root, frontier_slot=501, at_ns=1_100)
+    assert before == {path.name: path.read_bytes() for path in root.iterdir() if path.is_file()}
+    assert not (root / "STOP").exists()
+    assert not (root / "TERMINAL.json").exists()
+
+
+def test_early_owner_cancel_is_abnormal_and_censors_unstarted_buckets(tmp_path: Path) -> None:
+    root = _initialized(tmp_path)
+    _capture_and_seal(root, tmp_path, bucket="anchor-1", request_id="anchor", t=1_000)
+    state = controller.cancel_lease(root, at_ns=1_100)
+    assert state["stopped"] is True
+    assert state["cancelled_unstarted"] == ["frame-1"]
+    assert not (root / "TERMINAL.json").exists()
+    assert not any(event["kind"] == "gap" for event in controller._events(root))
+    with pytest.raises(
+        controller.ControllerError, match="abnormal_stop_cannot_auto_close_or_renew"
+    ):
+        controller.close_lease(root, frontier_slot=501, at_ns=1_101)
+    successor_plan = _plan()
+    successor_plan["lease_id"] = "must-not-be-created"
+    successor_plan["review"] = {"review_id": "review", "decision_sha256": "f" * 64}
+    successor = tmp_path / "cancelled-successor"
+    with pytest.raises(
+        controller.ControllerError, match="abnormal_stop_cannot_auto_close_or_renew"
+    ):
+        controller.initialize_successor(
+            root, successor, successor_plan, frontier_slot=501, at_ns=1_101
+        )
+    assert not successor.exists()
+
+
+def test_owner_cancel_does_not_reclassify_outstanding_request(tmp_path: Path) -> None:
+    root = _initialized(tmp_path)
+    _reserve(
+        root,
+        request_id="outstanding",
+        bucket_id="anchor-1",
+        requests=1,
+        raw_bytes=10,
+        stored_bytes=10,
+        width=1,
+        at_ns=1_000,
+        physical_free_bytes=DISK_FLOOR,
+    )
+    controller.mark_started(
+        root, request_id="outstanding", at_ns=1_001, physical_free_bytes=DISK_FLOOR
+    )
+    before = {path.name: path.read_bytes() for path in root.iterdir() if path.is_file()}
+    with pytest.raises(
+        controller.ControllerError, match="owner_cancel_with_outstanding_request_forbidden"
+    ):
+        controller.cancel_lease(root, at_ns=1_100)
+    assert before == {path.name: path.read_bytes() for path in root.iterdir() if path.is_file()}
+    assert not (root / "STOP").exists()
+
+
+def test_backdated_owner_cancel_is_byte_preserving(tmp_path: Path) -> None:
+    root = _initialized(tmp_path)
+    _capture_and_seal(root, tmp_path, bucket="anchor-1", request_id="anchor", t=1_000)
+    before = {path.name: path.read_bytes() for path in root.iterdir() if path.is_file()}
+    with pytest.raises(controller.ControllerError, match="stop_time_precedes_durable_event"):
+        controller.cancel_lease(root, at_ns=1_003)
+    assert before == {path.name: path.read_bytes() for path in root.iterdir() if path.is_file()}
+    assert not (root / "STOP").exists()
+    assert not (root / "TERMINAL.json").exists()
+
+
+@pytest.mark.parametrize("prefix", ["reserved", "started"])
+def test_crash_prefix_cannot_become_normal_terminal(tmp_path: Path, prefix: str) -> None:
+    root = _initialized(tmp_path)
+    _reserve(
+        root,
+        request_id="interrupted",
+        bucket_id="anchor-1",
+        requests=1,
+        raw_bytes=10,
+        stored_bytes=10,
+        width=1,
+        at_ns=1_000,
+        physical_free_bytes=DISK_FLOOR,
+    )
+    if prefix == "started":
+        controller.mark_started(
+            root, request_id="interrupted", at_ns=1_001, physical_free_bytes=DISK_FLOOR
+        )
+    before = {path.name: path.read_bytes() for path in root.iterdir() if path.is_file()}
+    with pytest.raises(controller.ControllerError, match="cannot_close_with_outstanding_request"):
+        controller.close_lease(root, frontier_slot=123, at_ns=1_100)
+    assert before == {path.name: path.read_bytes() for path in root.iterdir() if path.is_file()}
+    assert not (root / "STOP").exists()
+    assert not (root / "TERMINAL.json").exists()
+
+
+@pytest.mark.parametrize("crash_after", ["result", "seal"])
+def test_failed_result_crash_recovery_stops_and_never_reserves_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, crash_after: str
+) -> None:
+    root = _initialized(tmp_path)
+    _reserve(
+        root,
+        request_id="failed",
+        bucket_id="anchor-1",
+        requests=1,
+        raw_bytes=10,
+        stored_bytes=10,
+        width=1,
+        at_ns=1_000,
+        physical_free_bytes=DISK_FLOOR,
+    )
+    controller.mark_started(root, request_id="failed", at_ns=1_001, physical_free_bytes=DISK_FLOOR)
+    if crash_after == "result":
+        monkeypatch.setattr(
+            controller, "seal", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("crash"))
+        )
+    else:
+        monkeypatch.setattr(
+            controller, "stop", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("crash"))
+        )
+    with pytest.raises(OSError, match="crash"):
+        controller.record_result(
+            root,
+            request_id="failed",
+            status_value="failed",
+            actual_requests=1,
+            actual_raw_bytes=0,
+            actual_stored_bytes=0,
+            receipt_ns=1_010,
+            availability_ns=None,
+        )
+    monkeypatch.undo()
+    with pytest.raises(controller.ControllerError, match="provider_request_failed"):
+        controller.recover(root, at_ns=1_020)
+    marker = json.loads((root / "STOP").read_bytes())
+    assert marker["reason"] == "provider_request_failed"
+    with pytest.raises(controller.ControllerError, match="lease_stopped"):
+        _reserve(
+            root,
+            request_id="must-not-replay",
+            bucket_id="frame-1",
+            requests=1,
+            raw_bytes=1,
+            stored_bytes=1,
+            width=1,
+            at_ns=3_000,
+            physical_free_bytes=DISK_FLOOR,
+        )
+
+
 def test_day_caps_are_independent_of_finite_lease_caps(tmp_path: Path) -> None:
     plan = _plan()
     plan["caps"]["daily_requests"] = 1
@@ -353,16 +506,17 @@ def test_generation_close_transfers_frontier_and_gaps_to_new_reviewed_lease(
 ) -> None:
     previous = _initialized(tmp_path)
     _capture_and_seal(previous, tmp_path, bucket="anchor-1", request_id="anchor", t=1_000)
+    controller.record_gap(previous, bucket_id="frame-1", at_ns=4_000, reason="elapsed_unobserved")
     successor = tmp_path / "lease-next"
     next_plan = _plan()
-    next_plan.update({"lease_id": "lease-test-002", "created_ns": 3_100, "expires_ns": 9_000})
+    next_plan.update({"lease_id": "lease-test-002", "created_ns": 4_100, "expires_ns": 9_000})
     next_plan["buckets"] = [
-        {"bucket_id": "anchor-next", "kind": "anchor", "start_ns": 4_000, "end_ns": 5_000}
+        {"bucket_id": "anchor-next", "kind": "anchor", "start_ns": 5_000, "end_ns": 6_000}
     ]
     next_plan["review"] = {"review_id": "sol-decision-002", "decision_sha256": "f" * 64}
 
     initialized = controller.initialize_successor(
-        previous, successor, next_plan, frontier_slot=501, at_ns=3_100
+        previous, successor, next_plan, frontier_slot=501, at_ns=4_100
     )
 
     terminal = json.loads((previous / "TERMINAL.json").read_bytes())
