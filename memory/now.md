@@ -1,15 +1,15 @@
 # Current Project State
 
-**As of:** 2026-10-12 08:30Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`; latest pushed commit `3239ad4baccfebf6971617bc7a93b26e9341edf5`.
-`main` remains `2ce3cdaff63f0e0b78dcab8e78886ae405085432`. Work continues across horizons.
+**As of:** 2026-10-12 08:39Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`; latest pushed commit `2ebdcfbb6c7fea0a25a3941c41277cb39628e7d7`.
+`main` is synchronized to the same commit. Work continues across horizons.
 Production, champion, protected evaluation, trading and Cortex remain untouched.
 
 ## Live boundaries
 
 - Kingston `/Volumes/Kingston/BrainData`: root ID
   `9428695af6d4f46c08e1a444cdc66de8`, UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`;
-  latest checked health was ready with 219,428,331,520 bytes free. Use only the bound storage
+  latest checked health was ready with 219,425,021,952 bytes free. Use only the bound storage
   contract; no internal-SSD fallback.
 - c4 and `external-v2-20261012T0600Z` are terminal. Three prospective frames plus bootstrap are
   sealed; nine windows remain expired-unobserved. No backfill, ambiguous replay, unresolved
@@ -22,7 +22,7 @@ Production, champion, protected evaluation, trading and Cortex remain untouched.
   `target/.rustc_info.json`. Preserve the staged Cargo home/target; no retry, metadata, build or
   ProgramTest without another Sol review.
 - Current read-only host check: Kingston identity still matches the bound root/UUID and health is
-  `ready`, with 219,428,331,520 bytes available. The research-storage health LaunchAgent is loaded
+  `ready`, with 219,425,021,952 bytes available. The research-storage health LaunchAgent is loaded
   but idle. No Brain/Senses acquisition agent is loaded. Temporary launch-v3 rehearsal labels are
   unloaded; disabled overrides from earlier attempts were reset. The 06:00Z external-v2
   receipt retains 103 requests, four seals, frontier 455944206, zero unresolved buckets, STOP=false,
@@ -57,9 +57,10 @@ Production, champion, protected evaluation, trading and Cortex remain untouched.
 
 ## Active horizons
 
-Sol approved a 485-row c3 diagnostic-only replay. Its first create-only Kingston ledger and receipt
-are preserved but not yet canonical: Sol clarified that opaque writable destination touches must
-retain execution order and suppress a new-account CreateAccount term when earlier/enclosing touch,
-order, or writability is uncertain. Luna is implementing a separately versioned v2 projection; all
-485 outcomes remain ambiguous. The v3 rehearsal above is complete. No provider, Agave build, real
-lease, Kingston activation or economic admission is in scope.
+Sol approved a 485-row c3 diagnostic-only replay. The final ordered-touch gate preserves raw
+CreateAccount amounts but withholds unknown contributions; no complete residual is reported while
+opaque effects remain. V3 replay retained 485 ambiguous rows, excluding 68 exact-ledger successes
+and two failed references. Focused pytest, Ruff, and scoped Mypy pass; receipt:
+`docs/evidence/pumpswap-sell23-c3-destination-lamport-diagnostic-v3-final-2026-10-12.json`.
+V1/v2 artifacts remain immutable and are superseded. The v3 rehearsal above is complete. No provider,
+Agave build, real lease, Kingston activation or economic admission is in scope.

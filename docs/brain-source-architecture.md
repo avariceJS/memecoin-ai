@@ -488,6 +488,20 @@ Pair64 replay or provider request was needed. The [process qualification receipt
 binds the frozen source manifest and committed analyzer; the manifest is at
 `work/brain-senses-sell23-process-qualification-v1/source-manifest-v1.json`.
 
+The destination-side v3 feasibility diagnostic preserves ordered opaque-touch paths and withholds
+a newly-created destination's CreateAccount contribution when an earlier or enclosing potentially
+writable touch, uncertain order, or unproven writability prevents qualification. A withheld raw
+amount remains an unknown contribution, and endpoint minus the known partial sum is recorded only
+as `unexplained_delta_lamports`; no complete-equation residual is available while any contribution
+is unknown. The v3 replay retains 485 censored successes, excluding 68 exact-ledger successes and
+two failed references. It decodes 473 System Transfers and 631 CreateAccount effects, records 2,803
+opaque writable-touch paths, and has zero missing destination endpoints. All 485 rows remain
+ambiguous; 473 corrected source-side candidates have unresolved parent semantics and 12 are
+unsupported. No CloseAccount credit, destination owner, rent, wrapped amount, wallet net, or
+economic admission is inferred. The [v3 destination lamport diagnostic receipt](evidence/pumpswap-sell23-c3-destination-lamport-diagnostic-v3-final-2026-10-12.json)
+supersedes the immutable v1, initial v2, and corrected v2-final diagnostic receipts. Focused
+pytest, Ruff, and the recorded scoped Mypy check pass.
+
 The implementation is frozen before a prospective audit: inspect all eligible sell23 native-close
 references in the first four completed scheduled c4 hourly frames after the freeze, including pass,
 fail, and unsupported rows. If a scheduled bucket fails or is incomplete, preserve it as a gap and

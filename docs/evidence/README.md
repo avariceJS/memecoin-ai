@@ -17,6 +17,13 @@ contain large exact payloads, so open only the named artifact needed for a speci
   unchanged, receipt verified `verified_none`, and temporary plist/image were removed. The nonce
   was unloaded and its disabled override cleared. This does not qualify Kingston capacity or a
   real service activation).
+- c3 sell23 destination lamport diagnostic v3-final:
+  `pumpswap-sell23-c3-destination-lamport-diagnostic-v3-final-2026-10-12.json` (485 censored
+  successes remain ambiguous; 68 exact-ledger rows and two failed references stay excluded. Ordered
+  opaque writable touches leave every full destination equation unknown; no close credit, rent,
+  wallet proceeds, or admission is claimed. This supersedes the preserved v1 and v2 receipts;
+  Kingston ledger: `derived/sell23-lamport-gate-v3-final/c3-diagnostic-rows.jsonl`, SHA-256
+  `4a6550532ce67452c1a1a6e1172059bbdfb47e6546d3ef86fbbe2df5f7dd7b22`).
 - Helius key current exposure delta rescan at 15:12Z:
   `helius-key-current-exposure-delta-rescan-2026-10-11T1512Z.json` (zero exact matches in all
   6,522 Git objects, 36,343 recent accessible files / 10.26 GB, current process arguments,
