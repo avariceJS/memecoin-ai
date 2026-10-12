@@ -625,6 +625,30 @@ captures: the 44,285 per-slot sum is not global distinct transactions, and zeros
 global absence. Completeness, economic qualification, training, and production admission remain
 false. Receipt: [`Pair64/c3 program-exposure projection`](evidence/senses-program-exposure-projection-v1-pair64-c3-2026-10-11.json).
 
+A separately versioned archive projection now preserves every Pump AMM structural-reference
+occurrence from the three sealed `external-v2-20261012T0600Z` frames. It reconciles 12 scheduled
+frames (3 sealed, 9 unobserved), 4,164 produced slots, 48 selected blocks, 46,222 scanned
+transactions (43,636 successful, 2,586 failed, zero unknown), 4,865 references (4,176 in
+successful and 689 in failed transactions), and 4,595 sample-local exact fingerprint classes.
+Unobserved-window metrics remain null. Each positive row binds its capture, response, request,
+result, signature, instruction path, structural fingerprint, and source event/receipt/capture
+availability times; `decision_ns`, execution, effect, and settlement remain null. Classes retain
+the classification `unresolved_unsupported_no_decoder_claim`. Failed-transaction rows establish
+only that a structural reference appeared in the captured transaction/trace. This archive does not
+extrapolate the selected blocks, claim absence or process support, deduplicate market events, or
+establish economics, lifecycle, point-in-time support, training, or admission. Projection-known
+time is recorded after the immutable source receipt; it is not a historical availability claim.
+The source queue SHA-256 is
+`fd8a2ffb750d53eb877e1326c02419358c24870aeb7338ea444a121712f83b81`; the source receipt SHA-256 is
+`23ede32e11040280024afd7da06b657a353f445850a55aecf99b4d11fcc294f4`. The descriptor-bound
+Kingston artifact is
+`derived/pump-amm-structural-archive-projection-v1/external-v2-20261012T0600Z/archival-projection.json`
+(10,292,022 bytes; SHA-256
+`b348ef424d26a3baa3b296ade34c136d7cac8ed428c803d3b3c2a3edc5c01a72`); its create-only publication
+receipt is `derived/pump-amm-structural-archive-projection-v1/external-v2-20261012T0600Z/publication-receipt.json`
+(SHA-256 `ca8eacdd774efa298b3c98edd3cb67722c3e3eaa11862c7113060ca4c25be670`). No provider I/O was
+performed.
+
 A commit-bound `create_pool` feasibility census independently replayed those same 608 sealed
 selected blocks. The verifier reconciled 741,305 transactions, 1,613,839 outer and 961,070 inner
 instruction references, and 85,456 Pump AMM references to the venue-neutral ledger and structural

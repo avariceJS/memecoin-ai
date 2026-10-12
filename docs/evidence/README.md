@@ -23,6 +23,14 @@ contain large exact payloads, so open only the named artifact needed for a speci
   cap; descriptor-bound 50-GiB floor, clean nonce teardown and read-only interrupted-prefix
   no-replay recovery passed. Zero provider, credential, launchd or lease activity. Synthetic
   recovery does not qualify live Senses activation or acquisition.)
+- `external-v2-20261012T0600Z` positive-only structural archive projection:
+  Kingston artifact `derived/pump-amm-structural-archive-projection-v1/external-v2-20261012T0600Z/archival-projection.json`
+  (SHA-256 `b348ef424d26a3baa3b296ade34c136d7cac8ed428c803d3b3c2a3edc5c01a72`) and create-only
+  publication receipt at the sibling `publication-receipt.json` (SHA-256
+  `ca8eacdd774efa298b3c98edd3cb67722c3e3eaa11862c7113060ca4c25be670`). The sample retains 3
+  sealed / 9 unobserved windows, 4,865 structural-reference occurrences and 4,595 exact classes;
+  it makes no extrapolation, absence, execution/effect, settlement, economic, lifecycle, PIT,
+  training or admission claim. No provider I/O.
 - c3 sell23 destination lamport diagnostic v3-final:
   `pumpswap-sell23-c3-destination-lamport-diagnostic-v3-final-2026-10-12.json` (485 censored
   successes remain ambiguous; 68 exact-ledger rows and two failed references stay excluded. Ordered

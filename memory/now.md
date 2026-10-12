@@ -1,16 +1,16 @@
 # Current Project State
 
-**As of:** 2026-10-12 08:59Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`; the current working changes are pending review and commit, based on
-`c6f4264b80429c4332b89684b02f3c9c822fdbe2`. `main` remains at the prior verified baseline;
-do not treat this horizon as pushed.
+**As of:** 2026-10-12 09:14Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`; `fa518bb0fe5a873d1d38670296e2c4e70adf17aa` is pushed to both `research/active`
+and `main`. Current projection implementation and canonical documentation changes are uncommitted.
 Production, champion, protected evaluation, trading and Cortex remain untouched.
 
 ## Live boundaries
 
 - Kingston `/Volumes/Kingston/BrainData`: root ID
   `9428695af6d4f46c08e1a444cdc66de8`, UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`;
-  latest checked health was ready with 219,425,021,952 bytes free. Use only the bound storage
+  latest checked health is ready with 219,415,134,208 bytes free after the 10.3 MB projection.
+  Use only the bound storage
   contract; no internal-SSD fallback.
 - c4 and `external-v2-20261012T0600Z` are terminal. Three prospective frames plus bootstrap are
   sealed; nine windows remain expired-unobserved. No backfill, ambiguous replay, unresolved
@@ -60,16 +60,25 @@ Production, champion, protected evaluation, trading and Cortex remain untouched.
   underlay checks passed. This is capacity and synthetic recovery evidence only, not live Senses
   activation/acquisition. Receipt SHA-256:
   `55d5e55657c5cb0ca2aaf6216c1c5c8a5c6c2cd8afc02811419bf67a8ad32ca3`.
-- This is synthetic consistency only. Runtime law, source qualification, candidate-position
-  admission, settlement, buyExact25 and PIT remain false. No real instrumentation or build is
-  authorized by this receipt.
+- Sample-only archive projection of the sealed `external-v2-20261012T0600Z` queue was published
+  descriptor-bound/create-only, then replayed without changing either artifact or receipt. It
+  preserves 12/3/9 scheduled/sealed/unobserved frames, 4,164 produced slots / 48 selected blocks,
+  46,222 transactions, 4,865 references (4,176 successful / 689 failed), and 4,595 classes; the
+  nine unobserved rows remain null. Failed references do not prove execution/effect/settlement; no
+  extrapolation, absence, economic/lifecycle, PIT, training or admission claim. No provider I/O.
+  Artifact SHA-256 `b348ef424d26a3baa3b296ade34c136d7cac8ed428c803d3b3c2a3edc5c01a72`; publication
+  receipt SHA-256 `ca8eacdd774efa298b3c98edd3cb67722c3e3eaa11862c7113060ca4c25be670`.
+- The capacity qualification is synthetic only; the archive projection is a source-pinned view of
+  the existing sealed selected-block observations. Neither qualifies runtime law, candidate-position
+  admission, settlement, buyExact25 or PIT. No production/runtime change or build was made.
 
 ## Active horizons
 
-Sol approved a 485-row c3 diagnostic-only replay. The final ordered-touch gate preserves raw
-CreateAccount amounts but withholds unknown contributions; no complete residual is reported while
-opaque effects remain. V3 replay retained 485 ambiguous rows, excluding 68 exact-ledger successes
-and two failed references. Focused pytest, Ruff, and scoped Mypy pass; receipt:
-`docs/evidence/pumpswap-sell23-c3-destination-lamport-diagnostic-v3-final-2026-10-12.json`.
-V1/v2 artifacts remain immutable and are superseded. The v3 rehearsal above is complete. No provider,
-Agave build, real lease, Kingston activation or economic admission is in scope.
+The current next horizon is offline structural-family triage of the 4,865 projected references:
+reopen only the 48 selected captured blocks through the existing verifier, recompute each raw
+instruction reference, and make a deterministic sample-local review queue against already pinned
+historical IDL blobs. IDL matches remain structural only. Preserve unknowns and all nine unobserved
+windows; no provider, Agave build, lease, runtime or economic admission follows from this horizon.
+After it, reassess economic candidate-position/native-settlement/buyExact25 gates and whether a new
+prospective acquisition lease has a distinct, source-bound case. c4 and the 06:00Z lease stay
+terminal; no replay or backfill.
