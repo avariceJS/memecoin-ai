@@ -223,7 +223,7 @@ def test_plan_bound_intent_replays_and_unresolved_usage_is_projected_at_maximum(
     decision = FIRST_CLOSE + 70 * scout.NS
     mono = 80 * scout.NS
     admission = _admission(request["request_id"], decision)
-    clock, clock_path = _clock(decision, mono)
+    clock, _ = _clock(decision, mono)
     intent = build_intent(
         root=ROOT,
         policy=policy,
@@ -244,7 +244,6 @@ def test_plan_bound_intent_replays_and_unresolved_usage_is_projected_at_maximum(
         dispatch_records=[],
         terminals=[],
         raw_responses={},
-        clock_files={clock_path: canonical_json(clock)},
         confirmations=[],
         coordinator_events=_coordinator_events(intent),
     )
@@ -286,7 +285,7 @@ def test_durable_empty_response_is_replayed_and_counts_actual_bytes() -> None:
     decision = FIRST_CLOSE + 70 * scout.NS
     mono = 80 * scout.NS
     request = expected_request(policy, binding["binding_sha256"], plan, 0)
-    clock, clock_path = _clock(decision, mono)
+    clock, _ = _clock(decision, mono)
     intent = build_intent(
         root=ROOT,
         policy=policy,
@@ -344,7 +343,6 @@ def test_durable_empty_response_is_replayed_and_counts_actual_bytes() -> None:
         dispatch_records=[dispatch],
         terminals=[terminal],
         raw_responses={request["request_id"]: body},
-        clock_files={clock_path: canonical_json(clock)},
         confirmations=[],
         coordinator_events=_coordinator_events(intent, terminal),
     )
@@ -357,7 +355,7 @@ def test_confirmation_binds_atomic_outcome_and_fresh_clock_after_settlement() ->
     plan = records[-1]
     decision = FIRST_CLOSE + 70 * scout.NS
     request = expected_request(policy, binding["binding_sha256"], plan, 0)
-    intent_clock, intent_clock_path = _clock(decision, 80 * scout.NS)
+    intent_clock, _ = _clock(decision, 80 * scout.NS)
     intent = build_intent(
         root=ROOT,
         policy=policy,
@@ -406,20 +404,21 @@ def test_confirmation_binds_atomic_outcome_and_fresh_clock_after_settlement() ->
         "provider_charge_status": "unknown_unverified",
     }
     events = _coordinator_events(intent, terminal)
-    confirmed_ns = terminal["receipt_ns"] + 4 * scout.NS
-    confirmation_clock, _ = _clock(confirmed_ns, 90 * scout.NS)
-    confirmation_clock_path = f"{ROOT}/clocks/{request['request_id']}-confirmation.json"
+    availability_ns = terminal["receipt_ns"] + 4 * scout.NS
+    availability_monotonic_ns = 90 * scout.NS
+    confirmation_clock, _ = _clock(availability_ns, availability_monotonic_ns)
     confirmation = _hashed_record(
         {
             "schema": "brain-senses-gecko-capture-only-v2-confirmation-v1",
             "schema_version": 1,
             "request_id": request["request_id"],
             "outcome_sha256": hashlib.sha256(canonical_json(terminal)).hexdigest(),
-            "availability_ns": terminal["receipt_ns"],
-            "confirmed_ns": confirmed_ns,
-            "clock_path": confirmation_clock_path,
-            "clock_sha256": hashlib.sha256(canonical_json(confirmation_clock)).hexdigest(),
-            "monotonic_ns": 90 * scout.NS,
+            "availability_ns": availability_ns,
+            "availability_monotonic_ns": availability_monotonic_ns,
+            "availability_clock": confirmation_clock,
+            "availability_clock_sha256": hashlib.sha256(
+                canonical_json(confirmation_clock)
+            ).hexdigest(),
             "coordinator_event_sha256": events[-1]["event_sha256"],
         },
         "confirmation_sha256",
@@ -433,10 +432,6 @@ def test_confirmation_binds_atomic_outcome_and_fresh_clock_after_settlement() ->
         "dispatch_records": [dispatch],
         "terminals": [terminal],
         "raw_responses": {request["request_id"]: body},
-        "clock_files": {
-            intent_clock_path: canonical_json(intent_clock),
-            confirmation_clock_path: canonical_json(confirmation_clock),
-        },
         "confirmations": [confirmation],
         "coordinator_events": events,
     }
@@ -481,7 +476,6 @@ def test_v2_verifier_rejects_noncanonical_root_or_mismatched_plan_identity() -> 
         "dispatch_records": [],
         "terminals": [],
         "raw_responses": {},
-        "clock_files": {},
         "confirmations": [],
         "coordinator_events": _coordinator_events(),
     }

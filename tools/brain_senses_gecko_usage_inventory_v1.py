@@ -385,7 +385,6 @@ def _load_present_root(
                 "intents",
                 "results",
                 "confirmations",
-                "clocks",
                 "skips",
                 "dispatch.jsonl",
             }
@@ -429,12 +428,6 @@ def _load_present_root(
                 ),
                 "gecko_v2_skip_file_closure",
             )
-            clocks = {
-                f"{root}/clocks/{name}": writer.read_bytes(
-                    store._path(f"clocks/{name}"), max_bytes=64 * 1024
-                )
-                for name in (store.files("clocks") if writer.exists(f"{root}/clocks") else ())
-            }
             raw = _v2_raw_responses(terminals)
             _require(
                 set(raw)
@@ -496,7 +489,6 @@ def _load_present_root(
                 dispatch_records=dispatch_records,
                 terminals=terminals,
                 raw_responses=raw,
-                clock_files=clocks,
                 confirmations=v2_confirmations,
                 coordinator_events=coordinator_events,
                 skips=skips,

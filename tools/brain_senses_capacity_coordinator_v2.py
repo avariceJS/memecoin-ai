@@ -819,6 +819,7 @@ class CapacityCoordinator:
         intent_sha256: str,
         reserve_bytes: int,
         lane_lease: LaneLockLease | None = None,
+        persist_intent: OutcomeWriter | None = None,
     ) -> Reservation:
         """Reserve capacity and create exact prehashed lane intent under both locks."""
         if service not in self.service_roots:
@@ -895,7 +896,10 @@ class CapacityCoordinator:
                     coordinator_append_bytes=0,
                 )
                 self._verify_root()
-                self.writer.create(intent_path, intent_bytes)
+                if persist_intent is None:
+                    self.writer.create(intent_path, intent_bytes)
+                else:
+                    persist_intent(self.writer, intent_path, intent_bytes)
                 _, latest_events = self._load_ledger()
                 allocated, free = self._snapshot()
                 pending, pending_coordinator, _, _ = self._pending_by_service(

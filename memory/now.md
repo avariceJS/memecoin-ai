@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-12 22:38Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+**As of:** 2026-10-12 22:44Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
 `research/active`, HEAD `e796dbd` (also pushed to `main` and `origin`). Worktree contains user-owned
 Agave/build-guard and Gecko v1 dirty files; preserve them and stage only task-owned paths. Production,
 champion, protected samples, real trading, and Cortex remain untouched.
@@ -25,9 +25,12 @@ champion, protected samples, real trading, and Cortex remain untouched.
   clock artifact for a bucket where dispatch windows were missed; its immutable root is not repaired
   in place. A fresh shared-usage census currently fails closed on this root's `gecko_v5_clock_closure`.
   The capture runner source map still matches its pinned source; no request recovery or provider retry
-  was performed. The v2 verifier has been moved to atomic body-bearing result envelopes and per-request
-  post-settlement, fresh-clock confirmations; 54 focused verifier/inventory/usage/coordinator tests
-  pass. Its inventory remains synthetic-only and no v2 provider runtime is active.
+  was performed. Sol specified embedded clocks in each atomic intent/confirmation to prevent orphan
+  clock files; Gecko coordinator intent persistence now has an optional create-only atomic callback.
+  The v2 verifier uses these embedded clocks and atomic body-bearing results; 56 focused
+  verifier/inventory/usage/coordinator tests pass. Inventory remains synthetic-only and no v2
+  provider runtime is active. `make smoke` passes; full `make check` currently stops at repository-wide
+  Ruff errors in unrelated WSS campaign/entry files (107 findings), while focused Ruff/Mypy pass.
 - Sol approved a separate v5 six-pool rotating scout: cycle 170 train pools; up to two incumbent
   retention slots for exactly four selected buckets when the prior bucket is received, durable, and
   eligible new-open; new candidates rank by availability then pinned hash. No retry/backfill or

@@ -32,8 +32,6 @@ WINDOW_START_NS = 60 * scout.NS
 REQUEST_START_END_NS = 270 * scout.NS
 AVAILABILITY_END_NS = 300 * scout.NS
 MAX_RESPONSE_BYTES = scout.MAX_RESPONSE_BYTES
-_CLOCK_NAME = re.compile(r"clocks/([0-9]+)-([0-9]{2})\.json\Z")
-_CONFIRMATION_CLOCK_NAME = re.compile(r"clocks/([0-9a-f]{64})-confirmation\.json\Z")
 
 
 class VerifyError(ValueError):
@@ -206,15 +204,14 @@ def build_intent(
         "v2_admission_not_for_request",
     )
     clock_bytes = canonical_json(dict(clock_record))
-    clock_path = f"{root}/clocks/{request['bucket_close_ns']}-{slot_index:02d}.json"
     core = {
         "schema": INTENT_SCHEMA,
         "request_id": request["request_id"],
         "request": request,
         "decision_ns": decision_ns,
         "decision_monotonic_ns": decision_monotonic_ns,
-        "clock_path": clock_path,
-        "clock_sha256": sha256(clock_bytes),
+        "decision_clock": dict(clock_record),
+        "decision_clock_sha256": sha256(clock_bytes),
         "admission": admission_row,
         "admission_sha256": sha256(canonical_json(admission_row)),
         "provider_charge_units": None,
@@ -233,7 +230,6 @@ def verify_capture_prefix_v2(
     dispatch_records: Sequence[Mapping[str, Any]],
     terminals: Sequence[Mapping[str, Any]],
     raw_responses: Mapping[str, bytes],
-    clock_files: Mapping[str, bytes],
     confirmations: Sequence[Mapping[str, Any]],
     coordinator_events: Sequence[Mapping[str, Any]],
     skips: Sequence[Mapping[str, Any]] = (),
@@ -291,7 +287,6 @@ def verify_capture_prefix_v2(
     _require(type(intents) in {list, tuple}, "v2_intents_shape")
     intent_by_id: dict[str, dict[str, Any]] = {}
     used_slots: set[tuple[int, int]] = set()
-    referenced_clocks: set[str] = set()
     usage_rows: list[dict[str, Any]] = []
     for raw_intent in intents:
         _require(type(raw_intent) is dict, "v2_intent_shape")
@@ -302,8 +297,8 @@ def verify_capture_prefix_v2(
             "request",
             "decision_ns",
             "decision_monotonic_ns",
-            "clock_path",
-            "clock_sha256",
+            "decision_clock",
+            "decision_clock_sha256",
             "admission",
             "admission_sha256",
             "provider_charge_units",
@@ -350,29 +345,11 @@ def verify_capture_prefix_v2(
         )
         admission = cast(dict[str, Any], admission)
         _record_hash(intent, "intent_sha256", "v2_intent_hash")
-        clock_path = intent.get("clock_path")
-        clock_path = cast(str, clock_path)
-        suffix = (
-            clock_path[len(root) + 1 :]
-            if type(clock_path) is str and clock_path.startswith(root + "/")
-            else ""
-        )
-        match = _CLOCK_NAME.fullmatch(suffix)
-        _require(
-            match is not None
-            and int(match.group(1)) == close_ns
-            and int(match.group(2)) == slot_index,
-            "v2_clock_path",
-        )
-        clock_raw = clock_files.get(clock_path)
-        _require(
-            type(clock_raw) is bytes and sha256(clock_raw) == intent.get("clock_sha256"),
-            "v2_clock_hash",
-        )
-        clock_raw = cast(bytes, clock_raw)
+        clock_record = intent.get("decision_clock")
+        _require(type(clock_record) is dict, "v2_clock_shape")
+        clock_raw = canonical_json(clock_record)
         try:
-            clock_record = json.loads(clock_raw)
-            _require(canonical_json(clock_record) == clock_raw, "v2_clock_noncanonical")
+            _require(sha256(clock_raw) == intent.get("decision_clock_sha256"), "v2_clock_hash")
             validate_progress(
                 clock_record,
                 wall_ns=decision_ns,
@@ -380,7 +357,6 @@ def verify_capture_prefix_v2(
             )
         except (ClockError, TypeError, json.JSONDecodeError) as exc:
             raise VerifyError("v2_clock_invalid") from exc
-        referenced_clocks.add(clock_path)
         _require(
             intent.get("provider_charge_units") is None
             and intent.get("provider_charge_status") == "unknown_unverified",
@@ -400,7 +376,6 @@ def verify_capture_prefix_v2(
                 "response_sha256": None,
             }
         )
-    _require(referenced_clocks <= set(clock_files), "v2_clock_closure")
 
     skip_slots: set[tuple[int, int]] = set()
     for skip in skips:
@@ -713,7 +688,6 @@ def verify_capture_prefix_v2(
     )
 
     confirmation_by_id: dict[str, dict[str, Any]] = {}
-    confirmation_clocks: set[str] = set()
     confirmed_bars: dict[str, list[dict[str, Any]]] = {}
     for row in confirmations:
         _require(
@@ -725,10 +699,9 @@ def verify_capture_prefix_v2(
                 "request_id",
                 "outcome_sha256",
                 "availability_ns",
-                "confirmed_ns",
-                "clock_path",
-                "clock_sha256",
-                "monotonic_ns",
+                "availability_monotonic_ns",
+                "availability_clock",
+                "availability_clock_sha256",
                 "coordinator_event_sha256",
                 "confirmation_sha256",
             },
@@ -744,46 +717,29 @@ def verify_capture_prefix_v2(
             and terminal is not None
             and row.get("outcome_sha256") == sha256(canonical_json(terminal))
             and type(row.get("availability_ns")) is int
-            and type(row.get("confirmed_ns")) is int
-            and terminal.get("receipt_ns", 0) <= row["availability_ns"] <= row["confirmed_ns"]
-            and type(row.get("monotonic_ns")) is int
-            and row["monotonic_ns"] >= 0
+            and terminal.get("receipt_ns", 0) <= row["availability_ns"]
+            and type(row.get("availability_monotonic_ns")) is int
+            and row["availability_monotonic_ns"] >= 0
+            and type(row.get("availability_clock")) is dict
             and HASH_RE.fullmatch(str(row.get("coordinator_event_sha256"))) is not None,
             "v2_confirmation_binding",
         )
         terminal = cast(dict[str, Any], terminal)
         _record_hash(row, "confirmation_sha256", "v2_confirmation_hash")
-        clock_path = row.get("clock_path")
-        suffix = (
-            clock_path[len(root) + 1 :]
-            if type(clock_path) is str and clock_path.startswith(root + "/")
-            else ""
-        )
-        _require(
-            _CONFIRMATION_CLOCK_NAME.fullmatch(suffix) is not None
-            and suffix == f"clocks/{rid}-confirmation.json",
-            "v2_confirmation_clock_path",
-        )
-        clock_path = cast(str, clock_path)
-        clock_raw = clock_files.get(clock_path)
-        _require(
-            type(clock_raw) is bytes and sha256(clock_raw) == row.get("clock_sha256"),
-            "v2_confirmation_clock_hash",
-        )
+        clock_record = cast(dict[str, Any], row["availability_clock"])
+        clock_raw = canonical_json(clock_record)
         try:
-            clock_record = json.loads(cast(bytes, clock_raw))
             _require(
-                canonical_json(clock_record) == clock_raw,
-                "v2_confirmation_clock_noncanonical",
+                sha256(clock_raw) == row.get("availability_clock_sha256"),
+                "v2_confirmation_clock_hash",
             )
             validate_progress(
                 clock_record,
-                wall_ns=row["confirmed_ns"],
-                monotonic_ns=row["monotonic_ns"],
+                wall_ns=row["availability_ns"],
+                monotonic_ns=row["availability_monotonic_ns"],
             )
         except (ClockError, TypeError, json.JSONDecodeError) as exc:
             raise VerifyError("v2_confirmation_clock_invalid") from exc
-        confirmation_clocks.add(clock_path)
         reservation_event = reservation_by_request[rid]
         reservation_id = reservation_event["fields"]["reservation_id"]
         coordinator_terminal = coordinator_terminals.get(reservation_id)
@@ -799,10 +755,7 @@ def verify_capture_prefix_v2(
         )
         coordinator_terminal = cast(dict[str, Any], coordinator_terminal)
         _require(
-            coordinator_terminal["at_ns"]
-            <= row["availability_ns"]
-            <= clock_record["checked_ns"]
-            <= row["confirmed_ns"],
+            coordinator_terminal["at_ns"] <= row["availability_ns"],
             "v2_confirmation_availability_order",
         )
         body = raw_responses.get(rid)
@@ -829,7 +782,6 @@ def verify_capture_prefix_v2(
                 raise VerifyError("v2_confirmed_response_unparseable") from exc
         confirmation_by_id[rid] = cast(dict[str, Any], row)
     _require(set(confirmation_by_id) <= set(terminal_by_id), "v2_orphan_confirmation")
-    _require(set(clock_files) == referenced_clocks | confirmation_clocks, "v2_clock_closure")
     _require(set(dispatch_by_id) <= set(intent_by_id), "v2_orphan_dispatch")
     _require(set(terminal_by_id) <= set(dispatch_by_id), "v2_orphan_terminal")
     for request_id, terminal in terminal_by_id.items():

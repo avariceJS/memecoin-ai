@@ -216,6 +216,53 @@ def test_lane_paths_reject_traversal_and_noncanonical_components() -> None:
             coordinator_module.CapacityCoordinator._validate_lane_path("helius", root, candidate)
 
 
+def test_gecko_atomic_intent_callback_fails_closed_without_partial_final_file(
+    tmp_path: Path,
+) -> None:
+    fixture = _fixture(tmp_path)
+    try:
+        path = f"{SERVICE_ROOTS['gecko']}/intents/atomic-gecko.json"
+        outcome_path = f"{SERVICE_ROOTS['gecko']}/results/atomic-gecko.json"
+        payload = b'{"schema":"atomic-test","request_id":"atomic-gecko"}'
+
+        def detach_at_create(operation: str) -> None:
+            if operation == "atomic_create":
+                raise OSError("simulated detach at atomic publication")
+
+        fixture.writer._fault_hook = detach_at_create
+        with fixture.coordinator.lane_lock("gecko") as lease:
+            with pytest.raises(
+                coordinator_module.CoordinatorError, match="lane_intent_persistence_failed"
+            ):
+                fixture.coordinator.reserve_and_persist_intent(
+                    service="gecko",
+                    reservation_id="atomic-reservation",
+                    request_id="atomic-gecko",
+                    intent_path=path,
+                    outcome_path=outcome_path,
+                    intent_bytes=payload,
+                    intent_sha256=coordinator_module.sha256(payload),
+                    reserve_bytes=1_000_000,
+                    lane_lease=lease,
+                    persist_intent=lambda writer, target, body: writer.atomic_write(
+                        target, body, create_only=True
+                    ),
+                )
+        assert not fixture.writer.exists(path)
+        assert not fixture.writer.exists(outcome_path)
+        _, events = fixture.coordinator._load_ledger()
+        reservation, terminal = coordinator_module._reservation_state(events)
+        assert "atomic-reservation" in reservation
+        assert terminal == {"atomic-reservation"}
+        final = [
+            row for row in events if row["fields"].get("reservation_id") == "atomic-reservation"
+        ][-1]
+        assert final["kind"] == "released"
+        assert final["fields"]["outcome"] == "pre_intent_absent"
+    finally:
+        fixture.close()
+
+
 def test_ledger_terminal_must_bind_predeclared_outcome_path(tmp_path: Path) -> None:
     fixture = _fixture(tmp_path)
     try:

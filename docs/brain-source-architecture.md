@@ -3726,9 +3726,10 @@ and rechecks the root census after replay. Unknown service entries, malformed pi
 unrecognized legacy plan failures, or a changing census fail closed. A present direct v5 root remains
 unsupported. The separate `capture-only-v2/<release-id>` scout-chain root now has an independent
 read-only usage replay: it binds release, policy and plan chain; enforces exact artifact/file closure;
-replays v2 intents, dispatches, atomic result envelopes with embedded bounded raw bodies,
-coordinator reservations/settlement, and per-request post-settlement confirmations with fresh clock
-evidence; and projects unresolved intents at their pinned maximum. An initialized plan-only root is
+replays v2 intents with embedded decision clocks, dispatches, atomic result envelopes with embedded
+bounded raw bodies, coordinator reservations/settlement, and per-request post-settlement confirmations
+with embedded fresh clock evidence; and projects unresolved intents at their pinned maximum. The
+shared coordinator's Gecko path supports create-only atomic intent publication. An initialized plan-only root is
 `verified_none` only when it has no attempt artifacts. The adapter verifies the release storage
 identity against the descriptor and coordinator policy, holds a nonblocking shared root lock, and
 fails closed on malformed or changing evidence. This replay grants no dispatch authority and does
@@ -3738,8 +3739,8 @@ valid pinned policy/plan hashes. Clock-bound v3 forensic replays count only thei
 toward usage; diagnostic-only status does not qualify source semantics. The loaded capture-only v4
 LaunchAgent is currently stop-latched after integrity replay found an unreferenced clock artifact
 for a forward bucket where all dispatch windows had already been missed. The root is preserved and
-not repaired in place; the v2 writer release must account for clock closure when a bucket produces
-only skips.
+not repaired in place; the v2 writer stores clocks only inside the request artifact they support, so
+a bucket that produces only skips leaves no clock artifact.
 
 The immutable [`22:00Z shared-usage observation`](evidence/gecko-shared-usage-observation-2026-10-12T2200Z.json)
 records the 22:01:03Z read-only snapshot: 24 same-provider attempts across v3 active, three v3

@@ -174,6 +174,14 @@ def test_valid_plan_only_v2_root_is_replayed_as_verified_none(
     assert snapshot["attempts"] == []
 
 
+def test_v2_root_rejects_standalone_clock_artifacts(writer: DescriptorWriter) -> None:
+    root = f"{SERVICE_ROOT}/capture-only-v2/{'c' * 32}"
+    _initialize_v2_empty_root(writer, root)
+    writer.mkdir(f"{root}/clocks")
+    with pytest.raises(InventoryError, match="gecko_v2_root_entry_unknown"):
+        build_usage_inventory(writer)
+
+
 def test_complete_inventory_hash_cannot_change_between_root_replays(
     writer: DescriptorWriter, monkeypatch: pytest.MonkeyPatch
 ) -> None:
