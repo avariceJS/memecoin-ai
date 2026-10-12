@@ -24,6 +24,16 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `senses-first-entry-readiness-v1-2026-10-11.json` (frozen, superseded and non-authoritative;
   its Helius MCP environment-presence classifier is stale/incorrect and must not be used as current
   process evidence. Use the v2 receipt and fresh runtime census instead.)
+- Prospective Helius external-v2 terminal result:
+  `brain-senses-external-v2-missed-bootstrap-terminal-2026-10-12.json` (plan/clock/launch/review
+  hashes, verified predecessor, terminal `missed_bootstrap`, zero provider requests/reservations,
+  disabled/unloaded label, and no-retry/no-backfill disposition).
+- Agave bounded dependency fetch attempt:
+  `agave-dependency-fetch-attempt-2026-10-12.json` (stopped by the local symlink guard after Cargo
+  created four internal links in the pinned Crossbeam checkout; the partial cache is preserved and
+  no retry/build occurred). Its `source_checkout_modified` field is corrected by
+  `agave-dependency-fetch-attempt-source-correction-2026-10-12.json`: the pre-existing composite
+  diff exactly matches the preflight snapshot; the fetch did not modify Agave source or lockfile.
 
 - Alchemy Free/PAYG endpoint behavior, metered CU reconciliation and bounded errors: `alchemy-endpoint-qualification-2026-10-09.json` (no secrets; endpoint behavior only, no completeness claim).
 - Alchemy MCP authenticated-account usage snapshot:
@@ -35,6 +45,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   remaining limit, or account-specific archive coverage; zero archive RPCs).
 - Helius MCP account status/plan check: `helius-account-status-mcp-2026-10-10.json` (key configured,
   but plan and credit usage unavailable from the account tool; no plan mutation or paid RPC made).
+- Helius MCP read-only account status at 2026-10-12 02:24Z:
+  `helius-account-status-mcp-2026-10-12T022418Z.json` (authenticated key configured, but no JWT;
+  plan, quota, credit balance, and charge history remain unavailable; no signup or account mutation).
+- Helius MCP read-only account plan at 2026-10-12 02:24Z:
+  `helius-account-plan-mcp-2026-10-12T022457Z.json` (plan and eligibility remain unknown; no signup
+  or account mutation).
 - Helius credential process-list remediation:
   `helius-mcp-credential-process-list-remediation-2026-10-10.json` (corrects the c3 activation
   receipt's invalid process-argument check; five legacy key-displaying npm processes were stopped).
@@ -160,6 +176,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - `alchemy-usage-summary-mcp-2026-10-11T0947Z.json`: read-only follow-up still reports 18,680 CU /
   $0.01 through 09:47Z. The account-specific usage limit remains unreturned; no Alchemy RPC was
   issued by this snapshot.
+- `alchemy-usage-summary-mcp-2026-10-12T0223Z.json`: read-only authenticated-team follow-up still
+  reports 18,680 CU / $0.01 through 02:23Z. No app/network/method attribution or account usage
+  limit was returned; this does not meter or attribute the finite Helius lease.
 - Frozen c4 selected-block structural replay:
   `pumpswap-c4-captured-class-replay-2026-10-11.json` (independently pinned metadata freeze and
   source-bound offline replay of 10 frames / 160 selected blocks; excludes unopened 23:00 body and
@@ -229,6 +248,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   matches, and no supervised process remains. Capacity thresholds are test-only; ownership is
   disabled on the disposable image; this does not authorize a large Agave build or sandbox arbitrary
   build scripts.
+- [`brain-senses-build-storage-guard-apfs-qualification-2026-10-12-v2.json`](brain-senses-build-storage-guard-apfs-qualification-2026-10-12-v2.json): reruns the five forced-detach write cases against the revised source-symlink policy; all attempts return `ENOENT`, with an unchanged manifest, matching remount UUID, and no process-group survivor. Existing and intentionally dangling internal source links are covered by the focused unit suite.
+- [`brain-senses-build-storage-guard-apfs-qualification-2026-10-12-v3.json`](brain-senses-build-storage-guard-apfs-qualification-2026-10-12-v3.json): repeats forced-detach cases after adding an opt-in allowance for internal symlinks under Cargo's pinned Git checkout tree; all five writes fail with `ENOENT`, the underlay manifest and remount UUID match, and no process-group survivor or scratch artifact remains. Tests reject escapes and preserve default rejection outside the opt-in scope.
+- [`brain-senses-build-storage-guard-apfs-qualification-2026-10-12-v4.json`](brain-senses-build-storage-guard-apfs-qualification-2026-10-12-v4.json): reruns the same five forced-detach cases after narrowing Cargo's opt-in to relative links whose targets stay inside one exact repo/revision tree. Cross-revision, cross-repository, absolute and symlinked structural paths are rejected; all post-detach writes fail with `ENOENT`, the manifest matches, and the image is removed.
+- [`agave-dependency-fetch-preflight-2026-10-12-v2.json`](agave-dependency-fetch-preflight-2026-10-12-v2.json): current wrapper/guard hashes passed `--check-only` against separate v2 Cargo/target/tmp roots on Kingston. No network or provider requests occurred. This is preflight evidence only, not approval or execution of another fetch.
+- `agave-dependency-fetch-attempt-2026-10-12.json` (with its source-state correction receipt): the single approved locked Cargo fetch stopped on four upstream internal Crossbeam symlinks. Its partial cache remains preserved; no retry, offline metadata, or build has run.
+- [`agave-dependency-fetch-attempt-v2-2026-10-12.json`](agave-dependency-fetch-attempt-v2-2026-10-12.json): the separately approved single fetch through the narrowed guard exited 101 after ~16 seconds. The partial v2 cache is preserved; its cause is unknown because Cargo stdout/stderr were discarded. Source and lock pins are unchanged, target/tmp are empty, and no process remains. No retry or offline metadata followed.
 - `pumpswap-buy-exact-v1-alchemy-account-archive-feasibility-v1-2026-10-11.json`: separately
   screens the same 2,333 identities against byte-pinned Alchemy Archive and simulation docs. It
   distinguishes slot-boundary bytes from transaction/instruction-position state; 2,330 exceed one

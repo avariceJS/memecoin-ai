@@ -165,16 +165,32 @@ def _check_stage_paths(paths: Sequence[Path], snapshot: Snapshot) -> tuple[Path,
         if path.exists() and not path.is_dir():
             raise GuardFailure(f"{label}_not_directory")
     git_marker = checked[0] / ".git"
-    if git_marker.exists() and not git_marker.is_dir():
-        # A Git worktree's .git file redirects source state outside this checkout.
+    try:
+        git_marker_stat = git_marker.lstat()
+    except FileNotFoundError:
+        git_marker_stat = None
+    if git_marker_stat is not None and (
+        not stat.S_ISDIR(git_marker_stat.st_mode)
+        or git_marker_stat.st_uid != os.getuid()
+        or git_marker_stat.st_dev != snapshot.mount_device
+    ):
+        # A Git worktree's .git file/symlink redirects source state outside this checkout.
         raise GuardFailure("source_checkout_must_own_git_directory")
     return checked
 
 
-def _allocated_bytes(paths: Sequence[Path], root_device: int) -> int:
-    """Count physical blocks without following links or leaving the bound device."""
+def _allocated_bytes(
+    paths: Sequence[Path], root_device: int, *, allow_cargo_git_checkout_symlinks: bool = False
+) -> int:
+    """Count blocks while allowing only explicitly scoped internal source links."""
     total = 0
     stack = list(paths)
+    source_root = paths[0]
+    resolved_source = source_root.resolve(strict=False)
+    cargo_checkout_root = paths[1] / "git" / "checkouts" if len(paths) > 1 else None
+    resolved_cargo_checkout_root = (
+        cargo_checkout_root.resolve(strict=False) if cargo_checkout_root is not None else None
+    )
     while stack:
         current = stack.pop()
         try:
@@ -182,7 +198,67 @@ def _allocated_bytes(paths: Sequence[Path], root_device: int) -> int:
         except FileNotFoundError:
             continue
         if stat.S_ISLNK(st.st_mode):
-            raise GuardFailure("symlink_in_stage_tree")
+            allowed_root: Path | None = None
+            resolved_allowed_root: Path | None = None
+            if current.is_relative_to(source_root):
+                allowed_root = source_root
+                resolved_allowed_root = resolved_source
+            elif (
+                allow_cargo_git_checkout_symlinks
+                and cargo_checkout_root is not None
+                and resolved_cargo_checkout_root is not None
+                and current != cargo_checkout_root
+                and current.is_relative_to(cargo_checkout_root)
+            ):
+                # Cargo's pinned Git checkout preserves upstream internal source links.
+                # Bind the exception to one ordinary repo/revision tree, never the whole
+                # checkouts directory or its structural repo/revision entries.
+                relative = current.relative_to(cargo_checkout_root)
+                if len(relative.parts) >= 3:
+                    repository_root = cargo_checkout_root / relative.parts[0]
+                    revision_root = repository_root / relative.parts[1]
+                    try:
+                        for structural in (cargo_checkout_root, repository_root, revision_root):
+                            structural_stat = structural.lstat()
+                            if (
+                                not stat.S_ISDIR(structural_stat.st_mode)
+                                or structural_stat.st_uid != os.getuid()
+                                or structural_stat.st_dev != root_device
+                            ):
+                                raise GuardFailure("unsafe_cargo_checkout_structure")
+                        link_text = os.readlink(current)
+                        if os.path.isabs(link_text):
+                            raise GuardFailure("absolute_cargo_checkout_symlink")
+                        resolved_allowed_root = revision_root.resolve(strict=False)
+                        resolved = current.resolve(strict=False)
+                        resolved.relative_to(resolved_allowed_root)
+                        try:
+                            target_stat = resolved.stat()
+                        except FileNotFoundError:
+                            target_stat = None
+                    except GuardFailure:
+                        raise
+                    except (OSError, RuntimeError, ValueError) as exc:
+                        raise GuardFailure("unsafe_cargo_checkout_symlink") from exc
+                    allowed_root = revision_root
+            if allowed_root is None or resolved_allowed_root is None:
+                raise GuardFailure("symlink_in_non_source_stage")
+            try:
+                # Upstream source trees can intentionally include dangling relative
+                # links. Their normalized destination must stay in the exact source or
+                # pinned Git checkout, and any existing target must stay on this volume.
+                resolved = current.resolve(strict=False)
+                resolved.relative_to(resolved_allowed_root)
+                try:
+                    target_stat = resolved.stat()
+                except FileNotFoundError:
+                    target_stat = None
+            except (OSError, RuntimeError, ValueError) as exc:
+                raise GuardFailure("unsafe_source_symlink") from exc
+            if target_stat is not None and target_stat.st_dev != root_device:
+                raise GuardFailure("source_symlink_crosses_volume")
+            total += int(st.st_blocks) * 512
+            continue
         if st.st_dev != root_device:
             raise GuardFailure("stage_tree_crosses_volume")
         if not (stat.S_ISDIR(st.st_mode) or stat.S_ISREG(st.st_mode)):
@@ -332,10 +408,16 @@ def _inspect_stage(
     snapshot_provider: SnapshotProvider,
     paths: Sequence[Path],
     first: Snapshot,
+    *,
+    allow_cargo_git_checkout_symlinks: bool = False,
 ) -> tuple[Snapshot, int]:
     current = snapshot_provider.inspect()
     current_paths = _check_stage_paths(paths, current)
-    allocation = _allocated_bytes(current_paths, current.mount_device)
+    allocation = _allocated_bytes(
+        current_paths,
+        current.mount_device,
+        allow_cargo_git_checkout_symlinks=allow_cargo_git_checkout_symlinks,
+    )
     if current.available_bytes < MIN_FREE_BYTES + max(0, ALLOCATION_CAP_BYTES - allocation):
         raise GuardFailure("free_space_below_stage_envelope")
     if allocation > ALLOCATION_CAP_BYTES:
@@ -358,13 +440,24 @@ def _bounded_inspect_stage(
     first: Snapshot,
     *,
     timeout_seconds: float,
+    allow_cargo_git_checkout_symlinks: bool = False,
 ) -> tuple[Snapshot, int]:
     """Run filesystem/provider probes off-thread so their syscalls cannot hold supervision."""
     result: Queue[tuple[bool, object]] = Queue(maxsize=1)
 
     def inspect() -> None:
         try:
-            result.put((True, _inspect_stage(snapshot_provider, paths, first)))
+            result.put(
+                (
+                    True,
+                    _inspect_stage(
+                        snapshot_provider,
+                        paths,
+                        first,
+                        allow_cargo_git_checkout_symlinks=allow_cargo_git_checkout_symlinks,
+                    ),
+                )
+            )
         except BaseException as exc:
             result.put((False, exc))
 

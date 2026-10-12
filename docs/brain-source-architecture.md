@@ -162,6 +162,20 @@ session, so plan and credit usage are unavailable. No signup or account mutation
 Alchemy's authenticated-team summary through 20:54Z still reports 18,680 CU and $0.01, without an
 account usage-limit field; it does not attribute charges to this checkout. The source-bound result
 and limitations are in [`provider account evidence v2`](evidence/senses-provider-account-readonly-2026-10-11-v2.json).
+The 2026-10-12 02:24Z read-only Helius MCP status again found an authenticated configured key but
+no JWT session, so plan, quota, balance, and charge history remain unavailable. No signup or account
+mutation was performed. Receipt: [`Helius account status at 02:24Z`](evidence/helius-account-status-mcp-2026-10-12T022418Z.json).
+The 2026-10-12 02:23Z read-only MCP snapshot still reports 18,680 CU and $0.01 through that minute;
+it returns no account limit or app/network/method attribution and does not meter the finite Helius
+lease. Receipt: [`Alchemy usage summary at 02:23Z`](evidence/alchemy-usage-summary-mcp-2026-10-12T0223Z.json).
+
+The separately reviewed prospective Helius v2 plan for 02:30–03:33Z was initialized offline on the
+bound Kingston root under host, storage, and predecessor locks. Launchd ran it once, but startup
+completed after the bootstrap dispatch margin; the runner sealed terminal `missed_bootstrap` with
+zero provider requests, zero reservations/intents, and verified v1 lineage. The label is unloaded
+and disabled. No scheduled frame was activated; the plan is terminal, and no retry, catch-up,
+backfill, or schedule shift is allowed. Actual provider charge remains unknown. Receipt:
+[`v2 missed-bootstrap terminal`](evidence/brain-senses-external-v2-missed-bootstrap-terminal-2026-10-12.json).
 
 At 2026-10-11 07:18Z, the internal APFS capture volume had 40,637,412 KiB free (~38.76 GiB), below
 the reviewed 50 GiB floor; there is no selected successor schedule, so this is not a runway estimate.
@@ -2834,11 +2848,33 @@ during both a real Cargo build script and five post-detach `mkdir`/create/write/
 attempts; all explicit path writes failed with `ENOENT`, the underlay was absent, the remounted UUID
 matched, and no delayed artifact or in-group process remained. The small fixture used an OS-disabled
 ownership disposable image and test-only capacity thresholds; the actual Kingston binding, identity,
-owners-enabled state and free space are separately checked before any source closure. This supervisor
+owners-enabled state and free space are separately checked before any source closure. Source symlinks
+are allowed only when their normalized target remains inside the source checkout; if the target exists,
+it must also stay on the pinned volume. This accepts an intentional dangling upstream docs link while
+rejecting escapes. Cargo's Git checkout symlink allowance is opt-in and accepts only relative links
+below one ordinary `<repository>/<revision>` tree whose normalized targets stay within that exact
+revision. Cross-revision, cross-repository, absolute, and symlinked structural paths are rejected;
+Cargo config, registry, target, and temp symlinks remain rejected. The corrected guard passed 16
+focused tests and a fresh forced-detach APFS qualification; all five post-detach writes failed with
+`ENOENT`, the manifest matched, and no process survived. The current source and policy are pinned in
+[`build storage guard APFS qualification v4`](evidence/brain-senses-build-storage-guard-apfs-qualification-2026-10-12-v4.json); earlier receipts remain bound to earlier guard revisions. This supervisor
 is not an arbitrary build-script sandbox: it does not constrain a descendant that deliberately leaves
 the process group, and sampled allocation checks are not a kernel hard limit. Review the source/build
 scripts and process census; do not use `setsid` descendants. Receipt:
 [`build storage guard APFS qualification`](evidence/brain-senses-build-storage-guard-apfs-qualification-2026-10-12.json).
+
+The first approved locked Cargo dependency fetch for the pinned Agave composite stopped when Cargo
+created four internal Crossbeam checkout links outside the source root. The guard correctly stopped
+the run; the partial cache is preserved, while the source diff and lockfile still match the exact
+preflight pins. Sol approved one fresh bounded fetch in separate v2 roots; it exited 101 after about
+16 seconds. The partial v2 Cargo home is preserved and not reused, source and lock pins are unchanged,
+target/tmp are empty, and no Cargo process remains. The diagnostic cause is unknown because Cargo
+stdout/stderr were discarded. No retry or offline metadata followed. Receipts:
+[`fetch attempt`](evidence/agave-dependency-fetch-attempt-2026-10-12.json),
+[`source-state correction`](evidence/agave-dependency-fetch-attempt-source-correction-2026-10-12.json),
+[`dependency fetch preflight v2`](evidence/agave-dependency-fetch-preflight-2026-10-12-v2.json).
+The terminal v2 outcome is recorded at
+[`dependency fetch attempt v2`](evidence/agave-dependency-fetch-attempt-v2-2026-10-12.json).
 
 The first release is deliberately a finite operational qualification: one prospective finalized
 anchor and one inventory-first frame five to ten minutes later. It reserves at most 35 requests,

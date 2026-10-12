@@ -106,16 +106,120 @@ def test_stage_paths_must_be_bound_and_nonoverlapping(tmp_path: Path) -> None:
         )
 
 
-def test_allocated_bytes_rejects_symlinks_without_following_them(tmp_path: Path) -> None:
+def test_allocated_bytes_accepts_only_symlinks_resolving_inside_source(
+    tmp_path: Path,
+) -> None:
     root = tmp_path / "BrainData"
     root.mkdir()
-    outside = tmp_path / "outside"
-    outside.mkdir()
     stage = root / "stage"
     stage.mkdir()
+    target = stage / "target.txt"
+    target.write_text("inside", encoding="utf-8")
+    (stage / "internal-link").symlink_to(target)
+    (stage / "dangling-internal-link").symlink_to(stage / "removed-page.md")
+    assert guard._allocated_bytes((stage,), root.stat().st_dev) >= target.stat().st_blocks * 512
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
     (stage / "escape").symlink_to(outside, target_is_directory=True)
-    with pytest.raises(guard.GuardFailure, match="symlink_in_stage_tree"):
+    with pytest.raises(guard.GuardFailure, match="unsafe_source_symlink"):
         guard._allocated_bytes((stage,), root.stat().st_dev)
+
+
+def test_allocated_bytes_rejects_symlinks_in_cargo_target_or_tmp(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "BrainData"
+    root.mkdir()
+    source = root / "source"
+    source.mkdir()
+    cargo_home = root / "cargo-home"
+    cargo_home.mkdir()
+    target = root / "target"
+    target.mkdir()
+    tmpdir = root / "tmp"
+    tmpdir.mkdir()
+    destination = root / "external"
+    destination.mkdir()
+    (cargo_home / "escape").symlink_to(destination, target_is_directory=True)
+    with pytest.raises(guard.GuardFailure, match="symlink_in_non_source_stage"):
+        guard._allocated_bytes((source, cargo_home, target, tmpdir), root.stat().st_dev)
+
+
+def test_allocated_bytes_allows_only_internal_pinned_cargo_git_checkout_links(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "BrainData"
+    root.mkdir()
+    source = root / "source"
+    source.mkdir()
+    cargo_home = root / "cargo-home"
+    checkout = cargo_home / "git" / "checkouts" / "crossbeam" / "fd279d7"
+    (checkout / "crossbeam-epoch").mkdir(parents=True)
+    (checkout / "no_atomic.rs").write_text("// pinned", encoding="utf-8")
+    link = checkout / "crossbeam-epoch" / "no_atomic.rs"
+    link.symlink_to("../no_atomic.rs")
+    target = root / "target"
+    target.mkdir()
+    tmpdir = root / "tmp"
+    tmpdir.mkdir()
+    paths = (source, cargo_home, target, tmpdir)
+    with pytest.raises(guard.GuardFailure, match="symlink_in_non_source_stage"):
+        guard._allocated_bytes(paths, root.stat().st_dev)
+    assert (
+        guard._allocated_bytes(paths, root.stat().st_dev, allow_cargo_git_checkout_symlinks=True)
+        > 0
+    )
+
+    other_revision = cargo_home / "git" / "checkouts" / "crossbeam" / "other-revision"
+    other_revision.mkdir()
+    (other_revision / "foreign.rs").write_text("// foreign", encoding="utf-8")
+    link.unlink()
+    link.symlink_to("../../other-revision/foreign.rs")
+    with pytest.raises(guard.GuardFailure, match="unsafe_cargo_checkout_symlink"):
+        guard._allocated_bytes(paths, root.stat().st_dev, allow_cargo_git_checkout_symlinks=True)
+
+    other_repository = cargo_home / "git" / "checkouts" / "other-repository" / "revision"
+    other_repository.mkdir(parents=True)
+    (other_repository / "foreign.rs").write_text("// foreign", encoding="utf-8")
+    link.unlink()
+    link.symlink_to("../../../other-repository/revision/foreign.rs")
+    with pytest.raises(guard.GuardFailure, match="unsafe_cargo_checkout_symlink"):
+        guard._allocated_bytes(paths, root.stat().st_dev, allow_cargo_git_checkout_symlinks=True)
+
+    link.unlink()
+    link.symlink_to((checkout / "no_atomic.rs").resolve())
+    with pytest.raises(guard.GuardFailure, match="absolute_cargo_checkout_symlink"):
+        guard._allocated_bytes(paths, root.stat().st_dev, allow_cargo_git_checkout_symlinks=True)
+
+
+@pytest.mark.parametrize("structural_level", ["repository", "revision"])
+def test_allocated_bytes_rejects_symlinked_cargo_checkout_structure(
+    tmp_path: Path, structural_level: str
+) -> None:
+    root = tmp_path / "BrainData"
+    root.mkdir()
+    source = root / "source"
+    source.mkdir()
+    cargo_home = root / "cargo-home"
+    checkout_base = cargo_home / "git" / "checkouts"
+    target = root / "target"
+    target.mkdir()
+    tmpdir = root / "tmp"
+    tmpdir.mkdir()
+    real = root / "real"
+    (real / "revision").mkdir(parents=True)
+    (real / "revision" / "file.rs").write_text("// pinned", encoding="utf-8")
+    checkout_base.mkdir(parents=True)
+    if structural_level == "repository":
+        (checkout_base / "repository").symlink_to(real, target_is_directory=True)
+    else:
+        repository = checkout_base / "repository"
+        repository.mkdir()
+        (repository / "revision").symlink_to(real / "revision", target_is_directory=True)
+    paths = (source, cargo_home, target, tmpdir)
+    with pytest.raises(guard.GuardFailure):
+        guard._allocated_bytes(paths, root.stat().st_dev, allow_cargo_git_checkout_symlinks=True)
 
 
 def test_identity_loss_kills_process_group_and_child_cannot_write_later(

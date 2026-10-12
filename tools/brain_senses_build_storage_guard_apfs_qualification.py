@@ -93,7 +93,8 @@ def qualify(mount: Path, image: Path) -> dict[str, Any]:
     rename_source = source / "rename-source"
     rename_source.write_text("rename-source", encoding="utf-8")
     before_manifest = _manifest(work)
-    control = Path("/private/tmp/brain-senses-build-guard-apfs-20261012")
+    control = image.parent / "control"
+    control.mkdir(mode=0o700, exist_ok=True)
     ready = control / "write-ready"
     results = control / "write-results.json"
     for path in (ready, results):
@@ -138,6 +139,7 @@ def qualify(mount: Path, image: Path) -> dict[str, Any]:
     events: dict[str, Any] = {}
     child_proc: subprocess.Popen[bytes] | None = None
     pids: list[int] = []
+    cancel = threading.Event()
 
     class Provider:
         def inspect(self) -> Snapshot:
@@ -175,8 +177,11 @@ def qualify(mount: Path, image: Path) -> dict[str, Any]:
 
     def detach() -> None:
         deadline = time.monotonic() + 30
-        while time.monotonic() < deadline and not ready.exists():
+        while time.monotonic() < deadline and not ready.exists() and not cancel.is_set():
             time.sleep(0.01)
+        if cancel.is_set() and not ready.exists():
+            events["controller_cancelled"] = True
+            return
         if not ready.exists() or child_proc is None or child_proc.stdin is None:
             events["ready_timeout"] = True
             return
@@ -192,7 +197,7 @@ def qualify(mount: Path, image: Path) -> dict[str, Any]:
         child_proc.stdin.flush()
 
     def stage() -> None:
-        run_guarded_stage(
+        return_code = run_guarded_stage(
             [sys.executable, "-c", child],
             source=source,
             cargo_home=cargo_home,
@@ -205,6 +210,9 @@ def qualify(mount: Path, image: Path) -> dict[str, Any]:
             term_grace_seconds=0.1,
             popen=tracked_popen,
         )
+        if return_code != 0:
+            cancel.set()
+            raise RuntimeError(f"supervised_child_exit_{return_code}")
 
     controller = threading.Thread(target=detach, name="apfs-detach-controller")
     controller.start()
@@ -222,6 +230,8 @@ def qualify(mount: Path, image: Path) -> dict[str, Any]:
     except Exception as exc:
         failure = {"type": type(exc).__name__, "reason": str(exc)}
     controller.join(timeout=10)
+    if controller.is_alive():
+        raise SystemExit("detach controller did not stop")
     if mount.exists() or root.exists():
         raise SystemExit("mountpoint underlay appeared or remained mounted")
     result = json.loads(results.read_text()) if results.exists() else {}
