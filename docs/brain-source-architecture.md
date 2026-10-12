@@ -3717,6 +3717,18 @@ per rolling minute), a 20-second timeout, 16 KiB response ceiling, no retry/back
 16 GiB resident/50 GiB free-space limits. These are bounded capture-only caps, not source, training,
 or economic qualification.
 
+The separate shared-usage assessor now requires a complete explicit root inventory and independent
+verified-prefix snapshots, aggregates same-provider attempts across versions, charges each unresolved
+intent at its pinned maximum response size, and includes the prospective request before admission.
+Synthetic tests cover missing roots, verified absence, duplicate identities, unknown-size reservation,
+and request/byte caps. A live descriptor-bound parent inventory currently finds v3 active, three
+v3 pilots, one v4 pilot, and four capture-only v1 roots; the v4 active and capture-only v2 roots are
+absent at this snapshot. Existing v4 budget logic includes its own root and v3 pilots but omits the
+capture-only roots. This pure assessor is not wired into v4 or a v5 provider runtime; its future
+Kingston adapter must enumerate and independently replay every discovered versioned root (and prove
+any absent root) before each dispatch. Physical-allocation enforcement remains the shared
+coordinator's responsibility.
+
 The Agave build runner v1 remains rejected. A separately versioned default-deny Seatbelt fixture
 v2 passed synthetic parent/child read, write, network, symlink, and detached-child cleanup tests,
 but the forced stage-path replacement test showed that the child can write to a same-name underlay.
