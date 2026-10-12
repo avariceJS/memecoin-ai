@@ -1,7 +1,7 @@
 # Current Project State
 
-**As of:** 2026-10-12 22:03Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD `5145a27` (also pushed to `main` and `origin`). Worktree contains user-owned
+**As of:** 2026-10-12 22:06Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, HEAD `20da8cb` (also pushed to `main` and `origin`). Worktree contains user-owned
 Agave/build-guard and Gecko v1 dirty files; preserve them and stage only task-owned paths. Production,
 champion, protected samples, real trading, and Cortex remain untouched.
 
@@ -30,12 +30,15 @@ champion, protected samples, real trading, and Cortex remain untouched.
   A create-only descriptor-bound journal with synthetic restart and forced atomic-rename failure
   tests is implemented; it has not initialized Kingston or run against a live collector. Next
   horizon: a pure shared-usage assessor and Kingston descriptor-bound root adapter now enumerate
-  and replay all known Gecko versions, verify absence, hash roots, and assess the prospective
-  request. The 22:01Z read-only observation replayed 24 same-provider attempts (18,869 raw bytes);
-  one synthetic 16-KiB candidate stayed within configured ceilings. It is not admission authority
-  because the shared lane lock was not held. Next horizon: integrate census/replay/assessment
-  atomically under that lane lock in an offline v5 release and qualify lifecycle, no-replay recovery,
-  and forced detach behavior before a future-only v5 pilot.
+  and replay all supported Gecko versions, verify absence, hash roots, and assess the prospective
+  request. The 22:01Z immutable observation replayed 24 attempts (18,869 response bytes); a fresh
+  22:06Z read-only spot check replayed 27 attempts (active capture-only root now 17) and still passed
+  daily/rolling caps with a synthetic 16-KiB candidate. Neither observation had the lane lock or
+  dispatch authority. Present v5 roots now fail closed until a separate scout-chain usage verifier
+  exists. Sol has directed per-request v5 census/replay and prospective assessment under one
+  `gecko` lane lease through terminal persistence, with a narrowly scoped preheld own-root lock and
+  nonblocking shared locks for all other roots. Next: implement this interface and recovery tests;
+  current v4 remains untouched.
 - Helius v5 structural collector and health monitor remain loaded. Shared Kingston lock can serialize
   ticks while provider I/O is pending; monitor latency, do not interrupt ambiguous requests.
   Alchemy aggregate charge last verified as $0.01 / 18,680 CU without limit/workload attribution;

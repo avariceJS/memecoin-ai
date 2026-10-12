@@ -65,6 +65,15 @@ def test_unknown_pilot_directory_identity_fails_closed(writer: DescriptorWriter)
         build_usage_inventory(writer)
 
 
+def test_present_v5_root_fails_closed_until_its_independent_usage_verifier_exists(
+    writer: DescriptorWriter,
+) -> None:
+    writer.mkdir(f"{SERVICE_ROOT}/v5")
+    writer.create(f"{SERVICE_ROOT}/v5/.runner.lock", b"v5-runner-lock\n")
+    with pytest.raises(InventoryError, match="gecko_v5_usage_verifier_unavailable"):
+        build_usage_inventory(writer)
+
+
 def test_complete_inventory_hash_cannot_change_between_root_replays(
     writer: DescriptorWriter, monkeypatch: pytest.MonkeyPatch
 ) -> None:
