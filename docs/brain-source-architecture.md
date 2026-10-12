@@ -1462,9 +1462,19 @@ its detach qualification was stale. The initialized root remained byte-identical
 verification found no request, reservation, intent, seal, or STOP; the window was not replayed. The
 failure and reconciliation evidence is recorded in
 [`04:30Z v2 pre-activation abort`](evidence/brain-senses-external-v2-aborted-before-activation-2026-10-12T0430Z.json).
-At 04:15Z, read-only Helius status still had no JWT session, leaving plan and usage unknown; Alchemy's
-team aggregate remained 18,680 CU / $0.01 without an account limit or workload attribution. No
-provider request or account mutation occurred. Receipt: [`04:15Z provider account snapshot`](evidence/senses-provider-account-readonly-2026-10-12T0415Z.json).
+The separately versioned descriptor-bound integration qualification then passed on disposable
+case-sensitive APFS. Forced detach at the guarded mkdir and a later atomic rename produced safe
+syscall failures, no fallback artifacts, unchanged underlay, and no provider calls; Kingston was not
+touched. Receipt: [`external-v2 descriptor detach v2`](evidence/external-v2-descriptor-detach-integration-qualification-2026-10-12-v2.json).
+Sol accepted the exact 06:00Z prospective plan after checking its 21 source pins, the sealed-v1
+predecessor at frontier 455802008, c4's terminal STOP at 455430160, and both inactive v2 siblings.
+The candidate remains nonauthorizing until the complete final release chain passes. The fixed lease
+allows at most 409 requests at 4 requests/second and 3.104 GB raw/stored bytes; no provider request
+has yet occurred. If release checks miss the arm window, this schedule remains unused.
+At 04:24Z, read-only Helius status reported a configured key but no JWT session, so plan and usage
+remain unknown. Alchemy reported 18,680 CU / $0.01 across month-to-date, 7-day, and 30-day windows,
+with no account limit or workload attribution; its hourly query returned no rows and does not prove
+zero usage. No signup, payment, or provider RPC occurred. Receipt: [`04:24Z provider account snapshot`](evidence/senses-provider-account-readonly-2026-10-12T0424Z.json).
 The 2026-10-09 Alchemy work qualifies bounded RPC behavior, positive signature references,
 transaction response capture, one-slot block response consistency across two providers, and a
 replicable block-inventory receipt. A later two-slot finalized interval matches provider-reported

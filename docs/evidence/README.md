@@ -32,6 +32,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `brain-senses-external-v2-aborted-before-activation-2026-10-12T0430Z.json` (stale detach evidence
   blocked activation; initialized root unchanged, zero requests/reservations/intents/seals/STOP, and
   no replay).
+- Helius external-v2 descriptor-bound detach integration qualification v2:
+  `external-v2-descriptor-detach-integration-qualification-2026-10-12-v2.json` (two forced detach
+  points on disposable case-sensitive APFS; zero provider/Kingston touches, no fallback artifacts,
+  unchanged underlay, and verified cleanup).
 - Sparse-observation reference v1 publication:
   `brain-senses-sparse-observation-reference-v1-2026-10-12.json` (307 role-separated entities,
   53,080 bars, declared support intervals, explicit unknown slots and historical-only context; no
@@ -53,6 +57,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `senses-provider-account-readonly-2026-10-12T0415Z.json` (Helius key configured but plan and usage
   unavailable without JWT; Alchemy team aggregate 18,680 CU / $0.01, without account limit or
   workload attribution; no RPC or account mutation).
+- Helius/Alchemy read-only account snapshot at 04:24Z:
+  `senses-provider-account-readonly-2026-10-12T0424Z.json` (Helius usage/plan remain unknown without
+  a JWT session; Alchemy aggregate is 18,680 CU / $0.01 with no account limit or workload attribution).
 - Agave bounded dependency fetch attempt:
   `agave-dependency-fetch-attempt-2026-10-12.json` (stopped by the local symlink guard after Cargo
   created four internal links in the pinned Crossbeam checkout; the partial cache is preserved and
