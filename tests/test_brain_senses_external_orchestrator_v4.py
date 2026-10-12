@@ -396,3 +396,81 @@ def test_terminal_receipt_binds_epoch_allocation_manifest(tmp_path: Path) -> Non
             )
     finally:
         writer.close()
+
+
+def test_monitor_receipt_replays_after_restart() -> None:
+    record: dict[str, object] = {
+        "schema": runtime.MONITOR_SCHEMA,
+        "schema_version": 4,
+        "seq": 0,
+        "at_ns": 10**18,
+        "status": "window_processed",
+        "reason": None,
+        "epoch_id": None,
+        "next_window_index": 0,
+        "request_count": 0,
+        "service_allocation_cap_sha256": "a" * 64,
+        "service_allocated_upper_bytes": 100,
+        "service_allocation_cap_bytes": 150_000_000_000,
+        "volume_available_bytes": 200_000_000_000,
+        "clock_record": {"schema": "clock-v1"},
+        "clock_sha256": "b" * 64,
+        "previous_sha256": None,
+    }
+    record["receipt_sha256"] = schema.sha(schema.canonical(record))
+    raw = schema.canonical(record)
+    runtime._verify_monitor_receipt(schema.decode(raw), raw)
+    record["seq"] = 1
+    with pytest.raises(RollingRuntimeError, match="poll_monitor_receipt_invalid"):
+        runtime._verify_monitor_receipt(record, raw)
+
+
+def test_source_change_before_dispatch_retires_only_the_unstarted_future_plan(
+    tmp_path: Path,
+) -> None:
+    writer = _writer(tmp_path)
+    try:
+        now = 1_800_000_000_000_000_000
+        epoch_id, old_plan = _seed_epoch(writer, now)
+        changed_sources = dict(old_plan["source_bindings"])
+        changed_sources["tools/brain_senses_external_orchestrator_v4.py"] = "f" * 64
+        stale_plan = schema.build_plan(
+            epoch=epoch_id,
+            created_ns=old_plan["created_ns"],
+            anchor_ns=old_plan["anchor_ns"],
+            root_id="a" * 32,
+            volume_uuid="8f8f1081-9be4-4914-9111-75f1b90255bf",
+            source_bindings=changed_sources,
+        )
+        stale_bytes = schema.canonical(stale_plan)
+        epoch_relative = runtime._epoch_rel(epoch_id)
+        writer.atomic_write(f"{epoch_relative}/{schema.PLAN_FILE}", stale_bytes)
+        start = schema.event_record(
+            schema=schema.EVENT_SCHEMA,
+            seq=0,
+            kind="epoch_started",
+            at_ns=now,
+            previous_sha256=None,
+            fields={
+                "epoch_id": epoch_id,
+                "plan_sha256": schema.sha(stale_bytes),
+                "anchor_ns": old_plan["anchor_ns"],
+            },
+        )
+        writer.atomic_write(
+            f"{epoch_relative}/{schema.EVENT_FILE}", schema.canonical(start)
+        )
+        plans, terminals, projections = runtime._load_epochs(
+            writer,
+            root_id="a" * 32,
+            volume_uuid="8f8f1081-9be4-4914-9111-75f1b90255bf",
+        )
+        assert plans[epoch_id] == stale_bytes
+        assert projections[epoch_id].terminal_status == "abandoned"
+        assert terminals[epoch_id].status == "abandoned"
+        terminal = schema.decode(
+            writer.read_bytes(f"{epoch_relative}/{schema.TERMINAL_FILE}")
+        )
+        assert terminal["reason"] == "source_binding_changed_before_dispatch"
+    finally:
+        writer.close()

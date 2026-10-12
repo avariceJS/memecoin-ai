@@ -217,10 +217,6 @@ def _open_storage_writer(config_path: Path) -> Iterator[tuple[Any, DescriptorWri
             os.close(root_fd)
 
 
-def _source_valid(plan: Mapping[str, Any]) -> bool:
-    return plan.get("source_bindings") == source_bindings()
-
-
 def _service_allocated_upper_bytes(writer: DescriptorWriter) -> int:
     rows = _descriptor_inventory(writer, SERVICE_RELATIVE)
     _verify_service_layout(rows)
@@ -495,17 +491,47 @@ def _load_epochs(
         relative = _epoch_rel(epoch_id)
         plan_path = f"{relative}/{schema.PLAN_FILE}"
         raw_plan = writer.read_bytes(plan_path, max_bytes=2_000_000)
+        plan_document = schema.decode(raw_plan)
+        if not isinstance(plan_document, dict) or not isinstance(
+            plan_document.get("source_bindings"), dict
+        ):
+            raise RollingRuntimeError("plan_source_bindings_invalid")
+        planned_sources = plan_document["source_bindings"]
+        sources_match = planned_sources == expected_sources
+        runtime_only_change = (
+            set(planned_sources) == set(expected_sources)
+            and {
+                path for path in expected_sources if planned_sources[path] != expected_sources[path]
+            }
+            == {"tools/brain_senses_external_orchestrator_v4.py"}
+        )
+        if not sources_match and not runtime_only_change:
+            raise RollingRuntimeError("source_binding_changed")
         plan = verify.verify_plan(
             raw_plan,
-            expected_sources=expected_sources,
+            expected_sources=expected_sources if sources_match else planned_sources,
             expected_root_id=root_id,
             expected_volume_uuid=volume_uuid,
         )
-        if not _source_valid(plan):
-            raise RollingRuntimeError("source_binding_changed")
         event_path = f"{relative}/{schema.EVENT_FILE}"
         raw_events = _repair_torn_chain(writer, event_path)
         event_rows = schema.verify_event_chain(raw_events, schema=schema.EVENT_SCHEMA)
+        if not sources_match:
+            event_kinds = [event["kind"] for event in event_rows]
+            if event_kinds == ["epoch_started"]:
+                _finish_epoch(
+                    writer,
+                    epoch_id=epoch_id,
+                    plan_bytes=raw_plan,
+                    status="abandoned",
+                    reason="source_binding_changed_before_dispatch",
+                    pause_reason=None,
+                    now_ns=max(time.time_ns(), event_rows[-1]["at_ns"]),
+                )
+                raw_events = writer.read_bytes(event_path)
+                event_rows = schema.verify_event_chain(raw_events, schema=schema.EVENT_SCHEMA)
+            elif event_kinds != ["epoch_started", "epoch_terminal"]:
+                raise RollingRuntimeError("source_binding_changed_after_dispatch")
         intents = {
             event["fields"]["request_id"]: event["fields"]
             for event in event_rows
@@ -587,6 +613,11 @@ def _load_epochs(
                 or terminal.get("allocation_manifest_sha256") != manifest_sha
                 or terminal.get("allocation_upper_bytes") != allocation_bytes
                 or terminal.get("allocation_object_count") != object_count
+                or (
+                    not sources_match
+                    and terminal.get("reason")
+                    != "source_binding_changed_before_dispatch"
+                )
             ):
                 raise RollingRuntimeError("terminal_receipt_invalid")
             terminals[epoch_id] = verify.VerifiedTerminal(
@@ -793,7 +824,7 @@ def _control_projection(
         budget_evidence=_budget_evidence_map(writer, plans),
         plan_validator=lambda raw, _epoch: verify.verify_plan(
             raw,
-            expected_sources=source_bindings(),
+            expected_sources=cast(dict[str, str], schema.decode(raw)["source_bindings"]),
             expected_root_id=root_id,
             expected_volume_uuid=volume_uuid,
         ),
@@ -2022,20 +2053,8 @@ def _record_poll(result: Mapping[str, Any], *, config_path: Path) -> None:
             )
             old_raw = _read_optional(writer, MONITOR_FILE, limit=64_000)
             old = schema.decode(old_raw) if old_raw else None
-            old_without_receipt = (
-                {key: value for key, value in old.items() if key != "receipt_sha256"}
-                if isinstance(old, dict)
-                else None
-            )
-            if old is not None and (
-                not isinstance(old, dict)
-                or old.get("schema") != MONITOR_SCHEMA
-                or old.get("schema_version") != 4
-                or schema.canonical(cast(dict[str, Any], old_without_receipt)) != old_raw
-                or schema.sha(schema.canonical(cast(dict[str, Any], old_without_receipt)))
-                != old.get("receipt_sha256")
-            ):
-                raise RollingRuntimeError("poll_monitor_receipt_invalid")
+            if old is not None:
+                _verify_monitor_receipt(old, old_raw)
             old_seq = old.get("seq", -1) if isinstance(old, dict) else -1
             previous_sha = schema.sha(old_raw) if old_raw else None
             record = {
@@ -2068,6 +2087,19 @@ def _record_poll(result: Mapping[str, Any], *, config_path: Path) -> None:
             }
             record["receipt_sha256"] = schema.sha(schema.canonical(record))
             writer.atomic_write(MONITOR_FILE, schema.canonical(record))
+
+
+def _verify_monitor_receipt(value: Any, raw: bytes) -> None:
+    if (
+        not isinstance(value, dict)
+        or value.get("schema") != MONITOR_SCHEMA
+        or value.get("schema_version") != 4
+        or schema.canonical(value) != raw
+    ):
+        raise RollingRuntimeError("poll_monitor_receipt_invalid")
+    unsigned = {key: item for key, item in value.items() if key != "receipt_sha256"}
+    if schema.sha(schema.canonical(unsigned)) != value.get("receipt_sha256"):
+        raise RollingRuntimeError("poll_monitor_receipt_invalid")
 
 
 def run_poll(

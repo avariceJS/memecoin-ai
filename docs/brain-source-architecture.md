@@ -3564,3 +3564,6 @@ loaded, the hourly service has no calendar lease expiry; only real request/rolli
 caps, provider errors, clock/provenance ambiguity, volume identity, recovery integrity, and the
 available storage floor pause dispatch. Missing billing telemetry, unknown decoders, market
 completeness, and pending economic qualification do not block bounded prospective collection.
+If a code update invalidates a plan before its first durable request intent, that future-only plan is
+terminally abandoned under the old source pin and the ordinary recovery cooldown; the request is
+never replayed. A source change after any request intent remains fail-closed.
