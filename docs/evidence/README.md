@@ -11,6 +11,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   descriptor-bound journal verifier plus forced detach before receipt `mkdir` and `create`; both
   failed closed with no underlay/fallback artifact. Disposable OS-noowners images only; Kingston
   ownership/capacity and v3 activation remain unqualified).
+- Inactive v3 disposable LaunchAgent rehearsal:
+  `brain-senses-launch-v3-disposable-launchd-rehearsal-v1-2026-10-12.json` (one synthetic
+  no-provider kickstart on case-sensitive APFS; restart dispatched nothing, journal stayed
+  unchanged, receipt verified `verified_none`, and temporary plist/image were removed. The nonce
+  was unloaded and its disabled override cleared. This does not qualify Kingston capacity or a
+  real service activation).
 - Helius key current exposure delta rescan at 15:12Z:
   `helius-key-current-exposure-delta-rescan-2026-10-11T1512Z.json` (zero exact matches in all
   6,522 Git objects, 36,343 recent accessible files / 10.26 GB, current process arguments,

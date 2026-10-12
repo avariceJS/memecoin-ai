@@ -3027,8 +3027,14 @@ after remount, and the seeded internal underlay remained byte- and mode-identica
 artifacts. The fixture used two OS-noowners images and test-only capacity thresholds; it does not
 qualify Kingston ownership or capacity. Receipt:
 [`launch-v3 failure-receipt detach qualification`](evidence/brain-senses-launch-v3-failure-receipt-detach-qualification-v1-2026-10-12.json).
-This closes the offline journal-verification and detach-at-write gap only. There is still no v3
-activation/plist contract or live-launch integration, and the frozen v2 launcher remains unchanged.
+An inert manual-only plist and synthetic LaunchAgent rehearsal then completed one no-provider
+kickstart on a disposable case-sensitive APFS volume. The runner independently verified its
+descriptor-bound journal and `verified_none` receipt; a process restart did not dispatch again.
+Teardown disabled and booted out the nonce, cleared its disabled override, and verified that the
+label and process were absent; the plist and image were removed and the underlay stayed unchanged.
+This qualifies only the launchd invocation and failure/restart path: capacity was not qualified,
+no Kingston or v2 service was activated, and the frozen v2 launcher remains unchanged. Receipt:
+[`launch-v3 disposable LaunchAgent rehearsal`](evidence/brain-senses-launch-v3-disposable-launchd-rehearsal-v1-2026-10-12.json).
 
 The read-only source map then follows the v5 observer identity through Agave's adjacent commit,
 block-index, freeze, and root sites. It finds that execution IDs and commit-result vector order do not

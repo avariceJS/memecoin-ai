@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import Any, Literal
 
 from memecoin_research_storage import StorageError, writer_guard
-from tools import brain_senses_external_launch_v2 as launch_v2
 from tools.brain_senses_external_writer_v1 import DescriptorWriter
 
 SCHEMA = "brain-senses-external-launch-failure-receipt-v1"
@@ -403,11 +402,17 @@ def best_effort_record_failure(
     reason_code: str,
     journal_proof: JournalProof | None = None,
     guard_factory: Callable[..., Any] = writer_guard,
-    host_lock: Callable[[], Any] = launch_v2.host_lock,
+    host_lock: Callable[[], Any] | None = None,
     writer_factory: Callable[..., Any] = DescriptorWriter,
 ) -> bool:
     """Attempt one write; all sink faults are suppressed to preserve the caller failure."""
     try:
+        if host_lock is None:
+            # Keep v3-only callers inert at import time. The frozen v2 lock is
+            # retained solely as the compatibility default for existing callers.
+            from tools.brain_senses_external_launch_v2 import host_lock as default_host_lock
+
+            host_lock = default_host_lock
         record = build_record(
             service_id=service_id,
             plan_sha256=plan_sha256,

@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import json
 import os
+import subprocess
+import sys
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
@@ -269,6 +272,39 @@ def test_post_intent_failure_is_possibly_spent_and_never_retried() -> None:
     proof = received[0]["journal_proof"]
     assert _proof_state(BUCKET, proof)[0] == "possibly_spent"
     assert received[0]["phase"] == "post-intent"
+
+
+def test_v3_and_receipt_import_graph_does_not_load_provider_or_v2_clients() -> None:
+    code = """
+import sys
+from tools import brain_senses_external_launch_v3
+from tools import brain_senses_failure_receipt_v1
+from tools import brain_senses_external_launch_v3_rehearsal
+from tools import brain_senses_launch_v3_synthetic_fixture_v1
+forbidden = (
+    'tools.brain_senses_external_launch_v2',
+    'tools.brain_senses_service_v1_runner',
+    'memecoin_ai.sources',
+    'memecoin_ai.credentials',
+    'memecoin_ai.rpc',
+    'solana',
+    'solders',
+    'httpx',
+    'requests',
+)
+loaded = sorted(name for name in sys.modules if any(
+    name == prefix or name.startswith(prefix + '.') for prefix in forbidden
+))
+print(loaded)
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).resolve().parents[1],
+    )
+    assert json.loads(result.stdout) == []
 
 
 def test_changed_or_unverified_snapshots_are_unknown_not_verified_none() -> None:
