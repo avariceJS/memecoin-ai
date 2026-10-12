@@ -1444,6 +1444,18 @@ interval, complete request/cursor accounting, explicit failure/unsupported range
 provenance, and an independently reconciled coverage boundary. Provider disappearance is not a
 lifecycle event. The existing real sparse source `81f7c74b…4b10c3e0` has 170/170 support facts
 marked `unknown`; its 38,705 retained events prove neither complete event counts nor inactivity.
+The offline sparse-observation-reference v1 compiler now builds role-local histories from the
+qualified row indexes without opening capture response bodies or combining train/evaluation
+payloads. Separate in-memory compile-and-verify runs reconcile 170 train entities / 38,705 bars and
+137 evaluation entities / 14,375 bars, across 1,060,992 declared 5-minute support slots; 1,007,912
+slots remain unobserved/unknown. The existing 32-consecutive baseline remains 8,792 train and 6,465
+evaluation rows (15,257 total, across 79 entities). The compiler retains request failures separately
+(one failed evaluation window; the remaining 1,227 indexed windows are qualified/unknown support),
+uses only earlier event-time bars in histories, and marks point-in-time eligibility false. A row's
+receipt is full-bar availability evidence only when it is at or after the half-open bar end; historical
+online availability remains unknown. Volume units are null with an unverified status. No large
+reference artifact has been published; these structural counts do not establish complete coverage,
+inactivity, lifecycle, settlement, labels, edge, or training admission.
 The 2026-10-09 Alchemy work qualifies bounded RPC behavior, positive signature references,
 transaction response capture, one-slot block response consistency across two providers, and a
 replicable block-inventory receipt. A later two-slot finalized interval matches provider-reported
