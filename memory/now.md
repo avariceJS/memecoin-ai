@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-12 06:56Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+**As of:** 2026-10-12 07:27Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
 `research/active`, synchronized with `origin/research/active`; `main` remains at
 `2ce3cdaff63f0e0b78dcab8e78886ae405085432`. Work is continuing across Senses horizons. Production,
 champion, protected evaluation and trading remain untouched; no signing, submission or Cortex work.
@@ -9,14 +9,14 @@ champion, protected evaluation and trading remain untouched; no signing, submiss
 
 - Kingston `/Volumes/Kingston/BrainData` matches root ID
   `9428695af6d4f46c08e1a444cdc66de8`, UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; latest
-  checked health is `ready` with 220,613,636,096 bytes free. c4 is terminal; no backfill.
-- `external-v2-20261012T0600Z` remains disabled and unloaded. Its 06:20Z callback exited 1 before
-  any new durable intent/reservation. Four buckets remain sealed (103 requests); event tail and
-  frontier `455944206` are unchanged, with no unresolved reservations. Status is
-  `verified_prefix`, not STOP or successful lease completion. Windows from 06:20Z onward are
-  unobserved/cancelled; no replay or dispatch. The outer schedule expires 07:03Z. Recheck after
-  expiry before any other action. Receipt:
-  `docs/evidence/brain-senses-external-v2-20261012T0600Z-callback-failure-unload.json`.
+  checked health is `ready` with 219,478,421,504 bytes free. c4 is terminal; no backfill.
+- `external-v2-20261012T0600Z` is terminal, disabled and unloaded. Post-expiry status remains
+  `verified_prefix`: bootstrap plus three frames sealed, 103 requests, tail
+  `0ed5e952c199bb3f420eba1be72da813d7e876910ec10545a273b782e0058787`, frontier `455944206`,
+  no unresolved reservations, no STOP and no successor eligibility. Nine frame windows are
+  `expired_unobserved`; no replay/backfill. Receipts:
+  `docs/evidence/brain-senses-external-v2-20261012T0600Z-callback-failure-unload.json` and
+  `docs/evidence/brain-senses-external-v2-20261012T0600Z-final-expiry-status.json`.
 - Helius still exposes only configured-key status, not plan/quota/usage/charge without JWT. Alchemy
   read-only aggregate is 18,680 CU / $0.01 through 06:30Z with no account limit or workload
   attribution. Charge for the fixed lease remains `unknown_unverified`.
@@ -31,18 +31,24 @@ champion, protected evaluation and trading remain untouched; no signing, submiss
   suite passes 19 tests. It has injected verifier/lock dependencies only; forced detach remains
   synthetic, not APFS qualification. No activation or provider path exists. Frozen v2 code and
   journal remain unchanged.
-- Source closure and read-only Agave persistence/finality map are committed. Sol authorized exactly
-  one guarded locked Cargo fetch in the fresh
+- Source closure and read-only Agave persistence/finality map are committed. The one Sol-authorized
+  guarded locked Cargo fetch in the fresh
   `/Volumes/Kingston/BrainData/qualifications/agave-v3.0.0-token2022-runtime-20261012/{source,cargo-home,target,tmp}`
-  stage. Wait until 07:03Z expiry and independently check terminal status, no active process,
-  disabled/unloaded label, source/tool/lock pins and stage emptiness. Sol also authorized a separately
-  versioned partial-prefix structural queue after that same expiry gate: only the three sealed
-  16-block frames, full 13-window denominator, unknown tail, and no completion/PIT/economic/successor
-  claims. Do not relax the existing full-seal queue compiler. Immediately before fetch repeat
-  `--check-only`; require at least 90 GiB free. Keep 30-minute, 8-GiB cache growth, 32-GiB stage,
-  50-GiB floor and no-retry guards. Failure is terminal; after success only offline Cargo metadata
-  is authorized. A build requires another Sol review.
-- The next scientific dependency is a synthetic commit-to-root candidate-position witness. Continue
-  independent economic qualification, lifecycle/modalities, causal population, recovery/storage,
-  and unknown/anomaly qualification in rolling horizons. No decoder promotion, settlement,
-  buyExact25, point-in-time admission or completeness is qualified.
+  stage stopped terminally with wrapper reason `cargo_fetch_created_build_output` after creation of
+  `target/.rustc_info.json`. Source diff and lock pins match preflight; preserve the approximately
+  546-MiB Cargo home and target marker. No retry, offline metadata, build or ProgramTest. Another
+  fetch needs new Sol review. Receipt:
+  `docs/evidence/agave-token2022-runtime-fetch-attempt-terminal-2026-10-12.json`.
+- Sol-approved `brain-senses-external-partial-structural-queue-v2` is compiled and create-only
+  published at Kingston
+  `derived/partial-structural-queue-v2/external-v2-20261012T0600Z/partial-queue.json` (SHA-256
+  `fd8a2ffb750d53eb877e1326c02419358c24870aeb7338ea444a121712f83b81`), with post-fsync sibling
+  publication receipt. It keeps 12 frame rows: 3 sealed (48 blocks), 9 unobserved with null metrics;
+  46,222 transactions, 4,865 structural references, 4,595 unresolved classes. Deterministic replay
+  and repeated publication returned identical hashes. Full-seal v1 compilers are unchanged.
+- Next horizon: qualify the inactive launch-v3 failure-recovery writer on disposable case-sensitive
+  APFS with forced detach-at-write points, or advance another independent Senses engineering gate;
+  never activate it without the source/journal/lease gates. In parallel, continue source-only
+  qualification of candidate-position/finality, native settlement, lifecycle/modalities, causal
+  population and unknown/anomaly handling. No decoder promotion, settlement, `buyExact25`,
+  point-in-time admission or completeness is qualified. Preserve Agave Cargo artifacts; no retry.

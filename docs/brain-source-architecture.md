@@ -2982,8 +2982,27 @@ were free; the service subtree accounted for 158,588,928 allocated bytes across 
 about 176 MB of volume-free-space churn since the handoff snapshot, comfortably above the 50-GiB
 floor, and does not alter the early-unload decision.
 Receipt: [`06:00Z lease callback failure and unload`](evidence/brain-senses-external-v2-20261012T0600Z-callback-failure-unload.json).
-The lease remains time-bounded through 07:03Z for the separate fetch gate; wait for expiry, then
-independently verify terminal status and unload before the one Sol-approved fetch.
+After the 07:03Z expiry, a fresh status verification retained the same four seals and 103 requests;
+the remaining nine scheduled windows are `expired_unobserved`, with no unresolved reservations,
+STOP, replay authority, or successor eligibility. The LaunchAgent remains disabled and unloaded.
+The final status snapshot is in
+[`06:00Z final expiry status`](evidence/brain-senses-external-v2-20261012T0600Z-final-expiry-status.json).
+
+Sol approved a separate fixed-service partial-prefix compiler and publisher; the complete v1
+structural-input and queue compilers remain unchanged. It verifies the entire 13-window service
+prefix and closed source file set before reopening only the 48 selected full-block captures in the
+three sealed frames. The Kingston sibling artifact retains bootstrap plus all 12 planned frame rows;
+the failed 06:20Z callback is explicit and counts/probabilities for the other eight unobserved
+windows are null. It records 46,222 scanned transactions, 4,865 structural references and 4,595
+unresolved fingerprint classes with separate denominators. This is a sampled structural prefix,
+  not full-schedule coverage, a no-new-class result, point-in-time admission, market completeness,
+  economic validity, or successor eligibility. Output and its post-fsync publication receipt are
+under `derived/partial-structural-queue-v2/external-v2-20261012T0600Z/`; artifact SHA-256 is
+`fd8a2ffb750d53eb877e1326c02419358c24870aeb7338ea444a121712f83b81`. Publication is create-only,
+descriptor-bound and replayed deterministically; duplicate publication returned the same hashes.
+  Tool, focused tests, output location and artifact digest are indexed in the
+  [`evidence locator`](evidence/README.md); terminal state is recorded in
+  [`final expiry status`](evidence/brain-senses-external-v2-20261012T0600Z-final-expiry-status.json).
 
 The unrecoverable callback motivated an inactive, separately versioned launch-v3 callback prototype
 and launch-failure receipt writer. Its fixed-schema payload allowlists identifiers, times, phase,
@@ -3012,17 +3031,18 @@ source feasibility only, not a persistence/finality or economic witness. Receipt
 The next review after the raw-account runtime horizon must decide a synthetic commit-to-root
 instrumentation seam; ambiguous fork or time joins stay unknown.
 
-The first approved locked Cargo dependency fetch for the pinned Agave composite stopped when Cargo
-created four internal Crossbeam checkout links outside the source root. The guard correctly stopped
-the run; the partial cache is preserved, while the source diff and lockfile still match the exact
-preflight pins. Sol approved one fresh bounded fetch in separate v2 roots; it exited 101 after about
-16 seconds. The partial v2 Cargo home is preserved and not reused, source and lock pins are unchanged,
-target/tmp are empty, and no Cargo process remains. The diagnostic cause is unknown because Cargo
-stdout/stderr were discarded. No retry or offline metadata followed. Receipts:
+The Agave source-closure review then allowed exactly one locked fetch in a fresh Kingston stage after
+the fixed Senses lease expired. The wrapper stopped with `cargo_fetch_created_build_output` after
+Cargo created `target/.rustc_info.json`; the source diff and lockfile still match their pinned hashes.
+The approximately 546-MiB Cargo home and target marker are preserved, tmp remains empty, and no
+Cargo process remains. The underlying Cargo diagnostic is unknown; there was no retry, offline
+metadata, build or ProgramTest. A further fetch requires a new Sol review. Receipt:
+[`terminal Agave Token-2022 fetch attempt`](evidence/agave-token2022-runtime-fetch-attempt-terminal-2026-10-12.json).
+Earlier attempts remain separately recorded:
 [`fetch attempt`](evidence/agave-dependency-fetch-attempt-2026-10-12.json),
 [`source-state correction`](evidence/agave-dependency-fetch-attempt-source-correction-2026-10-12.json),
 [`dependency fetch preflight v2`](evidence/agave-dependency-fetch-preflight-2026-10-12-v2.json).
-The terminal v2 outcome is recorded at
+The earlier v2 terminal outcome is recorded at
 [`dependency fetch attempt v2`](evidence/agave-dependency-fetch-attempt-v2-2026-10-12.json).
 
 The first release is deliberately a finite operational qualification: one prospective finalized
