@@ -3013,12 +3013,22 @@ lock order and reacquiring host→storage for a best-effort descriptor-bound, cr
 receipt. `verified_none` requires matching plan/source/predecessor pins, event tail, and unchanged
 empty reservation and intent sets; the plan bucket must match its UTC window and callback-start time.
 Uncertain reads remain `unknown`, while spent IDs remain `possibly_spent`. The receipt sink has
-focused tests for secret exclusion, idempotency/conflict,
-unchanged service manifest, forced descriptor detachment, and no fallback; the v3 orchestration
-tests cover exactly-once injected dispatch, proof ordering, lock contention, and preserving the
-original exception when the sink fails. These tests use synthetic locks, plan snapshots, and storage
-only. There is no APFS qualification, v3 activation/plist contract, real service journal verifier,
-or live-launch integration yet, and the frozen v2 launcher remains unchanged.
+focused tests for secret exclusion, idempotency/conflict, unchanged service manifest, forced
+descriptor detachment, and no fallback; the v3 orchestration tests cover exactly-once injected
+dispatch, proof ordering, lock contention, and preserving the original exception when the sink
+fails. A separate journal snapshot adapter now delegates event, reservation, request-intent,
+file-closure, and predecessor checks to the independent v2 verifier, then binds the verified plan,
+source map, predecessor certificate and exact scheduled window to each fresh descriptor-bound
+snapshot. Synthetic crash-prefix, torn-journal, source/window mismatch, symlink and between-read
+mutation tests pass; one fixture exercises the full v2 plan/event/file verifier with predecessor
+verification isolated. A disposable case-sensitive APFS qualification then forced detach immediately
+before both failure-receipt `mkdir` and `create`: both writes failed closed, the receipt was absent
+after remount, and the seeded internal underlay remained byte- and mode-identical with no fallback
+artifacts. The fixture used two OS-noowners images and test-only capacity thresholds; it does not
+qualify Kingston ownership or capacity. Receipt:
+[`launch-v3 failure-receipt detach qualification`](evidence/brain-senses-launch-v3-failure-receipt-detach-qualification-v1-2026-10-12.json).
+This closes the offline journal-verification and detach-at-write gap only. There is still no v3
+activation/plist contract or live-launch integration, and the frozen v2 launcher remains unchanged.
 
 The read-only source map then follows the v5 observer identity through Agave's adjacent commit,
 block-index, freeze, and root sites. It finds that execution IDs and commit-result vector order do not

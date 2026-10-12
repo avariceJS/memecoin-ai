@@ -6,6 +6,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- Inactive launch-v3 failure-receipt APFS detach qualification:
+  `brain-senses-launch-v3-failure-receipt-detach-qualification-v1-2026-10-12.json` (fresh
+  descriptor-bound journal verifier plus forced detach before receipt `mkdir` and `create`; both
+  failed closed with no underlay/fallback artifact. Disposable OS-noowners images only; Kingston
+  ownership/capacity and v3 activation remain unqualified).
 - Helius key current exposure delta rescan at 15:12Z:
   `helius-key-current-exposure-delta-rescan-2026-10-11T1512Z.json` (zero exact matches in all
   6,522 Git objects, 36,343 recent accessible files / 10.26 GB, current process arguments,
