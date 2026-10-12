@@ -54,7 +54,6 @@ from brain_senses_build_storage_guard import (  # noqa: E402
     _check_stage_paths,
     _check_unprivileged_root1,
     _plain_descendant,
-    _secure_mkdirs,
     _terminate_group,
 )
 
@@ -429,6 +428,81 @@ def _open_directory_beneath(root_fd: int, relative: Path, *, device: int) -> int
         raise
 
 
+def _open_bound_data_root(snapshot: Any) -> int:
+    """Open the configured data root through the verified mount descriptor."""
+    try:
+        relative_root = snapshot.root_path.relative_to(snapshot.mount_path)
+    except ValueError as exc:
+        raise MetadataPreflightError("storage_root_outside_mount") from exc
+    if not relative_root.parts or any(part in {"", ".", ".."} for part in relative_root.parts):
+        raise MetadataPreflightError("storage_root_relative_path_invalid")
+    mount_fd = os.open(
+        snapshot.mount_path,
+        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
+    )
+    root_fd = -1
+    try:
+        mount_stat = os.fstat(mount_fd)
+        if (mount_stat.st_dev, mount_stat.st_ino) != (
+            snapshot.mount_device,
+            snapshot.mount_inode,
+        ):
+            raise MetadataPreflightError("storage_mount_descriptor_changed")
+        root_fd = os.dup(mount_fd)
+        for part in relative_root.parts:
+            child_fd = os.open(
+                part,
+                os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
+                dir_fd=root_fd,
+            )
+            child_stat = os.fstat(child_fd)
+            if (
+                not stat.S_ISDIR(child_stat.st_mode)
+                or child_stat.st_dev != snapshot.mount_device
+                or child_stat.st_uid != os.getuid()
+                or stat.S_IMODE(child_stat.st_mode) & 0o077
+            ):
+                os.close(child_fd)
+                raise MetadataPreflightError("storage_root_descriptor_unsafe")
+            os.close(root_fd)
+            root_fd = child_fd
+        marker_fd = os.open(
+            ".research-root.json",
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+            dir_fd=root_fd,
+        )
+        try:
+            marker_stat = os.fstat(marker_fd)
+            if (
+                not stat.S_ISREG(marker_stat.st_mode)
+                or marker_stat.st_dev != snapshot.mount_device
+                or marker_stat.st_uid != os.getuid()
+                or stat.S_IMODE(marker_stat.st_mode) & 0o077
+                or marker_stat.st_size > 4096
+            ):
+                raise MetadataPreflightError("storage_root_marker_unsafe")
+            marker_raw = os.read(marker_fd, 4097)
+            if len(marker_raw) != marker_stat.st_size:
+                raise MetadataPreflightError("storage_root_marker_changed")
+        finally:
+            os.close(marker_fd)
+        marker = _strict_json(marker_raw, "storage_root_marker")
+        if marker != {
+            "data_root": relative_root.as_posix(),
+            "root_id": snapshot.root_id,
+            "version": 1,
+            "volume_uuid": snapshot.volume_uuid,
+        }:
+            raise MetadataPreflightError("storage_root_marker_mismatch")
+        return root_fd
+    except BaseException:
+        if root_fd >= 0:
+            os.close(root_fd)
+        raise
+    finally:
+        os.close(mount_fd)
+
+
 def _copy_cache_tree(
     source_fd: int,
     destination_fd: int,
@@ -519,12 +593,12 @@ def _copy_cache_tree(
 
 
 def _copy_cache_once(
+    root_fd: int,
     root_path: Path,
     cache_source: Path,
     cargo_home: Path,
     *,
     device: int,
-    root_inode: int,
 ) -> tuple[bool, int, int]:
     try:
         source_rel = cache_source.relative_to(root_path)
@@ -539,24 +613,19 @@ def _copy_cache_once(
         or not destination_rel.parts
     ):
         raise MetadataPreflightError("cache_copy_paths_overlap")
-    root_fd = os.open(
-        root_path,
-        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
-    )
+    pinned_root_fd = os.dup(root_fd)
     try:
-        root_stat = os.fstat(root_fd)
-        if (
-            root_stat.st_dev != device
-            or root_stat.st_ino != root_inode
-            or root_stat.st_uid != os.getuid()
-        ):
+        root_stat = os.fstat(pinned_root_fd)
+        if root_stat.st_dev != device or root_stat.st_uid != os.getuid():
             raise MetadataPreflightError("cache_copy_root_identity")
-        source_fd = _open_directory_beneath(root_fd, source_rel, device=device)
+        source_fd = _open_directory_beneath(pinned_root_fd, source_rel, device=device)
         try:
             try:
-                destination_fd = _open_directory_beneath(root_fd, destination_rel, device=device)
+                destination_fd = _open_directory_beneath(
+                    pinned_root_fd, destination_rel, device=device
+                )
             except FileNotFoundError:
-                current_fd = os.dup(root_fd)
+                current_fd = os.dup(pinned_root_fd)
                 try:
                     for part in destination_rel.parts[:-1]:
                         try:
@@ -610,7 +679,46 @@ def _copy_cache_once(
         finally:
             os.close(source_fd)
     finally:
-        os.close(root_fd)
+        os.close(pinned_root_fd)
+
+
+def _mkdirs_beneath_root(
+    root_fd: int, root_path: Path, paths: tuple[Path, ...], device: int
+) -> None:
+    """Create stage directories only through the already opened data-root descriptor."""
+    for path in paths:
+        try:
+            relative = path.relative_to(root_path)
+        except ValueError as exc:
+            raise MetadataPreflightError("stage_directory_outside_storage_root") from exc
+        if not relative.parts or any(part in {"", ".", ".."} for part in relative.parts):
+            raise MetadataPreflightError("stage_directory_path_invalid")
+        current_fd = os.dup(root_fd)
+        try:
+            for part in relative.parts:
+                try:
+                    os.mkdir(part, mode=0o700, dir_fd=current_fd)
+                except FileExistsError:
+                    pass
+                next_fd = os.open(
+                    part,
+                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
+                    dir_fd=current_fd,
+                )
+                current_stat = os.fstat(next_fd)
+                if (
+                    not stat.S_ISDIR(current_stat.st_mode)
+                    or current_stat.st_dev != device
+                    or current_stat.st_uid != os.getuid()
+                    or stat.S_IMODE(current_stat.st_mode) & 0o077
+                ):
+                    os.close(next_fd)
+                    raise MetadataPreflightError("stage_directory_identity")
+                os.close(current_fd)
+                current_fd = next_fd
+            os.fsync(current_fd)
+        finally:
+            os.close(current_fd)
 
 
 def _check_hash(value: str, code: str) -> None:
@@ -957,13 +1065,17 @@ def run_metadata_preflight(
     if source_cache_before != expected_cache_manifest_sha256:
         raise MetadataPreflightError("source_cache_manifest_mismatch")
     _inspect_metadata_stage(provider, paths, checked_cache_source, first)
-    copied, cache_copy_entries, cache_copy_bytes = _copy_cache_once(
-        first.root_path,
-        checked_cache_source,
-        cargo_home,
-        device=first.mount_device,
-        root_inode=first.mount_inode,
-    )
+    root_fd = _open_bound_data_root(first)
+    try:
+        copied, cache_copy_entries, cache_copy_bytes = _copy_cache_once(
+            root_fd,
+            first.root_path,
+            checked_cache_source,
+            cargo_home,
+            device=first.mount_device,
+        )
+    finally:
+        os.close(root_fd)
     _inspect_metadata_stage(provider, paths, checked_cache_source, first)
     if _locked_cache_manifest(checked_cache_source) != source_cache_before:
         raise MetadataPreflightError("source_cache_changed_during_copy")
@@ -971,7 +1083,11 @@ def run_metadata_preflight(
     cache_before = hashlib.sha256(_canonical(cache_before_rows)).hexdigest()
     if cache_before != source_cache_before:
         raise MetadataPreflightError("copied_cache_manifest_mismatch")
-    _secure_mkdirs(paths[1:], first)
+    root_fd = _open_bound_data_root(first)
+    try:
+        _mkdirs_beneath_root(root_fd, first.root_path, paths[1:], first.mount_device)
+    finally:
+        os.close(root_fd)
     source_head, diff_sha, lock_sha, package_count, source_status_sha = _source_pins(
         source, cargo_home
     )

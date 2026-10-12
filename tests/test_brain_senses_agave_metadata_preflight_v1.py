@@ -72,6 +72,17 @@ def _layout(tmp_path: Path) -> tuple[Path, Path, Path, Path, Path, _Provider]:
     source = root / "agave-source"
     source.mkdir(mode=0o700)
     (source / ".git").mkdir(mode=0o700)
+    (root / ".research-root.json").write_text(
+        json.dumps(
+            {
+                "data_root": "BrainData",
+                "root_id": "a" * 32,
+                "version": 1,
+                "volume_uuid": "11111111-2222-3333-4444-555555555555",
+            }
+        )
+    )
+    (root / ".research-root.json").chmod(0o600)
     cache_source = root / "qualified-cache"
     cache_source.mkdir(mode=0o700)
     (cache_source / "registry").mkdir(mode=0o700)
@@ -86,7 +97,7 @@ def _layout(tmp_path: Path) -> tuple[Path, Path, Path, Path, Path, _Provider]:
         root_path=root,
         available_bytes=100 * 1024**3,
         mount_device=root.stat().st_dev,
-        mount_inode=root.stat().st_ino,
+        mount_inode=tmp_path.stat().st_ino,
     )
     return source, cache_source, cargo_home, target_dir, tmpdir, _Provider(snapshot)
 
@@ -299,11 +310,11 @@ def test_cache_copy_rejects_symlink_that_would_escape_cargo_home(tmp_path: Path)
     root_fd = os.open(root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
     try:
         copied, _, _ = preflight._copy_cache_once(
+            root_fd,
             root,
             source,
             destination,
             device=root.stat().st_dev,
-            root_inode=root.stat().st_ino,
         )
     finally:
         os.close(root_fd)
@@ -324,13 +335,13 @@ def test_copy_allows_only_relative_symlinks_inside_cargo_git_revision(tmp_path: 
     (checkout / "actual.rs").write_text("pub fn safe() {}\n")
     (checkout / "alias.rs").symlink_to("actual.rs")
     destination = root / "metadata" / "cargo-home"
-    copied, _, _ = preflight._copy_cache_once(
-        root,
-        source_tree,
-        destination,
-        device=root.stat().st_dev,
-        root_inode=root.stat().st_ino,
-    )
+    root_fd = os.open(root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        copied, _, _ = preflight._copy_cache_once(
+            root_fd, root, source_tree, destination, device=root.stat().st_dev
+        )
+    finally:
+        os.close(root_fd)
     assert copied
     from tools.brain_senses_build_storage_guard import _allocated_bytes
 
@@ -342,40 +353,30 @@ def test_copy_allows_only_relative_symlinks_inside_cargo_git_revision(tmp_path: 
     assert allocation > 0
 
 
-def test_cache_copy_uses_held_root_fd_after_path_replacement(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_cache_copy_uses_held_root_fd_after_path_replacement(tmp_path: Path) -> None:
     root = tmp_path / "BrainData"
     source_tree = root / "cache-source"
     source_tree.mkdir(parents=True, mode=0o700)
     (source_tree / "index").write_text("pinned bytes")
     device = root.stat().st_dev
-    inode = root.stat().st_ino
     held_path = root.with_name("BrainData.detached")
     sentinel_bytes = b"underlay sentinel"
-    real_open = os.open
-    replaced = False
+    root_fd = os.open(root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    root.rename(held_path)
+    root.mkdir(mode=0o700)
+    (root / "sentinel").write_bytes(sentinel_bytes)
+    try:
+        copied, _, _ = preflight._copy_cache_once(
+            root_fd,
+            root,
+            source_tree,
+            root / "metadata" / "cargo-home",
+            device=device,
+        )
+    finally:
+        os.close(root_fd)
 
-    def detach_after_root_open(path: Any, flags: int, *args: Any, **kwargs: Any) -> int:
-        nonlocal replaced
-        fd = real_open(path, flags, *args, **kwargs)
-        if not replaced and Path(path) == root and kwargs.get("dir_fd") is None:
-            replaced = True
-            root.rename(held_path)
-            root.mkdir(mode=0o700)
-            (root / "sentinel").write_bytes(sentinel_bytes)
-        return fd
-
-    monkeypatch.setattr(os, "open", detach_after_root_open)
-    copied, _, _ = preflight._copy_cache_once(
-        root,
-        source_tree,
-        root / "metadata" / "cargo-home",
-        device=device,
-        root_inode=inode,
-    )
-
-    assert replaced and copied
+    assert copied
     assert (held_path / "metadata" / "cargo-home" / "index").read_text() == "pinned bytes"
     assert sorted(path.name for path in root.iterdir()) == ["sentinel"]
     assert (root / "sentinel").read_bytes() == sentinel_bytes
