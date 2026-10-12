@@ -1,8 +1,9 @@
 # Current Project State
 
-**As of:** 2026-10-12 08:39Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`; latest pushed commit `2ebdcfbb6c7fea0a25a3941c41277cb39628e7d7`.
-`main` is synchronized to the same commit. Work continues across horizons.
+**As of:** 2026-10-12 08:59Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`; the current working changes are pending review and commit, based on
+`c6f4264b80429c4332b89684b02f3c9c822fdbe2`. `main` remains at the prior verified baseline;
+do not treat this horizon as pushed.
 Production, champion, protected evaluation, trading and Cortex remain untouched.
 
 ## Live boundaries
@@ -15,14 +16,14 @@ Production, champion, protected evaluation, trading and Cortex remain untouched.
   sealed; nine windows remain expired-unobserved. No backfill, ambiguous replay, unresolved
   reservation, STOP, or successor eligibility. Expiry receipt:
   `docs/evidence/brain-senses-external-v2-20261012T0600Z-final-expiry-status.json`.
-- Helius account plan/usage/charge remains unavailable; Alchemy read-only aggregate is not workload
-  attribution. Record actual Helius charge as unknown/unverified. User authorizes current Helius key
-  without rotation and active use of allowed free quotas; no new material paid campaign is planned.
+- Fresh Helius MCP account check at 08:51Z: API key configured, no JWT session, usage unavailable,
+  plan unknown; no signup. Alchemy account summary remains 18,680 CU / $0.01 through 08:51Z,
+  aggregate and not workload-attributed. Helius charge remains unknown.
 - The one Sol-authorized Agave Cargo fetch stopped terminally after creating
   `target/.rustc_info.json`. Preserve the staged Cargo home/target; no retry, metadata, build or
   ProgramTest without another Sol review.
 - Current read-only host check: Kingston identity still matches the bound root/UUID and health is
-  `ready`, with 219,425,021,952 bytes available. The research-storage health LaunchAgent is loaded
+  `ready`, with 219,425,054,720 bytes available. The research-storage health LaunchAgent is loaded
   but idle. No Brain/Senses acquisition agent is loaded. Temporary launch-v3 rehearsal labels are
   unloaded; disabled overrides from earlier attempts were reset. The 06:00Z external-v2
   receipt retains 103 requests, four seals, frontier 455944206, zero unresolved buckets, STOP=false,
@@ -51,6 +52,14 @@ Production, champion, protected evaluation, trading and Cortex remain untouched.
   dispatch, teardown unloaded the label and reset its disabled override, and the image/plist were
   removed. This does not qualify Kingston capacity or real service activation. Receipt:
   `docs/evidence/brain-senses-launch-v3-disposable-launchd-rehearsal-v1-2026-10-12.json`.
+- Kingston capacity/recovery qualification v1 completed with no provider, credential, launchd or
+  lease activity: 3,104,000,000 logical payload bytes and 3,105,206,272 allocated high-water under
+  the 3,394,000,000-byte cap; 531 prewrite guard samples, minimum free 216,318,795,776 bytes and
+  end free 219,425,054,720 bytes. A child exited after a 1MB synthetic prefix; read-only recovery
+  classified `possibly_spent_no_replay` with zero recovery writes/dispatches. Scratch cleanup and
+  underlay checks passed. This is capacity and synthetic recovery evidence only, not live Senses
+  activation/acquisition. Receipt SHA-256:
+  `55d5e55657c5cb0ca2aaf6216c1c5c8a5c6c2cd8afc02811419bf67a8ad32ca3`.
 - This is synthetic consistency only. Runtime law, source qualification, candidate-position
   admission, settlement, buyExact25 and PIT remain false. No real instrumentation or build is
   authorized by this receipt.

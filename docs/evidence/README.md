@@ -17,6 +17,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   unchanged, receipt verified `verified_none`, and temporary plist/image were removed. The nonce
   was unloaded and its disabled override cleared. This does not qualify Kingston capacity or a
   real service activation).
+- Kingston capacity and synthetic recovery qualification:
+  [`kingston-capacity-recovery-qualification-v1-2026-10-12.json`](kingston-capacity-recovery-qualification-v1-2026-10-12.json)
+  (3,104,000,000 logical bytes / 3,105,206,272 allocated high-water under the 3,394,000,000-byte
+  cap; descriptor-bound 50-GiB floor, clean nonce teardown and read-only interrupted-prefix
+  no-replay recovery passed. Zero provider, credential, launchd or lease activity. Synthetic
+  recovery does not qualify live Senses activation or acquisition.)
 - c3 sell23 destination lamport diagnostic v3-final:
   `pumpswap-sell23-c3-destination-lamport-diagnostic-v3-final-2026-10-12.json` (485 censored
   successes remain ambiguous; 68 exact-ledger rows and two failed references stay excluded. Ordered

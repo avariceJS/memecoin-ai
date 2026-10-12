@@ -3175,6 +3175,22 @@ ID `9428695af6d4f46c08e1a444cdc66de8`; private host binding is
 Code, Git, environments, documentation and small operational state remain internal. Future large
 roots must use this explicit binding and relative paths; the volume label is only a host locator.
 Physical disconnect/reconnect and login persistence are distinct from safe unmount/remount tests.
+The 2026-10-12 no-provider capacity/recovery qualification wrote and read back exactly
+3,104,000,000 deterministic payload bytes as 97 fsynced 32,000,000-byte files under a unique
+nonce subtree. The descriptor-bound writer recorded 3,105,206,272 allocated bytes at high-water,
+including files and directories, below the 3,394,000,000-byte payload-plus-peak cap. Across 531
+prewrite guard samples, minimum free space was 216,318,795,776 bytes; after cleanup it was
+219,425,054,720 bytes. The 50-GiB floor and 290,000,000-byte peak margin were enforced. The
+synthetic child exited after writing a 1,000,000-byte prefix against a 4,000,000-byte intent;
+read-only recovery classified it `possibly_spent_no_replay` with zero recovery writes or dispatches.
+All 97 files and 15 directories were removed through the held root descriptor, nonce absence was
+rechecked through a fresh guard, and the service-root underlay listing was unchanged. Provider,
+credential, launchd and lease interaction were absent. This qualifies configured Kingston capacity,
+descriptor writes and synthetic no-replay recovery only; it does not qualify a live Senses journal,
+activation, schedule or provider acquisition. The immutable source-bound receipt is
+[`Kingston capacity and recovery qualification`](evidence/kingston-capacity-recovery-qualification-v1-2026-10-12.json)
+(SHA-256 `55d5e55657c5cb0ca2aaf6216c1c5c8a5c6c2cd8afc02811419bf67a8ad32ca3`).
+
 See `memory/now.md` for current migration, runtime and capacity state.
 The completed host handoff is recorded in
 [`external storage qualification and migration`](evidence/senses-external-storage-handoff-2026-10-11.json):
