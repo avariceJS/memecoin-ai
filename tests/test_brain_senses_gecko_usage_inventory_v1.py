@@ -182,6 +182,23 @@ def test_v2_root_rejects_standalone_clock_artifacts(writer: DescriptorWriter) ->
         build_usage_inventory(writer)
 
 
+def test_v2_inventory_accounts_atomic_temp_debris_without_promoting_it(
+    writer: DescriptorWriter,
+) -> None:
+    root = f"{SERVICE_ROOT}/capture-only-v2/{'d' * 32}"
+    _initialize_v2_empty_root(writer, root)
+    writer.mkdir(f"{root}/results")
+    writer.create(f"{root}/results/.outcome.json.123.0123456789abcdef.tmp", b"partial")
+    inventory = build_usage_inventory(writer)
+    snapshot = next(row for row in inventory["snapshots"] if row["root"] == root)
+    assert snapshot["status"] == "verified_none"
+    assert snapshot["attempts"] == []
+
+    writer.create(f"{root}/results/unrecognized.tmp", b"unrecognized")
+    with pytest.raises(InventoryError, match="gecko_v2_journal_file_unexpected"):
+        build_usage_inventory(writer)
+
+
 def test_complete_inventory_hash_cannot_change_between_root_replays(
     writer: DescriptorWriter, monkeypatch: pytest.MonkeyPatch
 ) -> None:

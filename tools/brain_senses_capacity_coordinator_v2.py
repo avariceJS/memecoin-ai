@@ -1104,12 +1104,18 @@ class CapacityCoordinator:
         service: str,
         *,
         intent_exists: Callable[[Writer, str], bool],
+        lane_lease: LaneLockLease | None = None,
     ) -> dict[str, int]:
         """Recover one lane without waiting on or modifying other lane state."""
         if service not in self.service_lock_paths:
             raise CoordinatorError("service_invalid")
+        if lane_lease is None:
+            recovery_lock: AbstractContextManager[Any] = self._locks(service)
+        else:
+            self._validate_lane_lease(service, lane_lease)
+            recovery_lock = self._shared_lock(service, lane_lease)
         released = ambiguous = 0
-        with self._locks(service):
+        with recovery_lock:
             raw, events = self._load_ledger(allow_missing_pending_intents=True)
             reservations, terminal = _reservation_state(events)
             for reservation_id, fields in reservations.items():

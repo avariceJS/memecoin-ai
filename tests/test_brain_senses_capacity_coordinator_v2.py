@@ -263,6 +263,29 @@ def test_gecko_atomic_intent_callback_fails_closed_without_partial_final_file(
         fixture.close()
 
 
+def test_service_recovery_accepts_existing_lane_lease(tmp_path: Path) -> None:
+    fixture = _fixture(tmp_path)
+    try:
+        reservation = _reservation(fixture, request_id="recover-under-lease", service="gecko")
+        with fixture.coordinator.lane_lock("gecko") as lease:
+            recovered = fixture.coordinator.recover_service(
+                "gecko",
+                intent_exists=lambda writer, path: writer.exists(path),
+                lane_lease=lease,
+            )
+        assert recovered == {"released_pre_intent": 0, "ambiguous_terminal": 1}
+        events = _events(fixture)
+        terminal = next(
+            row
+            for row in events
+            if row["kind"] == "ambiguous_terminal"
+            and row["fields"].get("reservation_id") == reservation.reservation_id
+        )
+        assert terminal["fields"]["outcome"] == "intent_exists_after_recovery"
+    finally:
+        fixture.close()
+
+
 def test_ledger_terminal_must_bind_predeclared_outcome_path(tmp_path: Path) -> None:
     fixture = _fixture(tmp_path)
     try:

@@ -3749,15 +3749,22 @@ verified absent. All attempts had terminal response evidence, totaling 18,869 ra
 A synthetic one-request/16-KiB prospective reserve would use 25/576 daily requests and 35,253 of
 10 MiB; the rolling-30-day assessment also remained within caps. This was diagnostic only: no lane
 dispatch lock was held, no provider I/O occurred, and admission was not authorized. Provider charge
-remains unknown/unverified. The v2 usage verifier and descriptor-bound inventory adapter are
-implemented and synthetic-tested, but they are not wired into the active v4 collector and do not
-provide a v2 writer or provider runtime. A future v2 runtime must hold the shared Gecko lane lease
-from full census/admission through terminal persistence, then acquire its own root lock
-nonblocking and revalidate the pinned prefix before reserving or dispatching; all v2 writers must
-take the lane lock first. Cross-version crash/race qualification, runtime recovery, release/source
-binding, and a bounded forward-only pilot remain open. Before any v2 provider pilot, v4 must be
-sealed and unloaded because its pacing check does not include future v2 dispatches. Existing v4
-budget logic still omits capture-only roots, so it is not shared cross-version admission authority.
+remains unknown/unverified. The v2 usage verifier, descriptor-bound inventory adapter, and
+separately versioned descriptor writer are implemented and synthetic-tested. The writer acquires
+the shared Gecko lane lease before its nonblocking v2 root lock, rechecks the exact root prefix, and
+publishes intent, terminal outcome, and confirmation through create-only descriptor-bound atomic
+writes; both clocks live in the record they support. Forced detach during intent publication leaves
+the replacement mount untouched. This is not yet a provider runtime or LaunchAgent qualification.
+The prior v4 LaunchAgent was loaded but stopped with exit 2 after the exact capture root failed replay
+on one unreferenced clock file for a bucket with four durable missed-dispatch skips and no intents or
+dispatches; it has been booted out. The root remains immutable. The current same-provider census
+therefore still fails closed. The next gate is a narrowly pinned usage-only reconciliation for that
+exact clock orphan, proving the whole v4 source closure and replaying every actual attempt before v2
+admission can proceed. Do not add a generic clock-closure bypass. A v2 host scheduler/runtime,
+crash/race/recovery qualification, release/source binding, and bounded forward-only provider pilot
+remain open. Before v2 provider I/O, v4 must remain unloaded because its pacing check does not
+account for v2 dispatches. Existing v4 budget logic still omits capture-only roots, so it is not
+shared cross-version admission authority.
 Physical allocation remains the shared coordinator's responsibility.
 
 The Agave build runner v1 remains rejected. A separately versioned default-deny Seatbelt fixture

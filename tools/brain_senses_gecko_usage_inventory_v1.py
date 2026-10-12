@@ -53,6 +53,7 @@ COLLECTION_ROOTS = ("v3-pilots", "v4-pilots", "capture-only-v1", "capture-only-v
 KNOWN_SERVICE_ENTRIES = set(DIRECT_ROOTS) | set(COLLECTION_ROOTS)
 ROOT_ID_RE = re.compile(r"^[a-f0-9]{32}$")
 HASH_RE = re.compile(r"^[a-f0-9]{64}$")
+_ATOMIC_TEMP_RE = re.compile(r"^\..+\.[0-9]+\.[a-f0-9]{16}\.tmp$")
 MAX_JOURNAL_FILE_BYTES = 32 * 1024 * 1024
 
 
@@ -160,8 +161,7 @@ def _json_rows(store: Any, directory: str) -> list[dict[str, Any]]:
 
 
 def _v2_json_rows(store: Any, directory: str, *, maximum_bytes: int) -> list[dict[str, Any]]:
-    names = store.files(directory)
-    _require(all(name.endswith(".json") for name in names), "gecko_v2_journal_file_unexpected")
+    names = _v2_final_names(store.files(directory))
     rows = []
     for name in names:
         raw = store.writer.read_bytes(store._path(f"{directory}/{name}"), max_bytes=maximum_bytes)
@@ -174,6 +174,24 @@ def _v2_json_rows(store: Any, directory: str, *, maximum_bytes: int) -> list[dic
         )
         rows.append(value)
     return rows
+
+
+def _v2_final_names(names: Sequence[str]) -> tuple[str, ...]:
+    """Ignore only exact atomic-writer temp names; never treat them as committed artifacts."""
+    final = tuple(name for name in names if name.endswith(".json"))
+    debris = tuple(name for name in names if not name.endswith(".json"))
+    _require(
+        all(_ATOMIC_TEMP_RE.fullmatch(name) is not None for name in debris),
+        "gecko_v2_journal_file_unexpected",
+    )
+    return final
+
+
+def _v2_directory_names(store: Any, directory: str) -> tuple[str, ...]:
+    try:
+        return store.files(directory)
+    except FileNotFoundError:
+        return ()
 
 
 def _canonical_jsonl_records(raw: bytes, label: str) -> list[dict[str, Any]]:
@@ -396,21 +414,25 @@ def _load_present_root(
             )
             binding = store.read_json("binding.json")
             policy = store.read_json("policy.json")
-            chain_names = store.files("chain")
+            chain_names = _v2_final_names(store.files("chain"))
             _require(
                 all(re.fullmatch(r"[0-9]{8}\.json", name) for name in chain_names)
                 and list(chain_names) == [f"{index:08d}.json" for index in range(len(chain_names))],
                 "gecko_v2_chain_file_closure",
             )
             chain_records = [store.read_json(f"chain/{name}") for name in chain_names]
-            intent_names = store.files("intents") if writer.exists(f"{root}/intents") else ()
-            result_names = store.files("results") if writer.exists(f"{root}/results") else ()
-            skip_names = store.files("skips") if writer.exists(f"{root}/skips") else ()
-            intents = _json_rows(store, "intents") if intent_names else []
+            intent_names = _v2_final_names(_v2_directory_names(store, "intents"))
+            result_names = _v2_final_names(_v2_directory_names(store, "results"))
+            skip_names = _v2_final_names(_v2_directory_names(store, "skips"))
+            intents = (
+                _v2_json_rows(store, "intents", maximum_bytes=8 * 1024 * 1024)
+                if intent_names
+                else []
+            )
             terminals = (
                 _v2_json_rows(store, "results", maximum_bytes=64 * 1024) if result_names else []
             )
-            skips = _json_rows(store, "skips") if skip_names else []
+            skips = _v2_json_rows(store, "skips", maximum_bytes=64 * 1024) if skip_names else []
             _require(
                 intent_names == tuple(sorted(f"{row.get('request_id')}.json" for row in intents))
                 and result_names
@@ -434,9 +456,7 @@ def _load_present_root(
                 == {row["request_id"] for row in terminals if row.get("raw_body_b64") is not None},
                 "gecko_v2_raw_body_closure",
             )
-            confirmation_names = (
-                store.files("confirmations") if writer.exists(f"{root}/confirmations") else ()
-            )
+            confirmation_names = _v2_final_names(_v2_directory_names(store, "confirmations"))
             v2_confirmations = (
                 _v2_json_rows(store, "confirmations", maximum_bytes=64 * 1024)
                 if confirmation_names
