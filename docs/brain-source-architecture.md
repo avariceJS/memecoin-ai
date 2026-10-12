@@ -579,6 +579,11 @@ post-fsync durable-availability timestamps. Without those fields the compiler ca
 required disjoint denominators or causal source-availability order, so it does not publish a queue
 from c4. Its metadata-only readiness check confirms the ten included buckets and explicitly
 excluded 23:00Z tail2 from the receipt-bound summary; it does not open capture response bodies.
+The compiler is deterministic and publishes only after revalidating exact input/queue bytes; a
+separate create-only receipt records the bound root/volume, source-availability ceiling, and local
+post-fsync confirmation time. Per-reference capture joins and typed instruction paths are required;
+the input builder must independently verify the pinned full-block and capture-receipt artifacts
+before supplying their paths and hashes.
 
 A separate venue-neutral program-exposure ledger covers all 608 same captured blocks: 512 Pair64
 selected slots and six c3 frames of 16 slots each. It reconciles 741,305 normalized transactions
