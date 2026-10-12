@@ -3158,6 +3158,21 @@ Earlier attempts remain separately recorded:
 The earlier v2 terminal outcome is recorded at
 [`dependency fetch attempt v2`](evidence/agave-dependency-fetch-attempt-v2-2026-10-12.json).
 
+Sol subsequently authorized exactly one separately versioned offline metadata operation in a fresh
+descriptor-bound Kingston stage. On 2026-10-12 Cargo exited zero after one locked, offline,
+default-feature resolution filtered to `aarch64-apple-darwin`; no fetch, build, tests, or
+ProgramTest ran. The local graph normalizer then rejected distinct workspace package IDs because
+path redaction collapsed them to one value. The process kept Cargo stdout only in memory, so no
+stdout digest or resolved-graph receipt survived. Read-only stage inspection verified the source
+cache was unchanged, the copied cache remained on Kingston, `target/` contained only the 3,022-byte
+successful Rust 1.86.0 target-probe marker, and `tmp/` was empty. The marker validates with the
+corrected observed schema; the ID normalizer fix is tested, but Cargo must not be rerun under this
+one-operation authorization. This establishes only that offline metadata returned successfully,
+not a persisted resolver graph or runtime/economic qualification. The immutable failure receipt is
+on Kingston at
+`qualifications/agave-v3.0.0-token2022-metadata-v1-20261012/metadata-preflight-failure-v1.json`
+(SHA-256 `060a604d86edc2a229e7ca24b83967ada72ba44e345c59a74235fe61ad70e0d8`).
+
 The first release is deliberately a finite operational qualification: one prospective finalized
 anchor and one inventory-first frame five to ten minutes later. It reserves at most 35 requests,
 288,000,000 raw/stored payload bytes, 32,000,000 bytes per response and 20,000 slots per frame;
@@ -3577,9 +3592,15 @@ If a code update invalidates a plan before its first durable request intent, tha
 terminally abandoned under the old source pin and the ordinary recovery cooldown; the request is
 never replayed. A source change after any request intent remains fail-closed.
 
-At 12:01Z the v4 LaunchAgent is loaded and its latest Kingston monitor receipt reports `cooldown`.
-The first future-only plan was abandoned before any request intent after a source-hash change during
-qualification; its terminal allocation manifest verifies, with zero provider requests or captures.
-Its one-hour cooldown makes 13:00Z the next fresh anchor. The expired 12:00Z window remains
-unobserved, with no backfill. The activation cap is 150,000,000,000 bytes; Kingston reported
-219,384,057,856 bytes free. Live anchor/frame receipts and independent replay remain outstanding.
+The v4 LaunchAgent is loaded under `gui/501` with a 60-second interval, `RunAtLoad`, and no calendar
+expiry. Its first future-only plan was abandoned before any request intent after a source-hash
+change during qualification; its terminal allocation manifest verifies, with zero provider
+requests or captures. The one-hour cooldown makes 13:00Z the next fresh anchor. The expired 12:00Z
+window remains unobserved, with no backfill. At 12:46Z the latest Kingston monitor receipt still
+reports `cooldown`; an exact manual invocation of the LaunchAgent command exited zero and wrote a
+new clock-bound monitor receipt. One preceding scheduled tick had exit code 1 with no accompanying
+monitor update; the next scheduled tick succeeded (runs=43, last exit 0, monitor sequence 44).
+Kingston reported 218,272,071,680 bytes free; the 150,000,000,000-byte
+service cap, 50-GiB floor, and 8-GiB reserve remain enforced. No provider request/capture is yet
+proven; live anchor/frame receipts, repeated scheduled health, restart recovery, and independent
+replay remain outstanding.
