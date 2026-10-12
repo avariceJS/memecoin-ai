@@ -223,6 +223,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   boundary identity, phase snapshot, and frame instruction-binding defects. It does not qualify
   production integration, historical replay, Bank persistence/finality, real-source completeness,
   or economic admission. Exact patch/captures and logs remain in ignored `work/`.
+- `brain-senses-build-storage-guard-apfs-qualification-2026-10-12.json`: source-hash-bound review
+  and disposable case-sensitive APFS detach tests for the Cargo/Git storage supervisor. Five
+  post-detach path attempts fail closed with `ENOENT`, the underlay stays absent, remount UUID
+  matches, and no supervised process remains. Capacity thresholds are test-only; ownership is
+  disabled on the disposable image; this does not authorize a large Agave build or sandbox arbitrary
+  build scripts.
 - `pumpswap-buy-exact-v1-alchemy-account-archive-feasibility-v1-2026-10-11.json`: separately
   screens the same 2,333 identities against byte-pinned Alchemy Archive and simulation docs. It
   distinguishes slot-boundary bytes from transaction/instruction-position state; 2,330 exceed one

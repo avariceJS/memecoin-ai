@@ -2822,6 +2822,24 @@ readback and independent-process flock exclusion, then removes its scratch subtr
 [`remount no-replay v5`](evidence/senses-external-recovery-qualification-2026-10-12-v5.json).
 Earlier qualification revisions remain immutable source snapshots, not current activation pins.
 
+Before the isolated candidate-position witness checkout/build, `tools/brain_senses_build_storage_guard.py`
+adds a separate bounded storage supervisor. It pins the configured Kingston UUID/root, keeps source,
+Cargo home, target and temp paths beneath that root, forces Cargo offline and Rust 1.86.0, requires
+90 GiB free for the initial 32-GiB allocation envelope (then reserves the remaining allocation cap
+plus the 8-GiB peak margin and 50-GiB floor), and terminates its process group when a bounded identity,
+space or tree probe fails. The probe runs outside the supervisor's blocking filesystem checks; a
+two-second deadline bounds how long a stalled check can leave the child running. Successful parent
+exit also closes residual in-group children before returning. The APFS qualification forced detach
+during both a real Cargo build script and five post-detach `mkdir`/create/write/rename/held-cwd
+attempts; all explicit path writes failed with `ENOENT`, the underlay was absent, the remounted UUID
+matched, and no delayed artifact or in-group process remained. The small fixture used an OS-disabled
+ownership disposable image and test-only capacity thresholds; the actual Kingston binding, identity,
+owners-enabled state and free space are separately checked before any source closure. This supervisor
+is not an arbitrary build-script sandbox: it does not constrain a descendant that deliberately leaves
+the process group, and sampled allocation checks are not a kernel hard limit. Review the source/build
+scripts and process census; do not use `setsid` descendants. Receipt:
+[`build storage guard APFS qualification`](evidence/brain-senses-build-storage-guard-apfs-qualification-2026-10-12.json).
+
 The first release is deliberately a finite operational qualification: one prospective finalized
 anchor and one inventory-first frame five to ten minutes later. It reserves at most 35 requests,
 288,000,000 raw/stored payload bytes, 32,000,000 bytes per response and 20,000 slots per frame;
