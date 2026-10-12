@@ -60,6 +60,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - Helius/Alchemy read-only account snapshot at 04:24Z:
   `senses-provider-account-readonly-2026-10-12T0424Z.json` (Helius usage/plan remain unknown without
   a JWT session; Alchemy aggregate is 18,680 CU / $0.01 with no account limit or workload attribution).
+- Helius/Alchemy read-only account snapshot at 05:40Z:
+  [`senses-provider-account-readonly-2026-10-12T0540Z.json`](senses-provider-account-readonly-2026-10-12T0540Z.json)
+  (Helius authenticated but exposed no plan/quota/usage/charges without JWT; Alchemy team aggregate
+  18,680 CU / $0.01 MTD, no account limit or workload attribution, and an empty hourly series today).
 - Agave bounded dependency fetch attempt:
   `agave-dependency-fetch-attempt-2026-10-12.json` (stopped by the local symlink guard after Cargo
   created four internal links in the pinned Crossbeam checkout; the partial cache is preserved and
@@ -286,6 +290,8 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - [`agave-dependency-fetch-preflight-2026-10-12-v2.json`](agave-dependency-fetch-preflight-2026-10-12-v2.json): current wrapper/guard hashes passed `--check-only` against separate v2 Cargo/target/tmp roots on Kingston. No network or provider requests occurred. This is preflight evidence only, not approval or execution of another fetch.
 - `agave-dependency-fetch-attempt-2026-10-12.json` (with its source-state correction receipt): the single approved locked Cargo fetch stopped on four upstream internal Crossbeam symlinks. Its partial cache remains preserved; no retry, offline metadata, or build has run.
 - [`agave-dependency-fetch-attempt-v2-2026-10-12.json`](agave-dependency-fetch-attempt-v2-2026-10-12.json): the separately approved single fetch through the narrowed guard exited 101 after ~16 seconds. The partial v2 cache is preserved; its cause is unknown because Cargo stdout/stderr were discarded. Source and lock pins are unchanged, target/tmp are empty, and no process remains. No retry or offline metadata followed.
+- [`agave-token2022-runtime-source-closure-2026-10-12.json`](agave-token2022-runtime-source-closure-2026-10-12.json): fresh Kingston Agave v3.0.0 source composition of the reviewed observer v5 and parser v3 patches; 20 changed-path hashes, pinned lock sources, 1,075 packages, and check-only passed with empty Cargo/target/tmp roots and no network. It is source-closure evidence only. Sol permits one bounded fetch only after the armed 06:00–07:03Z lease is terminal, verified and unloaded.
+- [`agave-v3-transaction-persistence-finality-source-map-2026-10-12.json`](agave-v3-transaction-persistence-finality-source-map-2026-10-12.json): read-only map from candidate execution trace through bank commit, absolute block index, frozen identity, and rooted readback. A hash-bound verifier checked 12 files/38 unique anchors in the fresh checkout. It records missing fork/position/time joins and makes no persistence, finality, or economic claim.
 - `pumpswap-buy-exact-v1-alchemy-account-archive-feasibility-v1-2026-10-11.json`: separately
   screens the same 2,333 identities against byte-pinned Alchemy Archive and simulation docs. It
   distinguishes slot-boundary bytes from transaction/instruction-position state; 2,330 exceed one

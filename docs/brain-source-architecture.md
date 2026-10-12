@@ -2837,6 +2837,13 @@ journals and manifests remain preserved. Any future collector needs a new source
 manifest and finite lease. Receipt:
 [`Senses operational readiness inventory`](evidence/senses-operational-readiness-inventory-v1-2026-10-11.json).
 
+The read-only account snapshot at 05:40Z authenticated Helius but returned no plan, quota, usage, or
+charge without a JWT session. Alchemy returned team-wide 18,680 CU / $0.01 MTD through 05:40Z,
+without a limit or workload attribution; its hourly series for Oct 12 was empty. Research lease
+charge remains `unknown_unverified`. The account integration suggested `signup` to reveal Helius
+details; it was not invoked because it may change account state. Receipt:
+[`provider account snapshot 05:40Z`](evidence/senses-provider-account-readonly-2026-10-12T0540Z.json).
+
 A fresh read-only storage feasibility check at 2026-10-11 16:54Z measured 26,090,602,496 bytes
 available on the internal APFS container, 27,596,488,704 bytes below the 50-GiB floor. The
 maximum identified rebuildable cache plus `dist/` allocation was 110,530,560 bytes and would still
@@ -2949,6 +2956,27 @@ is not an arbitrary build-script sandbox: it does not constrain a descendant tha
 the process group, and sampled allocation checks are not a kernel hard limit. Review the source/build
 scripts and process census; do not use `setsid` descendants. Receipt:
 [`build storage guard APFS qualification`](evidence/brain-senses-build-storage-guard-apfs-qualification-2026-10-12.json).
+
+A fresh Kingston checkout composes the receipt-bound candidate-position observer v5 and corrected
+Token-2022/WSOL parser v3 patches on Agave `v3.0.0`, with a 20-path hash map, pinned Crossbeam
+revision, and 1,075 locked packages. Check-only passed with empty Cargo/target/tmp roots and no network;
+the exact source closure is recorded in
+[`Agave Token-2022 runtime source closure`](evidence/agave-token2022-runtime-source-closure-2026-10-12.json).
+This is not dependency-fetch, runtime-test, Bank finality, candidate completeness, settlement, or
+economic evidence. Sol approved one guarded locked fetch only after the fixed 06:00–07:03Z lease is
+terminal, independently verified, and unloaded; any failure is terminal with no retry. Metadata may
+follow only offline after a successful fetch, while a build needs a separate review.
+
+The read-only source map then follows the v5 observer identity through Agave's adjacent commit,
+block-index, freeze, and root sites. It finds that execution IDs and commit-result vector order do not
+yet persist a unique Bank/fork, absolute block-index, frozen-hash, and rooted-block join; a slot-only
+join admits a same-slot fork counterexample. Failed execution traces remain attempts, while
+FeesOnly carries rollback-account handling without the observer trace. The hash-pinned map verifier
+checks 12 files and 38 unique anchors in the fresh checkout; it performs no Cargo operation. This is
+source feasibility only, not a persistence/finality or economic witness. Receipt:
+[`Agave persistence/finality source map`](evidence/agave-v3-transaction-persistence-finality-source-map-2026-10-12.json).
+The next review after the raw-account runtime horizon must decide a synthetic commit-to-root
+instrumentation seam; ambiguous fork or time joins stay unknown.
 
 The first approved locked Cargo dependency fetch for the pinned Agave composite stopped when Cargo
 created four internal Crossbeam checkout links outside the source root. The guard correctly stopped
