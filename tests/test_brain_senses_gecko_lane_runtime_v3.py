@@ -31,7 +31,9 @@ from brain_senses_gecko_lane_runtime_v3 import (  # noqa: E402
     ACTIVATION_SCHEMA,
     PILOT_AUTH_SCHEMA,
     PILOT_RECEIPT_SCHEMA,
+    PILOT_ROOT_PREFIX,
     SOURCE_BINDING_KEY,
+    V3_ROOT,
     DescriptorLaneStore,
     GeckoRuntimeError,
     _compile_pinned_live_policy,
@@ -95,6 +97,9 @@ def policy() -> dict[str, Any]:
     return item
 
 
+PILOT_ID = "9" * 32
+
+
 def setup_store() -> tuple[
     tempfile.TemporaryDirectory[str], DescriptorWriter, Any, Any, dict[str, Any]
 ]:
@@ -115,11 +120,16 @@ def setup_store() -> tuple[
     guard = Guard()
     source_map = _source_map()
     plan = compile_live_plan(
-        policy(), root_id=guard.root_id, volume_uuid=guard.volume_uuid, source_map=source_map
+        policy(),
+        pilot_id=PILOT_ID,
+        root_id=guard.root_id,
+        volume_uuid=guard.volume_uuid,
+        source_map=source_map,
     )
     activation = {
         "schema": ACTIVATION_SCHEMA,
         "schema_version": 3,
+        "pilot_id": plan["pilot_id"],
         "plan_sha256": plan["plan_sha256"],
         "source_sha256": plan["source_sha256"],
         "root_id": guard.root_id,
@@ -128,7 +138,7 @@ def setup_store() -> tuple[
         "provider_io": True,
         "qualification_status": "passed",
     }
-    store = DescriptorLaneStore(writer, guard=guard)
+    store = DescriptorLaneStore(writer, guard=guard, root=plan["service_root"])
     store.initialize(plan, activation)
     return temp, writer, guard, store, plan
 
@@ -211,6 +221,7 @@ def run_bucket_fixture(
 ) -> dict[str, Any]:
     activation = {
         "schema": ACTIVATION_SCHEMA,
+        "pilot_id": plan["pilot_id"],
         "schema_version": 3,
         "plan_sha256": plan["plan_sha256"],
         "source_sha256": plan["source_sha256"],
@@ -255,6 +266,7 @@ def run_bucket_fixture(
 def test_live_plan_and_activation_are_exactly_bound_and_non_authorizing_by_default():
     plan = compile_live_plan(
         policy(),
+        pilot_id=PILOT_ID,
         root_id="a" * 32,
         volume_uuid="11111111-2222-3333-4444-555555555555",
         source_map=_source_map(),
@@ -264,6 +276,7 @@ def test_live_plan_and_activation_are_exactly_bound_and_non_authorizing_by_defau
     activation = {
         "schema": ACTIVATION_SCHEMA,
         "schema_version": 3,
+        "pilot_id": plan["pilot_id"],
         "plan_sha256": plan["plan_sha256"],
         "source_sha256": plan["source_sha256"],
         "root_id": plan["storage"]["root_id"],
@@ -280,6 +293,14 @@ def test_live_plan_and_activation_are_exactly_bound_and_non_authorizing_by_defau
     activation["plan_sha256"] = "0" * 64
     with pytest.raises(GeckoRuntimeError, match="activation_binding"):
         verify_activation(plan, activation)
+    with pytest.raises(GeckoRuntimeError, match="pilot_identity_invalid"):
+        compile_live_plan(
+            policy(),
+            pilot_id="../old-pilot",
+            root_id="a" * 32,
+            volume_uuid="11111111-2222-3333-4444-555555555555",
+            source_map=_source_map(),
+        )
 
 
 def test_writer_inode_must_equal_the_guarded_data_root():
@@ -300,6 +321,61 @@ def test_writer_inode_must_equal_the_guarded_data_root():
         temp.cleanup()
 
 
+def test_reopened_store_binds_policy_only_from_exact_persisted_plan():
+    temp, writer, guard, store, plan = setup_store()
+    try:
+        reopened = DescriptorLaneStore(writer, guard=guard, root=plan["service_root"])
+        with pytest.raises(GeckoRuntimeError, match="verified_plan_not_bound"):
+            _within_lane_budget(reopened, 1_800_000_000 * NS, "first")
+        persisted = reopened.read_json("plan.json")
+        reopened.bind_verified_plan(persisted)
+        assert _within_lane_budget(reopened, 1_800_000_000 * NS, "first")
+        altered = dict(persisted)
+        altered["policy"] = {**persisted["policy"], "policy_id": "substituted-policy"}
+        with pytest.raises(GeckoRuntimeError, match="live_plan_hash"):
+            reopened.bind_verified_plan(altered)
+    finally:
+        writer.close()
+        temp.cleanup()
+
+
+def test_new_pilot_uses_distinct_immutable_subroot_and_rejects_reuse():
+    temp, writer, guard, _store, _old_plan = setup_store()
+    try:
+        new_id = "8" * 32
+        plan = compile_live_plan(
+            policy(),
+            pilot_id=new_id,
+            root_id=guard.root_id,
+            volume_uuid=guard.volume_uuid,
+            source_map=_source_map(),
+        )
+        assert plan["service_root"] == f"{PILOT_ROOT_PREFIX}/{new_id}"
+        assert plan["service_root"] != _old_plan["service_root"]
+        assert not writer.exists(f"{V3_ROOT}/plan.json")
+        assert not writer.exists(f"{plan['service_root']}/plan.json")
+        authorization = {
+            "schema": PILOT_AUTH_SCHEMA,
+            "schema_version": 3,
+            "pilot_id": new_id,
+            "plan_sha256": plan["plan_sha256"],
+            "source_sha256": plan["source_sha256"],
+            "root_id": plan["storage"]["root_id"],
+            "volume_uuid": plan["storage"]["volume_uuid"],
+            "mode": "one_shot",
+            "bucket_close_ns": 1_800_000_000 * NS,
+            "status": "approved",
+        }
+        first = DescriptorLaneStore(writer, guard=guard, root=plan["service_root"])
+        first.initialize_pilot(plan, authorization, authorization["bucket_close_ns"])
+        with pytest.raises(GeckoRuntimeError, match="pilot_subroot_already_exists"):
+            first.initialize_pilot(plan, authorization, authorization["bucket_close_ns"])
+        assert writer.read_bytes(f"{plan['service_root']}/plan.json") == canonical(plan)
+    finally:
+        writer.close()
+        temp.cleanup()
+
+
 def test_only_open_current_quarter_hour_bucket_is_selected_without_catchup():
     close = 1_800_000_000 * NS
     assert current_bucket_for_tick(close + 59 * NS) is None
@@ -313,6 +389,7 @@ def test_only_open_current_quarter_hour_bucket_is_selected_without_catchup():
 def test_live_plan_derives_three_per_minute_and_twenty_second_result_spacing():
     plan = compile_live_plan(
         policy(),
+        pilot_id=PILOT_ID,
         root_id="a" * 32,
         volume_uuid="11111111-2222-3333-4444-555555555555",
         source_map=_source_map(),
@@ -349,6 +426,7 @@ def test_four_pool_tick_uses_descriptor_store_spacing_and_causal_durable_receipt
             plan,
             {
                 "schema": ACTIVATION_SCHEMA,
+                "pilot_id": plan["pilot_id"],
                 "schema_version": 3,
                 "plan_sha256": plan["plan_sha256"],
                 "source_sha256": plan["source_sha256"],
@@ -415,6 +493,7 @@ def test_terminal_error_stops_or_advances_by_live_policy_without_retry(status: i
             plan,
             {
                 "schema": ACTIVATION_SCHEMA,
+                "pilot_id": plan["pilot_id"],
                 "schema_version": 3,
                 "plan_sha256": plan["plan_sha256"],
                 "source_sha256": plan["source_sha256"],
@@ -444,6 +523,7 @@ def test_terminal_error_stops_or_advances_by_live_policy_without_retry(status: i
                 plan,
                 {
                     "schema": ACTIVATION_SCHEMA,
+                    "pilot_id": plan["pilot_id"],
                     "schema_version": 3,
                     "plan_sha256": plan["plan_sha256"],
                     "source_sha256": plan["source_sha256"],
@@ -497,6 +577,7 @@ def test_restart_never_replays_spent_request_and_marks_missing_pool_count():
             plan,
             {
                 "schema": ACTIVATION_SCHEMA,
+                "pilot_id": plan["pilot_id"],
                 "schema_version": 3,
                 "plan_sha256": plan["plan_sha256"],
                 "source_sha256": plan["source_sha256"],
@@ -556,6 +637,7 @@ def test_pilot_authorization_binds_exact_plan_and_release_rejects_unqualified_pr
         close = 1_800_000_000 * NS
         authorization = {
             "schema": PILOT_AUTH_SCHEMA,
+            "pilot_id": plan["pilot_id"],
             "schema_version": 3,
             "plan_sha256": plan["plan_sha256"],
             "source_sha256": plan["source_sha256"],
@@ -585,6 +667,7 @@ def test_pilot_authorization_binds_exact_plan_and_release_rejects_unqualified_pr
         }
         receipt = {
             "schema": PILOT_RECEIPT_SCHEMA,
+            "pilot_id": plan["pilot_id"],
             "schema_version": 3,
             "plan_sha256": plan["plan_sha256"],
             "source_sha256": plan["source_sha256"],
@@ -639,6 +722,7 @@ def test_pilot_prefix_remains_valid_after_later_scheduled_bucket_is_appended():
         summary["pilot_outcome"] = "review_candidate"
         receipt = {
             "schema": PILOT_RECEIPT_SCHEMA,
+            "pilot_id": plan["pilot_id"],
             "schema_version": 3,
             "plan_sha256": plan["plan_sha256"],
             "source_sha256": plan["source_sha256"],
@@ -738,6 +822,7 @@ def test_pilot_release_rechecks_raw_capture_and_result_immutability(mutate):
         )
         receipt = {
             "schema": PILOT_RECEIPT_SCHEMA,
+            "pilot_id": plan["pilot_id"],
             "schema_version": 3,
             "plan_sha256": plan["plan_sha256"],
             "source_sha256": plan["source_sha256"],
@@ -837,6 +922,7 @@ def test_three_transients_latch_manual_review_across_restart_and_skip_is_idempot
             plan,
             {
                 "schema": ACTIVATION_SCHEMA,
+                "pilot_id": plan["pilot_id"],
                 "schema_version": 3,
                 "plan_sha256": plan["plan_sha256"],
                 "source_sha256": plan["source_sha256"],
@@ -884,8 +970,8 @@ def test_main_exposes_fixed_non_network_pilot_modes(monkeypatch, capsys):
 
     seen = []
 
-    def fake_run(mode):
-        seen.append(mode)
+    def fake_run(mode, *, pilot_id=None):
+        seen.append((mode, pilot_id))
         status = {
             "initialize-pilot": "pilot_initialized",
             "seal-pilot": "pilot_receipt_sealed",
@@ -896,19 +982,22 @@ def test_main_exposes_fixed_non_network_pilot_modes(monkeypatch, capsys):
         return {"status": status, "provider_io": False}
 
     monkeypatch.setattr(runtime, "run_host_mode", fake_run)
-    assert runtime.main(["--initialize-pilot"]) == 0
-    assert runtime.main(["--seal-pilot"]) == 0
-    assert runtime.main(["--pilot-once"]) == 0
-    assert runtime.main(["--scheduled-tick"]) == 0
+    assert runtime.main(["--status"]) == 2
+    assert seen == []
+    pilot_arg = ["--pilot-id", PILOT_ID]
+    assert runtime.main(["--initialize-pilot", *pilot_arg]) == 0
+    assert runtime.main(["--seal-pilot", *pilot_arg]) == 0
+    assert runtime.main(["--pilot-once", *pilot_arg]) == 0
+    assert runtime.main(["--scheduled-tick", *pilot_arg]) == 0
     assert runtime.main(["--import-source-pins"]) == 0
     assert seen == [
-        "initialize-pilot",
-        "seal-pilot",
-        "pilot-once",
-        "scheduled-tick",
-        "import-source-pins",
+        ("initialize-pilot", PILOT_ID),
+        ("seal-pilot", PILOT_ID),
+        ("pilot-once", PILOT_ID),
+        ("scheduled-tick", PILOT_ID),
+        ("import-source-pins", None),
     ]
-    assert capsys.readouterr().out.count('"provider_io": false') == 5
+    assert capsys.readouterr().out.count('"provider_io": false') == 6
 
 
 def test_live_policy_inputs_are_read_through_descriptor_root(monkeypatch):
@@ -1042,6 +1131,7 @@ def test_live_store_rejects_capture_hash_mutation_and_symlinked_descriptor_path(
         assert report["intents"] == 0
         bad_activation = {
             "schema": ACTIVATION_SCHEMA,
+            "pilot_id": plan["pilot_id"],
             "schema_version": 3,
             "plan_sha256": plan["plan_sha256"],
             "source_sha256": {"runtime": "0" * 64},

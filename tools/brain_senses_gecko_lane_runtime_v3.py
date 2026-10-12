@@ -42,6 +42,7 @@ from tools.brain_senses_external_writer_v1 import (  # noqa: E402
 CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
 SERVICE_ROOT = "services/gecko-market-v1"
 V3_ROOT = f"{SERVICE_ROOT}/v3"
+PILOT_ROOT_PREFIX = f"{SERVICE_ROOT}/v3-pilots"
 SERVICE_LOCK = ".gecko-market-v1.lock"
 SOURCE_BINDING_KEY = live_sources.MANIFEST_PATH
 LIVE_PLAN_SCHEMA = "brain-senses-gecko-live-v3-plan"
@@ -105,10 +106,17 @@ def _verify_source_map_shape(sources: Mapping[str, Any]) -> None:
 
 
 def compile_live_plan(
-    policy: dict[str, Any], *, root_id: str, volume_uuid: str, source_map: Mapping[str, str]
+    policy: dict[str, Any],
+    *,
+    pilot_id: str,
+    root_id: str,
+    volume_uuid: str,
+    source_map: Mapping[str, str],
 ) -> dict[str, Any]:
     """Compile a versioned storage-bound plan; it grants no dispatch authority."""
     offline.verify_policy(policy)
+    if not _is_pilot_id(pilot_id):
+        raise GeckoRuntimeError("pilot_identity_invalid")
     if not re.fullmatch(r"[0-9a-f]{32}", root_id):
         raise GeckoRuntimeError("root_identity_invalid")
     if not re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", volume_uuid.lower()):
@@ -120,7 +128,8 @@ def compile_live_plan(
     plan: dict[str, Any] = {
         "schema": LIVE_PLAN_SCHEMA,
         "schema_version": 3,
-        "service_root": SERVICE_ROOT,
+        "pilot_id": pilot_id,
+        "service_root": _pilot_root(pilot_id),
         "storage": {"root_id": root_id, "volume_uuid": volume_uuid.lower()},
         "policy_sha256": policy["policy_sha256"],
         "policy": policy,
@@ -152,6 +161,7 @@ def verify_live_plan(plan: Mapping[str, Any]) -> None:
     required = {
         "schema",
         "schema_version",
+        "pilot_id",
         "service_root",
         "storage",
         "policy_sha256",
@@ -173,7 +183,8 @@ def verify_live_plan(plan: Mapping[str, Any]) -> None:
     if (
         plan["schema"] != LIVE_PLAN_SCHEMA
         or plan["schema_version"] != 3
-        or plan["service_root"] != SERVICE_ROOT
+        or not _is_pilot_id(plan["pilot_id"])
+        or plan["service_root"] != _pilot_root(plan["pilot_id"])
         or not isinstance(storage, Mapping)
         or set(storage) != {"root_id", "volume_uuid"}
         or not re.fullmatch(r"[0-9a-f]{32}", str(storage["root_id"]))
@@ -214,6 +225,7 @@ def verify_activation(plan: Mapping[str, Any], activation: Mapping[str, Any]) ->
     if not isinstance(activation, Mapping) or set(activation) != {
         "schema",
         "schema_version",
+        "pilot_id",
         "plan_sha256",
         "source_sha256",
         "root_id",
@@ -227,6 +239,7 @@ def verify_activation(plan: Mapping[str, Any], activation: Mapping[str, Any]) ->
     if (
         activation["schema"] != ACTIVATION_SCHEMA
         or activation["schema_version"] != 3
+        or activation["pilot_id"] != plan["pilot_id"]
         or activation["plan_sha256"] != plan["plan_sha256"]
         or activation["source_sha256"] != plan["source_sha256"]
         or activation["root_id"] != storage["root_id"]
@@ -247,6 +260,7 @@ def verify_pilot_authorization(
     expected = {
         "schema",
         "schema_version",
+        "pilot_id",
         "plan_sha256",
         "source_sha256",
         "root_id",
@@ -260,6 +274,7 @@ def verify_pilot_authorization(
     if (
         authorization["schema"] != PILOT_AUTH_SCHEMA
         or authorization["schema_version"] != 3
+        or authorization["pilot_id"] != plan["pilot_id"]
         or authorization["plan_sha256"] != plan["plan_sha256"]
         or authorization["source_sha256"] != plan["source_sha256"]
         or authorization["root_id"] != plan["storage"]["root_id"]
@@ -278,6 +293,7 @@ def verify_pilot_receipt(
     expected = {
         "schema",
         "schema_version",
+        "pilot_id",
         "plan_sha256",
         "source_sha256",
         "bucket_close_ns",
@@ -293,6 +309,7 @@ def verify_pilot_receipt(
         not _is_sha(receipt_sha256)
         or receipt["schema"] != PILOT_RECEIPT_SCHEMA
         or receipt["schema_version"] != 3
+        or receipt["pilot_id"] != plan["pilot_id"]
         or receipt["plan_sha256"] != plan["plan_sha256"]
         or receipt["source_sha256"] != plan["source_sha256"]
         or type(receipt["bucket_close_ns"]) is not int
@@ -608,6 +625,8 @@ def current_bucket_for_tick(now_ns: int) -> int | None:
 
 def _within_lane_budget(store: DescriptorLaneStore, checked_ns: int, request_id: str) -> bool:
     """Conservatively admit one intent against local UTC-day and rolling-30d caps."""
+    if store._policy is None:
+        raise GeckoRuntimeError("verified_plan_not_bound")
     protocol = store._policy["protocol"]
     day_ns = 86_400 * offline.NS
     rolling_start = checked_ns - 30 * day_ns
@@ -655,6 +674,7 @@ class DescriptorLaneStore:
         self.writer = writer
         self.guard = guard
         self.root = root
+        self._policy: dict[str, Any] | None = None
 
     def _path(self, name: str) -> str:
         return f"{self.root}/{name}"
@@ -673,21 +693,29 @@ class DescriptorLaneStore:
         """Create the exact plan and one-bucket pilot authorization, never a schedule release."""
         verify_live_plan(plan)
         verify_pilot_authorization(plan, authorization, bucket_close_ns)
+        try:
+            self.writer.stat(self.root)
+        except FileNotFoundError:
+            pass
+        else:
+            raise GeckoRuntimeError("pilot_subroot_already_exists")
         self._initialize_paths(plan)
         self._create_exact("pilot-authorization.json", authorization)
 
     def _initialize_paths(self, plan: Mapping[str, Any]) -> None:
         verify_live_plan(plan)
+        if plan["service_root"] != self.root:
+            raise GeckoRuntimeError("pilot_store_root_mismatch")
         self._verify_guard(plan)
-        self._policy = dict(plan["policy"])
         for name in (
             SERVICE_ROOT,
-            V3_ROOT,
-            f"{V3_ROOT}/intents",
-            f"{V3_ROOT}/captures",
-            f"{V3_ROOT}/results",
-            f"{V3_ROOT}/skips",
-            f"{V3_ROOT}/clocks",
+            PILOT_ROOT_PREFIX,
+            self.root,
+            f"{self.root}/intents",
+            f"{self.root}/captures",
+            f"{self.root}/results",
+            f"{self.root}/skips",
+            f"{self.root}/clocks",
         ):
             self.guard.revalidate()
             self.writer.mkdir(name)
@@ -695,7 +723,18 @@ class DescriptorLaneStore:
         if not self.writer.exists(runner_lock):
             self.writer.create(runner_lock, b"gecko-lane-v3-runner-lock\n")
         self._create_exact("plan.json", plan)
+        self.bind_verified_plan(plan)
         self._verify_guard(plan)
+
+    def bind_verified_plan(self, plan: Mapping[str, Any]) -> None:
+        """Restore policy state only from the exact persisted, independently verified plan."""
+        verify_live_plan(plan)
+        if plan["service_root"] != self.root:
+            raise GeckoRuntimeError("pilot_store_root_mismatch")
+        stored = self.read_json("plan.json")
+        if stored != dict(plan):
+            raise GeckoRuntimeError("stored_plan_mismatch")
+        self._policy = dict(plan["policy"])
 
     def _create_exact(self, name: str, value: Mapping[str, Any]) -> None:
         path = self._path(name)
@@ -1072,7 +1111,7 @@ def run_current_bucket(
 ) -> dict[str, Any]:
     """Serialize a whole scheduled tick using a v3-local descriptor lock."""
     try:
-        with store.writer.lock(f"{V3_ROOT}/.runner.lock", blocking=False):
+        with store.writer.lock(f"{store.root}/.runner.lock", blocking=False):
             return _run_current_bucket_locked(
                 plan,
                 activation,
@@ -1115,7 +1154,7 @@ def _run_current_bucket_locked(
         raise GeckoRuntimeError("clock_binding_incomplete")
     if clock_record is not None:
         clock.validate_clock(clock_record, now_ns=now_ns())
-        if clock_path is None or not clock_path.startswith(f"{V3_ROOT}/clocks/"):
+        if clock_path is None or not clock_path.startswith(f"{store.root}/clocks/"):
             raise GeckoRuntimeError("clock_path_invalid")
         raw_clock = store.writer.read_bytes(clock_path, max_bytes=64 * 1024)
         if sha256(raw_clock) != clock_sha256 or canonical_json(clock_record) != raw_clock:
@@ -1212,8 +1251,8 @@ def _run_current_bucket_locked(
                 intent_core = dict(intent)
                 intent_core.pop("intent_sha256", None)
                 intent["intent_sha256"] = sha256(canonical_json(intent_core))
-            intent_path = f"{V3_ROOT}/intents/{intent['request_id']}.json"
-            outcome_path = f"{V3_ROOT}/results/{intent['request_id']}.json"
+            intent_path = f"{store.root}/intents/{intent['request_id']}.json"
+            outcome_path = f"{store.root}/results/{intent['request_id']}.json"
             raw = canonical_json(intent)
             # execute_one_shot also owns lane serialization; the reservation API
             # requires its lease for the atomic shared-ledger write. Capture it
@@ -1428,7 +1467,9 @@ def verify_live_store(
         request = intent["request"]
         if clock_fields <= set(intent):
             clock_path = intent["clock_path"]
-            if not isinstance(clock_path, str) or not clock_path.startswith(f"{V3_ROOT}/clocks/"):
+            if not isinstance(clock_path, str) or not clock_path.startswith(
+                f"{store.root}/clocks/"
+            ):
                 raise GeckoRuntimeError("intent_clock_path")
             raw_clock = store.writer.read_bytes(clock_path, max_bytes=64 * 1024)
             if sha256(raw_clock) != intent["clock_sha256"]:
@@ -1707,6 +1748,16 @@ def _is_sha(value: Any) -> bool:
     return isinstance(value, str) and _SHA.fullmatch(value) is not None
 
 
+def _is_pilot_id(value: Any) -> bool:
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{32}", value) is not None
+
+
+def _pilot_root(pilot_id: str) -> str:
+    if not _is_pilot_id(pilot_id):
+        raise GeckoRuntimeError("pilot_identity_invalid")
+    return f"{PILOT_ROOT_PREFIX}/{pilot_id}"
+
+
 def _runtime_bars(parsed_bars: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """Keep transport receipt time explicitly separate from eligibility time."""
     rows = []
@@ -1837,7 +1888,12 @@ def _compile_pinned_live_policy(writer: DescriptorWriter, guard: Any) -> dict[st
     )
 
 
-def run_host_mode(mode: str, *, now_ns: Callable[[], int] = time.time_ns) -> dict[str, Any]:
+def run_host_mode(
+    mode: str,
+    *,
+    pilot_id: str | None = None,
+    now_ns: Callable[[], int] = time.time_ns,
+) -> dict[str, Any]:
     """Use the single configured Kingston binding; never initializes absent artifacts."""
     if mode not in {
         "status",
@@ -1849,6 +1905,8 @@ def run_host_mode(mode: str, *, now_ns: Callable[[], int] = time.time_ns) -> dic
         "import-source-pins",
     }:
         raise GeckoRuntimeError("host_mode_invalid")
+    if mode != "import-source-pins" and not _is_pilot_id(pilot_id):
+        raise GeckoRuntimeError("pilot_identity_required")
     with writer_guard(CONFIG_PATH) as guard:
         data_root_fd = _open_relative_directory(guard.mount_fd, guard.config.data_root)
 
@@ -1860,7 +1918,12 @@ def run_host_mode(mode: str, *, now_ns: Callable[[], int] = time.time_ns) -> dic
         finally:
             os.close(data_root_fd)
         try:
-            store = DescriptorLaneStore(writer, guard=guard)
+            store: DescriptorLaneStore | None = None
+            if mode != "import-source-pins":
+                if not _is_pilot_id(pilot_id):
+                    raise GeckoRuntimeError("pilot_identity_required")
+                assert pilot_id is not None
+                store = DescriptorLaneStore(writer, guard=guard, root=_pilot_root(pilot_id))
             bucket_close: int | None = None
             if mode == "import-source-pins":
                 guard.revalidate()
@@ -1877,8 +1940,10 @@ def run_host_mode(mode: str, *, now_ns: Callable[[], int] = time.time_ns) -> dic
                 }
             if mode == "initialize-pilot":
                 policy = _compile_pinned_live_policy(writer, guard)
+                assert pilot_id is not None
                 plan = compile_live_plan(
                     policy,
+                    pilot_id=pilot_id,
                     root_id=guard.root_id,
                     volume_uuid=guard.volume_uuid,
                     source_map=_source_bindings_for_store(writer, guard),
@@ -1888,6 +1953,7 @@ def run_host_mode(mode: str, *, now_ns: Callable[[], int] = time.time_ns) -> dic
                 authorization = {
                     "schema": PILOT_AUTH_SCHEMA,
                     "schema_version": 3,
+                    "pilot_id": plan["pilot_id"],
                     "plan_sha256": plan["plan_sha256"],
                     "source_sha256": plan["source_sha256"],
                     "root_id": plan["storage"]["root_id"],
@@ -1896,6 +1962,7 @@ def run_host_mode(mode: str, *, now_ns: Callable[[], int] = time.time_ns) -> dic
                     "bucket_close_ns": bucket_close,
                     "status": "approved",
                 }
+                assert store is not None
                 store.initialize_pilot(plan, authorization, bucket_close)
                 return {
                     "status": "pilot_initialized",
@@ -1903,8 +1970,10 @@ def run_host_mode(mode: str, *, now_ns: Callable[[], int] = time.time_ns) -> dic
                     "plan_sha256": plan["plan_sha256"],
                     "bucket_close_ns": bucket_close,
                 }
+            assert store is not None
             plan = store.read_json("plan.json")
             verify_live_plan(plan)
+            store.bind_verified_plan(plan)
             store._verify_guard(plan)
             if plan["source_sha256"] != _source_bindings_for_store(writer, guard):
                 raise GeckoRuntimeError("source_binding_changed")
@@ -1956,6 +2025,7 @@ def run_host_mode(mode: str, *, now_ns: Callable[[], int] = time.time_ns) -> dic
                 receipt = {
                     "schema": PILOT_RECEIPT_SCHEMA,
                     "schema_version": 3,
+                    "pilot_id": plan["pilot_id"],
                     "plan_sha256": plan["plan_sha256"],
                     "source_sha256": plan["source_sha256"],
                     "bucket_close_ns": bucket_close,
@@ -1995,6 +2065,7 @@ def run_host_mode(mode: str, *, now_ns: Callable[[], int] = time.time_ns) -> dic
                 activation = {
                     "schema": ACTIVATION_SCHEMA,
                     "schema_version": 3,
+                    "pilot_id": plan["pilot_id"],
                     "plan_sha256": plan["plan_sha256"],
                     "source_sha256": plan["source_sha256"],
                     "root_id": plan["storage"]["root_id"],
@@ -2088,6 +2159,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     modes.add_argument("--seal-pilot", action="store_true")
     modes.add_argument("--scheduled-tick", action="store_true")
     modes.add_argument("--import-source-pins", action="store_true")
+    parser.add_argument("--pilot-id")
     args = parser.parse_args(argv)
     mode = (
         "status"
@@ -2105,7 +2177,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         else "scheduled-tick"
     )
     try:
-        result = run_host_mode(mode)
+        if mode != "import-source-pins" and not _is_pilot_id(args.pilot_id):
+            raise GeckoRuntimeError("pilot_identity_required")
+        result = run_host_mode(mode, pilot_id=args.pilot_id)
     except Exception as exc:
         error_class = type(exc).__name__
         reason = (
