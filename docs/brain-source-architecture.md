@@ -667,8 +667,21 @@ verified the existing publication without changing either file. This is a diagno
 selected sample: an IDL shape match does not verify semantics, and an unresolved prefix does not
 prove a new instruction. It establishes no execution, effect, economics, lifecycle, absence,
 point-in-time support, process support, training, or admission. No provider I/O occurred. The
-separate versioned external-v2 unknown-review adapter is the next bounded horizon; it can produce a
-sample-local diagnostic queue only, not a live monitor or anomaly-rate claim.
+separate versioned external-v2 unknown-review adapter was then qualified from the immutable queue,
+archive projection, and family-triage artifacts after revalidating their receipts, selected captures,
+and descriptor-bound source prefix. Its 10,636,879-byte Kingston artifact is
+`derived/external-v2-sample-unknown-review-queue-v1/external-v2-20261012T0600Z/diagnostic-queue.json`
+(SHA-256 `aea8f395f932fdf3e989f60439b3bf8e0e2d1c2bc63b5503eb4a5a8c36cf6bcf`); its create-only
+publication receipt SHA-256 is `ce7828e50ba4ee6f29754e3b224b713e4c9c8f01cfe5d1e786035b293efd8885`.
+The queue has 4,865 observed positive references: 2,603 shapes match a pinned IDL's documented
+shape with semantics unverified, and 2,262 are unmatched or ambiguous; it records zero source/parse
+failures for this already-clean sealed prefix. Nine unobserved windows retain null metrics. Replay
+recomputed and byte-verified the existing artifact and receipt. This is a sample-local diagnostic
+work queue, not decoder support, an anomaly monitor/rate, first-ever or no-new-class evidence,
+execution, economics, lifecycle, PIT, training, or admission. No provider I/O occurred. The next
+bounded horizon is selected-block positive-reference readiness over the same 48 selected blocks
+and 12 frame dispositions; it is not a formal `SupportAssertion`, population claim, or training
+admission, and does not map native slots to UTC.
 
 A commit-bound `create_pool` feasibility census independently replayed those same 608 sealed
 selected blocks. The verifier reconciled 741,305 transactions, 1,613,839 outer and 961,070 inner

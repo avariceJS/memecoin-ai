@@ -1,10 +1,9 @@
 # Current Project State
 
-**As of:** 2026-10-12 09:37Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`; base `c03534507ed26ce1ce0803e8dd04c4b2d758b043` is pushed to
-`origin/research/active`. Structural-family triage code, tests, and canonical documentation are
-currently uncommitted; the preceding verified baseline is `1ee7c8e54df105d6395cb647400e9dde65f71427`
-on both long-lived branches.
+**As of:** 2026-10-12 10:02Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`; structural-family triage milestone `bd74b77cea62233089088eaf277b7b875329c3ed`
+is pushed to both `origin/research/active` and `origin/main`. The sample-local unknown-review
+adapter passed publication and exact replay; selected-block positive-reference readiness is active.
 Production, champion, protected evaluation, trading and Cortex remain untouched.
 
 ## Live boundaries
@@ -83,15 +82,24 @@ Production, champion, protected evaluation, trading and Cortex remain untouched.
   had 2,926 passed, 24 failures and 25 optional skips. It preceded the final projection fixes (now
   covered by focused tests); remaining failures are outside this scope and need separate triage.
   `make check` stops first on existing Ruff findings outside this scope.
+- The sample-local unknown-review queue was published and replayed byte-identically on Kingston:
+  10,636,879 bytes; artifact SHA-256
+  `aea8f395f932fdf3e989f60439b3bf8e0e2d1c2bc63b5503eb4a5a8c36cf6bcf`, receipt SHA-256
+  `ce7828e50ba4ee6f29754e3b224b713e4c9c8f01cfe5d1e786035b293efd8885`. It contains 4,865 positive
+  references (2,603 documented IDL shapes with unverified semantics; 2,262 unmatched/ambiguous),
+  zero source/parse failures, and leaves all nine unobserved windows null. Thirteen focused tests,
+  Ruff, formatting, scoped Mypy and full source replay pass. No provider I/O.
 - The capacity qualification is synthetic only; the archive projection is a source-pinned view of
   the existing sealed selected-block observations. Neither qualifies runtime law, candidate-position
   admission, settlement, buyExact25 or PIT. No production/runtime change or build was made.
 
 ## Active horizons
 
-The next horizon is a versioned external-v2-specific sample-local unknown-review queue built from
-the immutable triage artifact and its 48 selected captures. Sol approved diagnostic categories,
-source/time joins, mutation tests, and create-only Kingston publication; it does not qualify a live
-anomaly monitor or a no-new-class rate. Economic candidate-position/native-settlement/buyExact25
-admission remains design-only pending a separately qualified runtime witness. No provider lease,
-Agave build, c4 replay, backfill, or Cortex work is authorized by these offline horizons.
+The next Sol-approved horizon is `external-v2 selected-block positive-reference readiness v1`:
+a compact descriptor-bound artifact over the same 48 selected blocks and 12 frame dispositions,
+not a formal `SupportAssertion`. The existing qualification registry has no native-slot/population
+mapping, and its module-wide verifier hash also binds old receipts; do not modify it in this horizon.
+No slot→UTC conversion, population/training admission, exact zero, or unselected-slot claim.
+Economic candidate-position/native-settlement/buyExact25 admission remains design-only pending a
+separately qualified runtime witness. No provider lease, Agave build, c4 replay, backfill, or Cortex
+work is authorized by these offline horizons.

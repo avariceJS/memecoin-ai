@@ -40,6 +40,15 @@ contain large exact payloads, so open only the named artifact needed for a speci
   blobs; 14 families remain unresolved or ambiguous. All nine unobserved windows remain null.
   Structural/documented shape only; no execution, semantics, economics, lifecycle, PIT, training,
   admission, absence, or anomaly-rate claim. No provider I/O.
+- `external-v2-20261012T0600Z` sample-local unknown-review queue: Kingston artifact
+  `derived/external-v2-sample-unknown-review-queue-v1/external-v2-20261012T0600Z/diagnostic-queue.json`
+  (10,636,879 bytes; SHA-256
+  `aea8f395f932fdf3e989f60439b3bf8e0e2d1c2bc63b5503eb4a5a8c36cf6bcf`) and create-only publication
+  receipt SHA-256 `ce7828e50ba4ee6f29754e3b224b713e4c9c8f01cfe5d1e786035b293efd8885`. It reconciles
+  4,865 positive references into 2,603 documented IDL-shape matches with semantics unverified and
+  2,262 unmatched/ambiguous shapes; zero source/parse failures were observed in this sealed prefix.
+  Nine unobserved windows remain null. Diagnostic work queue only; no support, anomaly-rate,
+  execution, economics, lifecycle, PIT, training, or admission claim. No provider I/O.
 - c3 sell23 destination lamport diagnostic v3-final:
   `pumpswap-sell23-c3-destination-lamport-diagnostic-v3-final-2026-10-12.json` (485 censored
   successes remain ambiguous; 68 exact-ledger rows and two failed references stay excluded. Ordered
