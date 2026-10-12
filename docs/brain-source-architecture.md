@@ -1466,6 +1466,18 @@ The separately versioned descriptor-bound integration qualification then passed 
 case-sensitive APFS. Forced detach at the guarded mkdir and a later atomic rename produced safe
 syscall failures, no fallback artifacts, unchanged underlay, and no provider calls; Kingston was not
 touched. Receipt: [`external-v2 descriptor detach v2`](evidence/external-v2-descriptor-detach-integration-qualification-2026-10-12-v2.json).
+The new post-seal structural-input v1 compiler and sibling publisher are separately qualified. They
+accept only independently verified sealed v2 captures, preserve transaction status and structural
+scan unknowns in denominators, bind instruction occurrence paths, capture/result/receipt hashes and
+availability, and publish outside the frozen source root. Existing publications are accepted only
+after exact immutable receipt/manifest validation; gaps or unknown scans withhold publication. A
+fresh disposable APFS run forced detach at mkdir, lock open, create, atomic rename and receipt create;
+all five points left the underlay unchanged with no fallback artifact, provider call, replay, or open
+handle. This qualifies the isolation mechanism only: the disposable volume did not meet the live
+capacity envelope, Kingston was untouched, and no real v2 frame has been compiled or published.
+Receipt: [`structural-input sibling-writer qualification v2`](evidence/brain-senses-structural-input-sibling-writer-qualification-v2.json).
+The c4 structural queue remains unqualified and incompatible with this sibling schema; c4 stays
+terminal and no historical gap is backfilled.
 Sol accepted the exact 06:00Z prospective plan after checking its 21 source pins, the sealed-v1
 predecessor at frontier 455802008, c4's terminal STOP at 455430160, and both inactive v2 siblings.
 The candidate remains nonauthorizing until the complete final release chain passes. The fixed lease
@@ -3299,3 +3311,13 @@ lacked `bit-set v0.8.0`; no dependency was fetched. Existing edge tests and a de
 sweep remain. The exact patch and unique receipt are
 [`parser scaffold v3 patch`](evidence/agave-token-raw-parser-scaffold-corrected-v3-2026-10-11.patch)
 and [`parser scaffold v3 receipt`](evidence/agave-token-raw-parser-scaffold-corrected-v3-2026-10-11.json).
+
+The repository now has a separate `brain-senses-raw-account-fixture-v1` synthetic byte-replay
+contract for Token-2022 fee configuration, transfer-hook presence, attempted instruction wires,
+Clock/Rent layouts, and WSOL account fields. It binds canonical fixture bytes and verifier source
+hashes, rejects malformed encodings and broken account joins, and records instruction effects only
+as attempted. Transfer hooks remain unsupported without runtime evidence; fee fields remain raw
+configuration rather than a settlement calculation. Upstream source references are inherited pin
+metadata and are not revalidated by this fixture tool. The 26 focused tests qualify only synthetic
+byte parsing: runtime law, point-in-time eligibility, economic settlement, and admission remain
+false. No real capture or Agave trace was consumed.
