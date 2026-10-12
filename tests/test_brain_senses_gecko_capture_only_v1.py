@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shlex
 import sys
 import tempfile
 from pathlib import Path
@@ -40,6 +41,85 @@ from tools.brain_senses_external_writer_v1 import (  # noqa: E402
     canonical_json,
     sha256,
 )
+
+
+def test_launchd_identity_accepts_resolved_same_executable_inode(monkeypatch) -> None:
+    capture_id = capture_runtime.CAPTURE_ID
+    expected = capture_runtime._expected_argv(capture_id)
+    actual_executable = os.path.realpath(expected[0])
+    pid = 91234
+    outputs = iter(
+        [
+            SimpleNamespace(returncode=0, stdout=f"{pid}\t0\t{capture_runtime.LABEL}\n"),
+            SimpleNamespace(
+                returncode=0,
+                stdout=shlex.join([actual_executable, *expected[1:]]) + "\n",
+            ),
+        ]
+    )
+    monkeypatch.setenv("XPC_SERVICE_NAME", capture_runtime.LABEL)
+    monkeypatch.setattr(capture_runtime.os, "getpid", lambda: pid)
+    monkeypatch.setattr(capture_runtime.sys, "argv", expected[2:])
+    monkeypatch.setattr(capture_runtime.subprocess, "run", lambda *_args, **_kwargs: next(outputs))
+    assert capture_runtime.launchd_identity(capture_id) == (pid, expected)
+
+
+def test_launchd_identity_rejects_different_executable_even_with_exact_args(monkeypatch) -> None:
+    capture_id = capture_runtime.CAPTURE_ID
+    expected = capture_runtime._expected_argv(capture_id)
+    with tempfile.NamedTemporaryFile() as other_executable:
+        pid = 91235
+        outputs = iter(
+            [
+                SimpleNamespace(returncode=0, stdout=f"{pid}\t0\t{capture_runtime.LABEL}\n"),
+                SimpleNamespace(
+                    returncode=0,
+                    stdout=shlex.join([other_executable.name, *expected[1:]]) + "\n",
+                ),
+            ]
+        )
+        monkeypatch.setenv("XPC_SERVICE_NAME", capture_runtime.LABEL)
+        monkeypatch.setattr(capture_runtime.os, "getpid", lambda: pid)
+        monkeypatch.setattr(capture_runtime.sys, "argv", expected[2:])
+        monkeypatch.setattr(
+            capture_runtime.subprocess, "run", lambda *_args, **_kwargs: next(outputs)
+        )
+        with pytest.raises(capture_runtime.CaptureRuntimeError, match="argv_mismatch"):
+            capture_runtime.launchd_identity(capture_id)
+
+
+def test_new_capture_identity_and_plist_do_not_reuse_old_capture_root() -> None:
+    old_capture_id = "6c4e52c7a9bb4bdc8e5f1d774ec8aa17"
+    assert capture_runtime.CAPTURE_ID != old_capture_id
+    old_root = capture_runtime._service_root(old_capture_id)
+    new_root = capture_runtime._service_root(capture_runtime.CAPTURE_ID)
+    assert old_root != new_root
+    assert capture_runtime.LABEL.endswith("-v2")
+    pins = capture_runtime.source_bindings()
+    assert "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v2.plist" in pins
+    assert "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v1.plist" not in pins
+    plist = (REPO / "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v2.plist").read_text()
+    assert capture_runtime.CAPTURE_ID in plist
+    assert capture_runtime.LABEL in plist
+    temp = tempfile.TemporaryDirectory()
+    os.chmod(temp.name, 0o700)
+    root_fd = os.open(temp.name, os.O_RDONLY | os.O_DIRECTORY)
+    writer = DescriptorWriter(root_fd)
+    os.close(root_fd)
+    try:
+        for path in (old_root, new_root):
+            current = ""
+            for part in path.split("/"):
+                child = f"{current}/{part}".strip("/")
+                if part not in writer.list_names(current):
+                    writer.mkdir(child)
+                current = child
+        writer.create(f"{old_root}/old-plan-sentinel", b"preserve-old-root")
+        assert writer.read_bytes(f"{old_root}/old-plan-sentinel") == b"preserve-old-root"
+        assert f"{new_root}/old-plan-sentinel" not in writer.list_files()
+    finally:
+        writer.close()
+        temp.cleanup()
 
 
 def _raw_bar(close_ns: int) -> bytes:
@@ -170,7 +250,7 @@ def test_capture_plan_pins_diagnostic_pilot_without_market_authority() -> None:
         lane_v4.SOURCE_BINDING_KEY: "5" * 64,
     }
     plan = capture_runtime.compile_capture_plan(
-        capture_id="6c4e52c7a9bb4bdc8e5f1d774ec8aa17",
+        capture_id=capture_runtime.CAPTURE_ID,
         storage={"root_id": "a" * 32, "volume_uuid": "11111111-2222-3333-4444-555555555555"},
         policy=policy,
         sources=sources,
@@ -215,7 +295,7 @@ def _capture_plan_for_test() -> dict[str, Any]:
         "source_sha256": {"predecessor": "4" * 64},
     }
     return capture_runtime.compile_capture_plan(
-        capture_id="6c4e52c7a9bb4bdc8e5f1d774ec8aa17",
+        capture_id=capture_runtime.CAPTURE_ID,
         storage={"root_id": "a" * 32, "volume_uuid": "11111111-2222-3333-4444-555555555555"},
         policy=policy,
         sources={

@@ -41,10 +41,10 @@ from tools.brain_senses_external_writer_v1 import (  # noqa: E402
 )
 
 CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
-CAPTURE_ID = "6c4e52c7a9bb4bdc8e5f1d774ec8aa17"
+CAPTURE_ID = "7f0b3297f86746f0b0c3863f20a11d4b"
 CAPTURE_ROOT_PREFIX = "services/gecko-market-v1/capture-only-v1"
 PREDECESSOR_PILOT_ID = "11f28c4965aa427d9658cd3adeadc746"
-LABEL = "ai.memecoin.brain.senses.gecko-capture-only-v1"
+LABEL = "ai.memecoin.brain.senses.gecko-capture-only-v2"
 PLAN_SCHEMA = "brain-senses-gecko-capture-only-v1-plan"
 CALLBACK_SCHEMA = "brain-senses-gecko-capture-only-v1-callback"
 RELEASE_SCHEMA = "brain-senses-gecko-capture-only-v1-release"
@@ -66,7 +66,7 @@ def source_bindings() -> dict[str, str]:
         "tools/brain_senses_gecko_capture_only_verify_v1.py",
         "tools/brain_senses_gecko_capture_only_monitor_v1.py",
         "tests/test_brain_senses_gecko_capture_only_v1.py",
-        "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v1.plist",
+        "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v2.plist",
     )
     return {
         **v4.source_bindings(),
@@ -579,9 +579,30 @@ def launchd_identity(capture_id: str) -> tuple[int, list[str]]:
         actual = shlex.split(process.stdout.strip())
     except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
         raise CaptureRuntimeError("capture_launchd_identity_unavailable") from exc
-    if process.returncode or actual != expected or sys.argv != expected[2:]:
+    if (
+        process.returncode
+        or not _same_executable_argv(actual, expected)
+        or sys.argv != expected[2:]
+    ):
         raise CaptureRuntimeError("capture_launchd_argv_mismatch")
     return pid, expected
+
+
+def _same_executable_argv(actual: Sequence[str], expected: Sequence[str]) -> bool:
+    """Accept argv[0] symlink resolution only when both paths name the same inode."""
+    if len(actual) != len(expected) or list(actual[1:]) != list(expected[1:]):
+        return False
+    try:
+        expected_stat = os.stat(expected[0])
+        actual_stat = os.stat(actual[0])
+    except (OSError, IndexError):
+        return False
+    return (
+        stat.S_ISREG(expected_stat.st_mode)
+        and stat.S_ISREG(actual_stat.st_mode)
+        and expected_stat.st_dev == actual_stat.st_dev
+        and expected_stat.st_ino == actual_stat.st_ino
+    )
 
 
 def _expected_argv(capture_id: str) -> list[str]:
