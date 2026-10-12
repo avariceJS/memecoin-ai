@@ -3616,3 +3616,14 @@ Helius v5 must also carry forward verified v4 rolling usage before any dispatch.
 corroboration contracts are offline only. The absence of Gecko/Alchemy market traffic is not caused
 by quota preservation or billing-meter uncertainty; the remaining gates are adapter integration,
 usage lineage, and live recovery integrity.
+
+Helius v5's separately versioned adapter, independent verifier, rolling-usage cutover builder,
+LaunchAgent definition, and forced detach-at-durable-intent tests are now implemented offline. The
+cutover receipt binds c1-c4 evidence separately from current rolling-v4 request rows, preserves
+decision time separately from capture dispatch time, and retains ambiguous attempts through their
+latest possible dispatch bound. Focused v5 plus coordinator tests pass (66); Ruff, formatting,
+`py_compile`, and targeted mypy pass. The live cutover remains gated: v4 has a future 16:00Z epoch
+with only `epoch_started`, so it must first be disabled and reconciled as no-intent abandoned under
+its descriptor and lane lock. A one-shot STOP/reconcile helper is required before publishing the
+usage receipt, initializing v5, or loading its LaunchAgent. No v5 provider request or cutover write
+has occurred yet.
