@@ -186,6 +186,29 @@ def test_cache_manifest_allows_only_pinned_crossbeam_pack_hardlinks(tmp_path: Pa
         preflight._tree_manifest_rows(cache)
 
 
+def test_local_package_id_redaction_preserves_distinct_identity() -> None:
+    value = {
+        "version": 1,
+        "packages": [
+            {"id": "path+file:///private/a#workspace@1.0.0", "name": "a", "version": "1.0.0"},
+            {"id": "path+file:///private/b#workspace@1.0.0", "name": "b", "version": "1.0.0"},
+        ],
+        "workspace_members": ["path+file:///private/a#workspace@1.0.0"],
+        "resolve": {
+            "root": "path+file:///private/a#workspace@1.0.0",
+            "nodes": [
+                {"id": "path+file:///private/a#workspace@1.0.0", "deps": [], "features": []},
+                {"id": "path+file:///private/b#workspace@1.0.0", "deps": [], "features": []},
+            ],
+        },
+    }
+
+    graph = preflight._metadata_graph(json.dumps(value).encode())
+    package_ids = [row["id"] for row in graph["packages"]]
+    assert len(package_ids) == len(set(package_ids)) == 2
+    assert all("/private/" not in package_id for package_id in package_ids)
+
+
 def test_source_cache_mismatch_refuses_before_copy_or_process(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

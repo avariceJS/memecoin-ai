@@ -76,7 +76,7 @@ _URL_CREDENTIALS = re.compile(r"(?i)(https?://)[^/@\s]+:[^/@\s]+@")
 _HOME_PATH = re.compile(r"/Users/[^/\s]+")
 _MOUNT_PATH = re.compile(r"/Volumes/[^/\s]+(?:/[^\s,:;]+)*")
 _PRIVATE_TEMP_PATH = re.compile(r"/private/var/[^\s,:;]+")
-_LOCAL_PACKAGE_ID = re.compile(r"(?i)(path\+file://)[^#]+(#)")
+_LOCAL_PACKAGE_ID = re.compile(r"(?i)(path\+file://)([^#]+)(#)")
 _CROSSBEAM_CACHE = "crossbeam-5268678e7223f484"
 _CROSSBEAM_CHECKOUT = "fd279d7"
 
@@ -783,7 +783,14 @@ def _metadata_graph(raw: bytes) -> dict[str, Any]:
         source = package.get("source")
         if source is not None and (not isinstance(source, str) or source not in allowed_sources):
             raise MetadataPreflightError("metadata_package_source")
-        safe_id = _LOCAL_PACKAGE_ID.sub(r"\1<local-path>\2", package_id)
+        safe_id = _LOCAL_PACKAGE_ID.sub(
+            lambda match: (
+                f"{match.group(1)}<local-path:"
+                f"{hashlib.sha256(match.group(2).encode()).hexdigest()[:16]}>"
+                f"{match.group(3)}"
+            ),
+            package_id,
+        )
         safe_id = _HOME_PATH.sub("<user-home>", safe_id)
         if safe_id in safe_ids.values():
             raise MetadataPreflightError("metadata_package_identity_collision")
