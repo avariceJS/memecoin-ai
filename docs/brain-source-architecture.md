@@ -176,6 +176,14 @@ That bounded fix is covered by an isolated subprocess import test. Any retry use
 activation with refreshed hashes; it cannot authorize provider I/O. Receipt:
 [`03:20Z timing rehearsal failure`](evidence/brain-senses-external-timing-rehearsal-2026-10-12T0320Z.json).
 
+The distinct 03:40Z no-provider calendar rehearsal then passed on its single LaunchAgent callback:
+callback/preflight began within 3.3 seconds of the scheduled minute, the read-only terminal status
+completed within 11 seconds, and a +30-second gate confirmed exactly one run with exit 0. The
+service manifest, event journal and terminal STOP hashes remained unchanged; provider I/O,
+dispatches, requests, reservations and intents were all zero. This qualifies only the scheduled
+status-only timing path. It does not authorize or establish a prospective provider lease. Receipt:
+[`03:40Z timing rehearsal`](evidence/brain-senses-external-timing-rehearsal-2026-10-12T0340Z.json).
+
 At 03:24Z, read-only Helius status and plan calls again found no JWT session, leaving plan and
 usage unavailable. Alchemy's authenticated-team aggregate remained 18,680 CU / $0.01 through
 03:24Z; it returned no account limit or network/app/method attribution. This does not meter the
@@ -553,6 +561,14 @@ transaction status, not counts of protocol layouts or new economic processes. De
 capture/block/class bindings are zstd-compressed under ignored `work/` and hash-bound by the compact
 receipt. This adds no economic qualification, exact-zero permission, global discovery, or admission.
 Receipt: [`c4 structural novelty replay`](evidence/pumpswap-c4-structural-novelty-v1-2026-10-11.json).
+
+The separately versioned structural unknown-queue compiler and its tests currently have
+synthetic-only readiness. The pinned c4 receipt/detail pair above lacks per-transaction
+success/failed/unknown partitions, transaction membership for each instruction reference, and
+post-fsync durable-availability timestamps. Without those fields the compiler cannot establish the
+required disjoint denominators or causal source-availability order, so it does not publish a queue
+from c4. Its metadata-only readiness check confirms the ten included buckets and explicitly
+excluded 23:00Z tail2 from the receipt-bound summary; it does not open capture response bodies.
 
 A separate venue-neutral program-exposure ledger covers all 608 same captured blocks: 512 Pair64
 selected slots and six c3 frames of 16 slots each. It reconciles 741,305 normalized transactions

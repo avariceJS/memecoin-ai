@@ -1,7 +1,7 @@
 # Current Project State
 
-**As of:** 2026-10-12 03:24Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`; HEAD and published active are `78a7db6`. `main` remains
+**As of:** 2026-10-12 03:41Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`; HEAD and published active are `42452bc` before the current atomic changes. `main` remains
 `148ca165e1487a99c3ce6532dbc276c4922c31b6`. Worktree state is checked before handoff.
 Production, champion, protected evaluation and real trading remain untouched. No signing/submission;
 Cortex is out of scope.
@@ -18,13 +18,17 @@ Cortex is out of scope.
   status; no provider I/O or status result. Its label is disabled/unloaded and its immutable failure
   receipt is `docs/evidence/brain-senses-external-timing-rehearsal-2026-10-12T0320Z.json`.
 - Fix `78a7db6` adds trusted repository-root import binding and an isolated subprocess regression
-  test (10 focused passes); `make smoke` passes. A distinct no-provider rehearsal is armed for
-  03:40Z under `ai.memecoin.brain.senses.timing-rehearsal-20261012T0340Z`, with 956s initialization
-  margin. Do not kickstart. Check its real callback and <=+15s/+30s gates; if it fails, retire it
-  terminally and do not shift/backfill without review.
+  test (10 focused passes); `make smoke` passes. The distinct no-provider rehearsal at 03:40Z passed
+  one scheduled callback, status-only preflight and +30s single-run gate with exit 0; no provider
+  activity occurred and the service tree was unchanged. Receipt:
+  `docs/evidence/brain-senses-external-timing-rehearsal-2026-10-12T0340Z.json`.
 - Helius status/plan still have no JWT, so plan/usage/charge are unknown. Alchemy team aggregate is
   18,680 CU / $0.01 through 03:24Z, no limit or workload attribution. Receipt:
   `docs/evidence/senses-provider-account-readonly-2026-10-12T0324Z.json`.
+- Structural unknown queue changes are under independent review. Synthetic tests pass (22); the
+  c4 source remains readiness-only because it lacks transaction partitions, reference membership,
+  and post-fsync availability. Current prototype also needs truthful post-fsync queue availability,
+  representative signature/capture references, and consistent denominator units before publication.
 - Agave fetch v2 remains terminal exit 101; partial cache preserved, do not reuse/clean/retry. No
   candidate-position raw decoder or economic qualification is established.
 
