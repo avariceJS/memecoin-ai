@@ -133,9 +133,9 @@ def _launchd_gate(binding: dict[str, Any], plist: dict[str, Any], activation_pat
     _require(binding["label"] in labels and OLD_LABEL not in labels, "launchd_label_state")
     _require(
         re.search(
-            r'"' + re.escape(binding["label"]) + r'"\s*=>\s*(?:false|enabled)\b', disabled.stdout
+            r'"' + re.escape(binding["label"]) + r'"\s*=>\s*(?:true|disabled)\b', disabled.stdout
         )
-        is not None,
+        is None,
         "rehearsal_agent_disabled",
     )
     _require(
