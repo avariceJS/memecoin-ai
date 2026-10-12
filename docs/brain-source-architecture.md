@@ -3652,33 +3652,33 @@ same bounded snapshot; the alarm-receipt cap pauses for review. Focused tests co
 constant-size heartbeats, crash points around rename, recovery, cap behavior, stale state, and detach without
 writes to the mountpoint underlay.
 
-The separately versioned capture-only runtime, bounded monitor, release preflight, and
-detach/recovery tests are committed at `e2bf56b`. The 19:30Z pilot closed with four HTTP 200
-responses, four durable captures/results/confirmations, a verified clock, and no skipped, unknown,
-or possibly-spent pool. Independent sealing found no eligible new-open bar, so its immutable
-diagnostic receipt is
-`3a85914428e3566ad674b8b1487fb852e390317cacb0be1915d04d045cc210d2`; that pilot cannot be reused.
-Sol approved capture-only collection bound to this technical predecessor, with
-`market_source_qualified=false`, `training_admission=false`, and `economic_admission=false` until
-independent prospective semantic qualification. Static IDs v1 and v2 were initialized or
-preflighted but their callbacks failed closed before a request intent; both roots are read-only.
-Their LaunchAgents are unloaded. The v2 identity proof incorrectly equated the venv CLI inode with
-the live macOS Python.app process image. Capture-only v3 bound a no-provider probe of the exact
-plist interpreter and passed the live label/PID/UID/arguments/`proc_pidpath` identity check, then
-published one no-provider callback receipt. It stopped before provider I/O because the health
-publisher requested `durable_results` while independent replay reports `terminal_count`. That root
-has no request intent and is retired read-only. The publisher now uses the verifier's exact field;
-a new v4 label/ID/source pin and focused regression test are required before a fresh preflight.
-The service policy has no calendar expiry, never backfills missed buckets, and keeps finite request,
-raw-byte, memory, and Kingston storage caps. Alchemy same-frame corroboration remains offline;
-incomplete billing telemetry does not block bounded prospective collection.
+Capture-only v1/v2 roots and the no-request v3 root remain read-only; their LaunchAgents are
+unloaded. The separately versioned v4 service uses the pinned 15-minute/four-pool technical policy,
+60-second LaunchAgent ticks, no calendar expiry, one intent per pool/bucket, no retry/backfill,
+12-second minimum dispatch spacing, and finite provider, raw-byte, memory, and Kingston caps. Its
+runtime, monitor, and exact interpreter handoff are committed with the v4 plist. Sol approved
+capture-only operation with `market_source_qualified=false`, `training_admission=false`, and
+`economic_admission=false` until independent prospective semantic qualification. At the first
+future bucket (21:00Z on 2026-10-12), independent replay verified four actual GeckoTerminal HTTP 200
+dispatches, four durable raw captures/results/confirmations, no missing/unknown/spent requests, and
+four timely availability records on the bound Kingston volume. All returned bars were outside the
+new-open window, so eligible new-open pools were 0/4; this is live provider acquisition evidence,
+not useful-price coverage or source qualification. The immutable observation receipt is
+[`v4 first live bucket`](evidence/gecko-capture-only-v4-first-live-bucket-2026-10-12T2100Z.json).
+A controlled LaunchAgent bootout/bootstrap between windows then recovered to the same verified
+4-intent/4-result prefix without replay or internal-storage fallback. The service remains loaded;
+the next bucket is forward-only. Provider charge remains unknown/unverified. Alchemy same-frame
+corroboration remains offline.
 
-The inert Agave build runner v1 remains unqualified and must not execute Cargo. Sol rejected its
-default-allow sandbox because it does not confine write access to the Kingston stage, prevent reads
-of protected/private paths, or establish mountpoint-underlay safety for inherited build-script
-children. A replacement needs demonstrated OS-level read/write/network confinement and a clean
-process census before any offline ProgramTest build; preserve the dirty source/cache and do not
-inspect protected data.
+The Agave build runner v1 remains rejected. A separately versioned default-deny Seatbelt fixture
+v2 passed synthetic parent/child read, write, network, symlink, and detached-child cleanup tests,
+but the forced stage-path replacement test showed that the child can write to a same-name underlay.
+Its profile is therefore **NO-GO** for Kingston/Cargo: pathname grants and sampled UUID checks do
+not bind ordinary Cargo writes to a mounted volume across detach. This blocks the current
+unprivileged Seatbelt route on this owner Mac; it does not prove all possible kernel or separate-user
+confinement approaches impossible. Preserve the dirty Agave checkout/cache and do not run Cargo or
+ProgramTest. A future route requires a demonstrated kernel-enforced mount-identity boundary or an
+unprivileged identity unable to access the underlay, plus source/cache review.
 
 The shared capacity coordinator v2 is initialized on the configured Kingston data root. Its
 descriptor-bound policy binds root ID, UUID, device, and inode; live Helius v5 admission and Gecko
@@ -3694,8 +3694,9 @@ versioned v3 contract with at least 12 seconds between actual dispatches across 
 under the lane lock, and a pre-HTTP deadline check. It preserves the forward-only 60–180-second
 post-close window, one intent/no retry, and stops the bucket on 429 with a durable cooldown of at
 least one hour or a valid longer `Retry-After` (over 24 hours requires review). v2 remains frozen
-offline. The v3 evidence above qualifies the isolated pilot and release preflight; the next fresh
-prospective pilot and LaunchAgent callback still must pass before continuous dispatch is activated.
+offline. The v4 capture-only service exercises this pinned forward-only transport policy under a
+separate technical release identity; it does not qualify the price modality or promote its pool
+population.
 
 Helius v5's separately versioned adapter, independent verifier, rolling-usage cutover builder,
 LaunchAgent, and forced detach-at-durable-intent tests are implemented and active. The immutable

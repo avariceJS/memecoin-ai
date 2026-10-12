@@ -6,6 +6,16 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- Agave Seatbelt confinement v2 disposable fixture:
+  `agave-confinement-v2-fixture-2026-10-12.json` (5/5 synthetic tests pass descendant
+  read/write/network denial, symlink escape denial, and detached-child cleanup, but forced
+  stage-path replacement writes into a same-name underlay. This falsifies mount-identity safety;
+  v2 is NO-GO and authorizes no Agave/Cargo execution).
+- Gecko capture-only v4 first live bucket:
+  [`gecko-capture-only-v4-first-live-bucket-2026-10-12T2100Z.json`](gecko-capture-only-v4-first-live-bucket-2026-10-12T2100Z.json)
+  (four actual future-only HTTP 200 requests, four durable results/captures/confirmations and a
+  successful no-replay LaunchAgent restart on the bound Kingston root; 0/4 pools had a bar in the
+  new-open window, so this is acquisition/recovery evidence, not qualified market coverage).
 - Inactive launch-v3 failure-receipt APFS detach qualification:
   `brain-senses-launch-v3-failure-receipt-detach-qualification-v1-2026-10-12.json` (fresh
   descriptor-bound journal verifier plus forced detach before receipt `mkdir` and `create`; both
