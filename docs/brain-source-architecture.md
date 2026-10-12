@@ -3548,6 +3548,15 @@ metadata and are not revalidated by this fixture tool. The 26 focused tests qual
 byte parsing: runtime law, point-in-time eligibility, economic settlement, and admission remain
 false. No real capture or Agave trace was consumed.
 
+An independent local-trace envelope v1 now binds the pinned Agave/patch/lock/runtime/feature
+identities, one attempt and execution, ordered instruction/CPI paths, candidate account roles,
+pre/post or attempted-only raw account bytes, Clock/Rent bytes, fee/hook configuration bytes, and
+receipt versus durable-availability evidence. Its verifier enforces exact shapes, same-attempt
+joins, raw-byte hashes, Clock epoch/slot joins, and permanently false qualification claims. Focused
+Hypothesis and mutation tests pass; the envelope validates structure only. No ProgramTest trace has
+yet been consumed, and it supplies no runtime-law, hook-effect, rooted-chain, settlement,
+buyExact25, point-in-time, or economic qualification.
+
 ### Independent rolling prospective acquisition policy (2026-10-12)
 
 Sol selected a new Helius-only forward collector with independent epoch roots, starting at a fresh
@@ -3637,14 +3646,21 @@ same bounded snapshot; the alarm-receipt cap pauses for review. Focused tests co
 constant-size heartbeats, crash points around rename, recovery, cap behavior, stale state, and detach without
 writes to the mountpoint underlay.
 
-The Gecko LaunchAgent remains unloaded. Code, monitor, release preflight, and detach/recovery tests
-are implemented but not yet frozen in Git or qualified against a new live bucket. The next gate is a
-fresh, future-only four-pool pilot under a distinct static ID; no c4/v3 request or missed prospective
-time may be reused. A qualifying receipt must pass preflight and the status-only LaunchAgent
-callback before activation of persistent forward-only collection. That service has no calendar
-lease expiry, does not backfill missed buckets, and retains finite request, raw-byte, resident-memory,
-and Kingston storage caps. Alchemy same-frame corroboration remains offline; incomplete billing
-telemetry does not block bounded prospective collection.
+The separately versioned runtime, bounded monitor, release preflight, and detach/recovery tests are
+committed at `89c5cf9`. A new future-only pilot closed the 19:30Z bucket with four HTTP 200
+responses, four durable captures/results/confirmations, a verified clock, and no skipped, unknown,
+or possibly-spent pool. Independent sealing found no eligible new-open bar, so the immutable
+diagnostic receipt is `3a85914428e3566ad674b8b1487fb852e390317cacb0be1915d04d045cc210d2` and the
+pilot cannot be reused. The Gecko LaunchAgent remains unloaded. The only failed qualification is
+market-bar eligibility, a data-qualification result rather than an acquisition-safety blocker. Sol
+approved a separately versioned capture-only release for future buckets, bound to this immutable
+4/4 technical predecessor; it must preserve `market_source_qualified=false`,
+`training_admission=false`, and `economic_admission=false` until independent prospective semantic
+qualification. Its new runtime and LaunchAgent path are being implemented; the existing v4 release
+remains unchanged and unloaded. Capture-only collection has no calendar expiry, does not backfill
+missed buckets, and keeps finite request, raw-byte, resident-memory, and Kingston storage caps.
+Alchemy same-frame corroboration remains offline; incomplete billing telemetry does not block
+bounded prospective collection.
 
 The shared capacity coordinator v2 is initialized on the configured Kingston data root. Its
 descriptor-bound policy binds root ID, UUID, device, and inode; live Helius v5 admission and Gecko

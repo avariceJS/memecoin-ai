@@ -1478,11 +1478,16 @@ def test_launchd_callback_identity_rejects_wrong_pid_and_argv(monkeypatch):
 
 
 def test_release_preflight_requires_installed_plist_to_match_pinned_template(tmp_path, monkeypatch):
+    import plistlib
+
     plist_bytes = (Path(__file__).resolve().parents[1] / release_v4.PILOT_PLIST).read_bytes()
+    static_pilot_id = plistlib.loads(plist_bytes)["ProgramArguments"][-1]
     installed = tmp_path / "gecko.plist"
     installed.write_bytes(plist_bytes)
     monkeypatch.setattr(release_v4, "INSTALLED_PLIST", installed)
-    assert release_v4._verify_plist(PILOT_ID) == sha256(plist_bytes)
+    assert release_v4._verify_plist(static_pilot_id) == sha256(plist_bytes)
+    with pytest.raises(release_v4.ReleaseError, match="launchd_plist_policy"):
+        release_v4._verify_plist(PILOT_ID)
     installed.write_bytes(plist_bytes + b" ")
     with pytest.raises(release_v4.ReleaseError, match="installed_launchd_plist_mismatch"):
-        release_v4._verify_plist(PILOT_ID)
+        release_v4._verify_plist(static_pilot_id)
