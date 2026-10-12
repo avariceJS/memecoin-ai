@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
@@ -133,3 +134,55 @@ def test_ambiguous_intent_reserves_one_maximum_response_in_rolling_storage() -> 
     assert usage.allocated_bytes == (
         policy.MAX_RESPONSE_BYTES + policy.PER_REQUEST_METADATA_RESERVE_BYTES
     )
+
+
+def test_blocked_reason_identifies_bounded_pause_and_clears_on_headroom() -> None:
+    healthy = policy.RollingUsage(0, 0, 0, 0)
+    assert (
+        policy.blocked_reason(
+            healthy,
+            epoch_requests=0,
+            epoch_response_bytes=0,
+            epoch_allocated_bytes=0,
+        )
+        is None
+    )
+    at_request_cap = policy.RollingUsage(
+        policy.MAX_ROLLING_REQUESTS,
+        policy.MAX_ROLLING_REQUESTS * policy.CONSERVATIVE_CREDITS_PER_REQUEST,
+        0,
+        0,
+    )
+    assert (
+        policy.blocked_reason(
+            at_request_cap,
+            epoch_requests=0,
+            epoch_response_bytes=0,
+            epoch_allocated_bytes=0,
+        )
+        == "rolling_request_cap"
+    )
+    assert (
+        policy.blocked_reason(
+            healthy,
+            epoch_requests=0,
+            epoch_response_bytes=policy.MAX_EPOCH_RESPONSE_BYTES,
+            epoch_allocated_bytes=0,
+        )
+        == "epoch_response_cap"
+    )
+
+
+def test_activation_allocation_cap_uses_live_headroom_once() -> None:
+    ample = 219_384_127_488
+    assert policy.activation_allocation_cap(ample) == 150_000_000_000
+    tight = (
+        policy.DISK_FLOOR_BYTES
+        + policy.SERVICE_OPERATING_RESERVE_BYTES
+        + policy.NEXT_EPOCH_ALLOCATION_RESERVE_BYTES
+        + policy.SERVICE_PEAK_METADATA_RESERVE_BYTES
+        + 1
+    )
+    assert policy.activation_allocation_cap(tight) == 1
+    with pytest.raises(policy.PolicyError, match="activation_capacity_insufficient"):
+        policy.activation_allocation_cap(tight - 1)

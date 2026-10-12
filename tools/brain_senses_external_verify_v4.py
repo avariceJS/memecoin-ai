@@ -224,6 +224,23 @@ def verify_epoch_events(plan: Mapping[str, Any], event_bytes: bytes) -> EpochPro
             missed.append(row["bucket"])
             next_index += 1
             reset_required = True
+        elif kind == "window_interrupted":
+            if (
+                set(fields) != {"index", "bucket", "reason"}
+                or active_bucket is None
+                or next_index >= len(windows)
+                or fields.get("index") != next_index
+                or fields.get("bucket") != active_bucket
+                or fields.get("reason")
+                not in {"oversized_interval", "partial_frame", "provider_inconsistency"}
+            ):
+                raise VerifyError("interrupted_window_fields")
+            missed.append(active_bucket)
+            next_index += 1
+            active_bucket = None
+            active_mode = None
+            reserved_requests = []
+            reset_required = True
         elif kind == "window_reserved":
             if (
                 set(fields) != {"index", "bucket", "kind", "mode", "request_cap"}
@@ -310,13 +327,23 @@ def verify_epoch_events(plan: Mapping[str, Any], event_bytes: bytes) -> EpochPro
                 digest = fields["response_sha256"]
                 size = fields["response_bytes"]
                 availability_ns = fields["availability_ns"]
+                decision_ns = next(
+                    (
+                        prior["fields"]["decision_ns"]
+                        for prior in events[: events.index(event)]
+                        if prior["kind"] == "request_intent"
+                        and prior["fields"].get("request_id") == request_id
+                    ),
+                    None,
+                )
                 if (
                     not isinstance(digest, str)
                     or len(digest) != 64
                     or type(size) is not int
                     or not 0 <= size <= policy.MAX_RESPONSE_BYTES
                     or type(availability_ns) is not int
-                    or availability_ns < at_ns
+                    or type(decision_ns) is not int
+                    or not decision_ns <= availability_ns <= at_ns
                 ):
                     raise VerifyError("request_capture_binding")
                 request_states[request_id] = "captured"
@@ -340,7 +367,8 @@ def verify_epoch_events(plan: Mapping[str, Any], event_bytes: bytes) -> EpochPro
                 faulted = True
         elif kind == "frame_sealed":
             if (
-                set(fields) != {"index", "bucket", "request_ids", "request_count"}
+                set(fields)
+                != {"index", "bucket", "request_ids", "request_count", "empty_interval"}
                 or active_bucket is None
                 or fields.get("bucket") != active_bucket
                 or fields.get("index") != next_index
@@ -348,13 +376,22 @@ def verify_epoch_events(plan: Mapping[str, Any], event_bytes: bytes) -> EpochPro
                 or fields.get("request_count") != len(reserved_requests)
                 or any(request_states[item] != "captured" for item in reserved_requests)
                 or not reserved_requests
+                or type(fields["empty_interval"]) is not bool
             ):
                 raise VerifyError("frame_seal_invalid")
             methods = [request_methods[item] for item in reserved_requests]
             if active_mode in {"anchor", "anchor_reset"} and methods != ["getSlot"]:
                 raise VerifyError("anchor_request_shape")
-            if active_mode == "inventory" and (
+            if active_mode == "inventory" and fields["empty_interval"] and methods != ["getSlot"]:
+                raise VerifyError("empty_interval_request_shape")
+            if active_mode == "inventory" and not fields["empty_interval"] and (
                 len(methods) < 2 or methods[:2] != ["getSlot", "getBlocks"]
+                or len(methods) > policy.MAX_REQUESTS_PER_FRAME
+                or (len(methods) - 2) % 2 != 0
+                or any(
+                    methods[offset : offset + 2] != ["getBlock", "getBlock"]
+                    for offset in range(2, len(methods), 2)
+                )
             ):
                 raise VerifyError("inventory_request_shape")
             sealed.append(active_bucket)
@@ -428,6 +465,7 @@ def verify_control_chain(
     opened: list[str] = []
     seen: set[str] = set()
     closed: set[str] = set()
+    abandoned_at: list[int] = []
 
     for event in events:
         kind = event["kind"]
@@ -440,6 +478,11 @@ def verify_control_chain(
             raw_plan = plans.get(epoch_id)
             plan_digest = fields["plan_sha256"]
             anchor_ns = fields["anchor_ns"]
+            recent_abandons = [
+                abandoned
+                for abandoned in abandoned_at
+                if at_ns - policy.DAY_NS < abandoned <= at_ns
+            ]
             if (
                 active is not None
                 or paused
@@ -450,6 +493,7 @@ def verify_control_chain(
                 or schema.sha(raw_plan) != plan_digest
                 or type(anchor_ns) is not int
                 or anchor_ns <= max(at_ns, cooldown_until)
+                or len(recent_abandons) >= 2
             ):
                 raise VerifyError("epoch_open_transition")
             try:
@@ -487,8 +531,12 @@ def verify_control_chain(
                 ):
                     raise VerifyError("abandon_cooldown")
                 cooldown_until = cooldown
+                abandoned_at.append(at_ns)
             if terminal.status == "cap_paused":
                 if terminal.pause_reason not in {
+                    "epoch_request_cap",
+                    "epoch_response_cap",
+                    "epoch_physical_cap",
                     "rolling_request_cap",
                     "rolling_credit_cap",
                     "rolling_response_cap",
@@ -511,6 +559,9 @@ def verify_control_chain(
             if (
                 reason
                 not in {
+                    "epoch_request_cap",
+                    "epoch_response_cap",
+                    "epoch_physical_cap",
                     "rolling_request_cap",
                     "rolling_credit_cap",
                     "rolling_response_cap",

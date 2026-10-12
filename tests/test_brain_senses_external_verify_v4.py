@@ -341,18 +341,24 @@ def _request_rows(
         ),
         (
             "request_captured",
-            start + 4_000_000_000,
+            start + 5_000_000_000,
             {
                 "request_id": request_id,
                 "response_sha256": "e" * 64,
                 "response_bytes": 32,
-                "availability_ns": start + 4_000_000_001,
+                "availability_ns": start + 4_000_000_000,
             },
         ),
         (
             "frame_sealed",
             start + 5_000_000_000,
-            {"index": index, "bucket": bucket, "request_ids": [request_id], "request_count": 1},
+            {
+                "index": index,
+                "bucket": bucket,
+                "request_ids": [request_id],
+                "request_count": 1,
+                "empty_interval": False,
+            },
         ),
     ]
 

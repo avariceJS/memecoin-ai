@@ -36,6 +36,7 @@ _EVENT_KINDS = frozenset(
     {
         "epoch_started",
         "window_missed",
+        "window_interrupted",
         "window_reserved",
         "request_intent",
         "request_captured",

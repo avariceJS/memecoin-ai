@@ -3543,13 +3543,24 @@ independent epoch may start after exact terminal verification, and the loaded su
 eligible to continue while all safety and rolling-budget gates pass. A cap pause resumes only with
 headroom and a new future anchor.
 
-This policy does not authorize c4/external-v2 replay or successor linkage. No collector is active
-yet. Live activation remains gated on a separately versioned plan, rolling supervisor and independent
-journal/recovery verifier; source/plist/host/credential/clock preflight; forced detach-at-write and
-crash/restart qualification for that exact implementation; and a provider-free LaunchAgent rehearsal
-on disposable APFS plus bounded Kingston capacity verification. A missing perfect billing meter,
-unknown decoders, market completeness, or pending economic qualification are not activation gates.
-Only the real request/rolling/storage caps, provider errors, clock/provenance ambiguity, volume
-identity, recovery integrity, and available storage floor stop dispatch. Kingston's finite physical
-capacity means retention/offload or added qualified capacity must be ready before the 50-GiB floor
-is reached; raw captures are immutable and must not be silently deleted.
+The service also pins a lifetime allocation cap on first activation:
+`min(150,000,000,000 bytes, activation free space − 50 GiB floor − 8 GiB operating reserve −
+4 GB next-epoch allowance − 322,000,000-byte peak/metadata margin)`. With the current Kingston
+headroom this is 150 GB. The cap never resets when the 30-day accounting window rolls. A
+descriptor-relative inventory counts all service-root files and directories using
+`max(size, allocated blocks) + 16 KiB` per object, rejects unsafe or unexplained entries, and is
+recomputed before each request. Every closed epoch terminal receipt binds an independently replayed
+allocation manifest. Each fresh epoch must fit its full 4-GB allowance in both the lifetime budget
+and current free-space envelope. The live volume guard preserves the 50-GiB floor, 8-GiB operating
+reserve, request reservation, and peak/metadata margin. Reaching the lifetime cap writes a durable
+pause that does not auto-resume; capacity expansion or evidence-preserving offload requires a new
+qualified bound. No raw capture deletion or automatic calendar expiry is permitted.
+
+This policy does not authorize c4/external-v2 replay or successor linkage. The separate v4 runtime,
+independent capture/frame/epoch verifier, immutable allocation-cap receipt, LaunchAgent, and forced
+detach/recovery tests are implemented. Activation still requires a pinned clean commit, exact
+source/plist/host/credential/clock preflight, and live forward-only validation on Kingston. Once
+loaded, the hourly service has no calendar lease expiry; only real request/rolling/lifetime/storage
+caps, provider errors, clock/provenance ambiguity, volume identity, recovery integrity, and the
+available storage floor pause dispatch. Missing billing telemetry, unknown decoders, market
+completeness, and pending economic qualification do not block bounded prospective collection.
