@@ -31,10 +31,12 @@ from brain_senses_gecko_lane_runtime_v3 import (  # noqa: E402
     ACTIVATION_SCHEMA,
     PILOT_AUTH_SCHEMA,
     PILOT_RECEIPT_SCHEMA,
+    SOURCE_BINDING_KEY,
     DescriptorLaneStore,
     GeckoRuntimeError,
     _compile_pinned_live_policy,
     _public_fetch_once,
+    _source_bindings_for_store,
     _verify_scheduled_release,
     _within_lane_budget,
     compile_live_plan,
@@ -52,10 +54,16 @@ from brain_senses_gecko_lane_runtime_v3 import (  # noqa: E402
 )
 
 from tools import brain_senses_external_clock_v1 as clock  # noqa: E402
+from tools import brain_senses_gecko_lane_live_sources_v2 as live_sources  # noqa: E402
 from tools.brain_senses_gecko_lane_engine_v3 import (  # noqa: E402  # noqa: E402
     FetchResult,
     request_for_bucket,
 )
+from tools.brain_senses_gecko_lane_live_sources_v2 import SELECTION_DESTINATION  # noqa: E402
+
+
+def _source_map() -> dict[str, str]:
+    return {**source_bindings(), SOURCE_BINDING_KEY: "f" * 64}
 
 
 def policy() -> dict[str, Any]:
@@ -105,7 +113,7 @@ def setup_store() -> tuple[
             return None
 
     guard = Guard()
-    source_map = source_bindings()
+    source_map = _source_map()
     plan = compile_live_plan(
         policy(), root_id=guard.root_id, volume_uuid=guard.volume_uuid, source_map=source_map
     )
@@ -249,7 +257,7 @@ def test_live_plan_and_activation_are_exactly_bound_and_non_authorizing_by_defau
         policy(),
         root_id="a" * 32,
         volume_uuid="11111111-2222-3333-4444-555555555555",
-        source_map=source_bindings(),
+        source_map=_source_map(),
     )
     assert plan["activation_authorized"] is False and plan["provider_io"] is False
     verify_live_plan(plan)
@@ -307,7 +315,7 @@ def test_live_plan_derives_three_per_minute_and_twenty_second_result_spacing():
         policy(),
         root_id="a" * 32,
         volume_uuid="11111111-2222-3333-4444-555555555555",
-        source_map=source_bindings(),
+        source_map=_source_map(),
     )
     assert plan["dispatch"]["hard_requests_per_rolling_minute"] == 3
     assert plan["dispatch"]["global_research_cap_per_rolling_minute"] == 5
@@ -883,6 +891,7 @@ def test_main_exposes_fixed_non_network_pilot_modes(monkeypatch, capsys):
             "seal-pilot": "pilot_receipt_sealed",
             "pilot-once": "bucket_processed",
             "scheduled-tick": "outside_dispatch_window",
+            "import-source-pins": "source_pins_imported",
         }[mode]
         return {"status": status, "provider_io": False}
 
@@ -891,8 +900,15 @@ def test_main_exposes_fixed_non_network_pilot_modes(monkeypatch, capsys):
     assert runtime.main(["--seal-pilot"]) == 0
     assert runtime.main(["--pilot-once"]) == 0
     assert runtime.main(["--scheduled-tick"]) == 0
-    assert seen == ["initialize-pilot", "seal-pilot", "pilot-once", "scheduled-tick"]
-    assert capsys.readouterr().out.count('"provider_io": false') == 4
+    assert runtime.main(["--import-source-pins"]) == 0
+    assert seen == [
+        "initialize-pilot",
+        "seal-pilot",
+        "pilot-once",
+        "scheduled-tick",
+        "import-source-pins",
+    ]
+    assert capsys.readouterr().out.count('"provider_io": false') == 5
 
 
 def test_live_policy_inputs_are_read_through_descriptor_root(monkeypatch):
@@ -903,14 +919,18 @@ def test_live_policy_inputs_are_read_through_descriptor_root(monkeypatch):
         source_paths = {
             "train_enrollment": "work/input/enrollment.jsonl",
             "train_role_manifest": "work/input/manifest.json",
-            "train_plan": "work/input/plan.json",
-            "population_selection": "work/input/selection.json",
         }
-        payloads = [b"enrollment", b"manifest", b"plan", b"selection"]
+        payloads = [b"enrollment", b"manifest"]
         writer.mkdir("work")
         writer.mkdir("work/input")
         for path, payload in zip(source_paths.values(), payloads, strict=True):
             writer.create(path, payload)
+        imported = live_sources.import_source_pins(
+            writer, root_id=guard.root_id, volume_uuid=guard.volume_uuid
+        )
+        pinned = live_sources.verify_source_binding(
+            writer, expected_root_id=guard.root_id, expected_volume_uuid=guard.volume_uuid
+        )
         seen = {}
         monkeypatch.setattr(runtime.offline, "SOURCE_PATHS", source_paths)
 
@@ -920,7 +940,34 @@ def test_live_policy_inputs_are_read_through_descriptor_root(monkeypatch):
 
         monkeypatch.setattr(runtime.offline, "compile_pinned_policy", compile_inputs)
         assert _compile_pinned_live_policy(writer, guard) == {"compiled": True}
-        assert list(seen.values()) == payloads
+        assert list(seen.values()) == [*payloads, pinned.plan_bytes, pinned.selection_bytes]
+        assert imported["importer_sha256"] == sha256(
+            (
+                Path(__file__).resolve().parents[1]
+                / "tools/brain_senses_gecko_lane_live_sources_v2.py"
+            ).read_bytes()
+        )
+    finally:
+        writer.close()
+        temp.cleanup()
+
+
+def test_runtime_source_map_rechecks_manifest_and_imported_files():
+    temp, writer, guard, _store, _plan = setup_store()
+    try:
+        live_sources.import_source_pins(
+            writer, root_id=guard.root_id, volume_uuid=guard.volume_uuid
+        )
+        source_map = _source_bindings_for_store(writer, guard)
+        assert (
+            source_map[SOURCE_BINDING_KEY]
+            == live_sources.verify_source_binding(
+                writer, expected_root_id=guard.root_id, expected_volume_uuid=guard.volume_uuid
+            ).manifest_sha256
+        )
+        writer.atomic_write(SELECTION_DESTINATION, b"changed", create_only=False)
+        with pytest.raises(live_sources.SourcePinError, match="imported_source_mismatch"):
+            _source_bindings_for_store(writer, guard)
     finally:
         writer.close()
         temp.cleanup()

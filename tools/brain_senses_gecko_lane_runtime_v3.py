@@ -31,6 +31,7 @@ from memecoin_research_storage import (  # noqa: E402
 from tools import brain_senses_capacity_coordinator_v2 as capacity  # noqa: E402
 from tools import brain_senses_external_clock_v1 as clock  # noqa: E402
 from tools import brain_senses_gecko_lane_engine_v3 as engine  # noqa: E402
+from tools import brain_senses_gecko_lane_live_sources_v2 as live_sources  # noqa: E402
 from tools import brain_senses_gecko_lane_policy_v3 as offline  # noqa: E402
 from tools.brain_senses_external_writer_v1 import (  # noqa: E402
     DescriptorWriter,
@@ -42,6 +43,7 @@ CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
 SERVICE_ROOT = "services/gecko-market-v1"
 V3_ROOT = f"{SERVICE_ROOT}/v3"
 SERVICE_LOCK = ".gecko-market-v1.lock"
+SOURCE_BINDING_KEY = live_sources.MANIFEST_PATH
 LIVE_PLAN_SCHEMA = "brain-senses-gecko-live-v3-plan"
 ACTIVATION_SCHEMA = "brain-senses-gecko-live-v3-activation"
 PILOT_AUTH_SCHEMA = "brain-senses-gecko-live-v3-pilot-authorization"
@@ -68,6 +70,7 @@ def source_bindings() -> dict[str, str]:
     names = (
         "tools/brain_senses_gecko_lane_runtime_v3.py",
         "tools/brain_senses_gecko_lane_engine_v3.py",
+        "tools/brain_senses_gecko_lane_live_sources_v2.py",
         "tools/brain_senses_gecko_lane_policy_v3.py",
         "tools/brain_senses_gecko_lane_verify_v3.py",
         "tools/brain_senses_capacity_coordinator_v2.py",
@@ -77,6 +80,28 @@ def source_bindings() -> dict[str, str]:
         "ops/launchd/ai.memecoin.brain.senses.gecko-lane-v3.plist",
     )
     return {name: sha256((REPO / name).read_bytes()) for name in names}
+
+
+def _source_bindings_for_store(writer: DescriptorWriter, guard: Any) -> dict[str, str]:
+    guard.revalidate()
+    pinned = live_sources.verify_source_binding(
+        writer,
+        expected_root_id=guard.root_id,
+        expected_volume_uuid=guard.volume_uuid,
+    )
+    guard.revalidate()
+    return {**source_bindings(), SOURCE_BINDING_KEY: pinned.manifest_sha256}
+
+
+def _verify_source_map_shape(sources: Mapping[str, Any]) -> None:
+    expected_code = source_bindings()
+    if (
+        not isinstance(sources, Mapping)
+        or set(sources) != {*expected_code, SOURCE_BINDING_KEY}
+        or any(sources.get(name) != digest for name, digest in expected_code.items())
+        or not _is_sha(sources.get(SOURCE_BINDING_KEY))
+    ):
+        raise GeckoRuntimeError("live_source_map")
 
 
 def compile_live_plan(
@@ -180,12 +205,7 @@ def verify_live_plan(plan: Mapping[str, Any]) -> None:
     if plan["dispatch"] != expected_dispatch:
         raise GeckoRuntimeError("live_dispatch_policy")
     sources = plan["source_sha256"]
-    if (
-        not isinstance(sources, Mapping)
-        or not sources
-        or any(not _is_sha(v) for v in sources.values())
-    ):
-        raise GeckoRuntimeError("live_source_map")
+    _verify_source_map_shape(sources)
 
 
 def verify_activation(plan: Mapping[str, Any], activation: Mapping[str, Any]) -> None:
@@ -214,10 +234,10 @@ def verify_activation(plan: Mapping[str, Any], activation: Mapping[str, Any]) ->
         or activation["activation_authorized"] is not True
         or activation["provider_io"] is not True
         or activation["qualification_status"] != "passed"
-        or activation["source_sha256"] != source_bindings()
-        or plan["source_sha256"] != source_bindings()
+        or activation["source_sha256"] != plan["source_sha256"]
     ):
         raise GeckoRuntimeError("activation_binding")
+    _verify_source_map_shape(plan["source_sha256"])
 
 
 def verify_pilot_authorization(
@@ -1775,8 +1795,7 @@ def _verify_scheduled_release(
         or release["status"] != "passed"
     ):
         raise GeckoRuntimeError("scheduled_release_binding")
-    if plan["source_sha256"] != source_bindings():
-        raise GeckoRuntimeError("scheduled_source_binding_changed")
+    _verify_source_map_shape(plan["source_sha256"])
     qualification, prefix = verify_pilot_bucket(
         store, plan, pilot_receipt["bucket_close_ns"], require_clock=True
     )
@@ -1792,7 +1811,8 @@ def _verify_scheduled_release(
 
 def _compile_pinned_live_policy(writer: DescriptorWriter, guard: Any) -> dict[str, Any]:
     payloads = []
-    for source in offline.SOURCE_PATHS.values():
+    for source_name in ("train_enrollment", "train_role_manifest"):
+        source = offline.SOURCE_PATHS[source_name]
         prefix = "/Volumes/Kingston/BrainData/"
         if source.startswith(prefix):
             relative = source[len(prefix) :]
@@ -1803,11 +1823,17 @@ def _compile_pinned_live_policy(writer: DescriptorWriter, guard: Any) -> dict[st
         guard.revalidate()
         payloads.append(writer.read_bytes(relative, max_bytes=32 * 1024 * 1024))
         guard.revalidate()
+    pinned = live_sources.verify_source_binding(
+        writer,
+        expected_root_id=guard.root_id,
+        expected_volume_uuid=guard.volume_uuid,
+    )
+    guard.revalidate()
     return offline.compile_pinned_policy(
         enrollment_bytes=payloads[0],
         role_manifest_bytes=payloads[1],
-        plan_bytes=payloads[2],
-        selection_bytes=payloads[3],
+        plan_bytes=pinned.plan_bytes,
+        selection_bytes=pinned.selection_bytes,
     )
 
 
@@ -1820,6 +1846,7 @@ def run_host_mode(mode: str, *, now_ns: Callable[[], int] = time.time_ns) -> dic
         "pilot-once",
         "seal-pilot",
         "scheduled-tick",
+        "import-source-pins",
     }:
         raise GeckoRuntimeError("host_mode_invalid")
     with writer_guard(CONFIG_PATH) as guard:
@@ -1835,13 +1862,26 @@ def run_host_mode(mode: str, *, now_ns: Callable[[], int] = time.time_ns) -> dic
         try:
             store = DescriptorLaneStore(writer, guard=guard)
             bucket_close: int | None = None
+            if mode == "import-source-pins":
+                guard.revalidate()
+                manifest = live_sources.import_source_pins(
+                    writer,
+                    root_id=guard.root_id,
+                    volume_uuid=guard.volume_uuid,
+                )
+                guard.revalidate()
+                return {
+                    "status": "source_pins_imported",
+                    "provider_io": False,
+                    "manifest_sha256": sha256(canonical_json(manifest)),
+                }
             if mode == "initialize-pilot":
                 policy = _compile_pinned_live_policy(writer, guard)
                 plan = compile_live_plan(
                     policy,
                     root_id=guard.root_id,
                     volume_uuid=guard.volume_uuid,
-                    source_map=source_bindings(),
+                    source_map=_source_bindings_for_store(writer, guard),
                 )
                 current = now_ns()
                 bucket_close = ((current // (900 * offline.NS)) + 1) * 900 * offline.NS
@@ -1866,7 +1906,7 @@ def run_host_mode(mode: str, *, now_ns: Callable[[], int] = time.time_ns) -> dic
             plan = store.read_json("plan.json")
             verify_live_plan(plan)
             store._verify_guard(plan)
-            if plan["source_sha256"] != source_bindings():
+            if plan["source_sha256"] != _source_bindings_for_store(writer, guard):
                 raise GeckoRuntimeError("source_binding_changed")
             if mode == "status":
                 return verify_live_store(store, plan, require_clock=True)
@@ -2047,6 +2087,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     modes.add_argument("--pilot-once", action="store_true")
     modes.add_argument("--seal-pilot", action="store_true")
     modes.add_argument("--scheduled-tick", action="store_true")
+    modes.add_argument("--import-source-pins", action="store_true")
     args = parser.parse_args(argv)
     mode = (
         "status"
@@ -2059,6 +2100,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.pilot_once
         else "seal-pilot"
         if args.seal_pilot
+        else "import-source-pins"
+        if args.import_source_pins
         else "scheduled-tick"
     )
     try:
@@ -2090,7 +2133,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             else 2
         )
     return (
-        0 if successful and mode in {"status", "preflight", "initialize-pilot", "seal-pilot"} else 2
+        0
+        if successful
+        and mode in {"status", "preflight", "initialize-pilot", "seal-pilot", "import-source-pins"}
+        else 2
     )
 
 
