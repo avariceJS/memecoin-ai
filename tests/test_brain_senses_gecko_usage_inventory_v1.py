@@ -14,6 +14,7 @@ if str(REPO / "tools") not in sys.path:
 
 from tools import brain_senses_capacity_coordinator_v2 as capacity  # noqa: E402
 from tools import brain_senses_gecko_rotating_scout_v1 as scout  # noqa: E402
+from tools import brain_senses_gecko_v4_usage_reconciliation_v1 as reconcile_v4  # noqa: E402
 from tools.brain_senses_external_writer_v1 import DescriptorWriter  # noqa: E402
 from tools.brain_senses_gecko_scout_chain_v1 import DescriptorScoutJournal  # noqa: E402
 from tools.brain_senses_gecko_shared_usage_v1 import assess_usage  # noqa: E402
@@ -197,6 +198,23 @@ def test_v2_inventory_accounts_atomic_temp_debris_without_promoting_it(
     writer.create(f"{root}/results/unrecognized.tmp", b"unrecognized")
     with pytest.raises(InventoryError, match="gecko_v2_journal_file_unexpected"):
         build_usage_inventory(writer)
+
+
+def test_narrow_v4_usage_reconciliation_receipt_is_source_and_anomaly_pinned() -> None:
+    receipt = reconcile_v4.load_reconciliation_receipt()
+    assert receipt["source_commit"] == reconcile_v4.SOURCE_COMMIT
+    assert receipt["root"] == reconcile_v4.ROOT
+    assert receipt["orphan_clock"]["relative_path"] == reconcile_v4.ORPHAN_RELATIVE_PATH
+    assert receipt["orphan_clock"]["sha256"] == reconcile_v4.ORPHAN_SHA256
+    assert receipt["replay"] == {
+        "status": "verified_prefix",
+        "intents": 18,
+        "dispatches": 18,
+        "terminal_results": 18,
+        "confirmations": 18,
+        "raw_bytes": 13_675,
+        "unresolved_spent": 0,
+    }
 
 
 def test_complete_inventory_hash_cannot_change_between_root_replays(

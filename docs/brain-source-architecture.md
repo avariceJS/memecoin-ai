@@ -3736,18 +3736,21 @@ fails closed on malformed or changing evidence. This replay grants no dispatch a
 not qualify source semantics. Three old capture-only roots with stale source bindings are accepted
 only through a narrow inert-plan check: no activation or attempt artifacts, false authority, and
 valid pinned policy/plan hashes. Clock-bound v3 forensic replays count only their verified requests
-toward usage; diagnostic-only status does not qualify source semantics. The loaded capture-only v4
-LaunchAgent is currently stop-latched after integrity replay found an unreferenced clock artifact
-for a forward bucket where all dispatch windows had already been missed. The root is preserved and
-not repaired in place; the v2 writer stores clocks only inside the request artifact they support, so
-a bucket that produces only skips leaves no clock artifact.
+toward usage; diagnostic-only status does not qualify source semantics. The capture-only v4
+LaunchAgent that produced the old root remains unloaded after integrity replay found an unreferenced
+clock artifact for a forward bucket where all dispatch windows had already been missed. The root is
+preserved and not repaired in place; the v2 writer stores clocks only inside the request artifact
+they support, so a bucket that produces only skips leaves no clock artifact.
 
 The immutable [`22:00Z shared-usage observation`](evidence/gecko-shared-usage-observation-2026-10-12T2200Z.json)
-records the 22:01:03Z read-only snapshot: 24 same-provider attempts across v3 active, three v3
-pilots, one v4 pilot, and four capture-only v1 roots; direct v4 and v5 and capture-only v2 were
-verified absent. All attempts had terminal response evidence, totaling 18,869 raw-response bytes.
-A synthetic one-request/16-KiB prospective reserve would use 25/576 daily requests and 35,253 of
-10 MiB; the rolling-30-day assessment also remained within caps. This was diagnostic only: no lane
+records the earlier 22:01:03Z read-only snapshot. The subsequent [`v4 usage reconciliation`](evidence/gecko-v4-usage-reconciliation-2026-10-12.json)
+is limited to one exact orphan clock: it binds the immutable legacy root prefix, storage identity,
+source closure at commit `8e54478727c21572ceb654b689a31e97e11463c3`, clock bytes, and four durable
+missed-dispatch skips, then independently replays all 18 intents, dispatches, terminal results and
+confirmations (13,675 raw bytes; zero unresolved). The old root was not changed. The current
+[`23:09Z shared-usage observation`](evidence/gecko-shared-usage-reconciliation-observation-2026-10-12T2309Z.json)
+verified 11 known roots and 28 same-provider attempts (21,400 raw-response bytes). A synthetic
+16-KiB prospective reserve remains inside daily and rolling caps. This is diagnostic only: no lane
 dispatch lock was held, no provider I/O occurred, and admission was not authorized. Provider charge
 remains unknown/unverified. The v2 usage verifier, descriptor-bound inventory adapter, and
 separately versioned descriptor writer are implemented and synthetic-tested. The writer acquires
@@ -3757,10 +3760,9 @@ writes; both clocks live in the record they support. Forced detach during intent
 the replacement mount untouched. This is not yet a provider runtime or LaunchAgent qualification.
 The prior v4 LaunchAgent was loaded but stopped with exit 2 after the exact capture root failed replay
 on one unreferenced clock file for a bucket with four durable missed-dispatch skips and no intents or
-dispatches; it has been booted out. The root remains immutable. The current same-provider census
-therefore still fails closed. The next gate is a narrowly pinned usage-only reconciliation for that
-exact clock orphan, proving the whole v4 source closure and replaying every actual attempt before v2
-admission can proceed. Do not add a generic clock-closure bypass. A v2 host scheduler/runtime,
+dispatches; it has been booted out. The root remains immutable. The global same-provider census now
+succeeds through the exact one-case reconciliation above; no generic clock-closure bypass was added.
+A v2 host scheduler/runtime,
 crash/race/recovery qualification, release/source binding, and bounded forward-only provider pilot
 remain open. Before v2 provider I/O, v4 must remain unloaded because its pacing check does not
 account for v2 dispatches. Existing v4 budget logic still omits capture-only roots, so it is not

@@ -28,6 +28,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   24 same-provider attempts, 18,869 response bytes, and a synthetic 16-KiB request reserve within
   the configured daily/rolling caps. No lane lock or dispatch authority was held, no provider I/O
   occurred, and actual provider charge remains unknown/unverified.
+- [`Gecko v4 usage reconciliation`](gecko-v4-usage-reconciliation-2026-10-12.json): one exact,
+  immutable orphan-clock case tied to its old source closure, root prefix, storage identity, and
+  four missed-dispatch skips; all 18 actual requests replay with terminal results and confirmations.
+- [`Gecko shared-usage reconciliation observation`](gecko-shared-usage-reconciliation-observation-2026-10-12T2309Z.json):
+  read-only replay of 11 roots / 28 attempts / 21,400 response bytes. A synthetic 16-KiB reserve fits
+  caps; no provider I/O or dispatch authority, and actual charge remains unknown/unverified.
 - Inactive launch-v3 failure-receipt APFS detach qualification:
   `brain-senses-launch-v3-failure-receipt-detach-qualification-v1-2026-10-12.json` (fresh
   descriptor-bound journal verifier plus forced detach before receipt `mkdir` and `create`; both

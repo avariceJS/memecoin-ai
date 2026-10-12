@@ -44,6 +44,9 @@ from tools import (
 from tools import (
     brain_senses_gecko_shared_usage_v1 as shared_usage,
 )
+from tools import (
+    brain_senses_gecko_v4_usage_reconciliation_v1 as reconcile_v4,
+)
 from tools.brain_senses_external_writer_v1 import DescriptorWriter
 from tools.brain_senses_gecko_rotating_scout_v1 import MAX_RESPONSE_BYTES
 
@@ -514,6 +517,15 @@ def _load_present_root(
                 skips=skips,
             )
         elif root.startswith(f"{SERVICE_ROOT}/capture-only-"):
+            if root == reconcile_v4.ROOT:
+                receipt = reconcile_v4.load_reconciliation_receipt()
+                snapshot, _replay = reconcile_v4.replay_usage_root(
+                    writer,
+                    root_inventory_sha256=root_inventory_sha256,
+                    receipt=receipt,
+                    storage=receipt["storage"],
+                )
+                return snapshot
             store = runtime_v4.DescriptorLaneStore(writer, guard=None, root=root)
             plan = store.read_json("plan.json")
             try:
