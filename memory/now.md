@@ -1,7 +1,7 @@
 # Current Project State
 
-**As of:** 2026-10-12 03:41Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`; HEAD and published active are `42452bc` before the current atomic changes. `main` remains
+**As of:** 2026-10-12 03:44Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`; HEAD and published active are `ec15335` before the current atomic changes. `main` remains
 `148ca165e1487a99c3ce6532dbc276c4922c31b6`. Worktree state is checked before handoff.
 Production, champion, protected evaluation and real trading remain untouched. No signing/submission;
 Cortex is out of scope.
@@ -23,12 +23,14 @@ Cortex is out of scope.
   activity occurred and the service tree was unchanged. Receipt:
   `docs/evidence/brain-senses-external-timing-rehearsal-2026-10-12T0340Z.json`.
 - Helius status/plan still have no JWT, so plan/usage/charge are unknown. Alchemy team aggregate is
-  18,680 CU / $0.01 through 03:24Z, no limit or workload attribution. Receipt:
-  `docs/evidence/senses-provider-account-readonly-2026-10-12T0324Z.json`.
+  18,680 CU / $0.01 through 03:42Z, no limit or workload attribution. Fresh dual-HTTPS clock pair
+  passed at 03:43Z. Receipt: `docs/evidence/senses-provider-account-readonly-2026-10-12T0342Z.json`.
 - Structural unknown queue changes are under independent review. Synthetic tests pass (22); the
   c4 source remains readiness-only because it lacks transaction partitions, reference membership,
   and post-fsync availability. Current prototype also needs truthful post-fsync queue availability,
   representative signature/capture references, and consistent denominator units before publication.
+- The 03:40Z timing rehearsal is disabled and unloaded after its successful single callback; the
+  external-v2 missed-bootstrap lease remains disabled/terminal. No new provider lease is active.
 - Agave fetch v2 remains terminal exit 101; partial cache preserved, do not reuse/clean/retry. No
   candidate-position raw decoder or economic qualification is established.
 

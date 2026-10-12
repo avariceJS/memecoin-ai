@@ -37,6 +37,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - Helius/Alchemy read-only account snapshot at 03:24Z:
   `senses-provider-account-readonly-2026-10-12T0324Z.json` (Helius plan/usage unavailable without
   JWT; Alchemy team aggregate 18,680 CU / $0.01, with no limit or workload attribution).
+- Helius/Alchemy read-only account snapshot at 03:42Z:
+  `senses-provider-account-readonly-2026-10-12T0342Z.json` (Helius plan, quota, usage and charges
+  remain unavailable without JWT; Alchemy team aggregate 18,680 CU / $0.01 with no limit or
+  workload attribution; includes a fresh validated dual-HTTPS clock pair).
 - Agave bounded dependency fetch attempt:
   `agave-dependency-fetch-attempt-2026-10-12.json` (stopped by the local symlink guard after Cargo
   created four internal links in the pinned Crossbeam checkout; the partial cache is preserved and

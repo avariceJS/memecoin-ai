@@ -190,6 +190,16 @@ usage unavailable. Alchemy's authenticated-team aggregate remained 18,680 CU / $
 Helius lease or attribute cost to this checkout. Receipt:
 [`provider account snapshot at 03:24Z`](evidence/senses-provider-account-readonly-2026-10-12T0324Z.json).
 
+At 03:42Z, the read-only Helius account status and plan still had no JWT session, so plan, quota,
+usage, balance and charges remain unknown. Alchemy's team aggregate was still 18,680 CU / $0.01
+through 03:42Z with no returned account limit or workload attribution. A fresh dual-HTTPS clock
+pair passed at 03:43Z; this evidence does not meter or attribute any prospective Helius request.
+Receipt: [`provider account snapshot at 03:42Z`](evidence/senses-provider-account-readonly-2026-10-12T0342Z.json).
+
+The Helius cost references were rechecked on 2026-10-12. Its current credit reference lists
+historical `getBlock` and `getBlocks` at 1 credit, while the pricing FAQ still says archival calls
+cost 10 credits ([credit reference](https://www.helius.dev/docs/billing/credits), [pricing FAQ](https://www.helius.dev/pricing)). Keep 10 credits per archival request for conservative offline sizing until the published conflict is resolved. The public Free plan lists 1M credits/month and 10 standard RPC requests/s; these public values do not establish this key's plan or available headroom.
+
 The separately reviewed prospective Helius v2 plan for 02:30–03:33Z was initialized offline on the
 bound Kingston root under host, storage, and predecessor locks. Launchd ran it once, but startup
 completed after the bootstrap dispatch margin; the runner sealed terminal `missed_bootstrap` with
