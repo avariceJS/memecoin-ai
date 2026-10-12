@@ -282,6 +282,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   boundary identity, phase snapshot, and frame instruction-binding defects. It does not qualify
   production integration, historical replay, Bank persistence/finality, real-source completeness,
   or economic admission. Exact patch/captures and logs remain in ignored `work/`.
+- `agave-commit-to-root-synthetic-join-v1-2026-10-12.json`: hash-binds the source-map-pinned
+  synthetic fixture, verifier, and 19 focused tests. It checks unique attempt-to-commit-to-entry-to-
+  frozen-bank-to-selected-root joins, separate batch-local and absolute positions, explicit
+  failed/FeesOnly effects, and bounded availability receipt coverage. Permutation invariance passes;
+  fork and identity ambiguities reject. Every source/runtime/economic/PIT qualification remains
+  false; this is not runtime or source admission.
 - `brain-senses-build-storage-guard-apfs-qualification-2026-10-12.json`: source-hash-bound review
   and disposable case-sensitive APFS detach tests for the Cargo/Git storage supervisor. Five
   post-detach path attempts fail closed with `ENOENT`, the underlay stays absent, remount UUID

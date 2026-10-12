@@ -3028,8 +3028,14 @@ FeesOnly carries rollback-account handling without the observer trace. The hash-
 checks 12 files and 38 unique anchors in the fresh checkout; it performs no Cargo operation. This is
 source feasibility only, not a persistence/finality or economic witness. Receipt:
 [`Agave persistence/finality source map`](evidence/agave-v3-transaction-persistence-finality-source-map-2026-10-12.json).
-The next review after the raw-account runtime horizon must decide a synthetic commit-to-root
-instrumentation seam; ambiguous fork or time joins stay unknown.
+The separately versioned synthetic commit-to-root verifier now checks unique attempt/commit,
+batch-local and absolute block positions, frozen-bank lineage, selected-root ancestry, per-subject
+bounded availability receipts, and typed failed/FeesOnly rollback dispositions. Permuting input
+rows leaves its verdict unchanged; duplicate or fork-mismatched joins fail closed. The fixture is
+synthetic consistency only: source/runtime, candidate-position, settlement, buyExact25 and PIT
+qualification remain false. Its reproducible inputs, verdict and source pins are recorded in the
+[`synthetic commit-to-root join receipt`](evidence/agave-commit-to-root-synthetic-join-v1-2026-10-12.json).
+Real persistence/finality instrumentation and any build remain a separate Sol-reviewed horizon.
 
 The Agave source-closure review then allowed exactly one locked fetch in a fresh Kingston stage after
 the fixed Senses lease expired. The wrapper stopped with `cargo_fetch_created_build_output` after
