@@ -1,8 +1,8 @@
 # Current Project State
 
-**As of:** 2026-10-12 09:14Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`; `fa518bb0fe5a873d1d38670296e2c4e70adf17aa` is pushed to both `research/active`
-and `main`. Current projection implementation and canonical documentation changes are uncommitted.
+**As of:** 2026-10-12 09:16Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`; `1ee7c8e54df105d6395cb647400e9dde65f71427` is clean and pushed to both
+`research/active` and `main`.
 Production, champion, protected evaluation, trading and Cortex remain untouched.
 
 ## Live boundaries
@@ -68,6 +68,11 @@ Production, champion, protected evaluation, trading and Cortex remain untouched.
   extrapolation, absence, economic/lifecycle, PIT, training or admission claim. No provider I/O.
   Artifact SHA-256 `b348ef424d26a3baa3b296ade34c136d7cac8ed428c803d3b3c2a3edc5c01a72`; publication
   receipt SHA-256 `ca8eacdd774efa298b3c98edd3cb67722c3e3eaa11862c7113060ca4c25be670`.
+  Focused projection/storage/writer/capacity tests pass (82); changed-file Ruff/format, smoke, and
+  Kingston root verification pass. Full-suite collection needs `PYTHONPATH=.:src`; the broad run
+  had 2,926 passed, 24 failures and 25 optional skips. It preceded the final projection fixes (now
+  covered by focused tests); remaining failures are outside this scope and need separate triage.
+  `make check` stops first on existing Ruff findings outside this scope.
 - The capacity qualification is synthetic only; the archive projection is a source-pinned view of
   the existing sealed selected-block observations. Neither qualifies runtime law, candidate-position
   admission, settlement, buyExact25 or PIT. No production/runtime change or build was made.
