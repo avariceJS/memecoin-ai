@@ -74,6 +74,16 @@ def test_present_v5_root_fails_closed_until_its_independent_usage_verifier_exist
         build_usage_inventory(writer)
 
 
+def test_present_v5_scout_chain_root_fails_closed_until_usage_replay_exists(
+    writer: DescriptorWriter,
+) -> None:
+    scout_root = f"{SERVICE_ROOT}/capture-only-v2/{'a' * 32}"
+    writer.mkdir(scout_root)
+    writer.create(f"{scout_root}/.runner.lock", b"scout-runner-lock\n")
+    with pytest.raises(InventoryError, match="gecko_v5_usage_verifier_unavailable"):
+        build_usage_inventory(writer)
+
+
 def test_complete_inventory_hash_cannot_change_between_root_replays(
     writer: DescriptorWriter, monkeypatch: pytest.MonkeyPatch
 ) -> None:

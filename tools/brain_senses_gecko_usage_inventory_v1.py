@@ -310,8 +310,8 @@ def _load_present_root(
     root: str,
     root_inventory_sha256: str,
 ) -> dict[str, Any]:
-    if root == f"{SERVICE_ROOT}/v5":
-        # V5 uses a distinct scout-chain journal contract. Never parse it as v4 usage.
+    if root == f"{SERVICE_ROOT}/v5" or root.startswith(f"{SERVICE_ROOT}/capture-only-v2/"):
+        # The v5 scout-chain journal is not the v4 capture-only plan contract.
         raise InventoryError("gecko_v5_usage_verifier_unavailable")
     lock_fd = _shared_root_lock(writer, root)
     try:
