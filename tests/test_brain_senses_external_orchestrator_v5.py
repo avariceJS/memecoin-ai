@@ -468,6 +468,19 @@ def test_v5_removes_private_lifetime_cap_and_uses_shared_coordinator() -> None:
     assert runtime.COORDINATOR_LOCK_PATHS["helius"] == ".external-rolling-v4.lock"
 
 
+def test_required_coordinator_inventory_checks_files_and_directories(tmp_path: Path) -> None:
+    writer = _writer(tmp_path)
+    try:
+        writer.mkdir("services")
+        writer.mkdir("services/example")
+        writer.create(".coordinator-lock", b"")
+        assert runtime._entry_exists(writer, "services/example") is True
+        assert runtime._entry_exists(writer, ".coordinator-lock") is True
+        assert runtime._entry_exists(writer, "services/missing") is False
+    finally:
+        writer.close()
+
+
 def test_service_allocation_census_rejects_unexpected_files(tmp_path: Path) -> None:
     writer = _writer(tmp_path)
     try:

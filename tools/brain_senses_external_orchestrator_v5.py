@@ -154,7 +154,7 @@ def _capacity_coordinator(
         *COORDINATOR_SERVICE_ROOTS.values(),
         *[path for paths in COORDINATOR_ALLOCATION_ROOTS.values() for path in paths],
     )
-    if any(not writer.exists(path) for path in required_paths):
+    if any(not _entry_exists(writer, path) for path in required_paths):
         raise CoordinatorGateStop("coordinator_not_initialized")
     try:
         if writer.read_bytes(capacity.POLICY_PATH, max_bytes=1_000_000) != coordinator.policy_bytes:
@@ -162,6 +162,15 @@ def _capacity_coordinator(
     except OSError as exc:
         raise CoordinatorGateStop("coordinator_ledger_invalid") from exc
     return coordinator
+
+
+def _entry_exists(writer: DescriptorWriter, relative: str) -> bool:
+    """Check a descriptor-bound file or directory without weakening its type checks."""
+    try:
+        writer.stat(relative)
+    except FileNotFoundError:
+        return False
+    return True
 
 
 def _recover_helius_lane(coordinator: capacity.CapacityCoordinator) -> dict[str, int]:
