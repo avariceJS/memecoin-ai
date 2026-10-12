@@ -3559,11 +3559,19 @@ qualified bound. No raw capture deletion or automatic calendar expiry is permitt
 This policy does not authorize c4/external-v2 replay or successor linkage. The separate v4 runtime,
 independent capture/frame/epoch verifier, immutable allocation-cap receipt, LaunchAgent, and forced
 detach/recovery tests are implemented. Activation still requires a pinned clean commit, exact
-source/plist/host/credential/clock preflight, and live forward-only validation on Kingston. Once
-loaded, the hourly service has no calendar lease expiry; only real request/rolling/lifetime/storage
+source/plist/host/credential/clock preflight, and live forward-only validation on Kingston. Code is
+now pinned; the remaining live gate is the first anchor/frame and independent replay. Once loaded,
+the hourly service has no calendar lease expiry; only real request/rolling/lifetime/storage
 caps, provider errors, clock/provenance ambiguity, volume identity, recovery integrity, and the
 available storage floor pause dispatch. Missing billing telemetry, unknown decoders, market
 completeness, and pending economic qualification do not block bounded prospective collection.
 If a code update invalidates a plan before its first durable request intent, that future-only plan is
 terminally abandoned under the old source pin and the ordinary recovery cooldown; the request is
 never replayed. A source change after any request intent remains fail-closed.
+
+At 12:01Z the v4 LaunchAgent is loaded and its latest Kingston monitor receipt reports `cooldown`.
+The first future-only plan was abandoned before any request intent after a source-hash change during
+qualification; its terminal allocation manifest verifies, with zero provider requests or captures.
+Its one-hour cooldown makes 13:00Z the next fresh anchor. The expired 12:00Z window remains
+unobserved, with no backfill. The activation cap is 150,000,000,000 bytes; Kingston reported
+219,384,057,856 bytes free. Live anchor/frame receipts and independent replay remain outstanding.

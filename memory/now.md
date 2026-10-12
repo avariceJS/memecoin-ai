@@ -1,53 +1,43 @@
 # Current Project State
 
-**As of:** 2026-10-12 10:34Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, last pushed HEAD `8b39d0657a689bcf0ccce971e426d74518d256a8`. Current
-worktree adds v4 schema/control/epoch verification and policy corrections; not yet committed.
-Production, champion, protected evaluation, trading, and Cortex remain untouched.
+**As of:** 2026-10-12 12:01Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, clean pushed HEAD `a73f3ec008c8faeb643a4900eeaa49bb032fa9ec`. `main` remains
+at `3dab3a36cccaa5913fdfa697b054a17181de3dd0`; do not advance it until the live collection
+capability is verified. Production, champion, protected evaluation, trading, and Cortex are untouched.
 
-## Live runtime and storage
+## Prospective acquisition
 
-- No prospective Senses market collector is loaded. The storage-health monitor is loaded and
-  reports Kingston ready. Other Senses collectors are retired/disabled.
-- c4 and `external-v2-20261012T0600Z` are terminal. Do not replay or backfill; its nine missed
-  windows remain unobserved. The old service is not eligible as a successor.
-- Kingston `/Volumes/Kingston/BrainData` identity matches configured root ID
-  `9428695af6d4f46c08e1a444cdc66de8` and UUID
-  `8f8f1081-9be4-4914-9111-75f1b90255bf`; latest `df` had 214,242,320 KiB free (about 214 GiB),
-  or 41.4 days above the 50-GiB floor at the 4-GB/day physical cap. This is a maximum-rate runway
-  scenario, not a lease. Never fall back to internal storage.
-- Read-only Alchemy usage through 10:15Z remains 18,680 CU / $0.01 for MTD, 7d, and 30d; Helius
-  confirms a configured key but its usage meter is unavailable without a JWT. Meter uncertainty is
-  not an acquisition blocker. Helius public Free limits currently list 1M credits and 10 RPS; use
-  conservative local caps and preserve actual charge as unknown/unverified.
-- One diagnostic Helius finalized `getSlot` at 10:20Z succeeded (slot 456,011,716; 43-byte
-  response). It was not saved as market data; this confirms endpoint/key/network readiness only.
+- The separate `ai.memecoin.brain.senses.external-rolling-v4` LaunchAgent is loaded with a 60-second
+  schedule and no calendar expiry. Kingston `/Volumes/Kingston/BrainData` matches root ID
+  `9428695af6d4f46c08e1a444cdc66de8`, UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`, and has about
+  219.38 GB free; the 50-GiB floor and 8-GiB operating reserve remain enforced.
+- First activation pinned a 150-GB cumulative service allocation cap, with 4-GB whole-epoch and
+  rolling 30-day request/credit/response/allocation caps. The descriptor-relative census counts all
+  service-root files/directories, rejects unexplained entries, and terminal receipts bind epoch
+  allocation manifests. Raw captures are not deleted; lifetime-cap pause does not auto-resume.
+- The initial future-only plan was superseded because its source hash changed before its first
+  request intent. It is terminal `abandoned`, manifest-verified, and has no provider requests or
+  captures. The one-hour recovery cooldown moves the next fresh anchor to 13:00Z; the 12:00Z window
+  remains unobserved and is not replayed. One clock probe timed out; subsequent probes passed.
+- Latest Kingston monitor reports `cooldown`, sequence 7, about 229 KiB service allocation, and
+  about 219.38 GB volume free. LaunchAgent loaded and last scheduled exit was 0. Next checks: fresh
+  13:00Z anchor capture/restart replay, then the next hourly inventory/sample frame and independent
+  raw-capture replay. Actual provider charge remains unknown/unverified.
 
-## Acquisition horizon
+## Senses state and next horizon
 
-Sol selected a new independent forward-only Helius service: one fresh finalized anchor, then 24
-hourly inventory-first frames per epoch; caps are 817 requests, 4 GB response bytes, and 4 GB
-physical allocation per epoch; rolling 30-day caps are 25,000 requests, 250,000 modeled credits,
-120 GB response bytes, and 120 GB physical allocation. Thirty days is not a service expiry. Misses
-stay gaps; ambiguous requests are never replayed. Policy math passes six focused property tests.
-Sol ruled that a new v4 plan/orchestrator/verifier/launcher is required; do not reuse the v2 engine
-or synthetic v3 launcher. Offline policy, canonical plan, hash-chain, control transitions and
-epoch no-replay projections now pass 26 focused/property tests plus Ruff, scoped Mypy and smoke. No
-live runner or market dispatch exists yet. Remaining gates: capture/file-closure verifier, actual
-descriptor-bound orchestrator and physical-allocation ledger, crash/duplicate-poll/cap/provider-error
-tests, disposable and Kingston no-provider LaunchAgent rehearsal, then one future live anchor/frame
-with independent replay. Read policy in `docs/brain-source-architecture.md`.
+Sol approved Helius-only hourly finalized anchor/inventory/sample collection: max 34 calls/frame,
+16 deterministic hash-ranked inventory members, 817 calls/4 GB per epoch, 25,000 requests/250,000
+modeled credits/120 GB rolling physical allocation per 30 days, and no backfill or ambiguous retry.
+New v4 code, forced-detach and crash recovery tests pass. Scoped Ruff/Mypy, 53 focused/property/
+recovery tests, and `make smoke` pass. `make check` still reports 107 existing Ruff findings in
+unmodified files.
 
-## Other active Senses evidence
+Economic qualification remains open: candidate-position/runtime witness, native settlement, and
+`buyExact25` semantics are not qualified. The terminal Agave fetch attempt, dirty Cargo home/target,
+and their gates are preserved; no retry/build/ProgramTest until a new Sol decision. Sol is deciding
+the next useful bounded horizon. Keep c4 and `external-v2-20261012T0600Z` terminal; no replay,
+backfill, protected data, or Cortex.
 
-- Positive-reference readiness v1 and the sample-local unknown queue are independently replayed,
-  create-only Kingston artifacts. They cover only the sealed external-v2 sample; unobserved windows
-  remain null and no completeness, population, PIT, training, economic, or admission claim follows.
-- Candidate-position/runtime semantics remain synthetic or source-feasibility only: no unique
-  Bank-to-root transaction witness, native settlement, or `buyExact25` qualification. Preserve
-  existing registry/module hashes pending a reviewed semantic contract.
-- The authorized Agave Cargo fetch ended terminally after creating target metadata. Preserve its
-  staged Cargo home/target; no retry, metadata, build, or ProgramTest without a separate Sol review.
-
-Use `docs/INDEX.md` and canonical owner documents for durable scope. Keep this file short; raw
-receipts remain immutable under `docs/evidence/` and research artifacts under Kingston.
+Use canonical owner docs and only task-specific receipts. Keep this file short; raw evidence stays
+immutable under Kingston and `docs/evidence/`.
