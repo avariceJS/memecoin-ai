@@ -180,6 +180,7 @@ def test_launchd_gate_rejects_manual_or_non_launchd_process(
 
 def test_terminal_status_must_match_stop_frontier_lineage_and_zero_io() -> None:
     terminal = json.loads(rehearsal.TERMINAL_RECEIPT.read_bytes())
+    stop_event = {"kind": "stop", "payload": {"stop": terminal["stop"]}}
     valid = {
         "status": "stopped",
         "stop": True,
@@ -190,7 +191,7 @@ def test_terminal_status_must_match_stop_frontier_lineage_and_zero_io() -> None:
         "intents": {},
         "v2_raw_bytes": 0,
         "v2_stored_bytes": 0,
-        "events": [{"kind": "stop", "payload": {"stop": {"reason": "missed_bootstrap"}}}],
+        "events": [stop_event],
     }
     rehearsal._validate_terminal_status(valid, terminal)
 
@@ -282,7 +283,7 @@ def test_status_execution_is_pinned_to_status_command_and_restores_guards(
             "intents": {},
             "v2_raw_bytes": 0,
             "v2_stored_bytes": 0,
-            "events": [{"kind": "stop", "payload": {"stop": {"reason": "missed_bootstrap"}}}],
+            "events": [{"kind": "stop", "payload": {"stop": terminal["stop"]}}],
         }
 
     monkeypatch.setattr(old_launch, "execute", status_only)

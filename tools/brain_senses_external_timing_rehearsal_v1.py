@@ -336,7 +336,9 @@ def _validate_terminal_status(result: dict[str, Any], terminal: dict[str, Any]) 
         and result.get("v2_raw_bytes") == 0
         and result.get("v2_stored_bytes") == 0
         and final_event.get("kind") == "stop"
-        and stop_payload.get("reason") == "missed_bootstrap",
+        and stop_payload == terminal["stop"]
+        and stop_payload.get("reason") == "missed_bootstrap"
+        and stop_payload.get("post_stop_requests") == 0,
         "terminal_status_semantics_mismatch",
     )
 

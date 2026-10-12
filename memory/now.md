@@ -2,9 +2,10 @@
 
 **As of:** 2026-10-12 02:56Z. Checkout: `/Users/root1/Developer/memecoin-research`, branch
 `research/active`; `main` remains `148ca165e1487a99c3ce6532dbc276c4922c31b6`. Published active is
-`a7f082d`; local work extends the no-provider timing rehearsal. The first 03:15Z rehearsal binding
-was explicitly disabled/unloaded before its callback when Sol identified a timing-evidence gap; it
-made no status call and no provider request. Replacement activation waits for tightened code review.
+`35eaca6`; local work extends the no-provider timing rehearsal. The first 03:15Z binding was
+explicitly disabled/unloaded before callback after Sol identified a timing-evidence gap; it made no
+status call and no provider request. The tightened timing and exact terminal-state gate has now been
+accepted by Sol; create a fresh source-bound activation before any callback.
 
 Production runtime, champion, protected evaluation and real trading remain untouched. No signing or
 submission. Do not start Cortex.
@@ -30,7 +31,8 @@ submission. Do not start Cortex.
 A separately versioned status-only timing rehearsal is pinned to the failed-v2 plan, terminal receipt,
 source and one calendar minute. Sol accepted the process-local old-runtime-gate shim but required
 callback/preflight/status start <= +15s, status finish <= +30s, and exact terminal semantic state
-(frontier 455802008, verified predecessor, zero IO). These fixes and fail-closed tests are in progress;
+(frontier 455802008, verified predecessor, zero IO). The accepted gate requires callback/preflight/status start <= +15s, status finish <= +30s, and
+exact stop-event payload binding. The next provider-free one-shot remains only a timing/status test;
 no provider lease is implied. If a real callback qualifies, refresh clock/storage/source/account facts
 and seek a separate Sol review for a prospective Helius lease. The missed interval stays unknown and
 never replays. c4 remains terminal.
