@@ -3617,6 +3617,17 @@ corroboration contracts are offline only. The absence of Gecko/Alchemy market tr
 by quota preservation or billing-meter uncertainty; the remaining gates are adapter integration,
 usage lineage, and live recovery integrity.
 
+The offline Gecko v2 contract is not eligible for activation: its two-second spacing does not meet
+the public API's current approximately 10-calls/minute guidance, which may vary with traffic.
+[GeckoTerminal's official API documentation](https://api.geckoterminal.com/docs/index.html) also
+identifies the API as beta and says responses are cached for one minute. Sol selected a separately
+versioned v3 contract with at least 12 seconds between actual dispatches across restarts, persisted
+under the lane lock, and a pre-HTTP deadline check. It preserves the forward-only 60–180-second
+post-close window, one intent/no retry, and stops the bucket on 429 with a durable cooldown of at
+least one hour or a valid longer `Retry-After` (over 24 hours requires review). v2 remains frozen
+offline; v3 source pins, verifier, restart/rate-limit tests, and live integration must pass before
+any Gecko request.
+
 Helius v5's separately versioned adapter, independent verifier, rolling-usage cutover builder,
 LaunchAgent definition, and forced detach-at-durable-intent tests are now implemented offline. The
 cutover receipt binds c1-c4 evidence separately from current rolling-v4 request rows, preserves
