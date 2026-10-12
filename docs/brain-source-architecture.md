@@ -3646,21 +3646,31 @@ same bounded snapshot; the alarm-receipt cap pauses for review. Focused tests co
 constant-size heartbeats, crash points around rename, recovery, cap behavior, stale state, and detach without
 writes to the mountpoint underlay.
 
-The separately versioned runtime, bounded monitor, release preflight, and detach/recovery tests are
-committed at `89c5cf9`. A new future-only pilot closed the 19:30Z bucket with four HTTP 200
-responses, four durable captures/results/confirmations, a verified clock, and no skipped, unknown,
-or possibly-spent pool. Independent sealing found no eligible new-open bar, so the immutable
-diagnostic receipt is `3a85914428e3566ad674b8b1487fb852e390317cacb0be1915d04d045cc210d2` and the
-pilot cannot be reused. The Gecko LaunchAgent remains unloaded. The only failed qualification is
-market-bar eligibility, a data-qualification result rather than an acquisition-safety blocker. Sol
-approved a separately versioned capture-only release for future buckets, bound to this immutable
-4/4 technical predecessor; it must preserve `market_source_qualified=false`,
-`training_admission=false`, and `economic_admission=false` until independent prospective semantic
-qualification. Its new runtime and LaunchAgent path are being implemented; the existing v4 release
-remains unchanged and unloaded. Capture-only collection has no calendar expiry, does not backfill
-missed buckets, and keeps finite request, raw-byte, resident-memory, and Kingston storage caps.
-Alchemy same-frame corroboration remains offline; incomplete billing telemetry does not block
-bounded prospective collection.
+The separately versioned capture-only runtime, bounded monitor, release preflight, and
+detach/recovery tests are committed at `e2bf56b`; a follow-up fixes macOS's resolved-interpreter
+argv identity and pins a distinct static ID/LaunchAgent at `6bb18b8`. The earlier 19:30Z pilot
+closed with four HTTP 200 responses, four durable captures/results/confirmations, a verified clock,
+and no skipped, unknown, or possibly-spent pool. Independent sealing found no eligible new-open
+bar, so its immutable diagnostic receipt is
+`3a85914428e3566ad674b8b1487fb852e390317cacb0be1915d04d045cc210d2`; that pilot cannot be reused.
+Sol approved capture-only collection bound to this technical predecessor, with
+`market_source_qualified=false`, `training_admission=false`, and `economic_admission=false` until
+independent prospective semantic qualification. The first static-ID initialization was preflighted
+but its LaunchAgent callback failed closed before any request intent; that ID is retired and its
+root is read-only. The new-ID v2 plan and 58-GiB-floor preflight are descriptor-bound on Kingston
+for the next future 15-minute close. The v2 LaunchAgent is loaded, but its no-provider callback
+still exits 2 and has not produced a callback receipt. Do not seal or activate until a callback
+passes under the exact committed plist and source bindings. No provider request has been made by
+this capture-only lane. The service has no calendar expiry, never backfills missed buckets, and
+keeps finite request, raw-byte, memory, and Kingston storage caps. Alchemy same-frame corroboration
+remains offline; incomplete billing telemetry does not block bounded prospective collection.
+
+The inert Agave build runner v1 remains unqualified and must not execute Cargo. Sol rejected its
+default-allow sandbox because it does not confine write access to the Kingston stage, prevent reads
+of protected/private paths, or establish mountpoint-underlay safety for inherited build-script
+children. A replacement needs demonstrated OS-level read/write/network confinement and a clean
+process census before any offline ProgramTest build; preserve the dirty source/cache and do not
+inspect protected data.
 
 The shared capacity coordinator v2 is initialized on the configured Kingston data root. Its
 descriptor-bound policy binds root ID, UUID, device, and inode; live Helius v5 admission and Gecko

@@ -1,41 +1,34 @@
 # Current Project State
 
-**As of:** 2026-10-12 18:31Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD `1737a8b9365d7ff5a7fa1f36f601c979960a88ab`, pushed to origin. `main` remains
-`3dab3a36cccaa5913fdfa697b054a17181de3dd0`. Current work adds independent Gecko clock-bound intent-v4
-verification and release gating; not yet committed. Preserve the unrelated user-owned Agave and
-build-guard dirty files. Production, champion, protected samples, trading, and Cortex remain
-untouched.
+**As of:** 2026-10-12 20:23Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, HEAD `6bb18b8f01afca4e746b9b0a8d962ac3c17c0d61`, pushed. `main` remains
+`3dab3a36cccaa5913fdfa697b054a17181de3dd0`. Preserve unrelated dirty/untracked Agave and
+build-guard work. Production, champion, protected samples, real trading, and Cortex remain untouched.
 
 ## Prospective acquisition
 
 - Kingston `/Volumes/Kingston/BrainData` matches root ID `9428695af6d4f46c08e1a444cdc66de8` and
-  UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; about 202 GiB is free. Keep the 50-GiB floor,
-  descriptor-bound writes, and no-fallback rule.
-- `ai.memecoin.brain.senses.external-rolling-v5` is loaded in `gui/501`, on a 60-second cadence,
-  `RunAtLoad`, without calendar expiry. Its latest verified anchor contains one finalized
-  `getSlot` capture and coordinator linkage; it proves structural acquisition only, not OHLCV.
-- Gecko 17:15Z and 17:45Z attempts are terminal. The sealed 18:15Z pilot made three actual
-  requests and left one pool unknown. Descriptor-bound, read-only forensic replay validates its
-  three clock-bound v3 intents/results; receipt SHA-256 is
-  `180f35690443c89ec6289e998c8ae5912aa67a9c48538af2a809a220de92e827`. It is diagnostic-only.
-  The old verifier/runtime mismatch is closed in the working tree by exact independent intent-v4
-  verification, a v4 source/plan pin, clock-file closure, and terminal/hash replay. Focused runtime,
-  independent-verifier, coordinator, and descriptor-writer suites pass (88 tests); smoke and
-  changed-path Ruff checks pass. Gecko LaunchAgent remains unloaded. The next candidate ID is
-  `f2808f76ab004e09ba6aa22e7d4d50a2` in the canonical plist; it has not been initialized.
-  Next: finish mutation/partial-bucket/source-pin/recovery checks, freeze and commit this scope,
-  then initialize a new future-only pilot under a different static ID. Do not load or activate
-  unless the four-pool receipt and v4 release preflight pass.
-- No Alchemy research PAYG endpoint is configured. Account-level Helius billing remains
-  unknown/unverified and is not a blocker. Stop on provider quota/error, ambiguous request, storage,
-  clock, provenance, or recovery-integrity faults.
+  UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; about 202 GiB was free at last check. Use the
+  descriptor-bound writer, preserve the 50-GiB floor, and never fall back internally.
+- Helius `ai.memecoin.brain.senses.external-rolling-v5` remains loaded on a 60-second cadence; its
+  anchor proves structural `getSlot` capture, not market history. Research storage-health monitor is
+  loaded with 300-second cadence.
+- Gecko capture-only code is committed (`e2bf56b`, identity follow-up `6bb18b8`). The first plan
+  (`6c4e52c7a9bb4bdc8e5f1d774ec8aa17`) has only plan/preflight artifacts and no intents/callback;
+  never reuse it. New v2 plan `7f0b3297f86746f0b0c3863f20a11d4b` is preflighted for the 20:30Z
+  bucket. Its LaunchAgent is loaded, but callback exits 2. Live evidence shows exact label/PID and
+  remaining argv; `ps` exposes Homebrew's Python framework binary with a different inode from the
+  venv `python`. Sol is deciding a narrow executable identity proof. Do not seal/activate until a
+  callback passes with the exact committed plist; no Gecko provider request has been made.
+- Sol rejected the dirty, inert Agave build runner v1: its default-allow sandbox permits writes
+  outside Kingston and reads of protected/private paths. Do not run Cargo or inspect holdouts. A
+  future path needs demonstrated OS-level read/write/network confinement, detach safety, and no
+  surviving child processes. Preserve source/cache and user-owned files.
 
 ## Senses and next work
 
-Candidate-position witness-envelope v2 supports only a Sol-approved
-`synthetic_unverified` crosswalk hypothesis; source/runtime/economic/point-in-time claims remain
-false. Continue independent economic qualification, native settlement and `buyExact25`, broad
-causal population/lifecycle/modality coverage, and automated unknown/anomaly qualification. Keep
-event, availability, receipt and decision times distinct. No protected samples, production changes,
-real trading, transaction signing/submission, backfill, or Cortex.
+Candidate-position trace envelope v1 validates structure only; no new ProgramTest trace was
+consumed. Continue capture-only collector qualification, independent economic/native settlement and
+`buyExact25`, broad causal population/lifecycle/modalities, acquisition recovery/coverage/storage,
+and unknown/anomaly automation. Keep event, availability, receipt and decision times distinct.
+No backfill, protected samples, production changes, signing/submission, or Cortex.
