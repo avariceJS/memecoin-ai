@@ -45,7 +45,7 @@ class _Process:
 
 
 def _metadata_bytes() -> bytes:
-    package_ids = [f"pkg {index}" for index in range(preflight.WORKSPACE_MEMBER_COUNT)]
+    package_ids = [f"pkg {index}" for index in range(preflight.EXPECTED_RESOLVED_TUPLE_COUNT)]
     value = {
         "version": 1,
         "packages": [
@@ -53,17 +53,58 @@ def _metadata_bytes() -> bytes:
                 "id": package_id,
                 "name": f"p{index}",
                 "version": "1.0.0",
-                "source": (EXPECTED_REGISTRY_SOURCE if index == 0 else None),
+                "source": (
+                    None
+                    if index < preflight.EXPECTED_SOURCE_NULL_WORKSPACE_MEMBERS
+                    else preflight.EXPECTED_GIT_SOURCE
+                    if index == preflight.EXPECTED_SOURCE_NULL_WORKSPACE_MEMBERS
+                    else EXPECTED_REGISTRY_SOURCE
+                ),
             }
             for index, package_id in enumerate(package_ids)
         ],
-        "workspace_members": [package_ids[0]],
+        "workspace_members": package_ids[: preflight.EXPECTED_SOURCE_NULL_WORKSPACE_MEMBERS],
         "resolve": {
             "root": package_ids[0],
-            "nodes": [{"id": package_id, "deps": [], "features": []} for package_id in package_ids],
+            "nodes": [
+                {
+                    "id": package_id,
+                    "deps": (
+                        [{"pkg": package_ids[1], "dep_kinds": [{"kind": None, "target": None}]}]
+                        if index == 0
+                        else []
+                    ),
+                    "features": [],
+                }
+                for index, package_id in enumerate(package_ids)
+            ],
         },
     }
     return json.dumps(value, separators=(",", ":")).encode()
+
+
+def _lock_bytes() -> bytes:
+    rows: list[tuple[str, str, str | None]] = []
+    for index in range(preflight.EXPECTED_RESOLVED_TUPLE_COUNT):
+        source = (
+            None
+            if index < preflight.EXPECTED_SOURCE_NULL_WORKSPACE_MEMBERS
+            else preflight.EXPECTED_GIT_SOURCE
+            if index == preflight.EXPECTED_SOURCE_NULL_WORKSPACE_MEMBERS
+            else EXPECTED_REGISTRY_SOURCE
+        )
+        rows.append((f"p{index}", "1.0.0", source))
+    rows.extend(
+        (f"lock-only-{index}", "1.0.0", EXPECTED_REGISTRY_SOURCE)
+        for index in range(preflight.EXPECTED_LOCK_ONLY_TUPLE_COUNT)
+    )
+    pieces = ["version = 4", ""]
+    for name, version, source in rows:
+        pieces.extend(("[[package]]", f'name = "{name}"', f'version = "{version}"'))
+        if source is not None:
+            pieces.append(f'source = "{source}"')
+        pieces.append("")
+    return "\n".join(pieces).encode()
 
 
 def _layout(tmp_path: Path) -> tuple[Path, Path, Path, Path, Path, _Provider]:
@@ -72,6 +113,7 @@ def _layout(tmp_path: Path) -> tuple[Path, Path, Path, Path, Path, _Provider]:
     source = root / "agave-source"
     source.mkdir(mode=0o700)
     (source / ".git").mkdir(mode=0o700)
+    (source / "Cargo.lock").write_bytes(_lock_bytes())
     (root / ".research-root.json").write_text(
         json.dumps(
             {
@@ -122,7 +164,7 @@ def test_metadata_stage_copies_cache_and_runs_one_default_feature_command(
 
     def fake_popen(command: list[str], **kwargs: Any) -> _Process:
         invocations.append((command, kwargs["env"]))
-        unpacked = cargo_home / "registry" / "src" / "index-hash" / "p0-1.0.0"
+        unpacked = cargo_home / "registry" / "src" / "index-hash" / "p141-1.0.0"
         unpacked.mkdir(parents=True, mode=0o700)
         (unpacked / "Cargo.toml").write_text("[package]\nname='p0'\nversion='1.0.0'\n")
         return _Process(_metadata_bytes())
@@ -148,6 +190,10 @@ def test_metadata_stage_copies_cache_and_runs_one_default_feature_command(
     assert result.cache_extraction_delta_sha256 != "0" * 64
     assert result.cache_copy_entries == 2
     assert result.cache_copy_bytes == len(b"pinned index")
+    assert result.lock_tuple_count == 1_075
+    assert result.graph_tuple_count == 960
+    assert result.lock_only_tuple_count == 115
+    assert result.source_null_workspace_member_count == 140
     process_receipt = provider.snapshot.root_path / result.process_receipt_path
     graph_receipt = provider.snapshot.root_path / result.graph_receipt_path
     assert hashlib.sha256(process_receipt.read_bytes()).hexdigest() == result.process_receipt_sha256
@@ -287,6 +333,47 @@ def test_metadata_graph_preserves_root_members_and_dependency_edges() -> None:
     assert graph["workspace_members"] == [root_safe]
     root_node = next(row for row in graph["nodes"] if row["id"] == root_safe)
     assert root_node["deps"] == [{"pkg": dep_safe, "dep_kinds": [{"kind": None, "target": None}]}]
+
+
+def test_resolved_graph_tuple_counts_and_lock_membership(tmp_path: Path) -> None:
+    lock_path = tmp_path / "Cargo.lock"
+    lock_path.write_bytes(_lock_bytes())
+    graph = preflight._metadata_graph(_metadata_bytes())
+    counts = preflight._validate_resolved_graph(graph, lock_path)
+    assert counts == {
+        "lock_tuple_count": 1_075,
+        "graph_tuple_count": 960,
+        "lock_only_tuple_count": 115,
+        "source_null_workspace_member_count": 140,
+    }
+
+
+@pytest.mark.parametrize(
+    ("mutation", "error"),
+    [
+        ("duplicate_tuple", "resolved_graph_identity_collision"),
+        ("missing_root", "resolved_graph_root_closure"),
+        ("missing_dependency", "resolved_graph_dependency_closure"),
+        ("tuple_not_locked", "resolved_graph_not_in_lock"),
+    ],
+)
+def test_resolved_graph_rejects_bad_identity_closure(
+    tmp_path: Path, mutation: str, error: str
+) -> None:
+    lock_path = tmp_path / "Cargo.lock"
+    lock_path.write_bytes(_lock_bytes())
+    graph = preflight._metadata_graph(_metadata_bytes())
+    if mutation == "duplicate_tuple":
+        graph["packages"][1]["name"] = graph["packages"][0]["name"]
+        graph["packages"][1]["source"] = graph["packages"][0]["source"]
+    elif mutation == "missing_root":
+        graph["root"] = "absent"
+    elif mutation == "missing_dependency":
+        graph["nodes"][0]["deps"][0]["pkg"] = "absent"
+    else:
+        graph["packages"][0]["name"] = "not-in-lock"
+    with pytest.raises(preflight.MetadataPreflightError, match=error):
+        preflight._validate_resolved_graph(graph, lock_path)
 
 
 def test_process_receipt_is_published_before_metadata_parse_rejection(

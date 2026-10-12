@@ -19,6 +19,7 @@ import subprocess
 import sys
 import threading
 import time
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -59,6 +60,9 @@ from brain_senses_build_storage_guard import (  # noqa: E402
 
 TARGET_TRIPLE = "aarch64-apple-darwin"
 WORKSPACE_MEMBER_COUNT = 1_075
+EXPECTED_RESOLVED_TUPLE_COUNT = 960
+EXPECTED_LOCK_ONLY_TUPLE_COUNT = 115
+EXPECTED_SOURCE_NULL_WORKSPACE_MEMBERS = 140
 MAX_WALL_SECONDS = 10 * 60
 MAX_STDOUT_BYTES = 64 * 1024**2
 MAX_STDERR_BYTES = 2 * 1024**2
@@ -122,6 +126,10 @@ class MetadataResult:
     stderr_sanitized: str
     graph_sha256: str
     graph: dict[str, Any]
+    lock_tuple_count: int
+    graph_tuple_count: int
+    lock_only_tuple_count: int
+    source_null_workspace_member_count: int
     target_probe_path: str | None
     target_probe_sha256: str | None
     process_receipt_path: str
@@ -979,6 +987,127 @@ def _safe_package_id(package_id: str, package: dict[str, Any]) -> str:
     return _HOME_PATH.sub("<user-home>", package_id)
 
 
+def _locked_package_tuples(lock_path: Path) -> set[tuple[str, str, str | None]]:
+    try:
+        document = tomllib.loads(lock_path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise MetadataPreflightError("cargo_lock_parse") from exc
+    rows = document.get("package")
+    if not isinstance(rows, list) or len(rows) != WORKSPACE_MEMBER_COUNT:
+        raise MetadataPreflightError("cargo_lock_tuple_count")
+    tuples: set[tuple[str, str, str | None]] = set()
+    allowed_sources = {EXPECTED_GIT_SOURCE, EXPECTED_REGISTRY_SOURCE}
+    for row in rows:
+        if not isinstance(row, dict):
+            raise MetadataPreflightError("cargo_lock_package_row")
+        name, version, source = row.get("name"), row.get("version"), row.get("source")
+        if (
+            not isinstance(name, str)
+            or not isinstance(version, str)
+            or (
+                source is not None
+                and (not isinstance(source, str) or source not in allowed_sources)
+            )
+        ):
+            raise MetadataPreflightError("cargo_lock_package_identity")
+        identity = (name, version, source)
+        if identity in tuples:
+            raise MetadataPreflightError("cargo_lock_tuple_collision")
+        tuples.add(identity)
+    return tuples
+
+
+def _validate_resolved_graph(graph: dict[str, Any], lock_path: Path) -> dict[str, int]:
+    """Recheck graph identity closure and injective membership in Cargo.lock."""
+    if (
+        set(graph) != {"schema", "root", "workspace_members", "packages", "nodes"}
+        or graph.get("schema") != "brain-senses-agave-resolved-graph-v1"
+    ):
+        raise MetadataPreflightError("resolved_graph_schema")
+    packages = graph.get("packages")
+    nodes = graph.get("nodes")
+    members = graph.get("workspace_members")
+    root = graph.get("root")
+    if (
+        not isinstance(packages, list)
+        or not isinstance(nodes, list)
+        or not isinstance(members, list)
+    ):
+        raise MetadataPreflightError("resolved_graph_shape")
+    package_by_id: dict[str, dict[str, Any]] = {}
+    graph_tuples: set[tuple[str, str, str | None]] = set()
+    allowed_sources = {EXPECTED_GIT_SOURCE, EXPECTED_REGISTRY_SOURCE}
+    for row in packages:
+        if (
+            not isinstance(row, dict)
+            or set(row) != {"id", "name", "version", "source"}
+            or not isinstance(row.get("id"), str)
+            or not isinstance(row.get("name"), str)
+            or not isinstance(row.get("version"), str)
+        ):
+            raise MetadataPreflightError("resolved_graph_package")
+        source = row.get("source")
+        if source is not None and (not isinstance(source, str) or source not in allowed_sources):
+            raise MetadataPreflightError("resolved_graph_source")
+        package_id = row["id"]
+        if package_id.startswith("local+sha256:"):
+            if not re.fullmatch(r"local\+sha256:[0-9a-f]{64}", package_id):
+                raise MetadataPreflightError("resolved_graph_local_id_alias")
+        elif package_id.startswith("path+file://") or "/Users/" in package_id:
+            raise MetadataPreflightError("resolved_graph_local_id_leak")
+        identity = (row["name"], row["version"], source)
+        if package_id in package_by_id or identity in graph_tuples:
+            raise MetadataPreflightError("resolved_graph_identity_collision")
+        package_by_id[package_id] = row
+        graph_tuples.add(identity)
+    if not isinstance(root, str) or root not in package_by_id:
+        raise MetadataPreflightError("resolved_graph_root_closure")
+    if (
+        not members
+        or not all(isinstance(member, str) and member in package_by_id for member in members)
+        or len(members) != len(set(members))
+    ):
+        raise MetadataPreflightError("resolved_graph_workspace_closure")
+    node_by_id: dict[str, dict[str, Any]] = {}
+    for node in nodes:
+        if (
+            not isinstance(node, dict)
+            or set(node) != {"id", "deps", "features"}
+            or not isinstance(node.get("id"), str)
+            or not isinstance(node.get("deps"), list)
+            or not isinstance(node.get("features"), list)
+            or not all(isinstance(feature, str) for feature in node["features"])
+        ):
+            raise MetadataPreflightError("resolved_graph_node")
+        node_id = node["id"]
+        if node_id not in package_by_id or node_id in node_by_id:
+            raise MetadataPreflightError("resolved_graph_node_closure")
+        node_by_id[node_id] = node
+        for dependency in node["deps"]:
+            if (
+                not isinstance(dependency, dict)
+                or set(dependency) != {"pkg", "dep_kinds"}
+                or not isinstance(dependency.get("pkg"), str)
+                or dependency["pkg"] not in package_by_id
+                or not isinstance(dependency.get("dep_kinds"), list)
+            ):
+                raise MetadataPreflightError("resolved_graph_dependency_closure")
+    if set(node_by_id) != set(package_by_id) or root not in node_by_id:
+        raise MetadataPreflightError("resolved_graph_node_set")
+    lock_tuples = _locked_package_tuples(lock_path)
+    if not graph_tuples.issubset(lock_tuples):
+        raise MetadataPreflightError("resolved_graph_not_in_lock")
+    null_workspace_members = sum(package_by_id[member]["source"] is None for member in members)
+    if null_workspace_members != len(members):
+        raise MetadataPreflightError("resolved_graph_workspace_source")
+    return {
+        "lock_tuple_count": len(lock_tuples),
+        "graph_tuple_count": len(graph_tuples),
+        "lock_only_tuple_count": len(lock_tuples - graph_tuples),
+        "source_null_workspace_member_count": null_workspace_members,
+    }
+
+
 def _target_probe(target_dir: Path, device: int) -> tuple[str | None, str | None]:
     try:
         directory_fd = os.open(
@@ -1387,9 +1516,15 @@ def run_metadata_preflight(
                 provider, paths, checked_cache_source, first
             ),
         )
-        if len(graph["packages"]) != WORKSPACE_MEMBER_COUNT:
+        resolution_counts = _validate_resolved_graph(graph, source / "Cargo.lock")
+        if resolution_counts != {
+            "lock_tuple_count": WORKSPACE_MEMBER_COUNT,
+            "graph_tuple_count": EXPECTED_RESOLVED_TUPLE_COUNT,
+            "lock_only_tuple_count": EXPECTED_LOCK_ONLY_TUPLE_COUNT,
+            "source_null_workspace_member_count": EXPECTED_SOURCE_NULL_WORKSPACE_MEMBERS,
+        }:
             raise MetadataPreflightError(
-                "resolved_package_count_mismatch", stdout=out_stream, stderr=err_stream
+                "resolved_graph_accounting_mismatch", stdout=out_stream, stderr=err_stream
             )
         final, allocation = _inspect_metadata_stage(provider, paths, checked_cache_source, first)
         if final.available_bytes < MIN_FREE_BYTES:
@@ -1445,6 +1580,12 @@ def run_metadata_preflight(
             ),
             graph_sha256=graph_sha,
             graph=graph,
+            lock_tuple_count=resolution_counts["lock_tuple_count"],
+            graph_tuple_count=resolution_counts["graph_tuple_count"],
+            lock_only_tuple_count=resolution_counts["lock_only_tuple_count"],
+            source_null_workspace_member_count=resolution_counts[
+                "source_null_workspace_member_count"
+            ],
             target_probe_path=target_probe_path,
             target_probe_sha256=target_probe_sha,
             process_receipt_path=process_receipt_path,
@@ -1545,6 +1686,10 @@ def main(argv: list[str] | None = None) -> int:
                     "graph": result.graph,
                     "package_count": len(result.graph["packages"]),
                     "resolve_node_count": len(result.graph["nodes"]),
+                    "lock_tuple_count": result.lock_tuple_count,
+                    "graph_tuple_count": result.graph_tuple_count,
+                    "lock_only_tuple_count": result.lock_only_tuple_count,
+                    "source_null_workspace_member_count": result.source_null_workspace_member_count,
                     "target_probe_path": result.target_probe_path,
                     "target_probe_sha256": result.target_probe_sha256,
                     "process_receipt_path": result.process_receipt_path,
