@@ -1,26 +1,30 @@
 # Current Project State
 
-**As of:** 2026-10-12 12:46Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, at `cd9285268b7e2f4ec124baebf68488e1b4404db1`. Recent work is committed and
-pushed. `main` remains `3dab3a36cccaa5913fdfa697b054a17181de3dd0`; do not advance until live
-collection, recovery, and independent replay are verified. Production, champion, protected data,
-trading, and Cortex are untouched.
+**As of:** 2026-10-12 14:08Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, at `78fed32c70ad63fb054d0d3f357b3c5d267fc9ef`, pushed to origin. `main` remains
+`3dab3a36cccaa5913fdfa697b054a17181de3dd0`; do not advance until a complete live acquisition
+capability and independent recovery/replay are verified. Production, champion, protected data,
+trading, and Cortex are untouched. The local worktree has unrelated in-progress Agave runner files
+and tests; preserve them.
 
 ## Prospective acquisition
 
 - `ai.memecoin.brain.senses.external-rolling-v4` is loaded under `gui/501`, with 60-second ticks,
-  `RunAtLoad`, and no calendar expiry. Helius-only policy is one fresh finalized anchor followed
-  by hourly inventory-first frames; max 34 calls/frame, 16 selected members, 817 calls/4 GB per
-  epoch, and rolling 30-day caps. No provider call or capture is yet verified.
+  `RunAtLoad`, and no calendar expiry. The 13:00Z anchor and its seal replay independently. The
+  14:00Z inventory frame recorded 35 intents, 34 verified captures, and one possibly-spent
+  `response_invalid`; it did not seal. Its epoch and allocation manifest verify, with no retry.
+  The supervisor reconciled it and entered a one-hour provider-error cooldown at 14:06:48Z; the
+  service remains loaded and should resume only on a future hourly anchor after cooldown. This is
+  structural sampling, not market-price history.
 - Kingston `/Volumes/Kingston/BrainData` matches root ID
   `9428695af6d4f46c08e1a444cdc66de8`, UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; latest
-  available space was 218,272,071,680 bytes. The 150-GB lifetime cap, 50-GiB floor, 8-GiB reserve,
-  descriptor-bound service writes, and no-delete/no-fallback rules remain active.
-- The initial future-only plan is terminally abandoned before request intent. 12:00Z is an
-  unobserved gap; 13:00Z is the next fresh anchor. The latest monitor says `cooldown`. One scheduled
-  tick returned 1 without updating the monitor; the next scheduled tick succeeded (runs=43, last
-  exit 0, monitor sequence 44). Verify anchor request, restart recovery, first hourly frame, and
-  independent replay. Actual provider charges remain unknown/unverified.
+  monitor reported 217,373,667,328 bytes available. The 150-GB lifetime cap, 50-GiB floor, 8-GiB
+  reserve, descriptor-bound writes, and no-delete/no-fallback rules remain active.
+- No Alchemy or GeckoTerminal service is live. Alchemy v2 offline same-frame contracts are committed
+  and pushed; GeckoTerminal v1 policy and frozen train enrollment are under implementation. The
+  shared descriptor-bound capacity coordinator is the real integrity gate before either lane can
+  activate. Do not treat meter visibility or quota conservation as a blocker. Actual provider
+  charges remain unknown/unverified.
 
 ## Senses state and next horizon
 
@@ -33,7 +37,9 @@ read-only receipt is on Kingston at
 ProgramTest, or production/economic qualification occurred. Scoped Ruff/Mypy and 33 focused tests
 pass. Canonical source details are in `docs/brain-source-architecture.md`.
 
-Next: prove prospective collection on Kingston through a scheduled anchor/frame, restart recovery,
-and independent replay; then continue candidate-position witness, native settlement, and `buyExact25`
-qualification. Keep c4 and `external-v2-20261012T0600Z` terminal. No backfill, ambiguous retry,
-protected sample, or Cortex.
+Next: complete review and fault tests for the shared capacity coordinator, integrate its Helius
+lock semantics while preserving the terminal v4 history, then run Gecko's first future-only
+scheduled bucket and verify provider traffic, Kingston writes, restart recovery, and independent
+replay. Keep c4 and `external-v2-20261012T0600Z` terminal. No backfill, ambiguous retry, protected
+sample, or Cortex. Continue candidate-position witness, native settlement, and `buyExact25`
+qualification in independent work after acquisition integrity is stable.

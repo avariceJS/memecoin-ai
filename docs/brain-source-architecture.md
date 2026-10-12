@@ -3593,14 +3593,21 @@ terminally abandoned under the old source pin and the ordinary recovery cooldown
 never replayed. A source change after any request intent remains fail-closed.
 
 The v4 LaunchAgent is loaded under `gui/501` with a 60-second interval, `RunAtLoad`, and no calendar
-expiry. Its first future-only plan was abandoned before any request intent after a source-hash
-change during qualification; its terminal allocation manifest verifies, with zero provider
-requests or captures. The one-hour cooldown makes 13:00Z the next fresh anchor. The expired 12:00Z
-window remains unobserved, with no backfill. At 12:46Z the latest Kingston monitor receipt still
-reports `cooldown`; an exact manual invocation of the LaunchAgent command exited zero and wrote a
-new clock-bound monitor receipt. One preceding scheduled tick had exit code 1 with no accompanying
-monitor update; the next scheduled tick succeeded (runs=43, last exit 0, monitor sequence 44).
-Kingston reported 218,272,071,680 bytes free; the 150,000,000,000-byte
-service cap, 50-GiB floor, and 8-GiB reserve remain enforced. No provider request/capture is yet
-proven; live anchor/frame receipts, repeated scheduled health, restart recovery, and independent
-replay remain outstanding.
+expiry. The expired 12:00Z window remains unobserved. The fresh 13:00Z anchor was captured, sealed,
+and independently replayed. The 14:00Z inventory frame made 35 durable request intents: 34
+responses were captured and verified, while the final request failed as `response_invalid` with
+certainty `possibly_spent`. The frame did not seal, so none of its inventory/sample contents are
+qualified as a complete frame. Its epoch was terminally abandoned, its allocation manifest and
+terminal receipt independently replayed, and no ambiguous request was retried. At 14:06:48Z the
+loaded supervisor had reconciled the terminal and entered the policy's one-hour provider-error
+cooldown; a new epoch must use a future hourly anchor after cooldown. The latest monitor reported
+217,373,667,328 bytes available on Kingston, with the 150,000,000,000-byte lifetime service cap,
+50-GiB floor, 8-GiB operating reserve, and descriptor-bound writes enforced. The recurring service
+continues without a calendar lease; this provider/data-integrity failure is a real temporary pause.
+
+This structural Helius collector is not a prospective market-price history lane. The first bounded
+GeckoTerminal OHLCV lane is designed as a separate, forward-only service, but remains inactive until
+the shared descriptor-bound capacity coordinator is implemented, tested against crash and
+multi-writer cases, and integrated with participating lane locks. Alchemy same-frame corroboration
+contracts are offline only. The absence of Alchemy/Gecko traffic is not caused by quota preservation
+or billing-meter uncertainty; the unresolved gate is shared-capacity integrity.
