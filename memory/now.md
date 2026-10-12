@@ -1,9 +1,9 @@
 # Current Project State
 
-**As of:** 2026-10-12 06:29Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, last verified at `ead3dd0425a40f72f48ed69f8c3091064fd67bcf`; prior tree was
-clean and pushed to `origin/research/active`. The 06:00Z lease stop evidence and canonical updates
-are in progress. `main` remains at capability baseline `2ce3cdaff63f0e0b78dcab8e78886ae405085432`.
+**As of:** 2026-10-12 06:31Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, last commit `abbdcf7` pushed to `origin/research/active`; current receipt and
+diagnostic capability updates are in progress. `main` remains at capability baseline
+`2ce3cdaff63f0e0b78dcab8e78886ae405085432`.
 Production, champion, protected evaluation and trading remain untouched; no signing, submission or
 Cortex work.
 
@@ -21,8 +21,10 @@ Cortex work.
   lease cap. Later buckets remain cancelled/unstarted. This is incomplete, not a cleanly completed
   lease, STOP, provider error, or zero observation. Its outer schedule expires at 07:03Z;
   recheck terminal status then. Receipt: `docs/evidence/brain-senses-external-v2-20261012T0600Z-callback-failure-unload.json`.
-- Helius charge remains `unknown_unverified`; no new account mutation/provider activity outside the
-  scheduled lease was performed.
+- Helius still exposes only “API key configured,” not plan/quota/usage/charge without JWT. Alchemy's
+  read-only team aggregate is 18,680 CU / $0.01 across MTD/7-day/30-day through 06:30Z; no account
+  limit or workload attribution, and hourly series for Oct 12 is empty. Lease charge remains
+  `unknown_unverified`; signup/account mutation was not invoked.
 
 ## Current Senses horizon
 

@@ -64,6 +64,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   [`senses-provider-account-readonly-2026-10-12T0540Z.json`](senses-provider-account-readonly-2026-10-12T0540Z.json)
   (Helius authenticated but exposed no plan/quota/usage/charges without JWT; Alchemy team aggregate
   18,680 CU / $0.01 MTD, no account limit or workload attribution, and an empty hourly series today).
+- Helius/Alchemy read-only account refresh at 06:30Z:
+  [`senses-provider-account-readonly-2026-10-12T0630Z.json`](senses-provider-account-readonly-2026-10-12T0630Z.json)
+  (same Helius JWT limitation; Alchemy team aggregate 18,680 CU / $0.01 across MTD, 7-day and
+  30-day windows, no limit/workload attribution, empty hourly series through 06:30Z).
 - Agave bounded dependency fetch attempt:
   `agave-dependency-fetch-attempt-2026-10-12.json` (stopped by the local symlink guard after Cargo
   created four internal links in the pinned Crossbeam checkout; the partial cache is preserved and

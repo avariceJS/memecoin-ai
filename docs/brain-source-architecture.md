@@ -2837,12 +2837,11 @@ journals and manifests remain preserved. Any future collector needs a new source
 manifest and finite lease. Receipt:
 [`Senses operational readiness inventory`](evidence/senses-operational-readiness-inventory-v1-2026-10-11.json).
 
-The read-only account snapshot at 05:40Z authenticated Helius but returned no plan, quota, usage, or
-charge without a JWT session. Alchemy returned team-wide 18,680 CU / $0.01 MTD through 05:40Z,
-without a limit or workload attribution; its hourly series for Oct 12 was empty. Research lease
-charge remains `unknown_unverified`. The account integration suggested `signup` to reveal Helius
-details; it was not invoked because it may change account state. Receipt:
-[`provider account snapshot 05:40Z`](evidence/senses-provider-account-readonly-2026-10-12T0540Z.json).
+The 06:30Z read-only refresh again found no Helius plan, quota, usage, or charge without a JWT
+session. Alchemy reported team-wide 18,680 CU / $0.01 across MTD, 7-day, and 30-day totals through
+06:30Z; the Oct 12 hourly series remained empty, with no account limit or workload attribution.
+Research lease charge remains `unknown_unverified`. Signup was not invoked. Receipt:
+[`provider account snapshot 06:30Z`](evidence/senses-provider-account-readonly-2026-10-12T0630Z.json).
 
 A fresh read-only storage feasibility check at 2026-10-11 16:54Z measured 26,090,602,496 bytes
 available on the internal APFS container, 27,596,488,704 bytes below the 50-GiB floor. The
