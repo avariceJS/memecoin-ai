@@ -1,7 +1,8 @@
 # Current Project State
 
-**As of:** 2026-10-12 14:08Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, at `78fed32c70ad63fb054d0d3f357b3c5d267fc9ef`, pushed to origin. `main` remains
+**As of:** 2026-10-12 14:51Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, at `b35cf789fca3664278d93f02cc9db4ed0b777666`, pushed to origin before this
+worktree update. `main` remains
 `3dab3a36cccaa5913fdfa697b054a17181de3dd0`; do not advance until a complete live acquisition
 capability and independent recovery/replay are verified. Production, champion, protected data,
 trading, and Cortex are untouched. The local worktree has unrelated in-progress Agave runner files
@@ -20,11 +21,15 @@ and tests; preserve them.
   `9428695af6d4f46c08e1a444cdc66de8`, UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; latest
   monitor reported 217,373,667,328 bytes available. The 150-GB lifetime cap, 50-GiB floor, 8-GiB
   reserve, descriptor-bound writes, and no-delete/no-fallback rules remain active.
-- No Alchemy or GeckoTerminal service is live. Alchemy v2 offline same-frame contracts are committed
-  and pushed; GeckoTerminal v1 policy and frozen train enrollment are under implementation. The
-  shared descriptor-bound capacity coordinator is the real integrity gate before either lane can
-  activate. Do not treat meter visibility or quota conservation as a blocker. Actual provider
-  charges remain unknown/unverified.
+- No market OHLCV service is live. v4 remains loaded on 60-second ticks but its latest monitor is
+  still in provider-error cooldown; it is structural Helius collection only. Kingston currently has
+  about 202 GiB free and the configured UUID/root identity still matches. Shared descriptor-bound
+  capacity coordinator v2 is now implemented and passes 25 focused crash/recovery, lane-lock,
+  capacity-boundary and multiprocess tests, plus Ruff and mypy. Its source and tests are not yet
+  committed. Helius v5 integration is active in the worktree; it must bind verified v4 rolling usage
+  before dispatch and pass independent recovery/replay. Gecko v2 is an offline forward-only contract;
+  no Gecko/Alchemy market collector is live. Meter visibility and qualification perfection are not
+  blockers; actual provider charges remain unknown/unverified.
 
 ## Senses state and next horizon
 
@@ -37,9 +42,9 @@ read-only receipt is on Kingston at
 ProgramTest, or production/economic qualification occurred. Scoped Ruff/Mypy and 33 focused tests
 pass. Canonical source details are in `docs/brain-source-architecture.md`.
 
-Next: complete review and fault tests for the shared capacity coordinator, integrate its Helius
-lock semantics while preserving the terminal v4 history, then run Gecko's first future-only
-scheduled bucket and verify provider traffic, Kingston writes, restart recovery, and independent
-replay. Keep c4 and `external-v2-20261012T0600Z` terminal. No backfill, ambiguous retry, protected
-sample, or Cortex. Continue candidate-position witness, native settlement, and `buyExact25`
-qualification in independent work after acquisition integrity is stable.
+Next: commit the verified shared coordinator; finish Helius v5 integration with metadata-only v4
+rolling-usage carry-forward; then qualify a new future-only anchor, Kingston writes, provider traffic,
+restart recovery, and independent replay before enabling Gecko's next future bucket. Keep c4 and
+`external-v2-20261012T0600Z` terminal. No backfill, ambiguous retry, protected sample, or Cortex.
+Continue candidate-position witness, native settlement, and `buyExact25` qualification in
+independent work while acquisition integration proceeds.

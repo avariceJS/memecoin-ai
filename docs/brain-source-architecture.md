@@ -3606,8 +3606,13 @@ cooldown; a new epoch must use a future hourly anchor after cooldown. The latest
 continues without a calendar lease; this provider/data-integrity failure is a real temporary pause.
 
 This structural Helius collector is not a prospective market-price history lane. The first bounded
-GeckoTerminal OHLCV lane is designed as a separate, forward-only service, but remains inactive until
-the shared descriptor-bound capacity coordinator is implemented, tested against crash and
-multi-writer cases, and integrated with participating lane locks. Alchemy same-frame corroboration
-contracts are offline only. The absence of Alchemy/Gecko traffic is not caused by quota preservation
-or billing-meter uncertainty; the unresolved gate is shared-capacity integrity.
+GeckoTerminal OHLCV lane is a separate forward-only service. Shared descriptor-bound capacity
+coordinator v2 is implemented and passes crash-prefix, lane-lock independence, descriptor-loss,
+corrupt-ledger, allocation-boundary, and multiprocess shared-cap tests. It pins aggregate v4/v5
+Helius allocation once, requires a held lane lock for each intent, and supports service-scoped
+recovery without acquiring another lane's lock. Gecko remains inactive until its live adapter and
+the Helius v5 adapter both use this coordinator and pass end-to-end restart/replay qualification;
+Helius v5 must also carry forward verified v4 rolling usage before any dispatch. Alchemy same-frame
+corroboration contracts are offline only. The absence of Gecko/Alchemy market traffic is not caused
+by quota preservation or billing-meter uncertainty; the remaining gates are adapter integration,
+usage lineage, and live recovery integrity.
