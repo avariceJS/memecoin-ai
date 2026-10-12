@@ -178,6 +178,51 @@ def test_launchd_gate_rejects_manual_or_non_launchd_process(
         rehearsal._launchd_gate(binding, plist, activation_path)
 
 
+def test_terminal_status_must_match_stop_frontier_lineage_and_zero_io() -> None:
+    terminal = json.loads(rehearsal.TERMINAL_RECEIPT.read_bytes())
+    valid = {
+        "status": "stopped",
+        "stop": True,
+        "frontier": terminal["frontier"],
+        "predecessor_lineage_verified": True,
+        "requests": 0,
+        "reservations": {},
+        "intents": {},
+        "v2_raw_bytes": 0,
+        "v2_stored_bytes": 0,
+        "events": [{"kind": "stop", "payload": {"stop": {"reason": "missed_bootstrap"}}}],
+    }
+    rehearsal._validate_terminal_status(valid, terminal)
+
+    for field, wrong in (
+        ("status", "verified_prefix"),
+        ("frontier", terminal["frontier"] + 1),
+        ("requests", 1),
+    ):
+        invalid = {**valid, field: wrong}
+        with pytest.raises(rehearsal.RehearsalError, match="terminal_status_semantics_mismatch"):
+            rehearsal._validate_terminal_status(invalid, terminal)
+
+
+def test_late_calendar_callback_cannot_enter_status_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    binding = {
+        "decision": "timing_rehearsal_no_provider",
+        "label": "ai.memecoin.brain.senses.timing-rehearsal-test",
+        "scheduled_minute_ns": 1_900_000_020_000_000_000,
+        "expires_ns": 1_900_000_080_000_000_000,
+    }
+    monkeypatch.setattr(rehearsal, "_load_binding", lambda _path: (binding, {}, {}))
+    monkeypatch.setattr(rehearsal, "_launchd_gate", lambda *_args: None)
+    monkeypatch.setattr(
+        rehearsal.time,
+        "time_ns",
+        lambda: binding["scheduled_minute_ns"] + 15_000_000_001,
+    )
+
+    with pytest.raises(rehearsal.RehearsalError, match="calendar_callback_gate_late"):
+        rehearsal.run(Path("/private/rehearsal.json"))
+
+
 def test_status_execution_is_pinned_to_status_command_and_restores_guards(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -210,6 +255,7 @@ def test_status_execution_is_pinned_to_status_command_and_restores_guards(
             binding["scheduled_minute_ns"] + 1,
             binding["scheduled_minute_ns"] + 2,
             binding["scheduled_minute_ns"] + 3,
+            binding["scheduled_minute_ns"] + 4,
         ]
     )
     monkeypatch.setattr(rehearsal.time, "time_ns", lambda: next(ticks))
@@ -226,7 +272,18 @@ def test_status_execution_is_pinned_to_status_command_and_restores_guards(
         ):
             with pytest.raises(Exception, match="timing_rehearsal_dispatch_forbidden"):
                 function(None)
-        return {"status": "terminal"}
+        return {
+            "status": "stopped",
+            "stop": True,
+            "frontier": 455802008,
+            "predecessor_lineage_verified": True,
+            "requests": 0,
+            "reservations": {},
+            "intents": {},
+            "v2_raw_bytes": 0,
+            "v2_stored_bytes": 0,
+            "events": [{"kind": "stop", "payload": {"stop": {"reason": "missed_bootstrap"}}}],
+        }
 
     monkeypatch.setattr(old_launch, "execute", status_only)
     original = (
@@ -242,6 +299,8 @@ def test_status_execution_is_pinned_to_status_command_and_restores_guards(
     assert result["provider_io"] is False
     assert result["dispatch_calls"] == 0
     assert result["service_tree_unchanged"] is True
+    assert result["callback_checked_ns"] <= binding["scheduled_minute_ns"] + 15_000_000_000
+    assert result["status_finished_ns"] <= binding["scheduled_minute_ns"] + 30_000_000_000
     assert (
         old_launch.runtime_gate,
         old_launch._client,

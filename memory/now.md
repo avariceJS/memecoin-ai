@@ -1,9 +1,10 @@
 # Current Project State
 
-**As of:** 2026-10-12 02:50Z. Active checkout: `/Users/root1/Developer/memecoin-research`, branch
-`research/active`. Published active: `bcf6624`; `main`: `148ca165e1487a99c3ce6532dbc276c4922c31b6`.
-The next gate is a separately versioned no-provider LaunchAgent timing rehearsal for the terminal
-Helius external-v2 status path, then a fresh Sol-reviewed prospective lease if timing qualifies.
+**As of:** 2026-10-12 02:56Z. Checkout: `/Users/root1/Developer/memecoin-research`, branch
+`research/active`; `main` remains `148ca165e1487a99c3ce6532dbc276c4922c31b6`. Published active is
+`a7f082d`; local work extends the no-provider timing rehearsal. The first 03:15Z rehearsal binding
+was explicitly disabled/unloaded before its callback when Sol identified a timing-evidence gap; it
+made no status call and no provider request. Replacement activation waits for tightened code review.
 
 Production runtime, champion, protected evaluation and real trading remain untouched. No signing or
 submission. Do not start Cortex.
@@ -17,24 +18,24 @@ submission. Do not start Cortex.
   zero provider requests/reservations/intents/sealed buckets, and disabled/unloaded LaunchAgent.
   No retry, catch-up, backfill, shift, or later-frame activation. Receipt:
   `docs/evidence/brain-senses-external-v2-missed-bootstrap-terminal-2026-10-12.json`.
-- Helius account/charge evidence remains unavailable; the failed lease made no RPC requests.
-  Alchemy read-only aggregate remains 18,680 CU / $0.01 without limit or workload attribution.
+- Helius account/charge evidence remains unavailable; that lease made no RPC requests. Alchemy
+  read-only aggregate remains 18,680 CU / $0.01 without limit or workload attribution.
+- Agave fetch closure remains terminal after the one separately reviewed v2 `cargo fetch --locked`
+  failure (exit 101, exact cause unavailable). Partial cache is preserved and must not be reused or
+  cleaned. No retry, metadata, or build. Receipt:
+  `docs/evidence/agave-dependency-fetch-attempt-v2-2026-10-12.json`.
 
 ## Current horizon
 
-- Agave fetch closure remains terminal after the one separately approved v2 `cargo fetch --locked`
-  failure (exit 101, exact cause unavailable). Partial cache is preserved and must not be reused or
-  cleaned. No source/lock changes, target artifacts, retry, metadata, or build. See
-  `docs/evidence/agave-dependency-fetch-attempt-v2-2026-10-12.json`.
-- Implementing a status-only timing rehearsal bound to the failed-v2 plan, terminal receipt, source,
-  and exact one-minute LaunchAgent. It must prove the old v2 status path finishes within 60 seconds,
-  makes no provider/dispatch calls, and leaves service manifest/events/STOP unchanged. No provider
-  lease is approved by this rehearsal. Focused implementation tests pass; real calendar callback
-  and evidence remain pending.
-- If it passes, refresh clock/storage/source/account evidence and seek a separate finite prospective
-  Helius lease review. The missed interval stays unknown and is never replayed. c4 remains terminal.
+A separately versioned status-only timing rehearsal is pinned to the failed-v2 plan, terminal receipt,
+source and one calendar minute. Sol accepted the process-local old-runtime-gate shim but required
+callback/preflight/status start <= +15s, status finish <= +30s, and exact terminal semantic state
+(frontier 455802008, verified predecessor, zero IO). These fixes and fail-closed tests are in progress;
+no provider lease is implied. If a real callback qualifies, refresh clock/storage/source/account facts
+and seek a separate Sol review for a prospective Helius lease. The missed interval stays unknown and
+never replays. c4 remains terminal.
 
 Continue independent Senses horizons after each meaningful gate. Preserve event, receipt,
-availability and decision times; provenance; explicit unknown/censored states. Protected samples stay
-unopened. Commit/push complete scopes to `origin/research/active`; sync `main` only after a verified
-capability milestone. Keep documentation in English and update canonical owners.
+availability and decision times; immutable provenance; explicit unknown/censored states. Protected
+samples stay unopened. Commit/push completed scopes to `origin/research/active`; sync `main` only
+after a verified capability milestone. Keep documentation in English and update canonical owners.

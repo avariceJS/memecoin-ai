@@ -321,13 +321,37 @@ def _service_snapshot(plan: dict[str, Any], config_path: Path) -> dict[str, Any]
     }
 
 
+def _validate_terminal_status(result: dict[str, Any], terminal: dict[str, Any]) -> None:
+    events = result.get("events")
+    final_event = events[-1] if isinstance(events, list) and events else {}
+    stop_payload = final_event.get("payload", {}).get("stop", {})
+    _require(
+        result.get("status") == "stopped"
+        and result.get("stop") is True
+        and result.get("frontier") == terminal["frontier"] == 455802008
+        and result.get("predecessor_lineage_verified") is True
+        and result.get("requests") == 0
+        and result.get("reservations") == {}
+        and result.get("intents") == {}
+        and result.get("v2_raw_bytes") == 0
+        and result.get("v2_stored_bytes") == 0
+        and final_event.get("kind") == "stop"
+        and stop_payload.get("reason") == "missed_bootstrap",
+        "terminal_status_semantics_mismatch",
+    )
+
+
 def run(activation_path: Path) -> dict[str, Any]:
     """Validate one exact launchd callback, then run only the pinned v2 status path."""
     binding, _plan, plist = _load_binding(activation_path)
     _launchd_gate(binding, plist, activation_path)
-    now = time.time_ns()
+    callback_checked_ns = time.time_ns()
     start = binding["scheduled_minute_ns"]
-    _require(start <= now < binding["expires_ns"], "calendar_callback_outside_window")
+    _require(
+        start <= callback_checked_ns <= start + 15_000_000_000,
+        "calendar_callback_gate_late",
+    )
+    _require(callback_checked_ns < binding["expires_ns"], "calendar_callback_outside_window")
     terminal = json.loads(_read(TERMINAL_RECEIPT, private=False))
 
     from memecoin_research_storage import StorageError
@@ -356,29 +380,36 @@ def run(activation_path: Path) -> dict[str, Any]:
             and before["stop_sha256"] == terminal["stop_sha256"],
             "terminal_service_state_changed_before_rehearsal",
         )
-        began = time.time_ns()
+        preflight_finished_ns = time.time_ns()
+        _require(preflight_finished_ns <= start + 15_000_000_000, "calendar_preflight_late")
+        status_started_ns = time.time_ns()
+        _require(status_started_ns <= start + 15_000_000_000, "status_start_late")
         result = old_launch.execute(
             "status",
             activation_path=Path(binding["old_activation_path"]),
             config_path=Path(binding["storage_config_path"]),
         )
-        finished = time.time_ns()
+        status_finished_ns = time.time_ns()
         after = _service_snapshot(_plan, Path(binding["storage_config_path"]))
     finally:
         old_launch.runtime_gate = original_gate
         old_launch._client = original_client
         old_launch.engine.run_bootstrap = original_bootstrap
         old_launch.engine.run_frame = original_frame
-    _require(finished < binding["expires_ns"], "status_path_overran_window")
+    _require(status_finished_ns <= start + 30_000_000_000, "status_finish_late")
+    _require(status_finished_ns < binding["expires_ns"], "status_path_overran_window")
     _require(before == after, "status_path_mutated_service_tree")
+    _validate_terminal_status(result, terminal)
     return {
         "schema": "brain-senses-external-timing-rehearsal-result-v1",
         "status": "passed",
         "decision": binding["decision"],
         "label": binding["label"],
         "scheduled_minute_ns": start,
-        "process_started_ns": began,
-        "status_finished_ns": finished,
+        "callback_checked_ns": callback_checked_ns,
+        "preflight_finished_ns": preflight_finished_ns,
+        "status_started_ns": status_started_ns,
+        "status_finished_ns": status_finished_ns,
         "provider_io": False,
         "dispatch_calls": 0,
         "old_status": result.get("status"),
