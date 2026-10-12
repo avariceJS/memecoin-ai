@@ -3137,12 +3137,20 @@ qualification remain false. Its reproducible inputs, verdict and source pins are
 Real persistence/finality instrumentation and any build remain a separate Sol-reviewed horizon.
 
 The Agave source-closure review then allowed exactly one locked fetch in a fresh Kingston stage after
-the fixed Senses lease expired. The wrapper stopped with `cargo_fetch_created_build_output` after
-Cargo created `target/.rustc_info.json`; the source diff and lockfile still match their pinned hashes.
-The approximately 546-MiB Cargo home and target marker are preserved, tmp remains empty, and no
-Cargo process remains. The underlying Cargo diagnostic is unknown; there was no retry, offline
-metadata, build or ProgramTest. A further fetch requires a new Sol review. Receipt:
-[`terminal Agave Token-2022 fetch attempt`](evidence/agave-token2022-runtime-fetch-attempt-terminal-2026-10-12.json).
+the fixed Senses lease expired. The wrapper reported `cargo_fetch_created_build_output` after Cargo
+created `target/.rustc_info.json`; the source diff and lockfile still match their pinned hashes. A
+read-only follow-up verified the exact source/lock hashes, pinned Crossbeam checkout, 822 registry
+archives, the preserved 3,022-byte Rust compiler-probe marker, empty tmp, and no Cargo process. The
+guard's control flow shows Cargo exited zero before its final target-directory rejection. This points
+to a guard false positive on normal compiler probing, rather than a failed dependency fetch; that is
+an inference, because the wrapper discarded Cargo stdout/stderr. No Cargo retry, offline metadata,
+build, or ProgramTest followed. The captured package inventory is not a Cargo resolver result. A
+hash-bound read-only receipt records the findings and links the forced-detach and synthetic join
+receipts: [`Agave read-only cache preflight`](evidence/agave-read-only-cache-preflight-v1-2026-10-12.json).
+Any new Cargo operation still requires fresh Sol review and a separately versioned guard with
+diagnostic capture and explicit compiler-probe handling. The original immutable receipts remain:
+[`source closure`](evidence/agave-token2022-runtime-source-closure-2026-10-12.json) and
+[`terminal fetch wrapper result`](evidence/agave-token2022-runtime-fetch-attempt-terminal-2026-10-12.json).
 Earlier attempts remain separately recorded:
 [`fetch attempt`](evidence/agave-dependency-fetch-attempt-2026-10-12.json),
 [`source-state correction`](evidence/agave-dependency-fetch-attempt-source-correction-2026-10-12.json),

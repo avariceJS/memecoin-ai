@@ -1,7 +1,8 @@
 # Current Project State
 
-**As of:** 2026-10-12 12:01Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, clean pushed HEAD `a73f3ec008c8faeb643a4900eeaa49bb032fa9ec`. `main` remains
+**As of:** 2026-10-12 12:06Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, at `0cdee439348a1cf5404b29912e368e9db8b8973d` plus the current read-only preflight
+documentation changes. `main` remains
 at `3dab3a36cccaa5913fdfa697b054a17181de3dd0`; do not advance it until the live collection
 capability is verified. Production, champion, protected evaluation, trading, and Cortex are untouched.
 
@@ -19,10 +20,11 @@ capability is verified. Production, champion, protected evaluation, trading, and
   request intent. It is terminal `abandoned`, manifest-verified, and has no provider requests or
   captures. The one-hour recovery cooldown moves the next fresh anchor to 13:00Z; the 12:00Z window
   remains unobserved and is not replayed. One clock probe timed out; subsequent probes passed.
-- Latest Kingston monitor reports `cooldown`, sequence 7, about 229 KiB service allocation, and
-  about 219.38 GB volume free. LaunchAgent loaded and last scheduled exit was 0. Next checks: fresh
-  13:00Z anchor capture/restart replay, then the next hourly inventory/sample frame and independent
-  raw-capture replay. Actual provider charge remains unknown/unverified.
+- At 12:04Z the LaunchAgent was loaded/running (runs=8; last exit 0). Kingston monitor reports
+  `cooldown`; the terminalized plan has no request intent or capture. About 219.38 GB remains free.
+  Next checks: fresh 13:00Z anchor capture/restart replay, then the next hourly inventory/sample
+  frame and independent raw-capture replay. No v4 provider request has yet been made; actual charge
+  remains unknown/unverified.
 
 ## Senses state and next horizon
 
@@ -35,9 +37,12 @@ unmodified files.
 
 Economic qualification remains open: candidate-position/runtime witness, native settlement, and
 `buyExact25` semantics are not qualified. The terminal Agave fetch attempt, dirty Cargo home/target,
-and their gates are preserved; no retry/build/ProgramTest until a new Sol decision. Sol is deciding
-the next useful bounded horizon. Keep c4 and `external-v2-20261012T0600Z` terminal; no replay,
-backfill, protected data, or Cortex.
+and their gates are preserved. A new read-only cache receipt verified the source/lock hashes, 822
+registry archives, pinned Crossbeam checkout, and that Cargo exited zero before the old wrapper
+rejected its sole `target/.rustc_info.json` compiler-probe marker. The old stdout/stderr is unknown;
+no Cargo retry/metadata/build/ProgramTest was run. A fresh Sol review is required for any new Cargo
+operation. Keep c4 and `external-v2-20261012T0600Z` terminal; no replay, backfill, protected data,
+or Cortex.
 
 Use canonical owner docs and only task-specific receipts. Keep this file short; raw evidence stays
 immutable under Kingston and `docs/evidence/`.
