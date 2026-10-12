@@ -656,7 +656,7 @@ def test_launchctl_adapter_requires_unloaded_and_disabled(monkeypatch: pytest.Mo
             (0, ""),
             (0, "PID Status Label\n"),
             (0, "python unrelated.py\n"),
-            (0, f'{{ "{cutover._LABEL}" => true }}'),
+            (0, f'{{\n\t"{cutover._LABEL}" => disabled\n}}'),
         ]
     )
     observed: list[list[str]] = []
@@ -697,6 +697,24 @@ def test_launchctl_adapter_requires_unloaded_and_disabled(monkeypatch: pytest.Mo
 
     monkeypatch.setattr(subprocess, "run", fake_running)
     with pytest.raises(cutover.CutoverError, match="v4_process_still_running"):
+        cutover.LaunchctlAgentControl(uid=501).disable_bootout_and_verify()
+
+    outputs_enabled = iter(
+        [
+            (0, ""),
+            (0, ""),
+            (0, "PID Status Label\n"),
+            (0, "unrelated process\n"),
+            (0, f'{{\n\t"{cutover._LABEL}" => enabled\n}}'),
+        ]
+    )
+
+    def fake_enabled(argv: list[str], **_kwargs: Any) -> Any:
+        code, stdout = next(outputs_enabled)
+        return subprocess.CompletedProcess(argv, code, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_enabled)
+    with pytest.raises(cutover.CutoverError, match="v4_agent_not_disabled"):
         cutover.LaunchctlAgentControl(uid=501).disable_bootout_and_verify()
 
 

@@ -146,6 +146,8 @@ def build_from_v4_metadata(
                     if planned_sources.get(path) != expected_sources[path]
                 }
                 == {"tools/brain_senses_external_orchestrator_v4.py"}
+                and planned_sources.get("tools/brain_senses_external_orchestrator_v4.py")
+                == cutover_forensics._PREVIOUS_V4_RUNTIME_SHA256
             )
             if not sources_match and not runtime_only_change:
                 raise CutoverUsageError("v4_source_binding_changed")
@@ -262,6 +264,8 @@ def build_from_v4_metadata(
                     path for path in expected_sources if planned.get(path) != expected_sources[path]
                 }
                 == {"tools/brain_senses_external_orchestrator_v4.py"}
+                and planned.get("tools/brain_senses_external_orchestrator_v4.py")
+                == cutover_forensics._PREVIOUS_V4_RUNTIME_SHA256
             ):
                 raise CutoverUsageError("control_plan_source_changed")
             return v4_verify.verify_plan(

@@ -121,7 +121,11 @@ class LaunchctlAgentControl:
         ):
             raise CutoverError("v4_process_still_running")
         disabled = self._run(["/bin/launchctl", "print-disabled", self.domain])
-        if f'"{_LABEL}" => true' not in disabled:
+        disabled_lines = {line.strip() for line in disabled.splitlines() if line.strip()}
+        if not {
+            f'"{_LABEL}" => true',
+            f'"{_LABEL}" => disabled',
+        }.intersection(disabled_lines):
             raise CutoverError("v4_agent_not_disabled")
 
 
