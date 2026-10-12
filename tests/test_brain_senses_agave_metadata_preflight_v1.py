@@ -427,24 +427,24 @@ def test_target_probe_accepts_only_pinned_successful_rustc_probes(tmp_path: Path
     outputs = {
         "0": {
             "success": True,
-            "status": 0,
-            "code": "-vV",
+            "status": "",
+            "code": 0,
             "stdout": "rustc 1.86.0 (05f9846f8 2025-03-31)\n",
             "stderr": "",
         },
         "1": {
             "success": True,
-            "status": 0,
-            "code": "--print=cfg",
+            "status": "",
+            "code": 0,
             "stdout": 'target_arch="aarch64"\ntarget_os="macos"\ntarget_vendor="apple"\n',
             "stderr": "",
         },
     }
     marker = tmp_path / ".rustc_info.json"
-    marker.write_text(json.dumps({"rustc_fingerprint": 7, "outputs": outputs}))
+    marker.write_text(json.dumps({"rustc_fingerprint": 7, "outputs": outputs, "successes": {}}))
     assert preflight._target_probe(tmp_path, tmp_path.stat().st_dev)[0] == ".rustc_info.json"
     outputs["1"]["success"] = False
-    marker.write_text(json.dumps({"rustc_fingerprint": 7, "outputs": outputs}))
+    marker.write_text(json.dumps({"rustc_fingerprint": 7, "outputs": outputs, "successes": {}}))
     with pytest.raises(preflight.MetadataPreflightError, match="rustc_probe_output"):
         preflight._target_probe(tmp_path, tmp_path.stat().st_dev)
 

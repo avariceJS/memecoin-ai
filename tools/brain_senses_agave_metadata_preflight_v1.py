@@ -909,12 +909,13 @@ def _target_probe(target_dir: Path, device: int) -> tuple[str | None, str | None
     parsed = _strict_json(raw, "rustc_probe")
     if (
         not isinstance(parsed, dict)
-        or set(parsed) != {"rustc_fingerprint", "outputs"}
+        or set(parsed) != {"rustc_fingerprint", "outputs", "successes"}
         or not isinstance(parsed.get("rustc_fingerprint"), int)
         or isinstance(parsed.get("rustc_fingerprint"), bool)
         or not 0 <= parsed["rustc_fingerprint"] < 2**64
         or not isinstance(parsed.get("outputs"), dict)
         or not parsed["outputs"]
+        or parsed.get("successes") != {}
     ):
         raise MetadataPreflightError("rustc_probe_schema")
     outputs: list[str] = []
@@ -925,8 +926,8 @@ def _target_probe(target_dir: Path, device: int) -> tuple[str | None, str | None
             or not isinstance(row, dict)
             or set(row) != {"success", "status", "code", "stdout", "stderr"}
             or row.get("success") is not True
-            or row.get("status") != 0
-            or not isinstance(row.get("code"), str)
+            or row.get("status") != ""
+            or row.get("code") != 0
             or not isinstance(row.get("stdout"), str)
             or not isinstance(row.get("stderr"), str)
             or len(row["stdout"].encode()) + len(row["stderr"].encode()) > 8 * 1024
