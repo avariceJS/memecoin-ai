@@ -1,41 +1,45 @@
 # Current Project State
 
-**As of:** 2026-10-12 05:18Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, at `7cde1e44b9988adb2a59f62d0315a7b642aabaf8`; `main` and both origin refs are
-fast-forwarded to this commit. The current uncommitted scope adds synthetic raw-account replay and a
-post-seal structural-input v1 sibling builder/publisher with disposable detach qualification v2.
-Production, champion, protected evaluation, and real trading remain untouched; no signing or
-submission; Cortex is out of scope.
+**As of:** 2026-10-12 05:50Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, at `9bc9b3bf17cec1c0ce201fb5803cee527a061230`; worktree clean and pushed to
+`origin/research/active`. `main`/`origin/main` remain at the previously verified capability baseline
+`2ce3cdaff63f0e0b78dcab8e78886ae405085432`; this source-map/evidence checkpoint is not a capability
+milestone. Production, champion, protected evaluation, and real trading remain untouched; no signing,
+submission, or Cortex work.
 
 ## Live state
 
-- Kingston `/Volumes/Kingston/BrainData` is bound to root ID `9428695af6d4f46c08e1a444cdc66de8`
-  and UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; latest verified free space is 220,877,201,408
-  bytes (~205.7 GiB), above the 50-GiB floor. Health monitor is loaded and ready. Never fall back to
-  internal storage or move frozen roots.
-- c4 STOP remains terminal at frontier `455430160`, with no backfill. Sealed-v1 predecessor
-  frontier is `455802008`. The 02:30Z and 04:30Z v2 siblings are terminal/disabled; no catch-up.
-- Structural-input v1 accepts only independently verified sealed v2 captures. Five forced detach
-  points passed with unchanged underlay, no fallback, no replay/provider calls, and zero open handles.
-  Disposable capacity is not live capacity qualification; Kingston was untouched, and no real v2
-  frame is compiled. Receipt: `brain-senses-structural-input-sibling-writer-qualification-v2.json`.
-- Synthetic raw-account v1 covers Token-2022/WSOL byte layouts only. Hooks remain unsupported; runtime
-  law, PIT, settlement, and admission are false. Combined focused suites (118 tests), targeted
-  Ruff/format/mypy/py_compile, and `make smoke` pass.
-- The fixed 06:00Z Helius plan is semantically accepted but not activation-ready. The plan is bounded
-  at 409 requests, 4 RPS, 3.104 GB; actual charge remains unknown. Do not activate unless fresh
-  predecessor, clock, storage, launch, and Sol cross-bound release evidence all pass by 05:45Z.
-  Otherwise leave this fixed window unused; no shift or catch-up.
-- Read-only provider meter remains limited: Helius key is configured but no authenticated JWT/account
-  quota or charge meter; Alchemy last snapshot was 18,680 CU / $0.01 with no account limit or workload
-  attribution. No signup/account mutation.
+- Kingston `/Volumes/Kingston/BrainData` matches root ID
+  `9428695af6d4f46c08e1a444cdc66de8` and UUID
+  `8f8f1081-9be4-4914-9111-75f1b90255bf`; latest free space is 220,789,817,344 bytes and health is
+  `ready`, above the 50-GiB floor. Never fall back to internal storage or move frozen roots.
+- c4 STOP remains terminal at frontier `455430160`; STOP hash
+  `a7ac1fdd02615491fbea494d35f5bbcba8b03d5bf2a4d11f2516616b39f00098`, reservation reconciled,
+  zero ambiguous reservations and zero post-STOP RPCs. The sealed-v1 predecessor frontier is
+  `455802008`. The 02:30Z/04:30Z siblings are terminal and disabled; no backfill.
+- The fixed `external-v2-20261012T0600Z` LaunchAgent is loaded idle for 06:00–07:03Z, path-only,
+  calendar scheduled and not manually kicked. Latest read-only status: `verified_prefix`, 0 requests,
+  reservations or intents, no STOP, no replay authority. Do not run Cargo while this lease is armed or
+  running. After it expires, independently verify terminal completion and unload the label.
+- Helius read-only account status confirms an API key but exposes no plan/quota/usage/charge without
+  JWT; do not invoke signup/account mutation. Alchemy reports team aggregate 18,680 CU / $0.01 MTD,
+  no limit or workload attribution; actual lease charge remains `unknown_unverified`.
 
-## Next
+## Current Senses horizon
 
-Finish or terminally leave the fixed 06:00Z release without replay. Then replan to the isolated
-synthetic Token-2022/WSOL runtime horizon: first qualify fresh source/lock/patch/dependency closure,
-then a bounded guarded fetch/build; do not inspect dirty Agave checkout/cache or sign. Stop that
-horizon on closure/build failure or any need for signing. Continue Senses through economic,
-candidate-position, lifecycle/modalities, recovery, unknown qualification and storage horizons; do
-not declare engineering complete until the practical sensing/semantics/provenance/recovery/coverage
-bottlenecks have moved to representation/model intelligence/learning/compute.
+- Fresh isolated Agave `v3.0.0` source closure pins observer v5 + corrected parser v3, 20 changed
+  paths and 1,075 packages. Check-only passed with empty Cargo/target/tmp; no dependencies fetched.
+- Sol approved exactly one bounded locked Cargo fetch only after the fixed lease is terminal,
+  independently verified and unloaded. Immediately before it, rerun check-only and verify unchanged
+  source/tool/lock/storage pins and at least 90 GiB free. Keep the 30-minute, 8-GiB cache growth,
+  32-GiB stage allocation, 50-GiB floor/reserve, no-retry/process-group guards. A failed fetch is
+  terminal; success permits offline metadata only. Build needs another Sol review.
+- The read-only Agave persistence/finality seam map is committed in
+  `docs/evidence/agave-v3-transaction-persistence-finality-source-map-2026-10-12.json`; its verifier
+  passes 12 source files/38 anchors. It identifies missing unique joins across attempt, commit,
+  absolute block index, frozen bank/fork and rooted block. After raw runtime qualification, next
+  decision is a synthetic commit-to-root witness; ambiguous hash, fork or time remains unknown.
+- Do not use c4/tail2 or protected bodies, old partial Cargo caches, dirty historical Agave roots,
+  provider RPC, signing or production. No decoder promotion, settlement, buyExact25, PIT or economic
+  admission is qualified. Continue Senses through economics, causal population, lifecycle/modalities,
+  recovery, storage and unknown qualification; do not stop at this checkpoint.
