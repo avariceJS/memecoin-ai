@@ -1,7 +1,7 @@
 # Current Project State
 
-**As of:** 2026-10-12 22:23Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD `bceed7d` (also pushed to `main` and `origin`). Worktree contains user-owned
+**As of:** 2026-10-12 22:38Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, HEAD `e796dbd` (also pushed to `main` and `origin`). Worktree contains user-owned
 Agave/build-guard and Gecko v1 dirty files; preserve them and stage only task-owned paths. Production,
 champion, protected samples, real trading, and Cortex remain untouched.
 
@@ -20,9 +20,14 @@ champion, protected samples, real trading, and Cortex remain untouched.
   verifies an 11-intent timely prefix; one 21:30Z pool is a durable `missed_dispatch` skip, with no
   retry/backfill. Kingston currently has about 202.4 GiB free.
   Descriptor-bound parent inventory at 22:06Z: `v3`, three `v3-pilots`, one `v4-pilot`, four
-  `capture-only-v1` roots; `v4` and `capture-only-v2` are absent. Existing v4 budget code includes
-  its v3 pilots but does not include capture-only roots; v5 dispatch needs a complete replay-verified
-  inventory.
+  `capture-only-v1` roots; direct `v4` and `capture-only-v2` were absent then. The loaded
+  capture-only v4 LaunchAgent is now stop-latched (`integrity`) after replay found an unreferenced
+  clock artifact for a bucket where dispatch windows were missed; its immutable root is not repaired
+  in place. A fresh shared-usage census currently fails closed on this root's `gecko_v5_clock_closure`.
+  The capture runner source map still matches its pinned source; no request recovery or provider retry
+  was performed. The v2 verifier has been moved to atomic body-bearing result envelopes and per-request
+  post-settlement, fresh-clock confirmations; 54 focused verifier/inventory/usage/coordinator tests
+  pass. Its inventory remains synthetic-only and no v2 provider runtime is active.
 - Sol approved a separate v5 six-pool rotating scout: cycle 170 train pools; up to two incumbent
   retention slots for exactly four selected buckets when the prior bucket is received, durable, and
   eligible new-open; new candidates rank by availability then pinned hash. No retry/backfill or
@@ -43,9 +48,8 @@ champion, protected samples, real trading, and Cortex remain untouched.
   v5 census/replay and prospective assessment under one `gecko` lane lease through terminal
   persistence. Inventory uses nonblocking shared locks; future v2 writer must then obtain its own
   exclusive root lock nonblocking and revalidate the pinned prefix. Next horizon: implement the
-  lane-aware v2 writer/runtime and forced cross-version detach/race/recovery tests. No v2 provider
-  runtime is active; current v4 remains untouched and loaded. Before any v2 provider pilot, v4 must
-  be sealed and unloaded because it does not share future-v2 pacing state.
+  lane-aware v2 writer/runtime and forced cross-version detach/race/recovery tests. Before any v2
+  provider pilot, v4 must be sealed and unloaded because it does not share future-v2 pacing state.
 - Helius v5 structural collector and health monitor remain loaded. Shared Kingston lock can serialize
   ticks while provider I/O is pending; monitor latency, do not interrupt ambiguous requests.
   Alchemy aggregate charge last verified as $0.01 / 18,680 CU without limit/workload attribution;

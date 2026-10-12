@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import json
 import re
@@ -31,6 +33,7 @@ REQUEST_START_END_NS = 270 * scout.NS
 AVAILABILITY_END_NS = 300 * scout.NS
 MAX_RESPONSE_BYTES = scout.MAX_RESPONSE_BYTES
 _CLOCK_NAME = re.compile(r"clocks/([0-9]+)-([0-9]{2})\.json\Z")
+_CONFIRMATION_CLOCK_NAME = re.compile(r"clocks/([0-9a-f]{64})-confirmation\.json\Z")
 
 
 class VerifyError(ValueError):
@@ -52,9 +55,7 @@ def _record_hash(row: Mapping[str, Any], field: str, reason: str) -> None:
     _require(type(claimed) is str and claimed == sha256(canonical_json(core)), reason)
 
 
-def _admission_is_bound(
-    admission: Mapping[str, Any], request_id: str, decision_ns: int
-) -> bool:
+def _admission_is_bound(admission: Mapping[str, Any], request_id: str, decision_ns: int) -> bool:
     snapshots = admission.get("root_snapshot_sha256s")
     roots = admission.get("expected_roots")
     day = admission.get("utc_day")
@@ -65,9 +66,7 @@ def _admission_is_bound(
         "root_inventory_sha256": admission.get("root_inventory_sha256"),
         "snapshot_sha256s": snapshots,
         "prospective_request_id": admission.get("prospective_request_id"),
-        "prospective_maximum_response_bytes": admission.get(
-            "prospective_maximum_response_bytes"
-        ),
+        "prospective_maximum_response_bytes": admission.get("prospective_maximum_response_bytes"),
     }
     return (
         admission.get("schema") == "brain-senses-gecko-shared-usage-assessment-v1"
@@ -95,16 +94,17 @@ def _admission_is_bound(
         and 1 <= day["request_count_including_prospective"] <= scout.MAX_INTENTS_PER_UTC_DAY
         and day.get("maximum_response_bytes") == scout.MAX_RAW_BYTES_PER_UTC_DAY
         and type(day.get("charged_response_bytes_including_prospective")) is int
-        and 0 <= day["charged_response_bytes_including_prospective"]
+        and 0
+        <= day["charged_response_bytes_including_prospective"]
         <= scout.MAX_RAW_BYTES_PER_UTC_DAY
         and type(rolling) is dict
         and rolling.get("maximum_request_count") == scout.MAX_INTENTS_PER_ROLLING_30D
         and type(rolling.get("request_count_including_prospective")) is int
-        and 1 <= rolling["request_count_including_prospective"]
-        <= scout.MAX_INTENTS_PER_ROLLING_30D
+        and 1 <= rolling["request_count_including_prospective"] <= scout.MAX_INTENTS_PER_ROLLING_30D
         and rolling.get("maximum_response_bytes") == scout.MAX_RAW_BYTES_PER_ROLLING_30D
         and type(rolling.get("charged_response_bytes_including_prospective")) is int
-        and 0 <= rolling["charged_response_bytes_including_prospective"]
+        and 0
+        <= rolling["charged_response_bytes_including_prospective"]
         <= scout.MAX_RAW_BYTES_PER_ROLLING_30D
         and type(admission.get("unresolved_attempt_count_in_rolling_30d")) is int
         and admission["unresolved_attempt_count_in_rolling_30d"] >= 1
@@ -271,9 +271,7 @@ def verify_capture_prefix_v2(
         and type(storage.get("root_id")) is str
         and re.fullmatch(r"[0-9a-f]{32}", storage["root_id"]) is not None
         and type(storage.get("volume_uuid")) is str
-        and re.fullmatch(
-            r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", storage["volume_uuid"]
-        )
+        and re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", storage["volume_uuid"])
         is not None
         and type(storage.get("device")) is int
         and storage["device"] >= 0
@@ -402,7 +400,7 @@ def verify_capture_prefix_v2(
                 "response_sha256": None,
             }
         )
-    _require(set(clock_files) == referenced_clocks, "v2_clock_closure")
+    _require(referenced_clocks <= set(clock_files), "v2_clock_closure")
 
     skip_slots: set[tuple[int, int]] = set()
     for skip in skips:
@@ -495,9 +493,7 @@ def verify_capture_prefix_v2(
         _require(right - left + 1 <= scout.ROLLING_MINUTE_DISPATCH_CAP, "v2_dispatch_rate")
 
     try:
-        coordinator_raw = b"".join(
-            capacity.canonical(dict(event)) for event in coordinator_events
-        )
+        coordinator_raw = b"".join(capacity.canonical(dict(event)) for event in coordinator_events)
         verified_coordinator = capacity._verify_ledger(coordinator_raw)
     except (capacity.CoordinatorError, TypeError, ValueError) as exc:
         raise VerifyError("v2_coordinator_ledger_invalid") from exc
@@ -542,10 +538,7 @@ def verify_capture_prefix_v2(
             and fields.get("outcome_path") == f"{root}/results/{request_id}.json"
             and fields.get("intent_sha256") == payload_hash
             and fields.get("intent_bytes_sha256") == payload_hash
-            and (
-                coordinator_terminal is None
-                or coordinator_terminal.get("kind") != "released"
-            ),
+            and (coordinator_terminal is None or coordinator_terminal.get("kind") != "released"),
             "v2_coordinator_intent_binding",
         )
 
@@ -558,89 +551,129 @@ def verify_capture_prefix_v2(
         found_intent = intent_by_id.get(rid)
         found_dispatch = dispatch_by_id.get(rid)
         _require(
-            found_intent is not None
-            and found_dispatch is not None
-            and rid not in terminal_by_id,
+            found_intent is not None and found_dispatch is not None and rid not in terminal_by_id,
             "v2_terminal_binding",
         )
         found_intent = cast(dict[str, Any], found_intent)
         found_dispatch = cast(dict[str, Any], found_dispatch)
         required = {
             "schema",
+            "schema_version",
             "request_id",
             "intent_sha256",
+            "plan_sha256",
             "dispatch_record_sha256",
             "dispatch_ns",
             "request_started_ns",
             "receipt_ns",
-            "availability_ns",
             "status",
             "http_status",
+            "transport_error_class",
+            "retry_after_seconds",
+            "cooldown_until_ns",
+            "stop_reason",
+            "provider_io",
+            "raw_body_b64",
             "response_bytes",
             "response_sha256",
+            "bars",
             "provider_charge_units",
             "provider_charge_status",
-            "terminal_sha256",
         }
         _require(
-            set(row) == required and row.get("schema") == TERMINAL_SCHEMA,
+            set(row) == required
+            and row.get("schema") == TERMINAL_SCHEMA
+            and row.get("schema_version") == 1
+            and row.get("provider_io") is True,
             "v2_terminal_fields",
         )
         _require(
             row.get("intent_sha256") == found_intent.get("intent_sha256")
+            and row.get("plan_sha256") == found_intent["request"].get("plan_record_sha256")
             and row.get("dispatch_record_sha256") == found_dispatch.get("record_sha256")
             and row.get("dispatch_ns") == found_dispatch.get("dispatch_ns")
             and row.get("provider_charge_units") is None
             and row.get("provider_charge_status") == "unknown_unverified",
             "v2_terminal_intent_binding",
         )
-        started, received, available = (
-            row.get(key) for key in ("request_started_ns", "receipt_ns", "availability_ns")
-        )
+        started, received = row.get("request_started_ns"), row.get("receipt_ns")
         _require(
             type(started) is int
             and started >= row["dispatch_ns"]
             and started <= row["dispatch_ns"] + scout.HTTP_TIMEOUT_SECONDS * scout.NS
             and type(received) is int
             and received >= started
-            and received <= started + scout.HTTP_TIMEOUT_SECONDS * scout.NS
-            and (available is None or (type(available) is int and available >= received)),
+            and received <= started + scout.HTTP_TIMEOUT_SECONDS * scout.NS,
             "v2_terminal_times",
         )
-        body = raw_responses.get(rid)
+        body_value = row.get("raw_body_b64")
+        if body_value is None:
+            body = None
+        else:
+            _require(type(body_value) is str, "v2_raw_body_encoding")
+            try:
+                body = base64.b64decode(body_value, validate=True)
+            except (binascii.Error, ValueError) as exc:
+                raise VerifyError("v2_raw_body_encoding") from exc
+            _require(base64.b64encode(body).decode("ascii") == body_value, "v2_raw_body_encoding")
+        _require(
+            raw_responses.get(rid) == body and (rid in raw_responses) == (body is not None),
+            "v2_raw_body_file_projection",
+        )
         status = row.get("status")
         if body is None:
             _require(
                 row.get("response_bytes") is None and row.get("response_sha256") is None,
                 "v2_terminal_raw_missing",
             )
-            if rid in dispatch_by_id:
-                usage = next(item for item in usage_rows if item["request_id"] == rid)
-                # unresolved raw response is charged at the pinned maximum
-                usage["response_bytes"] = None
-                usage["response_sha256"] = None
+            _require(
+                row.get("bars") == [],
+                "v2_terminal_raw_missing",
+            )
         else:
             _require(
                 type(body) is bytes
                 and len(body) <= MAX_RESPONSE_BYTES
                 and row.get("response_bytes") == len(body)
                 and row.get("response_sha256") == sha256(body),
-                "v2_raw_capture_binding",
+                "v2_raw_body_binding",
             )
-            if status in {"received", "empty_response"}:
-                parsed = parse_response(
-                    body, found_intent["request"]["bucket_close_ns"], received
+            try:
+                parsed = parse_response(body, found_intent["request"]["bucket_close_ns"], received)
+            except (ValueError, TypeError, KeyError):
+                _require(status == "malformed_response", "v2_malformed_response_status")
+                parsed = []
+            else:
+                _require(status != "malformed_response", "v2_malformed_status_for_valid_response")
+            expected_bars = []
+            for bar in parsed:
+                open_ns = bar["event_time_ns"]
+                close_ns = found_intent["request"]["bucket_close_ns"]
+                region = (
+                    "new_open"
+                    if close_ns - 900 * scout.NS <= open_ns < close_ns
+                    else "overlap_revision"
+                    if close_ns - 1800 * scout.NS <= open_ns < close_ns - 900 * scout.NS
+                    else "out_of_window"
                 )
+                expected_bars.append(
+                    {
+                        key: bar[key]
+                        for key in (
+                            "open_s",
+                            "event_time_ns",
+                            "open",
+                            "high",
+                            "low",
+                            "close",
+                            "volume",
+                        )
+                    }
+                    | {"region": region}
+                )
+            _require(row.get("bars") == expected_bars, "v2_parsed_bars_mismatch")
+            if status in {"received", "empty_response"}:
                 _require(("received" if parsed else "empty_response") == status, "v2_parsed_status")
-            elif status == "malformed_response":
-                try:
-                    parse_response(
-                        body, found_intent["request"]["bucket_close_ns"], received
-                    )
-                except (ValueError, TypeError, KeyError):
-                    pass
-                else:
-                    raise VerifyError("v2_malformed_status_for_valid_response")
             usage = next(item for item in usage_rows if item["request_id"] == rid)
             usage["response_bytes"] = len(body)
             usage["response_sha256"] = sha256(body)
@@ -659,23 +692,19 @@ def verify_capture_prefix_v2(
             "v2_terminal_status",
         )
         if status in {"received", "empty_response"}:
-            _require(
-                body is not None and type(available) is int,
-                "v2_successful_result_availability_missing",
-            )
-        elif status == "malformed_response":
-            _require(body is not None and type(available) is int, "v2_malformed_raw_missing")
+            _require(body is not None, "v2_successful_result_body_missing")
         elif status in {"provider_error", "rate_limited", "client_or_access_error"}:
-            _require(
-                body is not None and type(available) is int,
-                "v2_http_error_raw_missing",
-            )
+            _require(body is not None, "v2_http_error_body_missing")
         else:
             _require(
                 status in {"response_over_budget", "transport_uncertain_possibly_spent"},
-                "v2_result_without_raw_not_ambiguous",
+                "v2_result_without_body_not_ambiguous",
             )
-        _record_hash(row, "terminal_sha256", "v2_terminal_hash")
+        _require(
+            (body is None and row.get("bars") == [])
+            or (body is not None and type(row.get("bars")) is list),
+            "v2_terminal_bars_shape",
+        )
         terminal_by_id[rid] = cast(dict[str, Any], row)
     _require(
         set(raw_responses)
@@ -684,21 +713,24 @@ def verify_capture_prefix_v2(
     )
 
     confirmation_by_id: dict[str, dict[str, Any]] = {}
-    previous_confirmation_hash: str | None = None
-    for index, row in enumerate(confirmations):
+    confirmation_clocks: set[str] = set()
+    confirmed_bars: dict[str, list[dict[str, Any]]] = {}
+    for row in confirmations:
         _require(
             type(row) is dict
             and set(row)
             == {
                 "schema",
-                "sequence",
+                "schema_version",
                 "request_id",
-                "terminal_bytes_sha256",
+                "outcome_sha256",
+                "availability_ns",
                 "confirmed_ns",
-                "reservation_id",
+                "clock_path",
+                "clock_sha256",
+                "monotonic_ns",
                 "coordinator_event_sha256",
-                "previous_sha256",
-                "record_sha256",
+                "confirmation_sha256",
             },
             "v2_confirmation_fields",
         )
@@ -708,35 +740,96 @@ def verify_capture_prefix_v2(
         terminal = terminal_by_id.get(rid)
         _require(
             row.get("schema") == CONFIRMATION_SCHEMA
-            and row.get("sequence") == index
-            and row.get("previous_sha256") == previous_confirmation_hash
+            and row.get("schema_version") == 1
             and terminal is not None
-            and row.get("terminal_bytes_sha256") == sha256(canonical_json(terminal))
+            and row.get("outcome_sha256") == sha256(canonical_json(terminal))
+            and type(row.get("availability_ns")) is int
             and type(row.get("confirmed_ns")) is int
-            and row["confirmed_ns"] >= terminal.get("receipt_ns", 0)
-            and type(row.get("reservation_id")) is str
+            and terminal.get("receipt_ns", 0) <= row["availability_ns"] <= row["confirmed_ns"]
+            and type(row.get("monotonic_ns")) is int
+            and row["monotonic_ns"] >= 0
             and HASH_RE.fullmatch(str(row.get("coordinator_event_sha256"))) is not None,
             "v2_confirmation_binding",
         )
         terminal = cast(dict[str, Any], terminal)
-        _record_hash(row, "record_sha256", "v2_confirmation_hash")
+        _record_hash(row, "confirmation_sha256", "v2_confirmation_hash")
+        clock_path = row.get("clock_path")
+        suffix = (
+            clock_path[len(root) + 1 :]
+            if type(clock_path) is str and clock_path.startswith(root + "/")
+            else ""
+        )
+        _require(
+            _CONFIRMATION_CLOCK_NAME.fullmatch(suffix) is not None
+            and suffix == f"clocks/{rid}-confirmation.json",
+            "v2_confirmation_clock_path",
+        )
+        clock_path = cast(str, clock_path)
+        clock_raw = clock_files.get(clock_path)
+        _require(
+            type(clock_raw) is bytes and sha256(clock_raw) == row.get("clock_sha256"),
+            "v2_confirmation_clock_hash",
+        )
+        try:
+            clock_record = json.loads(cast(bytes, clock_raw))
+            _require(
+                canonical_json(clock_record) == clock_raw,
+                "v2_confirmation_clock_noncanonical",
+            )
+            validate_progress(
+                clock_record,
+                wall_ns=row["confirmed_ns"],
+                monotonic_ns=row["monotonic_ns"],
+            )
+        except (ClockError, TypeError, json.JSONDecodeError) as exc:
+            raise VerifyError("v2_confirmation_clock_invalid") from exc
+        confirmation_clocks.add(clock_path)
         reservation_event = reservation_by_request[rid]
-        reservation_id = row["reservation_id"]
+        reservation_id = reservation_event["fields"]["reservation_id"]
         coordinator_terminal = coordinator_terminals.get(reservation_id)
         _require(
             reservation_event["fields"].get("reservation_id") == reservation_id
             and coordinator_terminal is not None
             and coordinator_terminal.get("kind") in {"settled", "ambiguous_terminal"}
             and coordinator_terminal["fields"].get("reservation_id") == reservation_id
-            and row.get("coordinator_event_sha256")
-            == coordinator_terminal.get("event_sha256")
+            and row.get("coordinator_event_sha256") == coordinator_terminal.get("event_sha256")
             and coordinator_terminal["fields"].get("outcome_sha256")
             == sha256(canonical_json(terminal)),
             "v2_confirmation_coordinator_binding",
         )
-        previous_confirmation_hash = cast(str, row["record_sha256"])
+        coordinator_terminal = cast(dict[str, Any], coordinator_terminal)
+        _require(
+            coordinator_terminal["at_ns"]
+            <= row["availability_ns"]
+            <= clock_record["checked_ns"]
+            <= row["confirmed_ns"],
+            "v2_confirmation_availability_order",
+        )
+        body = raw_responses.get(rid)
+        if (
+            body is not None
+            and terminal.get("status") in {"received", "empty_response"}
+            and terminal.get("request_started_ns")
+            < intent_by_id[rid]["request"]["bucket_close_ns"] + REQUEST_START_END_NS
+            and row["availability_ns"]
+            < intent_by_id[rid]["request"]["bucket_close_ns"] + AVAILABILITY_END_NS
+        ):
+            try:
+                parsed = parse_response(
+                    body,
+                    intent_by_id[rid]["request"]["bucket_close_ns"],
+                    row["availability_ns"],
+                )
+                close_ns = intent_by_id[rid]["request"]["bucket_close_ns"]
+                if any(
+                    close_ns - 900 * scout.NS <= bar["event_time_ns"] < close_ns for bar in parsed
+                ):
+                    confirmed_bars[rid] = parsed
+            except (ValueError, TypeError, KeyError) as exc:
+                raise VerifyError("v2_confirmed_response_unparseable") from exc
         confirmation_by_id[rid] = cast(dict[str, Any], row)
     _require(set(confirmation_by_id) <= set(terminal_by_id), "v2_orphan_confirmation")
+    _require(set(clock_files) == referenced_clocks | confirmation_clocks, "v2_clock_closure")
     _require(set(dispatch_by_id) <= set(intent_by_id), "v2_orphan_dispatch")
     _require(set(terminal_by_id) <= set(dispatch_by_id), "v2_orphan_terminal")
     for request_id, terminal in terminal_by_id.items():
@@ -757,6 +850,7 @@ def verify_capture_prefix_v2(
         "dispatch_count": len(dispatch_by_id),
         "terminal_count": len(terminal_by_id),
         "confirmation_count": len(confirmation_by_id),
+        "confirmed_eligible_request_count": len(confirmed_bars),
         "unresolved_count": len(intent_by_id) - len(terminal_by_id),
         "usage_attempts": sorted(
             usage_rows, key=lambda row: (row["decision_ns"], row["request_id"])

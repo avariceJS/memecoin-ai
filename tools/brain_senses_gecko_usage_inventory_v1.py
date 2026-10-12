@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import fcntl
 import hashlib
 import json
@@ -157,6 +159,23 @@ def _json_rows(store: Any, directory: str) -> list[dict[str, Any]]:
     return [store.read_json(f"{directory}/{name}") for name in names]
 
 
+def _v2_json_rows(store: Any, directory: str, *, maximum_bytes: int) -> list[dict[str, Any]]:
+    names = store.files(directory)
+    _require(all(name.endswith(".json") for name in names), "gecko_v2_journal_file_unexpected")
+    rows = []
+    for name in names:
+        raw = store.writer.read_bytes(store._path(f"{directory}/{name}"), max_bytes=maximum_bytes)
+        try:
+            value = json.loads(raw)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise InventoryError("gecko_v2_journal_json_invalid") from exc
+        _require(
+            type(value) is dict and canonical_json(value) == raw, "gecko_v2_journal_noncanonical"
+        )
+        rows.append(value)
+    return rows
+
+
 def _canonical_jsonl_records(raw: bytes, label: str) -> list[dict[str, Any]]:
     _require(not raw or raw.endswith(b"\n"), f"{label}_torn")
     records: list[dict[str, Any]] = []
@@ -184,6 +203,25 @@ def _raw_responses(store: Any, terminals: Sequence[Mapping[str, Any]]) -> dict[s
             raw[request_id] = store.writer.read_bytes(
                 store._path(path), max_bytes=MAX_JOURNAL_FILE_BYTES
             )
+    return raw
+
+
+def _v2_raw_responses(terminals: Sequence[Mapping[str, Any]]) -> dict[str, bytes]:
+    """Project bounded v2 bodies embedded in the atomic result envelope."""
+    raw: dict[str, bytes] = {}
+    for row in terminals:
+        request_id = row.get("request_id")
+        body = row.get("raw_body_b64")
+        _require(type(request_id) is str, "gecko_result_request_id_invalid")
+        if body is None:
+            continue
+        _require(type(body) is str, "gecko_v2_raw_body_encoding")
+        try:
+            decoded = base64.b64decode(body, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise InventoryError("gecko_v2_raw_body_encoding") from exc
+        _require(base64.b64encode(decoded).decode("ascii") == body, "gecko_v2_raw_body_encoding")
+        raw[cast(str, request_id)] = decoded
     return raw
 
 
@@ -345,12 +383,11 @@ def _load_present_root(
                 "policy.json",
                 "chain",
                 "intents",
-                "captures",
                 "results",
+                "confirmations",
                 "clocks",
                 "skips",
                 "dispatch.jsonl",
-                "result-confirmations.jsonl",
             }
             root_entries = set(writer.list_names(root))
             _require(root_entries <= allowed, "gecko_v2_root_entry_unknown")
@@ -363,8 +400,7 @@ def _load_present_root(
             chain_names = store.files("chain")
             _require(
                 all(re.fullmatch(r"[0-9]{8}\.json", name) for name in chain_names)
-                and list(chain_names)
-                == [f"{index:08d}.json" for index in range(len(chain_names))],
+                and list(chain_names) == [f"{index:08d}.json" for index in range(len(chain_names))],
                 "gecko_v2_chain_file_closure",
             )
             chain_records = [store.read_json(f"chain/{name}") for name in chain_names]
@@ -372,17 +408,19 @@ def _load_present_root(
             result_names = store.files("results") if writer.exists(f"{root}/results") else ()
             skip_names = store.files("skips") if writer.exists(f"{root}/skips") else ()
             intents = _json_rows(store, "intents") if intent_names else []
-            terminals = _json_rows(store, "results") if result_names else []
+            terminals = (
+                _v2_json_rows(store, "results", maximum_bytes=64 * 1024) if result_names else []
+            )
             skips = _json_rows(store, "skips") if skip_names else []
             _require(
-                intent_names
-                == tuple(sorted(f"{row.get('request_id')}.json" for row in intents))
+                intent_names == tuple(sorted(f"{row.get('request_id')}.json" for row in intents))
                 and result_names
                 == tuple(sorted(f"{row.get('request_id')}.json" for row in terminals)),
                 "gecko_v2_result_file_closure",
             )
             _require(
-                skip_names == tuple(
+                skip_names
+                == tuple(
                     sorted(
                         f"{row.get('plan_sequence')}-{row.get('slot_index'):02d}.json"
                         for row in skips
@@ -397,43 +435,36 @@ def _load_present_root(
                 )
                 for name in (store.files("clocks") if writer.exists(f"{root}/clocks") else ())
             }
-            raw = _raw_responses(store, terminals)
+            raw = _v2_raw_responses(terminals)
             _require(
                 set(raw)
-                == {
-                    row["request_id"]
-                    for row in terminals
-                    if row.get("response_sha256") is not None
-                },
-                "gecko_v2_capture_file_closure",
+                == {row["request_id"] for row in terminals if row.get("raw_body_b64") is not None},
+                "gecko_v2_raw_body_closure",
+            )
+            confirmation_names = (
+                store.files("confirmations") if writer.exists(f"{root}/confirmations") else ()
+            )
+            v2_confirmations = (
+                _v2_json_rows(store, "confirmations", maximum_bytes=64 * 1024)
+                if confirmation_names
+                else []
             )
             _require(
-                (store.files("captures") if writer.exists(f"{root}/captures") else ())
-                == tuple(sorted(f"{request_id}.bin" for request_id in raw)),
-                "gecko_v2_capture_file_closure",
+                confirmation_names
+                == tuple(sorted(f"{row.get('request_id')}.json" for row in v2_confirmations)),
+                "gecko_v2_confirmation_file_closure",
             )
             dispatch_raw = (
                 writer.read_bytes(store._path("dispatch.jsonl"), max_bytes=16 * 1024 * 1024)
                 if writer.exists(store._path("dispatch.jsonl"))
                 else b""
             )
-            confirmation_raw = (
-                writer.read_bytes(
-                    store._path("result-confirmations.jsonl"), max_bytes=8 * 1024 * 1024
-                )
-                if writer.exists(store._path("result-confirmations.jsonl"))
-                else b""
-            )
             _require(
-                (not dispatch_raw or dispatch_raw.endswith(b"\n"))
-                and (not confirmation_raw or confirmation_raw.endswith(b"\n")),
-                "gecko_v2_hash_chain_torn",
+                not dispatch_raw or dispatch_raw.endswith(b"\n"),
+                "gecko_v2_dispatch_torn",
             )
             try:
                 dispatch_records = _canonical_jsonl_records(dispatch_raw, "gecko_v2_dispatch")
-                v2_confirmations = _canonical_jsonl_records(
-                    confirmation_raw, "gecko_v2_confirmation"
-                )
                 with writer.lock(capacity.LOCK_PATH, blocking=False):
                     coordinator_policy_raw = writer.read_bytes(
                         capacity.POLICY_PATH, max_bytes=1_000_000
@@ -447,9 +478,7 @@ def _load_present_root(
                         == os.fstat(writer.root_fd).st_ino,
                         "gecko_v2_coordinator_policy_binding",
                     )
-                    coordinator_raw = writer.read_bytes(
-                        capacity.LEDGER_PATH, max_bytes=64_000_000
-                    )
+                    coordinator_raw = writer.read_bytes(capacity.LEDGER_PATH, max_bytes=64_000_000)
                     coordinator_events = capacity._verify_ledger(coordinator_raw)
                     _require(
                         coordinator_events[0]["fields"].get("policy_sha256")

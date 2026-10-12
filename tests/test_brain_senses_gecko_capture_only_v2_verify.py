@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import datetime as dt
 import hashlib
 import sys
@@ -154,7 +155,9 @@ def _admission(request_id: str, checked_ns: int) -> dict[str, Any]:
     )
 
 
-def _coordinator_events(intent: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+def _coordinator_events(
+    intent: dict[str, Any] | None = None, outcome: dict[str, Any] | None = None
+) -> list[dict[str, Any]]:
     policy_hash = hashlib.sha256(b"coordinator policy").hexdigest()
     events = [
         capacity._event(
@@ -187,6 +190,22 @@ def _coordinator_events(intent: dict[str, Any] | None = None) -> list[dict[str, 
                 fields=fields,
             )
         )
+        if outcome is not None:
+            events.append(
+                capacity._event(
+                    seq=2,
+                    kind="settled",
+                    at_ns=3,
+                    previous=events[-1]["event_sha256"],
+                    fields={
+                        "reservation_id": fields["reservation_id"],
+                        "outcome": "received",
+                        "outcome_sha256": hashlib.sha256(canonical_json(outcome)).hexdigest(),
+                        "outcome_path": fields["outcome_path"],
+                        "actual_allocated_bytes": 0,
+                    },
+                )
+            )
     return events
 
 
@@ -292,25 +311,30 @@ def test_durable_empty_response_is_replayed_and_counts_actual_bytes() -> None:
     )
     body = b'{"data":{"attributes":{"ohlcv_list":[]}}}'
     receipt = dispatch["dispatch_ns"] + scout.NS
-    terminal = _hashed_record(
-        {
-            "schema": "brain-senses-gecko-capture-only-v2-terminal-v1",
-            "request_id": request["request_id"],
-            "intent_sha256": intent["intent_sha256"],
-            "dispatch_record_sha256": dispatch["record_sha256"],
-            "dispatch_ns": dispatch["dispatch_ns"],
-            "request_started_ns": dispatch["dispatch_ns"],
-            "receipt_ns": receipt,
-            "availability_ns": receipt,
-            "status": "empty_response",
-            "http_status": 200,
-            "response_bytes": len(body),
-            "response_sha256": hashlib.sha256(body).hexdigest(),
-            "provider_charge_units": None,
-            "provider_charge_status": "unknown_unverified",
-        },
-        "terminal_sha256",
-    )
+    terminal = {
+        "schema": "brain-senses-gecko-capture-only-v2-terminal-v1",
+        "schema_version": 1,
+        "request_id": request["request_id"],
+        "intent_sha256": intent["intent_sha256"],
+        "plan_sha256": request["plan_record_sha256"],
+        "dispatch_record_sha256": dispatch["record_sha256"],
+        "dispatch_ns": dispatch["dispatch_ns"],
+        "request_started_ns": dispatch["dispatch_ns"],
+        "receipt_ns": receipt,
+        "status": "empty_response",
+        "http_status": 200,
+        "transport_error_class": None,
+        "retry_after_seconds": None,
+        "cooldown_until_ns": None,
+        "stop_reason": None,
+        "provider_io": True,
+        "raw_body_b64": base64.b64encode(body).decode("ascii"),
+        "response_bytes": len(body),
+        "response_sha256": hashlib.sha256(body).hexdigest(),
+        "bars": [],
+        "provider_charge_units": None,
+        "provider_charge_status": "unknown_unverified",
+    }
     result = verify_capture_prefix_v2(
         root=ROOT,
         binding=binding,
@@ -322,10 +346,110 @@ def test_durable_empty_response_is_replayed_and_counts_actual_bytes() -> None:
         raw_responses={request["request_id"]: body},
         clock_files={clock_path: canonical_json(clock)},
         confirmations=[],
-        coordinator_events=_coordinator_events(intent),
+        coordinator_events=_coordinator_events(intent, terminal),
     )
     assert result["terminal_count"] == 1
     assert result["usage_attempts"][0]["response_bytes"] == len(body)
+
+
+def test_confirmation_binds_atomic_outcome_and_fresh_clock_after_settlement() -> None:
+    policy, binding, records = _fixtures()
+    plan = records[-1]
+    decision = FIRST_CLOSE + 70 * scout.NS
+    request = expected_request(policy, binding["binding_sha256"], plan, 0)
+    intent_clock, intent_clock_path = _clock(decision, 80 * scout.NS)
+    intent = build_intent(
+        root=ROOT,
+        policy=policy,
+        binding=binding,
+        plan_record=plan,
+        slot_index=0,
+        decision_ns=decision,
+        decision_monotonic_ns=80 * scout.NS,
+        clock_record=intent_clock,
+        admission=_admission(request["request_id"], decision),
+    )
+    dispatch = _hashed_record(
+        {
+            "schema": "brain-senses-gecko-capture-only-v2-dispatch-v1",
+            "sequence": 0,
+            "request_id": request["request_id"],
+            "intent_sha256": intent["intent_sha256"],
+            "dispatch_ns": decision + scout.NS,
+            "previous_sha256": None,
+        },
+        "record_sha256",
+    )
+    body = b'{"data":{"attributes":{"ohlcv_list":[]}}}'
+    terminal = {
+        "schema": "brain-senses-gecko-capture-only-v2-terminal-v1",
+        "schema_version": 1,
+        "request_id": request["request_id"],
+        "intent_sha256": intent["intent_sha256"],
+        "plan_sha256": request["plan_record_sha256"],
+        "dispatch_record_sha256": dispatch["record_sha256"],
+        "dispatch_ns": dispatch["dispatch_ns"],
+        "request_started_ns": dispatch["dispatch_ns"],
+        "receipt_ns": dispatch["dispatch_ns"] + scout.NS,
+        "status": "empty_response",
+        "http_status": 200,
+        "transport_error_class": None,
+        "retry_after_seconds": None,
+        "cooldown_until_ns": None,
+        "stop_reason": None,
+        "provider_io": True,
+        "raw_body_b64": base64.b64encode(body).decode("ascii"),
+        "response_bytes": len(body),
+        "response_sha256": hashlib.sha256(body).hexdigest(),
+        "bars": [],
+        "provider_charge_units": None,
+        "provider_charge_status": "unknown_unverified",
+    }
+    events = _coordinator_events(intent, terminal)
+    confirmed_ns = terminal["receipt_ns"] + 4 * scout.NS
+    confirmation_clock, _ = _clock(confirmed_ns, 90 * scout.NS)
+    confirmation_clock_path = f"{ROOT}/clocks/{request['request_id']}-confirmation.json"
+    confirmation = _hashed_record(
+        {
+            "schema": "brain-senses-gecko-capture-only-v2-confirmation-v1",
+            "schema_version": 1,
+            "request_id": request["request_id"],
+            "outcome_sha256": hashlib.sha256(canonical_json(terminal)).hexdigest(),
+            "availability_ns": terminal["receipt_ns"],
+            "confirmed_ns": confirmed_ns,
+            "clock_path": confirmation_clock_path,
+            "clock_sha256": hashlib.sha256(canonical_json(confirmation_clock)).hexdigest(),
+            "monotonic_ns": 90 * scout.NS,
+            "coordinator_event_sha256": events[-1]["event_sha256"],
+        },
+        "confirmation_sha256",
+    )
+    args = {
+        "root": ROOT,
+        "binding": binding,
+        "policy": policy,
+        "chain_records": records,
+        "intents": [intent],
+        "dispatch_records": [dispatch],
+        "terminals": [terminal],
+        "raw_responses": {request["request_id"]: body},
+        "clock_files": {
+            intent_clock_path: canonical_json(intent_clock),
+            confirmation_clock_path: canonical_json(confirmation_clock),
+        },
+        "confirmations": [confirmation],
+        "coordinator_events": events,
+    }
+    result = verify_capture_prefix_v2(**args)
+    assert result["confirmation_count"] == 1
+    assert result["confirmed_eligible_request_count"] == 0
+
+    invalid = dict(confirmation, availability_ns=terminal["receipt_ns"] - 1)
+    invalid_core = dict(invalid)
+    invalid_core.pop("confirmation_sha256")
+    invalid["confirmation_sha256"] = hashlib.sha256(canonical_json(invalid_core)).hexdigest()
+    with pytest.raises(VerifyError, match="v2_confirmation_binding"):
+        verify_capture_prefix_v2(**(args | {"confirmations": [invalid]}))
 
 
 def test_assessment_cannot_be_rebound_to_a_different_decision_time() -> None:
