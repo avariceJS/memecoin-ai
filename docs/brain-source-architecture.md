@@ -3717,17 +3717,30 @@ per rolling minute), a 20-second timeout, 16 KiB response ceiling, no retry/back
 16 GiB resident/50 GiB free-space limits. These are bounded capture-only caps, not source, training,
 or economic qualification.
 
-The separate shared-usage assessor now requires a complete explicit root inventory and independent
-verified-prefix snapshots, aggregates same-provider attempts across versions, charges each unresolved
-intent at its pinned maximum response size, and includes the prospective request before admission.
-Synthetic tests cover missing roots, verified absence, duplicate identities, unknown-size reservation,
-and request/byte caps. A live descriptor-bound parent inventory currently finds v3 active, three
-v3 pilots, one v4 pilot, and four capture-only v1 roots; the v4 active and capture-only v2 roots are
-absent at this snapshot. Existing v4 budget logic includes its own root and v3 pilots but omits the
-capture-only roots. This pure assessor is not wired into v4 or a v5 provider runtime; its future
-Kingston adapter must enumerate and independently replay every discovered versioned root (and prove
-any absent root) before each dispatch. Physical-allocation enforcement remains the shared
-coordinator's responsibility.
+The separate shared-usage assessor requires a complete explicit root inventory and independently
+replayed snapshots, aggregates same-provider attempts across versions, charges unresolved intents
+at their pinned maximum response size, and includes a prospective request before admission. Its
+descriptor-bound Kingston adapter now discovers all known direct and collection roots, verifies
+absence, holds each root's shared lock while independently replaying it, hashes every root's files,
+and rechecks the root census after replay. Unknown service entries, malformed pilot identities,
+unrecognized legacy plan failures, or a changing census fail closed. Three old capture-only roots
+with stale source bindings are accepted only through a narrow inert-plan check: no activation or
+attempt artifacts, false authority, and valid pinned policy/plan hashes. Clock-bound v3 forensic
+replays count only their verified requests toward usage; diagnostic-only status does not qualify
+source semantics.
+
+The immutable [`22:00Z shared-usage observation`](evidence/gecko-shared-usage-observation-2026-10-12T2200Z.json)
+records the 22:01:03Z read-only snapshot: 24 same-provider attempts across v3 active, three v3
+pilots, one v4 pilot, and four capture-only v1 roots; direct v4 and v5 and capture-only v2 were
+verified absent. All attempts had terminal response evidence, totaling 18,869 raw-response bytes.
+A synthetic one-request/16-KiB prospective reserve would use 25/576 daily requests and 35,253 of
+10 MiB; the rolling-30-day assessment also remained within caps. This was diagnostic only: no lane
+dispatch lock was held, no provider I/O occurred, and admission was not authorized. Provider charge
+remains unknown/unverified. The adapter and assessor are not wired into the active v4 collector or a
+v5 provider runtime; v5 must run census, replay, and prospective assessment under the shared Gecko
+lane lock continuously through terminal persistence. Existing v4 budget logic still omits
+capture-only roots, so it is not safe as shared cross-version admission authority. Physical
+allocation remains the shared coordinator's responsibility.
 
 The Agave build runner v1 remains rejected. A separately versioned default-deny Seatbelt fixture
 v2 passed synthetic parent/child read, write, network, symlink, and detached-child cleanup tests,

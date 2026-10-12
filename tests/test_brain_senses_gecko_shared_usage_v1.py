@@ -28,6 +28,7 @@ ROOTS = [
     "services/gecko-market-v1/v4",
 ]
 SOURCE_HASH = hashlib.sha256(b"verified source prefix").hexdigest()
+INVENTORY_HASH = hashlib.sha256(b"complete descriptor root census").hexdigest()
 RESPONSE_HASH = hashlib.sha256(b"known response").hexdigest()
 
 
@@ -52,6 +53,7 @@ def _snapshot(root: str, attempts: list[dict[str, Any]]) -> dict[str, Any]:
     return make_verified_root_snapshot(
         root=root,
         status="verified_prefix" if attempts else "verified_none",
+        root_inventory_sha256=INVENTORY_HASH,
         source_prefix_sha256=SOURCE_HASH,
         attempts=attempts,
     )
@@ -104,11 +106,28 @@ def test_incomplete_or_unexpected_root_inventory_fails_closed() -> None:
         )
 
 
+def test_snapshots_from_different_root_censuses_cannot_be_combined() -> None:
+    snapshots = _empty_snapshots()
+    snapshots[1] = make_verified_root_snapshot(
+        root=ROOTS[1],
+        status="verified_none",
+        root_inventory_sha256=hashlib.sha256(b"different census").hexdigest(),
+        source_prefix_sha256=SOURCE_HASH,
+        attempts=[],
+    )
+    with pytest.raises(UsageError, match="root_inventory_hash_mismatch"):
+        assess_usage(
+            snapshots,
+            expected_roots=ROOTS,
+            checked_ns=NOW,
+            prospective_request_id="next",
+        )
 def test_absent_root_is_only_an_explicit_verified_absence_record() -> None:
     snapshots = _empty_snapshots()
     snapshots[0] = make_verified_root_snapshot(
         root=ROOTS[0],
         status="verified_absent",
+        root_inventory_sha256=INVENTORY_HASH,
         source_prefix_sha256=SOURCE_HASH,
         attempts=[],
     )

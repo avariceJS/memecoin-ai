@@ -1,7 +1,7 @@
 # Current Project State
 
-**As of:** 2026-10-12 21:49Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD `4c3078a` (also pushed to `main` and `origin`). Worktree contains user-owned
+**As of:** 2026-10-12 22:03Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, HEAD `5145a27` (also pushed to `main` and `origin`). Worktree contains user-owned
 Agave/build-guard and Gecko v1 dirty files; preserve them and stage only task-owned paths. Production,
 champion, protected samples, real trading, and Cortex remain untouched.
 
@@ -29,10 +29,13 @@ champion, protected samples, real trading, and Cortex remain untouched.
   reviewed and synthetic-tested; gaps preserve the cursor and recovery returns only persisted plans.
   A create-only descriptor-bound journal with synthetic restart and forced atomic-rename failure
   tests is implemented; it has not initialized Kingston or run against a live collector. Next
-  horizon: a pure shared-usage assessor now combines explicitly enumerated verified root snapshots,
-  charging unresolved intents at maximum response size and checking prospective daily/30-day request
-  and byte ceilings. Its Kingston version adapters and cutover reconciliation remain unimplemented;
-  do these before any v5 pilot.
+  horizon: a pure shared-usage assessor and Kingston descriptor-bound root adapter now enumerate
+  and replay all known Gecko versions, verify absence, hash roots, and assess the prospective
+  request. The 22:01Z read-only observation replayed 24 same-provider attempts (18,869 raw bytes);
+  one synthetic 16-KiB candidate stayed within configured ceilings. It is not admission authority
+  because the shared lane lock was not held. Next horizon: integrate census/replay/assessment
+  atomically under that lane lock in an offline v5 release and qualify lifecycle, no-replay recovery,
+  and forced detach behavior before a future-only v5 pilot.
 - Helius v5 structural collector and health monitor remain loaded. Shared Kingston lock can serialize
   ticks while provider I/O is pending; monitor latency, do not interrupt ambiguous requests.
   Alchemy aggregate charge last verified as $0.01 / 18,680 CU without limit/workload attribution;

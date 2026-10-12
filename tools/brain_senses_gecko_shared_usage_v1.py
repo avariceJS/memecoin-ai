@@ -20,7 +20,7 @@ class UsageError(ValueError):
 
 
 def canonical_json(value: Any) -> bytes:
-    return scout.canonical_json(value)
+    return cast(bytes, scout.canonical_json(value))
 
 
 def sha256(payload: bytes) -> str:
@@ -36,6 +36,7 @@ def make_verified_root_snapshot(
     *,
     root: str,
     status: str,
+    root_inventory_sha256: str,
     source_prefix_sha256: str,
     attempts: Sequence[Mapping[str, Any]],
 ) -> dict[str, Any]:
@@ -49,6 +50,11 @@ def make_verified_root_snapshot(
         status in {"verified_prefix", "verified_none", "verified_absent"}, "root_status_invalid"
     )
     _require(
+        type(root_inventory_sha256) is str
+        and HASH_RE.fullmatch(root_inventory_sha256) is not None,
+        "root_inventory_hash_invalid",
+    )
+    _require(
         type(source_prefix_sha256) is str and HASH_RE.fullmatch(source_prefix_sha256) is not None,
         "source_hash_invalid",
     )
@@ -59,6 +65,7 @@ def make_verified_root_snapshot(
         "schema_version": 1,
         "root": root,
         "status": status,
+        "root_inventory_sha256": root_inventory_sha256,
         "source_prefix_sha256": source_prefix_sha256,
         "attempts": rows,
         "attempts_sha256": sha256(canonical_json(rows)),
@@ -73,6 +80,7 @@ def _validate_snapshot(snapshot: Mapping[str, Any]) -> list[dict[str, Any]]:
         "schema_version",
         "root",
         "status",
+        "root_inventory_sha256",
         "source_prefix_sha256",
         "attempts",
         "attempts_sha256",
@@ -88,6 +96,11 @@ def _validate_snapshot(snapshot: Mapping[str, Any]) -> list[dict[str, Any]]:
         "root_status_invalid",
     )
     _require(type(snapshot.get("root")) is str and bool(snapshot["root"]), "root_invalid")
+    _require(
+        type(snapshot.get("root_inventory_sha256")) is str
+        and HASH_RE.fullmatch(snapshot["root_inventory_sha256"]) is not None,
+        "root_inventory_hash_invalid",
+    )
     _require(
         type(snapshot.get("source_prefix_sha256")) is str
         and HASH_RE.fullmatch(snapshot["source_prefix_sha256"]) is not None,
@@ -177,6 +190,8 @@ def assess_usage(
     rows = [_validate_snapshot(snapshot) for snapshot in snapshots]
     roots = [str(snapshot["root"]) for snapshot in snapshots]
     _require(roots == required, "root_inventory_incomplete_or_unexpected")
+    inventory_hashes = {snapshot["root_inventory_sha256"] for snapshot in snapshots}
+    _require(len(inventory_hashes) == 1, "root_inventory_hash_mismatch")
     all_attempts: list[dict[str, Any]] = []
     owner_by_id: dict[str, str] = {}
     for snapshot, attempts in zip(snapshots, rows, strict=True):
@@ -226,6 +241,7 @@ def assess_usage(
     inventory_core = {
         "checked_ns": checked_ns,
         "expected_roots": required,
+        "root_inventory_sha256": next(iter(inventory_hashes)),
         "snapshot_sha256s": [snapshot["snapshot_sha256"] for snapshot in snapshots],
         "prospective_request_id": prospective_request_id,
         "prospective_maximum_response_bytes": prospective_maximum_response_bytes,
@@ -233,6 +249,7 @@ def assess_usage(
     return {
         "schema": "brain-senses-gecko-shared-usage-assessment-v1",
         "inventory_sha256": sha256(canonical_json(inventory_core)),
+        "root_inventory_sha256": next(iter(inventory_hashes)),
         "utc_day": {
             "request_count_including_prospective": day_requests,
             "maximum_request_count": scout.MAX_INTENTS_PER_UTC_DAY,
