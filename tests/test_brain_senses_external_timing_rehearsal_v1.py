@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import plistlib
+import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 from subprocess import CompletedProcess
@@ -11,6 +12,31 @@ from typing import Any
 import pytest
 
 from tools import brain_senses_external_timing_rehearsal_v1 as rehearsal
+
+
+def test_script_path_bootstrap_imports_repo_tools_in_isolated_process() -> None:
+    script = Path(rehearsal.__file__).resolve()
+    repo = rehearsal.REPO
+    code = (
+        "import runpy,sys; from pathlib import Path; "
+        f"repo=Path({str(repo)!r}); script=Path({str(script)!r}); "
+        "sys.path[:]=[p for p in sys.path if Path(p or '.').resolve()!=repo]; "
+        "sys.path.insert(0,str(script.parent)); "
+        "runpy.run_path(str(script),run_name='timing_rehearsal_import_probe'); "
+        "assert str(repo) in sys.path; "
+        "from tools import brain_senses_external_launch_v2; "
+        "from memecoin_research_storage import writer_guard"
+    )
+    result = subprocess.run(
+        [str(repo / ".venv/bin/python"), "-c", code],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 def _write(path: Path, payload: bytes) -> bytes:

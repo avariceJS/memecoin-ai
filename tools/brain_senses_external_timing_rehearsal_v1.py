@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Any, cast
 
 REPO = Path(__file__).resolve().parents[1]
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
 OLD_LABEL = "ai.memecoin.brain.senses.external-v2-20261012T0230Z"
 TERMINAL_RECEIPT = (
     REPO / "docs/evidence/brain-senses-external-v2-missed-bootstrap-terminal-2026-10-12.json"
