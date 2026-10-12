@@ -1,50 +1,42 @@
 # Current Project State
 
-**As of:** 2026-10-12 14:51Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, at `b35cf789fca3664278d93f02cc9db4ed0b777666`, pushed to origin before this
-worktree update. `main` remains
-`3dab3a36cccaa5913fdfa697b054a17181de3dd0`; do not advance until a complete live acquisition
+**As of:** 2026-10-12 15:15Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, at `2934618b5dda10d7236aa9e4720070b49416bb7f`, pushed to origin. `main` remains
+`3dab3a36cccaa5913fdfa697b054a17181de3dd0`; do not advance until a live market acquisition
 capability and independent recovery/replay are verified. Production, champion, protected data,
-trading, and Cortex are untouched. The local worktree has unrelated in-progress Agave runner files
-and tests; preserve them.
+trading, and Cortex remain untouched. Preserve the dirty Agave build-guard files and drafts.
 
 ## Prospective acquisition
 
-- `ai.memecoin.brain.senses.external-rolling-v4` is loaded under `gui/501`, with 60-second ticks,
-  `RunAtLoad`, and no calendar expiry. The 13:00Z anchor and its seal replay independently. The
-  14:00Z inventory frame recorded 35 intents, 34 verified captures, and one possibly-spent
-  `response_invalid`; it did not seal. Its epoch and allocation manifest verify, with no retry.
-  The supervisor reconciled it and entered a one-hour provider-error cooldown at 14:06:48Z; the
-  service remains loaded and should resume only on a future hourly anchor after cooldown. This is
-  structural sampling, not market-price history.
-- Kingston `/Volumes/Kingston/BrainData` matches root ID
-  `9428695af6d4f46c08e1a444cdc66de8`, UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; latest
-  monitor reported 217,373,667,328 bytes available. The 150-GB lifetime cap, 50-GiB floor, 8-GiB
-  reserve, descriptor-bound writes, and no-delete/no-fallback rules remain active.
-- No market OHLCV service is live. v4 remains loaded on 60-second ticks but its latest monitor is
-  still in provider-error cooldown; it is structural Helius collection only. Kingston currently has
-  about 202 GiB free and the configured UUID/root identity still matches. Shared descriptor-bound
-  capacity coordinator v2 is now implemented and passes 25 focused crash/recovery, lane-lock,
-  capacity-boundary and multiprocess tests, plus Ruff and mypy. Its source and tests are not yet
-  committed. Helius v5 integration is active in the worktree; it must bind verified v4 rolling usage
-  before dispatch and pass independent recovery/replay. Gecko v2 is an offline forward-only contract;
-  no Gecko/Alchemy market collector is live. Meter visibility and qualification perfection are not
-  blockers; actual provider charges remain unknown/unverified.
+- Kingston `/Volumes/Kingston/BrainData` still matches root ID
+  `9428695af6d4f46c08e1a444cdc66de8`, UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; free space is
+  212,276,452 KiB (about 202 GiB). The 50-GiB floor, descriptor-bound writes, and no-fallback rules
+  remain active.
+- `ai.memecoin.brain.senses.external-rolling-v4` is loaded under `gui/501`, scheduled every 60s,
+  with no calendar expiry. The 14:00Z frame has 34 verified captures and one possibly-spent
+  `response_invalid`; it did not seal and was not retried. The supervisor is still reporting
+  `integrity_stop/response_invalid` (monitor seq 161). A future 16:00Z epoch currently has only
+  `epoch_started`, no request intent. It must be terminally reconciled before any v5 cutover.
+- Helius v5 adapter/verifier, pinned c1-c4 plus rolling-v4 usage builder, LaunchAgent definition,
+  and forced detach-at-intent tests are committed at `2934618`; 66 focused v5/coordinator tests,
+  Ruff/format, `py_compile`, targeted mypy, and plist lint pass. v5 is not activated and has made
+  no provider request. Sol approved a separate no-network STOP/reconcile helper; implement and test
+  it before touching v4 live state. Then build/publish the Kingston usage receipt, initialize the
+  shared coordinator under the bound volume, and only then activate v5 at a fresh anchor.
+- There is no prospective market OHLCV collector yet. Gecko v2 is offline; Alchemy same-frame
+  corroboration is offline. Billing/charges remain unknown/unverified and are not blockers.
 
-## Senses state and next horizon
+## Senses and next horizon
 
-The recent separately versioned Agave wrapper and focused tests are pushed. Sol authorized exactly
-one offline metadata invocation. Cargo returned zero, but the wrapper rejected colliding redacted
-local package IDs; its stdout/graph digest was not persisted. No Cargo retry is authorized. The
-read-only receipt is on Kingston at
-`qualifications/agave-v3.0.0-token2022-metadata-v1-20261012/metadata-preflight-failure-v1.json`
-(SHA-256 `060a604d86edc2a229e7ca24b83967ada72ba44e345c59a74235fe61ad70e0d8`). No fetch, build,
-ProgramTest, or production/economic qualification occurred. Scoped Ruff/Mypy and 33 focused tests
-pass. Canonical source details are in `docs/brain-source-architecture.md`.
+Shared capacity coordinator v2 and Helius v5 integration are committed and pushed. Next: complete
+the one-shot v4 STOP/reconcile gate and v5 live forward-only anchor, then implement and qualify the
+separately versioned Gecko runtime/LaunchAgent for four pinned train pools at 15-minute cadence.
+Verify Kingston writes, actual provider traffic, recovery/replay, no fallback, finite rolling and
+resident caps, and no calendar expiry before claiming autonomous market history. Do not backfill or
+retry ambiguous requests. Continue candidate-position witness, native settlement, and `buyExact25`
+qualification after collection activation; keep all outputs source/economic/PIT-ineligible until
+their independent gates pass. No protected samples, production changes, or Cortex.
 
-Next: commit the verified shared coordinator; finish Helius v5 integration with metadata-only v4
-rolling-usage carry-forward; then qualify a new future-only anchor, Kingston writes, provider traffic,
-restart recovery, and independent replay before enabling Gecko's next future bucket. Keep c4 and
-`external-v2-20261012T0600Z` terminal. No backfill, ambiguous retry, protected sample, or Cortex.
-Continue candidate-position witness, native settlement, and `buyExact25` qualification in
-independent work while acquisition integration proceeds.
+The separately versioned Agave metadata wrapper remains a failed offline preflight only; no Cargo
+fetch/build or production/economic qualification occurred. Its read-only receipt and limitation are
+recorded in `docs/brain-source-architecture.md`.
