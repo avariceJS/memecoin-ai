@@ -1,47 +1,43 @@
 # Current Project State
 
-**As of:** 2026-10-12 03:44Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`; HEAD and published active are `ec15335` before the current atomic changes. `main` remains
-`148ca165e1487a99c3ce6532dbc276c4922c31b6`. Worktree state is checked before handoff.
-Production, champion, protected evaluation and real trading remain untouched. No signing/submission;
-Cortex is out of scope.
+**As of:** 2026-10-12 03:54Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, clean at `67512ff067e15e84fc67bc19a5e676a951747641` and pushed to origin.
+Handoff `17415e81e93fdec4f1682e3769e546cbbcf2555d` is an ancestor. `main` remains
+`148ca165e1487a99c3ce6532dbc276c4922c31b6`. Production/champion/protected evaluation/real trading
+remain untouched; no signing/submission; Cortex is out of scope.
 
 ## Live state
 
-- Kingston `/Volumes/Kingston/BrainData` matches UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`
-  and root ID `9428695af6d4f46c08e1a444cdc66de8`; owners enabled, health `ready`, 220,973,776,896
-  bytes available (~206 GiB), above the 50-GiB floor. The 300-second health LaunchAgent is loaded,
-  last exit 0. c4 remains terminal STOP `minimum_free_disk_floor_plus_frame_envelope`, frontier
-  `455430160`, last frame reconciled. No backfill.
-- The external-v2 lease is terminal `missed_bootstrap`, zero requests/reservations/intents/seals.
-  The 03:20Z no-provider calendar callback ran once but exited 1 with `ModuleNotFoundError` before
-  status; no provider I/O or status result. Its label is disabled/unloaded and its immutable failure
-  receipt is `docs/evidence/brain-senses-external-timing-rehearsal-2026-10-12T0320Z.json`.
-- Fix `78a7db6` adds trusted repository-root import binding and an isolated subprocess regression
-  test (10 focused passes); `make smoke` passes. The distinct no-provider rehearsal at 03:40Z passed
-  one scheduled callback, status-only preflight and +30s single-run gate with exit 0; no provider
-  activity occurred and the service tree was unchanged. Receipt:
-  `docs/evidence/brain-senses-external-timing-rehearsal-2026-10-12T0340Z.json`.
-- Helius status/plan still have no JWT, so plan/usage/charge are unknown. Alchemy team aggregate is
-  18,680 CU / $0.01 through 03:42Z, no limit or workload attribution. Fresh dual-HTTPS clock pair
-  passed at 03:43Z. Receipt: `docs/evidence/senses-provider-account-readonly-2026-10-12T0342Z.json`.
-- Structural unknown queue changes are under independent review. Synthetic tests pass (22); the
-  c4 source remains readiness-only because it lacks transaction partitions, reference membership,
-  and post-fsync availability. Current prototype also needs truthful post-fsync queue availability,
-  representative signature/capture references, and consistent denominator units before publication.
-- The 03:40Z timing rehearsal is disabled and unloaded after its successful single callback; the
-  external-v2 missed-bootstrap lease remains disabled/terminal. No new provider lease is active.
-- Agave fetch v2 remains terminal exit 101; partial cache preserved, do not reuse/clean/retry. No
-  candidate-position raw decoder or economic qualification is established.
+- Kingston storage health is `ready`, root ID `9428695af6d4f46c08e1a444cdc66de8`, UUID
+  `8f8f1081-9be4-4914-9111-75f1b90255bf`; about 206 GiB free, above floor plus one reviewed lease
+  envelope. Do not format/move frozen roots; no internal-storage fallback.
+- c4 is terminal STOP `minimum_free_disk_floor_plus_frame_envelope`, frontier `455430160`, final
+  reservation reconciled; no backfill. Its STOP and terminal receipt hashes were rechecked.
+- Sealed v1 predecessor verifies at frontier `455802008`. Failed v2 sibling `external-v2-20261012T0230Z`
+  independently verifies stopped with zero reservations, intents, seals, and provider requests. It
+  remains disabled/unloaded and separate from predecessor lineage.
+- The 03:40Z status-only timing rehearsal passed and is disabled/unloaded. Fresh clock corroboration
+  passed at 03:49Z. Helius account plan/usage/charges remain unknown; latest Alchemy aggregate is
+  recorded in the 03:42Z provider receipt. No new provider lease is active.
+- v2 status CLI now serializes set-valued verifier state deterministically; existing old activation
+  source pins are stale by design after that source change. The new plan must pin current sources.
+- Structural unknown queue v1 is committed and synthetic-ready only. c4 cannot supply the required
+  transaction partitions/reference membership/post-fsync availability; no queue was published.
+- Sol's next horizon is an offline sparse-observation reference for 307 enrolled markets, preserving
+  the frozen 170/137 roles and every missing/failed/unsupported entity. Luna is implementing from
+  role-separated qualified bundles. Output is historical-replay structure only: no point-in-time
+  eligibility, lifecycle inference, labels, settlement, or training admission.
 
 ## Next horizons
 
-After the scheduled status-only callback, refresh host clock/storage/source/account facts and ask
-Sol for a separate prospective Helius lease review. Provider activation is not implied by rehearsal.
-Then continue economic qualification, broad causal population/lifecycle/modalities, recovery/retention,
-and unknown/anomaly automation; do not expand unconfirmed decoders. Commit/push completed work to
-`origin/research/active`; sync `main` only at a verified capability milestone. Update canonical
-English owners, preserve unknown/censored/gap distinctions, and never inspect protected samples.
+1. Prepare one fresh finite v2 Helius lease within Sol's unchanged envelope. Recheck dual clock,
+   storage, exact source hashes, launch inventory, c4 STOP, v1 predecessor, and terminal v2 sibling;
+   compile a future-only candidate/plan and obtain Sol's final review of exact plan, qualification,
+   activation and plist hashes before offline init/load/bootstrap. Never replay the missed window.
+2. Complete and independently verify sparse-observation coverage/reference artifact; update canonical
+   owners and commit/push each accepted engineering boundary.
+3. Continue the highest-value non-waiting Senses horizon after these results. Stop only at overall
+   Senses engineering-complete boundary or a true external blocker. Protected samples remain closed.
 
-Capture-root caution: never use wildcard reads over capture roots; one prior broad JSON match printed
-raw response payloads. Use exact metadata paths only.
+Capture-root caution: avoid wildcard reads; use exact pinned files and metadata-only summaries where
+possible. The external writer remains source-pinned and unchanged.
