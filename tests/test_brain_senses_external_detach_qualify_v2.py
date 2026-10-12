@@ -6,6 +6,7 @@ import pytest
 
 from tools.brain_senses_external_detach_qualify_v2 import (
     QualificationFailure,
+    _canonical_disposable_fs_type,
     _publish_receipt,
     sha,
     validate_receipt,
@@ -68,6 +69,12 @@ def _valid_receipt() -> dict[str, object]:
 
 def test_receipt_distinguishes_lease_binding_from_temporary_apfs() -> None:
     validate_receipt(_valid_receipt())
+
+
+def test_filesystem_label_is_canonicalized_only_after_exact_casefold_match() -> None:
+    assert _canonical_disposable_fs_type("Case-sensitive APFS") == "case-sensitive APFS"
+    with pytest.raises(QualificationFailure, match="disposable_filesystem_not_case_sensitive_apfs"):
+        _canonical_disposable_fs_type("APFS")
 
 
 def test_real_publication_shape_is_accepted_and_pins_start_bytes(tmp_path) -> None:

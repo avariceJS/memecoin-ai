@@ -65,6 +65,12 @@ def sha(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _canonical_disposable_fs_type(actual: str) -> str:
+    if actual.strip().casefold() != "case-sensitive apfs":
+        raise QualificationFailure("disposable_filesystem_not_case_sensitive_apfs")
+    return "case-sensitive APFS"
+
+
 def _publish_receipt(
     receipt: dict[str, Any],
     *,
@@ -717,8 +723,10 @@ def run_qualification(*, lease_plan_path: Path, output: Path | None = None) -> d
         "tested_disposable_identity": {
             "volume_uuid": point["temporary_uuid"],
             "mount_path": point["temporary_mount_path"],
-            "fs_type": point["temporary_fs_type"],
-            "case_sensitive": point["temporary_fs_type"].lower().strip() == "case-sensitive apfs",
+            "fs_type": _canonical_disposable_fs_type(point["temporary_fs_type"]),
+            "case_sensitive": (
+                point["temporary_fs_type"].strip().casefold() == "case-sensitive apfs"
+            ),
             "owners_enabled": point["temporary_owners_enabled"],
             "root_id": point["temporary_root_id"],
             "relative_root": point["temporary_relative_root"],
