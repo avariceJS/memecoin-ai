@@ -678,10 +678,21 @@ shape with semantics unverified, and 2,262 are unmatched or ambiguous; it record
 failures for this already-clean sealed prefix. Nine unobserved windows retain null metrics. Replay
 recomputed and byte-verified the existing artifact and receipt. This is a sample-local diagnostic
 work queue, not decoder support, an anomaly monitor/rate, first-ever or no-new-class evidence,
-execution, economics, lifecycle, PIT, training, or admission. No provider I/O occurred. The next
-bounded horizon is selected-block positive-reference readiness over the same 48 selected blocks
-and 12 frame dispositions; it is not a formal `SupportAssertion`, population claim, or training
-admission, and does not map native slots to UTC.
+execution, economics, lifecycle, PIT, training, or admission. No provider I/O occurred. A separate
+selected-block positive-reference readiness adapter then revalidated the queue/archive/family/
+unknown-review artifacts and receipts, replayed the terminal source queue, reopened all 48 selected
+full-block responses, and rechecked the 18 pinned official IDL history blobs. Its descriptor-bound,
+create-only Kingston artifact is
+`derived/external-v2-selected-block-positive-reference-readiness-v1/external-v2-20261012T0600Z/readiness.json`
+(76,309 bytes; SHA-256 `8db4ac0c8d0081f50cc9a471f9e795fee321dfd6d271008ea67c5fb123d1aba5`); its
+publication receipt SHA-256 is `3563d443a4e40f6e9ffc8aa5f53b191a48d18433fa32cc82a4c758d4120ba7db`.
+It records 12 frame dispositions (3 sealed, 9 unobserved-null), 48 selected native slot/blockhash
+pairs, 4,164 produced slots, and 4,865 sample-local positive references (4,176 successful-status,
+689 failed-status, zero unknown), cross-checking 4,595 structural classes. Acquisition UTC frame
+buckets and native slot coordinates stay separate; expected event count, decision time and
+complete-support are unset/false. Exact replay recomputed and byte-verified the existing artifact
+and receipt. This is not a formal `SupportAssertion`, population coverage, zero/absence, UTC event
+mapping, economic/lifecycle qualification, training, or admission. No provider I/O occurred.
 
 A commit-bound `create_pool` feasibility census independently replayed those same 608 sealed
 selected blocks. The verifier reconciled 741,305 transactions, 1,613,839 outer and 961,070 inner

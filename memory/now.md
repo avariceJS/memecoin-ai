@@ -1,9 +1,9 @@
 # Current Project State
 
-**As of:** 2026-10-12 10:02Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`; structural-family triage milestone `bd74b77cea62233089088eaf277b7b875329c3ed`
-is pushed to both `origin/research/active` and `origin/main`. The sample-local unknown-review
-adapter passed publication and exact replay; selected-block positive-reference readiness is active.
+**As of:** 2026-10-12 10:08Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`; unknown-review milestone `73f9416dcc90a866d0173f4c5d41cc4f60f058ef` is pushed
+to both `origin/research/active` and `origin/main`. Selected-block positive-reference readiness
+passed publication and exact replay; Sol is replanning the next Senses horizon.
 Production, champion, protected evaluation, trading and Cortex remain untouched.
 
 ## Live boundaries
@@ -89,17 +89,26 @@ Production, champion, protected evaluation, trading and Cortex remain untouched.
   references (2,603 documented IDL shapes with unverified semantics; 2,262 unmatched/ambiguous),
   zero source/parse failures, and leaves all nine unobserved windows null. Thirteen focused tests,
   Ruff, formatting, scoped Mypy and full source replay pass. No provider I/O.
+- Selected-block positive-reference readiness v1 independently replayed the terminal queue and
+  reopened all 48 selected responses; all 18 pinned official IDL history blobs were rechecked.
+  Kingston artifact: 76,309 bytes; SHA-256
+  `8db4ac0c8d0081f50cc9a471f9e795fee321dfd6d271008ea67c5fb123d1aba5`, receipt SHA-256
+  `3563d443a4e40f6e9ffc8aa5f53b191a48d18433fa32cc82a4c758d4120ba7db`. It records 12 frame
+  dispositions (3 sealed / 9 unobserved-null), 48 selected native slot/blockhash rows, 4,164
+  produced slots and 4,865 refs (4,176 success / 689 failed / 0 unknown); 4,595 classes cross-check.
+  Six focused mutation tests, Ruff, formatting, scoped Mypy, full replay, and exact publication replay
+  pass. Native slots are not mapped to UTC; expected event counts and decision times remain null;
+  complete support, population coverage, training and admission are false. No provider I/O.
 - The capacity qualification is synthetic only; the archive projection is a source-pinned view of
   the existing sealed selected-block observations. Neither qualifies runtime law, candidate-position
   admission, settlement, buyExact25 or PIT. No production/runtime change or build was made.
 
 ## Active horizons
 
-The next Sol-approved horizon is `external-v2 selected-block positive-reference readiness v1`:
-a compact descriptor-bound artifact over the same 48 selected blocks and 12 frame dispositions,
-not a formal `SupportAssertion`. The existing qualification registry has no native-slot/population
-mapping, and its module-wide verifier hash also binds old receipts; do not modify it in this horizon.
-No slot→UTC conversion, population/training admission, exact zero, or unselected-slot claim.
-Economic candidate-position/native-settlement/buyExact25 admission remains design-only pending a
-separately qualified runtime witness. No provider lease, Agave build, c4 replay, backfill, or Cortex
-work is authorized by these offline horizons.
+The current readiness artifact is strictly sample-local and does not qualify any population or
+economic support. Sol is selecting the next decision horizon from the remaining economic
+candidate-position/native-settlement/buyExact25 witness, broader causal population/lifecycle, and
+unknown/anomaly qualification gaps. Preserve the registry's existing module/verifier hashes until a
+separate native-coordinate/population contract is approved. No slot→UTC conversion, exact zero,
+unselected-slot claim, provider lease, Agave build, c4 replay, backfill, or Cortex work is currently
+authorized by the completed offline horizons.

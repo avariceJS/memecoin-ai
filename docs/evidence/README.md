@@ -49,6 +49,16 @@ contain large exact payloads, so open only the named artifact needed for a speci
   2,262 unmatched/ambiguous shapes; zero source/parse failures were observed in this sealed prefix.
   Nine unobserved windows remain null. Diagnostic work queue only; no support, anomaly-rate,
   execution, economics, lifecycle, PIT, training, or admission claim. No provider I/O.
+- `external-v2-20261012T0600Z` selected-block positive-reference readiness: Kingston artifact
+  `derived/external-v2-selected-block-positive-reference-readiness-v1/external-v2-20261012T0600Z/readiness.json`
+  (76,309 bytes; SHA-256
+  `8db4ac0c8d0081f50cc9a471f9e795fee321dfd6d271008ea67c5fb123d1aba5`) and create-only publication
+  receipt SHA-256 `3563d443a4e40f6e9ffc8aa5f53b191a48d18433fa32cc82a4c758d4120ba7db`. It records 12
+  frame dispositions (3 sealed / 9 unobserved-null), 48 selected native slot/blockhash pairs,
+  4,164 produced slots and 4,865 positive-reference occurrences (4,176 success / 689 failed / 0
+  unknown), with 4,595 classes cross-checked. It makes no population, UTC slot mapping, exact-zero,
+  economics, lifecycle, PIT, training, or admission claim. Full raw-source replay and exact publish
+  replay passed; no provider I/O.
 - c3 sell23 destination lamport diagnostic v3-final:
   `pumpswap-sell23-c3-destination-lamport-diagnostic-v3-final-2026-10-12.json` (485 censored
   successes remain ambiguous; 68 exact-ledger rows and two failed references stay excluded. Ordered
