@@ -3592,38 +3592,40 @@ If a code update invalidates a plan before its first durable request intent, tha
 terminally abandoned under the old source pin and the ordinary recovery cooldown; the request is
 never replayed. A source change after any request intent remains fail-closed.
 
-The v4 LaunchAgent is loaded under `gui/501` with a 60-second interval, `RunAtLoad`, and no calendar
-expiry. The expired 12:00Z window remains unobserved. The fresh 13:00Z anchor was captured, sealed,
-and independently replayed. The 14:00Z inventory frame made 35 durable request intents: 34
-responses were captured and verified, while the final request failed as `response_invalid` with
-certainty `possibly_spent`. The frame did not seal, so none of its inventory/sample contents are
-qualified as a complete frame. Its epoch was terminally abandoned, its allocation manifest and
-terminal receipt independently replayed, and no ambiguous request was retried. At 14:06:48Z the
-loaded supervisor had reconciled the terminal and entered the policy's one-hour provider-error
-cooldown; a new epoch must use a future hourly anchor after cooldown. The latest monitor reported
-217,373,667,328 bytes available on Kingston, with the 150,000,000,000-byte lifetime service cap,
-50-GiB floor, 8-GiB operating reserve, and descriptor-bound writes enforced. The recurring service
-continues without a calendar lease; this provider/data-integrity failure is a real temporary pause.
+The v5 LaunchAgent is loaded under `gui/501` with a 60-second interval, `RunAtLoad`, and no calendar
+expiry. It uses verified v4 cutover usage and the Kingston-bound shared coordinator v2. Its fresh
+17:00Z anchor captured one finalized `getSlot` response; independent replay verified current source
+bindings, the event prefix, raw response receipt, availability time, and coordinator intent
+linkage, with no unresolved reservation. This proves structural anchor acquisition only, not a
+complete frame or prospective market-price history. V5 remains governed by rolling, epoch,
+physical-allocation, and Kingston free-space caps; there is no lease expiry or gap backfill.
 
 This structural Helius collector is not a prospective market-price history lane. The first bounded
 GeckoTerminal OHLCV lane is a separate forward-only service. Shared descriptor-bound capacity
-coordinator v2 is implemented and passes crash-prefix, lane-lock independence, descriptor-loss,
-corrupt-ledger, allocation-boundary, and multiprocess shared-cap tests. It pins aggregate v4/v5
-Helius allocation once, requires a held lane lock for each intent, and supports service-scoped
-recovery without acquiring another lane's lock. Gecko remains inactive until its live adapter and
-the Helius v5 adapter both use this coordinator and pass end-to-end restart/replay qualification;
-Helius v5 must also carry forward verified v4 rolling usage before any dispatch. Alchemy same-frame
-corroboration contracts are offline only. The absence of Gecko/Alchemy market traffic is not caused
-by quota preservation or billing-meter uncertainty; the remaining gates are adapter integration,
-usage lineage, and live recovery integrity.
+coordinator v2 passes crash-prefix, lane-lock independence, descriptor-loss, corrupt-ledger,
+allocation-boundary, and multiprocess shared-cap tests. It pins aggregate v4/v5 Helius allocation,
+requires a held lane lock for each intent, and supports service-scoped recovery. Gecko v3 has
+current source pins, durable 12-second pacing, no-retry/429 cooldown rules, and restart recovery.
+The expired 17:15Z pilot is terminal and independently verifies with zero intents, dispatches,
+results, or possibly-spent requests. The later 17:45Z attempt was also sealed before provider I/O
+as diagnostic-only after the installed LaunchAgent template was found to omit its required static
+pilot ID; it is terminal and cannot be promoted. Gecko's separately versioned two-stage v4 release
+gate is implemented: a short-lived create-only preflight binds the successful four-pool pilot,
+source map, exact LaunchAgent plist, qualification-test hashes, service prefix, coordinator ledger,
+and Kingston identity; the loaded agent must then record an exact-PID/argv status-only callback
+before a separate activation is created. Before activation, source, plist, request-prefix, and
+coordinator drift fail closed. After activation, the service is forward-only, has no lease expiry,
+does not backfill missed buckets, and retains finite request, raw-byte, resident-memory and storage
+caps. Focused runtime, recovery, detach, and release tests pass. The corrected plist is not loaded,
+and a fresh pilot has not been initialized: these require committed, frozen source hashes and a
+new future-only bucket. Alchemy same-frame corroboration remains offline; incomplete billing
+telemetry does not block bounded collection.
 
-The shared capacity coordinator v2 now has a one-shot descriptor-bound initializer. Its production
-entrypoint is pinned to `~/.config/brain-research/storage-v1.json`; it binds root ID, UUID, device,
-and inode, and creates only the configured service/allocation roots and lock/ledger artifacts. It
-reuses the existing private empty v4 Helius lock without rewriting it and rejects partial or
-mismatched coordinator state. Focused coordinator/initializer tests pass (34), including detach and
-legacy-lock cases. It has not been run on Kingston; initialization remains sequenced after v4 STOP
-and terminal reconciliation.
+The shared capacity coordinator v2 is initialized on the configured Kingston data root. Its
+descriptor-bound policy binds root ID, UUID, device, and inode; live Helius v5 admission and Gecko
+pilot use the same canonical ledger while holding their lane locks. It reuses the existing v4
+Helius lock without rewriting it and rejects partial or mismatched coordinator state. Independent
+v5 replay verifies the captured request intent against the shared reservation ledger.
 
 The offline Gecko v2 contract is not eligible for activation: its two-second spacing does not meet
 the public API's current approximately 10-calls/minute guidance, which may vary with traffic.
@@ -3633,16 +3635,12 @@ versioned v3 contract with at least 12 seconds between actual dispatches across 
 under the lane lock, and a pre-HTTP deadline check. It preserves the forward-only 60–180-second
 post-close window, one intent/no retry, and stops the bucket on 429 with a durable cooldown of at
 least one hour or a valid longer `Retry-After` (over 24 hours requires review). v2 remains frozen
-offline; v3 source pins, verifier, restart/rate-limit tests, and live integration must pass before
-any Gecko request.
+offline. The v3 evidence above qualifies the isolated pilot and release preflight; the next fresh
+prospective pilot and LaunchAgent callback still must pass before continuous dispatch is activated.
 
 Helius v5's separately versioned adapter, independent verifier, rolling-usage cutover builder,
-LaunchAgent definition, and forced detach-at-durable-intent tests are now implemented offline. The
-cutover receipt binds c1-c4 evidence separately from current rolling-v4 request rows, preserves
-decision time separately from capture dispatch time, and retains ambiguous attempts through their
-latest possible dispatch bound. Focused v5 plus coordinator tests pass (66); Ruff, formatting,
-`py_compile`, and targeted mypy pass. The live cutover remains gated: v4 has a future 16:00Z epoch
-with only `epoch_started`, so it must first be disabled and reconciled as no-intent abandoned under
-its descriptor and lane lock. A one-shot STOP/reconcile helper is required before publishing the
-usage receipt, initializing v5, or loading its LaunchAgent. No v5 provider request or cutover write
-has occurred yet.
+LaunchAgent, and forced detach-at-durable-intent tests are implemented and active. The immutable
+cutover receipt binds c1-c4 evidence separately from rolling-v4 request rows, preserves decision
+time separately from dispatch time, and retains ambiguous attempts through their latest possible
+dispatch bound. The 17:00Z epoch remains open after its single verified anchor request. Market bars,
+complete structural inventory, and economic qualification remain unproven.

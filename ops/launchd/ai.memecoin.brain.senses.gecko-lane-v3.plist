@@ -10,6 +10,8 @@
 		<string>-B</string>
 		<string>/Users/root1/Developer/memecoin-research/tools/brain_senses_gecko_lane_runtime_v3.py</string>
 		<string>--scheduled-tick</string>
+		<string>--pilot-id</string>
+		<string>9c90e69cf8104df4acd532a3f2a70a31</string>
 	</array>
 	<key>StartInterval</key>
 	<integer>60</integer>

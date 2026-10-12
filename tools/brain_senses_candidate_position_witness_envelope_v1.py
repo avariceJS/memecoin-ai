@@ -17,9 +17,9 @@ from tools import brain_senses_candidate_position_witness_check_v1 as candidate_
 from tools import brain_senses_raw_account_fixture_v1 as raw_fixture
 
 REPO = Path(__file__).resolve().parents[1]
-SCHEMA = "candidate-position-witness-envelope-v1"
-SCHEMA_VERSION = 1
-RECEIPT_SCHEMA = "candidate-position-witness-envelope-v1-verification"
+SCHEMA = "candidate-position-witness-envelope-v2"
+SCHEMA_VERSION = 2
+RECEIPT_SCHEMA = "candidate-position-witness-envelope-v2-verification"
 FALSE_CLAIMS = {
     "runtime_source": False,
     "runtime_law_qualified": False,
@@ -36,6 +36,7 @@ ENVELOPE_FIELDS = {
     "commit_to_root",
     "raw_account_fixture",
     "candidate_witnesses",
+    "synthetic_crosswalk",
     "claims",
 }
 
@@ -220,6 +221,104 @@ def verify_envelope(
     if not crosschecked:
         raise EnvelopeRejected("candidate_witnesses_empty")
     raw_rows = raw_verdict["vectors"]
+    raw_by_case = {row["case_id"]: row for row in raw_rows}
+    witness_payload_by_id = {row["witness_id"]: row["witness"] for row in witness_rows}
+    crosswalk_rows = envelope["synthetic_crosswalk"]
+    if not isinstance(crosswalk_rows, list) or not crosswalk_rows:
+        raise EnvelopeRejected("synthetic_crosswalk_empty")
+    crosswalk_ids: dict[str, set[str]] = {
+        key: set() for key in ("attempt_id", "witness_id", "raw_case_id", "raw_capture_id")
+    }
+    crosswalk_receipts: list[dict[str, Any]] = []
+    for row in crosswalk_rows:
+        crosswalk = _exact(
+            row,
+            {
+                "attempt_id",
+                "witness_id",
+                "raw_case_id",
+                "raw_capture_id",
+                "slot",
+                "blockhash",
+                "claimed_signature_sha256",
+                "claimed_message_sha256",
+            },
+            "synthetic_crosswalk_shape",
+        )
+        attempt_id = crosswalk["attempt_id"]
+        witness_id = crosswalk["witness_id"]
+        case_id = crosswalk["raw_case_id"]
+        capture_id = crosswalk["raw_capture_id"]
+        if (
+            not isinstance(attempt_id, str)
+            or attempt_id not in attempts
+            or not isinstance(witness_id, str)
+            or witness_id not in witness_payload_by_id
+            or not isinstance(case_id, str)
+            or case_id not in raw_by_case
+            or not isinstance(capture_id, str)
+            or type(crosswalk["slot"]) is not int
+            or crosswalk["slot"] < 0
+            or not isinstance(crosswalk["blockhash"], str)
+            or not crosswalk["blockhash"]
+        ):
+            raise EnvelopeRejected("synthetic_crosswalk_reference_invalid")
+        for key, value in (
+            ("attempt_id", attempt_id),
+            ("witness_id", witness_id),
+            ("raw_case_id", case_id),
+            ("raw_capture_id", capture_id),
+        ):
+            if value in crosswalk_ids[key]:
+                raise EnvelopeRejected("synthetic_crosswalk_duplicate_or_spliced")
+            crosswalk_ids[key].add(value)
+
+        attempt = attempts[attempt_id]
+        witness = witness_payload_by_id[witness_id]
+        raw = raw_by_case[case_id]
+        frame = raw["frame"]
+        commit_join_row = joined_rows[attempt_id]
+        witness_receipts = {
+            receipt["type"]: receipt["payload"] for receipt in witness.get("receipts", [])
+        }
+        bank_commit = witness_receipts.get("bank_commit", {})
+        block_join = witness_receipts.get("block_join", {})
+        root_status = witness_receipts.get("root_status", {})
+        signature = witness.get("signature")
+        message_sha256 = witness.get("message_sha256")
+        if (
+            commit_join_row.get("disposition") not in {"executed_success", "executed_failed"}
+            or attempt.get("signature") != signature
+            or attempt.get("message_hash") != message_sha256
+            or _digest(crosswalk["claimed_signature_sha256"], "crosswalk_signature_hash")
+            != hashlib.sha256(signature.encode("utf-8")).hexdigest()
+            or _digest(crosswalk["claimed_message_sha256"], "crosswalk_message_hash")
+            != message_sha256
+            or raw_fixture.sha256(
+                raw_fixture.canonical({"slot": frame["slot"], "blockhash": frame["blockhash"]})
+            )
+            != capture_id
+            or crosswalk["slot"] != frame.get("slot")
+            or crosswalk["blockhash"] != frame.get("blockhash")
+            or crosswalk["slot"] != bank_commit.get("slot")
+            or crosswalk["slot"] != block_join.get("slot")
+            or crosswalk["slot"] != root_status.get("slot")
+            or crosswalk["blockhash"] != commit_join_row.get("block_hash")
+            or crosswalk["blockhash"] != block_join.get("ledger_blockhash")
+            or crosswalk["blockhash"] != root_status.get("ledger_blockhash")
+        ):
+            raise EnvelopeRejected("synthetic_crosswalk_conflict")
+        crosswalk_receipts.append(
+            {
+                "attempt_id": attempt_id,
+                "witness_id": witness_id,
+                "raw_case_id": case_id,
+                "raw_capture_id": capture_id,
+                "slot": crosswalk["slot"],
+                "blockhash": crosswalk["blockhash"],
+                "association_status": "synthetic_unverified_hypothesis_only",
+            }
+        )
     raw_times = [
         {
             "case_id": row["case_id"],
@@ -249,6 +348,8 @@ def verify_envelope(
         "unique_rooted_join_count": len(joined_rows),
         "candidate_witness_count": len(crosschecked),
         "candidate_witnesses": sorted(crosschecked, key=lambda row: row["witness_id"]),
+        "synthetic_crosswalk_count": len(crosswalk_receipts),
+        "synthetic_crosswalk": sorted(crosswalk_receipts, key=lambda row: row["attempt_id"]),
         "attempt_dispositions": sorted(
             [
                 {
@@ -267,7 +368,8 @@ def verify_envelope(
         "raw_account_vector_count": len(raw_rows),
         "raw_account_vectors": sorted(raw_times, key=lambda row: row["case_id"]),
         "raw_execution_linkage": "unknown_raw_contract_has_no_transaction_identity",
-        "cross_component_linkage": "unknown_pending_semantic_decision",
+        "raw_execution_association": "unknown_synthetic_unverified_crosswalk",
+        "cross_component_linkage": "synthetic_unverified_hypothesis_only",
         "failed_attempts_are_attempted_only": True,
         "fees_only_rows_have_no_candidate_witness": True,
         "claims": dict(FALSE_CLAIMS),

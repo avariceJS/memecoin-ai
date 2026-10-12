@@ -24,7 +24,12 @@ from tools import brain_senses_candidate_position_witness_envelope_v1 as envelop
 def _make_envelope() -> dict[str, Any]:
     commit = join_helpers._fixture()
     witness = witness_helpers._witness()
+    raw_bundle = raw_helpers._bundle()
     receipts = {row["type"]: row["payload"] for row in witness["receipts"]}
+    raw_blockhash = raw_bundle["vectors"][0]["frame"]["blockhash"]
+    receipts["block_join"]["ledger_blockhash"] = raw_blockhash
+    receipts["root_status"]["ledger_blockhash"] = raw_blockhash
+    witness_helpers._rechain_receipts(witness)
     attempt = commit["attempts"][0]
     attempt.update(
         {
@@ -72,7 +77,17 @@ def _make_envelope() -> dict[str, Any]:
     time_rows["commit"]["subject_id"] = receipts["bank_commit"]["commit_batch_id"]
     time_rows["freeze"]["subject_id"] = receipts["bank_freeze"]["bank_instance_id"]
     time_rows["block"]["subject_id"] = receipts["block_join"]["ledger_blockhash"]
-    raw_bundle = raw_helpers._bundle()
+    bank_commit = receipts["bank_commit"]
+    block_join = receipts["block_join"]
+    raw_frame = raw_bundle["vectors"][0]["frame"]
+    raw_frame["slot"] = bank_commit["slot"]
+    raw_frame["blockhash"] = block_join["ledger_blockhash"]
+    raw_frame["capture_id"] = raw_helpers.fixture.sha256(
+        raw_helpers.fixture.canonical(
+            {"slot": raw_frame["slot"], "blockhash": raw_frame["blockhash"]}
+        )
+    )
+    attempt = commit["attempts"][0]
     return {
         "schema": envelope.SCHEMA,
         "schema_version": envelope.SCHEMA_VERSION,
@@ -90,6 +105,18 @@ def _make_envelope() -> dict[str, Any]:
                 "witness_id": "synthetic-witness-0",
                 "witness": witness,
                 "sha256": envelope.sha256(witness_checker.canonical_json_bytes(witness)),
+            }
+        ],
+        "synthetic_crosswalk": [
+            {
+                "attempt_id": attempt["attempt_id"],
+                "witness_id": "synthetic-witness-0",
+                "raw_case_id": raw_bundle["vectors"][0]["case_id"],
+                "raw_capture_id": raw_frame["capture_id"],
+                "slot": raw_frame["slot"],
+                "blockhash": raw_frame["blockhash"],
+                "claimed_signature_sha256": envelope.sha256(witness["signature"].encode("utf-8")),
+                "claimed_message_sha256": witness["message_sha256"],
             }
         ],
         "claims": dict(envelope.FALSE_CLAIMS),
@@ -126,7 +153,12 @@ def test_valid_synthetic_envelope_returns_non_authorizing_receipt() -> None:
     )
     assert receipt["claims"] == envelope.FALSE_CLAIMS
     assert all(item is False for item in receipt["claims"].values())
-    assert receipt["cross_component_linkage"] == "unknown_pending_semantic_decision"
+    assert receipt["cross_component_linkage"] == "synthetic_unverified_hypothesis_only"
+    assert receipt["raw_execution_association"] == "unknown_synthetic_unverified_crosswalk"
+    assert receipt["synthetic_crosswalk_count"] == 1
+    assert receipt["synthetic_crosswalk"][0]["association_status"] == (
+        "synthetic_unverified_hypothesis_only"
+    )
 
 
 def test_envelope_bytes_are_canonical_and_permutation_invariant() -> None:
@@ -168,7 +200,7 @@ def test_commit_fork_and_absolute_index_splice_rejected() -> None:
     value["commit_to_root"]["payload"]["block_entries"][0]["absolute_block_transaction_index"] += 1
     _rehash_components(value)
     receipt = envelope.verify_envelope(value)
-    assert receipt["cross_component_linkage"] == "unknown_pending_semantic_decision"
+    assert receipt["cross_component_linkage"] == "synthetic_unverified_hypothesis_only"
 
 
 def test_duplicate_and_spliced_witness_rows_rejected() -> None:
@@ -176,6 +208,33 @@ def test_duplicate_and_spliced_witness_rows_rejected() -> None:
     value["candidate_witnesses"].append(copy.deepcopy(value["candidate_witnesses"][0]))
     with pytest.raises(envelope.EnvelopeRejected, match="witness_attempt_duplicate_or_invalid"):
         envelope.verify_envelope(value)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "reason"),
+    [
+        ("raw_capture_id", "0" * 64, "synthetic_crosswalk_conflict"),
+        ("slot", 901, "synthetic_crosswalk_conflict"),
+        ("blockhash", "spliced-block", "synthetic_crosswalk_conflict"),
+        ("claimed_signature_sha256", "0" * 64, "synthetic_crosswalk_conflict"),
+        ("claimed_message_sha256", "0" * 64, "synthetic_crosswalk_conflict"),
+    ],
+)
+def test_synthetic_crosswalk_rejects_spliced_identifiers(
+    field: str, value: Any, reason: str
+) -> None:
+    payload = _make_envelope()
+    payload["synthetic_crosswalk"][0][field] = value
+    _rehash_components(payload)
+    with pytest.raises(envelope.EnvelopeRejected, match=reason):
+        envelope.verify_envelope(payload)
+
+
+def test_synthetic_crosswalk_rejects_duplicate_component_identity() -> None:
+    payload = _make_envelope()
+    payload["synthetic_crosswalk"].append(copy.deepcopy(payload["synthetic_crosswalk"][0]))
+    with pytest.raises(envelope.EnvelopeRejected, match="synthetic_crosswalk_duplicate_or_spliced"):
+        envelope.verify_envelope(payload)
     value = _make_envelope()
     value["candidate_witnesses"].append(
         {**copy.deepcopy(value["candidate_witnesses"][0]), "witness_id": "synthetic-witness-1"}

@@ -10,7 +10,9 @@ import argparse
 import json
 import os
 import re
+import shlex
 import stat
+import subprocess
 import sys
 import time
 import urllib.error
@@ -46,12 +48,21 @@ PILOT_ROOT_PREFIX = f"{SERVICE_ROOT}/v3-pilots"
 SERVICE_LOCK = ".gecko-market-v1.lock"
 SOURCE_BINDING_KEY = live_sources.MANIFEST_PATH
 LIVE_PLAN_SCHEMA = "brain-senses-gecko-live-v3-plan"
-ACTIVATION_SCHEMA = "brain-senses-gecko-live-v3-activation"
+RELEASE_PREFLIGHT_SCHEMA = "brain-senses-gecko-live-v3-release-preflight"
+CALLBACK_SCHEMA = "brain-senses-gecko-live-v3-launchd-callback"
+ACTIVATION_SCHEMA = "brain-senses-gecko-live-v4-activation"
 PILOT_AUTH_SCHEMA = "brain-senses-gecko-live-v3-pilot-authorization"
 PILOT_RECEIPT_SCHEMA = "brain-senses-gecko-live-v3-pilot-receipt"
 MAX_REQUEST_START_OFFSET_NS = 155 * offline.NS
 MINIMUM_DURABLE_RESULT_SPACING_NS = 20 * offline.NS
 MAX_LANE_DISPATCHES_PER_60_SECONDS = 3
+RELEASE_TEST_NODES = (
+    "tests/test_brain_senses_external_writer_v1.py::test_detach_after_revalidation_stays_on_held_volume",
+    "tests/test_brain_senses_gecko_lane_runtime_v3.py::test_restart_never_replays_spent_request_and_marks_missing_pool_count",
+    "tests/test_brain_senses_capacity_coordinator_v2.py::test_recovery_releases_only_absent_pre_intent_and_never_replays_existing_intent",
+    "tests/test_brain_senses_capacity_coordinator_v2.py::test_service_recovery_releases_only_absent_target_and_detects_orphan_outcome",
+    "tests/test_brain_senses_capacity_coordinator_v2.py::test_service_recovery_fails_closed_on_global_ledger_corruption",
+)
 TRANSIENT_TERMINAL_STATUSES = {engine.STATUS_PROVIDER_ERROR, engine.STATUS_TRANSPORT}
 IMMEDIATE_STOP_STATUSES = {
     engine.STATUS_RATE_LIMITED,
@@ -70,6 +81,7 @@ def source_bindings() -> dict[str, str]:
     """Hash the complete runtime closure used by this independently versioned host."""
     names = (
         "tools/brain_senses_gecko_lane_runtime_v3.py",
+        "tools/brain_senses_gecko_lane_release_v4.py",
         "tools/brain_senses_gecko_lane_engine_v3.py",
         "tools/brain_senses_gecko_lane_live_sources_v2.py",
         "tools/brain_senses_gecko_lane_policy_v3.py",
@@ -230,6 +242,8 @@ def verify_activation(plan: Mapping[str, Any], activation: Mapping[str, Any]) ->
         "source_sha256",
         "root_id",
         "volume_uuid",
+        "release_preflight_sha256",
+        "launchd_callback_sha256",
         "activation_authorized",
         "provider_io",
         "qualification_status",
@@ -238,12 +252,14 @@ def verify_activation(plan: Mapping[str, Any], activation: Mapping[str, Any]) ->
     storage = plan["storage"]
     if (
         activation["schema"] != ACTIVATION_SCHEMA
-        or activation["schema_version"] != 3
+        or activation["schema_version"] != 4
         or activation["pilot_id"] != plan["pilot_id"]
         or activation["plan_sha256"] != plan["plan_sha256"]
         or activation["source_sha256"] != plan["source_sha256"]
         or activation["root_id"] != storage["root_id"]
         or activation["volume_uuid"] != storage["volume_uuid"]
+        or not _SHA.fullmatch(str(activation["release_preflight_sha256"]))
+        or not _SHA.fullmatch(str(activation["launchd_callback_sha256"]))
         or activation["activation_authorized"] is not True
         or activation["provider_io"] is not True
         or activation["qualification_status"] != "passed"
@@ -1826,26 +1842,86 @@ def _verify_scheduled_release(
     pilot_receipt_sha256: str,
     pilot_receipt: Mapping[str, Any],
     store: DescriptorLaneStore,
+    *,
+    check_current_prefix: bool = True,
 ) -> None:
     expected = {
         "schema",
         "schema_version",
+        "pilot_id",
         "plan_sha256",
         "source_sha256",
         "pilot_receipt_sha256",
+        "root_id",
+        "volume_uuid",
+        "plist_sha256",
+        "builder_sha256",
+        "qualification_sha256",
+        "service_prefix_sha256",
+        "coordinator_ledger_sha256",
+        "generated_ns",
+        "expires_ns",
         "status",
+        "receipt_sha256",
     }
     if not isinstance(release, Mapping) or set(release) != expected:
-        raise GeckoRuntimeError("scheduled_release_shape")
+        raise GeckoRuntimeError("release_preflight_shape")
+    unsigned = {key: value for key, value in release.items() if key != "receipt_sha256"}
+    qualification = release.get("qualification_sha256")
+    expected_test_paths = {node.split("::", 1)[0] for node in RELEASE_TEST_NODES}
+    current_test_hashes = {
+        name: sha256((REPO / name).read_bytes())
+        for name in expected_test_paths
+        if (REPO / name).is_file()
+    }
     if (
-        release["schema"] != "brain-senses-gecko-live-v3-release"
-        or release["schema_version"] != 3
+        release["schema"] != RELEASE_PREFLIGHT_SCHEMA
+        or release["schema_version"] != 4
+        or release["pilot_id"] != plan["pilot_id"]
         or release["plan_sha256"] != plan["plan_sha256"]
         or release["source_sha256"] != plan["source_sha256"]
         or release["pilot_receipt_sha256"] != pilot_receipt_sha256
+        or release["root_id"] != plan["storage"]["root_id"]
+        or release["volume_uuid"] != plan["storage"]["volume_uuid"]
+        or release["plist_sha256"]
+        != plan["source_sha256"].get("ops/launchd/ai.memecoin.brain.senses.gecko-lane-v3.plist")
+        or release["builder_sha256"]
+        != plan["source_sha256"].get("tools/brain_senses_gecko_lane_release_v4.py")
+        or not isinstance(release["qualification_sha256"], Mapping)
+        or not isinstance(qualification, Mapping)
+        or set(qualification)
+        != {
+            "test_nodes",
+            "test_source_sha256",
+            "pytest_exit_code",
+            "pytest_stdout_sha256",
+            "pytest_stderr_sha256",
+        }
+        or qualification.get("test_nodes") != list(RELEASE_TEST_NODES)
+        or set(qualification.get("test_source_sha256", {})) != expected_test_paths
+        or qualification.get("test_source_sha256") != current_test_hashes
+        or any(
+            not isinstance(digest, str) or not _SHA.fullmatch(digest)
+            for digest in qualification.get("test_source_sha256", {}).values()
+        )
+        or qualification.get("pytest_exit_code") != 0
+        or not _SHA.fullmatch(str(qualification.get("pytest_stdout_sha256")))
+        or not _SHA.fullmatch(str(qualification.get("pytest_stderr_sha256")))
+        or not _SHA.fullmatch(str(release["service_prefix_sha256"]))
+        or not _SHA.fullmatch(str(release["coordinator_ledger_sha256"]))
+        or (
+            check_current_prefix
+            and release["service_prefix_sha256"] != _service_prefix_sha256(store)
+        )
+        or type(release["generated_ns"]) is not int
+        or type(release["expires_ns"]) is not int
+        or release["generated_ns"] <= 0
+        or release["expires_ns"] <= release["generated_ns"]
+        or release["expires_ns"] - release["generated_ns"] > 15 * 60 * offline.NS
         or release["status"] != "passed"
+        or release["receipt_sha256"] != sha256(canonical_json(unsigned))
     ):
-        raise GeckoRuntimeError("scheduled_release_binding")
+        raise GeckoRuntimeError("release_preflight_binding")
     _verify_source_map_shape(plan["source_sha256"])
     qualification, prefix = verify_pilot_bucket(
         store, plan, pilot_receipt["bucket_close_ns"], require_clock=True
@@ -1858,6 +1934,217 @@ def _verify_scheduled_release(
         or sha256(canonical_json(prefix)) != pilot_receipt.get("result_sha256")
     ):
         raise GeckoRuntimeError("scheduled_pilot_qualification_failed")
+
+
+def _service_prefix_sha256(store: DescriptorLaneStore) -> str:
+    """Hash the immutable plan and complete request prefix, excluding release controls/monitor."""
+    excluded = {
+        ".runner.lock",
+        "release-preflight.json",
+        "launchd-callback.json",
+        "activation.json",
+        "tick-monitor.jsonl",
+    }
+    rows: list[dict[str, str]] = []
+
+    def visit(relative: str) -> None:
+        for name in store.writer.list_names(relative):
+            path = f"{relative}/{name}"
+            local = path[len(store.root) + 1 :]
+            if local in excluded:
+                continue
+            entry = store.writer.stat(path)
+            if stat.S_ISDIR(entry.st_mode):
+                visit(path)
+            elif stat.S_ISREG(entry.st_mode):
+                rows.append({"path": local, "sha256": sha256(store.writer.read_bytes(path))})
+            else:
+                raise GeckoRuntimeError("service_prefix_entry_type")
+
+    visit(store.root)
+    return sha256(canonical_json(sorted(rows, key=lambda row: row["path"])))
+
+
+def _verify_launchd_callback(
+    plan: Mapping[str, Any],
+    preflight: Mapping[str, Any],
+    preflight_raw: bytes,
+    callback: Mapping[str, Any],
+    callback_raw: bytes,
+    store: DescriptorLaneStore,
+) -> None:
+    expected = {
+        "schema",
+        "schema_version",
+        "pilot_id",
+        "plan_sha256",
+        "source_sha256",
+        "release_preflight_sha256",
+        "root_id",
+        "volume_uuid",
+        "plist_sha256",
+        "service_prefix_sha256",
+        "coordinator_ledger_sha256",
+        "label",
+        "pid",
+        "argv",
+        "callback_ns",
+        "intent_count",
+        "provider_io",
+        "status",
+        "receipt_sha256",
+    }
+    if not isinstance(callback, Mapping) or set(callback) != expected:
+        raise GeckoRuntimeError("launchd_callback_shape")
+    unsigned = {key: value for key, value in callback.items() if key != "receipt_sha256"}
+    if (
+        callback["schema"] != CALLBACK_SCHEMA
+        or callback["schema_version"] != 4
+        or callback["pilot_id"] != plan["pilot_id"]
+        or callback["plan_sha256"] != plan["plan_sha256"]
+        or callback["source_sha256"] != plan["source_sha256"]
+        or callback["release_preflight_sha256"] != sha256(preflight_raw)
+        or callback["root_id"] != plan["storage"]["root_id"]
+        or callback["volume_uuid"] != plan["storage"]["volume_uuid"]
+        or callback["plist_sha256"] != preflight["plist_sha256"]
+        or callback["service_prefix_sha256"] != preflight["service_prefix_sha256"]
+        or type(callback["pid"]) is not int
+        or callback["pid"] <= 0
+        or callback["label"] != "ai.memecoin.brain.senses.gecko-lane-v3"
+        or callback["argv"]
+        != [
+            str(REPO / ".venv/bin/python"),
+            "-B",
+            str(REPO / "tools/brain_senses_gecko_lane_runtime_v3.py"),
+            "--scheduled-tick",
+            "--pilot-id",
+            plan["pilot_id"],
+        ]
+        or type(callback["callback_ns"]) is not int
+        or not preflight["generated_ns"] <= callback["callback_ns"] <= preflight["expires_ns"]
+        or callback["intent_count"] != 4
+        or callback["provider_io"] is not False
+        or callback["status"] != "no_provider_callback_verified"
+        or callback["receipt_sha256"] != sha256(canonical_json(unsigned))
+        or canonical_json(dict(callback)) != callback_raw
+    ):
+        raise GeckoRuntimeError("launchd_callback_binding")
+
+
+def _current_launchd_identity(pilot_id: str) -> tuple[int, list[str], str]:
+    """Prove this callback is the exact loaded LaunchAgent invocation."""
+    label = "ai.memecoin.brain.senses.gecko-lane-v3"
+    expected_argv = [
+        str(REPO / ".venv/bin/python"),
+        "-B",
+        str(REPO / "tools/brain_senses_gecko_lane_runtime_v3.py"),
+        "--scheduled-tick",
+        "--pilot-id",
+        pilot_id,
+    ]
+    if os.environ.get("XPC_SERVICE_NAME") != label:
+        raise GeckoRuntimeError("launchd_service_identity_missing")
+    try:
+        completed = subprocess.run(
+            ["launchctl", "list"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        matching = [
+            row.split()
+            for row in completed.stdout.splitlines()
+            if row.split() and row.split()[-1] == label
+        ]
+        if completed.returncode != 0 or len(matching) != 1:
+            raise GeckoRuntimeError("launchd_list_identity_invalid")
+        pid = int(matching[0][0])
+        if pid != os.getpid():
+            raise GeckoRuntimeError("launchd_callback_pid_mismatch")
+        process = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "command="],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        actual_argv = shlex.split(process.stdout.strip())
+    except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+        raise GeckoRuntimeError("launchd_process_identity_unavailable") from exc
+    if (
+        process.returncode != 0
+        or actual_argv != expected_argv
+        or Path(sys.executable).resolve() != Path(expected_argv[0]).resolve()
+        or sys.argv != expected_argv[2:]
+    ):
+        raise GeckoRuntimeError("launchd_process_argv_mismatch")
+    return pid, expected_argv, label
+
+
+def _record_launchd_callback(
+    store: DescriptorLaneStore,
+    plan: Mapping[str, Any],
+    preflight: Mapping[str, Any],
+    preflight_raw: bytes,
+    coordinator: capacity.CapacityCoordinator,
+    *,
+    now_ns: Callable[[], int],
+) -> dict[str, Any]:
+    if store.writer.exists(store._path("activation.json")):
+        raise GeckoRuntimeError("activation_before_launchd_callback")
+    callback_ns = now_ns()
+    if not preflight["generated_ns"] <= callback_ns <= preflight["expires_ns"]:
+        raise GeckoRuntimeError("release_preflight_expired")
+    pid, argv, label = _current_launchd_identity(plan["pilot_id"])
+    prefix_sha = _service_prefix_sha256(store)
+    if prefix_sha != preflight["service_prefix_sha256"]:
+        raise GeckoRuntimeError("service_prefix_changed_before_callback")
+    with store.writer.lock(capacity.LOCK_PATH, blocking=True):
+        ledger_raw, ledger_rows = coordinator._load_ledger()
+        reservations, terminal_ids = capacity._reservation_state(ledger_rows)
+        if any(
+            row["service"] == "gecko" and reservation_id not in terminal_ids
+            for reservation_id, row in reservations.items()
+        ):
+            raise GeckoRuntimeError("gecko_coordinator_reservation_pending")
+    if sha256(ledger_raw) != preflight["coordinator_ledger_sha256"]:
+        raise GeckoRuntimeError("coordinator_prefix_changed_before_callback")
+    status = verify_live_store(store, plan, require_clock=True)
+    if (
+        status["intents"] != 4
+        or status["dispatches"] != 4
+        or status["durable_results"] != 4
+        or status["possibly_spent"] != 0
+    ):
+        raise GeckoRuntimeError("pilot_prefix_not_qualified_for_callback")
+    record = {
+        "schema": CALLBACK_SCHEMA,
+        "schema_version": 4,
+        "pilot_id": plan["pilot_id"],
+        "plan_sha256": plan["plan_sha256"],
+        "source_sha256": plan["source_sha256"],
+        "release_preflight_sha256": sha256(preflight_raw),
+        "root_id": plan["storage"]["root_id"],
+        "volume_uuid": plan["storage"]["volume_uuid"],
+        "plist_sha256": preflight["plist_sha256"],
+        "service_prefix_sha256": prefix_sha,
+        "coordinator_ledger_sha256": sha256(ledger_raw),
+        "label": label,
+        "pid": pid,
+        "argv": argv,
+        "callback_ns": callback_ns,
+        "intent_count": status["intents"],
+        "provider_io": False,
+        "status": "no_provider_callback_verified",
+    }
+    record["receipt_sha256"] = sha256(canonical_json(record))
+    store._create_exact("launchd-callback.json", record)
+    return {
+        "status": record["status"],
+        "provider_io": False,
+        "callback_sha256": record["receipt_sha256"],
+    }
 
 
 def _compile_pinned_live_policy(writer: DescriptorWriter, guard: Any) -> dict[str, Any]:
@@ -2064,12 +2351,14 @@ def run_host_mode(
                 bucket_close = pilot_bucket_close
                 activation = {
                     "schema": ACTIVATION_SCHEMA,
-                    "schema_version": 3,
+                    "schema_version": 4,
                     "pilot_id": plan["pilot_id"],
                     "plan_sha256": plan["plan_sha256"],
                     "source_sha256": plan["source_sha256"],
                     "root_id": plan["storage"]["root_id"],
                     "volume_uuid": plan["storage"]["volume_uuid"],
+                    "release_preflight_sha256": "0" * 64,
+                    "launchd_callback_sha256": "0" * 64,
                     "activation_authorized": True,
                     "provider_io": True,
                     "qualification_status": "passed",
@@ -2079,10 +2368,46 @@ def run_host_mode(
                 receipt = store.read_json("pilot-receipt.json")
                 receipt_sha = sha256(receipt_raw)
                 verify_pilot_receipt(plan, receipt, receipt_sha)
-                release = store.read_json("release.json")
-                _verify_scheduled_release(plan, release, receipt_sha, receipt, store)
+                preflight_raw = writer.read_bytes(store._path("release-preflight.json"))
+                preflight = store.read_json("release-preflight.json")
+                has_activation = writer.exists(store._path("activation.json"))
+                _verify_scheduled_release(
+                    plan,
+                    preflight,
+                    receipt_sha,
+                    receipt,
+                    store,
+                    check_current_prefix=not has_activation,
+                )
+                if mode == "scheduled-tick" and not writer.exists(
+                    store._path("launchd-callback.json")
+                ):
+                    callback_result = _record_launchd_callback(
+                        store,
+                        plan,
+                        preflight,
+                        preflight_raw,
+                        coordinator,
+                        now_ns=now_ns,
+                    )
+                    return callback_result
+                callback_raw = writer.read_bytes(store._path("launchd-callback.json"))
+                callback = store.read_json("launchd-callback.json")
+                _verify_launchd_callback(
+                    plan, preflight, preflight_raw, callback, callback_raw, store
+                )
+                if not has_activation:
+                    return {
+                        "status": "callback_waiting_for_activation",
+                        "provider_io": False,
+                        "callback_sha256": sha256(callback_raw),
+                    }
                 activation = store.read_json("activation.json")
                 verify_activation(plan, activation)
+                if activation["release_preflight_sha256"] != sha256(preflight_raw) or activation[
+                    "launchd_callback_sha256"
+                ] != sha256(callback_raw):
+                    raise GeckoRuntimeError("activation_release_binding")
 
             active_bucket_close = current_bucket_for_tick(now_ns())
             if active_bucket_close is None:
@@ -2203,7 +2528,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return (
             0
             if successful
-            and result.get("status") in {"bucket_processed", "outside_dispatch_window"}
+            and result.get("status")
+            in {
+                "bucket_processed",
+                "outside_dispatch_window",
+                "no_provider_callback_verified",
+                "callback_waiting_for_activation",
+            }
             else 2
         )
     return (

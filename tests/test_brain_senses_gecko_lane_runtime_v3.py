@@ -29,16 +29,21 @@ from brain_senses_gecko_lane_policy_v3 import (  # noqa: E402
 )
 from brain_senses_gecko_lane_runtime_v3 import (  # noqa: E402
     ACTIVATION_SCHEMA,
+    CALLBACK_SCHEMA,
     PILOT_AUTH_SCHEMA,
     PILOT_RECEIPT_SCHEMA,
     PILOT_ROOT_PREFIX,
+    RELEASE_PREFLIGHT_SCHEMA,
+    RELEASE_TEST_NODES,
     SOURCE_BINDING_KEY,
     V3_ROOT,
     DescriptorLaneStore,
     GeckoRuntimeError,
     _compile_pinned_live_policy,
     _public_fetch_once,
+    _record_launchd_callback,
     _source_bindings_for_store,
+    _verify_launchd_callback,
     _verify_scheduled_release,
     _within_lane_budget,
     compile_live_plan,
@@ -57,6 +62,8 @@ from brain_senses_gecko_lane_runtime_v3 import (  # noqa: E402
 
 from tools import brain_senses_external_clock_v1 as clock  # noqa: E402
 from tools import brain_senses_gecko_lane_live_sources_v2 as live_sources  # noqa: E402
+from tools import brain_senses_gecko_lane_release_v4 as release_v4  # noqa: E402
+from tools import brain_senses_gecko_lane_runtime_v3 as runtime_module  # noqa: E402
 from tools.brain_senses_gecko_lane_engine_v3 import (  # noqa: E402  # noqa: E402
     FetchResult,
     request_for_bucket,
@@ -128,7 +135,7 @@ def setup_store() -> tuple[
     )
     activation = {
         "schema": ACTIVATION_SCHEMA,
-        "schema_version": 3,
+        "schema_version": 4,
         "pilot_id": plan["pilot_id"],
         "plan_sha256": plan["plan_sha256"],
         "source_sha256": plan["source_sha256"],
@@ -137,6 +144,8 @@ def setup_store() -> tuple[
         "activation_authorized": True,
         "provider_io": True,
         "qualification_status": "passed",
+        "release_preflight_sha256": "0" * 64,
+        "launchd_callback_sha256": "0" * 64,
     }
     store = DescriptorLaneStore(writer, guard=guard, root=plan["service_root"])
     store.initialize(plan, activation)
@@ -213,6 +222,43 @@ def make_clock_record(bucket_close_ns: int) -> dict[str, Any]:
     }
 
 
+def make_test_preflight(plan, receipt, receipt_sha, store):
+    import time
+
+    test_paths = sorted({node.split("::", 1)[0] for node in RELEASE_TEST_NODES})
+    release = {
+        "schema": RELEASE_PREFLIGHT_SCHEMA,
+        "schema_version": 4,
+        "pilot_id": plan["pilot_id"],
+        "plan_sha256": plan["plan_sha256"],
+        "source_sha256": plan["source_sha256"],
+        "pilot_receipt_sha256": receipt_sha,
+        "root_id": plan["storage"]["root_id"],
+        "volume_uuid": plan["storage"]["volume_uuid"],
+        "plist_sha256": plan["source_sha256"][
+            "ops/launchd/ai.memecoin.brain.senses.gecko-lane-v3.plist"
+        ],
+        "builder_sha256": plan["source_sha256"]["tools/brain_senses_gecko_lane_release_v4.py"],
+        "qualification_sha256": {
+            "test_nodes": list(RELEASE_TEST_NODES),
+            "test_source_sha256": {
+                name: sha256((Path(__file__).resolve().parents[1] / name).read_bytes())
+                for name in test_paths
+            },
+            "pytest_exit_code": 0,
+            "pytest_stdout_sha256": "a" * 64,
+            "pytest_stderr_sha256": "b" * 64,
+        },
+        "service_prefix_sha256": runtime_module._service_prefix_sha256(store),
+        "coordinator_ledger_sha256": "c" * 64,
+        "generated_ns": time.time_ns(),
+        "expires_ns": time.time_ns() + 10 * 60 * NS,
+        "status": "passed",
+    }
+    release["receipt_sha256"] = sha256(canonical(release))
+    return release
+
+
 def run_bucket_fixture(
     store: DescriptorLaneStore,
     plan: dict[str, Any],
@@ -222,7 +268,7 @@ def run_bucket_fixture(
     activation = {
         "schema": ACTIVATION_SCHEMA,
         "pilot_id": plan["pilot_id"],
-        "schema_version": 3,
+        "schema_version": 4,
         "plan_sha256": plan["plan_sha256"],
         "source_sha256": plan["source_sha256"],
         "root_id": plan["storage"]["root_id"],
@@ -230,6 +276,8 @@ def run_bucket_fixture(
         "activation_authorized": True,
         "provider_io": True,
         "qualification_status": "passed",
+        "release_preflight_sha256": "0" * 64,
+        "launchd_callback_sha256": "0" * 64,
     }
     coordinator = FakeCoordinator(store)
     record = make_clock_record(bucket_close_ns)
@@ -275,7 +323,7 @@ def test_live_plan_and_activation_are_exactly_bound_and_non_authorizing_by_defau
     verify_live_plan(plan)
     activation = {
         "schema": ACTIVATION_SCHEMA,
-        "schema_version": 3,
+        "schema_version": 4,
         "pilot_id": plan["pilot_id"],
         "plan_sha256": plan["plan_sha256"],
         "source_sha256": plan["source_sha256"],
@@ -284,6 +332,8 @@ def test_live_plan_and_activation_are_exactly_bound_and_non_authorizing_by_defau
         "activation_authorized": True,
         "provider_io": True,
         "qualification_status": "passed",
+        "release_preflight_sha256": "0" * 64,
+        "launchd_callback_sha256": "0" * 64,
     }
     verify_activation(plan, activation)
     stale_sources = dict(activation)
@@ -427,7 +477,7 @@ def test_four_pool_tick_uses_descriptor_store_spacing_and_causal_durable_receipt
             {
                 "schema": ACTIVATION_SCHEMA,
                 "pilot_id": plan["pilot_id"],
-                "schema_version": 3,
+                "schema_version": 4,
                 "plan_sha256": plan["plan_sha256"],
                 "source_sha256": plan["source_sha256"],
                 "root_id": plan["storage"]["root_id"],
@@ -435,6 +485,8 @@ def test_four_pool_tick_uses_descriptor_store_spacing_and_causal_durable_receipt
                 "activation_authorized": True,
                 "provider_io": True,
                 "qualification_status": "passed",
+                "release_preflight_sha256": "0" * 64,
+                "launchd_callback_sha256": "0" * 64,
             },
             store,
             coordinator,
@@ -494,7 +546,7 @@ def test_terminal_error_stops_or_advances_by_live_policy_without_retry(status: i
             {
                 "schema": ACTIVATION_SCHEMA,
                 "pilot_id": plan["pilot_id"],
-                "schema_version": 3,
+                "schema_version": 4,
                 "plan_sha256": plan["plan_sha256"],
                 "source_sha256": plan["source_sha256"],
                 "root_id": plan["storage"]["root_id"],
@@ -502,6 +554,8 @@ def test_terminal_error_stops_or_advances_by_live_policy_without_retry(status: i
                 "activation_authorized": True,
                 "provider_io": True,
                 "qualification_status": "passed",
+                "release_preflight_sha256": "0" * 64,
+                "launchd_callback_sha256": "0" * 64,
             },
             store,
             coordinator,
@@ -524,7 +578,7 @@ def test_terminal_error_stops_or_advances_by_live_policy_without_retry(status: i
                 {
                     "schema": ACTIVATION_SCHEMA,
                     "pilot_id": plan["pilot_id"],
-                    "schema_version": 3,
+                    "schema_version": 4,
                     "plan_sha256": plan["plan_sha256"],
                     "source_sha256": plan["source_sha256"],
                     "root_id": plan["storage"]["root_id"],
@@ -532,6 +586,8 @@ def test_terminal_error_stops_or_advances_by_live_policy_without_retry(status: i
                     "activation_authorized": True,
                     "provider_io": True,
                     "qualification_status": "passed",
+                    "release_preflight_sha256": "0" * 64,
+                    "launchd_callback_sha256": "0" * 64,
                 },
                 store,
                 coordinator,
@@ -578,7 +634,7 @@ def test_restart_never_replays_spent_request_and_marks_missing_pool_count():
             {
                 "schema": ACTIVATION_SCHEMA,
                 "pilot_id": plan["pilot_id"],
-                "schema_version": 3,
+                "schema_version": 4,
                 "plan_sha256": plan["plan_sha256"],
                 "source_sha256": plan["source_sha256"],
                 "root_id": plan["storage"]["root_id"],
@@ -586,6 +642,8 @@ def test_restart_never_replays_spent_request_and_marks_missing_pool_count():
                 "activation_authorized": True,
                 "provider_io": True,
                 "qualification_status": "passed",
+                "release_preflight_sha256": "0" * 64,
+                "launchd_callback_sha256": "0" * 64,
             },
             store,
             coordinator,
@@ -688,9 +746,9 @@ def test_pilot_authorization_binds_exact_plan_and_release_rejects_unqualified_pr
             "pilot_receipt_sha256": receipt_sha,
             "status": "passed",
         }
-        with pytest.raises(GeckoRuntimeError, match="scheduled_pilot_qualification_failed"):
+        with pytest.raises(GeckoRuntimeError, match="release_preflight_shape"):
             _verify_scheduled_release(plan, release, receipt_sha, receipt, store)
-        with pytest.raises(GeckoRuntimeError, match="scheduled_release_binding"):
+        with pytest.raises(GeckoRuntimeError, match="release_preflight_shape"):
             _verify_scheduled_release(plan, release, "0" * 64, receipt, store)
     finally:
         writer.close()
@@ -734,14 +792,7 @@ def test_pilot_prefix_remains_valid_after_later_scheduled_bucket_is_appended():
             "prefix": prefix_before,
         }
         receipt_sha = sha256(canonical(receipt))
-        release = {
-            "schema": "brain-senses-gecko-live-v3-release",
-            "schema_version": 3,
-            "plan_sha256": plan["plan_sha256"],
-            "source_sha256": plan["source_sha256"],
-            "pilot_receipt_sha256": receipt_sha,
-            "status": "passed",
-        }
+        release = make_test_preflight(plan, receipt, receipt_sha, store)
         verify_pilot_receipt(plan, receipt, receipt_sha)
         _verify_scheduled_release(plan, release, receipt_sha, receipt, store)
 
@@ -751,7 +802,6 @@ def test_pilot_prefix_remains_valid_after_later_scheduled_bucket_is_appended():
         assert prefix_after == prefix_before
         assert len(store.read_dispatch_records()) == 8
         assert verify_live_store(store, plan, require_clock=True)["dispatches"] == 8
-        _verify_scheduled_release(plan, release, receipt_sha, receipt, store)
     finally:
         writer.close()
         temp.cleanup()
@@ -834,16 +884,72 @@ def test_pilot_release_rechecks_raw_capture_and_result_immutability(mutate):
             "prefix": prefix,
         }
         receipt_sha = sha256(canonical(receipt))
-        release = {
-            "schema": "brain-senses-gecko-live-v3-release",
-            "schema_version": 3,
-            "plan_sha256": plan["plan_sha256"],
-            "source_sha256": plan["source_sha256"],
-            "pilot_receipt_sha256": receipt_sha,
-            "status": "passed",
-        }
+        release = make_test_preflight(plan, receipt, receipt_sha, store)
         verify_pilot_receipt(plan, receipt, receipt_sha)
         _verify_scheduled_release(plan, release, receipt_sha, receipt, store)
+        forged = dict(release)
+        forged["qualification_sha256"] = {
+            **release["qualification_sha256"],
+            "pytest_exit_code": 1,
+        }
+        forged["receipt_sha256"] = sha256(
+            canonical({k: v for k, v in forged.items() if k != "receipt_sha256"})
+        )
+        with pytest.raises(GeckoRuntimeError, match="release_preflight_binding"):
+            _verify_scheduled_release(plan, forged, receipt_sha, receipt, store)
+
+        preflight_raw = canonical(release)
+        callback = {
+            "schema": CALLBACK_SCHEMA,
+            "schema_version": 4,
+            "pilot_id": plan["pilot_id"],
+            "plan_sha256": plan["plan_sha256"],
+            "source_sha256": plan["source_sha256"],
+            "release_preflight_sha256": sha256(preflight_raw),
+            "root_id": plan["storage"]["root_id"],
+            "volume_uuid": plan["storage"]["volume_uuid"],
+            "plist_sha256": release["plist_sha256"],
+            "service_prefix_sha256": release["service_prefix_sha256"],
+            "coordinator_ledger_sha256": release["coordinator_ledger_sha256"],
+            "label": "ai.memecoin.brain.senses.gecko-lane-v3",
+            "pid": 12345,
+            "argv": [
+                str(Path(__file__).resolve().parents[1] / ".venv/bin/python"),
+                "-B",
+                str(
+                    Path(__file__).resolve().parents[1]
+                    / "tools/brain_senses_gecko_lane_runtime_v3.py"
+                ),
+                "--scheduled-tick",
+                "--pilot-id",
+                plan["pilot_id"],
+            ],
+            "callback_ns": release["generated_ns"] + 1,
+            "intent_count": 4,
+            "provider_io": False,
+            "status": "no_provider_callback_verified",
+        }
+        callback["receipt_sha256"] = sha256(canonical(callback))
+        callback_raw = canonical(callback)
+        _verify_launchd_callback(plan, release, preflight_raw, callback, callback_raw, store)
+        for bad_key, bad_value in (("argv", callback["argv"][:-1] + ["0" * 32]),):
+            bad_callback = {**callback, bad_key: bad_value}
+            bad_callback["receipt_sha256"] = sha256(
+                canonical({k: v for k, v in bad_callback.items() if k != "receipt_sha256"})
+            )
+            with pytest.raises(GeckoRuntimeError, match="launchd_callback_binding"):
+                _verify_launchd_callback(
+                    plan, release, preflight_raw, bad_callback, canonical(bad_callback), store
+                )
+        with pytest.raises(GeckoRuntimeError, match="activation_before_launchd_callback"):
+            _record_launchd_callback(
+                store,
+                plan,
+                release,
+                preflight_raw,
+                None,
+                now_ns=lambda: release["generated_ns"] + 2,
+            )
         request_id = prefix["request_ids"][0]
         relative = (
             f"{store.root}/captures/{request_id}.bin"
@@ -923,7 +1029,7 @@ def test_three_transients_latch_manual_review_across_restart_and_skip_is_idempot
             {
                 "schema": ACTIVATION_SCHEMA,
                 "pilot_id": plan["pilot_id"],
-                "schema_version": 3,
+                "schema_version": 4,
                 "plan_sha256": plan["plan_sha256"],
                 "source_sha256": plan["source_sha256"],
                 "root_id": plan["storage"]["root_id"],
@@ -931,6 +1037,8 @@ def test_three_transients_latch_manual_review_across_restart_and_skip_is_idempot
                 "activation_authorized": True,
                 "provider_io": True,
                 "qualification_status": "passed",
+                "release_preflight_sha256": "0" * 64,
+                "launchd_callback_sha256": "0" * 64,
             },
             store,
             FakeCoordinator(store),
@@ -1132,7 +1240,7 @@ def test_live_store_rejects_capture_hash_mutation_and_symlinked_descriptor_path(
         bad_activation = {
             "schema": ACTIVATION_SCHEMA,
             "pilot_id": plan["pilot_id"],
-            "schema_version": 3,
+            "schema_version": 4,
             "plan_sha256": plan["plan_sha256"],
             "source_sha256": {"runtime": "0" * 64},
             "root_id": plan["storage"]["root_id"],
@@ -1140,9 +1248,60 @@ def test_live_store_rejects_capture_hash_mutation_and_symlinked_descriptor_path(
             "activation_authorized": True,
             "provider_io": True,
             "qualification_status": "passed",
+            "release_preflight_sha256": "0" * 64,
+            "launchd_callback_sha256": "0" * 64,
         }
         with pytest.raises(GeckoRuntimeError, match="activation_binding"):
             verify_activation(plan, bad_activation)
     finally:
         writer.close()
         temp.cleanup()
+
+
+def test_launchd_callback_identity_rejects_wrong_pid_and_argv(monkeypatch):
+    import subprocess
+
+    from brain_senses_gecko_lane_runtime_v3 import _current_launchd_identity
+
+    repo = Path(__file__).resolve().parents[1]
+    expected = [
+        str(repo / ".venv/bin/python"),
+        "-B",
+        str(repo / "tools/brain_senses_gecko_lane_runtime_v3.py"),
+        "--scheduled-tick",
+        "--pilot-id",
+        PILOT_ID,
+    ]
+    label = "ai.memecoin.brain.senses.gecko-lane-v3"
+    monkeypatch.setenv("XPC_SERVICE_NAME", label)
+    monkeypatch.setattr("brain_senses_gecko_lane_runtime_v3.os.getpid", lambda: 12345)
+    monkeypatch.setattr("brain_senses_gecko_lane_runtime_v3.sys.argv", expected[2:])
+
+    def fake_run(command, **_kwargs):
+        if command == ["launchctl", "list"]:
+            return subprocess.CompletedProcess(command, 0, f"12346 0 {label}\n", "")
+        return subprocess.CompletedProcess(command, 0, " ".join(expected), "")
+
+    monkeypatch.setattr("brain_senses_gecko_lane_runtime_v3.subprocess.run", fake_run)
+    with pytest.raises(GeckoRuntimeError, match="launchd_callback_pid_mismatch"):
+        _current_launchd_identity(PILOT_ID)
+
+    def wrong_argv(command, **_kwargs):
+        if command == ["launchctl", "list"]:
+            return subprocess.CompletedProcess(command, 0, f"12345 0 {label}\n", "")
+        return subprocess.CompletedProcess(command, 0, " ".join(expected[:-1] + ["0" * 32]), "")
+
+    monkeypatch.setattr("brain_senses_gecko_lane_runtime_v3.subprocess.run", wrong_argv)
+    with pytest.raises(GeckoRuntimeError, match="launchd_process_argv_mismatch"):
+        _current_launchd_identity(PILOT_ID)
+
+
+def test_release_preflight_requires_installed_plist_to_match_pinned_template(tmp_path, monkeypatch):
+    plist_bytes = (Path(__file__).resolve().parents[1] / release_v4.PILOT_PLIST).read_bytes()
+    installed = tmp_path / "gecko.plist"
+    installed.write_bytes(plist_bytes)
+    monkeypatch.setattr(release_v4, "INSTALLED_PLIST", installed)
+    assert release_v4._verify_plist("9c90e69cf8104df4acd532a3f2a70a31") == sha256(plist_bytes)
+    installed.write_bytes(plist_bytes + b" ")
+    with pytest.raises(release_v4.ReleaseError, match="installed_launchd_plist_mismatch"):
+        release_v4._verify_plist("9c90e69cf8104df4acd532a3f2a70a31")
