@@ -1456,6 +1456,11 @@ receipt is full-bar availability evidence only when it is at or after the half-o
 online availability remains unknown. Volume units are null with an unverified status. No large
 reference artifact has been published; these structural counts do not establish complete coverage,
 inactivity, lifecycle, settlement, labels, edge, or training admission.
+The scheduled 04:30Z external-v2 initialization was archived and disabled before activation because
+its detach qualification was stale. The initialized root remained byte-identical and independent
+verification found no request, reservation, intent, seal, or STOP; the window was not replayed. The
+failure and reconciliation evidence is recorded in
+[`04:30Z v2 pre-activation abort`](evidence/brain-senses-external-v2-aborted-before-activation-2026-10-12T0430Z.json).
 The 2026-10-09 Alchemy work qualifies bounded RPC behavior, positive signature references,
 transaction response capture, one-slot block response consistency across two providers, and a
 replicable block-inventory receipt. A later two-slot finalized interval matches provider-reported
