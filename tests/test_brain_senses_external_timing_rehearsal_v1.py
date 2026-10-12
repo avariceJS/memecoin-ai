@@ -5,6 +5,7 @@ import json
 import plistlib
 from datetime import UTC, datetime
 from pathlib import Path
+from subprocess import CompletedProcess
 from typing import Any
 
 import pytest
@@ -111,6 +112,70 @@ def test_binding_rejects_dispatch_class_or_schedule_mutation(
 
     with pytest.raises(rehearsal.RehearsalError):
         rehearsal._load_binding(activation_path)
+
+
+def test_launchd_gate_accepts_only_its_own_exact_calendar_process(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    activation_path, binding = _fixture(tmp_path, monkeypatch)
+    _, _, plist = rehearsal._load_binding(activation_path)
+    monkeypatch.setattr(rehearsal.os, "getpid", lambda: 4242)
+    monkeypatch.setattr(rehearsal.os, "getppid", lambda: 1)
+    monkeypatch.setattr(
+        rehearsal.sys,
+        "argv",
+        [
+            str(Path(rehearsal.__file__).resolve()),
+            "run",
+            "--activation",
+            str(activation_path),
+        ],
+    )
+    disabled_rows = [f'  "{label}" => true' for label in rehearsal.RETIRED_LABELS]
+    disabled_rows.append(f'  "{rehearsal.OLD_LABEL}" => true')
+
+    def command(argv: list[str]) -> CompletedProcess[str]:
+        if argv[1] == "list":
+            stdout = "PID\tStatus\tLabel\n-\t0\t" + binding["label"] + "\n"
+        elif argv[1] == "print-disabled":
+            stdout = "\n".join(disabled_rows)
+        else:
+            stdout = f"pid = 4242\npath = {binding['plist_path']}\n"
+        return CompletedProcess(argv, 0, stdout, "")
+
+    monkeypatch.setattr(rehearsal, "_command", command)
+
+    rehearsal._launchd_gate(binding, plist, activation_path)
+
+
+@pytest.mark.parametrize("bad_process", ["manual", "wrong_parent"])
+def test_launchd_gate_rejects_manual_or_non_launchd_process(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bad_process: str
+) -> None:
+    activation_path, binding = _fixture(tmp_path, monkeypatch)
+    _, _, plist = rehearsal._load_binding(activation_path)
+    monkeypatch.setattr(rehearsal.os, "getpid", lambda: 4242)
+    monkeypatch.setattr(rehearsal.os, "getppid", lambda: 2 if bad_process == "wrong_parent" else 1)
+    if bad_process == "manual":
+        monkeypatch.setattr(
+            rehearsal.sys, "argv", ["python", "run", "--activation", str(activation_path)]
+        )
+    disabled_rows = [f'  "{label}" => true' for label in rehearsal.RETIRED_LABELS]
+    disabled_rows.append(f'  "{rehearsal.OLD_LABEL}" => true')
+
+    def command(argv: list[str]) -> CompletedProcess[str]:
+        if argv[1] == "list":
+            stdout = "PID\tStatus\tLabel\n-\t0\t" + binding["label"] + "\n"
+        elif argv[1] == "print-disabled":
+            stdout = "\n".join(disabled_rows)
+        else:
+            stdout = f"pid = 4242\npath = {binding['plist_path']}\n"
+        return CompletedProcess(argv, 0, stdout, "")
+
+    monkeypatch.setattr(rehearsal, "_command", command)
+
+    with pytest.raises(rehearsal.RehearsalError):
+        rehearsal._launchd_gate(binding, plist, activation_path)
 
 
 def test_status_execution_is_pinned_to_status_command_and_restores_guards(
