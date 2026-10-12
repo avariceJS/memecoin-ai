@@ -458,6 +458,15 @@ this feasibility receipt does not infer the reserve or attribute destination del
 equation, wallet-net price, admission, RPC, or paid request resulted. Receipt:
 [`c3 native-close feasibility`](evidence/pumpswap-sell23-c3-native-close-feasibility-2026-10-10.json).
 
+A separately versioned `sell23` native-settlement sufficiency adapter validates a typed,
+upstream-declared verified envelope and conservatively classifies exact legacy WSOL source-account
+flows while preserving event/receipt/availability times and candidate/frame denominators. Its
+synthetic tests cover ordered effects, fork/capture joins, incomplete endpoints, unsupported Token-2022
+paths, and ambiguous destinations. It does not open or replay c3 captures, independently verify raw
+evidence, establish rent or close-destination settlement, infer native proceeds or wallet net, or
+admit `buyExact25`, training, or economics. This is a diagnostic interface and synthetic consistency
+check only; the 485 c3 destination-ambiguous cases remain unchanged.
+
 A separate transaction-local gate follows that census. Its frozen predicate re-enumerates the same
 96 receipt-hash-verified c3 blocks and all 485 censored native-account rows. It checks every
 ordered instruction that touches the temporary account, including Associated Token setup, legacy
@@ -3669,6 +3678,44 @@ A controlled LaunchAgent bootout/bootstrap between windows then recovered to the
 4-intent/4-result prefix without replay or internal-storage fallback. The service remains loaded;
 the next bucket is forward-only. Provider charge remains unknown/unverified. Alchemy same-frame
 corroboration remains offline.
+
+The next two natural v4 buckets each independently replayed as four real HTTP 200 dispatches,
+four durable results, and four confirmations with a healthy prefix and no retry. The second bucket
+contained 12 returned bar records, all excluded as out-of-window; eligible new-open pools remained
+0/4. This qualifies continued prospective transport and recovery only, not usable new-open coverage,
+population, or market-source completeness. Its immutable observation is
+[`v4 second live bucket`](evidence/gecko-capture-only-v4-live-bucket-2026-10-12T2115Z.json).
+The receipt's `qualification.claim_limit` prose reverses that classification; its immutable
+structured replay fields are clarified by the
+[`v4 second-bucket erratum`](evidence/gecko-capture-only-v4-live-bucket-2026-10-12T2115Z-erratum.json).
+A separate pure selector
+`gecko-train-six-15m-rotating-scout-v1` encodes Sol's next sampling horizon for the 170-pool train
+population: six distinct pools per close, deterministic hash-ranked cycling, and at most two
+four-bucket retention slots from the immediately previous bucket's timely, received, durable,
+eligible new-open evidence. Remaining scout slots cycle without response-based replacement. With no
+retention the nominal cycle revisits in 28–29 buckets; with two retained slots, four scouts revisit
+in 42–43 buckets. Property tests cover permutation invariance, full-population cycling, retention
+ordering/expiry, and fail-closed time joins. The selector has no provider or storage side effects and
+is not active. Its compiler revalidated the exact four frozen enrollment/manifest/plan/selection
+byte pins and emitted all 170 train-only metadata rows, with population digest
+`938ee425361c27e03f18a123bcdf3d35edbbfafe719c12324c517b408c1cbc8d`; the v3/v4 four-row selected
+subset remains unchanged. Training eligibility remains false. The separate pure plan-chain model
+hash-binds each six-pool plan, prior-only evidence, cursor transition, and population/policy pins;
+independent replay requires an explicit no-dispatch gap record, and a missed bucket leaves the
+cursor unchanged. Recovery only returns an already persisted, replay-verified plan. Its focused
+synthetic tests pass. A create-only descriptor-bound journal binds root ID, UUID, device/inode,
+policy/population and release digest; forced atomic-rename failure leaves no partial plan or
+path-based fallback artifact, and restart recovers the identical persisted plan. These tests use a
+disposable local descriptor and do not initialize the Kingston v5 root. No provider runtime or v5
+activation exists yet. v4 remains the only Gecko collector until offline release/source binding,
+recovery qualification, cross-version cap accounting, source replay, and a distinct future-only
+six-request pilot pass their gates. Proposed
+v5 ceilings are 576 intents/UTC day and 17,280/rolling 30 days, 10 MiB/day and 300 MiB/30 days of raw
+responses, with 2 GiB reserved physical allocation; all existing same-provider intents/bytes count
+toward limits. The transport contract keeps at least 12 seconds between dispatches (maximum five
+per rolling minute), a 20-second timeout, 16 KiB response ceiling, no retry/backfill, and the existing
+16 GiB resident/50 GiB free-space limits. These are bounded capture-only caps, not source, training,
+or economic qualification.
 
 The Agave build runner v1 remains rejected. A separately versioned default-deny Seatbelt fixture
 v2 passed synthetic parent/child read, write, network, symlink, and detached-child cleanup tests,

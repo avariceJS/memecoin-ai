@@ -16,6 +16,13 @@ contain large exact payloads, so open only the named artifact needed for a speci
   (four actual future-only HTTP 200 requests, four durable results/captures/confirmations and a
   successful no-replay LaunchAgent restart on the bound Kingston root; 0/4 pools had a bar in the
   new-open window, so this is acquisition/recovery evidence, not qualified market coverage).
+- Gecko capture-only v4 second live bucket:
+  [`gecko-capture-only-v4-live-bucket-2026-10-12T2115Z.json`](gecko-capture-only-v4-live-bucket-2026-10-12T2115Z.json)
+  (four actual HTTP 200 requests and four durable results/confirmations; all 12 returned bar records
+  were outside the new-open window, leaving 0/4 eligible pools. Independent prefix replay and
+  health are clean; charge remains unknown/unverified. Its `qualification.claim_limit` narrative
+  contains a reversed eligible/out-of-window statement; the unchanged original bytes are clarified
+  by [`the erratum`](gecko-capture-only-v4-live-bucket-2026-10-12T2115Z-erratum.json)).
 - Inactive launch-v3 failure-receipt APFS detach qualification:
   `brain-senses-launch-v3-failure-receipt-detach-qualification-v1-2026-10-12.json` (fresh
   descriptor-bound journal verifier plus forced detach before receipt `mkdir` and `create`; both

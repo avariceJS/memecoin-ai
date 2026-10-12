@@ -1,43 +1,45 @@
 # Current Project State
 
-**As of:** 2026-10-12 21:12Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD `f936a75` (pushed); `main` is `3dab3a3`. Preserve pre-existing dirty
-Agave/build-guard and Gecko v1 files. Production, champion, protected samples, real trading, and
-Cortex remain untouched.
+**As of:** 2026-10-12 21:44Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, HEAD `c97a343` (also pushed to `main` and `origin`). Worktree contains user-owned
+Agave/build-guard and Gecko v1 dirty files; preserve them and stage only task-owned paths. Production,
+champion, protected samples, real trading, and Cortex remain untouched.
 
 ## Prospective acquisition
 
-- Kingston `/Volumes/Kingston/BrainData` matches root ID `9428695af6d4f46c08e1a444cdc66de8` and
-  UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; latest observed free space is about 202 GiB.
-  Writes use descriptor-bound storage only; maintain the 50-GiB floor and no internal fallback.
-- Capture-only Gecko v4 LaunchAgent `ai.memecoin.brain.senses.gecko-capture-only-v4` is loaded
-  from the pinned plist at 60-second ticks, no lease expiry. The first future 15-minute bucket
-  produced 4 actual HTTP 200 requests, 4 durable captures/results/confirmations, no retry/unknown,
-  and no eligible new-open bars (0/4). Exact independent replay, hashes, times, and limits are in
-  `docs/evidence/gecko-capture-only-v4-first-live-bucket-2026-10-12T2100Z.json`. A controlled
-  bootout/bootstrap recovered a healthy 4-intent/4-result prefix with no duplicates. Provider
-  charge remains unknown/unverified; source/training/economic qualification remain false.
-- Sol says wait for the next natural v4 bucket, then qualify a separate v5 six-pool rotating scout:
-  cycle all 170 enrolled train pools; nominal revisit 28–29 buckets (~7.1h), or 42–43 buckets
-  (~10.6h) with two deterministic four-bucket retention slots occupied. Keep stale/failed/empty
-  pools in denominators; no response-based same-bucket replacement, inference of death, or
-  backfill. New release requires synthetic cycle/retention/cap/recovery tests and a distinct
-  future-only 6/6 pilot. Active v4 remains unchanged until that gate.
-- Helius v5 structural collector and storage-health monitor remain loaded. The shared Kingston
-  volume lock can serialize ticks while an RPC/frame is in flight; monitor latency before changing
-  the writer contract. Alchemy account charge evidence remains separately receipted; this Gecko
-  lane does not use Alchemy.
+- Kingston `/Volumes/Kingston/BrainData` still matches root ID
+  `9428695af6d4f46c08e1a444cdc66de8` and UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; latest free
+  space is about 202.4 GiB. Descriptor-bound storage only, 50-GiB floor, no internal fallback.
+- Gecko capture-only v4 LaunchAgent remains loaded at 60-second ticks, no lease expiry. Two natural
+  15-minute buckets independently replayed as 8 total HTTP 200 dispatches, 8 durable results and
+  confirmations, no retries/unknowns, healthy prefix. Both had 0/4 eligible new-open pools; second
+  returned 12 bars, all out-of-window. Receipts: `gecko-capture-only-v4-first-live-bucket-2026-10-12T2100Z.json`
+  and `gecko-capture-only-v4-live-bucket-2026-10-12T2115Z.json`. Provider charge remains unknown.
+  The second receipt's narrative claim reverses `0/4 eligible` and `12 excluded_out_of_window`; its
+  original bytes are preserved and corrected by the indexed erratum. Latest descriptor-bound replay
+  verifies an 11-intent timely prefix; one 21:30Z pool is a durable `missed_dispatch` skip, with no
+  retry/backfill. Kingston currently has about 202.4 GiB free.
+- Sol approved a separate v5 six-pool rotating scout: cycle 170 train pools; up to two incumbent
+  retention slots for exactly four selected buckets when the prior bucket is received, durable, and
+  eligible new-open; new candidates rank by availability then pinned hash. No retry/backfill or
+  response-based replacement. Pure selector and hash-chained plan/cursor model are implemented,
+  reviewed and synthetic-tested; gaps preserve the cursor and recovery returns only persisted plans.
+  A create-only descriptor-bound journal with synthetic restart and forced atomic-rename failure
+  tests is implemented; it has not initialized Kingston or run against a live collector. Next
+  horizon: bind offline immutable release/callback/source pins, then build cross-version cap and
+  cutover reconciliation before any v5 pilot.
+- Helius v5 structural collector and health monitor remain loaded. Shared Kingston lock can serialize
+  ticks while provider I/O is pending; monitor latency, do not interrupt ambiguous requests.
+  Alchemy aggregate charge last verified as $0.01 / 18,680 CU without limit/workload attribution;
+  research-lane attribution and current charge remain unknown.
 
 ## Senses gates
 
-- Agave Seatbelt confinement v2 passes 5 synthetic isolation tests but forced same-path stage
-  replacement wrote to the underlay. Receipt:
-  `docs/evidence/agave-confinement-v2-fixture-2026-10-12.json`. Sol ruled NO-GO for this unprivileged
-  pathname-based route on the owner Mac. Do not run Cargo/Agave or touch the dirty source/cache;
-  only reconsider with kernel-enforced mount identity or an unprivileged identity unable to access
-  the underlay.
-- Current independent horizon: implement a separate read-only native-settlement sufficiency
-  adapter on synthetic evidence only. C3 receipt is a metadata baseline (485/485 ambiguous), not
-  independent transaction replay. No proceeds, wallet net, `buyExact25`, or economic admission.
-- User-owned dirty files are preserved; do not stage unrelated files. Continue after each horizon;
-  the Senses stop condition is not met. Keep temporal/provenance distinctions explicit.
+- Native `sell23` settlement sufficiency adapter is synthetic-only and independent-replay-free; 12
+  focused tests, Ruff, formatting, and Mypy pass. It does not qualify Rent, destination settlement,
+  proceeds, wallet net, `buyExact25`, training, or economics. Do not open c3 capture bodies.
+- Agave Seatbelt confinement v2 is NO-GO after a forced stage-path replacement wrote into the
+  underlay. Preserve dirty Agave checkout/cache; do not run Cargo/Agave on this owner Mac.
+- Senses stop condition is not met. Continue through consecutive engineering horizons; do not begin
+  Cortex. Keep event, receipt, availability, and decision times separate and preserve immutable
+  provenance/denominators.
