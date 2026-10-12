@@ -3617,6 +3617,14 @@ corroboration contracts are offline only. The absence of Gecko/Alchemy market tr
 by quota preservation or billing-meter uncertainty; the remaining gates are adapter integration,
 usage lineage, and live recovery integrity.
 
+The shared capacity coordinator v2 now has a one-shot descriptor-bound initializer. Its production
+entrypoint is pinned to `~/.config/brain-research/storage-v1.json`; it binds root ID, UUID, device,
+and inode, and creates only the configured service/allocation roots and lock/ledger artifacts. It
+reuses the existing private empty v4 Helius lock without rewriting it and rejects partial or
+mismatched coordinator state. Focused coordinator/initializer tests pass (34), including detach and
+legacy-lock cases. It has not been run on Kingston; initialization remains sequenced after v4 STOP
+and terminal reconciliation.
+
 The offline Gecko v2 contract is not eligible for activation: its two-second spacing does not meet
 the public API's current approximately 10-calls/minute guidance, which may vary with traffic.
 [GeckoTerminal's official API documentation](https://api.geckoterminal.com/docs/index.html) also
