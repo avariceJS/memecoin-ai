@@ -125,6 +125,21 @@ def _sha(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _json_safe(value: Any) -> Any:
+    """Convert verifier state containers to deterministic JSON-compatible values."""
+    if isinstance(value, Mapping):
+        return {str(key): _json_safe(child) for key, child in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(child) for child in value]
+    if isinstance(value, (set, frozenset)):
+        normalized = [_json_safe(child) for child in value]
+        return sorted(
+            normalized,
+            key=lambda child: json.dumps(child, sort_keys=True, separators=(",", ":")),
+        )
+    return value
+
+
 def _open_absolute(path: Path) -> int:
     _require(path.is_absolute() and ".." not in path.parts, "unsafe_absolute_directory")
     fd = os.open(path.anchor, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
@@ -929,7 +944,7 @@ def main() -> int:
         # Exception strings can contain request URLs; only the class is durable/output.
         print(json.dumps({"status": "failed", "error_class": type(exc).__name__}))
         return 1
-    print(json.dumps(result, sort_keys=True))
+    print(json.dumps(_json_safe(result), sort_keys=True))
     return 0
 
 

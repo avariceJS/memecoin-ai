@@ -615,3 +615,37 @@ def test_only_final_unobserved_window_is_reported() -> None:
     completion = launch.completion_view(plan, state, plan["schedule"]["expires_ns"])
     assert completion["expired_unobserved"] == [final_bucket]
     assert completion["successor_eligible"] is False
+
+
+def test_status_cli_serializes_verifier_sets_as_sorted_arrays(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "brain_senses_external_launch_v2.py",
+            "status",
+            "--activation",
+            "/tmp/activation.json",
+            "--storage-config",
+            "/tmp/storage.json",
+        ],
+    )
+    monkeypatch.setattr(
+        launch,
+        "execute",
+        lambda *args, **kwargs: {
+            "status": "verified_prefix",
+            "missed": {"bucket-b", "bucket-a"},
+            "buckets": {"bucket-a": {"unresolved": {"request-2", "request-1"}}},
+        },
+    )
+    assert launch.main() == 0
+    output = capsys.readouterr().out
+    assert json.loads(output) == {
+        "status": "verified_prefix",
+        "missed": ["bucket-a", "bucket-b"],
+        "buckets": {"bucket-a": {"unresolved": ["request-1", "request-2"]}},
+    }
+    assert output == json.dumps(json.loads(output), sort_keys=True) + "\n"
