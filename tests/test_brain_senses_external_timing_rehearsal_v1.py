@@ -40,6 +40,10 @@ def _fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, dic
     label = "ai.memecoin.brain.senses.timing-rehearsal-test"
     activation_path = tmp_path / "activation.json"
     plist_path = tmp_path / "launchagent.plist"
+    output_path = tmp_path / "result.json"
+    error_path = tmp_path / "error.log"
+    _write(output_path, b"")
+    _write(error_path, b"")
     local = datetime.fromtimestamp(minute / 1_000_000_000, UTC).astimezone()
     argv = [
         str(rehearsal.REPO / ".venv/bin/python"),
@@ -55,8 +59,8 @@ def _fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, dic
         "StartCalendarInterval": [
             {"Month": local.month, "Day": local.day, "Hour": local.hour, "Minute": local.minute}
         ],
-        "StandardOutPath": str(tmp_path / "result.json"),
-        "StandardErrorPath": str(tmp_path / "result.json"),
+        "StandardOutPath": str(output_path),
+        "StandardErrorPath": str(error_path),
     }
     plist_raw = plistlib.dumps(plist)
     _write(plist_path, plist_raw)

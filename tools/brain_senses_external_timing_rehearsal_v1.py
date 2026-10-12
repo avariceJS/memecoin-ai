@@ -258,11 +258,28 @@ def _load_binding(activation_path: Path) -> tuple[dict[str, Any], dict[str, Any]
         == [{"Month": local.month, "Day": local.day, "Hour": local.hour, "Minute": local.minute}],
         "calendar_schedule_mismatch",
     )
+    output_path = Path(plist.get("StandardOutPath", ""))
+    error_path = Path(plist.get("StandardErrorPath", ""))
     _require(
-        plist.get("StandardOutPath") == plist.get("StandardErrorPath")
-        and plist.get("StandardOutPath") != "/dev/null",
+        output_path.is_absolute()
+        and error_path.is_absolute()
+        and output_path.parent == error_path.parent == activation_path.parent
+        and output_path != error_path,
         "status_receipt_path",
     )
+    for log_path in (output_path, error_path):
+        log_raw = _read(log_path)
+        log_fd = os.open(log_path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            parent_stat = os.fstat(log_fd)
+        finally:
+            os.close(log_fd)
+        _require(
+            len(log_raw) <= 4_000_000
+            and parent_stat.st_uid == os.getuid()
+            and stat.S_IMODE(parent_stat.st_mode) == 0o700,
+            "status_receipt_permissions",
+        )
     return binding, plan, plist
 
 
