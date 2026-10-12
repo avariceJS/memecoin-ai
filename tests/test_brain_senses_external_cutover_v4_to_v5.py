@@ -96,6 +96,133 @@ def test_cutover_publishes_stop_before_disable_then_terminalizes_without_dispatc
         ]
 
 
+@contextlib.contextmanager
+def seeded_invalid_open_after_two_abandons() -> Iterator[tuple[DescriptorWriter, str, str]]:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        os.chmod(root, 0o700)
+        fd = os.open(root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        writer = DescriptorWriter(fd)
+        os.close(fd)
+        writer.mkdir("services")
+        writer.mkdir(schema.SERVICE_RELATIVE_ROOT)
+        writer.mkdir(f"{schema.SERVICE_RELATIVE_ROOT}/epochs")
+        now = time.time_ns()
+        for offset in (0, 2 * 60 * 60 * 1_000_000_000):
+            epoch_id = runtime._open_epoch(
+                writer,
+                root_id=ROOT_ID,
+                volume_uuid=VOLUME_UUID,
+                now_ns=now + offset,
+            )
+            plan_path = f"{schema.SERVICE_RELATIVE_ROOT}/epochs/{epoch_id}/{schema.PLAN_FILE}"
+            plan_bytes = writer.read_bytes(plan_path)
+            terminal_at = now + offset + 1_000_000_000
+            runtime._finish_epoch(
+                writer,
+                epoch_id=epoch_id,
+                plan_bytes=plan_bytes,
+                status="abandoned",
+                reason="provider_cooldown",
+                pause_reason=None,
+                now_ns=terminal_at,
+            )
+        target_id = runtime._open_epoch(
+            writer,
+            root_id=ROOT_ID,
+            volume_uuid=VOLUME_UUID,
+            now_ns=now + 4 * 60 * 60 * 1_000_000_000,
+        )
+        target_plan = writer.read_bytes(
+            f"{schema.SERVICE_RELATIVE_ROOT}/epochs/{target_id}/{schema.PLAN_FILE}"
+        )
+        try:
+            yield writer, target_id, schema.sha(target_plan)
+        finally:
+            writer.close()
+
+
+def test_cutover_forensic_exception_closes_only_exact_invalid_open_prefix() -> None:
+    with seeded_invalid_open_after_two_abandons() as (writer, epoch_id, plan_hash):
+        result = cutover.cutover_pending_epoch(
+            writer,
+            epoch_id=epoch_id,
+            expected_plan_sha256=plan_hash,
+            root_id=ROOT_ID,
+            volume_uuid=VOLUME_UUID,
+            agent=FakeAgent(writer),
+        )
+        assert result["status"] == "abandoned_before_dispatch_v4_policy_violation"
+        assert result["v4_policy_violation"] is True
+        exception_raw = writer.read_bytes(cutover.EXCEPTION_PATH)
+        exception = schema.decode(exception_raw)
+        assert exception["classification"] == "invalid_open_after_two_abandons"
+        assert exception["cutover_only"] is True
+        assert exception["activation_authority"] == "none"
+        assert exception["target_request_intents"] == 0
+        assert exception["target_captures"] == 0
+        assert exception["target_outcomes"] == 0
+        state, no_second_exception = cutover._verify_all_epochs_terminal(
+            writer,
+            root_id=ROOT_ID,
+            volume_uuid=VOLUME_UUID,
+            expected_epoch_id=epoch_id,
+            allow_expected_active=True,
+        )
+        assert no_second_exception is not None
+        assert state.active_epoch_id is None
+        assert writer.read_bytes(cutover.EXCEPTION_PATH) == exception_raw
+
+
+def test_cutover_forensic_exception_rejects_target_dispatch_artifact() -> None:
+    with seeded_invalid_open_after_two_abandons() as (writer, epoch_id, plan_hash):
+        plan = schema.decode(
+            writer.read_bytes(
+                f"{schema.SERVICE_RELATIVE_ROOT}/epochs/{epoch_id}/{schema.PLAN_FILE}"
+            )
+        )
+        window = plan["windows"][0]
+        event_at = window["start_ns"] + 1
+        params = [{"commitment": "finalized"}]
+        runtime._window_event(
+            writer,
+            epoch_id,
+            kind="window_reserved",
+            at_ns=event_at,
+            fields={
+                "index": window["index"],
+                "bucket": window["bucket"],
+                "kind": window["kind"],
+                "mode": "anchor" if window["kind"] == "anchor" else "inventory",
+                "request_cap": window["request_cap"],
+            },
+        )
+        runtime._window_event(
+            writer,
+            epoch_id,
+            kind="request_intent",
+            at_ns=event_at + 1,
+            fields={
+                "request_id": f"{window['bucket']}-00",
+                "bucket": window["bucket"],
+                "ordinal": 0,
+                "method": "getSlot",
+                "params": params,
+                "wire_request_sha256": runtime.wire_request_sha256("getSlot", params),
+                "decision_ns": event_at + 1,
+            },
+        )
+        with pytest.raises(cutover.CutoverError, match="epoch_not_unstarted"):
+            cutover.cutover_pending_epoch(
+                writer,
+                epoch_id=epoch_id,
+                expected_plan_sha256=plan_hash,
+                root_id=ROOT_ID,
+                volume_uuid=VOLUME_UUID,
+                agent=FakeAgent(writer),
+            )
+
+
 def test_cutover_is_idempotent_after_terminal_and_control_publication() -> None:
     with seeded_epoch() as (writer, epoch_id, plan_hash, _plan):
         agent = FakeAgent(writer)
@@ -528,6 +655,7 @@ def test_launchctl_adapter_requires_unloaded_and_disabled(monkeypatch: pytest.Mo
             (0, ""),
             (0, ""),
             (0, "PID Status Label\n"),
+            (0, "python unrelated.py\n"),
             (0, f'{{ "{cutover._LABEL}" => true }}'),
         ]
     )
@@ -542,6 +670,7 @@ def test_launchctl_adapter_requires_unloaded_and_disabled(monkeypatch: pytest.Mo
     cutover.LaunchctlAgentControl(uid=501).disable_bootout_and_verify()
     assert [row[1] for row in observed[:2]] == ["disable", "bootout"]
     assert observed[2] == ["/bin/launchctl", "list"]
+    assert observed[3] == ["/bin/ps", "-axo", "pid=,command="]
 
     outputs_bad = iter([(0, ""), (0, ""), (0, f"123 0 {cutover._LABEL}\n")])
 
@@ -551,6 +680,23 @@ def test_launchctl_adapter_requires_unloaded_and_disabled(monkeypatch: pytest.Mo
 
     monkeypatch.setattr(subprocess, "run", fake_loaded)
     with pytest.raises(cutover.CutoverError, match="v4_agent_still_loaded"):
+        cutover.LaunchctlAgentControl(uid=501).disable_bootout_and_verify()
+
+    outputs_running = iter(
+        [
+            (0, ""),
+            (0, ""),
+            (0, "PID Status Label\n"),
+            (0, f"123 {cutover._V4_SCRIPT} --scheduled-tick --plist x\n"),
+        ]
+    )
+
+    def fake_running(argv: list[str], **_kwargs: Any) -> Any:
+        code, stdout = next(outputs_running)
+        return subprocess.CompletedProcess(argv, code, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_running)
+    with pytest.raises(cutover.CutoverError, match="v4_process_still_running"):
         cutover.LaunchctlAgentControl(uid=501).disable_bootout_and_verify()
 
 

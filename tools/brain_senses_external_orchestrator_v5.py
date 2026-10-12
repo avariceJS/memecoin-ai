@@ -93,6 +93,7 @@ _SOURCE_PATHS = (
     "tools/brain_senses_external_writer_v1.py",
     "tools/brain_senses_capacity_coordinator_v2.py",
     "tools/brain_senses_external_cutover_usage_v5.py",
+    "tools/brain_senses_external_cutover_v4_to_v5.py",
     "src/memecoin_ai/sources.py",
     "src/memecoin_collector/private_config.py",
     "src/memecoin_research_storage/__init__.py",
@@ -311,10 +312,17 @@ def _verified_cutover_usage(writer: DescriptorWriter) -> cutover_usage.VerifiedC
     except (OSError, StorageError) as exc:
         raise RollingRuntimeError("cutover_usage_receipt_missing") from exc
     try:
+        exception_path = f"{SERVICE_RELATIVE}/{schema.CUTOVER_EXCEPTION_FILE}"
+        exception_sha256 = (
+            schema.sha(writer.read_bytes(exception_path, max_bytes=1_000_000))
+            if writer.exists(exception_path)
+            else None
+        )
         return cutover_usage.verify_receipt(
             raw,
             expected_sha256=schema.sha(raw),
             expected_v4_sources=v4_runtime.source_bindings(),
+            expected_cutover_exception_sha256=exception_sha256,
         )
     except cutover_usage.CutoverUsageError as exc:
         raise RollingRuntimeError("cutover_usage_receipt_invalid") from exc
@@ -512,7 +520,13 @@ def _epoch_allocation_manifest(writer: DescriptorWriter, epoch_id: str) -> tuple
 
 def _verify_service_layout(rows: list[dict[str, Any]]) -> None:
     """Reject unexplained files, links, temporary writes, and unknown service roots."""
-    allowed_root_files = {"policy.json", schema.CONTROL_FILE, schema.CUTOVER_USAGE_FILE, "STOP"}
+    allowed_root_files = {
+        "policy.json",
+        schema.CONTROL_FILE,
+        schema.CUTOVER_USAGE_FILE,
+        schema.CUTOVER_EXCEPTION_FILE,
+        "STOP",
+    }
     for row in rows:
         path = row["path"]
         kind = row["kind"]

@@ -30,9 +30,11 @@ from memecoin_research_storage import (  # noqa: E402
     _open_relative_directory,
     writer_guard,
 )
+from tools import brain_senses_external_frame_verify_v4 as frame_verify  # noqa: E402
 from tools import brain_senses_external_launch_v2 as launch  # noqa: E402
 from tools import brain_senses_external_orchestrator_v4 as runtime  # noqa: E402
 from tools import brain_senses_external_rolling_policy_v1 as policy  # noqa: E402
+from tools import brain_senses_external_sampling_v4 as sampling  # noqa: E402
 from tools import brain_senses_external_schema_v4 as schema  # noqa: E402
 from tools import brain_senses_external_verify_v4 as verify  # noqa: E402
 from tools.brain_senses_external_capture_verify_v4 import (  # noqa: E402
@@ -42,6 +44,8 @@ from tools.brain_senses_external_writer_v1 import DescriptorWriter  # noqa: E402
 
 STOP_FILE = f"{schema.SERVICE_RELATIVE_ROOT}/STOP"
 STOP_SCHEMA = "brain-senses-external-v4-operator-stop"
+EXCEPTION_PATH = "services/external-rolling-v5/cutover-exception-v1.json"
+EXCEPTION_SCHEMA = "brain-senses-external-v4-cutover-forensic-exception"
 STOP_FIELDS = {
     "schema",
     "schema_version",
@@ -53,6 +57,10 @@ STOP_FIELDS = {
 }
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _LABEL = "ai.memecoin.brain.senses.external-rolling-v4"
+_V4_SCRIPT = str(REPO / "tools/brain_senses_external_orchestrator_v4.py")
+# Exact v4 orchestrator from the immediately preceding verified implementation
+# commit; this is the sole known historical source drift in the closed prefix.
+_PREVIOUS_V4_RUNTIME_SHA256 = "719c8e6f3c476c6251d9da6c824eeb45fd047ff9657c3b6d231d7c18fed7ed1f"
 DEFAULT_STORAGE_CONFIG = Path.home() / ".config/brain-research/storage-v1.json"
 _DISPATCH_FLOOR = (
     policy.DISK_FLOOR_BYTES
@@ -107,6 +115,11 @@ class LaunchctlAgentControl:
         loaded = self._run(["/bin/launchctl", "list"])
         if any(line.split() and line.split()[-1] == _LABEL for line in loaded.splitlines()):
             raise CutoverError("v4_agent_still_loaded")
+        processes = self._run(["/bin/ps", "-axo", "pid=,command="])
+        if any(
+            _V4_SCRIPT in line and "--scheduled-tick" in line for line in processes.splitlines()
+        ):
+            raise CutoverError("v4_process_still_running")
         disabled = self._run(["/bin/launchctl", "print-disabled", self.domain])
         if f'"{_LABEL}" => true' not in disabled:
             raise CutoverError("v4_agent_not_disabled")
@@ -377,7 +390,7 @@ def _verify_all_epochs_terminal(
     volume_uuid: str,
     expected_epoch_id: str,
     allow_expected_active: bool = False,
-) -> verify.ControlProjection:
+) -> tuple[verify.ControlProjection, dict[str, Any] | None]:
     """Read-only full replay: no other epoch may remain active or unclosed."""
     epochs_root = f"{schema.SERVICE_RELATIVE_ROOT}/epochs"
     expected_sources = runtime.source_bindings()
@@ -392,6 +405,100 @@ def _verify_all_epochs_terminal(
             if not {schema.PLAN_FILE, schema.EVENT_FILE, "captures"}.issubset(names):
                 raise CutoverError("epoch_artifact_set_incomplete")
             allowed = {schema.PLAN_FILE, schema.EVENT_FILE, "captures"}
+            # v4 persists deterministic sample selections for inventory frames.
+            # The canonical frame replay below verifies each expected selection
+            # byte-for-byte; also reject unreferenced selection files here.
+            event_bytes = writer.read_bytes(f"{relative}/{schema.EVENT_FILE}", max_bytes=8_000_000)
+            if event_bytes and not event_bytes.endswith(b"\n"):
+                raise CutoverError("epoch_journal_torn_possibly_spent")
+            event_rows = schema.verify_event_chain(event_bytes, schema=schema.EVENT_SCHEMA)
+            reserved_modes = {
+                row["fields"].get("index"): row["fields"]
+                for row in event_rows
+                if row["kind"] == "window_reserved"
+            }
+            inventory_buckets = {
+                reserved.get("bucket")
+                for reserved in reserved_modes.values()
+                if reserved.get("mode") == "inventory"
+            }
+            if "selections" in names:
+                allowed.add("selections")
+                selection_names = set(writer.list_names(f"{relative}/selections"))
+                if any(
+                    not isinstance(bucket, str) or f"{bucket}.json" not in selection_names
+                    for bucket in inventory_buckets
+                    if any(
+                        row["kind"] == "request_captured"
+                        and row["fields"].get("bucket") == bucket
+                        and any(
+                            intent["fields"].get("bucket") == bucket
+                            and intent["fields"].get("method") == "getBlocks"
+                            for intent in event_rows
+                            if intent["kind"] == "request_intent"
+                            and intent["fields"].get("request_id")
+                            == row["fields"].get("request_id")
+                        )
+                        for row in event_rows
+                    )
+                ) or not selection_names.issubset(
+                    {f"{bucket}.json" for bucket in inventory_buckets if isinstance(bucket, str)}
+                ):
+                    raise CutoverError("selection_artifact_set_invalid")
+                captured = runtime._captured_results(writer, epoch_id, event_bytes)
+                intents = {
+                    row["fields"]["request_id"]: row["fields"]
+                    for row in event_rows
+                    if row["kind"] == "request_intent"
+                }
+                for selection_name in selection_names:
+                    bucket = selection_name.removesuffix(".json")
+                    inventory_intent = next(
+                        (
+                            fields
+                            for fields in intents.values()
+                            if fields.get("bucket") == bucket
+                            and fields.get("method") == "getBlocks"
+                            and fields.get("request_id") in captured
+                        ),
+                        None,
+                    )
+                    if inventory_intent is None:
+                        raise CutoverError("selection_without_inventory_capture")
+                    verified_capture = captured[inventory_intent["request_id"]]
+                    params = inventory_intent.get("params")
+                    if not isinstance(params, list) or len(params) != 3:
+                        raise CutoverError("selection_inventory_request_invalid")
+                    inventory = frame_verify.inventory_slots(
+                        verified_capture["response"].get("result"),
+                        start=params[0],
+                        end_inclusive=params[1],
+                    )
+                    expected_selection = sampling.build_selection(
+                        epoch_id=epoch_id,
+                        bucket=bucket,
+                        inventory_slots=inventory,
+                        inventory_sha256=verified_capture["response_sha256"],
+                    )
+                    selection_raw = writer.read_bytes(
+                        f"{relative}/selections/{selection_name}", max_bytes=1_000_000
+                    )
+                    if selection_raw != schema.canonical(expected_selection):
+                        raise CutoverError("selection_artifact_replay_mismatch")
+            elif inventory_buckets:
+                events_have_captured_inventory = any(
+                    row["kind"] == "request_captured"
+                    and row["fields"].get("request_id")
+                    in {
+                        intent["fields"].get("request_id")
+                        for intent in event_rows
+                        if intent["kind"] == "request_intent"
+                        and intent["fields"].get("method") == "getBlocks"
+                    }
+                    for row in event_rows
+                )
+                if events_have_captured_inventory:
+                    raise CutoverError("selection_artifact_missing")
             if schema.TERMINAL_FILE in names:
                 allowed.add(schema.TERMINAL_FILE)
             if names != allowed:
@@ -402,17 +509,31 @@ def _verify_all_epochs_terminal(
                 plan_value.get("source_bindings"), dict
             ):
                 raise CutoverError("epoch_plan_invalid")
+            planned_sources = plan_value["source_bindings"]
+            sources_match = planned_sources == expected_sources
+            runtime_only_change = (
+                set(planned_sources) == set(expected_sources)
+                and {
+                    path
+                    for path in expected_sources
+                    if planned_sources.get(path) != expected_sources[path]
+                }
+                == {"tools/brain_senses_external_orchestrator_v4.py"}
+                and (
+                    planned_sources.get("tools/brain_senses_external_orchestrator_v4.py")
+                    == _PREVIOUS_V4_RUNTIME_SHA256
+                )
+            )
+            if not sources_match and not runtime_only_change:
+                raise CutoverError("epoch_source_binding_invalid")
             plan = verify.verify_plan(
                 plan_bytes,
-                expected_sources=expected_sources,
+                expected_sources=expected_sources if sources_match else planned_sources,
                 expected_root_id=root_id,
                 expected_volume_uuid=volume_uuid,
             )
             if plan.get("epoch_id") != epoch_id:
                 raise CutoverError("epoch_plan_path_mismatch")
-            event_bytes = writer.read_bytes(f"{relative}/{schema.EVENT_FILE}", max_bytes=8_000_000)
-            if event_bytes and not event_bytes.endswith(b"\n"):
-                raise CutoverError("epoch_journal_torn_possibly_spent")
             projection = verify.verify_epoch_events(plan, event_bytes)
             verify_epoch_captures(writer, epoch_relative=relative, event_bytes=event_bytes)
             runtime._verify_sealed_frames(
@@ -468,6 +589,10 @@ def _verify_all_epochs_terminal(
                 or terminal.get("allocation_manifest_sha256") != manifest_sha
                 or terminal.get("allocation_upper_bytes") != allocation_bytes
                 or terminal.get("allocation_object_count") != object_count
+                or (
+                    not sources_match
+                    and terminal.get("reason") != "source_binding_changed_before_dispatch"
+                )
             ):
                 raise CutoverError("epoch_terminal_receipt_invalid")
             plans[epoch_id] = plan_bytes
@@ -487,20 +612,58 @@ def _verify_all_epochs_terminal(
     control_bytes = writer.read_bytes(control_path, max_bytes=8_000_000)
     if control_bytes and not control_bytes.endswith(b"\n"):
         raise CutoverError("control_journal_torn")
+
+    def validate_control_plan(raw: bytes, epoch_id: str) -> dict[str, Any]:
+        pinned = plans.get(epoch_id)
+        if pinned is None or pinned != raw:
+            raise CutoverError("control_plan_binding_invalid")
+        document = schema.decode(raw)
+        if not isinstance(document, dict) or not isinstance(document.get("source_bindings"), dict):
+            raise CutoverError("control_plan_sources_invalid")
+        return verify.verify_plan(
+            raw,
+            expected_sources=document["source_bindings"],
+            expected_root_id=root_id,
+            expected_volume_uuid=volume_uuid,
+        )
+
     try:
         state = verify.verify_control_chain(
             control_bytes,
             plans=plans,
             terminals=terminals,
             budget_evidence=runtime._budget_evidence_map(writer, plans),
-            plan_validator=lambda raw, _epoch: verify.verify_plan(
-                raw,
-                expected_sources=expected_sources,
-                expected_root_id=root_id,
-                expected_volume_uuid=volume_uuid,
-            ),
+            plan_validator=validate_control_plan,
         )
     except Exception as exc:
+        if allow_expected_active:
+            exception = _verify_cutover_only_control_prefix(
+                writer,
+                control_bytes=control_bytes,
+                control_rows=list(
+                    schema.verify_event_chain(control_bytes, schema=schema.CONTROL_SCHEMA)
+                ),
+                plans=plans,
+                terminals=terminals,
+                projections=projections,
+                expected_epoch_id=expected_epoch_id,
+                root_id=root_id,
+                volume_uuid=volume_uuid,
+            )
+            return (
+                verify.ControlProjection(
+                    active_epoch_id=expected_epoch_id
+                    if expected_epoch_id not in terminals
+                    else None,
+                    budget_paused=False,
+                    pause_reason=None,
+                    cooldown_until_ns=0,
+                    epoch_ids=tuple(plans),
+                    event_tail_sha256=exception["control_tail_sha256"],
+                    pending_terminal_epoch_id=None,
+                ),
+                exception,
+            )
         raise CutoverError("service_control_replay_failed") from exc
     active_invalid = (
         state.active_epoch_id not in {None, expected_epoch_id}
@@ -516,7 +679,183 @@ def _verify_all_epochs_terminal(
         raise CutoverError("service_control_still_active")
     if not allow_expected_active and projections[expected_epoch_id].terminal_status != "abandoned":
         raise CutoverError("cutover_epoch_not_abandoned")
-    return state
+    return state, None
+
+
+def _verify_cutover_only_control_prefix(
+    writer: DescriptorWriter,
+    *,
+    control_bytes: bytes,
+    control_rows: list[dict[str, Any]],
+    plans: Mapping[str, bytes],
+    terminals: Mapping[str, verify.VerifiedTerminal],
+    projections: Mapping[str, verify.EpochProjection],
+    expected_epoch_id: str,
+    root_id: str,
+    volume_uuid: str,
+) -> dict[str, Any]:
+    """Attest one known invalid open suffix for cutover only; never authorize v4."""
+    target_indices = [
+        index
+        for index, row in enumerate(control_rows)
+        if row["fields"].get("epoch_id") == expected_epoch_id
+    ]
+    target_rows = [control_rows[index] for index in target_indices]
+    expected_kinds = (
+        ["epoch_open", "epoch_abandon"] if expected_epoch_id in terminals else ["epoch_open"]
+    )
+    if (
+        not target_indices
+        or target_indices != list(range(target_indices[0], len(control_rows)))
+        or [row["kind"] for row in target_rows] != expected_kinds
+        or len(target_rows) not in {1, 2}
+    ):
+        raise CutoverError("forensic_suffix_not_single_target")
+
+    open_row = target_rows[0]
+    plan_bytes = plans.get(expected_epoch_id)
+    projection = projections.get(expected_epoch_id)
+    if plan_bytes is None or projection is None:
+        raise CutoverError("forensic_target_missing")
+    plan = schema.decode(plan_bytes)
+    if (
+        not isinstance(plan, dict)
+        or open_row["fields"]
+        != {
+            "epoch_id": expected_epoch_id,
+            "plan_sha256": schema.sha(plan_bytes),
+            "anchor_ns": plan.get("anchor_ns"),
+        }
+        or plan.get("anchor_ns") <= open_row["at_ns"]
+        or (projection.terminal_status is None) != (expected_epoch_id not in terminals)
+        or projection.request_states
+        or projection.active_bucket is not None
+    ):
+        raise CutoverError("forensic_target_binding_invalid")
+
+    prefix_index = target_indices[0]
+    prefix_rows = control_rows[:prefix_index]
+    prefix_bytes = b"".join(control_bytes.splitlines(keepends=True)[:prefix_index])
+    prior_abandons = [row for row in prefix_rows if row["kind"] == "epoch_abandon"]
+    recent_abandons = [
+        row
+        for row in prior_abandons
+        if open_row["at_ns"] - policy.DAY_NS < row["at_ns"] <= open_row["at_ns"]
+    ]
+    if len(recent_abandons) != 2:
+        raise CutoverError("forensic_abandon_count_mismatch")
+    prefix_epoch_ids = {
+        row["fields"].get("epoch_id") for row in prefix_rows if row["kind"] == "epoch_open"
+    }
+    prefix_plans = {epoch: plans[epoch] for epoch in prefix_epoch_ids if epoch in plans}
+    prefix_terminals = {epoch: terminals[epoch] for epoch in prefix_epoch_ids if epoch in terminals}
+    if set(prefix_plans) != prefix_epoch_ids or set(prefix_terminals) != prefix_epoch_ids:
+        raise CutoverError("forensic_prefix_epoch_closure_invalid")
+
+    def validate_prefix_plan(raw: bytes, epoch_id: str) -> dict[str, Any]:
+        if prefix_plans.get(epoch_id) != raw:
+            raise CutoverError("forensic_prefix_plan_binding_invalid")
+        document = schema.decode(raw)
+        if not isinstance(document, dict) or not isinstance(document.get("source_bindings"), dict):
+            raise CutoverError("forensic_prefix_sources_invalid")
+        return verify.verify_plan(
+            raw,
+            expected_sources=document["source_bindings"],
+            expected_root_id=root_id,
+            expected_volume_uuid=volume_uuid,
+        )
+
+    try:
+        prefix_state = verify.verify_control_chain(
+            prefix_bytes,
+            plans=prefix_plans,
+            terminals=prefix_terminals,
+            budget_evidence=runtime._budget_evidence_map(writer, prefix_plans),
+            plan_validator=validate_prefix_plan,
+        )
+    except Exception as exc:
+        raise CutoverError("forensic_valid_prefix_replay_failed") from exc
+    if (
+        prefix_state.active_epoch_id is not None
+        or prefix_state.pending_terminal_epoch_id is not None
+    ):
+        raise CutoverError("forensic_prefix_not_closed")
+    if plan["anchor_ns"] <= max(open_row["at_ns"], prefix_state.cooldown_until_ns):
+        raise CutoverError("forensic_anchor_not_future")
+
+    if expected_epoch_id in terminals:
+        close = target_rows[1]
+        terminal = terminals[expected_epoch_id]
+        expected_fields = {
+            "epoch_id": expected_epoch_id,
+            "terminal_sha256": terminal.terminal_sha256,
+            "event_tail_sha256": projection.event_tail_sha256,
+        }
+        fields = close["fields"]
+        if (
+            close["kind"] != "epoch_abandon"
+            or set(fields) != set(expected_fields) | {"cooldown_until_ns"}
+            or any(fields.get(key) != value for key, value in expected_fields.items())
+            or type(fields.get("cooldown_until_ns")) is not int
+            or fields["cooldown_until_ns"] < close["at_ns"] + policy.HOUR_NS
+            or terminal.status != "abandoned"
+        ):
+            raise CutoverError("forensic_target_close_invalid")
+
+    epoch_usage: list[dict[str, Any]] = []
+    for epoch_id in sorted(plans):
+        event_bytes = writer.read_bytes(
+            f"{_epoch_relative(epoch_id)}/{schema.EVENT_FILE}", max_bytes=8_000_000
+        )
+        event_rows = schema.verify_event_chain(event_bytes, schema=schema.EVENT_SCHEMA)
+        manifest_sha, allocation_bytes, object_count = runtime._epoch_allocation_manifest(
+            writer, epoch_id
+        )
+        epoch_usage.append(
+            {
+                "epoch_id": epoch_id,
+                "plan_sha256": schema.sha(plans[epoch_id]),
+                "source_bindings_sha256": schema.sha(
+                    schema.canonical(schema.decode(plans[epoch_id])["source_bindings"])
+                ),
+                "event_tail_sha256": projections[epoch_id].event_tail_sha256,
+                "terminal_sha256": terminals[epoch_id].terminal_sha256
+                if epoch_id in terminals
+                else None,
+                "request_intents": sum(row["kind"] == "request_intent" for row in event_rows),
+                "allocation_manifest_sha256": manifest_sha,
+                "allocation_upper_bytes": allocation_bytes,
+                "allocation_object_count": object_count,
+            }
+        )
+    stop_bytes = writer.read_bytes(STOP_FILE, max_bytes=16_000)
+    return {
+        "schema": EXCEPTION_SCHEMA,
+        "schema_version": 1,
+        "classification": "invalid_open_after_two_abandons",
+        "v4_policy_violation": True,
+        "cutover_only": True,
+        "activation_authority": "none",
+        "target_epoch_id": expected_epoch_id,
+        "target_plan_sha256": schema.sha(plan_bytes),
+        "target_open_event_sha256": open_row["event_sha256"],
+        "target_open_event_index": target_indices[0],
+        "target_open_at_ns": open_row["at_ns"],
+        "valid_prefix_tail_sha256": prefix_state.event_tail_sha256,
+        "recent_abandon_event_sha256": [row["event_sha256"] for row in recent_abandons],
+        "target_event_tail_sha256": projection.event_tail_sha256,
+        "target_terminal_sha256": terminals[expected_epoch_id].terminal_sha256
+        if expected_epoch_id in terminals
+        else None,
+        "target_request_intents": 0,
+        "target_captures": 0,
+        "target_outcomes": 0,
+        "stop_sha256": schema.sha(stop_bytes),
+        "root_id": root_id,
+        "volume_uuid": volume_uuid.lower(),
+        "epochs": epoch_usage,
+        "control_tail_sha256": control_rows[-1]["event_sha256"],
+    }
 
 
 def _reconcile_locked(
@@ -565,7 +904,7 @@ def _reconcile_locked(
         plan_bytes=plan_bytes,
         now_ns=now_ns,
     )
-    _verify_all_epochs_terminal(
+    _, initial_exception = _verify_all_epochs_terminal(
         writer,
         root_id=root_id,
         volume_uuid=volume_uuid,
@@ -624,14 +963,31 @@ def _reconcile_locked(
     target_rows = _target_control_events(writer, epoch_id)
     if [row["kind"] for row in target_rows] != ["epoch_open", "epoch_abandon"]:
         raise CutoverError("control_cutover_not_terminal")
-    _verify_all_epochs_terminal(
+    _, final_exception = _verify_all_epochs_terminal(
         writer,
         root_id=root_id,
         volume_uuid=volume_uuid,
         expected_epoch_id=epoch_id,
+        allow_expected_active=True,
     )
+    if (initial_exception is None) != (final_exception is None):
+        raise CutoverError("forensic_exception_state_changed")
+    exception_sha256: str | None = None
+    if final_exception is not None:
+        exception_bytes = schema.canonical(final_exception)
+        if writer.exists(EXCEPTION_PATH):
+            if writer.read_bytes(EXCEPTION_PATH, max_bytes=1_000_000) != exception_bytes:
+                raise CutoverError("forensic_exception_receipt_mismatch")
+        else:
+            writer.mkdir("services/external-rolling-v5")
+            writer.create(EXCEPTION_PATH, exception_bytes)
+        exception_sha256 = schema.sha(exception_bytes)
     return {
-        "status": "abandoned_before_dispatch",
+        "status": (
+            "abandoned_before_dispatch_v4_policy_violation"
+            if final_exception is not None
+            else "abandoned_before_dispatch"
+        ),
         "epoch_id": epoch_id,
         "plan_sha256": schema.sha(plan_bytes),
         "event_tail_sha256": final_projection.event_tail_sha256,
@@ -639,6 +995,8 @@ def _reconcile_locked(
         "request_intents": 0,
         "captures": 0,
         "outcomes": 0,
+        "v4_policy_violation": final_exception is not None,
+        "cutover_exception_sha256": exception_sha256,
     }
 
 

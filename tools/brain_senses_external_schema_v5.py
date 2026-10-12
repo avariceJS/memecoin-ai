@@ -21,6 +21,7 @@ PLAN_FILE = "plan.json"
 EVENT_FILE = "events.jsonl"
 TERMINAL_FILE = "terminal.json"
 CUTOVER_USAGE_FILE = "cutover-usage-v1.json"
+CUTOVER_EXCEPTION_FILE = "cutover-exception-v1.json"
 
 POLICY_SCHEMA = "brain-senses-external-rolling-v5-policy"
 PLAN_SCHEMA = "brain-senses-external-rolling-v5-plan"

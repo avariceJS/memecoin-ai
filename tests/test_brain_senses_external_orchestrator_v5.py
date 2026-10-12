@@ -112,6 +112,12 @@ def _seed_cutover_receipt(writer: DescriptorWriter, now_ns: int) -> str:
             "verified_interval_start_ns": source_start,
             "verified_interval_end_ns": source_end,
         },
+        "cutover_exception": {
+            "path": None,
+            "sha256": None,
+            "classification": None,
+            "v4_policy_violation": False,
+        },
         "legacy_campaigns": campaigns,
         "rolling_v4_request_rows": [],
         "rolling_v4_accounting": {

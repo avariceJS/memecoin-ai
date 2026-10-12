@@ -10,8 +10,9 @@ from __future__ import annotations
 import stat
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
+from tools import brain_senses_external_cutover_v4_to_v5 as cutover_forensics
 from tools import brain_senses_external_orchestrator_v4 as v4_runtime
 from tools import brain_senses_external_rolling_policy_v1 as v4_policy
 from tools import brain_senses_external_rolling_policy_v5 as policy
@@ -26,7 +27,7 @@ from tools.brain_senses_external_writer_v1 import (
 
 RECEIPT_PATH = "services/external-rolling-v5/cutover-usage-v1.json"
 RECEIPT_SCHEMA = "brain-senses-external-rolling-v5-cutover-usage"
-RECEIPT_VERSION = 1
+RECEIPT_VERSION = 2
 LEGACY_COUNTS = {"c1": 0, "c2": 1, "c3": 205}
 LEGACY_SOURCE_BINDINGS = {
     "c1": {
@@ -124,15 +125,34 @@ def build_from_v4_metadata(
             raise CutoverUsageError("terminal_v4_epoch_missing")
         plans: dict[str, bytes] = {}
         terminals: dict[str, v4_verify.VerifiedTerminal] = {}
+        projections: dict[str, v4_verify.EpochProjection] = {}
         epoch_rows: dict[str, tuple[bytes, bytes, dict[str, Any], dict[str, Any]]] = {}
         all_intents: list[tuple[str, dict[str, Any], dict[str, Any], dict[str, Any] | None]] = []
         for epoch_id in epoch_ids:
             v4_schema.validate_epoch_id(epoch_id)
             relative = f"{epochs_root}/{epoch_id}"
             plan_bytes = reader.read_bytes(f"{relative}/{v4_schema.PLAN_FILE}", max_bytes=2_000_000)
+            plan_value = v4_schema.decode(plan_bytes)
+            planned_sources = (
+                plan_value.get("source_bindings") if isinstance(plan_value, dict) else None
+            )
+            sources_match = planned_sources == expected_sources
+            runtime_only_change = (
+                isinstance(planned_sources, dict)
+                and set(planned_sources) == set(expected_sources)
+                and {
+                    path
+                    for path in expected_sources
+                    if planned_sources.get(path) != expected_sources[path]
+                }
+                == {"tools/brain_senses_external_orchestrator_v4.py"}
+            )
+            if not sources_match and not runtime_only_change:
+                raise CutoverUsageError("v4_source_binding_changed")
+            planned_source_bindings = cast(Mapping[str, str], planned_sources)
             plan = v4_verify.verify_plan(
                 plan_bytes,
-                expected_sources=expected_sources,
+                expected_sources=expected_sources if sources_match else planned_source_bindings,
                 expected_root_id=root_id,
                 expected_volume_uuid=volume_uuid,
             )
@@ -179,6 +199,10 @@ def build_from_v4_metadata(
                 or terminal.get("allocation_object_count") != object_count
                 or type(terminal.get("sealed_ns")) is not int
                 or terminal["sealed_ns"] > generated_ns
+                or (
+                    not sources_match
+                    and terminal.get("reason") != "source_binding_changed_before_dispatch"
+                )
             ):
                 raise CutoverUsageError("v4_terminal_binding_invalid")
             terminals[epoch_id] = v4_verify.VerifiedTerminal(
@@ -188,6 +212,7 @@ def build_from_v4_metadata(
                 pause_reason=terminal.get("pause_reason"),
             )
             plans[epoch_id] = plan_bytes
+            projections[epoch_id] = projection
             epoch_rows[epoch_id] = (plan_bytes, event_bytes, plan, terminal)
             allocation_rows.append(
                 {
@@ -220,23 +245,79 @@ def build_from_v4_metadata(
         )
         if any(event["kind"] in {"budget_pause", "budget_resume"} for event in control_events):
             raise CutoverUsageError("v4_budget_control_requires_separate_review")
-        control_state = v4_verify.verify_control_chain(
-            control_bytes,
-            plans=plans,
-            terminals=terminals,
-            budget_evidence={},
-            plan_validator=lambda raw, _epoch: v4_verify.verify_plan(
+        control_rows = list(control_events)
+
+        def validate_control_plan(raw: bytes, plan_epoch_id: str) -> dict[str, Any]:
+            if plans.get(plan_epoch_id) != raw:
+                raise CutoverUsageError("control_plan_binding_invalid")
+            document = v4_schema.decode(raw)
+            if not isinstance(document, dict) or not isinstance(
+                document.get("source_bindings"), dict
+            ):
+                raise CutoverUsageError("control_plan_source_invalid")
+            planned = document["source_bindings"]
+            if planned != expected_sources and not (
+                set(planned) == set(expected_sources)
+                and {
+                    path for path in expected_sources if planned.get(path) != expected_sources[path]
+                }
+                == {"tools/brain_senses_external_orchestrator_v4.py"}
+            ):
+                raise CutoverUsageError("control_plan_source_changed")
+            return v4_verify.verify_plan(
                 raw,
-                expected_sources=expected_sources,
+                expected_sources=planned,
                 expected_root_id=root_id,
                 expected_volume_uuid=volume_uuid,
-            ),
-        )
-        if (
+            )
+
+        cutover_exception: dict[str, Any] | None = None
+        try:
+            control_state = v4_verify.verify_control_chain(
+                control_bytes,
+                plans=plans,
+                terminals=terminals,
+                budget_evidence={},
+                plan_validator=validate_control_plan,
+            )
+        except v4_verify.VerifyError:
+            cutover_exception = cutover_forensics._verify_cutover_only_control_prefix(
+                reader,
+                control_bytes=control_bytes,
+                control_rows=control_rows,
+                plans=plans,
+                terminals=terminals,
+                projections=projections,
+                expected_epoch_id=epoch_ids[-1],
+                root_id=root_id,
+                volume_uuid=volume_uuid,
+            )
+            control_state = None
+        if control_state is not None and (
             control_state.active_epoch_id is not None
             or control_state.pending_terminal_epoch_id is not None
         ):
             raise CutoverUsageError("v4_service_not_closed")
+        if cutover_exception is not None and (
+            cutover_exception.get("v4_policy_violation") is not True
+            or cutover_exception.get("cutover_only") is not True
+            or cutover_exception.get("activation_authority") != "none"
+        ):
+            raise CutoverUsageError("v4_cutover_exception_invalid")
+        exception_path = f"{schema.SERVICE_RELATIVE_ROOT}/{schema.CUTOVER_EXCEPTION_FILE}"
+        if cutover_exception is None:
+            try:
+                reader.read_bytes(exception_path, max_bytes=1_000_000)
+            except FileNotFoundError:
+                pass
+            else:
+                raise CutoverUsageError("unexpected_v4_cutover_exception_receipt")
+            cutover_exception_sha256 = None
+        else:
+            exception_raw = reader.read_bytes(exception_path, max_bytes=1_000_000)
+            if exception_raw != v4_schema.canonical(cutover_exception):
+                raise CutoverUsageError("v4_cutover_exception_receipt_mismatch")
+            cutover_exception_sha256 = v4_schema.sha(exception_raw)
         control_tail = control_events[-1]["event_sha256"] if control_events else None
         if control_tail is None:
             raise CutoverUsageError("v4_control_tail_missing")
@@ -428,6 +509,14 @@ def build_from_v4_metadata(
             "verified_interval_start_ns": interval_start,
             "verified_interval_end_ns": interval_end,
         },
+        "cutover_exception": {
+            "path": exception_path if cutover_exception_sha256 is not None else None,
+            "sha256": cutover_exception_sha256,
+            "classification": cutover_exception.get("classification")
+            if cutover_exception is not None
+            else None,
+            "v4_policy_violation": cutover_exception is not None,
+        },
         "legacy_campaigns": legacy_campaigns,
         "rolling_v4_request_rows": request_rows,
         "rolling_v4_accounting": {
@@ -461,10 +550,17 @@ def publish_create_only(writer: DescriptorWriter, receipt_bytes: bytes) -> str:
     """
     expected_sources = v4_runtime.source_bindings()
     try:
+        exception_path = f"{schema.SERVICE_RELATIVE_ROOT}/{schema.CUTOVER_EXCEPTION_FILE}"
+        exception_sha256 = (
+            schema.sha(writer.read_bytes(exception_path, max_bytes=1_000_000))
+            if writer.exists(exception_path)
+            else None
+        )
         verify_receipt(
             receipt_bytes,
             expected_sha256=schema.sha(receipt_bytes),
             expected_v4_sources=expected_sources,
+            expected_cutover_exception_sha256=exception_sha256,
         )
         if writer.exists(RECEIPT_PATH):
             existing = writer.read_bytes(RECEIPT_PATH, max_bytes=4_000_000)
@@ -495,6 +591,8 @@ class VerifiedCutoverUsage:
     legacy_possible_same_account: bool
     rolling_v4_exact: bool
     rolling_v4_debit_requests: int
+    cutover_exception_sha256: str | None
+    v4_policy_violation: bool
 
     def usage(self, *, now_ns: int) -> policy.RollingUsage:
         """Return conservative trailing-30d usage, retaining ambiguous reservations."""
@@ -550,6 +648,7 @@ def verify_receipt(
     *,
     expected_sha256: str,
     expected_v4_sources: Mapping[str, str],
+    expected_cutover_exception_sha256: str | None = None,
 ) -> VerifiedCutoverUsage:
     """Verify exact metadata receipt and its v4 source-code binding."""
     if schema.sha(raw) != _sha(expected_sha256, "expected_receipt_sha256"):
@@ -558,7 +657,7 @@ def verify_receipt(
         value = schema.decode(raw)
     except schema.SchemaError as exc:
         raise CutoverUsageError("receipt_json_invalid") from exc
-    required = {
+    required_v1 = {
         "schema",
         "schema_version",
         "generated_ns",
@@ -569,16 +668,60 @@ def verify_receipt(
         "rolling_v4_accounting",
         "accounting",
     }
+    required = (
+        required_v1 | {"cutover_exception"}
+        if isinstance(value, dict) and value.get("schema_version") == 2
+        else required_v1
+    )
     if (
         not isinstance(value, dict)
         or set(value) != required
         or schema.canonical(value) != raw
         or value.get("schema") != RECEIPT_SCHEMA
-        or value.get("schema_version") != RECEIPT_VERSION
+        or value.get("schema_version") not in {1, RECEIPT_VERSION}
         or value.get("service") != "helius"
     ):
         raise CutoverUsageError("receipt_shape_invalid")
     generated_ns = _nonnegative(value.get("generated_ns"), "generated_ns")
+    exception = value.get(
+        "cutover_exception",
+        {
+            "path": None,
+            "sha256": None,
+            "classification": None,
+            "v4_policy_violation": False,
+        },
+    )
+    if not isinstance(exception, dict) or set(exception) != {
+        "path",
+        "sha256",
+        "classification",
+        "v4_policy_violation",
+    }:
+        raise CutoverUsageError("cutover_exception_shape_invalid")
+    if exception.get("v4_policy_violation") is True:
+        exception_sha = _sha(exception.get("sha256"), "cutover_exception_sha256")
+        if (
+            exception.get("path")
+            != f"{schema.SERVICE_RELATIVE_ROOT}/{schema.CUTOVER_EXCEPTION_FILE}"
+            or exception.get("classification") != "invalid_open_after_two_abandons"
+            or (
+                expected_cutover_exception_sha256 is not None
+                and exception_sha != expected_cutover_exception_sha256
+            )
+        ):
+            raise CutoverUsageError("cutover_exception_binding_invalid")
+    elif (
+        exception
+        != {
+            "path": None,
+            "sha256": None,
+            "classification": None,
+            "v4_policy_violation": False,
+        }
+        or expected_cutover_exception_sha256 is not None
+    ):
+        raise CutoverUsageError("unexpected_cutover_exception_fields")
     source = value["source_v4"]
     if not isinstance(source, dict) or set(source) != {
         "service_root",
@@ -837,4 +980,6 @@ def verify_receipt(
         legacy_possible_same_account=accounting["legacy_possible_same_account"],
         rolling_v4_exact=bool(accounting["rolling_v4_exact"]),
         rolling_v4_debit_requests=accounting["rolling_v4_debit_requests"],
+        cutover_exception_sha256=exception.get("sha256"),
+        v4_policy_violation=exception["v4_policy_violation"],
     )

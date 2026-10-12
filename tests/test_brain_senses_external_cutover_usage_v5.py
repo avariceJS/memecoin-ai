@@ -93,6 +93,12 @@ def _receipt(*, c4_exact: bool = True) -> dict[str, Any]:
             "verified_interval_start_ns": START,
             "verified_interval_end_ns": END,
         },
+        "cutover_exception": {
+            "path": None,
+            "sha256": None,
+            "classification": None,
+            "v4_policy_violation": False,
+        },
         "legacy_campaigns": {
             "c1": _legacy_test_campaign("c1"),
             "c2": _legacy_test_campaign("c2"),
@@ -350,6 +356,43 @@ def test_cutover_receipt_digest_source_and_duplicate_rows_fail_closed() -> None:
             raw_duplicate,
             expected_sha256=schema.sha(raw_duplicate),
             expected_v4_sources=V4_SOURCES,
+        )
+
+
+def test_v2_receipt_binds_forensic_cutover_exception() -> None:
+    receipt = _receipt()
+    receipt["cutover_exception"] = {
+        "path": f"{schema.SERVICE_RELATIVE_ROOT}/{schema.CUTOVER_EXCEPTION_FILE}",
+        "sha256": "e" * 64,
+        "classification": "invalid_open_after_two_abandons",
+        "v4_policy_violation": True,
+    }
+    raw = _encode(receipt)
+    verified = cutover.verify_receipt(
+        raw,
+        expected_sha256=schema.sha(raw),
+        expected_v4_sources=V4_SOURCES,
+        expected_cutover_exception_sha256="e" * 64,
+    )
+    assert verified.cutover_exception_sha256 == "e" * 64
+    assert verified.v4_policy_violation is True
+
+    with pytest.raises(cutover.CutoverUsageError, match="cutover_exception_binding_invalid"):
+        cutover.verify_receipt(
+            raw,
+            expected_sha256=schema.sha(raw),
+            expected_v4_sources=V4_SOURCES,
+            expected_cutover_exception_sha256="f" * 64,
+        )
+
+    receipt["cutover_exception"]["classification"] = "ordinary_verified_chain"
+    bad_classification = _encode(receipt)
+    with pytest.raises(cutover.CutoverUsageError, match="cutover_exception_binding_invalid"):
+        cutover.verify_receipt(
+            bad_classification,
+            expected_sha256=schema.sha(bad_classification),
+            expected_v4_sources=V4_SOURCES,
+            expected_cutover_exception_sha256="e" * 64,
         )
 
 
