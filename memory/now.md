@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-12 06:43Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+**As of:** 2026-10-12 06:56Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
 `research/active`, synchronized with `origin/research/active`; `main` remains at
 `2ce3cdaff63f0e0b78dcab8e78886ae405085432`. Work is continuing across Senses horizons. Production,
 champion, protected evaluation and trading remain untouched; no signing, submission or Cortex work.
@@ -24,15 +24,21 @@ champion, protected evaluation and trading remain untouched; no signing, submiss
 ## Active horizons
 
 - Added inactive `brain-senses-external-launch-failure-receipt-v1` descriptor-bound diagnostic
-  writer with eight focused synthetic tests. It never serializes exception text, reads no journal,
-  and performs no provider I/O. Forced detach proof is synthetic, not APFS qualification; a future
-  launcher must supply journal certainty only after its own independent locked rereads. Frozen v2
-  launch code and journal remain unchanged.
+  writer and a separately versioned inactive launch-v3 callback prototype. The callback dispatches
+  once, unwinds locks before rereads/sink, binds the scheduled bucket to exact plan bytes and the
+  captured UTC window, and accepts `verified_none` only for two matching snapshots with pinned
+  source/predecessor identity and unchanged empty reservation/intent sets. The combined focused
+  suite passes 19 tests. It has injected verifier/lock dependencies only; forced detach remains
+  synthetic, not APFS qualification. No activation or provider path exists. Frozen v2 code and
+  journal remain unchanged.
 - Source closure and read-only Agave persistence/finality map are committed. Sol authorized exactly
   one guarded locked Cargo fetch in the fresh
   `/Volumes/Kingston/BrainData/qualifications/agave-v3.0.0-token2022-runtime-20261012/{source,cargo-home,target,tmp}`
   stage. Wait until 07:03Z expiry and independently check terminal status, no active process,
-  disabled/unloaded label, source/tool/lock pins and stage emptiness. Immediately before fetch repeat
+  disabled/unloaded label, source/tool/lock pins and stage emptiness. Sol also authorized a separately
+  versioned partial-prefix structural queue after that same expiry gate: only the three sealed
+  16-block frames, full 13-window denominator, unknown tail, and no completion/PIT/economic/successor
+  claims. Do not relax the existing full-seal queue compiler. Immediately before fetch repeat
   `--check-only`; require at least 90 GiB free. Keep 30-minute, 8-GiB cache growth, 32-GiB stage,
   50-GiB floor and no-retry guards. Failure is terminal; after success only offline Cargo metadata
   is authorized. A build requires another Sol review.

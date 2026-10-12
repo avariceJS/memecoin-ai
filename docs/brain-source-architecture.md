@@ -2985,14 +2985,21 @@ Receipt: [`06:00Z lease callback failure and unload`](evidence/brain-senses-exte
 The lease remains time-bounded through 07:03Z for the separate fetch gate; wait for expiry, then
 independently verify terminal status and unload before the one Sol-approved fetch.
 
-The unrecoverable callback motivated a separately versioned, inactive launch-failure receipt writer
-for a future launcher revision. Its fixed-schema payload allowlists identifiers, times, phase, error
-class/reason, intent certainty and a verified journal-tail digest; it never serializes exception text
-or performs provider I/O. A descriptor-bound, create-only Kingston sibling sink has eight focused
-synthetic tests, including secret exclusion, idempotency/conflict, unchanged service manifest,
-forced detach and no fallback. It neither reads the journal nor obtains service locks: a future
-launcher must supply `verified_none` only after independent locked rereads. No APFS detach
-qualification or live-launch integration is claimed, and the frozen v2 launcher remains unchanged.
+The unrecoverable callback motivated an inactive, separately versioned launch-v3 callback prototype
+and launch-failure receipt writer. Its fixed-schema payload allowlists identifiers, times, phase,
+error class/reason, intent certainty and a verified journal-tail digest; it never serializes
+exception text or performs provider I/O. The synthetic callback dispatches once, then unwinds its
+host→storage→predecessor→service lock stack before independently rereading twice under that same
+lock order and reacquiring host→storage for a best-effort descriptor-bound, create-only sibling
+receipt. `verified_none` requires matching plan/source/predecessor pins, event tail, and unchanged
+empty reservation and intent sets; the plan bucket must match its UTC window and callback-start time.
+Uncertain reads remain `unknown`, while spent IDs remain `possibly_spent`. The receipt sink has
+focused tests for secret exclusion, idempotency/conflict,
+unchanged service manifest, forced descriptor detachment, and no fallback; the v3 orchestration
+tests cover exactly-once injected dispatch, proof ordering, lock contention, and preserving the
+original exception when the sink fails. These tests use synthetic locks, plan snapshots, and storage
+only. There is no APFS qualification, v3 activation/plist contract, real service journal verifier,
+or live-launch integration yet, and the frozen v2 launcher remains unchanged.
 
 The read-only source map then follows the v5 observer identity through Agave's adjacent commit,
 block-index, freeze, and root sites. It finds that execution IDs and commit-result vector order do not
