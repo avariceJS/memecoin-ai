@@ -2967,6 +2967,20 @@ economic evidence. Sol approved one guarded locked fetch only after the fixed 06
 terminal, independently verified, and unloaded; any failure is terminal with no retry. Metadata may
 follow only offline after a successful fetch, while a build needs a separate review.
 
+The scheduled 06:20Z callback for that fixed lease exited 1 before any durable reservation or intent;
+its exception could not be recovered because launchd stdout/stderr target `/dev/null` and the queried
+Unified Log had no Python detail. Sol directed immediate fail-closed disable/unload. Before and after
+snapshots preserve the same 103 requests, four reservations/intents/seals, event tail, and frontier;
+the callback changed no journal. At 06:28Z, the four sealed windows accounted for 144,392,483 measured
+raw/stored bytes against the 3,104,000,000-byte lease cap; provider charge remains unverified. Status
+classified 06:20Z as `expired_unobserved` after its window ended; by 06:28Z the cancelled-unstarted
+06:25Z window had expired the same way. The journal remains a verified prefix, not a completed lease:
+no 06:20 replay,
+no later scheduled callbacks, no fabricated STOP/provider error/zero, and no successor eligibility.
+Receipt: [`06:00Z lease callback failure and unload`](evidence/brain-senses-external-v2-20261012T0600Z-callback-failure-unload.json).
+The lease remains time-bounded through 07:03Z for the separate fetch gate; wait for expiry, then
+independently verify terminal status and unload before the one Sol-approved fetch.
+
 The read-only source map then follows the v5 observer identity through Agave's adjacent commit,
 block-index, freeze, and root sites. It finds that execution IDs and commit-result vector order do not
 yet persist a unique Bank/fork, absolute block-index, frozen-hash, and rooted-block join; a slot-only

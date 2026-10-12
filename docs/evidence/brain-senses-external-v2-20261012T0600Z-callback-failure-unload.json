@@ -1,0 +1,125 @@
+{
+  "schema": "brain-senses-external-v2-callback-failure-stop",
+  "schema_version": 1,
+  "recorded_at_utc": "2026-10-12T06:23:44Z",
+  "scope": "Read-only status, launchd disable/unload, and unchanged journal evidence for the fixed prospective external-v2 lease.",
+  "lease": {
+    "service_id": "external-v2-20261012T0600Z",
+    "label": "ai.memecoin.brain.senses.external-v2-20261012T0600Z",
+    "plan_sha256": "2bb19afee5475173e7e5a73a59d1cd33a27c6af1ef8e309fc39bfc025fa5a688",
+    "activation_sha256": "1cafb1cece6264fc1c376e62597cb0c7ca33c3229805b4a5ea377d8302d6c399",
+    "plist_sha256": "080d8a1be8f6e133c620d09e16e8c2fc19dd8c2dfa687581859dd81b36a45d65",
+    "schedule_expiry_utc": "2026-10-12T07:03:00Z"
+  },
+  "unexpected_callback": {
+    "bucket": "20261012T062000Z",
+    "observed_at_utc": "2026-10-12T06:20:17Z",
+    "launchd_runs": 5,
+    "last_exit_code": 1,
+    "active_runner_pid_after_exit": false,
+    "cause": "unknown_unrecoverable",
+    "stdout_and_stderr_target": "/dev/null",
+    "unified_log_diagnostic": "no_python_exception_detail_found",
+    "durable_reservation_or_intent_created": false,
+    "provider_error_claimed": false,
+    "provider_zero_observation_claimed": false
+  },
+  "before_unload": {
+    "captured_at_utc": "2026-10-12T06:21:26Z",
+    "status": "verified_prefix",
+    "status_exit_code": 0,
+    "status_stdout_sha256": "dc543093e6e1bd10c4c2955209a431f9748cc2f87cdad8e5215400c22db690eb",
+    "event_tail_sha256": "0ed5e952c199bb3f420eba1be72da813d7e876910ec10545a273b782e0058787",
+    "requests": 103,
+    "reservations": 4,
+    "intents": 4,
+    "sealed_buckets": 4,
+    "frontier": 455944206,
+    "stop": false,
+    "unresolved_buckets": [],
+    "launchd_state": "not running",
+    "launchd_last_exit_code": 1,
+    "launch_print_sha256": "1d9e47089c61ea572be4c997f884970675fae0ed20459a080d9d1ed5b6520df5"
+  },
+  "operator_action": {
+    "decision_authority": "Sol",
+    "action": [
+      "disabled the fixed LaunchAgent",
+      "booted out the fixed LaunchAgent"
+    ],
+    "captured_at_utc": "2026-10-12T06:21:54Z",
+    "status_unchanged_after_unload": true,
+    "manual_kickstart_or_replay": false,
+    "later_buckets_allowed": false,
+    "journal_mutated": false
+  },
+  "post_unload": {
+    "captured_at_utc": "2026-10-12T06:21:54Z",
+    "status_stdout_sha256": "dc543093e6e1bd10c4c2955209a431f9748cc2f87cdad8e5215400c22db690eb",
+    "event_tail_sha256": "0ed5e952c199bb3f420eba1be72da813d7e876910ec10545a273b782e0058787",
+    "requests": 103,
+    "reservations": 4,
+    "intents": 4,
+    "sealed_buckets": 4,
+    "label_disabled": true,
+    "label_loaded": false,
+    "active_runner_pids": [],
+    "disabled_table_sha256": "5d88acc75c7c80f92bc4d884ac95fe875d0d5b422e2ff400338d7c57849cd1de"
+  },
+  "expired_window_status": {
+    "captured_at_utc": "2026-10-12T06:23:44Z",
+    "status": "verified_prefix",
+    "status_stdout_sha256": "593b45cb69bc50b137c7c3a9105b5cf437830980e0ce2d71ec2de80ce8ad6e7a",
+    "event_tail_sha256": "0ed5e952c199bb3f420eba1be72da813d7e876910ec10545a273b782e0058787",
+    "requests": 103,
+    "sealed_buckets": 4,
+    "frontier": 455944206,
+    "stop": false,
+    "completion": {
+      "scheduled_windows": 13,
+      "sealed_windows": 4,
+      "missed_windows": 0,
+      "expired_unobserved": [
+        "20261012T062000Z"
+      ],
+      "all_windows_clean_complete": false,
+      "successor_eligible": false
+    },
+    "unresolved_buckets": []
+  },
+  "post_unload_usage_snapshot": {
+    "captured_at_utc": "2026-10-12T06:28:33Z",
+    "status_stdout_sha256": "3492d4252dfa982355d5e7efe547efeeefc709f7e40bebe20f3de94bc8300a86",
+    "requests": 103,
+    "measured_response_raw_bytes": 144392483,
+    "measured_stored_bytes": 144392483,
+    "lease_caps": {
+      "requests_total": 409,
+      "requests_utc_day": 450,
+      "raw_bytes_total": 3104000000,
+      "stored_bytes_total": 3104000000,
+      "raw_bytes_utc_day": 3300000000,
+      "stored_bytes_utc_day": 3300000000
+    },
+    "sealed_buckets": 4,
+    "event_tail_sha256": "0ed5e952c199bb3f420eba1be72da813d7e876910ec10545a273b782e0058787",
+    "frontier": 455944206,
+    "completion_expired_unobserved": [
+      "20261012T062000Z",
+      "20261012T062500Z"
+    ],
+    "provider_charge_status": "unknown_unverified"
+  },
+  "interpretation": {
+    "bucket_classification": "unobserved_callback_failure_unknown",
+    "later_buckets_classification": "cancelled_unstarted",
+    "do_not_infer": [
+      "provider error",
+      "zero observations",
+      "missing event as market inactivity",
+      "lease completion",
+      "successor eligibility"
+    ],
+    "provider_charge_status": "unknown_unverified"
+  }
+}
