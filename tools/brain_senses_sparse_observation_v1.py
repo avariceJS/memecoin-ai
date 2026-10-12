@@ -11,6 +11,8 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
+import stat
 import sys
 from collections import Counter, defaultdict
 from collections.abc import Iterable
@@ -136,6 +138,34 @@ def _request_class(record: dict[str, Any]) -> str:
 
 def _stable_id(value: dict[str, Any]) -> str:
     return digest(canonical(value))
+
+
+def _open_data_root_descriptor(guard: Any) -> int:
+    """Open the configured private data root using descriptor-relative traversal."""
+    current = os.dup(guard.mount_fd)
+    device = os.fstat(current).st_dev
+    try:
+        for part in guard.config.data_root.split("/"):
+            child = os.open(
+                part,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                dir_fd=current,
+            )
+            entry = os.fstat(child)
+            if (
+                not stat.S_ISDIR(entry.st_mode)
+                or entry.st_dev != device
+                or entry.st_uid != os.getuid()
+                or stat.S_IMODE(entry.st_mode) != 0o700
+            ):
+                os.close(child)
+                raise StorageError("sparse_storage_root_identity")
+            os.close(current)
+            current = child
+        return current
+    except BaseException:
+        os.close(current)
+        raise
 
 
 def current_code_hashes() -> dict[str, str]:
@@ -1566,9 +1596,13 @@ def publish_role_to_storage(
         def revalidate() -> None:
             guard.revalidate(min_free_bytes=required_free)
 
-        with DescriptorWriter(guard.mount_fd, before_write=revalidate) as writer:
-            with writer.lock(blocking=True):
-                return publish_role(writer, f"{guard.config.data_root}/{prefix}", compiled)
+        root_fd = _open_data_root_descriptor(guard)
+        try:
+            with DescriptorWriter(root_fd, before_write=revalidate) as writer:
+                with writer.lock(blocking=True):
+                    return publish_role(writer, prefix, compiled)
+        finally:
+            os.close(root_fd)
 
 
 def _main() -> int:
@@ -1616,41 +1650,45 @@ def _main() -> int:
                 def revalidate() -> None:
                     guard.revalidate(min_free_bytes=required)
 
-                with DescriptorWriter(guard.mount_fd, before_write=revalidate) as writer:
-                    prefix = f"{guard.config.data_root}/{args.prefix}"
-                    with writer.lock(blocking=True):
-                        if args.command == "verify-role":
-                            verified = verify_role_from_writer(
-                                writer, f"{prefix}/{args.role}", args.role
-                            )
-                            status = {
-                                "status": "verified_role",
-                                "role": args.role,
-                                "summary": verified,
-                            }
-                        elif args.command == "seal-campaign":
-                            result = seal_campaign_from_writer(
-                                writer,
-                                prefix,
-                                root_id=guard.root_id,
-                                volume_uuid=guard.volume_uuid,
-                            )
-                            status = {
-                                "status": "published_campaign",
-                                "campaign": result["campaign"],
-                                "manifest_sha256": result["manifest_sha256"],
-                            }
-                        else:
-                            verified_campaign = verify_campaign_from_writer(
-                                writer,
-                                prefix,
-                                root_id=guard.root_id,
-                                volume_uuid=guard.volume_uuid,
-                            )
-                            status = {
-                                "status": "verified_campaign",
-                                "campaign": verified_campaign,
-                            }
+                root_fd = _open_data_root_descriptor(guard)
+                try:
+                    with DescriptorWriter(root_fd, before_write=revalidate) as writer:
+                        with writer.lock(blocking=True):
+                            prefix = args.prefix
+                            if args.command == "verify-role":
+                                verified = verify_role_from_writer(
+                                    writer, f"{prefix}/{args.role}", args.role
+                                )
+                                status = {
+                                    "status": "verified_role",
+                                    "role": args.role,
+                                    "summary": verified,
+                                }
+                            elif args.command == "seal-campaign":
+                                result = seal_campaign_from_writer(
+                                    writer,
+                                    prefix,
+                                    root_id=guard.root_id,
+                                    volume_uuid=guard.volume_uuid,
+                                )
+                                status = {
+                                    "status": "published_campaign",
+                                    "campaign": result["campaign"],
+                                    "manifest_sha256": result["manifest_sha256"],
+                                }
+                            else:
+                                verified_campaign = verify_campaign_from_writer(
+                                    writer,
+                                    prefix,
+                                    root_id=guard.root_id,
+                                    volume_uuid=guard.volume_uuid,
+                                )
+                                status = {
+                                    "status": "verified_campaign",
+                                    "campaign": verified_campaign,
+                                }
+                finally:
+                    os.close(root_fd)
         print(json.dumps(status, sort_keys=True))
         return 0
     except (OSError, StorageError, SparseReferenceError, KeyError, TypeError, ValueError) as exc:
