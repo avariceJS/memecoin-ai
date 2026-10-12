@@ -3614,23 +3614,37 @@ intents/dispatches/results and does not authorize release.
 
 The existing runtime added three clock fields to v3 intents, while the prior independent verifier
 required the exact seven-field v3 contract. This mismatch is now closed for future collection by
-the separately versioned independent intent-v4 verifier. It requires the exact ten-field
-clock-bound schema, hashes every field except the digest, reads canonical clock bytes from the same
-descriptor-bound pilot root, and verifies path, hash, dual-HTTPS clock evidence, wall/monotonic
+the separately versioned independent intent-v5 verifier. It requires the exact clock-bound schema,
+hashes every field except the digest, reads canonical clock bytes from the same descriptor-bound
+pilot root, and verifies path, hash, dual-HTTPS clock evidence, wall/monotonic
 progress, bucket window, terminal hash coupling, and complete clock-file closure. It preserves
 post-fsync availability separately from HTTP receipt and replays each successful bar against the
-raw response. V3 offline semantics remain the default; v4 explicitly accounts for live transient
-terminal handling. A partial bucket is a verified prefix with missing pools unknown and cannot
-authorize release. The two-stage v4 preflight requires this verifier's full-pool eligibility as
-well as the sealed receipt and exact test/source/plist/coordinator/storage pins.
+raw response. A partial bucket is a verified prefix with missing pools unknown and cannot authorize
+release. The v4 schedule allows dispatch only in `[close+60s, close+240s)`, request start strictly
+before `close+215s`, and durable availability strictly before `close+240s`; late responses remain
+spent and unknown without retry. Its two-stage preflight requires a full four-pool receipt, at least
+one eligible new-open bar, and exact test/source/plist/coordinator/storage pins.
 
-The Gecko LaunchAgent remains unloaded. The newly versioned verifier, mutation/recovery tests,
-canonical documentation, and source-pin changes must be committed before a fresh pilot is opened
-under a new future-only ID. Only a new complete four-pool pilot may proceed through preflight,
-status-only LaunchAgent callback, activation, and persistent forward-only collection. The activated
-service has no calendar lease expiry, does not backfill missed buckets, and retains finite request,
-raw-byte, resident-memory, and Kingston storage caps. Alchemy same-frame corroboration remains
-offline; incomplete billing telemetry does not block bounded prospective collection.
+The v4 runtime replaces per-minute hash-chain growth with monitor-v2: one descriptor-bound atomic
+latest-health snapshot plus a bounded, immutable transition ledger for alarms and recovery. The
+snapshot binds Gecko-local intent/dispatch and result/capture/confirmation tails, source and plan
+hashes, volume identity, and a coordinator sequence/hash/policy marker. Since Helius and Alchemy
+share that coordinator ledger, an independently replayed later provider event is accepted only as a
+valid ancestor extension; Gecko-local tail changes require verified service-scoped no-replay
+recovery and an immutable `journal_reconciled` receipt. Corrupt, missing-after-initialization, stale,
+or mismatched monitor state never authorizes request replay. Healthy 60-second ticks replace the
+same bounded snapshot; the alarm-receipt cap pauses for review. Focused tests cover 30-day
+constant-size heartbeats, crash points around rename, recovery, cap behavior, stale state, and detach without
+writes to the mountpoint underlay.
+
+The Gecko LaunchAgent remains unloaded. Code, monitor, release preflight, and detach/recovery tests
+are implemented but not yet frozen in Git or qualified against a new live bucket. The next gate is a
+fresh, future-only four-pool pilot under a distinct static ID; no c4/v3 request or missed prospective
+time may be reused. A qualifying receipt must pass preflight and the status-only LaunchAgent
+callback before activation of persistent forward-only collection. That service has no calendar
+lease expiry, does not backfill missed buckets, and retains finite request, raw-byte, resident-memory,
+and Kingston storage caps. Alchemy same-frame corroboration remains offline; incomplete billing
+telemetry does not block bounded prospective collection.
 
 The shared capacity coordinator v2 is initialized on the configured Kingston data root. Its
 descriptor-bound policy binds root ID, UUID, device, and inode; live Helius v5 admission and Gecko
