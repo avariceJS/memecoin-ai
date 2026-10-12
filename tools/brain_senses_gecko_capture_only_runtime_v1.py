@@ -42,13 +42,13 @@ from tools.brain_senses_external_writer_v1 import (  # noqa: E402
 )
 
 CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
-CAPTURE_ID = "9d7d89fc934c46f3a8a9a5b6d7c4e201"
+CAPTURE_ID = "f4412b7a531d4e3cb3414a2862b8ee76"
 CAPTURE_ROOT_PREFIX = "services/gecko-market-v1/capture-only-v1"
 PREDECESSOR_PILOT_ID = "11f28c4965aa427d9658cd3adeadc746"
-LABEL = "ai.memecoin.brain.senses.gecko-capture-only-v3"
-PLIST_PATH = REPO / "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v3.plist"
-HANDOFF_PATH = Path.home() / ".config/brain-research/gecko-capture-only-v3-interpreter-handoff.json"
-HANDOFF_SOURCE_KEY = "host/gecko-capture-only-v3-interpreter-handoff.json"
+LABEL = "ai.memecoin.brain.senses.gecko-capture-only-v4"
+PLIST_PATH = REPO / "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v4.plist"
+HANDOFF_PATH = Path.home() / ".config/brain-research/gecko-capture-only-v4-interpreter-handoff.json"
+HANDOFF_SOURCE_KEY = "host/gecko-capture-only-v4-interpreter-handoff.json"
 PLAN_SCHEMA = "brain-senses-gecko-capture-only-v1-plan"
 CALLBACK_SCHEMA = "brain-senses-gecko-capture-only-v1-callback"
 RELEASE_SCHEMA = "brain-senses-gecko-capture-only-v1-release"
@@ -71,7 +71,7 @@ def source_bindings() -> dict[str, str]:
         "tools/brain_senses_gecko_capture_only_monitor_v1.py",
         "tools/brain_senses_gecko_interpreter_handoff_v1.py",
         "tests/test_brain_senses_gecko_capture_only_v1.py",
-        "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v3.plist",
+        "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v4.plist",
     )
     return {
         **v4.source_bindings(),
@@ -1552,7 +1552,7 @@ def _publish_health(
             root_id=guard.root_id,
             volume_uuid=guard.volume_uuid,
             request_count=summary["intents"],
-            result_count=summary["durable_results"],
+            result_count=summary["terminal_count"],
             request_tail_sha256=summary["request_tail_sha256"],
             result_tail_sha256=summary["result_tail_sha256"],
             coordinator_tail_sha256=sha256(ledger_raw),

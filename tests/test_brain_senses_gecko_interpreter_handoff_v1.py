@@ -38,8 +38,8 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, Any], Path, list[str], Path]:
     app.write_bytes(b"synthetic Python.app executable\n")
     app.chmod(0o700)
     plist_path = tmp_path / "capture.plist"
-    label = "ai.memecoin.brain.senses.gecko-capture-only-v3"
-    capture_id = "9d7d89fc934c46f3a8a9a5b6d7c4e201"
+    label = runtime.LABEL
+    capture_id = runtime.CAPTURE_ID
     script = str(REPO / "tools/brain_senses_gecko_capture_only_runtime_v1.py")
     argv = [str(cli), "-B", script, "--scheduled-tick", "--capture-id", capture_id]
     plist_path.write_bytes(

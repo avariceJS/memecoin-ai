@@ -3663,14 +3663,15 @@ Sol approved capture-only collection bound to this technical predecessor, with
 independent prospective semantic qualification. Static IDs v1 and v2 were initialized or
 preflighted but their callbacks failed closed before a request intent; both roots are read-only.
 Their LaunchAgents are unloaded. The v2 identity proof incorrectly equated the venv CLI inode with
-the live macOS Python.app process image. Capture-only v3 now binds a no-provider probe of the exact
-plist interpreter, venv symlink/configuration, Python CLI and Python.app file identities, and on
-each callback checks the loaded plist path/arguments, label/PID/UID and kernel `proc_pidpath` before
-recovery or dispatch. Synthetic mismatch tests pass. No v3 Kingston plan or provider request exists
-yet; create a fresh static ID, handoff receipt, and 58-GiB-floor preflight before considering
-activation. The service policy has no calendar expiry, never backfills missed buckets, and keeps
-finite request, raw-byte, memory, and Kingston storage caps. Alchemy same-frame corroboration remains
-offline; incomplete billing telemetry does not block bounded prospective collection.
+the live macOS Python.app process image. Capture-only v3 bound a no-provider probe of the exact
+plist interpreter and passed the live label/PID/UID/arguments/`proc_pidpath` identity check, then
+published one no-provider callback receipt. It stopped before provider I/O because the health
+publisher requested `durable_results` while independent replay reports `terminal_count`. That root
+has no request intent and is retired read-only. The publisher now uses the verifier's exact field;
+a new v4 label/ID/source pin and focused regression test are required before a fresh preflight.
+The service policy has no calendar expiry, never backfills missed buckets, and keeps finite request,
+raw-byte, memory, and Kingston storage caps. Alchemy same-frame corroboration remains offline;
+incomplete billing telemetry does not block bounded prospective collection.
 
 The inert Agave build runner v1 remains unqualified and must not execute Cargo. Sol rejected its
 default-allow sandbox because it does not confine write access to the Kingston stage, prevent reads

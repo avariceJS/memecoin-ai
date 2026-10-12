@@ -45,18 +45,20 @@ from tools.brain_senses_external_writer_v1 import (  # noqa: E402
 def test_new_capture_identity_and_plist_do_not_reuse_old_capture_root() -> None:
     old_capture_id = "6c4e52c7a9bb4bdc8e5f1d774ec8aa17"
     superseded_capture_id = "7f0b3297f86746f0b0c3863f20a11d4b"
+    failed_v3_capture_id = "9d7d89fc934c46f3a8a9a5b6d7c4e201"
     assert capture_runtime.CAPTURE_ID != old_capture_id
     assert capture_runtime.CAPTURE_ID != superseded_capture_id
+    assert capture_runtime.CAPTURE_ID != failed_v3_capture_id
     old_root = capture_runtime._service_root(old_capture_id)
     new_root = capture_runtime._service_root(capture_runtime.CAPTURE_ID)
     assert old_root != new_root
-    assert capture_runtime.LABEL.endswith("-v3")
+    assert capture_runtime.LABEL.endswith("-v4")
     pins = capture_runtime.source_bindings()
     assert "tools/brain_senses_gecko_interpreter_handoff_v1.py" in pins
-    assert "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v3.plist" in pins
+    assert "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v4.plist" in pins
     assert "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v2.plist" not in pins
     assert "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v1.plist" not in pins
-    plist = (REPO / "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v3.plist").read_text()
+    plist = (REPO / "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v4.plist").read_text()
     assert capture_runtime.CAPTURE_ID in plist
     assert capture_runtime.LABEL in plist
     temp = tempfile.TemporaryDirectory()
@@ -491,6 +493,58 @@ def test_scheduled_identity_failure_precedes_any_mutating_gate(
         os.close(root_fd)
 
 
+def test_publish_health_uses_independent_terminal_count(monkeypatch: pytest.MonkeyPatch) -> None:
+    summary = {
+        "intents": 4,
+        "terminal_count": 3,
+        "request_tail_sha256": "a" * 64,
+        "result_tail_sha256": "b" * 64,
+    }
+    monkeypatch.setattr(
+        capture_runtime.capture_verify,
+        "verify_capture_prefix",
+        lambda *_args: summary,
+    )
+
+    class Writer:
+        def lock(self, *_args: Any, **_kwargs: Any) -> Any:
+            return contextlib.nullcontext()
+
+    class Coordinator:
+        def _load_ledger(self) -> tuple[bytes, list[Any]]:
+            return b"ledger", []
+
+    guard = SimpleNamespace(
+        root_id="a" * 32,
+        volume_uuid="11111111-2222-3333-4444-555555555555",
+        revalidate=lambda: SimpleNamespace(available_bytes=1000),
+    )
+    store = SimpleNamespace(writer=Writer(), _path=lambda name: name, root="services/test")
+    captured: dict[str, Any] = {}
+    monkeypatch.setattr(
+        capture_runtime.v4,
+        "make_capacity_coordinator",
+        lambda *_args, **_kwargs: Coordinator(),
+    )
+
+    def publish(_writer: Any, _store: Any, **kwargs: Any) -> dict[str, Any]:
+        captured.update(kwargs)
+        return {"generation": 1}
+
+    monkeypatch.setattr(capture_runtime.capture_monitor, "publish", publish)
+    result = capture_runtime._publish_health(
+        store,
+        {"source_sha256": {}, "plan_sha256": "c" * 64},
+        guard,
+        lambda: 1_800_000_000 * NS,
+        status="healthy",
+        reason="none",
+    )
+    assert result["generation"] == 1
+    assert captured["request_count"] == 4
+    assert captured["result_count"] == 3
+
+
 class _CaptureStore:
     def __init__(self, policy: dict[str, Any], close_ns: int, wall: list[int]) -> None:
         self.root = "services/gecko-capture-only/test"
@@ -660,7 +714,7 @@ def test_capture_tick_waits_for_result_spacing_and_never_dispatches_after_deadli
         "verify_capture_prefix",
         lambda target, _plan: {
             "intents": len(target.intents),
-            "durable_results": len(target.terminals),
+            "terminal_count": len(target.terminals),
             "request_tail_sha256": "a" * 64,
             "result_tail_sha256": "b" * 64,
         },
@@ -712,7 +766,7 @@ def test_capture_tick_reports_provider_io_only_for_actual_dispatch(monkeypatch) 
         "verify_capture_prefix",
         lambda *_args: {
             "intents": 0,
-            "durable_results": 0,
+            "terminal_count": 0,
             "request_tail_sha256": "a" * 64,
             "result_tail_sha256": "b" * 64,
         },
@@ -759,7 +813,7 @@ def test_capture_tick_stops_after_rate_limit_or_provider_error(
         "verify_capture_prefix",
         lambda target, _plan: {
             "intents": len(target.intents),
-            "durable_results": len(target.terminals),
+            "terminal_count": len(target.terminals),
             "request_tail_sha256": "a" * 64,
             "result_tail_sha256": "b" * 64,
         },
