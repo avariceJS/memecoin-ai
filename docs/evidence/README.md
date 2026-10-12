@@ -31,6 +31,15 @@ contain large exact payloads, so open only the named artifact needed for a speci
   sealed / 9 unobserved windows, 4,865 structural-reference occurrences and 4,595 exact classes;
   it makes no extrapolation, absence, execution/effect, settlement, economic, lifecycle, PIT,
   training or admission claim. No provider I/O.
+- `external-v2-20261012T0600Z` raw structural-family triage: Kingston artifact
+  `derived/external-structural-family-triage-v1/external-v2-20261012T0600Z/structural-family-triage.json`
+  (20,259,829 bytes; SHA-256
+  `c5a83e4e65eb5227e7c2da16de4efb0a8365d21f6b008674f81ba04674b60ee0`) and create-only publication
+  receipt SHA-256 `ae6beb74e07035d00a289bd2b2eaa0c8eab5499da5527c7330ce5c9aebc51f02`. The 48 selected
+  blocks reconcile 4,865 references into 68 sample-local raw-prefix families against 18 pinned IDL
+  blobs; 14 families remain unresolved or ambiguous. All nine unobserved windows remain null.
+  Structural/documented shape only; no execution, semantics, economics, lifecycle, PIT, training,
+  admission, absence, or anomaly-rate claim. No provider I/O.
 - c3 sell23 destination lamport diagnostic v3-final:
   `pumpswap-sell23-c3-destination-lamport-diagnostic-v3-final-2026-10-12.json` (485 censored
   successes remain ambiguous; 68 exact-ledger rows and two failed references stay excluded. Ordered

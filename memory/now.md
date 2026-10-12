@@ -1,8 +1,10 @@
 # Current Project State
 
-**As of:** 2026-10-12 09:16Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`; `1ee7c8e54df105d6395cb647400e9dde65f71427` is clean and pushed to both
-`research/active` and `main`.
+**As of:** 2026-10-12 09:37Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`; base `c03534507ed26ce1ce0803e8dd04c4b2d758b043` is pushed to
+`origin/research/active`. Structural-family triage code, tests, and canonical documentation are
+currently uncommitted; the preceding verified baseline is `1ee7c8e54df105d6395cb647400e9dde65f71427`
+on both long-lived branches.
 Production, champion, protected evaluation, trading and Cortex remain untouched.
 
 ## Live boundaries
@@ -23,7 +25,7 @@ Production, champion, protected evaluation, trading and Cortex remain untouched.
   `target/.rustc_info.json`. Preserve the staged Cargo home/target; no retry, metadata, build or
   ProgramTest without another Sol review.
 - Current read-only host check: Kingston identity still matches the bound root/UUID and health is
-  `ready`, with 219,425,054,720 bytes available. The research-storage health LaunchAgent is loaded
+  `ready`; `df` reports 214,272,616 KiB available. The research-storage health LaunchAgent is loaded
   but idle. No Brain/Senses acquisition agent is loaded. Temporary launch-v3 rehearsal labels are
   unloaded; disabled overrides from earlier attempts were reset. The 06:00Z external-v2
   receipt retains 103 requests, four seals, frontier 455944206, zero unresolved buckets, STOP=false,
@@ -68,6 +70,14 @@ Production, champion, protected evaluation, trading and Cortex remain untouched.
   extrapolation, absence, economic/lifecycle, PIT, training or admission claim. No provider I/O.
   Artifact SHA-256 `b348ef424d26a3baa3b296ade34c136d7cac8ed428c803d3b3c2a3edc5c01a72`; publication
   receipt SHA-256 `ca8eacdd774efa298b3c98edd3cb67722c3e3eaa11862c7113060ca4c25be670`.
+- Offline structural-family triage reopened only the 48 selected blocks and reconciled all 4,865
+  references into 68 raw-prefix families against 18 pinned IDL blobs; 14 families remain unresolved
+  or ambiguous. Nine unobserved rows remain null. Kingston publication is create-only and replay
+  verified: 20,259,829 bytes, artifact SHA-256
+  `c5a83e4e65eb5227e7c2da16de4efb0a8365d21f6b008674f81ba04674b60ee0`, receipt SHA-256
+  `ae6beb74e07035d00a289bd2b2eaa0c8eab5499da5527c7330ce5c9aebc51f02`. Diagnostic shape only;
+  no semantic, execution, effect, economic, lifecycle, PIT, training or admission claim. No provider
+  I/O. Nineteen focused tests, Ruff, formatting and scoped Mypy pass.
   Focused projection/storage/writer/capacity tests pass (82); changed-file Ruff/format, smoke, and
   Kingston root verification pass. Full-suite collection needs `PYTHONPATH=.:src`; the broad run
   had 2,926 passed, 24 failures and 25 optional skips. It preceded the final projection fixes (now
@@ -79,11 +89,9 @@ Production, champion, protected evaluation, trading and Cortex remain untouched.
 
 ## Active horizons
 
-The current next horizon is offline structural-family triage of the 4,865 projected references:
-reopen only the 48 selected captured blocks through the existing verifier, recompute each raw
-instruction reference, and make a deterministic sample-local review queue against already pinned
-historical IDL blobs. IDL matches remain structural only. Preserve unknowns and all nine unobserved
-windows; no provider, Agave build, lease, runtime or economic admission follows from this horizon.
-After it, reassess economic candidate-position/native-settlement/buyExact25 gates and whether a new
-prospective acquisition lease has a distinct, source-bound case. c4 and the 06:00Z lease stay
-terminal; no replay or backfill.
+The next horizon is a versioned external-v2-specific sample-local unknown-review queue built from
+the immutable triage artifact and its 48 selected captures. Sol approved diagnostic categories,
+source/time joins, mutation tests, and create-only Kingston publication; it does not qualify a live
+anomaly monitor or a no-new-class rate. Economic candidate-position/native-settlement/buyExact25
+admission remains design-only pending a separately qualified runtime witness. No provider lease,
+Agave build, c4 replay, backfill, or Cortex work is authorized by these offline horizons.

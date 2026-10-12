@@ -649,6 +649,27 @@ receipt is `derived/pump-amm-structural-archive-projection-v1/external-v2-202610
 (SHA-256 `ca8eacdd774efa298b3c98edd3cb67722c3e3eaa11862c7113060ca4c25be670`). No provider I/O was
 performed.
 
+An offline structural-family pass then reopened only the 48 selected captured blocks and
+reconciled every projected reference by capture, signature, typed instruction path, status and raw
+instruction bytes. It groups references by the first up to eight raw bytes, full data length,
+account count, outer/inner context and transaction status; matching a pinned IDL discriminator is
+reported only as documented shape. The result contains 68 sample-local families, 4,865/4,865
+reconciled occurrences (4,176 successful, 689 failed, zero unknown), 4,595 underlying exact
+fingerprint classes, and 14 families unresolved or ambiguous across 18 pinned IDL versions. Each
+family has at most three deterministic representatives. All nine unobserved windows retain null
+metrics, and all output rows keep execution, effect, settlement and decision time unset. The
+descriptor-bound, create-only Kingston artifact is
+`derived/external-structural-family-triage-v1/external-v2-20261012T0600Z/structural-family-triage.json`
+(20,259,829 bytes; SHA-256
+`c5a83e4e65eb5227e7c2da16de4efb0a8365d21f6b008674f81ba04674b60ee0`); its publication receipt
+SHA-256 is `ae6beb74e07035d00a289bd2b2eaa0c8eab5499da5527c7330ce5c9aebc51f02`. A second invocation
+verified the existing publication without changing either file. This is a diagnostic over the
+selected sample: an IDL shape match does not verify semantics, and an unresolved prefix does not
+prove a new instruction. It establishes no execution, effect, economics, lifecycle, absence,
+point-in-time support, process support, training, or admission. No provider I/O occurred. The
+separate versioned external-v2 unknown-review adapter is the next bounded horizon; it can produce a
+sample-local diagnostic queue only, not a live monitor or anomaly-rate claim.
+
 A commit-bound `create_pool` feasibility census independently replayed those same 608 sealed
 selected blocks. The verifier reconciled 741,305 transactions, 1,613,839 outer and 961,070 inner
 instruction references, and 85,456 Pump AMM references to the venue-neutral ledger and structural
