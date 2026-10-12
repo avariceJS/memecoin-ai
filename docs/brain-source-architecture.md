@@ -2973,12 +2973,26 @@ snapshots preserve the same 103 requests, four reservations/intents/seals, event
 the callback changed no journal. At 06:28Z, the four sealed windows accounted for 144,392,483 measured
 raw/stored bytes against the 3,104,000,000-byte lease cap; provider charge remains unverified. Status
 classified 06:20Z as `expired_unobserved` after its window ended; by 06:28Z the cancelled-unstarted
-06:25Z window had expired the same way. The journal remains a verified prefix, not a completed lease:
+06:25Z window had expired the same way; at 06:33Z the 06:30Z window was also expired/unobserved.
+The journal remains a verified prefix, not a completed lease:
 no 06:20 replay,
 no later scheduled callbacks, no fabricated STOP/provider error/zero, and no successor eligibility.
+At 06:33Z Kingston still matched its pinned UUID/root, health was `ready`, and 220,613,636,096 bytes
+were free; the service subtree accounted for 158,588,928 allocated bytes across 435 files. This is
+about 176 MB of volume-free-space churn since the handoff snapshot, comfortably above the 50-GiB
+floor, and does not alter the early-unload decision.
 Receipt: [`06:00Z lease callback failure and unload`](evidence/brain-senses-external-v2-20261012T0600Z-callback-failure-unload.json).
 The lease remains time-bounded through 07:03Z for the separate fetch gate; wait for expiry, then
 independently verify terminal status and unload before the one Sol-approved fetch.
+
+The unrecoverable callback motivated a separately versioned, inactive launch-failure receipt writer
+for a future launcher revision. Its fixed-schema payload allowlists identifiers, times, phase, error
+class/reason, intent certainty and a verified journal-tail digest; it never serializes exception text
+or performs provider I/O. A descriptor-bound, create-only Kingston sibling sink has eight focused
+synthetic tests, including secret exclusion, idempotency/conflict, unchanged service manifest,
+forced detach and no fallback. It neither reads the journal nor obtains service locks: a future
+launcher must supply `verified_none` only after independent locked rereads. No APFS detach
+qualification or live-launch integration is claimed, and the frozen v2 launcher remains unchanged.
 
 The read-only source map then follows the v5 observer identity through Agave's adjacent commit,
 block-index, freeze, and root sites. It finds that execution IDs and commit-result vector order do not

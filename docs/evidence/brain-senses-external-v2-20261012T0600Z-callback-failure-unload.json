@@ -110,6 +110,23 @@
     ],
     "provider_charge_status": "unknown_unverified"
   },
+  "storage_snapshot": {
+    "captured_at_utc": "2026-10-12T06:33:16Z",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "volume_free_bytes": 220613636096,
+    "free_bytes_at_handoff": 220789817344,
+    "free_space_delta_since_handoff_bytes": 176181248,
+    "service_root_allocated_bytes": 158588928,
+    "service_root_file_count": 435,
+    "storage_health": "ready",
+    "floor_bytes": 53687091200,
+    "completion_expired_unobserved": [
+      "20261012T062000Z",
+      "20261012T062500Z",
+      "20261012T063000Z"
+    ]
+  },
   "interpretation": {
     "bucket_classification": "unobserved_callback_failure_unknown",
     "later_buckets_classification": "cancelled_unstarted",
