@@ -75,6 +75,7 @@ def _fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, dic
         "terminal_receipt_sha256": hashlib.sha256(terminal_raw).hexdigest(),
         "plist_path": str(plist_path),
         "plist_sha256": hashlib.sha256(plist_raw).hexdigest(),
+        "initialized_at_ns": minute - 900_000_000_000,
         "scheduled_minute_ns": minute,
         "expires_ns": minute + 60_000_000_000,
     }

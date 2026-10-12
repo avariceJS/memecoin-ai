@@ -55,6 +55,7 @@ _FIELDS = {
     "terminal_receipt_sha256",
     "plist_path",
     "plist_sha256",
+    "initialized_at_ns",
     "scheduled_minute_ns",
     "expires_ns",
 }
@@ -239,10 +240,13 @@ def _load_binding(activation_path: Path) -> tuple[dict[str, Any], dict[str, Any]
         "failed_lease_sibling_binding",
     )
     scheduled = binding["scheduled_minute_ns"]
+    initialized = binding["initialized_at_ns"]
     expires = binding["expires_ns"]
     _require(
-        type(scheduled) is int
+        type(initialized) is int
+        and type(scheduled) is int
         and scheduled % 60_000_000_000 == 0
+        and scheduled - initialized >= 900_000_000_000
         and type(expires) is int
         and scheduled < expires <= scheduled + 60_000_000_000,
         "schedule_bounds",
