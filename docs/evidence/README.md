@@ -28,6 +28,14 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `brain-senses-external-v2-missed-bootstrap-terminal-2026-10-12.json` (plan/clock/launch/review
   hashes, verified predecessor, terminal `missed_bootstrap`, zero provider requests/reservations,
   disabled/unloaded label, and no-retry/no-backfill disposition).
+- Helius external-v2 04:30Z pre-activation abort:
+  `brain-senses-external-v2-aborted-before-activation-2026-10-12T0430Z.json` (stale detach evidence
+  blocked activation; initialized root unchanged, zero requests/reservations/intents/seals/STOP, and
+  no replay).
+- Sparse-observation reference v1 publication:
+  `brain-senses-sparse-observation-reference-v1-2026-10-12.json` (307 role-separated entities,
+  53,080 bars, declared support intervals, explicit unknown slots and historical-only context; no
+  point-in-time eligibility).
 - No-provider calendar timing rehearsal at 03:20Z:
   `brain-senses-external-timing-rehearsal-2026-10-12T0320Z.json` (one launchd callback, exit 1 on
   `ModuleNotFoundError`, no status result or provider I/O, activation disabled/unloaded).
@@ -41,6 +49,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `senses-provider-account-readonly-2026-10-12T0342Z.json` (Helius plan, quota, usage and charges
   remain unavailable without JWT; Alchemy team aggregate 18,680 CU / $0.01 with no limit or
   workload attribution; includes a fresh validated dual-HTTPS clock pair).
+- Helius/Alchemy read-only account snapshot at 04:15Z:
+  `senses-provider-account-readonly-2026-10-12T0415Z.json` (Helius key configured but plan and usage
+  unavailable without JWT; Alchemy team aggregate 18,680 CU / $0.01, without account limit or
+  workload attribution; no RPC or account mutation).
 - Agave bounded dependency fetch attempt:
   `agave-dependency-fetch-attempt-2026-10-12.json` (stopped by the local symlink guard after Cargo
   created four internal links in the pinned Crossbeam checkout; the partial cache is preserved and

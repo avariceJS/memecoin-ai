@@ -56,8 +56,9 @@ def _activation_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[
             "schema": receipt_schema,
             "status": "passed",
         }
-    v2_path = tmp_path / "v2-detach.json"
-    monkeypatch.setattr(launch, "V2_DETACH_RECEIPT_PATH", str(v2_path))
+    v2_path = tmp_path / launch.V2_DETACH_RECEIPT_PATH
+    v2_path.parent.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(launch, "V2_DETACH_RECEIPT_ROOT", tmp_path)
     v2_detach = {
         "schema": "external-v2-descriptor-detach-integration-qualification",
         "schema_version": 2,
@@ -131,14 +132,14 @@ def _activation_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[
     }
     v2_raw = _save(v2_path, v2_detach)
     writer_receipts["descriptor_detach_v2"] = {
-        "path": str(v2_path),
+        "path": launch.V2_DETACH_RECEIPT_PATH,
         "sha256": engine.sha(v2_raw),
         "schema": v2_detach["schema"],
         "status": "passed",
     }
     writer = {
         "schema": "brain-senses-external-v2-writer-qualification-set",
-        "schema_version": 2,
+        "schema_version": 3,
         "status": "passed",
         "scope": (
             "v1 writer mechanics and Kingston scratch are reused; "
@@ -279,7 +280,7 @@ def _refresh_detach_qualification_refs(activation_path: Path) -> None:
     roles = manifest["roles"]
     writer = roles["writer"]
     v2_ref = writer["receipts"]["descriptor_detach_v2"]
-    v2_raw = Path(v2_ref["path"]).read_bytes()
+    v2_raw = (activation_path.parent / v2_ref["path"]).read_bytes()
     v2_ref["sha256"] = engine.sha(v2_raw)
     sol_ref = roles["sol_decision"]
     sol_path = Path(sol_ref["path"])
@@ -287,6 +288,32 @@ def _refresh_detach_qualification_refs(activation_path: Path) -> None:
     sol["qualification_refs"]["writer_v1_and_v2"] = engine.sha(verify.canonical(writer))
     sol_raw = _save(sol_path, sol)
     sol_ref["sha256"] = engine.sha(sol_raw)
+    manifest_raw = _save(manifest_path, manifest)
+    review["qualification_manifest_sha256"] = engine.sha(manifest_raw)
+    review_raw = _save(review_path, review)
+    activation["review_receipt_sha256"] = engine.sha(review_raw)
+    _save(activation_path, activation)
+
+
+def _repin_qualification(
+    activation_path: Path,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], Path, Path]:
+    activation = verify.decode(activation_path.read_bytes())
+    review_path = Path(activation["review_receipt_path"])
+    review = verify.decode(review_path.read_bytes())
+    manifest_path = Path(review["qualification_manifest_path"])
+    manifest = verify.decode(manifest_path.read_bytes())
+    return activation, review, manifest, review_path, manifest_path
+
+
+def _save_repin_qualification(
+    activation_path: Path,
+    activation: dict[str, Any],
+    review: dict[str, Any],
+    manifest: dict[str, Any],
+    review_path: Path,
+    manifest_path: Path,
+) -> None:
     manifest_raw = _save(manifest_path, manifest)
     review["qualification_manifest_sha256"] = engine.sha(manifest_raw)
     review_raw = _save(review_path, review)
@@ -361,7 +388,7 @@ def test_detach_gate_rejects_forged_disposable_qualification_before_runtime(
     )
     manifest = verify.decode(manifest_path.read_bytes())
     v2_ref = manifest["roles"]["writer"]["receipts"]["descriptor_detach_v2"]
-    v2_path = Path(v2_ref["path"])
+    v2_path = tmp_path / v2_ref["path"]
     receipt = verify.decode(v2_path.read_bytes())
     if mutation == "disposable_source_hash":
         receipt["tested_disposable_source_sha256"] = "f" * 64
@@ -388,6 +415,101 @@ def test_detach_gate_rejects_forged_disposable_qualification_before_runtime(
 
     monkeypatch.setattr(launch, "_load_private_endpoint", loader)
     with pytest.raises(StorageError, match=expected):
+        launch.execute(
+            "run",
+            activation_path=activation_path,
+            config_path=config,
+            guard_factory=guard_factory,
+        )
+    assert loader_calls == 0
+    assert guard_calls == 0
+
+
+@pytest.mark.parametrize("mutation", ["path_traversal", "stale_v1_receipt", "writer_set_v2"])
+def test_writer_set_v3_requires_allowlisted_versioned_receipt_before_runtime(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str
+) -> None:
+    activation_path, config, _ = _activation_files(tmp_path, monkeypatch)
+    monkeypatch.setattr(launch, "runtime_gate", lambda *args, **kwargs: None)
+    activation, review, manifest, review_path, manifest_path = _repin_qualification(activation_path)
+    writer = manifest["roles"]["writer"]
+    if mutation == "path_traversal":
+        writer["receipts"]["descriptor_detach_v2"]["path"] = (
+            "docs/evidence/../../private/stale.json"
+        )
+    elif mutation == "stale_v1_receipt":
+        writer["receipts"]["descriptor_detach_v2"]["path"] = (
+            "docs/evidence/external-v2-descriptor-detach-integration-qualification-2026-10-12.json"
+        )
+    else:
+        writer["schema_version"] = 2
+    _save_repin_qualification(
+        activation_path, activation, review, manifest, review_path, manifest_path
+    )
+
+    loader_calls = 0
+    guard_calls = 0
+
+    def loader() -> None:
+        nonlocal loader_calls
+        loader_calls += 1
+
+    def guard_factory(*args: Any, **kwargs: Any) -> None:
+        nonlocal guard_calls
+        guard_calls += 1
+        raise AssertionError("storage must not open after rejected writer qualification")
+
+    monkeypatch.setattr(launch, "_load_private_endpoint", loader)
+    with pytest.raises(StorageError):
+        launch.execute(
+            "run",
+            activation_path=activation_path,
+            config_path=config,
+            guard_factory=guard_factory,
+        )
+    assert loader_calls == 0
+    assert guard_calls == 0
+
+
+@pytest.mark.parametrize("mutation", ["symlink", "wrong_digest", "wrong_source"])
+def test_writer_set_v3_reopens_exact_receipt_without_following_or_rebinding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str
+) -> None:
+    activation_path, config, _ = _activation_files(tmp_path, monkeypatch)
+    monkeypatch.setattr(launch, "runtime_gate", lambda *args, **kwargs: None)
+    activation, review, manifest, review_path, manifest_path = _repin_qualification(activation_path)
+    ref = manifest["roles"]["writer"]["receipts"]["descriptor_detach_v2"]
+    receipt_path = tmp_path / launch.V2_DETACH_RECEIPT_PATH
+    if mutation == "symlink":
+        replacement = tmp_path / "replacement.json"
+        replacement.write_bytes(receipt_path.read_bytes())
+        receipt_path.unlink()
+        receipt_path.symlink_to(replacement)
+    elif mutation == "wrong_digest":
+        ref["sha256"] = "f" * 64
+    else:
+        receipt = verify.decode(receipt_path.read_bytes())
+        receipt["source_sha256"] = {"unbound.py": "a" * 64}
+        receipt_raw = _save(receipt_path, receipt)
+        ref["sha256"] = engine.sha(receipt_raw)
+    _save_repin_qualification(
+        activation_path, activation, review, manifest, review_path, manifest_path
+    )
+
+    loader_calls = 0
+    guard_calls = 0
+
+    def loader() -> None:
+        nonlocal loader_calls
+        loader_calls += 1
+
+    def guard_factory(*args: Any, **kwargs: Any) -> None:
+        nonlocal guard_calls
+        guard_calls += 1
+        raise AssertionError("storage must not open after rejected detach receipt")
+
+    monkeypatch.setattr(launch, "_load_private_endpoint", loader)
+    with pytest.raises((StorageError, OSError)):
         launch.execute(
             "run",
             activation_path=activation_path,

@@ -42,7 +42,7 @@ from tools.research_storage_detach_qualify_v1 import (
 
 REPO = Path(__file__).resolve().parents[1]
 RECEIPT_PATH = (
-    "docs/evidence/external-v2-descriptor-detach-integration-qualification-2026-10-12.json"
+    "docs/evidence/external-v2-descriptor-detach-integration-qualification-2026-10-12-v2.json"
 )
 KINGSTON_UUID = "8f8f1081-9be4-4914-9111-75f1b90255bf"
 DATA_ROOT = "ResearchData"

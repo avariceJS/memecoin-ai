@@ -88,8 +88,9 @@ _V1_WRITER_RECEIPTS = {
     ),
 }
 V2_DETACH_RECEIPT_PATH = (
-    "docs/evidence/external-v2-descriptor-detach-integration-qualification-2026-10-12.json"
+    "docs/evidence/external-v2-descriptor-detach-integration-qualification-2026-10-12-v2.json"
 )
+V2_DETACH_RECEIPT_ROOT = REPO
 V2_DETACH_HARNESS_PATH = "tools/brain_senses_external_detach_qualify_v2.py"
 _ROLE_SCHEMAS = {
     "clock": "brain-senses-external-v2-clock-qualification",
@@ -395,7 +396,7 @@ def _verify_qualification_manifest(manifest: Any, plan: Mapping[str, Any]) -> No
         and set(writer)
         == {"schema", "schema_version", "status", "scope", "mount_identity", "receipts"}
         and writer.get("schema") == "brain-senses-external-v2-writer-qualification-set"
-        and writer.get("schema_version") == 2
+        and writer.get("schema_version") == 3
         and writer.get("status") == "passed"
         and writer.get("scope")
         == (
@@ -454,7 +455,7 @@ def _verify_qualification_manifest(manifest: Any, plan: Mapping[str, Any]) -> No
         and verify._digest(v2_ref.get("sha256")),
         "v2_detach_receipt_ref",
     )
-    v2_raw = _read(REPO / V2_DETACH_RECEIPT_PATH)
+    v2_raw = _read(V2_DETACH_RECEIPT_ROOT / V2_DETACH_RECEIPT_PATH)
     _require(_sha(v2_raw) == v2_ref["sha256"], "v2_detach_receipt_hash")
     v2_receipt = verify.decode(v2_raw)
     tested_identity = v2_receipt.get("tested_disposable_identity")

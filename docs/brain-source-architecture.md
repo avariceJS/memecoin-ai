@@ -1444,23 +1444,27 @@ interval, complete request/cursor accounting, explicit failure/unsupported range
 provenance, and an independently reconciled coverage boundary. Provider disappearance is not a
 lifecycle event. The existing real sparse source `81f7c74b…4b10c3e0` has 170/170 support facts
 marked `unknown`; its 38,705 retained events prove neither complete event counts nor inactivity.
-The offline sparse-observation-reference v1 compiler now builds role-local histories from the
-qualified row indexes without opening capture response bodies or combining train/evaluation
-payloads. Separate in-memory compile-and-verify runs reconcile 170 train entities / 38,705 bars and
-137 evaluation entities / 14,375 bars, across 1,060,992 declared 5-minute support slots; 1,007,912
-slots remain unobserved/unknown. The existing 32-consecutive baseline remains 8,792 train and 6,465
-evaluation rows (15,257 total, across 79 entities). The compiler retains request failures separately
-(one failed evaluation window; the remaining 1,227 indexed windows are qualified/unknown support),
-uses only earlier event-time bars in histories, and marks point-in-time eligibility false. A row's
-receipt is full-bar availability evidence only when it is at or after the half-open bar end; historical
-online availability remains unknown. Volume units are null with an unverified status. No large
-reference artifact has been published; these structural counts do not establish complete coverage,
-inactivity, lifecycle, settlement, labels, edge, or training admission.
+The offline sparse-observation-reference v1 compiler builds role-local histories from qualified row
+indexes without opening capture response bodies or combining train/evaluation payloads. The
+descriptor-bound Kingston artifact is independently verified and records 170 train entities /
+38,705 bars and 137 evaluation entities / 14,375 bars, across 1,060,992 declared 5-minute support
+slots; 1,007,912 slots remain unobserved/unknown. The existing 32-consecutive baseline remains
+8,792 train and 6,465 evaluation rows (15,257 total, across 79 entities). The compiler retains
+request failures separately (one failed evaluation window; the remaining 1,227 indexed windows are
+qualified/unknown support), uses only earlier event-time bars in histories, and marks point-in-time
+eligibility false. A row's receipt is full-bar availability evidence only when it is at or after the
+half-open bar end; historical online availability remains unknown. Volume units are null with an
+unverified status. Receipt: [`sparse-observation reference v1`](evidence/brain-senses-sparse-observation-reference-v1-2026-10-12.json).
+These structural counts do not establish complete coverage, inactivity, lifecycle, settlement,
+labels, edge, or training admission.
 The scheduled 04:30Z external-v2 initialization was archived and disabled before activation because
 its detach qualification was stale. The initialized root remained byte-identical and independent
 verification found no request, reservation, intent, seal, or STOP; the window was not replayed. The
 failure and reconciliation evidence is recorded in
 [`04:30Z v2 pre-activation abort`](evidence/brain-senses-external-v2-aborted-before-activation-2026-10-12T0430Z.json).
+At 04:15Z, read-only Helius status still had no JWT session, leaving plan and usage unknown; Alchemy's
+team aggregate remained 18,680 CU / $0.01 without an account limit or workload attribution. No
+provider request or account mutation occurred. Receipt: [`04:15Z provider account snapshot`](evidence/senses-provider-account-readonly-2026-10-12T0415Z.json).
 The 2026-10-09 Alchemy work qualifies bounded RPC behavior, positive signature references,
 transaction response capture, one-slot block response consistency across two providers, and a
 replicable block-inventory receipt. A later two-slot finalized interval matches provider-reported
