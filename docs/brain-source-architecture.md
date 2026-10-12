@@ -3723,13 +3723,18 @@ at their pinned maximum response size, and includes a prospective request before
 descriptor-bound Kingston adapter now discovers all known direct and collection roots, verifies
 absence, holds each root's shared lock while independently replaying it, hashes every root's files,
 and rechecks the root census after replay. Unknown service entries, malformed pilot identities,
-unrecognized legacy plan failures, or a changing census fail closed. A present direct v5 root or
-`capture-only-v2/<release-id>` scout-chain root is explicitly rejected until its distinct journal
-has an independent usage verifier; it must never be parsed as a v4 plan. Three old capture-only
-roots with stale source bindings are accepted only through a narrow inert-plan check: no activation
-or attempt artifacts, false authority, and valid pinned policy/plan hashes. Clock-bound v3
-forensic replays count only their verified requests toward usage; diagnostic-only status does not
-qualify source semantics.
+unrecognized legacy plan failures, or a changing census fail closed. A present direct v5 root remains
+unsupported. The separate `capture-only-v2/<release-id>` scout-chain root now has an independent
+read-only usage replay: it binds release, policy and plan chain; enforces exact artifact/file closure;
+replays v2 intents, dispatches, raw responses, coordinator reservations/settlement and confirmations;
+and projects unresolved intents at their pinned maximum. An initialized plan-only root is
+`verified_none` only when it has no attempt artifacts. The adapter verifies the release storage
+identity against the descriptor and coordinator policy, holds a nonblocking shared root lock, and
+fails closed on malformed or changing evidence. This replay grants no dispatch authority and does
+not qualify source semantics. Three old capture-only roots with stale source bindings are accepted
+only through a narrow inert-plan check: no activation or attempt artifacts, false authority, and
+valid pinned policy/plan hashes. Clock-bound v3 forensic replays count only their verified requests
+toward usage; diagnostic-only status does not qualify source semantics.
 
 The immutable [`22:00Z shared-usage observation`](evidence/gecko-shared-usage-observation-2026-10-12T2200Z.json)
 records the 22:01:03Z read-only snapshot: 24 same-provider attempts across v3 active, three v3
@@ -3738,14 +3743,16 @@ verified absent. All attempts had terminal response evidence, totaling 18,869 ra
 A synthetic one-request/16-KiB prospective reserve would use 25/576 daily requests and 35,253 of
 10 MiB; the rolling-30-day assessment also remained within caps. This was diagnostic only: no lane
 dispatch lock was held, no provider I/O occurred, and admission was not authorized. Provider charge
-remains unknown/unverified. The adapter and assessor are not wired into the active v4 collector or a
-v5 provider runtime; v5 needs its own usage verifier and must run census, replay, and prospective
-assessment under the shared Gecko lane lock continuously through terminal persistence. The
-future request journal must acquire v5's root lock only after the lane lock; other present roots
-use nonblocking shared locks. Because v4 does not include future v5 dispatches in its pacing check,
-v4 must be sealed and unloaded before any v5 provider pilot. Existing v4 budget logic still omits
-capture-only roots, so it is not safe as shared cross-version admission authority. Physical
-allocation remains the shared coordinator's responsibility.
+remains unknown/unverified. The v2 usage verifier and descriptor-bound inventory adapter are
+implemented and synthetic-tested, but they are not wired into the active v4 collector and do not
+provide a v2 writer or provider runtime. A future v2 runtime must hold the shared Gecko lane lease
+from full census/admission through terminal persistence, then acquire its own root lock
+nonblocking and revalidate the pinned prefix before reserving or dispatching; all v2 writers must
+take the lane lock first. Cross-version crash/race qualification, runtime recovery, release/source
+binding, and a bounded forward-only pilot remain open. Before any v2 provider pilot, v4 must be
+sealed and unloaded because its pacing check does not include future v2 dispatches. Existing v4
+budget logic still omits capture-only roots, so it is not shared cross-version admission authority.
+Physical allocation remains the shared coordinator's responsibility.
 
 The Agave build runner v1 remains rejected. A separately versioned default-deny Seatbelt fixture
 v2 passed synthetic parent/child read, write, network, symlink, and detached-child cleanup tests,

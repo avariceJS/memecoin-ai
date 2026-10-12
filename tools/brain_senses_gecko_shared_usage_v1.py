@@ -250,6 +250,11 @@ def assess_usage(
         "schema": "brain-senses-gecko-shared-usage-assessment-v1",
         "inventory_sha256": sha256(canonical_json(inventory_core)),
         "root_inventory_sha256": next(iter(inventory_hashes)),
+        "checked_ns": checked_ns,
+        "expected_roots": required,
+        "root_snapshot_sha256s": [snapshot["snapshot_sha256"] for snapshot in snapshots],
+        "prospective_request_id": prospective_request_id,
+        "prospective_maximum_response_bytes": prospective_maximum_response_bytes,
         "utc_day": {
             "request_count_including_prospective": day_requests,
             "maximum_request_count": scout.MAX_INTENTS_PER_UTC_DAY,

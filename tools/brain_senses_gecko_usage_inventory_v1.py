@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import fcntl
 import hashlib
+import json
 import os
 import re
 import stat
@@ -12,7 +13,13 @@ from typing import Any, cast
 
 from memecoin_research_storage import _open_relative_directory
 from tools import (
+    brain_senses_capacity_coordinator_v2 as capacity,
+)
+from tools import (
     brain_senses_gecko_capture_only_runtime_v1 as capture_runtime,
+)
+from tools import (
+    brain_senses_gecko_capture_only_v2_verify as capture_v2_verify,
 )
 from tools import (
     brain_senses_gecko_capture_only_verify_v1 as capture_verify,
@@ -52,7 +59,7 @@ class InventoryError(ValueError):
 
 
 def canonical_json(value: Any) -> bytes:
-    return cast(bytes, shared_usage.canonical_json(value))
+    return shared_usage.canonical_json(value)
 
 
 def sha256(payload: bytes) -> str:
@@ -148,6 +155,22 @@ def _json_rows(store: Any, directory: str) -> list[dict[str, Any]]:
     names = store.files(directory)
     _require(all(name.endswith(".json") for name in names), "gecko_journal_file_unexpected")
     return [store.read_json(f"{directory}/{name}") for name in names]
+
+
+def _canonical_jsonl_records(raw: bytes, label: str) -> list[dict[str, Any]]:
+    _require(not raw or raw.endswith(b"\n"), f"{label}_torn")
+    records: list[dict[str, Any]] = []
+    for line in raw.splitlines(keepends=True):
+        try:
+            row = json.loads(line)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise InventoryError(f"{label}_json_invalid") from exc
+        _require(
+            type(row) is dict and canonical_json(row) == line,
+            f"{label}_noncanonical",
+        )
+        records.append(row)
+    return records
 
 
 def _raw_responses(store: Any, terminals: Sequence[Mapping[str, Any]]) -> dict[str, bytes]:
@@ -310,12 +333,146 @@ def _load_present_root(
     root: str,
     root_inventory_sha256: str,
 ) -> dict[str, Any]:
-    if root == f"{SERVICE_ROOT}/v5" or root.startswith(f"{SERVICE_ROOT}/capture-only-v2/"):
-        # The v5 scout-chain journal is not the v4 capture-only plan contract.
+    if root == f"{SERVICE_ROOT}/v5":
         raise InventoryError("gecko_v5_usage_verifier_unavailable")
     lock_fd = _shared_root_lock(writer, root)
     try:
-        if root.startswith(f"{SERVICE_ROOT}/capture-only-"):
+        if root.startswith(f"{SERVICE_ROOT}/capture-only-v2/"):
+            store = runtime_v4.DescriptorLaneStore(writer, guard=None, root=root)
+            allowed = {
+                ".runner.lock",
+                "binding.json",
+                "policy.json",
+                "chain",
+                "intents",
+                "captures",
+                "results",
+                "clocks",
+                "skips",
+                "dispatch.jsonl",
+                "result-confirmations.jsonl",
+            }
+            root_entries = set(writer.list_names(root))
+            _require(root_entries <= allowed, "gecko_v2_root_entry_unknown")
+            _require(
+                {"binding.json", "policy.json", "chain"} <= root_entries,
+                "gecko_v2_root_incomplete",
+            )
+            binding = store.read_json("binding.json")
+            policy = store.read_json("policy.json")
+            chain_names = store.files("chain")
+            _require(
+                all(re.fullmatch(r"[0-9]{8}\.json", name) for name in chain_names)
+                and list(chain_names)
+                == [f"{index:08d}.json" for index in range(len(chain_names))],
+                "gecko_v2_chain_file_closure",
+            )
+            chain_records = [store.read_json(f"chain/{name}") for name in chain_names]
+            intent_names = store.files("intents") if writer.exists(f"{root}/intents") else ()
+            result_names = store.files("results") if writer.exists(f"{root}/results") else ()
+            skip_names = store.files("skips") if writer.exists(f"{root}/skips") else ()
+            intents = _json_rows(store, "intents") if intent_names else []
+            terminals = _json_rows(store, "results") if result_names else []
+            skips = _json_rows(store, "skips") if skip_names else []
+            _require(
+                intent_names
+                == tuple(sorted(f"{row.get('request_id')}.json" for row in intents))
+                and result_names
+                == tuple(sorted(f"{row.get('request_id')}.json" for row in terminals)),
+                "gecko_v2_result_file_closure",
+            )
+            _require(
+                skip_names == tuple(
+                    sorted(
+                        f"{row.get('plan_sequence')}-{row.get('slot_index'):02d}.json"
+                        for row in skips
+                        if type(row.get("slot_index")) is int
+                    )
+                ),
+                "gecko_v2_skip_file_closure",
+            )
+            clocks = {
+                f"{root}/clocks/{name}": writer.read_bytes(
+                    store._path(f"clocks/{name}"), max_bytes=64 * 1024
+                )
+                for name in (store.files("clocks") if writer.exists(f"{root}/clocks") else ())
+            }
+            raw = _raw_responses(store, terminals)
+            _require(
+                set(raw)
+                == {
+                    row["request_id"]
+                    for row in terminals
+                    if row.get("response_sha256") is not None
+                },
+                "gecko_v2_capture_file_closure",
+            )
+            _require(
+                (store.files("captures") if writer.exists(f"{root}/captures") else ())
+                == tuple(sorted(f"{request_id}.bin" for request_id in raw)),
+                "gecko_v2_capture_file_closure",
+            )
+            dispatch_raw = (
+                writer.read_bytes(store._path("dispatch.jsonl"), max_bytes=16 * 1024 * 1024)
+                if writer.exists(store._path("dispatch.jsonl"))
+                else b""
+            )
+            confirmation_raw = (
+                writer.read_bytes(
+                    store._path("result-confirmations.jsonl"), max_bytes=8 * 1024 * 1024
+                )
+                if writer.exists(store._path("result-confirmations.jsonl"))
+                else b""
+            )
+            _require(
+                (not dispatch_raw or dispatch_raw.endswith(b"\n"))
+                and (not confirmation_raw or confirmation_raw.endswith(b"\n")),
+                "gecko_v2_hash_chain_torn",
+            )
+            try:
+                dispatch_records = _canonical_jsonl_records(dispatch_raw, "gecko_v2_dispatch")
+                v2_confirmations = _canonical_jsonl_records(
+                    confirmation_raw, "gecko_v2_confirmation"
+                )
+                with writer.lock(capacity.LOCK_PATH, blocking=False):
+                    coordinator_policy_raw = writer.read_bytes(
+                        capacity.POLICY_PATH, max_bytes=1_000_000
+                    )
+                    coordinator_policy = json.loads(coordinator_policy_raw)
+                    _require(
+                        capacity.canonical(coordinator_policy) == coordinator_policy_raw
+                        and coordinator_policy.get("root_binding") == binding.get("storage")
+                        and binding.get("storage", {}).get("device") == writer.device
+                        and binding.get("storage", {}).get("inode")
+                        == os.fstat(writer.root_fd).st_ino,
+                        "gecko_v2_coordinator_policy_binding",
+                    )
+                    coordinator_raw = writer.read_bytes(
+                        capacity.LEDGER_PATH, max_bytes=64_000_000
+                    )
+                    coordinator_events = capacity._verify_ledger(coordinator_raw)
+                    _require(
+                        coordinator_events[0]["fields"].get("policy_sha256")
+                        == capacity.sha256(coordinator_policy_raw),
+                        "gecko_v2_coordinator_policy_hash",
+                    )
+            except (ValueError, KeyError, TypeError, capacity.CoordinatorError) as exc:
+                raise InventoryError("gecko_v2_coordinator_replay_failed") from exc
+            summary = capture_v2_verify.verify_capture_prefix_v2(
+                root=root,
+                binding=binding,
+                policy=policy,
+                chain_records=chain_records,
+                intents=intents,
+                dispatch_records=dispatch_records,
+                terminals=terminals,
+                raw_responses=raw,
+                clock_files=clocks,
+                confirmations=v2_confirmations,
+                coordinator_events=coordinator_events,
+                skips=skips,
+            )
+        elif root.startswith(f"{SERVICE_ROOT}/capture-only-"):
             store = runtime_v4.DescriptorLaneStore(writer, guard=None, root=root)
             plan = store.read_json("plan.json")
             try:
@@ -407,6 +564,17 @@ def _load_present_root(
                 summary.get("status") in {"verified_prefix", "diagnostic_only"},
                 f"gecko_journal_unverified:{root}",
             )
+        if root.startswith(f"{SERVICE_ROOT}/capture-only-v2/"):
+            attempts = summary["usage_attempts"]
+            prefix_hash = _root_files_sha256(writer, root)
+            status = "verified_prefix" if attempts else "verified_none"
+            return shared_usage.make_verified_root_snapshot(
+                root=root,
+                status=status,
+                root_inventory_sha256=root_inventory_sha256,
+                source_prefix_sha256=prefix_hash,
+                attempts=attempts,
+            )
         plan_policy = plan["policy"]
         protocol = plan_policy.get("protocol")
         maximum_response_bytes = (
@@ -424,15 +592,12 @@ def _load_present_root(
         attempts = _attempt_summaries(intents, terminals, cast(int, maximum_response_bytes))
         prefix_hash = _root_files_sha256(writer, root)
         status = "verified_prefix" if attempts else "verified_none"
-        return cast(
-            dict[str, Any],
-            shared_usage.make_verified_root_snapshot(
-                root=root,
-                status=status,
-                root_inventory_sha256=root_inventory_sha256,
-                source_prefix_sha256=prefix_hash,
-                attempts=attempts,
-            ),
+        return shared_usage.make_verified_root_snapshot(
+            root=root,
+            status=status,
+            root_inventory_sha256=root_inventory_sha256,
+            source_prefix_sha256=prefix_hash,
+            attempts=attempts,
         )
     finally:
         fcntl.flock(lock_fd, fcntl.LOCK_UN)

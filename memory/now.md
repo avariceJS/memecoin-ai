@@ -1,7 +1,7 @@
 # Current Project State
 
-**As of:** 2026-10-12 22:08Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD `20da8cb` (also pushed to `main` and `origin`). Worktree contains user-owned
+**As of:** 2026-10-12 22:23Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, HEAD `bceed7d` (also pushed to `main` and `origin`). Worktree contains user-owned
 Agave/build-guard and Gecko v1 dirty files; preserve them and stage only task-owned paths. Production,
 champion, protected samples, real trading, and Cortex remain untouched.
 
@@ -19,9 +19,10 @@ champion, protected samples, real trading, and Cortex remain untouched.
   original bytes are preserved and corrected by the indexed erratum. Latest descriptor-bound replay
   verifies an 11-intent timely prefix; one 21:30Z pool is a durable `missed_dispatch` skip, with no
   retry/backfill. Kingston currently has about 202.4 GiB free.
-  Descriptor-bound parent inventory: `v3`, three `v3-pilots`, one `v4-pilot`, four `capture-only-v1`
-  roots; `v4` and `capture-only-v2` are absent. Existing v4 budget code includes its v3 pilots but
-  does not include capture-only roots; v5 dispatch needs a complete replay-verified inventory.
+  Descriptor-bound parent inventory at 22:06Z: `v3`, three `v3-pilots`, one `v4-pilot`, four
+  `capture-only-v1` roots; `v4` and `capture-only-v2` are absent. Existing v4 budget code includes
+  its v3 pilots but does not include capture-only roots; v5 dispatch needs a complete replay-verified
+  inventory.
 - Sol approved a separate v5 six-pool rotating scout: cycle 170 train pools; up to two incumbent
   retention slots for exactly four selected buckets when the prior bucket is received, durable, and
   eligible new-open; new candidates rank by availability then pinned hash. No retry/backfill or
@@ -34,14 +35,17 @@ champion, protected samples, real trading, and Cortex remain untouched.
   request. The 22:01Z immutable observation replayed 24 attempts (18,869 response bytes); a fresh
   22:06Z read-only spot check replayed 27 attempts (active capture-only root now 17) and still passed
   daily/rolling caps with a synthetic 16-KiB candidate. Neither observation had the lane lock or
-  dispatch authority. Present v5 roots now fail closed until a separate scout-chain usage verifier
-  exists; both direct `v5` and `capture-only-v2/<release-id>` fail closed. Sol has directed per-request
+  dispatch authority. A separate v2 request-journal verifier and descriptor-bound inventory route
+  now replay plan-only roots as `verified_none`, enforce exact artifact closure, bind coordinator
+  reservations/terminal confirmations, and project unresolved intents at 16 KiB. Synthetic replay,
+  inventory, coordinator, and assessment tests pass (45); Ruff and scoped Mypy pass. Direct `v5`
+  remains fail-closed. Sol has directed per-request
   v5 census/replay and prospective assessment under one `gecko` lane lease through terminal
-  persistence. Inventory uses nonblocking shared locks; v5 then obtains its own exclusive root lock
-  nonblocking and revalidates the pinned prefix. Before any v5 provider pilot, v4 must be sealed and
-  unloaded because it does not share future-v5 pacing state. Next: define/implement the v5 attempt
-  journal and independent usage projection, then test races and crash recovery; current v4 remains
-  untouched.
+  persistence. Inventory uses nonblocking shared locks; future v2 writer must then obtain its own
+  exclusive root lock nonblocking and revalidate the pinned prefix. Next horizon: implement the
+  lane-aware v2 writer/runtime and forced cross-version detach/race/recovery tests. No v2 provider
+  runtime is active; current v4 remains untouched and loaded. Before any v2 provider pilot, v4 must
+  be sealed and unloaded because it does not share future-v2 pacing state.
 - Helius v5 structural collector and health monitor remain loaded. Shared Kingston lock can serialize
   ticks while provider I/O is pending; monitor latency, do not interrupt ambiguous requests.
   Alchemy aggregate charge last verified as $0.01 / 18,680 CU without limit/workload attribution;
