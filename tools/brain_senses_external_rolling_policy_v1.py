@@ -22,15 +22,18 @@ MAX_EPOCH_HOURS = 24
 MAX_REQUESTS_PER_FRAME = 34
 MAX_EPOCH_REQUESTS = 1 + MAX_EPOCH_HOURS * MAX_REQUESTS_PER_FRAME
 MAX_RESPONSE_BYTES = 32_000_000
-MAX_EPOCH_STORED_BYTES = 4_000_000_000
+MAX_EPOCH_RESPONSE_BYTES = 4_000_000_000
+MAX_EPOCH_PHYSICAL_BYTES = 4_000_000_000
 MAX_ROLLING_REQUESTS = 25_000
 MAX_ROLLING_CREDITS = 250_000
-MAX_ROLLING_STORED_BYTES = 120_000_000_000
+MAX_ROLLING_RESPONSE_BYTES = 120_000_000_000
+MAX_ROLLING_PHYSICAL_BYTES = 120_000_000_000
 CONSERVATIVE_CREDITS_PER_REQUEST = 10
 MAX_REQUESTS_PER_SECOND = 4
 DISK_FLOOR_BYTES = 50 * 2**30
 PEAK_WRITE_MARGIN_BYTES = 290_000_000
 METADATA_MARGIN_BYTES = 32_000_000
+PER_REQUEST_METADATA_RESERVE_BYTES = 128_000
 WINDOW_WIDTH_NS = 5 * MINUTE_NS
 
 POLICY_ID = "helius-finalized-inventory-hourly-rolling-v1"
@@ -54,11 +57,45 @@ class Window:
 
 @dataclass(frozen=True)
 class RollingUsage:
-    """Conservative provider and storage use measured from immutable receipts."""
+    """Conservative provider, response, and allocated storage use from receipts."""
 
     requests: int
     modeled_credits: int
-    stored_bytes: int
+    response_bytes: int
+    allocated_bytes: int
+
+
+def policy_document() -> dict[str, Any]:
+    """Return the canonical immutable contract stored at the Kingston service root."""
+    return {
+        "schema": "brain-senses-external-rolling-policy-v1",
+        "policy_id": POLICY_ID,
+        "provider_alias": "helius-free",
+        "endpoint_origin": "https://mainnet.helius-rpc.com",
+        "epoch_hours": MAX_EPOCH_HOURS,
+        "requests_per_frame": MAX_REQUESTS_PER_FRAME,
+        "max_epoch_requests": MAX_EPOCH_REQUESTS,
+        "max_response_bytes": MAX_RESPONSE_BYTES,
+        "max_epoch_response_bytes": MAX_EPOCH_RESPONSE_BYTES,
+        "max_epoch_physical_bytes": MAX_EPOCH_PHYSICAL_BYTES,
+        "max_rolling_requests": MAX_ROLLING_REQUESTS,
+        "max_rolling_modeled_credits": MAX_ROLLING_CREDITS,
+        "max_rolling_response_bytes": MAX_ROLLING_RESPONSE_BYTES,
+        "max_rolling_physical_bytes": MAX_ROLLING_PHYSICAL_BYTES,
+        "rolling_window_ns": ROLLING_WINDOW_NS,
+        "conservative_credits_per_attempt": CONSERVATIVE_CREDITS_PER_REQUEST,
+        "max_requests_per_second": MAX_REQUESTS_PER_SECOND,
+        "disk_floor_bytes": DISK_FLOOR_BYTES,
+        "peak_write_margin_bytes": PEAK_WRITE_MARGIN_BYTES,
+        "metadata_margin_bytes": METADATA_MARGIN_BYTES,
+        "per_request_metadata_reserve_bytes": PER_REQUEST_METADATA_RESERVE_BYTES,
+        "window_width_ns": WINDOW_WIDTH_NS,
+        "schedule": "one_fresh_finalized_anchor_then_24_hourly_frames",
+        "missed_window": "expired_unobserved_no_backfill",
+        "ambiguous_request": "possibly_spent_no_replay",
+        "epoch_expiry": None,
+        "continuity_claim": False,
+    }
 
 
 def _integer(value: Any, *, minimum: int = 0) -> bool:
@@ -130,24 +167,37 @@ def request_admissible(
     usage: RollingUsage,
     *,
     epoch_requests: int,
-    epoch_stored_bytes: int,
+    epoch_response_bytes: int,
+    epoch_allocated_bytes: int,
     now_ns: int,
     response_reservation_bytes: int = MAX_RESPONSE_BYTES,
+    physical_write_reservation_bytes: int = MAX_RESPONSE_BYTES + PER_REQUEST_METADATA_RESERVE_BYTES,
 ) -> bool:
-    """Apply bounded per-request reservations without requiring a billing meter."""
-    values = (usage.requests, usage.modeled_credits, usage.stored_bytes)
+    """Apply response and physical-allocation reservations without a billing meter."""
+    values = (
+        usage.requests,
+        usage.modeled_credits,
+        usage.response_bytes,
+        usage.allocated_bytes,
+    )
     if not all(_integer(value) for value in values):
         raise PolicyError("rolling_usage_invalid")
-    if not _integer(epoch_requests) or not _integer(epoch_stored_bytes):
+    if not _integer(epoch_requests) or not _integer(epoch_response_bytes):
         raise PolicyError("epoch_usage_invalid")
+    if not _integer(epoch_allocated_bytes):
+        raise PolicyError("epoch_allocation_invalid")
     if not _integer(now_ns, minimum=1) or not _integer(response_reservation_bytes, minimum=1):
         raise PolicyError("reservation_invalid")
+    if not _integer(physical_write_reservation_bytes, minimum=1):
+        raise PolicyError("physical_reservation_invalid")
     return (
         epoch_requests < MAX_EPOCH_REQUESTS
         and usage.requests < MAX_ROLLING_REQUESTS
         and usage.modeled_credits + CONSERVATIVE_CREDITS_PER_REQUEST <= MAX_ROLLING_CREDITS
-        and usage.stored_bytes + response_reservation_bytes <= MAX_ROLLING_STORED_BYTES
-        and epoch_stored_bytes + response_reservation_bytes <= MAX_EPOCH_STORED_BYTES
+        and usage.response_bytes + response_reservation_bytes <= MAX_ROLLING_RESPONSE_BYTES
+        and usage.allocated_bytes + physical_write_reservation_bytes <= MAX_ROLLING_PHYSICAL_BYTES
+        and epoch_response_bytes + response_reservation_bytes <= MAX_EPOCH_RESPONSE_BYTES
+        and epoch_allocated_bytes + physical_write_reservation_bytes <= MAX_EPOCH_PHYSICAL_BYTES
     )
 
 
@@ -156,7 +206,7 @@ def conservative_rolling_usage(intents: list[dict[str, Any]], *, now_ns: int) ->
     if not _integer(now_ns, minimum=1) or not isinstance(intents, list):
         raise PolicyError("rolling_intents_invalid")
     cutoff = now_ns - ROLLING_WINDOW_NS
-    requests = credits = stored = 0
+    requests = credits = response_bytes = allocated_bytes = 0
     for row in intents:
         if not isinstance(row, dict):
             raise PolicyError("rolling_intent_invalid")
@@ -167,13 +217,29 @@ def conservative_rolling_usage(intents: list[dict[str, Any]], *, now_ns: int) ->
         if cutoff <= at_ns <= now_ns:
             requests += 1
             credits += CONSERVATIVE_CREDITS_PER_REQUEST
-            size = row.get("stored_response_bytes")
+            size = row.get("response_bytes")
             if size is None:
                 # An intent without a conclusive result reserves one maximum response.
-                stored += MAX_RESPONSE_BYTES
+                response_bytes += MAX_RESPONSE_BYTES
             else:
                 if not _integer(size) or size > MAX_RESPONSE_BYTES:
                     raise PolicyError("rolling_intent_bytes_invalid")
                 assert type(size) is int
-                stored += size
-    return RollingUsage(requests=requests, modeled_credits=credits, stored_bytes=stored)
+                response_bytes += size
+            allocation = row.get("allocated_bytes")
+            if allocation is None:
+                # Includes one max response plus request, receipt, result, and journal overhead.
+                allocated_bytes += MAX_RESPONSE_BYTES + PER_REQUEST_METADATA_RESERVE_BYTES
+            else:
+                if not _integer(allocation) or allocation > (
+                    MAX_RESPONSE_BYTES + PER_REQUEST_METADATA_RESERVE_BYTES
+                ):
+                    raise PolicyError("rolling_intent_allocation_invalid")
+                assert type(allocation) is int
+                allocated_bytes += allocation
+    return RollingUsage(
+        requests=requests,
+        modeled_credits=credits,
+        response_bytes=response_bytes,
+        allocated_bytes=allocated_bytes,
+    )

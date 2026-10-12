@@ -3530,12 +3530,15 @@ false. No real capture or Agave trace was consumed.
 Sol selected a new Helius-only forward collector with independent epoch roots, starting at a fresh
 finalized `getSlot` anchor at the next UTC hour. Each 24-hour epoch has 24 hourly inventory-first
 frames (one `getSlot`, one `getBlocks`, up to 16 selected `getBlock` reads and 16 signature checks),
-for at most 817 attempted requests and 4,000,000,000 stored bytes. Polling is frequent and
-idempotent; an expired window becomes an explicit unobserved gap and is never backfilled. A rolling
-30-day accounting window caps dispatch at 25,000 requests, 250,000 conservatively modeled Helius
-credits, and 120,000,000,000 stored bytes. These credit values are a local upper-bound model, not an
-account meter or charge claim. The per-request pace is at most four requests per second; free-space
-floor and peak-write margins remain enforced. The 30-day window is not a service expiry: a fresh
+for at most 817 attempted requests, 4,000,000,000 response bytes, and 4,000,000,000 physically
+allocated bytes. Polling is frequent and idempotent; an expired window becomes an explicit
+unobserved gap and is never backfilled. A rolling 30-day accounting window caps dispatch at 25,000
+requests, 250,000 conservatively modeled Helius credits, 120,000,000,000 response bytes, and
+120,000,000,000 physically allocated bytes. Physical allocation includes payloads, journals, plans,
+receipts, and directory metadata; measure it under the bound service root and reserve a bounded
+maximum response plus metadata before each intent. These credit values are a local upper-bound
+model, not an account meter or charge claim. The per-request pace is at most four requests per
+second; free-space floor and peak-write margins remain enforced. The 30-day window is not a service expiry: a fresh
 independent epoch may start after exact terminal verification, and the loaded supervisor remains
 eligible to continue while all safety and rolling-budget gates pass. A cap pause resumes only with
 headroom and a new future anchor.
