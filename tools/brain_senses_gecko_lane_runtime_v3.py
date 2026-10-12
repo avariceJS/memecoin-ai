@@ -35,6 +35,7 @@ from tools import brain_senses_external_clock_v1 as clock  # noqa: E402
 from tools import brain_senses_gecko_lane_engine_v3 as engine  # noqa: E402
 from tools import brain_senses_gecko_lane_live_sources_v2 as live_sources  # noqa: E402
 from tools import brain_senses_gecko_lane_policy_v3 as offline  # noqa: E402
+from tools import brain_senses_gecko_lane_verify_v4 as independent_v4  # noqa: E402
 from tools.brain_senses_external_writer_v1 import (  # noqa: E402
     DescriptorWriter,
     canonical_json,
@@ -58,6 +59,10 @@ MINIMUM_DURABLE_RESULT_SPACING_NS = 20 * offline.NS
 MAX_LANE_DISPATCHES_PER_60_SECONDS = 3
 RELEASE_TEST_NODES = (
     "tests/test_brain_senses_external_writer_v1.py::test_detach_after_revalidation_stays_on_held_volume",
+    "tests/test_brain_senses_gecko_lane_runtime_v3.py::test_four_pool_tick_uses_descriptor_store_spacing_and_causal_durable_receipts",
+    "tests/test_brain_senses_gecko_lane_runtime_v3.py::test_live_plan_pins_intent_v4_verifier_and_source_closure",
+    "tests/test_brain_senses_gecko_lane_runtime_v3.py::test_independent_intent_v4_rejects_clock_hash_path_time_terminal_and_closure_mutations",
+    "tests/test_brain_senses_gecko_lane_runtime_v3.py::test_terminal_error_stops_or_advances_by_live_policy_without_retry",
     "tests/test_brain_senses_gecko_lane_runtime_v3.py::test_restart_never_replays_spent_request_and_marks_missing_pool_count",
     "tests/test_brain_senses_capacity_coordinator_v2.py::test_recovery_releases_only_absent_pre_intent_and_never_replays_existing_intent",
     "tests/test_brain_senses_capacity_coordinator_v2.py::test_service_recovery_releases_only_absent_target_and_detects_orphan_outcome",
@@ -86,6 +91,7 @@ def source_bindings() -> dict[str, str]:
         "tools/brain_senses_gecko_lane_live_sources_v2.py",
         "tools/brain_senses_gecko_lane_policy_v3.py",
         "tools/brain_senses_gecko_lane_verify_v3.py",
+        "tools/brain_senses_gecko_lane_verify_v4.py",
         "tools/brain_senses_capacity_coordinator_v2.py",
         "tools/brain_senses_external_clock_v1.py",
         "tools/brain_senses_external_writer_v1.py",
@@ -156,6 +162,7 @@ def compile_live_plan(
             "global_research_cap_per_rolling_minute": 5,
             "clock_record_schema": clock.CLOCK_SCHEMA,
             "clock_max_age_seconds": 300,
+            "intent_schema": independent_v4.INTENT_SCHEMA_V4,
             "pool_order": "rotate_frozen_selection_by_bucket_index",
             "restart_scope": "current_open_bucket_only_with_proven_no_intent",
             "calendar_expiry": "none",
@@ -221,6 +228,7 @@ def verify_live_plan(plan: Mapping[str, Any]) -> None:
         "global_research_cap_per_rolling_minute": 5,
         "clock_record_schema": clock.CLOCK_SCHEMA,
         "clock_max_age_seconds": 300,
+        "intent_schema": independent_v4.INTENT_SCHEMA_V4,
         "pool_order": "rotate_frozen_selection_by_bucket_index",
         "restart_scope": "current_open_bucket_only_with_proven_no_intent",
         "calendar_expiry": "none",
@@ -890,7 +898,7 @@ class DescriptorLaneStore:
             if not name.endswith(".json"):
                 raise GeckoRuntimeError("intent_inventory_unexpected")
             intent = self.read_json(f"intents/{name}")
-            if intent.get("schema") != "brain-senses-gecko-intent-v3":
+            if intent.get("schema") != independent_v4.INTENT_SCHEMA_V4:
                 raise GeckoRuntimeError("intent_artifact_invalid")
             request_id = intent.get("request_id")
             if not isinstance(request_id, str):
@@ -1261,6 +1269,7 @@ def _run_current_bucket_locked(
             holder: dict[str, capacity.Reservation] = reservation_holder,
         ) -> engine.ReservationResult:
             if clock_record is not None:
+                intent["schema"] = independent_v4.INTENT_SCHEMA_V4
                 intent["clock_path"] = clock_path
                 intent["clock_sha256"] = clock_sha256
                 intent["decision_monotonic_ns"] = monotonic_ns()
@@ -1447,7 +1456,7 @@ def verify_live_store(
     *,
     require_clock: bool = False,
 ) -> dict[str, Any]:
-    """Independently replay request/result/capture bindings for the v3 journal prefix."""
+    """Replay exact clock-bound intent-v4 request/result/capture journal prefix."""
     verify_live_plan(plan)
     store._verify_guard(plan)
     intents: dict[str, dict[str, Any]] = {}
@@ -1465,15 +1474,12 @@ def verify_live_store(
             "intent_sha256",
         }
         clock_fields = {"clock_path", "clock_sha256", "decision_monotonic_ns"}
-        if frozenset(intent) not in {
-            frozenset(expected_fields),
-            frozenset(expected_fields | clock_fields),
-        }:
+        if set(intent) != expected_fields | clock_fields:
             raise GeckoRuntimeError("intent_shape_invalid")
         core = dict(intent)
         claimed = core.pop("intent_sha256")
         if (
-            intent["schema"] != "brain-senses-gecko-intent-v3"
+            intent["schema"] != independent_v4.INTENT_SCHEMA_V4
             or claimed != sha256(canonical_json(core))
             or intent["provider_charge_units"] is not None
             or intent["provider_charge_status"] != "unknown_unverified"
@@ -1499,7 +1505,7 @@ def verify_live_store(
                 )
             except clock.ClockError as exc:
                 raise GeckoRuntimeError("intent_clock_progress") from exc
-        elif require_clock:
+        elif require_clock or plan["dispatch"]["intent_schema"] == independent_v4.INTENT_SCHEMA_V4:
             raise GeckoRuntimeError("intent_clock_missing")
         expected = engine.request_for_bucket(
             dict(plan["policy"]), request["pool_id"], request["bucket_close_ns"]
@@ -1731,6 +1737,37 @@ def verify_live_store(
             raise GeckoRuntimeError("rolling_rate_cap_exceeded")
         if index and row["dispatch_ns"] < dispatches[index - 1]["dispatch_ns"]:
             raise GeckoRuntimeError("dispatch_order_regression")
+    clock_files = {
+        store._path(f"clocks/{name}"): store.writer.read_bytes(
+            store._path(f"clocks/{name}"), max_bytes=64 * 1024
+        )
+        for name in store.files("clocks")
+    }
+    raw_responses = {
+        request_id: store.writer.read_bytes(
+            store._path(f"captures/{request_id}.bin"), max_bytes=32 * 1024 * 1024
+        )
+        for request_id, result in results.items()
+        if result.get("response_sha256") is not None
+    }
+    try:
+        independent = independent_v4.verify_journal(
+            dict(plan["policy"]),
+            list(intents.values()),
+            list(results.values()),
+            raw_responses,
+            root=store.root,
+            clock_files=clock_files,
+            skips=[
+                row
+                for name in store.files("skips")
+                if (row := store.read_json(f"skips/{name}")).get("schema")
+                == "brain-senses-gecko-skip-v3"
+            ],
+            dispatch_records=records,
+        )
+    except (TypeError, ValueError) as exc:
+        raise GeckoRuntimeError(f"independent_intent_v4_replay:{exc}") from exc
     return {
         "status": "verified_prefix",
         "intents": len(intents),
@@ -1748,6 +1785,9 @@ def verify_live_store(
             for row in intents.values()
         ),
         "clock_artifacts": len(referenced_clocks),
+        "independent_intent_contract": independent["intent_contract"],
+        "release_qualification_allowed": independent["release_qualification_allowed"],
+        "missing_pool_buckets_unknown": independent["missing_pool_buckets_unknown"],
     }
 
 

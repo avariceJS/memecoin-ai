@@ -91,6 +91,7 @@ def verify_journal(
     skips: Sequence[dict[str, Any]] = (),
     scheduled_closes_ns: Sequence[int] | None = None,
     dispatch_records: Sequence[dict[str, Any]] = (),
+    clear_transient_cooldowns: bool = False,
 ) -> dict[str, Any]:
     verify_policy(policy)
     intent_by_id: dict[str, dict[str, Any]] = {}
@@ -343,6 +344,8 @@ def verify_journal(
         ):
             raise ValueError("gecko_charge_claim")
         expected_cooldown = cooldown_until_ns(status, receipt, terminal.get("retry_after_seconds"))
+        if clear_transient_cooldowns and status in {STATUS_PROVIDER_ERROR, STATUS_TRANSPORT}:
+            expected_cooldown = (None, None)
         if (
             terminal.get("cooldown_until_ns"),
             terminal.get("cooldown_reason"),
@@ -354,6 +357,9 @@ def verify_journal(
             STATUS_PROVIDER_ERROR,
             STATUS_TRANSPORT,
         }:
+            if clear_transient_cooldowns and status in {STATUS_PROVIDER_ERROR, STATUS_TRANSPORT}:
+                terminal_by_id[request_id] = terminal
+                continue
             if (
                 status == STATUS_CLIENT_ERROR
                 or expected_cooldown[1] == "review_required_rate_limit"

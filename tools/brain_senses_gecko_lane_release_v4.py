@@ -116,6 +116,7 @@ def _open_store(writer: DescriptorWriter, guard: Any, pilot_id: str):
     summary = runtime.verify_live_store(store, plan, require_clock=True)
     if (
         summary["intents"] != 4
+        or summary.get("release_qualification_allowed") is not True
         or summary["dispatches"] != 4
         or summary["durable_results"] != 4
         or summary["possibly_spent"] != 0

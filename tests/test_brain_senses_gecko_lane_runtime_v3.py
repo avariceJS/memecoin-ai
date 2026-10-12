@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import os
 import sys
 import tempfile
@@ -64,6 +65,7 @@ from tools import brain_senses_external_clock_v1 as clock  # noqa: E402
 from tools import brain_senses_gecko_lane_live_sources_v2 as live_sources  # noqa: E402
 from tools import brain_senses_gecko_lane_release_v4 as release_v4  # noqa: E402
 from tools import brain_senses_gecko_lane_runtime_v3 as runtime_module  # noqa: E402
+from tools import brain_senses_gecko_lane_verify_v4 as independent_v4  # noqa: E402
 from tools.brain_senses_gecko_lane_engine_v3 import (  # noqa: E402  # noqa: E402
     FetchResult,
     request_for_bucket,
@@ -353,6 +355,34 @@ def test_live_plan_and_activation_are_exactly_bound_and_non_authorizing_by_defau
         )
 
 
+def test_live_plan_pins_intent_v4_verifier_and_source_closure():
+    plan = compile_live_plan(
+        policy(),
+        pilot_id=PILOT_ID,
+        root_id="a" * 32,
+        volume_uuid="11111111-2222-3333-4444-555555555555",
+        source_map=_source_map(),
+    )
+    assert plan["dispatch"]["intent_schema"] == "brain-senses-gecko-intent-v4"
+    assert "tools/brain_senses_gecko_lane_verify_v4.py" in plan["source_sha256"]
+
+    changed_schema = copy.deepcopy(plan)
+    changed_schema["dispatch"]["intent_schema"] = "brain-senses-gecko-intent-v3"
+    core = dict(changed_schema)
+    core.pop("plan_sha256")
+    changed_schema["plan_sha256"] = sha256(canonical(core))
+    with pytest.raises(GeckoRuntimeError, match="live_dispatch_policy"):
+        verify_live_plan(changed_schema)
+
+    changed_source = copy.deepcopy(plan)
+    changed_source["source_sha256"]["tools/brain_senses_gecko_lane_verify_v4.py"] = "0" * 64
+    core = dict(changed_source)
+    core.pop("plan_sha256")
+    changed_source["plan_sha256"] = sha256(canonical(core))
+    with pytest.raises(GeckoRuntimeError, match="live_source_map"):
+        verify_live_plan(changed_source)
+
+
 def test_writer_inode_must_equal_the_guarded_data_root():
     temp, writer, guard, store, plan = setup_store()
     other = tempfile.TemporaryDirectory()
@@ -452,7 +482,6 @@ def test_live_plan_derives_three_per_minute_and_twenty_second_result_spacing():
 def test_four_pool_tick_uses_descriptor_store_spacing_and_causal_durable_receipts():
     temp, writer, _guard, store, plan = setup_store()
     try:
-        coordinator = FakeCoordinator(store)
         close = 1_800_000_000 * NS
         clock = [close + 61 * NS]
 
@@ -472,28 +501,7 @@ def test_four_pool_tick_uses_descriptor_store_spacing_and_causal_durable_receipt
             assert timeout == 20
             return FetchResult(200, raw_empty(), {})
 
-        report = run_current_bucket(
-            plan,
-            {
-                "schema": ACTIVATION_SCHEMA,
-                "pilot_id": plan["pilot_id"],
-                "schema_version": 4,
-                "plan_sha256": plan["plan_sha256"],
-                "source_sha256": plan["source_sha256"],
-                "root_id": plan["storage"]["root_id"],
-                "volume_uuid": plan["storage"]["volume_uuid"],
-                "activation_authorized": True,
-                "provider_io": True,
-                "qualification_status": "passed",
-                "release_preflight_sha256": "0" * 64,
-                "launchd_callback_sha256": "0" * 64,
-            },
-            store,
-            coordinator,
-            now_ns=now,
-            wait_until=wait_until,
-            fetch_once=fetch,
-        )
+        report = run_bucket_fixture(store, plan, close, fetch)
         assert len(calls) == 4
         assert report["attempted_pool_ids"] == rotated_pool_order(policy(), close)
         assert report["missing_pool_count"] == 0
@@ -515,6 +523,96 @@ def test_four_pool_tick_uses_descriptor_store_spacing_and_causal_durable_receipt
         verified = verify_live_store(store, plan)
         assert verified["intents"] == verified["durable_results"] == 4
         assert verified["possibly_spent"] == 0
+        assert verified["independent_intent_contract"] == "brain-senses-gecko-intent-v4"
+        assert verified["release_qualification_allowed"] is True
+        assert all(
+            row["schema"] == "brain-senses-gecko-intent-v4"
+            and set(row)
+            == {
+                "schema",
+                "request_id",
+                "request",
+                "decision_ns",
+                "provider_charge_units",
+                "provider_charge_status",
+                "intent_sha256",
+                "clock_path",
+                "clock_sha256",
+                "decision_monotonic_ns",
+            }
+            for row in (store.read_json(f"intents/{name}") for name in store.files("intents"))
+        )
+    finally:
+        writer.close()
+        temp.cleanup()
+
+
+def test_independent_intent_v4_rejects_clock_hash_path_time_terminal_and_closure_mutations():
+    temp, writer, _guard, store, plan = setup_store()
+    try:
+        close = 1_800_000_000 * NS
+        run_bucket_fixture(store, plan, close, lambda *_: FetchResult(200, raw_empty(), {}))
+        intents = [store.read_json(f"intents/{name}") for name in store.files("intents")]
+        terminals = [store.read_json(f"results/{name}") for name in store.files("results")]
+        raw = {
+            row["request_id"]: writer.read_bytes(
+                store._path(f"captures/{row['request_id']}.bin"), max_bytes=32 * 1024 * 1024
+            )
+            for row in terminals
+        }
+        clocks = {
+            store._path(f"clocks/{name}"): writer.read_bytes(
+                store._path(f"clocks/{name}"), max_bytes=64 * 1024
+            )
+            for name in store.files("clocks")
+        }
+
+        def replay(changed_intents=intents, changed_terminals=terminals, changed_clocks=clocks):
+            return independent_v4.verify_journal(
+                plan["policy"],
+                changed_intents,
+                changed_terminals,
+                raw,
+                root=store.root,
+                clock_files=changed_clocks,
+                dispatch_records=store.read_dispatch_records(),
+            )
+
+        assert replay()["release_qualification_allowed"] is True
+        for field, value, reason in (
+            ("clock_sha256", "0" * 64, "gecko_intent_v4_clock_hash"),
+            (
+                "clock_path",
+                f"{store.root}/clocks/{close + 900 * NS}-00.json",
+                "gecko_intent_v4_clock_path",
+            ),
+            ("decision_monotonic_ns", 0, "gecko_intent_v4_clock_progress"),
+        ):
+            mutated = copy.deepcopy(intents)
+            mutated[0][field] = value
+            core = dict(mutated[0])
+            core.pop("intent_sha256")
+            mutated[0]["intent_sha256"] = sha256(canonical(core))
+            with pytest.raises(ValueError, match=reason):
+                replay(mutated)
+
+        with pytest.raises(ValueError, match="gecko_terminal_v4_intent_binding"):
+            mutated_terminals = copy.deepcopy(terminals)
+            mutated_terminals[0]["intent_sha256"] = "f" * 64
+            replay(changed_terminals=mutated_terminals)
+        with pytest.raises(ValueError, match="gecko_intent_v4_duplicate"):
+            replay([*intents, copy.deepcopy(intents[0])])
+        with pytest.raises(ValueError, match="gecko_clock_file_closure"):
+            replay(
+                changed_clocks={
+                    **clocks,
+                    f"{store.root}/clocks/{close}-99.json": next(iter(clocks.values())),
+                }
+            )
+        with pytest.raises(ValueError, match="gecko_intent_v4_shape"):
+            mutated = copy.deepcopy(intents)
+            mutated[0]["unreviewed_extension"] = True
+            replay(mutated)
     finally:
         writer.close()
         temp.cleanup()
@@ -541,28 +639,7 @@ def test_terminal_error_stops_or_advances_by_live_policy_without_retry(status: i
             calls.append(request["request_id"])
             return FetchResult(status, b"{}", {})
 
-        report = run_current_bucket(
-            plan,
-            {
-                "schema": ACTIVATION_SCHEMA,
-                "pilot_id": plan["pilot_id"],
-                "schema_version": 4,
-                "plan_sha256": plan["plan_sha256"],
-                "source_sha256": plan["source_sha256"],
-                "root_id": plan["storage"]["root_id"],
-                "volume_uuid": plan["storage"]["volume_uuid"],
-                "activation_authorized": True,
-                "provider_io": True,
-                "qualification_status": "passed",
-                "release_preflight_sha256": "0" * 64,
-                "launchd_callback_sha256": "0" * 64,
-            },
-            store,
-            coordinator,
-            now_ns=now,
-            wait_until=wait_until,
-            fetch_once=fetch,
-        )
+        report = run_bucket_fixture(store, plan, close, fetch)
         if status == 500:
             assert len(calls) == 3
             assert report["stop_reason"] == "three_consecutive_transient_failures"
@@ -598,6 +675,10 @@ def test_terminal_error_stops_or_advances_by_live_policy_without_retry(status: i
             assert resumed["status"] == "manual_review_stop"
             assert resumed["provider_io"] is False
         verify_live_store(store, plan)
+        if status == 500:
+            partial = verify_live_store(store, plan)
+            assert partial["release_qualification_allowed"] is False
+            assert len(partial["missing_pool_buckets_unknown"]) == 1
     finally:
         writer.close()
         temp.cleanup()
@@ -610,13 +691,20 @@ def test_restart_never_replays_spent_request_and_marks_missing_pool_count():
         close = 1_800_000_000 * NS
         request = request_for_bucket(policy(), POOL_ROWS[0]["pool_id"], close)
         request_id = request["request_id"]
+        clock_record = make_clock_record(close)
+        clock_path = store._path(f"clocks/{close}-00.json")
+        clock_bytes = canonical(clock_record)
+        writer.create(clock_path, clock_bytes)
         intent = {
-            "schema": "brain-senses-gecko-intent-v3",
+            "schema": "brain-senses-gecko-intent-v4",
             "request_id": request_id,
             "request": request,
             "decision_ns": close + 61 * NS,
             "provider_charge_units": None,
             "provider_charge_status": "unknown_unverified",
+            "clock_path": clock_path,
+            "clock_sha256": sha256(clock_bytes),
+            "decision_monotonic_ns": clock_record["monotonic_ns"] + NS,
         }
         intent["intent_sha256"] = sha256(canonical(intent))
         writer.create(f"{store.root}/intents/{request_id}.json", canonical(intent))
@@ -1301,7 +1389,7 @@ def test_release_preflight_requires_installed_plist_to_match_pinned_template(tmp
     installed = tmp_path / "gecko.plist"
     installed.write_bytes(plist_bytes)
     monkeypatch.setattr(release_v4, "INSTALLED_PLIST", installed)
-    assert release_v4._verify_plist("9c90e69cf8104df4acd532a3f2a70a31") == sha256(plist_bytes)
+    assert release_v4._verify_plist("f2808f76ab004e09ba6aa22e7d4d50a2") == sha256(plist_bytes)
     installed.write_bytes(plist_bytes + b" ")
     with pytest.raises(release_v4.ReleaseError, match="installed_launchd_plist_mismatch"):
-        release_v4._verify_plist("9c90e69cf8104df4acd532a3f2a70a31")
+        release_v4._verify_plist("f2808f76ab004e09ba6aa22e7d4d50a2")

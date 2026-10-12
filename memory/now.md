@@ -1,10 +1,11 @@
 # Current Project State
 
-**As of:** 2026-10-12 18:08Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD `a7e95eadacb8715c1e2712192ad1dd881eeb061e`, pushed to origin. `main` remains
-`3dab3a36cccaa5913fdfa697b054a17181de3dd0`. Worktree includes in-progress Gecko v4 release-gate,
-candidate-position envelope v2, and user-owned Agave/build-guard work; stage only the intended Senses
-files. Production, champion, protected samples, trading, and Cortex remain untouched.
+**As of:** 2026-10-12 18:31Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, HEAD `1737a8b9365d7ff5a7fa1f36f601c979960a88ab`, pushed to origin. `main` remains
+`3dab3a36cccaa5913fdfa697b054a17181de3dd0`. Current work adds independent Gecko clock-bound intent-v4
+verification and release gating; not yet committed. Preserve the unrelated user-owned Agave and
+build-guard dirty files. Production, champion, protected samples, trading, and Cortex remain
+untouched.
 
 ## Prospective acquisition
 
@@ -14,14 +15,18 @@ files. Production, champion, protected samples, trading, and Cortex remain untou
 - `ai.memecoin.brain.senses.external-rolling-v5` is loaded in `gui/501`, on a 60-second cadence,
   `RunAtLoad`, without calendar expiry. Its latest verified anchor contains one finalized
   `getSlot` capture and coordinator linkage; it proves structural acquisition only, not OHLCV.
-- Gecko's 17:15Z pilot and later 17:45Z attempt are terminal. The latter was sealed
-  diagnostic-only before provider I/O because its pinned plist lacked the required pilot ID.
-  Runtime/plist/release-builder changes now implement a v4 two-stage preflight → status-only
-  LaunchAgent callback → activation gate. Focused writer-detach, recovery, runtime, release, and
-  candidate-position tests pass (89 total). Gecko LaunchAgent is not loaded. Freeze/commit the
-  implementation before compiling a fresh pilot under static ID
-  `9c90e69cf8104df4acd532a3f2a70a31`; only use a new prospective bucket, then replay, qualify
-  preflight, load for callback, verify callback, activate, and verify persistent collection.
+- Gecko 17:15Z and 17:45Z attempts are terminal. The sealed 18:15Z pilot made three actual
+  requests and left one pool unknown. Descriptor-bound, read-only forensic replay validates its
+  three clock-bound v3 intents/results; receipt SHA-256 is
+  `180f35690443c89ec6289e998c8ae5912aa67a9c48538af2a809a220de92e827`. It is diagnostic-only.
+  The old verifier/runtime mismatch is closed in the working tree by exact independent intent-v4
+  verification, a v4 source/plan pin, clock-file closure, and terminal/hash replay. Focused runtime,
+  independent-verifier, coordinator, and descriptor-writer suites pass (88 tests); smoke and
+  changed-path Ruff checks pass. Gecko LaunchAgent remains unloaded. The next candidate ID is
+  `f2808f76ab004e09ba6aa22e7d4d50a2` in the canonical plist; it has not been initialized.
+  Next: finish mutation/partial-bucket/source-pin/recovery checks, freeze and commit this scope,
+  then initialize a new future-only pilot under a different static ID. Do not load or activate
+  unless the four-pool receipt and v4 release preflight pass.
 - No Alchemy research PAYG endpoint is configured. Account-level Helius billing remains
   unknown/unverified and is not a blocker. Stop on provider quota/error, ambiguous request, storage,
   clock, provenance, or recovery-integrity faults.
