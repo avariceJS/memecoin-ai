@@ -31,6 +31,7 @@ from tools import brain_senses_external_clock_v1 as clock  # noqa: E402
 from tools import brain_senses_external_launch_v2 as launch  # noqa: E402
 from tools import brain_senses_gecko_capture_only_monitor_v1 as capture_monitor  # noqa: E402
 from tools import brain_senses_gecko_capture_only_verify_v1 as capture_verify  # noqa: E402
+from tools import brain_senses_gecko_interpreter_handoff_v1 as interpreter_handoff  # noqa: E402
 from tools import brain_senses_gecko_lane_engine_v4 as engine  # noqa: E402
 from tools import brain_senses_gecko_lane_policy_v4 as offline  # noqa: E402
 from tools import brain_senses_gecko_lane_runtime_v4 as v4  # noqa: E402
@@ -41,10 +42,13 @@ from tools.brain_senses_external_writer_v1 import (  # noqa: E402
 )
 
 CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
-CAPTURE_ID = "7f0b3297f86746f0b0c3863f20a11d4b"
+CAPTURE_ID = "9d7d89fc934c46f3a8a9a5b6d7c4e201"
 CAPTURE_ROOT_PREFIX = "services/gecko-market-v1/capture-only-v1"
 PREDECESSOR_PILOT_ID = "11f28c4965aa427d9658cd3adeadc746"
-LABEL = "ai.memecoin.brain.senses.gecko-capture-only-v2"
+LABEL = "ai.memecoin.brain.senses.gecko-capture-only-v3"
+PLIST_PATH = REPO / "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v3.plist"
+HANDOFF_PATH = Path.home() / ".config/brain-research/gecko-capture-only-v3-interpreter-handoff.json"
+HANDOFF_SOURCE_KEY = "host/gecko-capture-only-v3-interpreter-handoff.json"
 PLAN_SCHEMA = "brain-senses-gecko-capture-only-v1-plan"
 CALLBACK_SCHEMA = "brain-senses-gecko-capture-only-v1-callback"
 RELEASE_SCHEMA = "brain-senses-gecko-capture-only-v1-release"
@@ -65,8 +69,9 @@ def source_bindings() -> dict[str, str]:
         "tools/brain_senses_gecko_capture_only_runtime_v1.py",
         "tools/brain_senses_gecko_capture_only_verify_v1.py",
         "tools/brain_senses_gecko_capture_only_monitor_v1.py",
+        "tools/brain_senses_gecko_interpreter_handoff_v1.py",
         "tests/test_brain_senses_gecko_capture_only_v1.py",
-        "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v2.plist",
+        "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v3.plist",
     )
     return {
         **v4.source_bindings(),
@@ -84,8 +89,18 @@ def _source_map_for_store(writer: DescriptorWriter, guard: Any) -> dict[str, str
     guard.revalidate()
     # The v4 source binding contains the imported source bundle manifest digest.
     base = v4._source_bindings_for_store(writer, guard)
+    handoff, handoff_raw = interpreter_handoff.load_receipt(
+        str(HANDOFF_PATH), owner_uid=os.getuid()
+    )
+    interpreter_handoff.verify_receipt(
+        handoff,
+        plist_path=str(PLIST_PATH),
+        expected_label=LABEL,
+        expected_argv=_expected_argv(CAPTURE_ID),
+        owner_uid=os.getuid(),
+    )
     guard.revalidate()
-    return {**base, **source_bindings()}
+    return {**base, **source_bindings(), HANDOFF_SOURCE_KEY: sha256(handoff_raw)}
 
 
 def compile_capture_plan(
@@ -274,14 +289,17 @@ def source_bindings_with_source_bundle(plan_sources: Mapping[str, Any]) -> dict[
     """Compare executable pins while retaining the imported manifest pin."""
     expected = source_bindings()
     binding_key = v4.SOURCE_BINDING_KEY
-    if set(plan_sources) != {*expected, binding_key}:
+    if set(plan_sources) != {*expected, binding_key, HANDOFF_SOURCE_KEY}:
         raise CaptureRuntimeError("capture_source_map_shape")
     if any(plan_sources.get(path) != digest for path, digest in expected.items()):
         raise CaptureRuntimeError("capture_source_pin_changed")
     manifest = plan_sources.get(binding_key)
     if not _SHA.fullmatch(str(manifest)):
         raise CaptureRuntimeError("capture_source_manifest_pin")
-    return {**expected, binding_key: str(manifest)}
+    handoff_digest = plan_sources.get(HANDOFF_SOURCE_KEY)
+    if not _SHA.fullmatch(str(handoff_digest)):
+        raise CaptureRuntimeError("capture_interpreter_handoff_pin")
+    return {**expected, binding_key: str(manifest), HANDOFF_SOURCE_KEY: str(handoff_digest)}
 
 
 def verify_predecessor(
@@ -551,11 +569,54 @@ def verify_activation(plan: Mapping[str, Any], activation: Mapping[str, Any]) ->
         raise CaptureRuntimeError("capture_activation_binding")
 
 
-def launchd_identity(capture_id: str) -> tuple[int, list[str]]:
+def _parse_launchctl_print(text: str, *, uid: int) -> tuple[str, list[str]]:
+    header = f"gui/{uid}/{LABEL} = {{"
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != header:
+        raise CaptureRuntimeError("capture_launchd_print_label_mismatch")
+    path_value: str | None = None
+    args: list[str] = []
+    in_args = False
+    for line in lines[1:]:
+        stripped = line.strip()
+        if stripped.startswith("path = "):
+            path_value = stripped.removeprefix("path = ")
+        elif stripped == "arguments = {":
+            if in_args:
+                raise CaptureRuntimeError("capture_launchd_print_arguments")
+            in_args = True
+        elif in_args and stripped == "}":
+            in_args = False
+            break
+        elif in_args:
+            if not stripped or "\x00" in stripped:
+                raise CaptureRuntimeError("capture_launchd_print_arguments")
+            args.append(stripped)
+    if in_args or path_value is None or not args:
+        raise CaptureRuntimeError("capture_launchd_print_incomplete")
+    return path_value, args
+
+
+def launchd_identity(
+    capture_id: str, *, expected_handoff_sha256: str | None = None
+) -> tuple[int, list[str]]:
     expected = _expected_argv(capture_id)
+    uid = os.getuid()
     if os.environ.get("XPC_SERVICE_NAME") != LABEL:
         raise CaptureRuntimeError("capture_launchd_service_missing")
     try:
+        receipt, receipt_raw = interpreter_handoff.load_receipt(str(HANDOFF_PATH), owner_uid=uid)
+        receipt_digest = sha256(receipt_raw)
+        if expected_handoff_sha256 is not None and receipt_digest != expected_handoff_sha256:
+            raise CaptureRuntimeError("capture_interpreter_handoff_changed")
+        interpreter_handoff.verify_receipt(
+            receipt,
+            plist_path=str(PLIST_PATH),
+            expected_label=LABEL,
+            expected_argv=expected,
+            owner_uid=uid,
+        )
+        before_files = interpreter_handoff._file_snapshot(receipt["paths"], owner_uid=uid)
         listing = subprocess.run(
             ["launchctl", "list"], check=False, capture_output=True, text=True, timeout=5
         )
@@ -564,11 +625,30 @@ def launchd_identity(capture_id: str) -> tuple[int, list[str]]:
             for row in listing.stdout.splitlines()
             if row.split() and row.split()[-1] == LABEL
         ]
-        if listing.returncode or len(matches) != 1 or int(matches[0][0]) != os.getpid():
-            raise CaptureRuntimeError("capture_launchd_list_mismatch")
         pid = os.getpid()
+        if listing.returncode or len(matches) != 1 or int(matches[0][0]) != pid:
+            raise CaptureRuntimeError("capture_launchd_list_mismatch")
+        service = subprocess.run(
+            ["launchctl", "print", f"gui/{uid}/{LABEL}"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if service.returncode:
+            raise CaptureRuntimeError("capture_launchd_print_failed")
+        loaded_path, loaded_argv = _parse_launchctl_print(service.stdout, uid=uid)
+        if loaded_path != str(PLIST_PATH) or loaded_argv != expected:
+            raise CaptureRuntimeError("capture_launchd_program_binding")
         process = subprocess.run(
             ["ps", "-p", str(pid), "-o", "command="],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        process_uid = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "uid="],
             check=False,
             capture_output=True,
             text=True,
@@ -581,28 +661,35 @@ def launchd_identity(capture_id: str) -> tuple[int, list[str]]:
         raise CaptureRuntimeError("capture_launchd_identity_unavailable") from exc
     if (
         process.returncode
-        or not _same_executable_argv(actual, expected)
+        or process_uid.returncode
+        or process_uid.stdout.strip() != str(uid)
+        or len(actual) != len(expected)
+        or actual[1:] != expected[1:]
         or sys.argv != expected[2:]
+        or sys.executable != receipt["probe"]["sys_executable"]
+        or sys.prefix != receipt["probe"]["sys_prefix"]
+        or sys.base_prefix != receipt["probe"]["sys_base_prefix"]
+        or list(sys.version_info[:3]) != receipt["probe"]["python_version"]
     ):
         raise CaptureRuntimeError("capture_launchd_argv_mismatch")
-    return pid, expected
-
-
-def _same_executable_argv(actual: Sequence[str], expected: Sequence[str]) -> bool:
-    """Accept argv[0] symlink resolution only when both paths name the same inode."""
-    if len(actual) != len(expected) or list(actual[1:]) != list(expected[1:]):
-        return False
-    try:
-        expected_stat = os.stat(expected[0])
-        actual_stat = os.stat(actual[0])
-    except (OSError, IndexError):
-        return False
-    return (
-        stat.S_ISREG(expected_stat.st_mode)
-        and stat.S_ISREG(actual_stat.st_mode)
-        and expected_stat.st_dev == actual_stat.st_dev
-        and expected_stat.st_ino == actual_stat.st_ino
+    proc_path = interpreter_handoff._proc_pidpath(pid)
+    if actual[0] != proc_path:
+        raise CaptureRuntimeError("capture_launchd_proc_path_mismatch")
+    interpreter_handoff.verify_receipt(
+        receipt,
+        plist_path=str(PLIST_PATH),
+        expected_label=LABEL,
+        expected_argv=expected,
+        owner_uid=uid,
+        proc_path=proc_path,
     )
+    after_files = interpreter_handoff._file_snapshot(receipt["paths"], owner_uid=uid)
+    if before_files != after_files:
+        raise CaptureRuntimeError("capture_interpreter_changed_during_callback")
+    receipt_after, raw_after = interpreter_handoff.load_receipt(str(HANDOFF_PATH), owner_uid=uid)
+    if raw_after != receipt_raw or receipt_after != receipt:
+        raise CaptureRuntimeError("capture_interpreter_receipt_changed")
+    return pid, expected
 
 
 def _expected_argv(capture_id: str) -> list[str]:
@@ -656,12 +743,18 @@ def _tech_callback(
     plan: Mapping[str, Any],
     now_ns: Callable[[], int],
     identity: Callable[[str], tuple[int, list[str]]],
+    *,
+    identity_result: tuple[int, list[str]] | None = None,
+    callback_started_ns: int | None = None,
+    callback_monotonic_ns: int | None = None,
 ) -> dict[str, Any]:
     if store.writer.exists(store._path("activation.json")):
         raise CaptureRuntimeError("callback_after_activation")
-    callback_started_ns = now_ns()
-    callback_monotonic_ns = time.monotonic_ns()
-    pid, argv = identity(str(plan["capture_id"]))
+    callback_started_ns = now_ns() if callback_started_ns is None else callback_started_ns
+    callback_monotonic_ns = (
+        time.monotonic_ns() if callback_monotonic_ns is None else callback_monotonic_ns
+    )
+    pid, argv = identity_result or identity(str(plan["capture_id"]))
     preflight_raw = store.writer.read_bytes(
         store._path("capture-preflight.json"), max_bytes=1024 * 1024
     )
@@ -787,9 +880,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     modes.add_argument("--preflight", action="store_true")
     modes.add_argument("--seal-release", action="store_true")
     modes.add_argument("--activate", action="store_true")
+    modes.add_argument("--probe-interpreter-handoff", action="store_true")
     parser.add_argument("--capture-id", default=CAPTURE_ID)
     args = parser.parse_args(argv)
     try:
+        if args.probe_interpreter_handoff:
+            receipt = interpreter_handoff.build_receipt(
+                plist_path=str(PLIST_PATH),
+                expected_label=LABEL,
+                expected_argv=_expected_argv(CAPTURE_ID),
+            )
+            print(canonical_json(receipt).decode(), end="")
+            return 0
         if not _ID.fullmatch(args.capture_id):
             raise CaptureRuntimeError("capture_identity_invalid")
         result = run_host_mode(
@@ -864,6 +966,22 @@ def run_host_mode(
                         "volume_uuid": guard.volume_uuid.lower(),
                     }:
                         raise CaptureRuntimeError("capture_storage_changed")
+                    callback_started_ns: int | None = None
+                    callback_monotonic_ns: int | None = None
+                    verified_identity: tuple[int, list[str]] | None = None
+                    if mode == "scheduled-tick":
+                        # Prove the actual launchd invocation before opening any
+                        # service writer lock or mutating callback/health/journal state.
+                        # Keep these samples at invocation entry; identity may take time.
+                        callback_started_ns = now_ns()
+                        callback_monotonic_ns = time.monotonic_ns()
+                        pinned_handoff = plan["source_sha256"][HANDOFF_SOURCE_KEY]
+                        if callback_identity is launchd_identity:
+                            verified_identity = launchd_identity(
+                                capture_id, expected_handoff_sha256=pinned_handoff
+                            )
+                        else:
+                            verified_identity = callback_identity(capture_id)
                     with writer.lock(f"{root}/.runner.lock", blocking=False):
                         _require_no_pending_gecko_reservation(writer, guard, now_ns)
                         if mode == "preflight":
@@ -873,7 +991,15 @@ def run_host_mode(
                         if mode == "activate":
                             return _create_activation(store, plan)
                         if not writer.exists(store._path("activation.json")):
-                            result = _tech_callback(store, plan, now_ns, callback_identity)
+                            result = _tech_callback(
+                                store,
+                                plan,
+                                now_ns,
+                                callback_identity,
+                                identity_result=verified_identity,
+                                callback_started_ns=callback_started_ns,
+                                callback_monotonic_ns=callback_monotonic_ns,
+                            )
                             _publish_health(
                                 store,
                                 plan,
@@ -913,6 +1039,8 @@ def run_host_mode(
                             preflight_sha256=sha256(preflight_raw),
                             callback_sha256=sha256(callback_raw),
                         )
+                        if verified_identity is None:
+                            raise CaptureRuntimeError("capture_launchd_identity_missing")
                         # Dispatch implementation is intentionally isolated from the v4
                         # release gate. The common engine receives only this plan's
                         # frozen policy and descriptor-backed callback surface.

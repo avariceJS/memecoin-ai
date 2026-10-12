@@ -1,0 +1,50 @@
+{
+  "schema": "senses-provider-account-readonly",
+  "schema_version": 1,
+  "recorded_at_utc": "2026-10-12T20:27:49Z",
+  "scope": "Read-only authenticated account-status and aggregate usage refresh. No signup, account mutation, or chain RPC was called.",
+  "helius": {
+    "account_status": {
+      "auth": "authenticated_api_key_configured",
+      "credit_usage": "unavailable_no_jwt_session"
+    },
+    "account_plan": {
+      "auth": "api_key_configured",
+      "plan": "unknown",
+      "limits_and_charges": "unavailable_no_jwt_session"
+    },
+    "suggested_signup_invoked": false
+  },
+  "alchemy": {
+    "usage_summary": {
+      "billing_period_start": "2026-10-01T00:00:00Z",
+      "billing_period_end": "2026-11-01T00:00:00Z",
+      "month_to_date": {
+        "amount": 18680,
+        "unit": "ALCHEMY_COMPUTE_UNIT",
+        "usd": "0.01"
+      },
+      "last_7_days": {
+        "amount": 18680,
+        "unit": "ALCHEMY_COMPUTE_UNIT",
+        "usd": "0.01"
+      },
+      "last_30_days": {
+        "amount": 18680,
+        "unit": "ALCHEMY_COMPUTE_UNIT",
+        "usd": "0.01"
+      },
+      "data_through": "2026-10-12T20:26:00Z",
+      "contains_partial_today": true,
+      "update_cadence": "minute"
+    },
+    "account_limit": "not_returned",
+    "workload_attribution": "not_returned"
+  },
+  "research_lease_charge": "unknown_unverified",
+  "limitations": [
+    "Alchemy values are authenticated team-wide aggregates and are not attributed to this research lease or repository.",
+    "Helius does not expose plan, quota, usage, or charges through this API-key-only session.",
+    "No cost or remaining-headroom estimate is inferred from request counts or aggregate usage."
+  ]
+}

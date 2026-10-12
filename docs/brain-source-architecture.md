@@ -2926,6 +2926,12 @@ session. Alchemy reported team-wide 18,680 CU / $0.01 across MTD, 7-day, and 30-
 Research lease charge remains `unknown_unverified`. Signup was not invoked. Receipt:
 [`provider account snapshot 06:30Z`](evidence/senses-provider-account-readonly-2026-10-12T0630Z.json).
 
+A read-only refresh at 20:27Z again found Helius usage unavailable without a JWT. Alchemy remained at
+18,680 team-wide CU / $0.01 across MTD, 7-day, and 30-day totals through 20:26Z; no account limit
+or workload attribution was returned. This aggregate does not prove collector traffic or research
+lease charges. Signup was not invoked and no chain RPC was made. Receipt:
+[`provider account snapshot 20:27Z`](evidence/senses-provider-account-readonly-2026-10-12T2027Z.json).
+
 A fresh read-only storage feasibility check at 2026-10-11 16:54Z measured 26,090,602,496 bytes
 available on the internal APFS container, 27,596,488,704 bytes below the 50-GiB floor. The
 maximum identified rebuildable cache plus `dist/` allocation was 110,530,560 bytes and would still
@@ -3647,23 +3653,24 @@ constant-size heartbeats, crash points around rename, recovery, cap behavior, st
 writes to the mountpoint underlay.
 
 The separately versioned capture-only runtime, bounded monitor, release preflight, and
-detach/recovery tests are committed at `e2bf56b`; a follow-up fixes macOS's resolved-interpreter
-argv identity and pins a distinct static ID/LaunchAgent at `6bb18b8`. The earlier 19:30Z pilot
-closed with four HTTP 200 responses, four durable captures/results/confirmations, a verified clock,
-and no skipped, unknown, or possibly-spent pool. Independent sealing found no eligible new-open
-bar, so its immutable diagnostic receipt is
+detach/recovery tests are committed at `e2bf56b`. The 19:30Z pilot closed with four HTTP 200
+responses, four durable captures/results/confirmations, a verified clock, and no skipped, unknown,
+or possibly-spent pool. Independent sealing found no eligible new-open bar, so its immutable
+diagnostic receipt is
 `3a85914428e3566ad674b8b1487fb852e390317cacb0be1915d04d045cc210d2`; that pilot cannot be reused.
 Sol approved capture-only collection bound to this technical predecessor, with
 `market_source_qualified=false`, `training_admission=false`, and `economic_admission=false` until
-independent prospective semantic qualification. The first static-ID initialization was preflighted
-but its LaunchAgent callback failed closed before any request intent; that ID is retired and its
-root is read-only. The new-ID v2 plan and 58-GiB-floor preflight are descriptor-bound on Kingston
-for the next future 15-minute close. The v2 LaunchAgent is loaded, but its no-provider callback
-still exits 2 and has not produced a callback receipt. Do not seal or activate until a callback
-passes under the exact committed plist and source bindings. No provider request has been made by
-this capture-only lane. The service has no calendar expiry, never backfills missed buckets, and
-keeps finite request, raw-byte, memory, and Kingston storage caps. Alchemy same-frame corroboration
-remains offline; incomplete billing telemetry does not block bounded prospective collection.
+independent prospective semantic qualification. Static IDs v1 and v2 were initialized or
+preflighted but their callbacks failed closed before a request intent; both roots are read-only.
+Their LaunchAgents are unloaded. The v2 identity proof incorrectly equated the venv CLI inode with
+the live macOS Python.app process image. Capture-only v3 now binds a no-provider probe of the exact
+plist interpreter, venv symlink/configuration, Python CLI and Python.app file identities, and on
+each callback checks the loaded plist path/arguments, label/PID/UID and kernel `proc_pidpath` before
+recovery or dispatch. Synthetic mismatch tests pass. No v3 Kingston plan or provider request exists
+yet; create a fresh static ID, handoff receipt, and 58-GiB-floor preflight before considering
+activation. The service policy has no calendar expiry, never backfills missed buckets, and keeps
+finite request, raw-byte, memory, and Kingston storage caps. Alchemy same-frame corroboration remains
+offline; incomplete billing telemetry does not block bounded prospective collection.
 
 The inert Agave build runner v1 remains unqualified and must not execute Cargo. Sol rejected its
 default-allow sandbox because it does not confine write access to the Kingston stage, prevent reads

@@ -3,7 +3,6 @@ from __future__ import annotations
 import contextlib
 import json
 import os
-import shlex
 import sys
 import tempfile
 from pathlib import Path
@@ -43,62 +42,21 @@ from tools.brain_senses_external_writer_v1 import (  # noqa: E402
 )
 
 
-def test_launchd_identity_accepts_resolved_same_executable_inode(monkeypatch) -> None:
-    capture_id = capture_runtime.CAPTURE_ID
-    expected = capture_runtime._expected_argv(capture_id)
-    actual_executable = os.path.realpath(expected[0])
-    pid = 91234
-    outputs = iter(
-        [
-            SimpleNamespace(returncode=0, stdout=f"{pid}\t0\t{capture_runtime.LABEL}\n"),
-            SimpleNamespace(
-                returncode=0,
-                stdout=shlex.join([actual_executable, *expected[1:]]) + "\n",
-            ),
-        ]
-    )
-    monkeypatch.setenv("XPC_SERVICE_NAME", capture_runtime.LABEL)
-    monkeypatch.setattr(capture_runtime.os, "getpid", lambda: pid)
-    monkeypatch.setattr(capture_runtime.sys, "argv", expected[2:])
-    monkeypatch.setattr(capture_runtime.subprocess, "run", lambda *_args, **_kwargs: next(outputs))
-    assert capture_runtime.launchd_identity(capture_id) == (pid, expected)
-
-
-def test_launchd_identity_rejects_different_executable_even_with_exact_args(monkeypatch) -> None:
-    capture_id = capture_runtime.CAPTURE_ID
-    expected = capture_runtime._expected_argv(capture_id)
-    with tempfile.NamedTemporaryFile() as other_executable:
-        pid = 91235
-        outputs = iter(
-            [
-                SimpleNamespace(returncode=0, stdout=f"{pid}\t0\t{capture_runtime.LABEL}\n"),
-                SimpleNamespace(
-                    returncode=0,
-                    stdout=shlex.join([other_executable.name, *expected[1:]]) + "\n",
-                ),
-            ]
-        )
-        monkeypatch.setenv("XPC_SERVICE_NAME", capture_runtime.LABEL)
-        monkeypatch.setattr(capture_runtime.os, "getpid", lambda: pid)
-        monkeypatch.setattr(capture_runtime.sys, "argv", expected[2:])
-        monkeypatch.setattr(
-            capture_runtime.subprocess, "run", lambda *_args, **_kwargs: next(outputs)
-        )
-        with pytest.raises(capture_runtime.CaptureRuntimeError, match="argv_mismatch"):
-            capture_runtime.launchd_identity(capture_id)
-
-
 def test_new_capture_identity_and_plist_do_not_reuse_old_capture_root() -> None:
     old_capture_id = "6c4e52c7a9bb4bdc8e5f1d774ec8aa17"
+    superseded_capture_id = "7f0b3297f86746f0b0c3863f20a11d4b"
     assert capture_runtime.CAPTURE_ID != old_capture_id
+    assert capture_runtime.CAPTURE_ID != superseded_capture_id
     old_root = capture_runtime._service_root(old_capture_id)
     new_root = capture_runtime._service_root(capture_runtime.CAPTURE_ID)
     assert old_root != new_root
-    assert capture_runtime.LABEL.endswith("-v2")
+    assert capture_runtime.LABEL.endswith("-v3")
     pins = capture_runtime.source_bindings()
-    assert "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v2.plist" in pins
+    assert "tools/brain_senses_gecko_interpreter_handoff_v1.py" in pins
+    assert "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v3.plist" in pins
+    assert "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v2.plist" not in pins
     assert "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v1.plist" not in pins
-    plist = (REPO / "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v2.plist").read_text()
+    plist = (REPO / "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v3.plist").read_text()
     assert capture_runtime.CAPTURE_ID in plist
     assert capture_runtime.LABEL in plist
     temp = tempfile.TemporaryDirectory()
@@ -248,6 +206,7 @@ def test_capture_plan_pins_diagnostic_pilot_without_market_authority() -> None:
     sources = {
         **capture_runtime.source_bindings(),
         lane_v4.SOURCE_BINDING_KEY: "5" * 64,
+        capture_runtime.HANDOFF_SOURCE_KEY: "6" * 64,
     }
     plan = capture_runtime.compile_capture_plan(
         capture_id=capture_runtime.CAPTURE_ID,
@@ -301,6 +260,7 @@ def _capture_plan_for_test() -> dict[str, Any]:
         sources={
             **capture_runtime.source_bindings(),
             lane_v4.SOURCE_BINDING_KEY: "5" * 64,
+            capture_runtime.HANDOFF_SOURCE_KEY: "6" * 64,
         },
         predecessor=predecessor,
         first_bucket_close_ns=pilot_close + 900 * NS,
@@ -431,6 +391,104 @@ def test_no_provider_callback_cannot_create_release_or_activation() -> None:
     assert "lane/activation.json" not in files
     writer.close()
     temp.cleanup()
+
+
+def test_scheduled_identity_failure_precedes_any_mutating_gate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan = _capture_plan_for_test()
+    root_fd = os.open("/dev/null", os.O_RDONLY)
+    mutations: list[str] = []
+    pending_gate_calls: list[bool] = []
+    lock_calls: list[str] = []
+
+    class Guard:
+        mount_fd = root_fd
+        root_id = plan["storage"]["root_id"]
+        volume_uuid = plan["storage"]["volume_uuid"]
+        config = SimpleNamespace(data_root="BrainData")
+
+        def revalidate(self, *_args: Any, **_kwargs: Any) -> None:
+            return None
+
+    guard = Guard()
+
+    class Writer:
+        def __init__(self) -> None:
+            self.root_fd = root_fd
+
+        def lock(self, _path: str, **_kwargs: Any) -> Any:
+            lock_calls.append(_path)
+            return contextlib.nullcontext()
+
+        def close(self) -> None:
+            return None
+
+        def exists(self, _path: str) -> bool:
+            return False
+
+        def create_exclusive(self, *_args: Any, **_kwargs: Any) -> None:
+            mutations.append("create")
+
+    writer = Writer()
+
+    class Store:
+        def __init__(self, _writer: Any, *, guard: Any, root: str) -> None:
+            self.writer = _writer
+            self.root = root
+
+        def read_json(self, name: str) -> dict[str, Any]:
+            assert name == "plan.json"
+            return plan
+
+        def _verify_guard(self, _plan: Any) -> None:
+            return None
+
+    @contextlib.contextmanager
+    def fake_writer_guard(_path: str) -> Any:
+        yield guard
+
+    monkeypatch.setattr(capture_runtime.launch, "host_lock", contextlib.nullcontext)
+    monkeypatch.setattr(capture_runtime, "writer_guard", fake_writer_guard)
+    monkeypatch.setattr(capture_runtime, "_open_relative_directory", lambda *_args: os.dup(root_fd))
+    monkeypatch.setattr(capture_runtime, "DescriptorWriter", lambda *_args, **_kwargs: writer)
+    monkeypatch.setattr(capture_runtime.v4, "DescriptorLaneStore", Store)
+    monkeypatch.setattr(
+        capture_runtime, "_source_map_for_store", lambda *_args: plan["source_sha256"]
+    )
+    monkeypatch.setattr(capture_runtime, "_shared_read_lock", lambda _fd: contextlib.nullcontext())
+    monkeypatch.setattr(
+        capture_runtime,
+        "verify_predecessor",
+        lambda *_args, **_kwargs: (plan, {}, b"receipt"),
+    )
+    monkeypatch.setattr(
+        capture_runtime,
+        "predecessor_certificate",
+        lambda *_args: plan["predecessor"],
+    )
+    monkeypatch.setattr(
+        capture_runtime,
+        "_require_no_pending_gecko_reservation",
+        lambda *_args, **_kwargs: pending_gate_calls.append(True),
+    )
+
+    def mismatch(_capture_id: str) -> tuple[int, list[str]]:
+        raise capture_runtime.CaptureRuntimeError("capture_launchd_identity_mismatch")
+
+    try:
+        with pytest.raises(capture_runtime.CaptureRuntimeError, match="identity_mismatch"):
+            capture_runtime.run_host_mode(
+                "scheduled-tick",
+                capture_id=plan["capture_id"],
+                now_ns=lambda: 1_800_000_000 * NS,
+                callback_identity=mismatch,
+            )
+        assert mutations == []
+        assert pending_gate_calls == []
+        assert lock_calls == []
+    finally:
+        os.close(root_fd)
 
 
 class _CaptureStore:
