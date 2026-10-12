@@ -31,6 +31,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - No-provider calendar timing rehearsal at 03:20Z:
   `brain-senses-external-timing-rehearsal-2026-10-12T0320Z.json` (one launchd callback, exit 1 on
   `ModuleNotFoundError`, no status result or provider I/O, activation disabled/unloaded).
+- Helius/Alchemy read-only account snapshot at 03:24Z:
+  `senses-provider-account-readonly-2026-10-12T0324Z.json` (Helius plan/usage unavailable without
+  JWT; Alchemy team aggregate 18,680 CU / $0.01, with no limit or workload attribution).
 - Agave bounded dependency fetch attempt:
   `agave-dependency-fetch-attempt-2026-10-12.json` (stopped by the local symlink guard after Cargo
   created four internal links in the pinned Crossbeam checkout; the partial cache is preserved and

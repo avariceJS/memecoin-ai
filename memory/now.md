@@ -1,43 +1,41 @@
 # Current Project State
 
-**As of:** 2026-10-12 02:56Z. Checkout: `/Users/root1/Developer/memecoin-research`, branch
-`research/active`; `main` remains `148ca165e1487a99c3ce6532dbc276c4922c31b6`. Published active is
-`35eaca6`; local work extends the no-provider timing rehearsal. The first 03:15Z binding was
-explicitly disabled/unloaded before callback after Sol identified a timing-evidence gap; it made no
-status call and no provider request. The tightened timing and exact terminal-state gate has now been
-accepted by Sol; create a fresh source-bound activation before any callback.
-
-Production runtime, champion, protected evaluation and real trading remain untouched. No signing or
-submission. Do not start Cortex.
+**As of:** 2026-10-12 03:24Z. Checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`; HEAD and published active are `78a7db6`. `main` remains
+`148ca165e1487a99c3ce6532dbc276c4922c31b6`. Worktree state is checked before handoff.
+Production, champion, protected evaluation and real trading remain untouched. No signing/submission;
+Cortex is out of scope.
 
 ## Live state
 
-- Kingston `/Volumes/Kingston/BrainData` is bound to UUID
-  `8f8f1081-9be4-4914-9111-75f1b90255bf`, root ID `9428695af6d4f46c08e1a444cdc66de8`; health
-  is ready with ~206 GiB free, above the 50-GiB floor. No formatting or internal fallback.
-- Helius external-v2 02:30–03:33Z is terminal `missed_bootstrap`, with verified v1 predecessor,
-  zero provider requests/reservations/intents/sealed buckets, and disabled/unloaded LaunchAgent.
-  No retry, catch-up, backfill, shift, or later-frame activation. Receipt:
-  `docs/evidence/brain-senses-external-v2-missed-bootstrap-terminal-2026-10-12.json`.
-- Helius account/charge evidence remains unavailable; that lease made no RPC requests. Alchemy
-  read-only aggregate remains 18,680 CU / $0.01 without limit or workload attribution.
-- Agave fetch closure remains terminal after the one separately reviewed v2 `cargo fetch --locked`
-  failure (exit 101, exact cause unavailable). Partial cache is preserved and must not be reused or
-  cleaned. No retry, metadata, or build. Receipt:
-  `docs/evidence/agave-dependency-fetch-attempt-v2-2026-10-12.json`.
+- Kingston `/Volumes/Kingston/BrainData` matches UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`
+  and root ID `9428695af6d4f46c08e1a444cdc66de8`; owners enabled, health `ready`, 220,973,776,896
+  bytes available (~206 GiB), above the 50-GiB floor. The 300-second health LaunchAgent is loaded,
+  last exit 0. c4 remains terminal STOP `minimum_free_disk_floor_plus_frame_envelope`, frontier
+  `455430160`, last frame reconciled. No backfill.
+- The external-v2 lease is terminal `missed_bootstrap`, zero requests/reservations/intents/seals.
+  The 03:20Z no-provider calendar callback ran once but exited 1 with `ModuleNotFoundError` before
+  status; no provider I/O or status result. Its label is disabled/unloaded and its immutable failure
+  receipt is `docs/evidence/brain-senses-external-timing-rehearsal-2026-10-12T0320Z.json`.
+- Fix `78a7db6` adds trusted repository-root import binding and an isolated subprocess regression
+  test (10 focused passes); `make smoke` passes. A distinct no-provider rehearsal is armed for
+  03:40Z under `ai.memecoin.brain.senses.timing-rehearsal-20261012T0340Z`, with 956s initialization
+  margin. Do not kickstart. Check its real callback and <=+15s/+30s gates; if it fails, retire it
+  terminally and do not shift/backfill without review.
+- Helius status/plan still have no JWT, so plan/usage/charge are unknown. Alchemy team aggregate is
+  18,680 CU / $0.01 through 03:24Z, no limit or workload attribution. Receipt:
+  `docs/evidence/senses-provider-account-readonly-2026-10-12T0324Z.json`.
+- Agave fetch v2 remains terminal exit 101; partial cache preserved, do not reuse/clean/retry. No
+  candidate-position raw decoder or economic qualification is established.
 
-## Current horizon
+## Next horizons
 
-A separately versioned status-only timing rehearsal is pinned to the failed-v2 plan, terminal receipt,
-source and one calendar minute. Sol accepted the process-local old-runtime-gate shim but required
-callback/preflight/status start <= +15s, status finish <= +30s, and exact terminal semantic state
-(frontier 455802008, verified predecessor, zero IO). The accepted gate requires callback/preflight/status start <= +15s, status finish <= +30s, and
-exact stop-event payload binding. The next provider-free one-shot remains only a timing/status test;
-no provider lease is implied. If a real callback qualifies, refresh clock/storage/source/account facts
-and seek a separate Sol review for a prospective Helius lease. The missed interval stays unknown and
-never replays. c4 remains terminal.
+After the scheduled status-only callback, refresh host clock/storage/source/account facts and ask
+Sol for a separate prospective Helius lease review. Provider activation is not implied by rehearsal.
+Then continue economic qualification, broad causal population/lifecycle/modalities, recovery/retention,
+and unknown/anomaly automation; do not expand unconfirmed decoders. Commit/push completed work to
+`origin/research/active`; sync `main` only at a verified capability milestone. Update canonical
+English owners, preserve unknown/censored/gap distinctions, and never inspect protected samples.
 
-Continue independent Senses horizons after each meaningful gate. Preserve event, receipt,
-availability and decision times; immutable provenance; explicit unknown/censored states. Protected
-samples stay unopened. Commit/push completed scopes to `origin/research/active`; sync `main` only
-after a verified capability milestone. Keep documentation in English and update canonical owners.
+Capture-root caution: never use wildcard reads over capture roots; one prior broad JSON match printed
+raw response payloads. Use exact metadata paths only.

@@ -168,7 +168,6 @@ mutation was performed. Receipt: [`Helius account status at 02:24Z`](evidence/he
 The 2026-10-12 02:23Z read-only MCP snapshot still reports 18,680 CU and $0.01 through that minute;
 it returns no account limit or app/network/method attribution and does not meter the finite Helius
 lease. Receipt: [`Alchemy usage summary at 02:23Z`](evidence/alchemy-usage-summary-mcp-2026-10-12T0223Z.json).
-
 The no-provider LaunchAgent timing rehearsal scheduled for 03:20Z on 2026-10-12 received one
 calendar callback but exited 1 with `ModuleNotFoundError` before completing the read-only status
 path. No provider request or status result is claimed; the activation was disabled/unloaded and is
@@ -176,6 +175,12 @@ terminal. The source lacked the repository-root import binding used by the worki
 That bounded fix is covered by an isolated subprocess import test. Any retry uses a distinct future
 activation with refreshed hashes; it cannot authorize provider I/O. Receipt:
 [`03:20Z timing rehearsal failure`](evidence/brain-senses-external-timing-rehearsal-2026-10-12T0320Z.json).
+
+At 03:24Z, read-only Helius status and plan calls again found no JWT session, leaving plan and
+usage unavailable. Alchemy's authenticated-team aggregate remained 18,680 CU / $0.01 through
+03:24Z; it returned no account limit or network/app/method attribution. This does not meter the
+Helius lease or attribute cost to this checkout. Receipt:
+[`provider account snapshot at 03:24Z`](evidence/senses-provider-account-readonly-2026-10-12T0324Z.json).
 
 The separately reviewed prospective Helius v2 plan for 02:30–03:33Z was initialized offline on the
 bound Kingston root under host, storage, and predecessor locks. Launchd ran it once, but startup
