@@ -23,7 +23,7 @@ import sys
 import tempfile
 import time
 from collections import Counter
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -1316,11 +1316,19 @@ def _restore_read_pinned(
     return data
 
 
+def _estimated_capture_bytes(entry_count: int, source_bytes: int) -> int:
+    """Conservatively reserve file bytes, per-entry metadata, indexes, and margin."""
+    chunk_count = (source_bytes + CHUNK_BYTES - 1) // CHUNK_BYTES
+    return source_bytes + entry_count * 2048 + chunk_count * 512 + 1024 * 1024
+
+
 def capture_tree(
     writer: DescriptorWriter,
     root: TreeRoot,
     *,
     capture_id: str | None = None,
+    reserve_capacity: Callable[[int], None] | None = None,
+    revalidate_before_publish: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     _validate_root(root)
     capture_start_ns = time.time_ns()
@@ -1341,6 +1349,8 @@ def capture_tree(
                 protected=root.scope == "protected_opaque",
                 capture_id=chosen,
             )
+            if reserve_capacity is not None:
+                reserve_capacity(_estimated_capture_bytes(entry_count, source_bytes))
             writer.mkdir(BASE)
             with writer.lock("host-recovery/.tree-custody.lock"):
                 try:
@@ -1469,6 +1479,8 @@ def capture_tree(
                 manifest_raw = canonical_json(manifest)
                 if len(manifest_raw) > MAX_MANIFEST_BYTES:
                     raise TreeCustodyError("manifest_size_limit")
+                if revalidate_before_publish is not None:
+                    revalidate_before_publish()
                 writer.create(f"{base}/MANIFEST.json", manifest_raw)
                 verified = _verify_internal(writer, chosen, require_complete=False)
                 complete_ns = time.time_ns()
@@ -1485,6 +1497,8 @@ def capture_tree(
                         "complete_ns": complete_ns,
                     }
                 )
+                if revalidate_before_publish is not None:
+                    revalidate_before_publish()
                 writer.create(f"{base}/COMPLETE.json", complete_raw)
                 readback = writer.read_bytes(f"{base}/COMPLETE.json", max_bytes=64 * 1024)
                 if readback != complete_raw:
@@ -1993,7 +2007,15 @@ def extract_tree(
 def _storage_writer(config_path: Path) -> Iterator[DescriptorWriter]:
     from memecoin_research_storage import writer_guard
 
+    started = time.perf_counter_ns()
     with writer_guard(config_path) as guard:
+        # writer_guard performs a full resolution before yielding.
+        startup_full_elapsed_ns = time.perf_counter_ns() - started
+        mutation_guard = _CustodyMutationGuard(
+            guard,
+            initial_full_validated=True,
+            initial_full_elapsed_ns=startup_full_elapsed_ns,
+        )
         current = os.dup(guard.mount_fd)
         try:
             for part in guard.config.data_root.split("/"):
@@ -2002,10 +2024,71 @@ def _storage_writer(config_path: Path) -> Iterator[DescriptorWriter]:
                 )
                 os.close(current)
                 current = next_fd
-            with DescriptorWriter(current, before_write=guard.revalidate) as writer:
+            with DescriptorWriter(current, before_write=mutation_guard) as writer:
+                writer._custody_mutation_guard = mutation_guard
                 yield writer
         finally:
             os.close(current)
+
+
+class _CustodyMutationGuard:
+    """Amortize full volume resolution while checking identity before each write."""
+
+    FULL_REVALIDATE_INTERVAL_SECONDS = 5.0
+
+    def __init__(
+        self,
+        storage_guard: Any,
+        *,
+        monotonic: Callable[[], float] = time.monotonic,
+        initial_full_validated: bool = False,
+        initial_full_elapsed_ns: int = 0,
+    ):
+        self.storage_guard = storage_guard
+        self._monotonic = monotonic
+        self._last_full = float("-inf")
+        self.fast_calls = 0
+        self.fast_elapsed_ns = 0
+        self.full_calls = int(initial_full_validated)
+        self.full_elapsed_ns = initial_full_elapsed_ns if initial_full_validated else 0
+        self._last_full = self._monotonic() if initial_full_validated else float("-inf")
+        if not initial_full_validated:
+            self.full_revalidate()
+
+    def full_revalidate(self) -> None:
+        started = time.perf_counter_ns()
+        self.storage_guard.revalidate(min_free_bytes=self.storage_guard.config.min_free_bytes)
+        self.full_elapsed_ns += time.perf_counter_ns() - started
+        self.full_calls += 1
+        self._last_full = self._monotonic()
+
+    def reserve_capacity(self, additional_bytes: int) -> None:
+        if type(additional_bytes) is not int or additional_bytes < 0:
+            raise TreeCustodyError("capture_capacity_invalid")
+        started = time.perf_counter_ns()
+        self.storage_guard.revalidate_identity(
+            min_free_bytes=self.storage_guard.config.min_free_bytes + additional_bytes
+        )
+        self.fast_elapsed_ns += time.perf_counter_ns() - started
+        self.fast_calls += 1
+
+    def __call__(self) -> None:
+        started = time.perf_counter_ns()
+        self.storage_guard.revalidate_identity(
+            min_free_bytes=self.storage_guard.config.min_free_bytes
+        )
+        self.fast_elapsed_ns += time.perf_counter_ns() - started
+        self.fast_calls += 1
+        if self._monotonic() - self._last_full >= self.FULL_REVALIDATE_INTERVAL_SECONDS:
+            self.full_revalidate()
+
+    def metrics(self) -> dict[str, int]:
+        return {
+            "fast_calls": self.fast_calls,
+            "fast_elapsed_ns": self.fast_elapsed_ns,
+            "full_calls": self.full_calls,
+            "full_elapsed_ns": self.full_elapsed_ns,
+        }
 
 
 def _load_root(path: Path, scope: str) -> TreeRoot:
@@ -2046,8 +2129,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         with _storage_writer(args.storage_config) as writer:
             if args.command == "capture":
+                mutation_guard = getattr(writer, "_custody_mutation_guard", None)
                 result = capture_tree(
-                    writer, _load_root(args.root, args.scope), capture_id=args.capture_id
+                    writer,
+                    _load_root(args.root, args.scope),
+                    capture_id=args.capture_id,
+                    reserve_capacity=(
+                        mutation_guard.reserve_capacity if mutation_guard is not None else None
+                    ),
+                    revalidate_before_publish=(
+                        mutation_guard.full_revalidate if mutation_guard is not None else None
+                    ),
                 )
                 if result.get("scope") == "protected_opaque":
                     result = {

@@ -5,6 +5,7 @@ import os
 import sys
 from contextlib import nullcontext
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -351,6 +352,121 @@ def test_manifest_binds_observed_interval_and_non_atomic_scope(writer, tmp_path)
     assert manifest["root_closure_scope"] == custody.ROOT_CLOSURE_SCOPE
     verified = custody.verify_tree(archive, capture_id)
     assert verified["complete_ns"] == complete["complete_ns"]
+
+
+def test_custody_mutation_guard_checks_identity_each_time_and_full_on_cadence(tmp_path):
+    class FakeGuard:
+        config = SimpleNamespace(min_free_bytes=64)
+
+        def __init__(self):
+            self.events = []
+
+        def revalidate_identity(self, *, min_free_bytes=None):
+            self.events.append(("fast", min_free_bytes))
+
+        def revalidate(self, *, min_free_bytes=None):
+            self.events.append(("full", min_free_bytes))
+
+    clock = [100.0]
+    fake = FakeGuard()
+    mutation_guard = custody._CustodyMutationGuard(fake, monotonic=lambda: clock[0])
+    assert fake.events == [("full", 64)]
+    root = tmp_path / "guard-writer"
+    root.mkdir(mode=0o700)
+    root.chmod(0o700)
+    root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        with DescriptorWriter(root_fd, before_write=mutation_guard) as archive:
+            archive.create("a", b"a")
+            clock[0] += 4.99
+            archive.create("b", b"b")
+            assert mutation_guard.full_calls == 1
+            clock[0] += 0.01
+            archive.create("c", b"c")
+            assert mutation_guard.full_calls == 2
+    finally:
+        os.close(root_fd)
+    assert mutation_guard.fast_calls == 3
+    assert fake.events == [
+        ("full", 64),
+        ("fast", 64),
+        ("fast", 64),
+        ("fast", 64),
+        ("full", 64),
+    ]
+
+
+def test_capture_reserves_capacity_and_full_revalidates_before_both_publications(writer, tmp_path):
+    archive, _ = writer
+    source = tmp_path / "guarded-source"
+    source.mkdir()
+    (source / "data").write_bytes(b"reserve me")
+    reserves = []
+    publications = []
+    result = custody.capture_tree(
+        archive,
+        custody.TreeRoot("synthetic", "auth", "rp", source.resolve()),
+        capture_id="1" * 32,
+        reserve_capacity=reserves.append,
+        revalidate_before_publish=lambda: publications.append("full"),
+    )
+    assert reserves == [custody._estimated_capture_bytes(2, len(b"reserve me"))]
+    assert publications == ["full", "full"]
+    assert result["complete"] is True
+
+
+@pytest.mark.parametrize(
+    "reason",
+    ("mounted_directory_replaced", "binding_changed_under_lock", "writer_lock_replaced"),
+)
+def test_identity_failure_stops_before_archive_mutation(tmp_path, reason):
+    class FailingGuard:
+        config = SimpleNamespace(min_free_bytes=0)
+
+        def revalidate(self, *, min_free_bytes=None):
+            return None
+
+        def revalidate_identity(self, *, min_free_bytes=None):
+            raise custody.StorageError(reason)
+
+    root = tmp_path / "identity-failure-writer"
+    root.mkdir(mode=0o700)
+    root.chmod(0o700)
+    root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        mutation_guard = custody._CustodyMutationGuard(FailingGuard())
+        with DescriptorWriter(root_fd, before_write=mutation_guard) as archive:
+            with pytest.raises(custody.StorageError, match=reason):
+                archive.create("must-not-exist", b"x")
+        assert not (root / "must-not-exist").exists()
+    finally:
+        os.close(root_fd)
+
+
+def test_failed_full_revalidation_before_complete_leaves_no_marker(writer, tmp_path):
+    archive, archive_path = writer
+    source = tmp_path / "publish-guard-source"
+    source.mkdir()
+    (source / "data").write_bytes(b"do not publish on detach")
+    calls = 0
+
+    def fail_second_publication_check():
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise custody.StorageError("volume_detached")
+
+    capture_id = "2" * 32
+    with pytest.raises(custody.StorageError, match="volume_detached"):
+        custody.capture_tree(
+            archive,
+            custody.TreeRoot("synthetic", "auth", "rp", source.resolve()),
+            capture_id=capture_id,
+            revalidate_before_publish=fail_second_publication_check,
+        )
+    base = archive_path / custody.BASE / capture_id
+    assert (base / "MANIFEST.json").is_file()
+    assert not (base / "COMPLETE.json").exists()
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="Darwin st_flags are platform-specific")
