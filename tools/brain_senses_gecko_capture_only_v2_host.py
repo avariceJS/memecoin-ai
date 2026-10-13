@@ -15,24 +15,31 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
-from memecoin_research_storage import StorageError
-from tools import brain_senses_capacity_coordinator_v2 as capacity
-from tools import brain_senses_external_clock_v1 as external_clock
-from tools import brain_senses_gecko_capture_only_v2_health_v1 as health
-from tools import brain_senses_gecko_capture_only_v2_scheduler as scheduler
-from tools import brain_senses_gecko_capture_only_v2_service as service
-from tools import brain_senses_gecko_capture_only_v2_verify as verifier
-from tools import brain_senses_gecko_rotating_scout_v1 as scout
-from tools import brain_senses_gecko_scout_chain_v1 as chain
-from tools import brain_senses_gecko_shared_usage_v1 as shared_usage
-from tools import brain_senses_gecko_usage_inventory_v1 as usage_inventory
-from tools.brain_senses_external_writer_v1 import DescriptorWriter, canonical_json, sha256
+REPO = Path(__file__).resolve().parents[1]
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+
+from memecoin_research_storage import StorageError  # noqa: E402
+from tools import brain_senses_capacity_coordinator_v2 as capacity  # noqa: E402
+from tools import brain_senses_external_clock_v1 as external_clock  # noqa: E402
+from tools import brain_senses_gecko_capture_only_v2_health_v1 as health  # noqa: E402
+from tools import brain_senses_gecko_capture_only_v2_scheduler as scheduler  # noqa: E402
+from tools import brain_senses_gecko_capture_only_v2_service as service  # noqa: E402
+from tools import brain_senses_gecko_capture_only_v2_verify as verifier  # noqa: E402
+from tools import brain_senses_gecko_rotating_scout_v1 as scout  # noqa: E402
+from tools import brain_senses_gecko_scout_chain_v1 as chain  # noqa: E402
+from tools import brain_senses_gecko_shared_usage_v1 as shared_usage  # noqa: E402
+from tools import brain_senses_gecko_usage_inventory_v1 as usage_inventory  # noqa: E402
+from tools.brain_senses_external_writer_v1 import (  # noqa: E402
+    DescriptorWriter,
+    canonical_json,
+    sha256,
+)
 
 RELEASE_SCHEMA = "brain-senses-gecko-capture-only-v2-host-release-v1"
 CUTOVER_PREFIX_SHA256 = "cd7c67de3657eed073bbe1e1a8f570da9753976057299e0df3a24402ee1d2ac6"
 CUTOVER_LAST_DISPATCH_NS = 1_791_843_444_749_851_000
 ZERO_HASH = "0" * 64
-REPO = Path(__file__).resolve().parents[1]
 CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
 RELEASE_CODE_PATHS = (
     "tools/brain_senses_gecko_capture_only_v2_host.py",

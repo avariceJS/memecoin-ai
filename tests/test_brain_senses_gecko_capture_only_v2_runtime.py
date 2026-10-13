@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import plistlib
+import subprocess
 import sys
 import time
 from collections.abc import Callable, Mapping
@@ -662,6 +663,28 @@ def test_launchd_plist_is_path_only_interval_bound_and_nonexpiring() -> None:
     with pytest.raises(host_release.HostReleaseError, match="launchd_plist_binding_changed"):
         tampered = raw.replace(b"<integer>12</integer>", b"<integer>60</integer>")
         host_release.verify_launchd_plist(tampered, release_id)
+
+
+def test_launchd_entrypoint_imports_without_pythonpath_or_repo_working_directory(
+    tmp_path: Path,
+) -> None:
+    environment = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-B",
+            str(REPO / "tools/brain_senses_gecko_capture_only_v2_host.py"),
+            "--help",
+        ],
+        cwd=tmp_path,
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0
+    assert "--scheduled-tick" in result.stdout
 
 
 def test_callback_outside_window_is_a_health_only_tick(tmp_path: Path) -> None:
