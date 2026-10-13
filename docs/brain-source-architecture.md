@@ -3622,6 +3622,21 @@ remains a separately registered prospective gate. Acceptance must include a disj
 with failed/partial/unsupported cases, raw replay, and adversarial fork, CPI order, opaque touch,
 missing Rent/owner/hook and delayed-availability cases.
 
+The inert `brain-senses-prospective-account-state-feasibility-v1` checker validates only supplied
+record shape and internal consistency for a preselected persistent token-account example, with at
+most two finalized account reads, raw account-byte hash checks, distinct request/receipt/availability
+times, and explicit failed/unobserved denominators. Its `selected_before_acquisition` flag, horizon,
+and evidence hashes are assertions, not source-authenticated proof. `none_within_horizon` is a
+syntactically accepted status, not verified absence; the one-position denominator describes only
+the supplied record. Intervening-write completeness, source coverage, finality/fork identity, clock
+uncertainty, candidate-position admission, settlement, PnL, buyExact25, PIT and economics remain
+unknown or false. The checker performs no provider I/O or activation. Its focused Hypothesis suite
+also verifies arbitrary account bytes round-trip through canonical lowercase hex and rejects
+free-form failure payloads. Any real-data use requires a separately reviewed/versioned contract
+before acquisition, with a durably timestamped complete preselection denominator, fixed finite UTC
+horizon, immutable raw source receipts and qualified coverage/finality/clock joins. Even then, two
+endpoint reads remain diagnostics and cannot establish instruction-position state.
+
 ### Independent rolling prospective acquisition policy (2026-10-12)
 
 Sol selected a new Helius-only forward collector with independent epoch roots, starting at a fresh
