@@ -2972,6 +2972,12 @@ or workload attribution was returned. This aggregate does not prove collector tr
 lease charges. Signup was not invoked and no chain RPC was made. Receipt:
 [`provider account snapshot 20:27Z`](evidence/senses-provider-account-readonly-2026-10-12T2027Z.json).
 
+The 2026-10-13 12:28Z read-only refresh still reported 18,680 team-wide CU / $0.01 across the
+month-to-date, 7-day and 30-day windows. The hourly series for 05:20–12:26Z was empty; attribution,
+account limit and project charges remain unavailable. Helius MCP confirmed a configured key but
+could not return usage without a JWT session. Neither account surface was used for chain RPC.
+Receipt: [`provider usage refresh 12:28Z`](evidence/alchemy-usage-refresh-mcp-2026-10-13T1228Z.json).
+
 A fresh read-only storage feasibility check at 2026-10-11 16:54Z measured 26,090,602,496 bytes
 available on the internal APFS container, 27,596,488,704 bytes below the 50-GiB floor. The
 maximum identified rebuildable cache plus `dist/` allocation was 110,530,560 bytes and would still
