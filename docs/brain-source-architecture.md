@@ -4026,16 +4026,20 @@ tests. These modules have no owner-host loader or activation path and were not r
 or a provider. Source-bound release loading, plist/watchdog identity, every-write detach coverage,
 and runtime installation remain open; no autonomous collector is loaded.
 
-The v6 source-bound owner callback now has a separately pinned storage identity for BrainData and
-its nested service root. Epoch and activation must bind both device/inode pairs; the host reopens the
-exact service path through the held BrainData descriptor before dispatch and verifies the writer FD.
-This corrects a release-blocking mismatch where the writer descriptor had been compared with the
-BrainData inode. Focused kernel/host and activation/replay suites pass (69 tests), as does `make
-smoke`. The callback has not been initialized against Kingston, no provider I/O has occurred, and
-no collector LaunchAgent is loaded. The remaining immediate gate is create-only release
-initialization and first-bucket recovery evidence; this grants no source, training, or economic
-admission. A fresh descriptor-bound read-only census independently replayed 41 known roots and 62
-attempts, including two unresolved response sizes. The conservative prior offset is 1,015,808 raw
-bytes and 5,079,040 physical bytes. The immutable sanitized census receipt is
-[`v6 prior-usage census`](evidence/gecko-v6-prior-usage-census-2026-10-13T1045Z.json); it does not
-authorize a lease or collection.
+The v6 source-bound callback distinguishes the BrainData descriptor identity from its nested service
+root. Epoch and activation bind both device/inode pairs; the host reopens the exact service path
+through the held BrainData descriptor before dispatch and verifies the writer FD. The create-only
+bootstrap initialized Kingston release `259c20d752fa383c3bb42637d10fb5da` with activation written
+last and an 11:15Z anchor. Its independent replay found zero plans and no provider I/O. The first
+LaunchAgent failed closed on every callback with exit status 2 and wrote no journal event; it has
+been booted out, and its plist and root are preserved read-only. There is no active prospective
+collector and no v6 provider traffic. A separately source-pinned successor is being prepared with a
+release-qualified fixed control pair and a bounded owner-only local diagnostic; it must leave the old
+control pair/root untouched, prove an actual launchd idle callback and exact zero-attempt replay,
+then record one new forward-only six-slot bucket and restart recovery before it is described as live.
+Market-source, training, and economic admission remain false.
+
+A descriptor-bound read-only census independently replayed 41 known roots and 62 attempts, including
+two unresolved response sizes. The conservative prior offset is 1,015,808 raw bytes and 5,079,040
+physical bytes. The immutable sanitized census receipt is
+[`v6 prior-usage census`](evidence/gecko-v6-prior-usage-census-2026-10-13T1045Z.json).

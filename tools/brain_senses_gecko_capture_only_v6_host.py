@@ -31,13 +31,17 @@ from typing import Any, cast
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
 SERVICE_PREFIX = "services/gecko-market-v1/capture-only-v6"
-ACTIVATION_PATH = "control/gecko-capture-v6/activation.json"
-SOURCE_MANIFEST_PATH = "control/gecko-capture-v6/source-manifest.json"
+CONTROL_RELEASE_ID = "7a10e2d4c9f84c18a0b53d7e6f214c90"
+CONTROL_RELEASE_DIRECTORY = f"control/gecko-capture-v6/releases/{CONTROL_RELEASE_ID}"
+ACTIVATION_PATH = f"{CONTROL_RELEASE_DIRECTORY}/activation.json"
+SOURCE_MANIFEST_PATH = f"{CONTROL_RELEASE_DIRECTORY}/source-manifest.json"
 PRIOR_USAGE_CENSUS_PATH = "docs/evidence/gecko-v6-prior-usage-census-2026-10-13T1045Z.json"
 SOURCE_BUNDLE_PREFIX = "brain/source-pins/gecko-train-four-v3"
 PLIST_PATH = "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v6.plist.template"
 LABEL = "ai.memecoin.brain.senses.gecko-capture-only-v6"
 INSTALLED_PLIST_PATH = str(Path.home() / "Library/LaunchAgents" / f"{LABEL}.plist")
+DIAGNOSTIC_DIRECTORY = Path.home() / "Library/Logs/BrainSenses"
+DIAGNOSTIC_NAME = "gecko-capture-only-v6-owner.json"
 SOURCE_MANIFEST_SCHEMA = "brain-senses-gecko-capture-v6-source-manifest"
 ACTIVATION_SCHEMA = "brain-senses-gecko-capture-v6-activation"
 CHILD_REAP_TIMEOUT_SECONDS = 5.0
@@ -50,6 +54,46 @@ TRAIN_METADATA_PREFIX = (
 HASH_RE = re.compile(r"[0-9a-f]{64}\Z")
 COMMIT_RE = re.compile(r"[0-9a-f]{40}\Z")
 RELEASE_RE = re.compile(r"[0-9a-f]{32}\Z")
+DIAGNOSTIC_REASON_ALLOWLIST = frozenset(
+    {
+        "v6_owner_fixed_record_missing",
+        "v6_owner_release_context_binding",
+        "v6_owner_source_commit_mismatch",
+        "v6_owner_source_paths_dirty",
+        "v6_owner_source_manifest_drift",
+        "v6_owner_source_blob_mismatch",
+        "v6_owner_runtime_import_failed",
+        "v6_owner_policy_compile",
+        "v6_owner_installed_plist_drift",
+        "v6_owner_plist_invalid",
+        "v6_owner_plist_binding",
+        "v6_owner_launchctl_unavailable",
+        "v6_owner_launchctl_output_unrecognized",
+        "v6_owner_launchctl_output_oversize",
+        "v6_owner_launch_identity",
+        "v6_owner_legacy_launch_state_unknown",
+        "v6_owner_legacy_gecko_collector_loaded",
+        "v6_owner_data_root_identity",
+        "v6_owner_directory_identity",
+        "v6_owner_directory_unavailable",
+        "v6_owner_service_root_invalid",
+        "v6_owner_service_root_replaced",
+        "v6_owner_prior_usage_array_census_mismatch",
+        "v6_owner_prior_usage_census_binding",
+        "v6_owner_prior_usage_census_inventory",
+        "v6_owner_prior_usage_census_totals",
+        "v6_owner_resource_snapshot_failed",
+        "v6_owner_clock_invalid",
+        "v6_owner_clock_stop",
+        "v6_owner_journal_stop_latched",
+        "v6_owner_intent_after_dispatch_deadline",
+        "v6_quiescence_absence_unproven",
+        "v6_quiescence_process_survived",
+        "v6_transport_child_timeout_or_failure",
+        "v6_transport_start_deadline",
+        "owner_runtime_error",
+    }
+)
 
 # Keep source order stable: it is serialized into the source manifest and release.
 SOURCE_PATHS = (
@@ -716,6 +760,8 @@ def load_fixed_release_context(data_writer: Any) -> dict[str, Any]:
         or not HASH_RE.fullmatch(declared_manifest_hash)
         or declared_manifest_hash != sha256(canonical(manifest_core))
         or activation.get("source_manifest_sha256") != manifest.get("source_manifest_sha256")
+        or activation.get("release_id") != CONTROL_RELEASE_ID
+        or activation.get("service_root") != f"{SERVICE_PREFIX}/{CONTROL_RELEASE_ID}"
     ):
         raise HostV6Error("v6_owner_release_context_binding")
     return {
@@ -1040,25 +1086,56 @@ def _read_owner_file(path: Path, *, maximum: int) -> bytes:
 
 
 def _launchctl_print_snapshot(uid: int) -> dict[str, Any]:
-    """Read the current service definition; any unrecognized output fails closed."""
-    try:
-        result = subprocess.run(
-            ["/bin/launchctl", "print", f"gui/{uid}/{LABEL}"],
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=3,
-            env={"PATH": "/usr/bin:/bin"},
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        raise HostV6Error("v6_owner_launchctl_unavailable") from exc
-    if len(result.stdout) > 64 * 1024:
-        raise HostV6Error("v6_owner_launchctl_output_oversize")
+    """Join launchd's PID/path/argv, allowing only a tiny registration race."""
+    result: subprocess.CompletedProcess[str] | None = None
+    for attempt in range(3):
+        try:
+            result = subprocess.run(
+                ["/bin/launchctl", "print", f"gui/{uid}/{LABEL}"],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=3,
+                env={"PATH": "/usr/bin:/bin"},
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            if attempt == 2:
+                raise HostV6Error("v6_owner_launchctl_unavailable") from exc
+            time.sleep(0.1)
+            continue
+        if len(result.stdout) > 64 * 1024:
+            raise HostV6Error("v6_owner_launchctl_output_oversize")
+        break
+    if result is None:
+        raise HostV6Error("v6_owner_launchctl_unavailable")
     pid_match = re.search(r"(?m)^\s*pid = ([0-9]+)\s*$", result.stdout)
     path_match = re.search(r"(?m)^\s*path = (.+?)\s*$", result.stdout)
     block = re.search(r"(?ms)^\s*arguments = \{\s*(.*?)^\s*\}", result.stdout)
     if pid_match is None or path_match is None or block is None:
-        raise HostV6Error("v6_owner_launchctl_output_unrecognized")
+        # launchd can briefly publish the job before attaching its short-lived PID.
+        # Repeat only this incomplete snapshot, never a complete identity mismatch.
+        for _attempt in range(2):
+            time.sleep(0.1)
+            try:
+                result = subprocess.run(
+                    ["/bin/launchctl", "print", f"gui/{uid}/{LABEL}"],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=3,
+                    env={"PATH": "/usr/bin:/bin"},
+                )
+            except (OSError, subprocess.SubprocessError) as exc:
+                raise HostV6Error("v6_owner_launchctl_unavailable") from exc
+            if len(result.stdout) > 64 * 1024:
+                raise HostV6Error("v6_owner_launchctl_output_oversize")
+            pid_match = re.search(r"(?m)^\s*pid = ([0-9]+)\s*$", result.stdout)
+            path_match = re.search(r"(?m)^\s*path = (.+?)\s*$", result.stdout)
+            block = re.search(r"(?ms)^\s*arguments = \{\s*(.*?)^\s*\}", result.stdout)
+            if pid_match is not None and path_match is not None and block is not None:
+                break
+        if pid_match is None or path_match is None or block is None:
+            raise HostV6Error("v6_owner_launchctl_output_unrecognized")
     arguments: list[str] = []
     for line in block.group(1).splitlines():
         value = line.strip()
@@ -1076,6 +1153,108 @@ def _launchctl_print_snapshot(uid: int) -> dict[str, Any]:
         "plist_path": path_match.group(1),
         "program_arguments": arguments,
     }
+
+
+def _write_callback_diagnostic(*, reason: str) -> None:
+    """Atomically replace one small owner-only diagnostic outside research storage."""
+    safe_reason = reason if reason in DIAGNOSTIC_REASON_ALLOWLIST else "owner_runtime_error"
+    payload = canonical(
+        {
+            "schema": "brain-senses-owner-callback-diagnostic-v1",
+            "observed_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "pid": os.getpid(),
+            "release_id": CONTROL_RELEASE_ID,
+            "stage": "owner_callback",
+            "reason": safe_reason,
+        }
+    )
+    if len(payload) > 1024:
+        return
+    # Resolve only trusted parent mounts (for example macOS /private/var); the
+    # final BrainSenses directory is still opened with O_NOFOLLOW below.
+    try:
+        home = DIAGNOSTIC_DIRECTORY.parents[2].resolve(strict=True)
+        diagnostic_parent = DIAGNOSTIC_DIRECTORY.parent.resolve(strict=True)
+    except OSError:
+        return
+    try:
+        home_stat = home.stat()
+        parent_stat = diagnostic_parent.stat()
+    except OSError:
+        return
+    if (
+        not diagnostic_parent.is_absolute()
+        or diagnostic_parent != home / "Library" / "Logs"
+        or home_stat.st_uid != os.getuid()
+        or not stat.S_ISDIR(home_stat.st_mode)
+        or parent_stat.st_dev != home_stat.st_dev
+    ):
+        return
+    root_fd = os.open("/", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    current = root_fd
+    opened: list[int] = []
+    try:
+        for component in (*diagnostic_parent.parts[1:], DIAGNOSTIC_DIRECTORY.name):
+            try:
+                child = os.open(
+                    component,
+                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                    dir_fd=current,
+                )
+            except FileNotFoundError:
+                os.mkdir(component, 0o700, dir_fd=current)
+                child = os.open(
+                    component,
+                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                    dir_fd=current,
+                )
+            info = os.fstat(child)
+            if not stat.S_ISDIR(info.st_mode):
+                os.close(child)
+                return
+            if component == DIAGNOSTIC_DIRECTORY.name and (
+                info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o700
+            ):
+                os.close(child)
+                return
+            opened.append(child)
+            current = child
+        # A fixed create-only staging name bounds even repeated crash prefixes to
+        # one small file; a stale file makes diagnostics unavailable, never writable.
+        temp_name = f".{DIAGNOSTIC_NAME}.tmp"
+        fd = os.open(
+            temp_name,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=current,
+        )
+        try:
+            info = os.fstat(fd)
+            if (
+                not stat.S_ISREG(info.st_mode)
+                or info.st_uid != os.getuid()
+                or stat.S_IMODE(info.st_mode) != 0o600
+                or info.st_nlink != 1
+            ):
+                return
+            view = memoryview(payload)
+            while view:
+                written = os.write(fd, view)
+                if written <= 0:
+                    return
+                view = view[written:]
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        os.rename(temp_name, DIAGNOSTIC_NAME, src_dir_fd=current, dst_dir_fd=current)
+        os.fsync(current)
+    except OSError:
+        # Diagnostics must never change the callback's fail-closed outcome.
+        return
+    finally:
+        for fd in reversed(opened):
+            os.close(fd)
+        os.close(root_fd)
 
 
 def _assert_no_legacy_gecko_labels(uid: int) -> None:
@@ -2040,6 +2219,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             result = scheduled_tick()
         except Exception as exc:
+            _write_callback_diagnostic(
+                reason=str(exc) if isinstance(exc, HostV6Error) else "owner_runtime_error"
+            )
             # Only a fixed class identifier is emitted; no exception text/path.
             print(
                 json.dumps(

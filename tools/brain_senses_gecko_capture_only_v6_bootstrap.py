@@ -219,7 +219,7 @@ def prepare_v6_release(
     try:
         with lane_lease.hold():
             revalidate()
-            data_identity = _root_storage_identity(guard, guarded_writer)
+            _root_storage_identity(guard, guarded_writer)
             try:
                 resource = guard.revalidate(min_free_bytes=policy_v6.MIN_FREE_BYTES)
             except Exception as exc:
@@ -264,16 +264,9 @@ def prepare_v6_release(
                 now_ns=now,
             )
             census_sha = sha256(receipt_raw)
-            release_seed = {
-                "schema": SCHEMA,
-                "schema_version": SCHEMA_VERSION,
-                "source_manifest_sha256": source_manifest["source_manifest_sha256"],
-                "census_sha256": census_sha,
-                "root_id": data_identity["root_id"],
-                "volume_uuid": data_identity["volume_uuid"],
-                "data_root": data_identity["data_root"],
-            }
-            release_id = sha256(canonical(release_seed))[:32]
+            # Each source-pinned successor selects exactly one immutable control
+            # namespace. The prior v6 control pair remains untouched and unread.
+            release_id = host_v6.CONTROL_RELEASE_ID
             service_root = f"{capture_v6.ROOT_PREFIX}/{release_id}"
             raw_anchor = _anchor_after(now, observed_ns, margin_ns=ANCHOR_MARGIN_NS)
 
@@ -381,7 +374,7 @@ def prepare_v6_release(
             # Store the source binding before the service journal; activation remains
             # the last create-only artifact in the whole transaction.
             source_manifest_raw = canonical(source_manifest)
-            guarded_writer.mkdir(host_v6.SOURCE_MANIFEST_PATH.rsplit("/", 1)[0])
+            guarded_writer.mkdir(host_v6.CONTROL_RELEASE_DIRECTORY)
             _write_identical_or_create(
                 guarded_writer,
                 host_v6.SOURCE_MANIFEST_PATH,

@@ -173,7 +173,11 @@ def test_fixed_context_uses_exact_paths_canonical_bytes_and_manifest_pin() -> No
         "source_map": {path: "b" * 64 for path in host.SOURCE_PATHS},
     }
     manifest = {**core, "source_manifest_sha256": host.sha256(host.canonical(core))}
-    activation = {"source_manifest_sha256": manifest["source_manifest_sha256"]}
+    activation = {
+        "source_manifest_sha256": manifest["source_manifest_sha256"],
+        "release_id": host.CONTROL_RELEASE_ID,
+        "service_root": f"{host.SERVICE_PREFIX}/{host.CONTROL_RELEASE_ID}",
+    }
 
     class Reader:
         def __init__(self, rows: dict[str, bytes]) -> None:
@@ -195,6 +199,119 @@ def test_fixed_context_uses_exact_paths_canonical_bytes_and_manifest_pin() -> No
     reader.rows[host.SOURCE_MANIFEST_PATH] = b'{"schema":"bad","schema":"duplicate"}\n'
     with pytest.raises(host.HostV6Error, match="duplicate_json_key"):
         host.load_fixed_release_context(reader)
+
+
+def test_fixed_context_rejects_activation_from_another_release() -> None:
+    core = {"schema": host.SOURCE_MANIFEST_SCHEMA, "schema_version": 6}
+    manifest = {**core, "source_manifest_sha256": host.sha256(host.canonical(core))}
+    activation = {
+        "source_manifest_sha256": manifest["source_manifest_sha256"],
+        "release_id": "0" * 32,
+        "service_root": f"{host.SERVICE_PREFIX}/{'0' * 32}",
+    }
+
+    class Reader:
+        def read_bytes(self, path: str, *, max_bytes: int) -> bytes:
+            del max_bytes
+            return host.canonical(manifest if path == host.SOURCE_MANIFEST_PATH else activation)
+
+    with pytest.raises(host.HostV6Error, match="release_context_binding"):
+        host.load_fixed_release_context(Reader())
+
+
+def test_xpc_environment_label_cannot_substitute_for_launchd_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("XPC_SERVICE_NAME", host.LABEL)
+    snapshot = {
+        "loaded": True,
+        "label": host.LABEL,
+        "pid": os.getpid() + 1,
+        "uid": os.getuid(),
+        "plist_path": host.INSTALLED_PLIST_PATH,
+        "program_arguments": ["spoofed"],
+    }
+    with pytest.raises(host.HostV6Error, match="launch_identity"):
+        host.verify_loaded_owner(
+            snapshot,
+            pid=os.getpid(),
+            uid=os.getuid(),
+            repo_root=host.REPO_ROOT,
+            plist_path=host.INSTALLED_PLIST_PATH,
+        )
+
+
+def test_launchctl_snapshot_retries_only_an_incomplete_registration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    complete = (
+        "gui/501/label = {\n\tpath = /tmp/agent.plist\n\tpid = 4321\n"
+        "\targuments = {\n\t\t/python\n\t\t-B\n\t}\n}\n"
+    )
+    responses = iter(
+        [
+            subprocess.CompletedProcess(
+                [], 0, "gui/501/label = {\n\tpath = /tmp/agent.plist\n}", ""
+            ),
+            subprocess.CompletedProcess([], 0, complete, ""),
+        ]
+    )
+    calls: list[list[str]] = []
+    monkeypatch.setattr(
+        host.subprocess, "run", lambda args, **_kwargs: calls.append(args) or next(responses)
+    )
+    monkeypatch.setattr(host.time, "sleep", lambda _seconds: None)
+    snapshot = host._launchctl_print_snapshot(501)
+    assert snapshot["pid"] == 4321
+    assert len(calls) == 2
+
+
+def test_launchctl_snapshot_does_not_retry_complete_identity_command_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+
+    def run(*_args: Any, **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        calls += 1
+        raise subprocess.CalledProcessError(3, "launchctl")
+
+    monkeypatch.setattr(host.subprocess, "run", run)
+    monkeypatch.setattr(host.time, "sleep", lambda _seconds: None)
+    with pytest.raises(host.HostV6Error, match="launchctl_unavailable"):
+        host._launchctl_print_snapshot(501)
+    assert calls == 3
+
+
+def test_callback_diagnostic_is_bounded_private_and_sanitized(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    diagnostic_dir = tmp_path / "Library" / "Logs" / "BrainSenses"
+    diagnostic_dir.parent.mkdir(parents=True)
+    monkeypatch.setattr(host, "DIAGNOSTIC_DIRECTORY", diagnostic_dir)
+    host._write_callback_diagnostic(reason="v6_owner_launch_identity")
+    raw = (diagnostic_dir / host.DIAGNOSTIC_NAME).read_bytes()
+    record = json.loads(raw)
+    assert set(record) == {"schema", "observed_utc", "pid", "release_id", "stage", "reason"}
+    assert record["release_id"] == host.CONTROL_RELEASE_ID
+    assert record["stage"] == "owner_callback"
+    assert record["reason"] == "v6_owner_launch_identity"
+    assert len(raw) <= 1024
+    assert (diagnostic_dir.stat().st_mode & 0o777) == 0o700
+    assert ((diagnostic_dir / host.DIAGNOSTIC_NAME).stat().st_mode & 0o777) == 0o600
+
+
+def test_callback_diagnostic_does_not_follow_directory_symlink(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    diagnostic_dir = tmp_path / "Library" / "Logs" / "BrainSenses"
+    diagnostic_dir.parent.mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    diagnostic_dir.symlink_to(outside, target_is_directory=True)
+    monkeypatch.setattr(host, "DIAGNOSTIC_DIRECTORY", diagnostic_dir)
+    host._write_callback_diagnostic(reason="secret=/forbidden/path")
+    assert list(outside.iterdir()) == []
 
 
 def test_plist_is_inert_fixed_60_second_callback() -> None:
