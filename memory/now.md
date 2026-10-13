@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-13 21:25Z. Portability/DR assessment is recorded in
+**As of:** 2026-10-13 21:29Z. Portability/DR assessment is recorded in
 `docs/portability-disaster-recovery.md` and its 2026-10-14 receipt on `research/active`; the
 software restore rehearsal used source baseline `33ff52f`. `main` and `origin/main` remain
 `770699d`; do not advance main before a verified capability milestone.
@@ -10,8 +10,9 @@ loss is explicitly uncovered and accepted for this iteration. A fresh exact-curr
 restore took ~82 seconds, Kingston root verification passed, and a synthetic encrypted archive
 round-trip plus injected-failure cleanup passed metadata/integrity/failure checks. Owner processes
 remain active; no qualified owner-wide read-only snapshot exists, no recovery secret custody is
-verified, and no actual owner/protected archive or full restore has been performed. No provider
-requests or services changed. See
+verified, and no actual owner/protected archive or full restore has been performed. The 18-label
+owner-service inventory is captured; clean restore keeps all Brain/Senses services unloaded until
+separate authorization. No provider requests or source services changed. See
 `docs/portability-disaster-recovery.md` and
 `docs/evidence/portability-dr-qualification-2026-10-14.json`. Positive-bar projector and discovery
 evidence remain offline/synthetic; no eligible population or economic/lifecycle qualification claim.
