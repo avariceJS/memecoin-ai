@@ -1,0 +1,51 @@
+{
+  "schema": "brain-senses-gecko-v6-population-coverage-preregistration",
+  "schema_version": 1,
+  "frozen_at_utc": "2026-10-13T12:33:40Z",
+  "source": {
+    "source_commit": "4168a8cec74b27ec901961302ba8f6924a3dbb54",
+    "source_commit_is_ancestor_of_head": true,
+    "source_manifest_sha256": "d6ef60c0041c4d7df81bf44bac5ce110a8242a7ef0a99bdd5900313c044a67c5",
+    "release_id": "94da5c80bdd82308ebbad0c8f2e158b3",
+    "service_root": "services/gecko-market-v1/capture-only-v6/94da5c80bdd82308ebbad0c8f2e158b3",
+    "activation_sha256": "125c06dab0effc88ecbe0839c8e34bcada22ae0a39a33cf922fb996da6049c1c",
+    "policy_sha256": "35d30c13cbfe6cdd9ba81216a382b194d3205159b5001157a5dd22f207d6e8f2",
+    "selector_sha256": "d0757943a2021a02e706b38c94e13d9dc968cfbf9d74db39f0380a7729b7d8d6",
+    "population_sha256": "938ee425361c27e03f18a123bcdf3d35edbbfafe719c12324c517b408c1cbc8d",
+    "population_count": 170,
+    "first_bucket_close_ns": 1791897300000000000,
+    "first_bucket_close_utc": "2026-10-13T13:15:00Z",
+    "initial_root_state": "verified_none",
+    "provider_io_at_freeze": false
+  },
+  "analysis_contract": {
+    "scope": "One complete deterministic rotation of this pinned 170-pool population, beginning at the pinned first bucket. Continue only forward; no backfill or response-based replacement.",
+    "planned_opportunity_unit": "One (bucket_close_ns, pool_id) listed in a durable immutable plan and matching plan journal event.",
+    "planned_opportunity_denominator": "Every selected pool in every durable plan counts, including no-intent slots, explicit missed outcomes, ambiguous spent requests, provider failures, empty responses, and malformed or unsupported responses.",
+    "unplanned_gap_handling": "Count every durable gap bucket separately as an unplanned unavailable interval with unknown pool selection. Do not reconstruct or attribute pool slots, infer cursor advancement, or backfill that gap.",
+    "rotation_stop_for_audit": "End the first-rotation audit only after each of the 170 pinned pool IDs has appeared in at least one durable plan; a gap does not satisfy pool exposure.",
+    "transport_and_bar_metrics": [
+      "durable planned opportunities",
+      "distinct pools planned out of 170",
+      "intents and terminal confirmations",
+      "provider responses and response bytes",
+      "raw-response parse status",
+      "existing parser dispositions: eligible_new_open, eligible_overlap_revision, excluded_unclosed, excluded_out_of_window",
+      "per-pool and UTC age-band opportunity/exposure counts",
+      "unplanned gap buckets, unresolved or ambiguous states, and explicit unknown denominators"
+    ],
+    "time_and_provenance": "Preserve event bar-open time, decision/bucket time, request start, provider receipt, durable availability/confirmation time, raw response hash, source/policy/selector/population pins, and root/volume identity as distinct facts.",
+    "age_band_policy": "Derive age only from independently pinned birth evidence with an explicit knowledge/availability time. Use existing 0-3d, 3-7d, and 7d+ boundaries only where birth-time uncertainty permits exact classification; otherwise retain unknown.",
+    "missingness_and_lifecycle": "A missing bar, empty response, unplanned gap, or pool disappearance remains unknown and never implies zero activity, inactivity, or death.",
+    "downstream_projection": "Emit read-only replay/audit first. Project only source-qualified bars into existing population/sparse coverage interfaces; keep capture and qualified coverage separate.",
+    "claims_excluded": [
+      "complete GeckoTerminal or market-wide population",
+      "market-source qualification",
+      "lifecycle death or absence",
+      "economic settlement or trading edge",
+      "training admission",
+      "model or paper capability"
+    ],
+    "collection_change": "None; cadence, selector, caps, release root, provider and forward-only policy remain unchanged."
+  }
+}

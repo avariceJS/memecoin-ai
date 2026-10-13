@@ -4064,6 +4064,17 @@ one forward-only request per slot, 12-second spacing, bounded request/byte/stora
 resident ceiling, and a 50-GiB free-space floor. Market-source, training, and economic admission
 remain false.
 
+Before the first provider bucket, Sol selected a read-only population/coverage audit as the next
+sensing horizon. The preregistration binds release `94da5c80bdd82308ebbad0c8f2e158b3`, its source,
+policy, selector and 170-pool population pins, and starts at the immutable 13:15Z anchor. Its
+pool-bucket denominator is every member of a durable six-pool plan, regardless of whether an
+intent, successful response, or usable new-open bar follows. Durable gap buckets are counted
+separately as unplanned unknown intervals; no pool IDs are reconstructed for them. The first
+rotation ends only after each pinned pool has appeared in at least one durable plan. Existing raw
+bar classifications, lifecycle-age uncertainty and event/receipt/availability times remain
+separate; misses, empty responses and disappearance never imply zero or death. Receipt:
+[`v6 population-coverage preregistration`](evidence/gecko-v6-population-coverage-preregistration-2026-10-13.json).
+
 A descriptor-bound read-only census independently replayed 41 known roots and 62 attempts, including
 two unresolved response sizes. The conservative prior offset is 1,015,808 raw bytes and 5,079,040
 physical bytes. The immutable sanitized census receipt is
