@@ -318,6 +318,101 @@ def test_discovery_real_v3_recovery_detach_during_page_write_has_no_underlay_art
         writer.close()
 
 
+class FailBeforeActivationCreate:
+    def __init__(self, writer: DescriptorWriter, activation_path: str):
+        self.writer = writer
+        self.activation_path = activation_path
+        self.failed = False
+
+    def __getattr__(self, name):
+        return getattr(self.writer, name)
+
+    def create(self, relative: str, payload: bytes, *, mode: int = 0o600):
+        if relative == self.activation_path and not self.failed:
+            self.failed = True
+            raise OSError("simulated interruption before activation authority")
+        self.writer.create(relative, payload, mode=mode)
+
+
+def test_discovery_v3_activation_interruption_retries_one_authority(tmp_path, monkeypatch):
+    writer, guard, binding = _fixture(tmp_path / "data")
+    publish_cutover_v3(
+        writer=writer,
+        guard=guard,
+        cutover_ns=1_900_000_000_000_000_001,
+        free_bytes_probe=_free_bytes,
+        quiescence_verifier=_quiescence,
+    )
+    capacity_context = discovery_host._current_capacity_context
+
+    def ample_test_capacity(*args, **kwargs):
+        return {**capacity_context(*args, **kwargs), "free_bytes": 250_000_000_000}
+
+    monkeypatch.setattr(discovery_host, "_current_capacity_context", ample_test_capacity)
+    try:
+        candidate = discovery_host.prepare_release_material(
+            writer=writer,
+            guard=guard,
+            binding=binding,
+            now_ns=1_900_000_000_000_000_100,
+            loaded_labels=set(),
+        )
+        assert candidate["provider_io"] is False
+        assert not writer.exists(discovery_host.ACTIVATION_PATH)
+        interrupted = FailBeforeActivationCreate(writer, discovery_host.ACTIVATION_PATH)
+        with pytest.raises(discovery_host.DiscoveryHostError, match="create_only_collision"):
+            discovery_host.activate_prepared_release(
+                writer=interrupted,
+                guard=guard,
+                binding=binding,
+                loaded_labels=set(),
+            )
+        assert interrupted.failed
+        assert writer.exists(discovery_host.ACTIVE_EPOCH_PATH)
+        assert not writer.exists(discovery_host.ACTIVATION_PATH)
+        assert writer.exists(discovery_host._standby_path(0))
+
+        result = discovery_host.activate_prepared_release(
+            writer=writer,
+            guard=guard,
+            binding=binding,
+            loaded_labels=set(),
+        )
+        assert result["provider_io"] is False
+        assert result["activation"]["armed"] is True
+        assert result["activation"]["release_id"] == candidate["release_id"]
+        events = v3.verify_v3_ledger(
+            writer.read_bytes(v3.LEDGER_PATH),
+            expected_policy_bytes=writer.read_bytes(v3.POLICY_PATH),
+            bridge=discovery_host._current_capacity_context(writer, guard)["bridge"],
+        )
+        hold_events = [event for event in events if event["kind"] == "epoch_hold_open"]
+        assert len(hold_events) == 1
+        with pytest.raises(discovery_host.DiscoveryHostError, match="already_exists"):
+            discovery_host.activate_prepared_release(
+                writer=writer,
+                guard=guard,
+                binding=binding,
+                loaded_labels=set(),
+            )
+        assert (
+            len(
+                [
+                    event
+                    for event in v3.verify_v3_ledger(
+                        writer.read_bytes(v3.LEDGER_PATH),
+                        expected_policy_bytes=writer.read_bytes(v3.POLICY_PATH),
+                        bridge=discovery_host._current_capacity_context(writer, guard)["bridge"],
+                    )
+                    if event["kind"] == "epoch_hold_open"
+                ]
+            )
+            == 1
+        )
+    finally:
+        writer.close()
+
+
 def test_discovery_real_v3_recovery_marks_dispatch_ambiguous_and_stops(tmp_path, monkeypatch):
     writer, guard, binding, capacity, plan, release_id, intent, intent_raw = (
         _discovery_recovery_fixture(tmp_path / "data", monkeypatch)
