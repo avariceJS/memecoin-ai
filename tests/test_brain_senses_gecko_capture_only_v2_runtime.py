@@ -26,6 +26,7 @@ from tools import brain_senses_gecko_capture_only_v2_host as host_release  # noq
 from tools import brain_senses_gecko_capture_only_v2_scheduler as scheduler  # noqa: E402
 from tools import brain_senses_gecko_capture_only_v2_service as service  # noqa: E402
 from tools import brain_senses_gecko_capture_only_v2_verify as verifier  # noqa: E402
+from tools import brain_senses_gecko_capture_only_v3_host as v3_host  # noqa: E402
 from tools import brain_senses_gecko_rotating_scout_v1 as scout  # noqa: E402
 from tools import brain_senses_gecko_scout_chain_v1 as chain  # noqa: E402
 from tools import brain_senses_gecko_shared_usage_v1 as shared_usage  # noqa: E402
@@ -1024,6 +1025,77 @@ def test_attempt_one_slot_replays_inventory_and_writes_one_mocked_request(
         capture = next(row for row in replay["snapshots"] if row["root"] == RELEASE_ROOT)
         assert capture["status"] == "verified_prefix"
         assert len(capture["attempts"]) == 1
+    finally:
+        fixture.close()
+
+
+def test_v3_full_storage_guard_blocks_http_after_durable_intent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = _Fixture(tmp_path / "gecko-v3-guard-before-http")
+    try:
+        close_ns = FIRST_CLOSE_NS
+        plan = fixture.journal.ensure_plan_for_current_bucket(
+            now_ns=close_ns + 70 * scout.NS,
+            bucket_close_ns=close_ns,
+        )
+        original_inventory = usage_inventory.build_usage_inventory
+
+        def inventory_with_cutover(writer: DescriptorWriter) -> dict[str, Any]:
+            inventory = original_inventory(writer)
+            old_root = "services/gecko-market-v1/capture-only-v1/f4412b7a531d4e3cb3414a2862b8ee76"
+            inventory["snapshots"].append(
+                shared_usage.make_verified_root_snapshot(
+                    root=old_root,
+                    status="verified_prefix",
+                    root_inventory_sha256=inventory["root_inventory_sha256"],
+                    source_prefix_sha256=host_release.CUTOVER_PREFIX_SHA256,
+                    attempts=[
+                        {
+                            "request_id": hashlib.sha256(b"prior-v4-attempt").hexdigest(),
+                            "decision_ns": host_release.CUTOVER_LAST_DISPATCH_NS,
+                            "maximum_response_bytes": scout.MAX_RESPONSE_BYTES,
+                            "response_bytes": 100,
+                            "response_sha256": hashlib.sha256(b"legacy").hexdigest(),
+                        }
+                    ],
+                )
+            )
+            inventory["snapshots"].sort(key=lambda row: row["root"])
+            return inventory
+
+        monkeypatch.setattr(usage_inventory, "build_usage_inventory", inventory_with_cutover)
+        calls: list[dict[str, Any]] = []
+
+        class DetachedGuard:
+            def revalidate(self) -> None:
+                raise StorageError("mounted_directory_replaced")
+
+        def provider_fetch(request: Mapping[str, Any]) -> service.FetchResult:
+            calls.append(dict(request))
+            return service.FetchResult(200, b"{}", {})
+
+        wall = iter(close_ns + value * scout.NS for value in (70, 71, 72, 73, 74, 75))
+        mono = iter(value * scout.NS for value in (81, 82, 87))
+        with pytest.raises(StorageError, match="mounted_directory_replaced"):
+            host_release.attempt_one_slot(
+                fixture.writer,
+                coordinator=fixture.coordinator,
+                capture_writer=fixture.capture_writer,
+                policy=fixture.policy,
+                binding=fixture.journal.binding,
+                plan=plan,
+                now_ns=lambda: next(wall),
+                monotonic_ns=lambda: next(mono),
+                clock_probe=lambda: _clock(close_ns + 71 * scout.NS, 81 * scout.NS),
+                fetch_once=v3_host._fetch_with_full_revalidation(DetachedGuard(), provider_fetch),
+            )
+        state = host_release.read_capture_state(fixture.writer, fixture.journal.root)
+        assert calls == []
+        assert len(state["intents"]) == 1
+        assert len(state["dispatches"]) == 1
+        assert state["results"] == []
+        assert host_release.recovery_gate(state) == "possibly_spent_unresolved"
     finally:
         fixture.close()
 

@@ -6,6 +6,8 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- [`Gecko v3 failed-watchdog canary observation`](gecko-capture-only-v3-canary-observation-2026-10-13T0406Z.json): six actual forward-only GeckoTerminal requests all have durable confirmations and pass timing/replay checks; zero returned bars are eligible. The v1 watchdog failed closed on its plan-schema lookup. The v2 full-census replay recognizes that immutable receipt as a zero-attempt diagnostic root, restores the historical a078 projection, and independently accounts for 52 attempts across 40 roots. The capture is not a market-source qualification; actual charge remains unknown/unverified.
+- [`Gecko capture-only v4 forward-canary observation`](gecko-capture-only-v4-live-observation-2026-10-13T0421Z.json): six actual HTTP 200 responses / 4,688 raw bytes, six durable request chains, passed independent timing watchdog, zero missed/ambiguous requests, and no-replay LaunchAgent restart. The post-publication global inventory verifies 41 roots / 58 attempts with provider I/O disabled. No returned bar was eligible; this does not qualify market coverage, and actual charge remains unknown/unverified.
 - Agave Seatbelt confinement v2 disposable fixture:
   `agave-confinement-v2-fixture-2026-10-12.json` (5/5 synthetic tests pass descendant
   read/write/network denial, symlink escape denial, and detached-child cleanup, but forced
@@ -19,6 +21,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   independent 25-root/40-attempt usage replay after five actual HTTP 200 responses across two
   prospective buckets, seven explicit missed dispatches, and a post-capture LaunchAgent restart.
   All returned bars were outside the new-open window; this is acquisition/recovery evidence only.
+- [`Gecko three-bucket live observation`](gecko-capture-only-v2-live-observation-2026-10-13T0307Z.json):
+  independent 27-root/42-attempt usage replay after seven actual HTTP 200 responses / 5,819 bytes,
+  11 durable missed-dispatch skips, and a source-bound plan-only successor root. All bars remained
+  outside the new-open window; the successor was not activated.
 - Gecko capture-only v4 first live bucket:
   [`gecko-capture-only-v4-first-live-bucket-2026-10-12T2100Z.json`](gecko-capture-only-v4-first-live-bucket-2026-10-12T2100Z.json)
   (four actual future-only HTTP 200 requests, four durable results/captures/confirmations and a

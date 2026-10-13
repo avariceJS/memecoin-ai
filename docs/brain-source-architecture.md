@@ -3919,13 +3919,32 @@ Its policy permits at most six selected pools per 15-minute bucket, one request 
 least 12 seconds between dispatches, 576 requests/10 MiB raw per UTC day, 17,280 requests/300 MiB
 raw and 2 GiB physical reserve per rolling 30 days, a 16 GiB resident ceiling, and a 50 GiB
 free-space floor. These are finite safety limits, not a time-limited lease. Recovery was checked by
-bootout/bootstrap before the first provider window. The first two natural buckets produced five
-actual GeckoTerminal HTTP 200 responses / 4,770 raw bytes; independent inventory replay verified
-the exact prefix and global accounting ([live observation receipt](evidence/gecko-capture-only-v2-live-observation-2026-10-13T0252Z.json)). Both windows had zero eligible new-open bars: the first
-completed 3/6 requests and the second 2/6, with all seven remaining selected slots durably marked
-`missed_dispatch`. Health is paused outside the window with `stop_latched=false`; the collector has
-restarted after these observations without replaying a spent request. Measured live callbacks exceed
-the 12-second cadence, so useful coverage is currently constrained. A two-tier descriptor-bound
-write validation and census-cost reduction must be source-bound and detach-path qualified before a
-successor can replace this release. No calendar gap is backfilled. Provider charge remains
-unknown/unverified; market-source, training, and economic admission remain false.
+bootout/bootstrap before provider collection. Across the first three natural buckets it produced
+seven actual GeckoTerminal HTTP 200 responses / 5,819 raw bytes; independent inventory replay
+verified the exact prefix, 27-root/42-attempt global census, and the empty plan-only candidate root
+([`three-bucket live observation`](evidence/gecko-capture-only-v2-live-observation-2026-10-13T0307Z.json)).
+All three windows had zero eligible new-open bars: 3/6, 2/6 and 2/6 requests, with the 11 remaining
+selected slots durably marked `missed_dispatch`. Health is paused outside the window with
+`stop_latched=false`; a bootout/bootstrap after the first two buckets preserved all five then-current
+request chains without replay. Measured callbacks exceed the 12-second cadence, constraining
+coverage. A two-second process sample observed 26 subprocess forks in the active source-pinned
+callback. The fresh v3 successor `742db927422a3f772c6f46f6d9084c60` is source-bound and independently
+accepted as `verified_none` by the global inventory. Its descriptor-write fast path passed forced
+detach/replacement tests; a full-validation, no-provider callback took 22.2 seconds. This does not
+yet demonstrate six timely requests in one window, so the candidate is not activated. No calendar
+gap is backfilled. Provider charge remains unknown/unverified; market-source, training, and
+economic admission remain false.
+
+The source-pinned Gecko capture-only v4 release `3569c27ff9916382c209ea71ef23e345` completed its
+first forward bucket under independent watchdog v2. It made six GeckoTerminal HTTP 200 requests
+(4,688 raw bytes), with six durable intents/results/confirmations, no misses or ambiguous requests,
+and dispatch spacing of at least 23.7 seconds. The watchdog passed the timing gate and independently
+recorded zero eligible new-open bars. Full v2 inventory replay after watchdog publication verified
+41 roots / 58 attempts with provider I/O disabled; its watchdog proof is a `verified_none`, zero-
+attempt diagnostic and does not expand dispatch authority. A post-bucket LaunchAgent
+bootout/bootstrap preserved all six request chains with no replay. The LaunchAgent remains loaded
+with a 12-second callback, no calendar lease expiry, and its next untouched bucket at 04:30Z;
+descriptor-bound writes remain bound to Kingston. This demonstrates one bounded live bucket and
+restart recovery, not sustained coverage or market-source qualification. Provider charge remains
+unknown/unverified; training and economic admission remain false. Receipt:
+[`v4 forward-canary observation`](evidence/gecko-capture-only-v4-live-observation-2026-10-13T0421Z.json).
