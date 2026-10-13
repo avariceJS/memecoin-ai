@@ -13,6 +13,7 @@ from memecoin_research_storage import (
     StorageConfig,
     StorageError,
     VolumeInfo,
+    bind_existing,
     configure,
     create_root,
     resolve,
@@ -21,6 +22,7 @@ from memecoin_research_storage import (
 )
 
 UUID = "11111111-2222-3333-4444-555555555555"
+ROOT_ID = "a" * 32
 
 
 class FakeProbe:
@@ -214,6 +216,187 @@ def test_create_root_writes_private_marker_and_refuses_existing_root(tmp_path: P
     assert verify_root(config_path, probe=probe) == resolved
     with pytest.raises(StorageError, match="research_root_already_exists"):
         create_root(config_path, probe=probe)
+
+
+def _existing_root_fixture(tmp_path: Path, *, marker: bytes | None = None):
+    mount = tmp_path / "external"
+    root = mount / "research" / "root"
+    root.mkdir(parents=True, mode=0o700)
+    (mount / "research").chmod(0o700)
+    (root / ROOT_MARKER).write_bytes(
+        marker
+        if marker is not None
+        else json.dumps(
+            {
+                "version": 1,
+                "root_id": ROOT_ID,
+                "volume_uuid": UUID,
+                "data_root": "research/root",
+            },
+            sort_keys=True,
+        ).encode()
+    )
+    (root / ROOT_MARKER).chmod(0o600)
+    host_config_dir = tmp_path / "host-config"
+    host_config_dir.mkdir(mode=0o700)
+    config_path = host_config_dir / "binding.json"
+    return config_path, mount, root
+
+
+def test_bind_existing_writes_host_binding_without_volume_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, root = _existing_root_fixture(tmp_path)
+    probe = FakeProbe(mount)
+    monkeypatch.setattr(research_storage, "_ensure_config_parent_on_other_device", lambda *_: None)
+    before = sorted(str(path.relative_to(mount)) for path in mount.rglob("*"))
+    config = bind_existing(
+        config_path,
+        mount,
+        "research/root",
+        expected_volume_uuid=UUID,
+        expected_root_id=ROOT_ID,
+        min_free_bytes=100,
+        probe=probe,
+    )
+    after = sorted(str(path.relative_to(mount)) for path in mount.rglob("*"))
+    assert before == after
+    assert config.root_id == ROOT_ID
+    assert StorageConfig.load(config_path) == config
+    assert stat.S_IMODE(config_path.stat().st_mode) == 0o600
+    assert not (mount / ".research-storage.lock").exists()
+    assert probe.calls == 3
+    assert root.is_dir()
+
+
+def test_bind_existing_rejects_absent_malformed_or_mismatched_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for index, marker, expected in (
+        (1, None, "root_marker_unavailable"),
+        (2, b"{broken", "invalid_root_marker"),
+        (
+            3,
+            json.dumps(
+                {
+                    "version": 1,
+                    "root_id": "b" * 32,
+                    "volume_uuid": UUID,
+                    "data_root": "research/root",
+                }
+            ).encode(),
+            "root_marker_binding_mismatch",
+        ),
+        (
+            4,
+            json.dumps(
+                {
+                    "version": True,
+                    "root_id": ROOT_ID,
+                    "volume_uuid": UUID,
+                    "data_root": "research/root",
+                }
+            ).encode(),
+            "root_marker_binding_mismatch",
+        ),
+    ):
+        case = tmp_path / str(index)
+        case.mkdir()
+        config_path, mount, _root = _existing_root_fixture(case, marker=marker)
+        if marker is None:
+            (mount / "research/root" / ROOT_MARKER).unlink()
+        monkeypatch.setattr(
+            research_storage, "_ensure_config_parent_on_other_device", lambda *_: None
+        )
+        with pytest.raises(StorageError, match=expected):
+            bind_existing(
+                config_path,
+                mount,
+                "research/root",
+                expected_volume_uuid=UUID,
+                expected_root_id=ROOT_ID,
+                min_free_bytes=100,
+                probe=FakeProbe(mount),
+            )
+        assert not config_path.exists()
+
+
+def test_bind_existing_rejects_volume_identity_drift_and_config_collision(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _root = _existing_root_fixture(tmp_path)
+    monkeypatch.setattr(research_storage, "_ensure_config_parent_on_other_device", lambda *_: None)
+    changing_probe = FakeProbe(
+        mount,
+        volume_uuid=lambda call: UUID if call == 1 else "22222222-3333-4444-5555-666666666666",
+    )
+    with pytest.raises(StorageError, match="volume_uuid_mismatch"):
+        bind_existing(
+            config_path,
+            mount,
+            "research/root",
+            expected_volume_uuid=UUID,
+            expected_root_id=ROOT_ID,
+            min_free_bytes=100,
+            probe=changing_probe,
+        )
+    assert not config_path.exists()
+    config_path.write_text("keep", encoding="utf-8")
+    config_path.chmod(0o600)
+    with pytest.raises(StorageError, match="config_already_exists"):
+        bind_existing(
+            config_path,
+            mount,
+            "research/root",
+            expected_volume_uuid=UUID,
+            expected_root_id=ROOT_ID,
+            min_free_bytes=100,
+            probe=FakeProbe(mount),
+        )
+    assert config_path.read_text(encoding="utf-8") == "keep"
+
+
+def test_bind_existing_requires_trusted_pins_and_bounded_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _root = _existing_root_fixture(
+        tmp_path, marker=b"{" + b" " * research_storage.MAX_ROOT_MARKER_BYTES + b"}"
+    )
+    monkeypatch.setattr(research_storage, "_ensure_config_parent_on_other_device", lambda *_: None)
+    for root_id in ("", "z" * 32, "b" * 31):
+        with pytest.raises(StorageError, match="invalid_expected_root_id"):
+            bind_existing(
+                config_path,
+                mount,
+                "research/root",
+                expected_volume_uuid=UUID,
+                expected_root_id=root_id,
+                min_free_bytes=100,
+                probe=FakeProbe(mount),
+            )
+    with pytest.raises(StorageError, match="root_marker_too_large"):
+        bind_existing(
+            config_path,
+            mount,
+            "research/root",
+            expected_volume_uuid=UUID,
+            expected_root_id=ROOT_ID,
+            min_free_bytes=100,
+            probe=FakeProbe(mount),
+        )
+
+
+def test_existing_binding_config_must_be_outside_volume_before_parent_creation(
+    tmp_path: Path,
+) -> None:
+    mount = tmp_path / "external"
+    mount.mkdir()
+    config_path = mount / "host-config" / "binding.json"
+    with pytest.raises(StorageError, match="config_must_be_outside_bound_volume"):
+        research_storage._ensure_config_parent_on_other_device(
+            config_path.parent, mount.stat().st_dev
+        )
+    assert not (mount / "host-config").exists()
 
 
 def test_root_marker_binding_is_verified(tmp_path: Path) -> None:

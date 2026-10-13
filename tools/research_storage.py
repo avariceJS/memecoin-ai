@@ -11,6 +11,7 @@ from pathlib import Path
 from memecoin_research_storage import (
     ResolvedRoot,
     StorageError,
+    bind_existing,
     configure,
     create_root,
     resolve,
@@ -29,6 +30,15 @@ def main() -> int:
     )
     configure_p.add_argument("--min-free-bytes", type=int, required=True)
     configure_p.add_argument("--volume-uuid", help="optional explicit expected UUID")
+    bind_p = sub.add_parser(
+        "bind-existing", help="bind a verified existing root using recovery identity pins"
+    )
+    bind_p.add_argument("--config", type=Path, required=True)
+    bind_p.add_argument("--mount", type=Path, required=True)
+    bind_p.add_argument("--data-root", required=True)
+    bind_p.add_argument("--expected-volume-uuid", required=True)
+    bind_p.add_argument("--expected-root-id", required=True)
+    bind_p.add_argument("--min-free-bytes", type=int, required=True)
     check_p = sub.add_parser(
         "check", help="check the mounted volume; use --require-root to verify the root marker"
     )
@@ -40,25 +50,35 @@ def main() -> int:
     args = parser.parse_args()
     try:
         if args.command == "configure":
-            result = configure(
+            config = configure(
                 args.config,
                 args.mount,
                 args.data_root,
                 min_free_bytes=args.min_free_bytes,
                 volume_uuid=args.volume_uuid,
             )
-            payload = result.to_json()
+            payload = config.to_json()
+        elif args.command == "bind-existing":
+            config = bind_existing(
+                args.config,
+                args.mount,
+                args.data_root,
+                expected_volume_uuid=args.expected_volume_uuid,
+                expected_root_id=args.expected_root_id,
+                min_free_bytes=args.min_free_bytes,
+            )
+            payload = config.to_json()
         elif args.command == "create-root":
-            result = create_root(args.config)
-            payload = _resolved_json(result)
+            resolved = create_root(args.config)
+            payload = _resolved_json(resolved)
         else:
             root_verified = args.require_root
-            result = (
+            resolved = (
                 verify_root(args.config, min_free_bytes=args.min_free_bytes)
                 if root_verified
                 else resolve(args.config, min_free_bytes=args.min_free_bytes)
             )
-            payload = _resolved_json(result)
+            payload = _resolved_json(resolved)
             payload["root_verified"] = root_verified
             payload["status"] = "root_verified" if root_verified else "volume_preconditions_passed"
         print(json.dumps(payload, sort_keys=True))

@@ -24,6 +24,7 @@ from typing import Protocol
 CONFIG_VERSION = 1
 ROOT_MARKER = ".research-root.json"
 LOCK_NAME = ".research-storage.lock"
+MAX_ROOT_MARKER_BYTES = 16 * 1024
 
 
 class StorageError(RuntimeError):
@@ -530,12 +531,35 @@ def _make_private_directory(path: Path) -> int:
             current = child
         return current
     except StorageError:
+        os.close(current)
         raise
     except OSError as exc:
+        os.close(current)
         raise StorageError(f"unsafe_config_parent: {exc}") from exc
     except BaseException:
         os.close(current)
         raise
+
+
+def _ensure_config_parent_on_other_device(path: Path, mount_device: int) -> None:
+    """Find an existing host-side ancestor without creating anything."""
+    candidate = path
+    while True:
+        try:
+            fd = _open_absolute_directory(candidate)
+        except FileNotFoundError:
+            if candidate.parent == candidate:
+                raise StorageError("config_parent_unavailable") from None
+            candidate = candidate.parent
+            continue
+        except OSError as exc:
+            raise StorageError("config_parent_unavailable") from exc
+        try:
+            if os.fstat(fd).st_dev == mount_device:
+                raise StorageError("config_must_be_outside_bound_volume")
+            return
+        finally:
+            os.close(fd)
 
 
 def _open_relative_directory(base_fd: int, relative: str) -> int:
@@ -577,8 +601,12 @@ def _read_marker_fd(marker_fd: int, config: StorageConfig) -> None:
     ):
         raise StorageError("unsafe_root_marker")
     chunks: list[bytes] = []
+    total = 0
     os.lseek(marker_fd, 0, os.SEEK_SET)
     while chunk := os.read(marker_fd, 65536):
+        total += len(chunk)
+        if total > MAX_ROOT_MARKER_BYTES:
+            raise StorageError("root_marker_too_large")
         chunks.append(chunk)
     after = os.fstat(marker_fd)
     if (
@@ -611,7 +639,13 @@ def _read_marker_fd(marker_fd: int, config: StorageConfig) -> None:
         "volume_uuid": config.volume_uuid,
         "data_root": config.data_root,
     }
-    if body != expected:
+    if (
+        not isinstance(body, dict)
+        or set(body) != set(expected)
+        or type(body.get("version")) is not int
+        or any(type(body.get(key)) is not str for key in ("root_id", "volume_uuid", "data_root"))
+        or body != expected
+    ):
         raise StorageError("root_marker_binding_mismatch")
 
 
@@ -1013,6 +1047,185 @@ def configure(
             raise StorageError("config_binding_changed_after_write")
     finally:
         os.close(parent_fd)
+    return config
+
+
+def bind_existing(
+    config_path: Path,
+    mount_path: Path,
+    data_root: str,
+    *,
+    expected_volume_uuid: str,
+    expected_root_id: str,
+    min_free_bytes: int,
+    probe: VolumeProbe | None = None,
+) -> StorageConfig:
+    """Bind an already existing root from trusted recovery identity pins.
+
+    This performs read-only volume/root checks. Its only write is a create-only
+    host config file outside the mounted volume; it never creates a volume probe,
+    root directory, lock, or marker.
+    """
+    _validate_relative(data_root, "data_root")
+    minimum = _validate_min_free(min_free_bytes)
+    volume_uuid = _validate_uuid(expected_volume_uuid)
+    if (
+        not isinstance(expected_root_id, str)
+        or len(expected_root_id) != 32
+        or any(char not in "0123456789abcdef" for char in expected_root_id)
+    ):
+        raise StorageError("invalid_expected_root_id")
+    if not config_path.is_absolute() or "\x00" in str(config_path):
+        raise StorageError("invalid_config_path")
+    if (
+        ".." in config_path.parts
+        or Path(os.path.normpath(config_path)) != config_path
+        or config_path.name in {"", ".", ".."}
+    ):
+        raise StorageError("invalid_config_path")
+    if (
+        not mount_path.is_absolute()
+        or "\x00" in str(mount_path)
+        or ".." in mount_path.parts
+        or Path(os.path.normpath(mount_path)) != mount_path
+    ):
+        raise StorageError("invalid_mount_path")
+    _require_plain_path(config_path.parent)
+    _mount_is_plain(mount_path)
+    try:
+        config_path.relative_to(mount_path)
+    except ValueError:
+        pass
+    else:
+        raise StorageError("config_must_be_outside_bound_volume")
+    if config_path.exists() or config_path.is_symlink():
+        raise StorageError("config_already_exists")
+
+    config = StorageConfig(expected_root_id, volume_uuid, mount_path, data_root, minimum)
+    volume_probe = probe or MacOSVolumeProbe()
+    first_volume = volume_probe.inspect(mount_path)
+    _validate_volume_policy(first_volume, mount_path)
+    if first_volume.volume_uuid.lower() != volume_uuid:
+        raise StorageError("volume_uuid_mismatch")
+    if first_volume.available_bytes < minimum:
+        raise StorageError("insufficient_free_space")
+    if not os.access(mount_path, os.W_OK):
+        raise StorageError("volume_not_writable")
+
+    mount_fd = _open_directory(mount_path)
+    root_fd = marker_fd = -1
+    try:
+        mount_before = os.fstat(mount_fd)
+        _ensure_config_parent_on_other_device(config_path.parent, mount_before.st_dev)
+        root_fd = _open_relative_directory(mount_fd, data_root)
+        root_before = os.fstat(root_fd)
+        try:
+            marker_fd = os.open(
+                ROOT_MARKER,
+                os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW,
+                dir_fd=root_fd,
+            )
+        except FileNotFoundError as exc:
+            raise StorageError("root_marker_unavailable") from exc
+        except OSError as exc:
+            raise StorageError("unsafe_root_marker") from exc
+        marker_before = os.fstat(marker_fd)
+        _read_marker_fd(marker_fd, config)
+
+        second_volume = volume_probe.inspect(mount_path)
+        _validate_volume_policy(second_volume, mount_path)
+        if second_volume.volume_uuid.lower() != volume_uuid:
+            raise StorageError("volume_uuid_mismatch")
+        if second_volume.available_bytes < minimum:
+            raise StorageError("insufficient_free_space")
+        current_mount_fd = _open_directory(mount_path)
+        try:
+            current_mount = os.fstat(current_mount_fd)
+            if (mount_before.st_dev, mount_before.st_ino) != (
+                current_mount.st_dev,
+                current_mount.st_ino,
+            ):
+                raise StorageError("mounted_directory_replaced")
+            current_root_fd = _open_relative_directory(current_mount_fd, data_root)
+            try:
+                current_root = os.fstat(current_root_fd)
+                if (root_before.st_dev, root_before.st_ino) != (
+                    current_root.st_dev,
+                    current_root.st_ino,
+                ):
+                    raise StorageError("research_root_replaced")
+                try:
+                    current_marker_fd = os.open(
+                        ROOT_MARKER,
+                        os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW,
+                        dir_fd=current_root_fd,
+                    )
+                except FileNotFoundError as exc:
+                    raise StorageError("root_marker_unavailable") from exc
+                except OSError as exc:
+                    raise StorageError("unsafe_root_marker") from exc
+                try:
+                    current_marker = os.fstat(current_marker_fd)
+                    if (marker_before.st_dev, marker_before.st_ino) != (
+                        current_marker.st_dev,
+                        current_marker.st_ino,
+                    ):
+                        raise StorageError("root_marker_replaced")
+                    _read_marker_fd(current_marker_fd, config)
+                finally:
+                    os.close(current_marker_fd)
+            finally:
+                os.close(current_root_fd)
+        finally:
+            os.close(current_mount_fd)
+
+        parent_fd = _make_private_directory(config_path.parent)
+        try:
+            _ensure_config_parent_on_other_device(config_path.parent, mount_before.st_dev)
+            config_fd = os.open(
+                config_path.name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600,
+                dir_fd=parent_fd,
+            )
+            try:
+                os.fchmod(config_fd, 0o600)
+                payload = json.dumps(config.to_json(), sort_keys=True, separators=(",", ":"))
+                _write_all(config_fd, (payload + "\n").encode("utf-8"))
+                os.fsync(config_fd)
+                written = os.fstat(config_fd)
+                if (
+                    written.st_uid != os.getuid()
+                    or stat.S_IMODE(written.st_mode) != 0o600
+                    or written.st_nlink != 1
+                ):
+                    raise StorageError("unsafe_config_permissions")
+            finally:
+                os.close(config_fd)
+            os.fsync(parent_fd)
+            current_parent_fd = _open_absolute_directory(config_path.parent)
+            try:
+                if (os.fstat(parent_fd).st_dev, os.fstat(parent_fd).st_ino) != (
+                    os.fstat(current_parent_fd).st_dev,
+                    os.fstat(current_parent_fd).st_ino,
+                ):
+                    raise StorageError("config_parent_replaced")
+            finally:
+                os.close(current_parent_fd)
+        finally:
+            os.close(parent_fd)
+    except OSError as exc:
+        raise StorageError(f"existing_root_binding_failed: {exc}") from exc
+    finally:
+        if marker_fd >= 0:
+            os.close(marker_fd)
+        if root_fd >= 0:
+            os.close(root_fd)
+        os.close(mount_fd)
+
+    if StorageConfig.load(config_path) != config:
+        raise StorageError("config_binding_changed_after_write")
+    verify_root(config_path, min_free_bytes=minimum, probe=probe)
     return config
 
 
