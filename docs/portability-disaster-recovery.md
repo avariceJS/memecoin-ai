@@ -1,125 +1,192 @@
 # Portability and Disaster Recovery
 
-This document owns Brain host portability, recovery inventory, and erase-readiness across the
-separate owner documents for acquisition data and operator behavior. The research checkout, owner
-runtime, large research-data root, and protected evaluations have separate authority and recovery
-boundaries. A successful code clone does not prove that Brain state can be restored.
+This document owns Brain host portability, recovery inventory, and erase readiness. The project
+checkout, owner runtime, large research-data root, and protected evaluations have separate authority
+and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**Status as of 2026-10-13: NO-GO for factory reset.** A fresh clone and development environment
-were rebuilt from `origin/research/active` at the inspected checkpoint
-`3f5004b1be9bd09e529f4edce7a4f8306eadcc2a`; the synthetic smoke check passed. An isolated host
-binding also re-verified the existing Kingston root by UUID and root marker. This rehearsal did not
-restore the full corpus, ignored local research state, owner runtime, private credentials, or
-protected material. Receipts:
-[`first software/storage rehearsal`](evidence/portability-dr-rehearsal-2026-10-13.json) and
-[`clean-cache rehearsal`](evidence/portability-dr-clean-cache-rehearsal-2026-10-13.json).
+**NO-GO for factory reset as of 2026-10-14.** The accepted recovery scope is loss or erasure of the
+owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
+reset-surviving physical copy for this iteration. Kingston failure, theft, or corruption therefore
+remains an uncovered data-loss risk, but is not a blocker for the Mac-loss claim. A future 1-TB+
+SSD, NAS, or other independent destination must add a separately verified replica and a
+Kingston-loss rehearsal.
 
-The checkout is clean and pushed at `research/active`. `main` remains at `770699d` because no new
-live capability has been qualified. The supplied session handoff named `fa2e47d`; live Git and the
-newer `memory/now.md` show that the branch has since advanced through `d077f26` to `3f5004b`.
-On this host, a fresh network clone took 21.4 seconds, an uncached pinned development install took
-19.6 seconds, and the synthetic smoke check took 0.7 seconds. This roughly 42-second software
-bootstrap assumes macOS, Git, Python, and network access are already available; it excludes corpus
-restore, owner runtime, credentials, and services.
+Live checks on the current Mac:
 
-Kingston is mounted at `/Volumes/Kingston`, UUID
-`8f8f1081-9be4-4914-9111-75f1b90255bf`, with logical root ID
-`9428695af6d4f46c08e1a444cdc66de8`. The live volume is case-sensitive APFS, unencrypted, and has
-about 202.4 GiB free. It is the only external physical disk currently attached. No Time Machine
-destination is configured. Kingston is the canonical external data tier, but its contents do not
-currently have a verified independent physical replica.
+- `research/active` and `origin/research/active` are clean and both at
+  `33ff52fbce1571caf1c7ae5bab7303f7f6026fca`. `main` and `origin/main` remain at
+  `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; do not advance `main` until the capability is
+  qualified. The supplied handoff and prior DR text were stale; the live repository state is the
+  authority.
+- The owner checkout at `/Users/root1/Desktop/memecoin-ai` is clean at
+  `a5944742b6b8ed0466c50bdeb72370ed3e3f2a31`, 15 commits behind `origin/main`. Read-only B01
+  status is STOP with an expired runtime and zero orders within B01's scope; this is not an
+  owner-wide trading-state audit. The owner operator and several owner paper/UI processes remain
+  running.
+- Internal `work/` trees occupy about 16 GiB in research and 11 GiB in owner. `~/.config/brain-research`
+  and LaunchAgent definitions are host-local. Research and owner private `.env` files are mode
+  0600. These are candidates for an encrypted, source-view backup; no live owner state or protected
+  content has been copied.
+- The internal Data volume has about 18 GiB free. No APFS snapshots exist on Data or Kingston;
+  `tmutil` reports no configured Time Machine destination. The APFS snapshot system call requires
+  superuser privilege and an entitlement. A privileged, read-only owner-wide snapshot has not been
+  created or qualified. Copying live SQLite/WAL files one by one is not an acceptable substitute.
+  Any eventual source snapshot must have a bounded retention window and monitored free-space
+  headroom because continued service writes can retain old blocks; do not hold a snapshot after
+  acceptance.
+- Kingston is mounted at `/Volumes/Kingston`, UUID
+  `8f8f1081-9be4-4914-9111-75f1b90255bf`, case-sensitive APFS, unencrypted, with root ID
+  `9428695af6d4f46c08e1a444cdc66de8`. A current `research_storage.py check --require-root` passed
+  with 217,582,518,272 bytes free. It is the only external physical drive. The canonical
+  `BrainData` corpus remains there; its root identity is verified, but its contents have no second
+  physical copy.
+- A clean checkout from the current research remote took 44.59 seconds; pinned, uncached dev setup
+  took 36.41 seconds; `make smoke` took 1.05 seconds. This proves a roughly 82-second software
+  bootstrap on this macOS/Python 3.13 host, not owner/corpus recovery. A synthetic encrypted archive
+  feasibility test passed archive restore, GPG integrity, file mode, hardlink, symlink, sparse
+  logical size/allocation, xattr, resource fork, ACL, immutable-flag, wrong-passphrase rejection,
+  and corrupt-ciphertext rejection. It did
+  not exercise Kingston descriptor-bound publication, interruption, collision, detach, or
+  commit-marker ordering. The test used only generated synthetic files. See
+  [`2026-10-14 DR qualification`](evidence/portability-dr-qualification-2026-10-14.json).
+- Repository-wide `make check` currently stops at Ruff with 107 pre-existing findings outside the
+  DR scope.
+  Focused Ruff and format checks for the new synthetic rehearsal helper pass; `make smoke` passes.
 
-The research checkout's ignored `work/` tree occupies about 16 GiB; its full dependency closure and
-reset-surviving copies have not been classified. The ignored `.venv` is about 136 MiB and can be
-rebuilt from `requirements-dev.lock`. `.env.local` is mode 0600 and contains Alchemy Free and Helius
-URL settings; a reset-surviving credential source has not been verified. The private
-`~/.config/brain-research` tree and installed LaunchAgent files also contain host bindings, service
-records, and historical activation material. Do not restore an expired activation as authority.
-
-The owner checkout is separate at `/Users/root1/Desktop/memecoin-ai`, commit
-`a5944742b6b8ed0466c50bdeb72370ed3e3f2a31`, and 15 commits behind its `origin/main`. Its read-only
-B01 status reported STOP and an expired runtime. Owner services, runtime bundles, champion, paper
-ledgers, and jobs were not copied or changed in this rehearsal. Owner quiescence is not established:
-`launchctl` reports a running owner operator process and several owner UI processes. D43 and owner
-labels remain loaded, along with the read-only research storage-health service; no Senses
-capture/watchdog label is loaded. Older Senses plist files remain installed but unloaded. This is
-not a complete owner-runtime recovery inventory.
-
-F01, D43, and reserved holdout contents were not read, hashed, copied, or included in the rehearsal.
-Their backup custody is unresolved and must retain the existing protected-data boundary.
+No providers, prospective collectors, owner services, champion, protected evaluation, or trading
+state were changed by the DR work. No provider request or collector was initiated by the DR work.
+No protected application or dataset reader was used. No owner/protected backup ciphertext has yet
+been made. Recovery-secret custody is still not proven, and source consistency for the owner
+runtime is still unresolved; both block `SAFE TO ERASE`.
 
 ## State ownership and restore rules
 
-| State | Source of truth | Restore rule |
+| State | Canonical source of truth | Recovery rule |
 |---|---|---|
-| Code, history, canonical docs, committed receipts | Git remotes and immutable Git commits | Clone the exact accepted branch/commit; rebuild environments from checked-in pins. |
-| Large research captures, datasets, journals, and immutable evidence | Kingston `BrainData` plus each artifact's own manifest, lineage, and recovery records | Verify volume UUID, root marker, artifact hashes, and semantic replay before admission. A volume copy alone is not a second backup. |
-| Local ignored research state | Currently distributed across internal `work/`, model environments, and caches | Preserve unique evidence and dirty source before reset. Classify before disposal; rebuild only proven caches. |
-| Private provider configuration | Secret manager or provider account recovery; current `.env.local` is host-local | Reissue or restore into a private mode-0600 file after code/data recovery. Never place secrets in Git, receipts, plists, or command arguments. |
-| Host bindings | Per-host private configuration, including storage UUID/root binding | Recreate and verify explicitly. Paths are locators, not artifact identity. Never create old-path symlinks to satisfy a frozen reader. |
-| Runtime and recovery authority | Versioned source, immutable journals/STOPs, activation records, and service definitions | Restore inert. Expired anchors, STOPs, spent reservations, ambiguity, and gaps remain terminal facts; never infer permission to resume. |
-| Owner deployment and paper state | Separate owner checkout/runtime and its own durable state | Recover only through an owner-specific procedure. Research HEAD does not identify the deployed bundle or paper state. |
-| Python environments and disposable caches | Checked-in lock files and reproducible setup | Rebuild after confirming the cache contains no unique captures, models, or manual changes. |
-| Protected F01/D43/reserved material | Existing protected custody boundary | Excluded from ordinary inspection and rehearsal. Any backup procedure needs a separately reviewed custody method that does not expose or relabel contents. |
+| Research code, history, canonical docs, committed receipts | Git remotes and immutable commits | Clone the exact accepted `research/active` commit; verify clean identity; rebuild dependencies from checked-in pins. |
+| Owner code and deployed runtime identity | Owner Git remote plus exact runtime bundles, deployment pointers, and state under owner `work/` | Restore an inert copy; never infer the deployed bundle from repository `HEAD` or recreate active services automatically. |
+| Large research captures, datasets, journals, immutable evidence, and recovery records | Kingston `BrainData` plus each object's manifest, lineage, STOP, and recovery records | Verify UUID, root marker, artifact hashes, and semantic replay before admission. This is canonical storage, not a second backup. |
+| Unique local owner/research state | Local owner/research `work/`, private host config, and installed service definitions until a verified reset-surviving archive is published | Take a single read-only APFS source view, stream an opaque archive through encryption, then prove decrypt and restore. Do not copy a live SQLite database file-by-file. |
+| Private provider configuration | Current private `.env` files until archived; provider account recovery is a fallback | Include only inside encrypted custody or reissue. Keep mode 0600. Never put values in Git, receipts, logs, plists, or process arguments. |
+| Protected F01, D43, and reserved holdout | Existing protected source roots and their frozen declarations/manifests/lineage | Preserve as opaque bytes, retain classification and lineage, and encrypt separately from public receipts. No content parsing, training, evaluation, admission, or relabeling. |
+| Host bindings | Per-host private config, including Kingston UUID/root binding | Recreate from the attached volume and verify explicitly. Paths are locators, not artifact identity. |
+| Runtime and recovery authority | Versioned source, immutable journals/STOPs, activation records, and service definitions | Restore inert. Expired anchors, STOPs, spent reservations, ambiguity, gaps, and failures remain facts; none grants restart permission. |
+| Environments and caches | Checked-in pins for dependencies; caches are disposable only after unique evidence is ruled out | Rebuild environments; do not treat old virtualenvs or Homebrew state as the source of truth. |
+| Credentials for developer tools and host login | Account/password-manager recovery and user-controlled reauthentication | Reauthorize after reset. Do not copy Keychain wholesale as a substitute for documented secret custody. |
 
 Preserve source bytes and original STOP/recovery histories. Keep event, availability, receipt, and
 decision times distinct. Preserve `observed`, `unknown`, `censored`, and `failed` dispositions.
-Sealed declarations may contain historical paths; retain their bytes and use explicit transport
+Sealed declarations can contain historical paths; retain original bytes and use explicit transport
 locators for new restores. A recovery point is the last independently verifiable durable boundary,
-not the newest directory timestamp.
+not the newest timestamp. For unfinished work, preserve the uncertainty around it; never turn a
+missing prefix into a clean history.
+
+## Backup-only custody procedure
+
+The user authorizes read-only inventory and backup-only copying. The protected procedure is:
+
+1. Define the custody set from path/type/size/metadata only: original protected bytes and their
+   declarations, manifests, membership/split records, STOPs, and recovery dependencies. Keep the
+   path inventory inside encrypted custody. Reject unresolved symlinks and out-of-scope filesystem
+   dependencies. Do not inspect, parse, train on, evaluate, admit, or relabel protected content.
+2. Use a qualified immutable source view. Prefer one read-only APFS snapshot covering the internal
+   owner checkout, runtime/state roots, and protected roots. Record volume and snapshot identity
+   plus cutoff. If dependencies live on other filesystems, give each its own explicit recovery
+   point. A crash-consistent snapshot does not claim that an application operation completed.
+3. Stream a metadata-preserving archive from that view directly into encryption. Write ciphertext
+   only beneath the verified Kingston root through a held descriptor and create-only temporary
+   name. Do not stage plaintext on unencrypted Kingston. Use isolated GPG configuration and a
+   recovery secret held by the user outside the erased Mac. Never put the secret in arguments,
+   environment, Git, receipts, or beside ciphertext.
+4. Reopen the ciphertext with a fresh verifier; decrypt fully to a hashing sink; require GPG's
+   terminal integrity success; validate archive completeness without a protected application
+   reader; and compare the private archive digest. Fsync ciphertext and encrypted manifest, hash
+   ciphertext, then publish a create-only group with a commit marker last. Failed or interrupted
+   output is unpublished and cannot count as custody.
+5. Qualify metadata and failure behavior using synthetic files before any protected stream. Retain
+   the source snapshot until acceptance. Remove or quarantine only generated scratch, never original
+   protected bytes or STOP/history.
+
+The reproducible 2026-10-14 synthetic rehearsal is
+[`tools/brain_dr_synthetic_archive_rehearsal.py`](../tools/brain_dr_synthetic_archive_rehearsal.py),
+bound by its source hash in the receipt. It used `bsdtar 3.5.3` and GnuPG 2.4.8 in an isolated GPG
+home and verified metadata and encryption failure handling on synthetic files only. It does not
+qualify a Kingston writer or publication protocol. Protected data was not read or copied. State the
+eventual custody receipt as “opaque backup bytes processed;
+protected semantic access/evaluation/training false,” rather than claiming that raw bytes were never
+read.
 
 ## Restore procedure
 
-1. Start on a clean compatible macOS host with Git and a supported Python version. Clone the exact
-   accepted research commit from `origin/research/active`; confirm a clean worktree and commit ID.
-2. Rebuild the base development environment with `make setup`. Build optional ML dependencies only
-   when the restored task needs them. Do not copy an old virtualenv as a source of truth.
-3. Attach Kingston, recreate the mode-0600 host-only binding with the actual mount path, then verify
-   its volume UUID, case-sensitive APFS format, ownership, mount identity, 50-GiB free-space floor,
-   and the `BrainData` root marker with
+1. On a clean compatible macOS host, install Git and a supported Python. Clone the exact accepted
+   research commit from `origin/research/active`; confirm the commit and a clean worktree.
+2. Rebuild the base development environment from `requirements-dev.lock` and run `make smoke`.
+   Optional ML dependencies remain separate and task-specific.
+3. Attach Kingston; recreate a mode-0600 host-only binding using the actual mount path. Verify
+   volume UUID, case-sensitive APFS, ownership, mount identity, 50-GiB free-space floor, and
+   `BrainData` root marker using
    `.venv/bin/python tools/research_storage.py check --config <private-binding> --min-free-bytes 53687091200 --require-root`.
    Do not run `create-root` against an existing corpus.
-4. Restore or resolve each artifact through its declared manifest and transport locator. Verify
-   exact hashes and replay receipts before admitting it. Restore to a new incoming path first.
-   Never sync a live SQLite database independently of its WAL/SHM companions.
-5. Restore private configuration from the authorized secret source. Validate its presence without
-   printing values. Do not make provider requests as part of a restore rehearsal.
-6. Keep all LaunchAgents unloaded while inventorying and verifying state. Recreate only the
-   documented services for the assigned host role after source, identity, STOP, lease, and recovery
-   checks pass. A worker receives no owner credentials, production runtime, or canonical writer.
-7. Compare the restored evidence frontier and runtime identities with the last accepted handoff.
-   Any missing prefix, unclassified state, failed replay, or unresolved attempt blocks readiness.
+4. Restore the accepted encrypted local-state group into a new isolated incoming location. Verify
+   ciphertext and private manifest hashes, GPG integrity, archive completeness, and metadata for
+   every member. Apply source identity, SQLite integrity, durable-prefix, lineage, STOP, gap, and
+   unknown/censored/failed-state checks only to non-protected owner/research state and Kingston
+   corpus dependencies. For F01/D43/reserved members, verify opaque byte/ciphertext integrity and
+   custody metadata only; do not use protected application readers or perform replay, admission,
+   training, or evaluation.
+5. Restore owner runtime and paper state inert. Keep all LaunchAgents unloaded; do not initialize
+   databases, checkpoint the original state, restart jobs, or issue provider requests during a
+   rehearsal. Recreate only the documented service set after separate role authorization and
+   non-protected source/identity/STOP checks. Protected material remains excluded from application
+   readers and all semantic validation.
+6. Compare the restored evidence frontier and runtime identities to the accepted recovery receipt.
+   Any missing prefix, failed replay, unclassified state, or unavailable key blocks readiness.
 
-## Portability boundary
+## Service restore posture
 
-The verified path is currently macOS-specific: the storage resolver uses `diskutil` and APFS
-ownership checks, and recurring host services use `launchd`. Kingston is currently unencrypted;
-that is a custody risk for any future private backup stored there, even though no credential was
-copied to it in this rehearsal. The environment lock can rebuild
-Python tooling; it does not restore macOS service state, account access, GPU drivers, model caches,
-or credentials. Frozen readers that reject symlink ancestors still require some source roots to
-remain at their current paths until relocation-aware replay is qualified.
+The live launchd metadata snapshot listed 18 `ai.memecoin` Brain/D43 labels. The owner operator and
+multiple owner UI/paper processes were running; a D43 calendar label was loaded without a running
+PID. No Senses capture/watchdog label was listed. Installed plist files are host-specific
+definitions and historical state, not permission to start a service. A clean restore rehearsal
+must leave every Brain/Senses label unloaded and must not install the full old plist directory.
+Preserve definitions and exact runtime identity in custody, then recreate only the current
+role-authorized service from its canonical source after separate activation/release checks. Expired
+campaigns and STOP-bound activations remain inert.
 
-Linux or server recovery needs a separately qualified volume-identity and descriptor-bound writer
-implementation, a service-manager backend, private secret delivery, and storage semantics for any
-object-store or multi-worker path. Shared mutable SQLite remains single-writer. None of those
-platform or cluster capabilities is implied by this Mac rehearsal.
+## Portability boundary and remaining risk
 
-## Blocks before `SAFE TO ERASE`
+The currently tested host bootstrap is macOS-specific. Kingston qualification uses `diskutil`, APFS,
+and macOS volume-ownership checks; recurring host services use `launchd`; owner bundles and some
+filesystem metadata are macOS-bound. A clean Mac can rebuild the research development environment
+quickly, but owner runtime recovery, private secrets, services, protected custody, and full corpus
+replay are not yet rehearsed.
 
-1. Inventory and preserve all authorized, non-protected internal state with a reset-surviving copy;
-   identify exact data excluded as rebuildable and retain immutable evidence, failures, and STOPs.
-2. Establish a verified independent backup destination for unique local state and Kingston data, or
-   explicitly scope the claim to host loss while recording Kingston failure as an uncovered risk.
-3. Resolve protected-data custody without reading or relabeling F01/D43/reserved holdout.
-4. Establish the reset-surviving source for provider credentials and private host/service
-   configuration.
-5. Complete a full restore rehearsal from those sources into a fresh isolated checkout, including
-   corpus dependency closure and replay, owner-state identity review, and inert-service verification.
-6. Obtain Sol's independent final review of the complete receipt, exclusions, and remaining risks.
+Linux/server recovery requires a separately qualified volume-identity and descriptor-bound writer
+backend, a service-manager adapter, private secret delivery, and storage semantics for object-store
+or multi-worker paths. Shared mutable SQLite remains single-writer. No cluster, object-store,
+replication, or Kingston-loss capability is implied by this work.
 
-Until these conditions are met, the existing Mac remains part of the practical recovery path. The
-software-and-storage rehearsal proves only that the published research commit, pinned development
-dependencies, synthetic smoke path, and current Kingston binding can be reconstructed and checked.
+Kingston is presently the only reset-surviving physical copy of `BrainData` and any future owner
+recovery ciphertext. Its failure destroys the only declared restore source. This single-copy risk is
+accepted only for recovery from owner-Mac loss. A future independent large SSD/NAS must be treated
+as a new replication capability with hash verification and a full recovery rehearsal.
+
+## Remaining gates before `SAFE TO ERASE`
+
+1. Establish recovery-secret custody that is reachable after reset, then prove a fresh decrypt
+   without exposing the secret.
+2. Obtain a qualified, read-only source snapshot or another Sol-approved owner-wide consistent
+   recovery point without changing production services. Bound snapshot lifetime and monitor free
+   space; current live-copy alternatives cannot prove an atomic owner frontier.
+3. Complete the protected opaque archive using the reviewed custody procedure; preserve F01/D43/
+   reserved classifications and verify it without semantic access.
+4. Capture the authorized owner runtime/private configuration and unique local research state from
+   the accepted source view. Classify and exclude only proven disposable caches.
+5. Restore the local archive and Kingston-backed corpus dependencies into an isolated clean
+   compatible checkout; run identity, integrity, replay, and inert-service checks. Do not issue
+   provider requests or launch a collector.
+6. Record the exact durable cutoff, post-cutoff uncertainty, exclusions, artifact hashes, host
+   identity, and single-Kingston-copy risk in an immutable receipt; commit and push the work.
+7. Obtain Sol's independent final readiness review. Until then the owner Mac is not safe to erase.
