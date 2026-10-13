@@ -65,6 +65,9 @@ health/PID/pin, and rollback checks. Do not infer deployment from a code commit.
 Current policy is **single-host active development/research on Mac 1**. Mac 2 is a standby,
 inactive worker; two-host execution remains the supported future scale-out path. Migration
 completion and exact verified pins belong in `memory/now.md`, not assumptions about hostname.
+Host reset, portability, backup custody, and full recovery readiness are owned by
+[`portability-disaster-recovery.md`](portability-disaster-recovery.md); this operating-mode section
+does not make the owner Mac disposable.
 
 - Mac 1 research checkout: `/Users/root1/Developer/memecoin-research`, branch
   `research/active`. Run development, offline research and research orchestration here.

@@ -6,6 +6,15 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- [`Portability and DR software/storage rehearsal`](portability-dr-rehearsal-2026-10-13.json):
+  clean remote clone at the accepted research commit, pinned development environment rebuild,
+  synthetic smoke pass, and isolated UUID-bound Kingston root verification. This does not restore
+  ignored local state, owner runtime, secrets, protected material, or a second physical copy.
+- [`Portability and DR uncached clean-room rehearsal`](portability-dr-clean-cache-rehearsal-2026-10-13.json):
+  repeated from a fresh remote clone with pip cache and user configuration isolated; pinned install,
+  smoke, and read-only Kingston root verification pass. The rehearsal makes no corpus, owner-state,
+  secret, protected-data, or erase-readiness claim.
+
 - [`Gecko v6 first natural bucket`](gecko-v6-first-natural-bucket-2026-10-13T1315Z.json): independently replayed first prospective bucket with four confirmed response bodies (3,042 bytes), one permanently spent ambiguous request, and one missed slot. All 12 parsed bars were out of window, yielding zero eligible new opens. Controlled LaunchAgent restart preserved the attempt/source prefix without replay; v6 was unloaded pending a distinct forward-only successor.
 - [`Gecko v3 failed-watchdog canary observation`](gecko-capture-only-v3-canary-observation-2026-10-13T0406Z.json): six actual forward-only GeckoTerminal requests all have durable confirmations and pass timing/replay checks; zero returned bars are eligible. The v1 watchdog failed closed on its plan-schema lookup. The v2 full-census replay recognizes that immutable receipt as a zero-attempt diagnostic root, restores the historical a078 projection, and independently accounts for 52 attempts across 40 roots. The capture is not a market-source qualification; actual charge remains unknown/unverified.
 - [`Gecko capture-only v4 forward-canary observation`](gecko-capture-only-v4-live-observation-2026-10-13T0421Z.json): six actual HTTP 200 responses / 4,688 raw bytes, six durable request chains, passed independent timing watchdog, zero missed/ambiguous requests, and no-replay LaunchAgent restart. The post-publication global inventory verifies 41 roots / 58 attempts with provider I/O disabled. No returned bar was eligible; this does not qualify market coverage, and actual charge remains unknown/unverified.
