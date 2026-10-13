@@ -307,6 +307,14 @@ def bootstrap(options: BootstrapOptions, *, runner: Runner = run_command) -> dic
         raise ValueError("exact_40_character_commit_required")
     if not options.remote or "\x00" in options.remote:
         raise ValueError("remote_required")
+    python = options.python.expanduser().resolve(strict=False)
+    version_text = _result(
+        [str(python), "-c", "import sys;print('.'.join(map(str,sys.version_info[:3])))"],
+        runner=runner,
+    )
+    version_match = re.match(r"^(\d+)\.(\d+)\.(\d+)(?:\D|$)", version_text or "")
+    if version_match is None or tuple(map(int, version_match.groups())) < (3, 11, 0):
+        raise ValueError("python_3_11_or_newer_required")
     destination = options.destination.expanduser()
     if not destination.is_absolute():
         raise ValueError("absolute_destination_required")
@@ -320,7 +328,6 @@ def bootstrap(options: BootstrapOptions, *, runner: Runner = run_command) -> dic
     top = _result(["git", "-C", str(parent), "rev-parse", "--show-toplevel"], runner=runner)
     if top is not None:
         raise ValueError("destination_parent_inside_existing_checkout")
-    python = options.python.expanduser().resolve(strict=False)
     result: dict[str, Any] = {
         "schema": "brain-host-recovery-bootstrap-v1",
         "state": "in_progress",

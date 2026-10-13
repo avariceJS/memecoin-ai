@@ -150,9 +150,16 @@ def test_status_does_not_follow_or_read_symlink_root(tmp_path: Path) -> None:
 
 
 class BootstrapRunner:
-    def __init__(self, root: Path, *, fail_stage: str | None = None) -> None:
+    def __init__(
+        self,
+        root: Path,
+        *,
+        fail_stage: str | None = None,
+        python_version: str = "3.13.0",
+    ) -> None:
         self.root = root
         self.fail_stage = fail_stage
+        self.python_version = python_version
         self.calls: list[list[str]] = []
         self.environments: list[dict[str, str] | None] = []
 
@@ -160,6 +167,8 @@ class BootstrapRunner:
         command = list(args)
         self.calls.append(command)
         self.environments.append(env)
+        if len(command) >= 3 and command[1] == "-c":
+            return completed(command, stdout=self.python_version)
         if command[-2:] == ["rev-parse", "--show-toplevel"]:
             return completed(command, code=1)
         if command[:2] == ["git", "clone"]:
@@ -240,6 +249,33 @@ def test_bootstrap_rejects_existing_target_and_non_exact_commit(tmp_path: Path) 
             recovery.BootstrapOptions("remote", "main", parent / "new", Path("python3")),
             runner=runner,
         )
+
+
+def test_bootstrap_rejects_unsupported_python_before_clone_or_target_creation(
+    tmp_path: Path,
+) -> None:
+    parent = tmp_path / "restores"
+    parent.mkdir()
+    destination = parent / "unsupported"
+    runner = BootstrapRunner(tmp_path, python_version="3.9.6")
+    with pytest.raises(ValueError, match="python_3_11_or_newer_required"):
+        recovery.bootstrap(
+            recovery.BootstrapOptions("remote", COMMIT, destination, Path("/usr/bin/python3")),
+            runner=runner,
+        )
+    assert not destination.exists()
+    assert not any(command[:2] == ["git", "clone"] for command in runner.calls)
+
+
+def test_bootstrap_accepts_python_311(tmp_path: Path) -> None:
+    parent = tmp_path / "restores"
+    parent.mkdir()
+    runner = BootstrapRunner(tmp_path, python_version="3.11.0")
+    result = recovery.bootstrap(
+        recovery.BootstrapOptions("remote", COMMIT, parent / "supported", Path("/python311")),
+        runner=runner,
+    )
+    assert result["state"] == "complete"
 
 
 def test_bootstrap_failure_stays_inert_and_preserves_partial_target(tmp_path: Path) -> None:
