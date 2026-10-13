@@ -3603,6 +3603,25 @@ Hypothesis and mutation tests pass; the envelope validates structure only. No Pr
 yet been consumed, and it supplies no runtime-law, hook-effect, rooted-chain, settlement,
 buyExact25, point-in-time, or economic qualification.
 
+Sol's prospective economic-witness decision keeps `raw_candidate_witness_acquired` separate from
+`economic_settlement_qualified`, with qualification false by default. Existing transaction-meta
+endpoints, ordinary `getBlock`/`getTransaction`, slot-S account reads, and message signer/fee-payer
+identity do not establish ordered instruction-position state or ownership. A future raw witness must
+bind the exact transaction/instruction/CPI path and execution attempt to ordered raw pre/post account
+bytes, lamports and program owners for all possibly writable roles; Clock/Rent/config bytes;
+success/failure, commit/freeze and finalized-root joins; source/runtime/decoder identity; raw hashes;
+and distinct event, receipt, durable-availability and decision times. Missing clock bounds keep
+availability unknown. Failed, partial, unsupported, missing and fork/root-ambiguous captures remain
+explicit status classes, never evidence of zero or settlement. Qualification additionally requires
+independent replay of every writable effect, era-correct Token/Token-2022 fee and hook semantics,
+WSOL and historical Rent conservation, isolated close-destination credit, and owner/fee attribution
+using integer lamports and mint atoms separately. `sell23` and `buyExact25` need separate class gates;
+the observed 25-byte `buyExact25` wire does not qualify amount decoding. A bounded future-only RPC
+feasibility pilot may provide slot-bound diagnostics only. Class-level economic or training admission
+remains a separately registered prospective gate. Acceptance must include a disjoint denominator
+with failed/partial/unsupported cases, raw replay, and adversarial fork, CPI order, opaque touch,
+missing Rent/owner/hook and delayed-availability cases.
+
 ### Independent rolling prospective acquisition policy (2026-10-12)
 
 Sol selected a new Helius-only forward collector with independent epoch roots, starting at a fresh
