@@ -1,9 +1,9 @@
 # Current Project State
 
-**As of:** 2026-10-13 17:35Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, scoped code commit `f4462fb` (receipt replay fix); final handoff documentation is
-committed and pushed in follow-up `efeb7c2`. `main`/`origin/main` remain `770699d`. Preserve the unrelated dirty
-build-guard/Agave/capture-watchdog/provider-evidence scope; do not include it in the Senses release.
+**As of:** 2026-10-13 17:42Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`; recent scoped commits are `f4462fb` (discovery receipt replay) and `d077f26`
+(offline capture-v3 and guarded-build prototypes). Handoff state follows in this commit. `main` and
+`origin/main` remain `770699d`; do not advance main because no live capability has been qualified.
 Positive-bar projector and discovery evidence remain offline/synthetic; no eligible population or
 economic/lifecycle qualification claim.
 
@@ -78,6 +78,17 @@ economic/lifecycle qualification claim.
   requests were issued. Kingston has 217,316,544,512 bytes free (~202.4 GiB), above the 50-GiB floor.
   Final scoped discovery focus: 38 tests pass with repo `.venv`; Ruff and format checks pass. Do not
   start a new prospective lease/campaign before the dedicated Portability / Disaster Recovery session.
+- New capture-v3 source-bound owner/preflight/runtime, replay-context activation v2, watchdog and
+  canary-to-continuous handoff, plus pure v6-to-v7 gap/cooldown policy, are committed as offline
+  prototypes. Focused set passes 123 tests; scoped Ruff/format and `make smoke` pass. No plist is
+  installed/loaded; watchdog CLI is fail-closed because its owner adapter is unbound; no request or
+  new lease was started. `make check` still fails on 107 unrelated WSS Ruff findings. Agave build
+  runner and Cargo-checkout symlink opt-in are also committed but NOT qualified or run: the known
+  Seatbelt same-name-underlay escape remains NO-GO; the prior APFS receipt does not cover this guard
+  revision. Do not run Cargo/ProgramTest until a separately qualified OS identity/mount boundary.
+- Alchemy read-only account receipts at 07:26Z and 12:17Z Oct 13 both show 18,680 team CU / $0.01,
+  empty hourly data and no returned account limit or repository attribution; actual research charge
+  remains unknown/unverified.
 - Full-current replay: 44 roots, 62 historical attempts; all three old v6 roots `verified_none`,
   zero v6 attempts. Runtime binding requires ancestor commit, exact source bytes across release/HEAD/
   checkout, clean pinned paths, and exact plist/live identity. Focused host tests: 43; broader v6
