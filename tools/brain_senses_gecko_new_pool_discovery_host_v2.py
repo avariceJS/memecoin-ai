@@ -366,18 +366,18 @@ def verify_release_bundle(
         _raise("discovery_activation_epoch_index")
     policy_raw = writer.read_bytes(_epoch_policy_path(0), max_bytes=512_000)
     epoch_raw = writer.read_bytes(_epoch_document_path(0), max_bytes=512_000)
+    policy = _json(policy_raw)
+    epoch = _json(epoch_raw)
     plist_raw = (repo_root / PLIST_RELATIVE_PATH).read_bytes()
     if installed_plist_bytes is None:
         installed_plist_bytes = INSTALLED_PLIST.read_bytes()
     if (
-        runtime.sha256(policy_raw) != activation["policy_sha256"]
-        or runtime.sha256(epoch_raw) != activation["epoch_sha256"]
+        policy.get("policy_sha256") != activation["policy_sha256"]
+        or epoch.get("epoch_sha256") != activation["epoch_sha256"]
         or runtime.sha256(plist_raw) != activation["plist_sha256"]
         or installed_plist_bytes != plist_raw
     ):
         _raise("discovery_release_material_drift")
-    policy = _json(policy_raw)
-    epoch = _json(epoch_raw)
     discovery.verify_policy(policy)
     runtime.verify_epoch_envelope(epoch, policy=policy)
     epoch_names = writer.list_names(EPOCHS_ROOT)

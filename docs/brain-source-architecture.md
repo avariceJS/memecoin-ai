@@ -4178,11 +4178,18 @@ existing hold/pointer into one armed authority without provider I/O. Five forced
 exercise the real v3 ledger with the descriptor writer:
 reservation without intent, intent without dispatch, ambiguous dispatch, durable result settlement
 exactly once, and root detach during a page write without underlay artifacts. These are synthetic
-recovery tests, not a live Kingston recovery or provider request. Inert v3 release
-`7b15e8d1f3acdbc6b374e349aaeb1282` is prepared on Kingston from source commit `9903412`; its first
-scan anchor is future-only, and a replay confirms the shared coordinator ledger and storage binding.
-The prior `runtime-v2` tree hash is unchanged. Activation, first natural scan, and controlled
-LaunchAgent restart/replay remain pending. No provider I/O has occurred under this discovery policy.
+recovery tests, not a live Kingston recovery or provider request. V3 release
+`7b15e8d1f3acdbc6b374e349aaeb1282` was prepared on Kingston from source commit `9903412` with a
+future-only first-scan anchor; that anchor has since elapsed. Its create-only activation record and
+initial capacity hold were written, but immediate release-bundle verification exposed a verifier
+bug: it compared serialized
+policy/epoch bytes to their internal semantic hashes. No plist was installed or loaded and no provider
+request occurred. A descriptor-bound `stop.json` now records the verification failure. The verifier
+now compares the canonical documents' validated semantic hashes; a forced activation/replay regression
+test covers this path. The fix changes a pinned source file, so the existing v3 activation no longer
+matches its manifest and must remain inert. The v3 LaunchAgent is absent and unloaded. The old
+`runtime-v2` tree hash is unchanged. A new versioned release namespace, first natural scan, and
+controlled LaunchAgent restart/replay remain pending. No provider I/O has occurred under this policy.
 
 The separate read-only discovery-to-enrollment projector replays explicit contiguous plan/gap
 prefixes against the pinned epoch history and exact raw page hashes. It retains page and scan

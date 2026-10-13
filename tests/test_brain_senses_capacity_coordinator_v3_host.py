@@ -381,6 +381,14 @@ def test_discovery_v3_activation_interruption_retries_one_authority(tmp_path, mo
         assert result["provider_io"] is False
         assert result["activation"]["armed"] is True
         assert result["activation"]["release_id"] == candidate["release_id"]
+        release_bundle = discovery_host.verify_release_bundle(
+            writer=writer,
+            guard=guard,
+            binding=binding,
+            installed_plist_bytes=Path(discovery_host.PLIST_RELATIVE_PATH).read_bytes(),
+        )
+        assert release_bundle["activation"]["release_id"] == candidate["release_id"]
+        assert release_bundle["provider_io"] is False
         events = v3.verify_v3_ledger(
             writer.read_bytes(v3.LEDGER_PATH),
             expected_policy_bytes=writer.read_bytes(v3.POLICY_PATH),

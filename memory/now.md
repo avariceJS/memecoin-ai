@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-13 17:17Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+**As of:** 2026-10-13 17:22Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
 `research/active`, HEAD and `origin/research/active` `3ab81b2`. `main` and `origin/main` remain
 `770699d`. Worktree includes unrelated dirty build-guard/Agave/capture-watchdog/provider evidence;
 stage only scoped files. Positive-bar event-extraction/projector changes are committed; all evidence
@@ -63,11 +63,15 @@ and tests remain synthetic-only.
   shared capacity ledger/root remains common. Preserve old runtime-v2 artifacts byte-for-byte. The
   callback verifier uses no-follow file descriptors and validates captured HEAD stability. Activation
   interruption test retries the pre-existing hold/pointer into one authority. Candidate
-  `7b15e8d1f3acdbc6b374e349aaeb1282` is inert on Kingston at `runtime-v3`, source `9903412`, future
-  first anchor 17:20Z. Shared ledger replay and binding pass; old runtime-v2 tree hash remains
-  `ef3895bf11079c9bc2686203aab08e9dd00cd7b25c086506d3226dfe8bd31548`. The earlier candidate
-  `3918f088c01caaf414fc37e473ec62b6` remains stale and untouched. No activation, provider I/O, or
-  LaunchAgent load occurred; real restart/replay is still required.
+  `7b15e8d1f3acdbc6b374e349aaeb1282` was prepared at `runtime-v3` from source `9903412`. Its
+  future-only 17:20Z anchor elapsed. Activation and initial ledger hold exist, but bundle verification
+  exposed a raw-document-hash vs semantic-hash bug before plist install/load or provider I/O. A
+  descriptor-bound `runtime-v3/stop.json` now records the failure. Verifier fix and replay regression
+  test are committed/pending validation; changed pinned source makes this activation fail closed. Do
+  not dispatch or reuse it. Old runtime-v2 tree hash remains
+  `ef3895bf11079c9bc2686203aab08e9dd00cd7b25c086506d3226dfe8bd31548`; stale candidate
+  `3918f088c01caaf414fc37e473ec62b6` untouched. No collector is running; user's next session is
+  portability/DR, no new Senses campaign should start here.
 - Full-current replay: 44 roots, 62 historical attempts; all three old v6 roots `verified_none`,
   zero v6 attempts. Runtime binding requires ancestor commit, exact source bytes across release/HEAD/
   checkout, clean pinned paths, and exact plist/live identity. Focused host tests: 43; broader v6
