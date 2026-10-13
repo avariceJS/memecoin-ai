@@ -3862,3 +3862,16 @@ inventory performs a final census recheck after bridge receipt reconciliation. F
 a read-only descriptor-bound live replay verifies 21 roots, 32 attempts, and 24,441 response bytes
 with provider I/O disabled. A fresh release/root is required before any dispatch; this failure and
 bridge grant no source, training, or economic authority.
+
+A distinct post-bridge Gecko root `6672937e8ee81c6074e99d7f5f8083c3` then recorded three actual
+HTTP-200 responses (2,531 bytes); every returned bar was outside the admissible forward window, so
+there were zero eligible bars. Three later slots were durably classified `missed_dispatch`; no
+backfill or ambiguous request occurred. A bootout/bootstrap recovery check preserved the exact
+3/3/3 intent/result/confirmation chain and made no provider request. That source-bound LaunchAgent
+is now unloaded: review found its idle health callback could publish zero usage counters without
+replaying the global census. The host now recomputes the verified census while holding the Gecko
+lane lock and leaves the prior snapshot unchanged if the census fails. Its entrypoint also adds the
+repository `src/` path before importing the descriptor-bound storage package. The old source-bound
+root and release remain untouched; a new release must pin this correction and target only a future
+bucket. The observed responses and recovery qualify transport/replay behavior only, not price
+coverage, source semantics, or market admission.

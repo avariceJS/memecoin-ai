@@ -18,6 +18,8 @@ from typing import Any
 REPO = Path(__file__).resolve().parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
+if str(REPO / "src") not in sys.path:
+    sys.path.insert(0, str(REPO / "src"))
 
 from memecoin_research_storage import StorageError  # noqa: E402
 from tools import brain_senses_capacity_coordinator_v2 as capacity  # noqa: E402
@@ -540,7 +542,57 @@ def publish_health(
     now_ns: Callable[[], int] = time.time_ns,
     monotonic_ns: Callable[[], int] = time.monotonic_ns,
 ) -> dict[str, Any]:
-    """Refresh bounded health from verified request/coordinator projections."""
+    """Refresh health from a full usage census held under the Gecko lane lease."""
+    # A caller-provided inventory may predate a request, skip, or another lane event.
+    # Rebuild while holding the Gecko lease so this snapshot never reports unknown usage as 0.
+    with coordinator.lane_lock("gecko", blocking=False) as lane:
+        current_inventory = usage_inventory.build_usage_inventory(writer)
+        if (
+            current_inventory.get("provider_io") is not False
+            or type(current_inventory.get("root_inventory")) is not dict
+            or type(current_inventory.get("snapshots")) is not list
+            or [row.get("root") for row in current_inventory["snapshots"]]
+            != current_inventory["root_inventory"].get("root_paths")
+        ):
+            raise HostReleaseError("health_usage_inventory_invalid")
+        return _publish_health_under_lane(
+            writer,
+            release=release,
+            coordinator=coordinator,
+            lane=lane,
+            capture_writer=capture_writer,
+            plan=plan,
+            state=state,
+            inventory=current_inventory,
+            status=status,
+            reason=reason,
+            stop_latched=stop_latched,
+            cooldown_until_ns=cooldown_until_ns,
+            last_error_code=last_error_code,
+            now_ns=now_ns,
+            monotonic_ns=monotonic_ns,
+        )
+
+
+def _publish_health_under_lane(
+    writer: DescriptorWriter,
+    *,
+    release: Mapping[str, Any],
+    coordinator: capacity.CapacityCoordinator,
+    lane: Any,
+    capture_writer: Any,
+    plan: Mapping[str, Any],
+    state: Mapping[str, Any],
+    inventory: Mapping[str, Any],
+    status: str,
+    reason: str,
+    stop_latched: bool = False,
+    cooldown_until_ns: int | None = None,
+    last_error_code: str | None = None,
+    now_ns: Callable[[], int] = time.time_ns,
+    monotonic_ns: Callable[[], int] = time.monotonic_ns,
+) -> dict[str, Any]:
+    """Publish one snapshot while the lane lease still excludes intervening writes."""
     release_id = str(release["release_id"])
     storage = release["binding"]["storage"]
     old = health.read_snapshot(writer, release_id=release_id, storage=storage)
@@ -580,32 +632,30 @@ def publish_health(
         )
         for row in plan_results
     )
+    attempts = [
+        attempt
+        for snapshot in inventory.get("snapshots", [])
+        for attempt in snapshot.get("attempts", [])
+    ]
+    day_start = observed - observed % shared_usage.NS_PER_DAY
+    rolling_start = observed - shared_usage.ROLLING_NS
     daily_requests = daily_bytes = rolling_requests = rolling_bytes = 0
-    if inventory is not None:
-        attempts = [
-            attempt
-            for snapshot in inventory.get("snapshots", [])
-            for attempt in snapshot.get("attempts", [])
-        ]
-        day_start = observed - observed % shared_usage.NS_PER_DAY
-        rolling_start = observed - shared_usage.ROLLING_NS
-        for attempt in attempts:
-            at = attempt["decision_ns"]
-            response_size = (
-                attempt["response_bytes"]
-                if attempt["response_sha256"] is not None
-                else attempt["maximum_response_bytes"]
-            )
-            if day_start <= at <= observed:
-                daily_requests += 1
-                daily_bytes += response_size
-            if rolling_start <= at <= observed:
-                rolling_requests += 1
-                rolling_bytes += response_size
-    with coordinator.lane_lock("gecko", blocking=False) as lane:
-        with coordinator._shared_lock("gecko", lane):
-            _ledger_raw, events = coordinator._load_ledger()
-            allocated, free = coordinator._snapshot()
+    for attempt in attempts:
+        at = attempt["decision_ns"]
+        response_size = (
+            attempt["response_bytes"]
+            if attempt["response_sha256"] is not None
+            else attempt["maximum_response_bytes"]
+        )
+        if day_start <= at <= observed:
+            daily_requests += 1
+            daily_bytes += response_size
+        if rolling_start <= at <= observed:
+            rolling_requests += 1
+            rolling_bytes += response_size
+    with coordinator._shared_lock("gecko", lane):
+        _ledger_raw, events = coordinator._load_ledger()
+        allocated, free = coordinator._snapshot()
     fields = {
         key: value
         for key, value in old.items()
@@ -1259,7 +1309,7 @@ def run_callback(
     )
     state_after = read_capture_state(writer, root)
     recovery_after = recovery_gate(state_after)
-    post_inventory = usage_inventory.build_usage_inventory(writer)
+    # publish_health performs the full census under the Gecko lane lease.
     terminal_status = result.get("status")
     stop_latched = (
         recovery_after != "recovered"
@@ -1317,7 +1367,7 @@ def run_callback(
         capture_writer=capture_writer,
         plan=plan,
         state=state_after,
-        inventory=post_inventory,
+        inventory=None,
         status=health_status,
         reason=health_reason,
         stop_latched=stop_latched,

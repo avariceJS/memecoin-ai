@@ -15,6 +15,8 @@ from typing import Any
 
 import pytest
 
+from memecoin_research_storage import StorageError
+
 REPO = Path(__file__).resolve().parents[1]
 if str(REPO / "tools") not in sys.path:
     sys.path.insert(0, str(REPO / "tools"))
@@ -734,7 +736,9 @@ def test_launchd_entrypoint_imports_without_pythonpath_or_repo_working_directory
     assert "--scheduled-tick" in result.stdout
 
 
-def test_callback_outside_window_is_a_health_only_tick(tmp_path: Path) -> None:
+def test_callback_outside_window_is_a_health_only_tick(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     fixture = _Fixture(tmp_path / "gecko-v2-host-callback")
     try:
         now_ns = FIRST_CLOSE_NS + 300 * scout.NS
@@ -767,6 +771,15 @@ def test_callback_outside_window_is_a_health_only_tick(tmp_path: Path) -> None:
                 "cooldown_until_ns": None,
             },
         }
+        monkeypatch.setattr(
+            host_release.usage_inventory,
+            "build_usage_inventory",
+            lambda _writer: {
+                "provider_io": False,
+                "root_inventory": {"root_paths": ["synthetic/root"]},
+                "snapshots": [{"root": "synthetic/root", "attempts": []}],
+            },
+        )
         called: list[bool] = []
         result = host_release.run_callback(
             fixture.writer,
@@ -784,6 +797,159 @@ def test_callback_outside_window_is_a_health_only_tick(tmp_path: Path) -> None:
         assert called == []
         assert journal.records()[-1]["schema"] == chain.GAP_SCHEMA
         assert journal.records()[-1]["bucket_close_ns"] == FIRST_CLOSE_NS
+    finally:
+        fixture.close()
+
+
+def test_health_replays_exact_usage_under_lane_and_refreshes_expired_windows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = _Fixture(tmp_path / "gecko-v2-health-usage")
+    try:
+        first_now = 35 * shared_usage.NS_PER_DAY + 10_000
+        receipt = host_release.initialize_release(
+            fixture.writer,
+            policy=fixture.policy,
+            release_id="b" * 32,
+            release_sha256="b" * 64,
+            source_sha256="c" * 64,
+            first_bucket_close_ns=FIRST_CLOSE_NS,
+            coordinator=fixture.coordinator,
+            now_ns=lambda: first_now,
+        )
+        journal = DescriptorScoutJournal(
+            fixture.writer,
+            root=receipt["root"],
+            policy=fixture.policy,
+            storage_binding=fixture.storage,
+            release_sha256="b" * 64,
+        )
+        capture_writer = DescriptorCaptureWriter(
+            fixture.writer, root=receipt["root"], binding=journal.binding
+        )
+        attempts = [
+            {
+                "decision_ns": first_now - 10,
+                "response_bytes": 80,
+                "response_sha256": "a" * 64,
+                "maximum_response_bytes": scout.MAX_RESPONSE_BYTES,
+            },
+            {
+                "decision_ns": first_now - shared_usage.NS_PER_DAY - 10,
+                "response_bytes": 90,
+                "response_sha256": "b" * 64,
+                "maximum_response_bytes": scout.MAX_RESPONSE_BYTES,
+            },
+            {
+                "decision_ns": first_now - shared_usage.ROLLING_NS - 1,
+                "response_bytes": 100,
+                "response_sha256": "c" * 64,
+                "maximum_response_bytes": scout.MAX_RESPONSE_BYTES,
+            },
+            {
+                "decision_ns": first_now - 5,
+                "response_bytes": None,
+                "response_sha256": None,
+                "maximum_response_bytes": 999,
+            },
+        ]
+        census = {
+            "provider_io": False,
+            "root_inventory": {"root_paths": ["synthetic/root"]},
+            "snapshots": [{"root": "synthetic/root", "attempts": attempts}],
+        }
+        lock_was_held = False
+
+        def build_inventory(_writer: DescriptorWriter) -> dict[str, Any]:
+            nonlocal lock_was_held
+            with pytest.raises((capacity.CoordinatorError, StorageError)):
+                with fixture.coordinator.lane_lock("gecko", blocking=False):
+                    pass
+            lock_was_held = True
+            return census
+
+        monkeypatch.setattr(host_release.usage_inventory, "build_usage_inventory", build_inventory)
+        release = {
+            "release_id": receipt["release_id"],
+            "binding": journal.binding,
+        }
+        state = host_release.read_capture_state(fixture.writer, receipt["root"])
+        refreshed = host_release.publish_health(
+            fixture.writer,
+            release=release,
+            coordinator=fixture.coordinator,
+            capture_writer=capture_writer,
+            plan=journal.records()[0],
+            state=state,
+            inventory=None,
+            status="paused",
+            reason="outside_window",
+            now_ns=lambda: first_now,
+        )
+        assert lock_was_held
+        assert refreshed["daily_request_count"] == 2
+        assert refreshed["daily_response_bytes"] == 80 + 999
+        assert refreshed["rolling_request_count"] == 3
+        assert refreshed["rolling_response_bytes"] == 80 + 90 + 999
+
+        later_now = first_now + 2 * shared_usage.NS_PER_DAY
+        expired = host_release.publish_health(
+            fixture.writer,
+            release=release,
+            coordinator=fixture.coordinator,
+            capture_writer=capture_writer,
+            plan=journal.records()[0],
+            state=state,
+            inventory=None,
+            status="paused",
+            reason="outside_window",
+            now_ns=lambda: later_now,
+        )
+        assert expired["daily_request_count"] == 0
+        assert expired["daily_response_bytes"] == 0
+        assert expired["rolling_request_count"] == 3
+        assert expired["rolling_response_bytes"] == 80 + 90 + 999
+    finally:
+        fixture.close()
+
+
+def test_health_inventory_failure_leaves_previous_snapshot_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = _Fixture(tmp_path / "gecko-v2-health-inventory-failure")
+    try:
+        now_ns = FIRST_CLOSE_NS + 10 * scout.NS
+        receipt = host_release.initialize_release(
+            fixture.writer,
+            policy=fixture.policy,
+            release_id="b" * 32,
+            release_sha256="b" * 64,
+            source_sha256="c" * 64,
+            first_bucket_close_ns=FIRST_CLOSE_NS,
+            coordinator=fixture.coordinator,
+            now_ns=lambda: now_ns,
+        )
+        health_path = f"{receipt['health_root']}/snapshot.json"
+        before = fixture.writer.read_bytes(health_path)
+
+        def fail_inventory(_writer: DescriptorWriter) -> dict[str, Any]:
+            raise usage_inventory.InventoryError("synthetic census failure")
+
+        monkeypatch.setattr(host_release.usage_inventory, "build_usage_inventory", fail_inventory)
+        with pytest.raises(usage_inventory.InventoryError, match="synthetic census failure"):
+            host_release.publish_health(
+                fixture.writer,
+                release={"release_id": receipt["release_id"], "binding": fixture.journal.binding},
+                coordinator=fixture.coordinator,
+                capture_writer=fixture.capture_writer,
+                plan=fixture.journal.records()[0],
+                state=host_release.read_capture_state(fixture.writer, fixture.journal.root),
+                inventory=None,
+                status="paused",
+                reason="outside_window",
+                now_ns=lambda: now_ns + scout.NS,
+            )
+        assert fixture.writer.read_bytes(health_path) == before
     finally:
         fixture.close()
 
