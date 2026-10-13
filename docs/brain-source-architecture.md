@@ -2709,7 +2709,9 @@ state-account×slot pairs across 7,617 addresses (18,544 pairs including program
 reference is a nominal 175,840 CU sizing scenario only; it is not measured traffic, a paid request
 plan, or a dollar estimate. Read-only Alchemy MCP usage showed 18,680 aggregate CU / $0.01 month to
 date through 09:02Z, with no usage-limit field returned. Archive entitlement and account-specific
-spend/overage limits remain unverified. No Alchemy chain RPC or archive read occurred; all rows keep
+spend/overage limits remain unverified. A read-only MCP refresh at 2026-10-13 01:37Z still reported
+18,680 CU / $0.01 month-to-date and returned no account limit. Helius reports a configured key, but
+account usage and plan remain unavailable without a JWT session. No Alchemy chain RPC or archive read occurred; all rows keep
 `economic_admission=false` and the frozen audit remains sealed.
 
 Sol's current prospective-collection decision supersedes the earlier c5 activation horizon: c5's
@@ -3836,8 +3838,27 @@ separate technical release identity; it does not qualify the price modality or p
 population.
 
 Helius v5's separately versioned adapter, independent verifier, rolling-usage cutover builder,
-LaunchAgent, and forced detach-at-durable-intent tests are implemented and active. The immutable
-cutover receipt binds c1-c4 evidence separately from rolling-v4 request rows, preserves decision
-time separately from dispatch time, and retains ambiguous attempts through their latest possible
-dispatch bound. The 17:00Z epoch remains open after its single verified anchor request. Market bars,
-complete structural inventory, and economic qualification remain unproven.
+LaunchAgent, and forced detach-at-durable-intent tests were implemented, but its LaunchAgent is not
+currently loaded. Two recent epochs were abandoned after `response_invalid`, each retaining one
+possibly-spent request, and the following open 23:00Z epoch missed its dispatch windows. It remains
+immutable and cannot be resumed or repaired in place. Sol approved a distinct v5r2 release with a
+narrow cutover exception for that exact no-dispatch open root; it must replay all 35 prior attempts,
+including both ambiguous requests, preserve shared coordinator semantics, and anchor only at a
+fresh future epoch after the two-abandonment window clears. That successor has not yet passed its
+implementation and activation gates. The old LaunchAgent stays unloaded. Market bars, complete
+structural inventory, and economic qualification remain unproven.
+
+The new Gecko capture-only-v2 release `00263d9787393fbc4d0fa3db8a276d7c` was prepared as a
+plan-only Kingston root and briefly loaded with a 12-second callback. It failed closed before any
+intent because the exact a078 terminal receipt binds the prior 19-root global census; adding the
+new sibling changes that census. The a078 request and health roots remain unchanged, and the
+00263d root has no intent, dispatch, or provider result. The expired prospective slot is unknown and
+will not be backfilled. Its callback is unloaded. Sol approved a separately versioned bridge that
+reconstructs the exact historical 19-root manifest while independently replaying every current
+root and requiring stable full-census and same-provider usage checks. The bridge now also accepts a
+new health sidecar only with its independently replayed same-ID capture root, matching release,
+binding and storage identities, empty health usage, and a bounded health intent count. The current
+inventory performs a final census recheck after bridge receipt reconciliation. Focused tests pass;
+a read-only descriptor-bound live replay verifies 21 roots, 32 attempts, and 24,441 response bytes
+with provider I/O disabled. A fresh release/root is required before any dispatch; this failure and
+bridge grant no source, training, or economic authority.

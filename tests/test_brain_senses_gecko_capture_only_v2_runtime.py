@@ -627,6 +627,60 @@ def test_release_identity_is_deterministic_and_binds_code_and_source_maps() -> N
     assert first != changed
 
 
+def test_release_source_map_pins_a078_bridge_validator_receipt_and_plist_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bridge_path = "tools/brain_senses_gecko_capture_only_v2_terminal_usage_v3.py"
+    validator_path = "tools/brain_senses_gecko_capture_only_v2_terminal_usage_v1.py"
+    receipt_path = host_release.A078_TERMINAL_RECEIPT_PATH
+    assert {bridge_path, validator_path, receipt_path} <= set(host_release.RELEASE_CODE_PATHS)
+
+    repo = tmp_path / "repo"
+    for relative, body in (
+        (bridge_path, b"bridge-v3-a"),
+        (validator_path, b"validator-v1"),
+    ):
+        path = repo / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(body)
+    receipt_bytes = (REPO / receipt_path).read_bytes()
+    receipt_file = repo / receipt_path
+    receipt_file.parent.mkdir(parents=True, exist_ok=True)
+    receipt_file.write_bytes(receipt_bytes)
+    monkeypatch.setattr(host_release, "REPO", repo)
+    monkeypatch.setattr(
+        host_release,
+        "RELEASE_CODE_PATHS",
+        (bridge_path, validator_path, receipt_path),
+    )
+
+    sources = host_release._release_source_map({"policy/source.json": "a" * 64})
+    assert sources[bridge_path] == hashlib.sha256(b"bridge-v3-a").hexdigest()
+    assert sources[validator_path] == hashlib.sha256(b"validator-v1").hexdigest()
+    assert sources[receipt_path] == host_release.A078_TERMINAL_RECEIPT_SHA256
+    first = host_release.release_identity(
+        policy={"policy_sha256": "b" * 64}, source_bindings=sources
+    )
+    first_plist = plistlib.loads(host_release.render_launchd_plist(first[0]))
+    assert first_plist["ProgramArguments"][-1] == first[0]
+
+    (repo / bridge_path).write_bytes(b"bridge-v3-b")
+    changed_sources = host_release._release_source_map({"policy/source.json": "a" * 64})
+    changed = host_release.release_identity(
+        policy={"policy_sha256": "b" * 64}, source_bindings=changed_sources
+    )
+    changed_plist = plistlib.loads(host_release.render_launchd_plist(changed[0]))
+    assert changed != first
+    assert changed_plist["ProgramArguments"][-1] == changed[0]
+    assert changed_plist["Label"] != first_plist["Label"]
+
+    receipt_file.write_bytes(receipt_bytes + b" ")
+    with pytest.raises(
+        host_release.HostReleaseError, match="a078_terminal_receipt_source_pin_mismatch"
+    ):
+        host_release._release_source_map({"policy/source.json": "a" * 64})
+
+
 def test_recovery_gate_stops_after_possible_spend_or_missing_confirmation() -> None:
     base = {"dispatches": [], "results": [], "confirmations": []}
     assert host_release.recovery_gate(base) == "recovered"

@@ -35,6 +35,9 @@ from tools.brain_senses_external_writer_v1 import (  # noqa: E402
     canonical_json,
     sha256,
 )
+from tools.brain_senses_gecko_capture_only_v2_terminal_usage_v1 import (  # noqa: E402
+    RECEIPT_SHA256 as A078_TERMINAL_RECEIPT_SHA256,
+)
 
 RELEASE_SCHEMA = "brain-senses-gecko-capture-only-v2-host-release-v1"
 CUTOVER_PREFIX_SHA256 = "cd7c67de3657eed073bbe1e1a8f570da9753976057299e0df3a24402ee1d2ac6"
@@ -60,6 +63,9 @@ RELEASE_CODE_PATHS = (
     "tools/brain_senses_gecko_lane_policy_v3.py",
     "tools/brain_senses_gecko_lane_verify_v4.py",
     "tools/brain_senses_gecko_lane_runtime_v4.py",
+    "tools/brain_senses_gecko_capture_only_v2_terminal_usage_v3.py",
+    "tools/brain_senses_gecko_capture_only_v2_terminal_usage_v1.py",
+    "docs/evidence/gecko-capture-only-v2-a078-terminal-usage-2026-10-13.json",
     "src/memecoin_research_storage/__init__.py",
     "docs/evidence/gecko-v4-usage-reconciliation-2026-10-12.json",
 )
@@ -67,6 +73,23 @@ RELEASE_CODE_PATHS = (
 
 class HostReleaseError(ValueError):
     """Invalid release identity or unsafe one-time initialization."""
+
+
+A078_TERMINAL_RECEIPT_PATH = (
+    "docs/evidence/gecko-capture-only-v2-a078-terminal-usage-2026-10-13.json"
+)
+
+
+def _release_source_map(policy_source_map: Mapping[str, str]) -> dict[str, str]:
+    """Bind every release input, including the exact a078 bridge and terminal receipt."""
+    source_map = dict(policy_source_map)
+    for relative in RELEASE_CODE_PATHS:
+        raw = (REPO / relative).read_bytes()
+        if relative == A078_TERMINAL_RECEIPT_PATH:
+            if sha256(raw) != A078_TERMINAL_RECEIPT_SHA256:
+                raise HostReleaseError("a078_terminal_receipt_source_pin_mismatch")
+        source_map[relative] = sha256(raw)
+    return source_map
 
 
 def compile_release_material(writer: DescriptorWriter, guard: Any) -> dict[str, Any]:
@@ -112,9 +135,7 @@ def compile_release_material(writer: DescriptorWriter, guard: Any) -> dict[str, 
         or markers[-1].get("dispatch_ns") != CUTOVER_LAST_DISPATCH_NS
     ):
         raise HostReleaseError("cutover_receipt_pin_invalid")
-    source_map = dict(policy["source"]["source_sha256"])
-    for relative in RELEASE_CODE_PATHS:
-        source_map[relative] = sha256((REPO / relative).read_bytes())
+    source_map = _release_source_map(policy["source"]["source_sha256"])
     release_id, release_sha, source_sha = release_identity(
         policy=policy, source_bindings=source_map
     )

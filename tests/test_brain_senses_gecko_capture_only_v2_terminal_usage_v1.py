@@ -248,17 +248,18 @@ def _install_health_inventory_fakes(
     return SimpleNamespace(writer=writer, storage=storage, root_fd=root_fd, lock_fd=lock_fd)
 
 
-def test_usage_inventory_routes_only_exact_stopped_a078_root_to_receipt_replay(
+def test_usage_inventory_defers_exact_a078_health_to_v3_bridge_only(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     fake = _install_health_inventory_fakes(monkeypatch, tmp_path, status="stopped")
     calls: list[str] = []
 
-    def reconcile(_writer: object, **kwargs: object) -> dict[str, object]:
-        calls.append(str(kwargs["root"]))
-        return {"root": kwargs["root"], "status": "verified_none", "attempts": []}
-
-    monkeypatch.setattr(terminal, "reconcile_stopped_health_root", reconcile)
+    monkeypatch.setattr(inventory, "_root_files_sha256", lambda *_args: "a" * 64)
+    monkeypatch.setattr(
+        terminal,
+        "reconcile_stopped_health_root",
+        lambda *_args, **_kwargs: calls.append("v1_called"),
+    )
     try:
         result = inventory._load_present_root(
             fake.writer,
@@ -266,8 +267,8 @@ def test_usage_inventory_routes_only_exact_stopped_a078_root_to_receipt_replay(
             root_inventory_sha256="a" * 64,
         )
         assert result["status"] == "verified_none"
-        assert calls == [terminal.HEALTH_ROOT]
-        calls.clear()
+        assert result["attempts"] == []
+        assert calls == []
         with pytest.raises(inventory.InventoryError, match="gecko_health_stop_latched"):
             inventory._load_present_root(
                 fake.writer,

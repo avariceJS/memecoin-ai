@@ -15,7 +15,10 @@ if str(REPO / "tools") not in sys.path:
 
 from tools import brain_senses_capacity_coordinator_v2 as capacity  # noqa: E402
 from tools import brain_senses_gecko_capture_only_v2_health_v1 as health_v2  # noqa: E402
+from tools import brain_senses_gecko_capture_only_v2_terminal_usage_v1 as terminal_v1  # noqa: E402
 from tools import brain_senses_gecko_rotating_scout_v1 as scout  # noqa: E402
+from tools import brain_senses_gecko_shared_usage_v1 as shared_usage  # noqa: E402
+from tools import brain_senses_gecko_usage_inventory_v1 as inventory_module  # noqa: E402
 from tools import brain_senses_gecko_v4_usage_reconciliation_v1 as reconcile_v4  # noqa: E402
 from tools.brain_senses_external_writer_v1 import DescriptorWriter  # noqa: E402
 from tools.brain_senses_gecko_scout_chain_v1 import DescriptorScoutJournal  # noqa: E402
@@ -309,5 +312,64 @@ def test_complete_inventory_hash_cannot_change_between_root_replays(
         return result
 
     monkeypatch.setattr("tools.brain_senses_gecko_usage_inventory_v1._discover_roots", changed)
+    with pytest.raises(InventoryError, match="gecko_root_inventory_changed_during_replay"):
+        build_usage_inventory(writer)
+
+
+def test_inventory_rechecks_census_after_a078_bridge_reconciliation(
+    writer: DescriptorWriter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    roots = sorted([terminal_v1.ROOT, terminal_v1.HEALTH_ROOT])
+    manifest = {
+        "service_root": SERVICE_ROOT,
+        "service_entries": ["capture-only-v2", "host-health-v1"],
+        "collections": {},
+        "direct_root_presence": {"v3": False, "v4": False, "v5": False},
+        "root_paths": roots,
+    }
+    digest = hashlib.sha256(inventory_module.canonical_json(manifest)).hexdigest()
+    extra = f"{SERVICE_ROOT}/capture-only-v2/0123456789abcdef0123456789abcdef"
+    changed_roots = sorted([*roots, extra])
+    changed_manifest = {**manifest, "root_paths": changed_roots}
+    changed_digest = hashlib.sha256(inventory_module.canonical_json(changed_manifest)).hexdigest()
+    reconciled = {"value": False}
+
+    def discover(_writer: DescriptorWriter):
+        if reconciled["value"]:
+            return changed_roots, changed_manifest, changed_digest
+        return roots, manifest, digest
+
+    def load_root(
+        _writer: DescriptorWriter,
+        *,
+        root: str,
+        root_inventory_sha256: str,
+        root_metadata: dict[str, dict[str, Any]] | None = None,
+    ):
+        return shared_usage.make_verified_root_snapshot(
+            root=root,
+            status="verified_none",
+            root_inventory_sha256=root_inventory_sha256,
+            source_prefix_sha256=hashlib.sha256(root.encode()).hexdigest(),
+            attempts=[],
+        )
+
+    def reconcile(*_args: Any, **_kwargs: Any):
+        reconciled["value"] = True
+        return shared_usage.make_verified_root_snapshot(
+            root=terminal_v1.HEALTH_ROOT,
+            status="verified_none",
+            root_inventory_sha256=digest,
+            source_prefix_sha256="a" * 64,
+            attempts=[],
+        )
+
+    monkeypatch.setattr(inventory_module, "_discover_roots", discover)
+    monkeypatch.setattr(inventory_module, "_load_present_root", load_root)
+    monkeypatch.setattr(
+        inventory_module.terminal_v3_bridge,
+        "reconcile_a078_health_snapshot",
+        reconcile,
+    )
     with pytest.raises(InventoryError, match="gecko_root_inventory_changed_during_replay"):
         build_usage_inventory(writer)

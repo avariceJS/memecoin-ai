@@ -28,6 +28,9 @@ from tools import (
     brain_senses_gecko_capture_only_v2_terminal_usage_v1 as terminal_v2_usage,
 )
 from tools import (
+    brain_senses_gecko_capture_only_v2_terminal_usage_v3 as terminal_v3_bridge,
+)
+from tools import (
     brain_senses_gecko_capture_only_v2_verify as capture_v2_verify,
 )
 from tools import (
@@ -404,6 +407,7 @@ def _load_present_root(
     *,
     root: str,
     root_inventory_sha256: str,
+    root_metadata: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if root == f"{SERVICE_ROOT}/v5":
         raise InventoryError("gecko_v5_usage_verifier_unavailable")
@@ -440,21 +444,24 @@ def _load_present_root(
                 release_id=release_id,
                 storage=storage,
             )
+            if root_metadata is not None:
+                root_metadata[root] = {"health": snapshot, "storage": storage}
             now_ns = time.time_ns()
             _require(
                 snapshot["observed_ns"] <= now_ns,
                 "gecko_health_snapshot_from_future",
             )
             if root == terminal_v2_usage.HEALTH_ROOT:
-                try:
-                    return terminal_v2_usage.reconcile_stopped_health_root(
-                        writer,
-                        root=root,
-                        root_inventory_sha256=root_inventory_sha256,
-                        storage=storage,
-                    )
-                except terminal_v2_usage.TerminalUsageError as exc:
-                    raise InventoryError(str(exc)) from exc
+                # Temporary live-census snapshot. The versioned bridge at the end of
+                # build_usage_inventory validates the frozen receipt against its exact
+                # historical projection, then replaces only this health sidecar.
+                return shared_usage.make_verified_root_snapshot(
+                    root=root,
+                    status="verified_none",
+                    root_inventory_sha256=root_inventory_sha256,
+                    source_prefix_sha256=_root_files_sha256(writer, root),
+                    attempts=[],
+                )
             # Health is diagnostic, not usage authority. The matching request root is
             # replayed under its own lock below, so an old clean sidecar cannot block
             # admission forever after an otherwise safe stop or source-pin refresh.
@@ -489,6 +496,8 @@ def _load_present_root(
                 "gecko_v2_root_incomplete",
             )
             binding = store.read_json("binding.json")
+            if root_metadata is not None:
+                root_metadata[root] = {"binding": binding}
             policy = store.read_json("policy.json")
             chain_names = _v2_final_names(store.files("chain"))
             _require(
@@ -734,6 +743,7 @@ def build_usage_inventory(writer: DescriptorWriter) -> dict[str, Any]:
     """Discover and replay every known Gecko root without writes or provider calls."""
     roots, manifest, inventory_hash = _discover_roots(writer)
     snapshots = []
+    root_metadata: dict[str, dict[str, Any]] = {}
     for root in roots:
         direct_name = root.rsplit("/", 1)[-1]
         is_direct = root.count("/") == SERVICE_ROOT.count("/") + 1
@@ -763,11 +773,54 @@ def build_usage_inventory(writer: DescriptorWriter) -> dict[str, Any]:
                     writer,
                     root=root,
                     root_inventory_sha256=inventory_hash,
+                    root_metadata=root_metadata,
                 )
             )
-    roots_after, _manifest_after, inventory_hash_after = _discover_roots(writer)
+    roots_after, manifest_after, inventory_hash_after = _discover_roots(writer)
     _require(
         roots_after == roots and inventory_hash_after == inventory_hash,
+        "gecko_root_inventory_changed_during_replay",
+    )
+    root_stat = os.fstat(writer.root_fd)
+    bound_a078_storage = (
+        root_stat.st_dev == terminal_v2_usage.EXPECTED_STORAGE["device"]
+        and root_stat.st_ino == terminal_v2_usage.EXPECTED_STORAGE["inode"]
+    )
+    if (
+        bound_a078_storage
+        or terminal_v2_usage.ROOT in roots
+        or terminal_v2_usage.HEALTH_ROOT in roots
+    ):
+        receipt = terminal_v2_usage.load_pinned_receipt()
+        try:
+            health_snapshot = terminal_v3_bridge.reconcile_a078_health_snapshot(
+                writer,
+                receipt=receipt,
+                receipt_sha256=terminal_v2_usage.RECEIPT_SHA256,
+                storage=receipt["storage"],
+                current_roots=roots,
+                current_manifest=manifest,
+                current_inventory_sha256=inventory_hash,
+                after_roots=roots_after,
+                after_manifest=manifest_after,
+                after_inventory_sha256=inventory_hash_after,
+                snapshots=snapshots,
+                root_metadata=root_metadata,
+            )
+        except terminal_v3_bridge.CensusBridgeError as exc:
+            raise InventoryError(str(exc)) from exc
+        health_indexes = [
+            index
+            for index, snapshot in enumerate(snapshots)
+            if snapshot.get("root") == terminal_v2_usage.HEALTH_ROOT
+        ]
+        _require(len(health_indexes) == 1, "a078_health_snapshot_missing")
+        snapshots[health_indexes[0]] = health_snapshot
+    roots_final, manifest_final, inventory_hash_final = _discover_roots(writer)
+    _require(
+        roots_final == roots
+        and manifest_final == manifest
+        and inventory_hash_final == inventory_hash,
         "gecko_root_inventory_changed_during_replay",
     )
     return {

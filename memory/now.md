@@ -1,37 +1,45 @@
 # Current Project State
 
-**As of:** 2026-10-13 01:18Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD `439b65d` before the current terminal-usage commit; `main` is at an earlier
-verified baseline. Preserve the unrelated dirty Agave/build-guard and Gecko-lane files; stage only
-the exact reconciliation, its usage-inventory hook, tests, receipt, and canonical source updates.
-Production, champion, protected samples, real trading, and Cortex remain untouched.
+**As of:** 2026-10-13 01:55Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, HEAD `14cc5b9` (also `origin/research/active`). `main` is behind. Preserve dirty
+Agave/build-guard and Gecko-lane files; do not stage them with unrelated work. Production, champion,
+protected samples, real trading, and Cortex remain untouched.
 
 ## Prospective acquisition
 
 - Kingston `/Volumes/Kingston/BrainData` matches root ID
-  `9428695af6d4f46c08e1a444cdc66de8`, UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`, device `16777242`;
-  free space is 202 GiB, above the 50-GiB floor. Descriptor-bound storage only; no internal fallback.
-- Storage health LaunchAgent is loaded. No prospective Gecko or Helius LaunchAgent is loaded.
-  The old Gecko a078 release remains terminal and unloaded. Its exact usage-only receipt now
-  independently replays four durable requests (3,041 bytes) and leaves two no-intent/no-skip slots
-  unknown; the health sidecar contributes `verified_none`. Live usage census passes read-only.
-  Receipt: `docs/evidence/gecko-capture-only-v2-a078-terminal-usage-2026-10-13.json`.
-- Next horizon: commit/push this exact reconciliation, then prepare a distinct source-pinned v2
-  release and install only after checking its global usage census, finite caps, launch binding, and
-  natural forward-only bucket. If a safe future bucket is missed, record the gap; never backfill or
-  replay ambiguous requests. Verify real durable requests and restart recovery before fast-forwarding
-  `main`. Provider charges remain unknown/unverified; this is not a blocker for bounded collection.
+  `9428695af6d4f46c08e1a444cdc66de8`, UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`, device
+  `16777242`/inode `400`; 202 GiB free, above the 50-GiB floor. Use descriptor-bound storage only.
+- No market collector is currently loaded. Helius v5 remains unloaded after two `response_invalid`
+  epochs (one possibly-spent request each) and an invalid open 23:00Z root with missed windows.
+  Sol approved a distinct v5r2 cutover; its implementation/qualification is pending.
+- Gecko release `00263d9787393fbc4d0fa3db8a276d7c` remains immutable, plan-only, and unloaded after
+  its missed window and `a078_receipt_census_mismatch`; no backfill. The versioned bridge now pins
+  the exact old receipt, independently replays current roots and paired health sidecars, and checks
+  the full census again after reconciliation. Focused tests pass. Read-only descriptor-bound live
+  inventory passes: 21 roots, 32 verified attempts, 24,441 response bytes, `provider_io=false`.
+  Next: commit/push the bridge, prepare a distinct future-only release, qualify its LaunchAgent and
+  first natural bucket, then verify durable data and restart recovery. No market collector is loaded.
+- The old a078 root's immutable terminal receipt replays four durable requests/3,041 bytes and leaves
+  two no-intent/no-skip slots unknown. Read-only Helius account evidence says the key is configured,
+  but usage/plan are unavailable without JWT. Alchemy usage is 18,680 CU/$0.01 month-to-date through
+  2026-10-13 01:37Z, unchanged from the previous reading; its usage summary returned no limit.
 
 ## Senses gates
 
-- Native `sell23` settlement sufficiency remains a narrow independent replay: only 341 rows are
-  source-flow exact; destination/native settlement, proceeds, wallet net, `buyExact25`, training, and
-  economics remain unqualified.
-- The c4 14:00Z–17:00Z raw capability census closes 388 structural refs and 342 native-close rows.
-  Transaction-boundary source/destination lamports and destination fee-payer/signer links are
-  visible ex post, while closed token endpoints, account-program owners, and historical Rent are
-  missing; all destinations remain unattributed. No economic admission followed.
-- Agave Seatbelt confinement v2 remains NO-GO after forced stage-path replacement wrote into the
-  underlay. Preserve the dirty checkout/cache; do not run Cargo/Agave on this owner Mac.
-- Senses stop condition is not met. Continue through consecutive engineering horizons; do not begin
-  Cortex. Preserve event, receipt, availability, and decision times and immutable provenance.
+- The c4 raw capability census closes 388 structural references: 342 native-close rows, 341 exact
+  source-flow diagnostics and one unsupported touch. Native settlement/economics remain unqualified;
+  closed token endpoints, program owners, historical Rent, and attributable destinations are missing.
+  `buyExact25` remains observed but undecoded for economics. Receipt:
+  `docs/evidence/pumpswap-sell23-c4-raw-capability-census-2026-10-13.json`.
+- Candidate-position qualification still requires attributable acquisition/disposition, residual
+  balance, separate cost/proceeds, fee/rent treatment, and decision-time separation.
+- Agave Seatbelt confinement v2 is NO-GO after forced stage-path replacement wrote into the
+  underlay. Preserve the checkout/cache; do not run Cargo or ProgramTest on this owner Mac.
+- Helius v5r2 has an offline-only preflight implementation and tests, including all 35 old attempts
+  (33 captured, 2 possibly spent) and a 2026-10-13 19:00Z earliest fresh anchor. It has no active
+  runtime/receipt persistence or LaunchAgent qualification. Candidate-position feasibility contract
+  and tests are also offline only; no account reads were made.
+- Next horizons: restore forward-only market collection through the verified Gecko bridge; finish
+  Helius v5r2 runtime qualification; advance candidate-position/native settlement evidence. Do not
+  promote unknowns to zero or begin Cortex before the sensing bottlenecks move.
