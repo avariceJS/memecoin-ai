@@ -26,7 +26,7 @@ from tools.brain_senses_external_writer_v1 import DescriptorWriter
 SCHEMA = "brain-senses-gecko-capture-v6-bootstrap"
 SCHEMA_VERSION = 1
 PRIOR_USAGE_DIR = "control/gecko-v6-prior-usage"
-ANCHOR_MARGIN_NS = 2 * 60 * 1_000_000_000
+ANCHOR_MARGIN_NS = 45 * 60 * 1_000_000_000
 RECEIPT_EXPECTED_ATTEMPTS = 62
 RECEIPT_EXPECTED_RAW_BYTES = 1_015_808
 RECEIPT_EXPECTED_PHYSICAL_BYTES = 5_079_040
