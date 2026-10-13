@@ -1,11 +1,14 @@
 # Current Project State
 
-**As of:** 2026-10-13 17:42Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`; recent scoped commits are `f4462fb` (discovery receipt replay) and `d077f26`
-(offline capture-v3 and guarded-build prototypes). Handoff state follows in this commit. `main` and
-`origin/main` remain `770699d`; do not advance main because no live capability has been qualified.
-Positive-bar projector and discovery evidence remain offline/synthetic; no eligible population or
-economic/lifecycle qualification claim.
+**As of:** 2026-10-13 19:45Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, is pushed at `7cb82d0` (portability/DR assessment and bounded restore rehearsal).
+`main` and `origin/main` remain `770699d`; do not advance main because no live capability has been
+qualified. Portability/DR is **NO-GO for factory reset**: uncached code/dependency restore, synthetic
+smoke, and read-only Kingston root verification passed, but local state, credentials, protected
+custody, owner recovery, and full corpus replay remain incomplete. No Time Machine destination is
+configured; owner quiescence is not established. See `docs/portability-disaster-recovery.md` and
+its two immutable receipts. Positive-bar projector and discovery evidence remain offline/synthetic;
+no eligible population or economic/lifecycle qualification claim.
 
 ## Prospective acquisition
 
