@@ -15,9 +15,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   smoke, and read-only Kingston root verification pass. The rehearsal makes no corpus, owner-state,
   secret, protected-data, or erase-readiness claim.
 - [`Portability and DR qualification`](portability-dr-qualification-2026-10-14.json): exact-current
-  remote clone and uncached setup/smoke timings, Kingston binding check, read-only owner status and
-  snapshot availability, plus a synthetic encrypted archive/metadata/failure round-trip. It
-  explicitly records that owner/protected state was not copied and factory reset remains NO-GO.
+  remote clone and uncached setup/smoke timings, Kingston binding check, read-only owner/service
+  inventory and snapshot availability, plus a synthetic encrypted archive/metadata/failure
+  round-trip. It explicitly records that owner/protected state was not copied and factory reset
+  remains NO-GO.
 
 - [`Gecko v6 first natural bucket`](gecko-v6-first-natural-bucket-2026-10-13T1315Z.json): independently replayed first prospective bucket with four confirmed response bodies (3,042 bytes), one permanently spent ambiguous request, and one missed slot. All 12 parsed bars were out of window, yielding zero eligible new opens. Controlled LaunchAgent restart preserved the attempt/source prefix without replay; v6 was unloaded pending a distinct forward-only successor.
 - [`Gecko v3 failed-watchdog canary observation`](gecko-capture-only-v3-canary-observation-2026-10-13T0406Z.json): six actual forward-only GeckoTerminal requests all have durable confirmations and pass timing/replay checks; zero returned bars are eligible. The v1 watchdog failed closed on its plan-schema lookup. The v2 full-census replay recognizes that immutable receipt as a zero-attempt diagnostic root, restores the historical a078 projection, and independently accounts for 52 attempts across 40 roots. The capture is not a market-source qualification; actual charge remains unknown/unverified.

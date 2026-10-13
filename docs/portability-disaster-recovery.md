@@ -146,14 +146,26 @@ read.
 
 ## Service restore posture
 
-The live launchd metadata snapshot listed 18 `ai.memecoin` Brain/D43 labels. The owner operator and
-multiple owner UI/paper processes were running; a D43 calendar label was loaded without a running
-PID. No Senses capture/watchdog label was listed. Installed plist files are host-specific
-definitions and historical state, not permission to start a service. A clean restore rehearsal
-must leave every Brain/Senses label unloaded and must not install the full old plist directory.
-Preserve definitions and exact runtime identity in custody, then recreate only the current
-role-authorized service from its canonical source after separate activation/release checks. Expired
-campaigns and STOP-bound activations remain inert.
+The read-only `launchctl list` inventory captured 18 labels. Eight had a running PID: the owner
+`operator` and seven owner UI processes. Ten were listed without a PID, including the D43 calendar,
+paper/audit/train/source labels, and the research storage-health monitor. This is observed source
+state, not a proposed startup set. No Senses capture/watchdog label was listed.
+
+| Observed role and labels | Clean restore posture |
+|---|---|
+| Owner control: `ai.memecoin.brain.operator` (running) | Preserve its exact deployment definition and state. Keep unloaded; any later start requires separate owner release/recovery authorization and identity/STOP checks. |
+| Storage monitor: `ai.memecoin.brain.research-storage-health-v1` (listed, no PID) | Preserve the definition. Keep unloaded during restore; later activation is a candidate only after the new host binding, source, and plist are verified. It records storage health and has no acquisition authority. |
+| Protected evaluation: `ai.memecoin.d43.calendar01` (listed, no PID) | Preserve its definition and protected custody only. Do not install, load, or run evaluation as part of recovery. |
+| Legacy jobs/source/audit/train/paper: `b04`, `b09r2.audit`, `b09r2.source`, `b10r2.train`, `b12.paper`, `expansion.paper`, `b10r2.paper`, `b12r2.paper` (all listed, no PID) | Preserve definitions and unique state in custody. Exclude from automatic install/start; each needs separate current justification and authorization. |
+| Owner UI services: `b12.ui`, `b10.ui`, `expansion.ui`, `b12r2.ui`, `b10r2.ui`, `b12r1.ui`, `b10r1.ui` (all running) | Preserve definitions and exact runtime identity. Leave absent/unloaded on the restored host; a UI label does not prove read-only behavior or deployment authority. |
+
+The initial restored-host baseline is zero loaded Brain/Senses labels. Keep historical plist files in
+the encrypted custody set rather than copying the old LaunchAgents directory wholesale. Operator
+and storage-health are future owner-role candidates only; this classification does not authorize
+enabling either. Watch Market and the integrated Observatory have no accepted owner deployment.
+Do not recreate retired Senses services, stale activations, or STOP-bound releases. An inactive
+worker receives no owner services, credentials, or protected evaluation scheduler. These restore
+rules do not instruct stopping or changing services on the source Mac.
 
 ## Portability boundary and remaining risk
 

@@ -59,7 +59,88 @@
     "owner_ui_or_paper_processes_running": true,
     "d43_calendar_label_listed_without_pid": true,
     "senses_capture_or_watchdog_labels_listed": 0,
-    "restore_rehearsal_policy": "all Brain/Senses labels unloaded; definitions are not activation authority"
+    "restore_rehearsal_policy": "zero Brain/Senses labels loaded; plist inventory is not activation authority",
+    "labels": [
+      {
+        "label": "ai.memecoin.brain.operator",
+        "running_pid_present": true
+      },
+      {
+        "label": "ai.memecoin.brain.b12.ui",
+        "running_pid_present": true
+      },
+      {
+        "label": "ai.memecoin.brain.b04",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b12.paper",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b09r2.audit",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b10r2.train",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.research-storage-health-v1",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b09r2.source",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b10.ui",
+        "running_pid_present": true
+      },
+      {
+        "label": "ai.memecoin.d43.calendar01",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.expansion.ui",
+        "running_pid_present": true
+      },
+      {
+        "label": "ai.memecoin.brain.b12r2.ui",
+        "running_pid_present": true
+      },
+      {
+        "label": "ai.memecoin.brain.b10r2.ui",
+        "running_pid_present": true
+      },
+      {
+        "label": "ai.memecoin.brain.b12r1.ui",
+        "running_pid_present": true
+      },
+      {
+        "label": "ai.memecoin.brain.expansion.paper",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b10r2.paper",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b12r2.paper",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b10r1.ui",
+        "running_pid_present": true
+      }
+    ],
+    "running_pid_count": 8,
+    "listed_without_pid_count": 10,
+    "future_owner_role_candidates": [
+      "ai.memecoin.brain.operator",
+      "ai.memecoin.brain.research-storage-health-v1"
+    ],
+    "candidate_activation_authorized": false
   },
   "synthetic_encrypted_archive_qualification": {
     "synthetic_only": true,
