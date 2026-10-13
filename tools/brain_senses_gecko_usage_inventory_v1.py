@@ -439,9 +439,12 @@ def _load_present_root(
             )
             now_ns = time.time_ns()
             _require(
-                0 <= now_ns - snapshot["observed_ns"] <= 180 * 1_000_000_000,
-                "gecko_health_snapshot_stale",
+                snapshot["observed_ns"] <= now_ns,
+                "gecko_health_snapshot_from_future",
             )
+            # Health is diagnostic, not usage authority. The matching request root is
+            # replayed under its own lock below, so an old clean sidecar cannot block
+            # admission forever after an otherwise safe stop or source-pin refresh.
             _require(
                 snapshot["status"] != "stopped" and snapshot["stop_latched"] is not True,
                 "gecko_health_stop_latched",

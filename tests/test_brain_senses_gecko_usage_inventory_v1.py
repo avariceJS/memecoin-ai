@@ -238,7 +238,7 @@ def test_monitor_health_root_is_verified_and_charged_to_gecko_inventory(
         "source_sha256": hashlib.sha256(b"source").hexdigest(),
         "binding_sha256": hashlib.sha256(b"binding").hexdigest(),
         **storage,
-        "observed_ns": time.time_ns(),
+        "observed_ns": time.time_ns() - 181 * 1_000_000_000,
         "monotonic_ns": time.monotonic_ns(),
         "request_prefix_sha256": hashlib.sha256(b"requests").hexdigest(),
         "coordinator_policy_sha256": hashlib.sha256(b"coord-policy").hexdigest(),
