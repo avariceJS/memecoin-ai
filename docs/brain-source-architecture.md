@@ -3637,6 +3637,22 @@ before acquisition, with a durably timestamped complete preselection denominator
 horizon, immutable raw source receipts and qualified coverage/finality/clock joins. Even then, two
 endpoint reads remain diagnostics and cannot establish instruction-position state.
 
+Sol's follow-on source-capability review found no documented read-only RPC path that independently
+provides raw account bytes at an exact instruction/CPI position. Transaction/block data supplies
+ordering and transaction-level balance metadata; finalized account reads supply endpoint state;
+neither resolves intervening same-slot writes or fee/nonce effects. Alchemy Archive `getAccountInfo`
+at explicit slots may be useful as a bounded historical diagnostic if entitlement is verified, but
+two endpoint states still cannot qualify a candidate-position witness. The smallest next experiment
+is a separately versioned, pre-registered one-position diagnostic: choose one public, unprotected,
+finalized fixture by a deterministic signature/slot rule before new responses; cap at four calls
+(block, transaction, and at most two slot-bound account reads), one finite attempt window, raw bytes,
+and Kingston allocation. Verify Archive entitlement before those reads; never substitute Helius or
+current-state RPC for unavailable historical coverage. Preserve ambiguous attempts as spent without
+retry and classify same-slot writers, source gaps, fork conflicts, failures, and unobservable state
+explicitly. A passing result can report only `slot_boundary_diagnostic`; it cannot establish the
+candidate-position witness, settlement, `buyExact25`, PIT, or economics. The raw observer still
+requires an isolated pinned Agave worker/VM with ordered transaction-to-Bank-to-root evidence.
+
 ### Independent rolling prospective acquisition policy (2026-10-12)
 
 Sol selected a new Helius-only forward collector with independent epoch roots, starting at a fresh
