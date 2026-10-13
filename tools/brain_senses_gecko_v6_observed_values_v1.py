@@ -246,8 +246,8 @@ def audit_verified_prefix(
             "planned_opportunities": 0,
             "attempted": 0,
             "successful_responses": 0,
-            "durable_confirmations": 0,
-            "timely_confirmations": 0,
+            "durably_confirmed_successful_responses": 0,
+            "timely_durably_confirmed_successful_responses": 0,
             "eligible_new_open_values": 0,
             "age_classification": "unknown",
         }
@@ -297,7 +297,7 @@ def audit_verified_prefix(
         ):
             raise ProjectionError("observed_values_time_order")
         if confirmed:
-            per_pool[pool]["durable_confirmations"] += 1
+            per_pool[pool]["durably_confirmed_successful_responses"] += 1
         try:
             parsed = parse_response(raw, close, receipt_ns)
         except (TypeError, ValueError, OverflowError) as exc:
@@ -311,7 +311,7 @@ def audit_verified_prefix(
             availability_state = "durable_confirmation_missing"
         elif timely:
             availability_state = "durable_before_window_end"
-            per_pool[pool]["timely_confirmations"] += 1
+            per_pool[pool]["timely_durably_confirmed_successful_responses"] += 1
         else:
             availability_state = "durable_after_window_end"
         availability_states[availability_state] += 1

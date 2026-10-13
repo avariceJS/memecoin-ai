@@ -243,5 +243,5 @@ def test_unconfirmed_successful_response_is_not_projected_as_available_value():
     result = _audit([opportunity])
     assert result["response_availability_states"] == {"durable_confirmation_missing": 1}
     assert result["per_pool"]["pool-0"]["successful_responses"] == 1
-    assert result["per_pool"]["pool-0"]["durable_confirmations"] == 0
+    assert result["per_pool"]["pool-0"]["durably_confirmed_successful_responses"] == 0
     assert result["observed_value_count"] == 0
