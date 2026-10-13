@@ -583,16 +583,18 @@ class CapacityCoordinator:
                 yield
 
     @contextmanager
-    def lane_lock(self, service: str) -> Iterator[LaneLockLease]:
+    def lane_lock(self, service: str, *, blocking: bool = True) -> Iterator[LaneLockLease]:
         """Hold a lane lock across reservation, provider I/O, and settlement.
 
         The yielded lease lets reserve/settle take only the shared lock, avoiding
         recursive flock acquisition while preserving same-lane serialization.
+        Long-lived schedulers should pass ``blocking=False`` so launchd never queues
+        a late callback behind an active provider attempt.
         """
         if service not in self.service_lock_paths:
             raise CoordinatorError("service_invalid")
         self._verify_root()
-        with self.writer.lock(self.service_lock_paths[service], blocking=True):
+        with self.writer.lock(self.service_lock_paths[service], blocking=blocking):
             self._verify_root()
             lease = LaneLockLease(service, threading.get_ident(), self._lease_owner)
             try:

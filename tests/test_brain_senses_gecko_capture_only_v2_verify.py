@@ -324,6 +324,9 @@ def test_durable_empty_response_is_replayed_and_counts_actual_bytes() -> None:
         "http_status": 200,
         "transport_error_class": None,
         "retry_after_seconds": None,
+        "retry_after_header_count": 0,
+        "retry_after_evidence": [],
+        "retry_after_class": "absent",
         "cooldown_until_ns": None,
         "stop_reason": None,
         "provider_io": True,
@@ -348,6 +351,30 @@ def test_durable_empty_response_is_replayed_and_counts_actual_bytes() -> None:
     )
     assert result["terminal_count"] == 1
     assert result["usage_attempts"][0]["response_bytes"] == len(body)
+    rate_limited = dict(terminal) | {
+        "http_status": 429,
+        "status": "rate_limited",
+        "retry_after_seconds": 3600,
+        "retry_after_header_count": 1,
+        "retry_after_evidence": [{"captured": "3600", "original_length": 4}],
+        "retry_after_class": "valid",
+        "cooldown_until_ns": receipt + 3600 * scout.NS,
+        "stop_reason": "rate_limited",
+    }
+    tampered_cooldown = dict(rate_limited) | {"cooldown_until_ns": receipt + 60 * scout.NS}
+    with pytest.raises(VerifyError, match="v2_rate_limit_policy"):
+        verify_capture_prefix_v2(
+            root=ROOT,
+            binding=binding,
+            policy=policy,
+            chain_records=records,
+            intents=[intent],
+            dispatch_records=[dispatch],
+            terminals=[tampered_cooldown],
+            raw_responses={request["request_id"]: body},
+            confirmations=[],
+            coordinator_events=_coordinator_events(intent, tampered_cooldown),
+        )
 
 
 def test_confirmation_binds_atomic_outcome_and_fresh_clock_after_settlement() -> None:
@@ -393,6 +420,9 @@ def test_confirmation_binds_atomic_outcome_and_fresh_clock_after_settlement() ->
         "http_status": 200,
         "transport_error_class": None,
         "retry_after_seconds": None,
+        "retry_after_header_count": 0,
+        "retry_after_evidence": [],
+        "retry_after_class": "absent",
         "cooldown_until_ns": None,
         "stop_reason": None,
         "provider_io": True,

@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 
+from memecoin_research_storage import StorageError
 from tools import brain_senses_capacity_coordinator_v2 as coordinator_module
 from tools.brain_senses_external_writer_v1 import DescriptorWriter
 
@@ -665,6 +666,58 @@ def test_caller_held_lane_lock_serializes_provider_gap_without_shared_lock(
                 == "settled"
             )
         assert not lease.active
+    finally:
+        fixture.close()
+
+
+def test_nonblocking_lane_lock_fails_instead_of_queuing_callback(tmp_path: Path) -> None:
+    fixture = _fixture(tmp_path)
+    try:
+        with fixture.coordinator.lane_lock("gecko"):
+            with pytest.raises(StorageError):
+                with fixture.coordinator.lane_lock("gecko", blocking=False):
+                    pytest.fail("a second Gecko callback must not queue or enter")
+    finally:
+        fixture.close()
+
+
+@pytest.mark.parametrize(
+    ("first_service", "second_service"), [("helius", "gecko"), ("gecko", "helius")]
+)
+def test_cross_service_pending_reservation_protects_shared_free_margin(
+    tmp_path: Path, first_service: str, second_service: str
+) -> None:
+    fixture = _fixture(tmp_path / f"{first_service}-then-{second_service}")
+    try:
+        reserve_bytes = 4_000_000
+        append_reserve = 2 * coordinator_module.COORDINATOR_APPEND_BLOCK_BYTES
+        fixture.source.free = (
+            sum(coordinator_module._FIXED_RESERVES.values()) + reserve_bytes + append_reserve
+        )
+        first = _reservation(
+            fixture,
+            reservation_id=f"{first_service}-first",
+            request_id=f"{first_service}-request",
+            reserve_bytes=reserve_bytes,
+            service=first_service,
+        )
+        assert first.service == first_service
+        with pytest.raises(
+            coordinator_module.CoordinatorError, match="shared_free_reserve_insufficient"
+        ):
+            _reservation(
+                fixture,
+                reservation_id=f"{second_service}-second",
+                request_id=f"{second_service}-request",
+                reserve_bytes=reserve_bytes,
+                service=second_service,
+            )
+        events = _events(fixture)
+        assert [
+            event["fields"]["service"]
+            for event in events
+            if event["kind"] == "reserved"
+        ] == [first_service]
     finally:
         fixture.close()
 

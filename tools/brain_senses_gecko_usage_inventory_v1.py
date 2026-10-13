@@ -10,6 +10,7 @@ import json
 import os
 import re
 import stat
+import time
 from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
@@ -19,6 +20,9 @@ from tools import (
 )
 from tools import (
     brain_senses_gecko_capture_only_runtime_v1 as capture_runtime,
+)
+from tools import (
+    brain_senses_gecko_capture_only_v2_health_v1 as health_v2,
 )
 from tools import (
     brain_senses_gecko_capture_only_v2_verify as capture_v2_verify,
@@ -52,7 +56,13 @@ from tools.brain_senses_gecko_rotating_scout_v1 import MAX_RESPONSE_BYTES
 
 SERVICE_ROOT = "services/gecko-market-v1"
 DIRECT_ROOTS = ("v3", "v4", "v5")
-COLLECTION_ROOTS = ("v3-pilots", "v4-pilots", "capture-only-v1", "capture-only-v2")
+COLLECTION_ROOTS = (
+    "v3-pilots",
+    "v4-pilots",
+    "capture-only-v1",
+    "capture-only-v2",
+    "host-health-v1",
+)
 KNOWN_SERVICE_ENTRIES = set(DIRECT_ROOTS) | set(COLLECTION_ROOTS)
 ROOT_ID_RE = re.compile(r"^[a-f0-9]{32}$")
 HASH_RE = re.compile(r"^[a-f0-9]{64}$")
@@ -396,6 +406,53 @@ def _load_present_root(
         raise InventoryError("gecko_v5_usage_verifier_unavailable")
     lock_fd = _shared_root_lock(writer, root)
     try:
+        if root.startswith(f"{SERVICE_ROOT}/host-health-v1/"):
+            health_root_fd = _open_relative_directory(writer.root_fd, root)
+            try:
+                health_stat = os.fstat(health_root_fd)
+            finally:
+                os.close(health_root_fd)
+            with writer.lock(capacity.LOCK_PATH, blocking=False):
+                policy_raw = writer.read_bytes(capacity.POLICY_PATH, max_bytes=1_000_000)
+                try:
+                    policy = json.loads(policy_raw)
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    raise InventoryError("gecko_health_coordinator_policy_invalid") from exc
+                _require(
+                    type(policy) is dict
+                    and capacity.canonical(policy) == policy_raw
+                    and type(policy.get("root_binding")) is dict,
+                    "gecko_health_coordinator_policy_invalid",
+                )
+                storage = policy["root_binding"]
+            _require(
+                storage.get("device") == writer.device
+                and storage.get("inode") == os.fstat(writer.root_fd).st_ino
+                and health_stat.st_dev == writer.device,
+                "gecko_health_storage_binding",
+            )
+            release_id = root.rsplit("/", 1)[-1]
+            snapshot = health_v2.read_snapshot(
+                writer,
+                release_id=release_id,
+                storage=storage,
+            )
+            now_ns = time.time_ns()
+            _require(
+                0 <= now_ns - snapshot["observed_ns"] <= 180 * 1_000_000_000,
+                "gecko_health_snapshot_stale",
+            )
+            _require(
+                snapshot["status"] != "stopped" and snapshot["stop_latched"] is not True,
+                "gecko_health_stop_latched",
+            )
+            return shared_usage.make_verified_root_snapshot(
+                root=root,
+                status="verified_none",
+                root_inventory_sha256=root_inventory_sha256,
+                source_prefix_sha256=_root_files_sha256(writer, root),
+                attempts=[],
+            )
         if root.startswith(f"{SERVICE_ROOT}/capture-only-v2/"):
             store = runtime_v4.DescriptorLaneStore(writer, guard=None, root=root)
             allowed = {

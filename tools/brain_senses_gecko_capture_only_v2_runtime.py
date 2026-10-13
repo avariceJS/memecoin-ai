@@ -20,6 +20,7 @@ from typing import Any, cast
 
 from memecoin_research_storage import _open_relative_directory
 from tools import brain_senses_capacity_coordinator_v2 as capacity
+from tools import brain_senses_gecko_capture_only_v2_scheduler as scheduler
 from tools import brain_senses_gecko_capture_only_v2_verify as verifier
 from tools import brain_senses_gecko_scout_chain_v1 as chain
 from tools.brain_senses_external_clock_v1 import ClockError, validate_progress
@@ -242,7 +243,7 @@ class DescriptorCaptureWriter:
         seen_request_ids: set[str] = set()
         for line in raw.splitlines():
             row = json.loads(line)
-            if type(row) is not dict or canonical_json(row) != line:
+            if type(row) is not dict or canonical_json(row).rstrip(b"\n") != line:
                 raise CaptureWriterError("v2_dispatch_journal_invalid")
             if row.get("sequence") != sequence or row.get("previous_sha256") != previous:
                 raise CaptureWriterError("v2_dispatch_chain_invalid")
@@ -393,6 +394,45 @@ class DescriptorCaptureWriter:
             create_only=True,
         )
         return confirmation
+
+    def append_missed_skip(
+        self,
+        lease: RunnerLease,
+        *,
+        plan: Mapping[str, Any],
+        slot_index: int,
+        at_ns: int,
+    ) -> dict[str, Any]:
+        """Record an expired fixed slot as a durable miss; never replace or retry it."""
+        self._require_lease(lease)
+        selection = plan.get("selection")
+        pools = selection.get("selected_pool_ids") if isinstance(selection, Mapping) else None
+        sequence = plan.get("sequence")
+        close_ns = plan.get("bucket_close_ns")
+        if (
+            type(pools) is not list
+            or type(sequence) is not int
+            or type(close_ns) is not int
+            or type(slot_index) is not int
+            or not 0 <= slot_index < len(pools)
+            or type(at_ns) is not int
+            or at_ns < close_ns + verifier.REQUEST_START_END_NS
+        ):
+            raise CaptureWriterError("v2_skip_input_invalid")
+        record = {
+            "schema": scheduler.SKIP_SCHEMA,
+            "plan_sequence": sequence,
+            "slot_index": slot_index,
+            "pool_id": pools[slot_index],
+            "bucket_close_ns": close_ns,
+            "at_ns": at_ns,
+            "reason": "missed_dispatch",
+        }
+        name = f"{sequence}-{slot_index:02d}.json"
+        self.writer.atomic_write(
+            self._path(f"skips/{name}"), canonical_json(record), create_only=True
+        )
+        return record
 
 
 def _require_request_id(value: Any) -> None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ if str(REPO / "tools") not in sys.path:
     sys.path.insert(0, str(REPO / "tools"))
 
 from tools import brain_senses_capacity_coordinator_v2 as capacity  # noqa: E402
+from tools import brain_senses_gecko_capture_only_v2_health_v1 as health_v2  # noqa: E402
 from tools import brain_senses_gecko_rotating_scout_v1 as scout  # noqa: E402
 from tools import brain_senses_gecko_v4_usage_reconciliation_v1 as reconcile_v4  # noqa: E402
 from tools.brain_senses_external_writer_v1 import DescriptorWriter  # noqa: E402
@@ -215,6 +217,79 @@ def test_narrow_v4_usage_reconciliation_receipt_is_source_and_anomaly_pinned() -
         "raw_bytes": 13_675,
         "unresolved_spent": 0,
     }
+
+
+def test_monitor_health_root_is_verified_and_charged_to_gecko_inventory(
+    tmp_path: Path,
+) -> None:
+    root_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+    writer = DescriptorWriter(root_fd)
+    os.close(root_fd)
+    storage = {
+        "root_id": "0123456789abcdef0123456789abcdef",
+        "volume_uuid": "12345678-1234-1234-1234-123456789abc",
+        "device": writer.device,
+        "inode": os.fstat(writer.root_fd).st_ino,
+    }
+    _initialize_v2_empty_root(writer, f"{SERVICE_ROOT}/capture-only-v2/{'f' * 32}")
+    release_id = "e" * 32
+    fields = {
+        "release_sha256": hashlib.sha256(b"release").hexdigest(),
+        "source_sha256": hashlib.sha256(b"source").hexdigest(),
+        "binding_sha256": hashlib.sha256(b"binding").hexdigest(),
+        **storage,
+        "observed_ns": time.time_ns(),
+        "monotonic_ns": time.monotonic_ns(),
+        "request_prefix_sha256": hashlib.sha256(b"requests").hexdigest(),
+        "coordinator_policy_sha256": hashlib.sha256(b"coord-policy").hexdigest(),
+        "coordinator_sequence": 0,
+        "coordinator_tail_sha256": hashlib.sha256(b"coord-tail").hexdigest(),
+        "cutover_prefix_sha256": hashlib.sha256(b"cutover").hexdigest(),
+        "cutover_last_dispatch_ns": None,
+        "last_dispatch_ns": None,
+        "bucket_close_ns": None,
+        "plan_sequence": None,
+        "plan_record_sha256": hashlib.sha256(b"plan").hexdigest(),
+        "cursor": None,
+        "selected_count": 0,
+        "intent_count": 0,
+        "received_count": 0,
+        "durable_count": 0,
+        "eligible_new_open_count": 0,
+        "missing_count": 0,
+        "daily_request_count": 0,
+        "daily_response_bytes": 0,
+        "rolling_request_count": 0,
+        "rolling_response_bytes": 0,
+        "allocated_bytes": 0,
+        "free_bytes": 200 * 1024**3,
+        "cooldown_until_ns": None,
+        "last_progress_ns": time.time_ns(),
+        "last_error_code": None,
+    }
+    try:
+        health_v2.initialize_snapshot(
+            writer,
+            release_id=release_id,
+            storage=storage,
+            fields=fields,
+        )
+        inventory = build_usage_inventory(writer)
+        health_snapshot = next(
+            row
+            for row in inventory["snapshots"]
+            if row["root"] == f"{SERVICE_ROOT}/host-health-v1/{release_id}"
+        )
+        assert health_snapshot["status"] == "verified_none"
+        assessment = assess_usage(
+            inventory["snapshots"],
+            expected_roots=[row["root"] for row in inventory["snapshots"]],
+            checked_ns=time.time_ns(),
+            prospective_request_id="health-census-synthetic",
+        )
+        assert assessment["admitted"] is True
+    finally:
+        writer.close()
 
 
 def test_complete_inventory_hash_cannot_change_between_root_replays(

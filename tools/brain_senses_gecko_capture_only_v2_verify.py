@@ -32,6 +32,8 @@ WINDOW_START_NS = 60 * scout.NS
 REQUEST_START_END_NS = 270 * scout.NS
 AVAILABILITY_END_NS = 300 * scout.NS
 MAX_RESPONSE_BYTES = scout.MAX_RESPONSE_BYTES
+_RETRY_AFTER_TOKEN = re.compile(r"[0-9]+\Z")
+_RETRY_AFTER_CAPTURE_MAX = 64
 
 
 class VerifyError(ValueError):
@@ -45,6 +47,44 @@ def _require(ok: bool, reason: str) -> None:
 
 def sha256(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
+
+
+def _retry_after_class(row: Mapping[str, Any]) -> tuple[int | None, str]:
+    count = row.get("retry_after_header_count")
+    evidence = row.get("retry_after_evidence")
+    _require(type(count) is int and count >= 0, "v2_retry_after_count")
+    _require(type(evidence) is list and len(evidence) == min(count, 2), "v2_retry_after_evidence")
+    for item in evidence:
+        _require(
+            type(item) is dict
+            and set(item) == {"captured", "original_length"}
+            and type(item.get("captured")) is str
+            and type(item.get("original_length")) is int
+            and 0 <= len(item["captured"]) <= _RETRY_AFTER_CAPTURE_MAX
+            and item["original_length"] >= len(item["captured"]),
+            "v2_retry_after_evidence",
+        )
+    if count > 1:
+        return None, "duplicate"
+    if count == 0:
+        return None, "absent"
+    _require(len(evidence) == 1, "v2_retry_after_evidence")
+    item = evidence[0]
+    raw = cast(str, item["captured"])
+    if item["original_length"] > _RETRY_AFTER_CAPTURE_MAX:
+        return None, "oversize"
+    token = raw.strip(" \t")
+    if len(token) > _RETRY_AFTER_CAPTURE_MAX:
+        return None, "oversize"
+    if _RETRY_AFTER_TOKEN.fullmatch(token) is None:
+        return None, "malformed"
+    normalized = token.lstrip("0") or "0"
+    if len(normalized) > 5:
+        return None, "over_24h"
+    seconds = int(normalized)
+    if seconds > 86_400:
+        return None, "over_24h"
+    return seconds, "valid"
 
 
 def _record_hash(row: Mapping[str, Any], field: str, reason: str) -> None:
@@ -545,6 +585,9 @@ def verify_capture_prefix_v2(
             "http_status",
             "transport_error_class",
             "retry_after_seconds",
+            "retry_after_header_count",
+            "retry_after_evidence",
+            "retry_after_class",
             "cooldown_until_ns",
             "stop_reason",
             "provider_io",
@@ -580,6 +623,12 @@ def verify_capture_prefix_v2(
             and received >= started
             and received <= started + scout.HTTP_TIMEOUT_SECONDS * scout.NS,
             "v2_terminal_times",
+        )
+        retry_seconds, retry_class = _retry_after_class(row)
+        _require(
+            row.get("retry_after_class") == retry_class
+            and row.get("retry_after_seconds") == retry_seconds,
+            "v2_retry_after_class_mismatch",
         )
         body_value = row.get("raw_body_b64")
         if body_value is None:
@@ -669,7 +718,7 @@ def verify_capture_prefix_v2(
         if status in {"received", "empty_response"}:
             _require(body is not None, "v2_successful_result_body_missing")
         elif status in {"provider_error", "rate_limited", "client_or_access_error"}:
-            _require(body is not None, "v2_http_error_body_missing")
+            _require(row.get("http_status") is not None, "v2_http_error_status_missing")
         else:
             _require(
                 status in {"response_over_budget", "transport_uncertain_possibly_spent"},
@@ -680,6 +729,56 @@ def verify_capture_prefix_v2(
             or (body is not None and type(row.get("bars")) is list),
             "v2_terminal_bars_shape",
         )
+        http_status = row.get("http_status")
+        cooldown = row.get("cooldown_until_ns")
+        stop_reason = row.get("stop_reason")
+        if http_status == 429:
+            expected_review = retry_class not in {"absent", "valid"}
+            expected_stop = "review_required_retry_after" if expected_review else "rate_limited"
+            expected_cooldown = (
+                None
+                if expected_review
+                else received + max(3600, retry_seconds or 0) * scout.NS
+            )
+            _require(status == "rate_limited", "v2_rate_limit_status")
+            _require(
+                stop_reason == expected_stop and cooldown == expected_cooldown,
+                "v2_rate_limit_policy",
+            )
+        elif http_status == 408 or (type(http_status) is int and http_status >= 500):
+            expected_review = retry_class not in {"absent", "valid"}
+            expected_stop = "review_required_retry_after" if expected_review else "provider_error"
+            expected_cooldown = (
+                None
+                if expected_review
+                else received + max(900, retry_seconds or 0) * scout.NS
+            )
+            _require(status == "provider_error", "v2_provider_error_status")
+            _require(
+                stop_reason == expected_stop and cooldown == expected_cooldown,
+                "v2_provider_error_policy",
+            )
+        elif type(http_status) is int and 400 <= http_status < 500:
+            _require(
+                status == "client_or_access_error"
+                and stop_reason == "client_or_access_error"
+                and cooldown is None,
+                "v2_access_error_policy",
+            )
+        elif status == "transport_uncertain_possibly_spent":
+            _require(
+                (http_status is None or row.get("transport_error_class") is not None)
+                and stop_reason == "transport_uncertain"
+                and cooldown == received + 900 * scout.NS,
+                "v2_transport_cooldown",
+            )
+        elif status == "response_over_budget":
+            _require(
+                stop_reason == "response_over_budget" and cooldown is None,
+                "v2_over_budget_policy",
+            )
+        else:
+            _require(cooldown is None and stop_reason is None, "v2_unexpected_stop_policy")
         terminal_by_id[rid] = cast(dict[str, Any], row)
     _require(
         set(raw_responses)
