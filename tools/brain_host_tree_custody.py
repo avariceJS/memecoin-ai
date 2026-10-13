@@ -22,6 +22,7 @@ import stat
 import sys
 import tempfile
 import time
+from collections import Counter
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -31,10 +32,10 @@ from typing import Any
 from memecoin_research_storage import StorageError
 from tools.brain_senses_external_writer_v1 import DescriptorWriter, canonical_json, sha256
 
-SCHEMA = "brain-host-tree-custody-v1"
-RESERVATION_SCHEMA = "brain-host-tree-custody-reservation-v1"
-COMPLETE_SCHEMA = "brain-host-tree-custody-complete-v1"
-RESTORE_SCHEMA = "brain-host-tree-custody-restore-v1"
+SCHEMA = "brain-host-tree-custody-v2"
+RESERVATION_SCHEMA = "brain-host-tree-custody-reservation-v2"
+COMPLETE_SCHEMA = "brain-host-tree-custody-complete-v2"
+RESTORE_SCHEMA = "brain-host-tree-custody-restore-v2"
 BASE = "host-recovery/tree-custody"
 CHUNK_BYTES = 8 * 1024 * 1024
 PAGE_ENTRIES = 512
@@ -46,6 +47,25 @@ MAX_PAGE_BYTES = 8 * 1024 * 1024
 MAX_MANIFEST_BYTES = 16 * 1024 * 1024
 MAX_COMPONENT_BYTES = 1024
 MAX_PATH_DEPTH = 256
+UF_HIDDEN = 0x00008000
+SUPPORTED_SOURCE_FLAGS = UF_HIDDEN
+OMITTED_DARWIN_XATTRS = (
+    "com.apple.FinderInfo",
+    "com.apple.macl",
+    "com.apple.metadata:com_apple_backup_excludeItem",
+    "com.apple.provenance",
+)
+EXTENDED_METADATA_POLICY = {
+    "darwin_omitted_xattr_names": list(OMITTED_DARWIN_XATTRS),
+    "xattr_counts": "aggregate_name_counts_only",
+    "unknown_xattrs": "reject",
+    "acl": "reject",
+}
+STABILITY_CLAIM = "no_drift_observed_across_pre_post_inventory_and_per_file_hashes"
+ATOMICITY_SCOPE = "no_cross_file_or_application_atomicity"
+ROOT_CLOSURE_SCOPE = (
+    "declared_root_only_external_links_not_traversed_mounts_and_external_hardlinks_rejected"
+)
 CAPTURE_ID_CHARS = "0123456789abcdef"
 PROTECTED_COMPONENTS = {"f01", "d43", "holdout", "reserved", "protected"}
 PRIVATE_COMPONENTS = {".ssh", "keychains", "credentials", "secrets", "wallets"}
@@ -172,10 +192,20 @@ def _sig(st: os.stat_result) -> tuple[int, ...]:
         st.st_nlink,
         st.st_mtime_ns,
         st.st_ctime_ns,
+        getattr(st, "st_flags", 0),
     )
 
 
-def _check_extended_metadata(path: bytes | str, *, is_link: bool) -> None:
+def _validated_source_flags(st: os.stat_result) -> int:
+    flags = getattr(st, "st_flags", 0)
+    if type(flags) is not int or flags < 0 or flags & ~SUPPORTED_SOURCE_FLAGS:
+        raise TreeCustodyError("source_flags_unsupported")
+    if flags and sys.platform != "darwin":
+        raise TreeCustodyError("source_flags_platform_unsupported")
+    return flags
+
+
+def _check_extended_metadata(path: bytes | str, *, is_link: bool) -> dict[str, int]:
     """Fail closed if xattrs/resource forks/ACL metadata would be omitted."""
     try:
         names = _list_xattrs(path, is_link=is_link)
@@ -184,7 +214,9 @@ def _check_extended_metadata(path: bytes | str, *, is_link: bool) -> None:
             names = []
         else:
             raise TreeCustodyError("xattr_detection_failed") from exc
-    ignored = {b"com.apple.provenance"} if sys.platform == "darwin" else set()
+    ignored = (
+        {name.encode() for name in OMITTED_DARWIN_XATTRS} if sys.platform == "darwin" else set()
+    )
     if set(names) - ignored:
         # This includes macOS resource forks and Finder metadata, plus POSIX ACL
         # xattrs on platforms that represent ACLs this way.
@@ -193,12 +225,15 @@ def _check_extended_metadata(path: bytes | str, *, is_link: bool) -> None:
         raise TreeCustodyError("extended_metadata_not_preserved")
     if sys.platform not in {"darwin", "linux"}:
         raise TreeCustodyError("acl_detection_unavailable")
+    return _xattr_counts(names, ignored)
 
 
-def _check_extended_metadata_fd(fd: int) -> None:
+def _check_extended_metadata_fd(fd: int) -> dict[str, int]:
     """Descriptor-based metadata probe for regular files and directories."""
     names = _list_xattrs_fd(fd)
-    ignored = {b"com.apple.provenance"} if sys.platform == "darwin" else set()
+    ignored = (
+        {name.encode() for name in OMITTED_DARWIN_XATTRS} if sys.platform == "darwin" else set()
+    )
     if set(names) - ignored:
         raise TreeCustodyError("extended_metadata_not_preserved")
     if sys.platform == "darwin":
@@ -227,6 +262,19 @@ def _check_extended_metadata_fd(fd: int) -> None:
             raise TreeCustodyError("acl_detection_unavailable") from exc
     elif sys.platform != "linux":
         raise TreeCustodyError("acl_detection_unavailable")
+    return _xattr_counts(names, ignored)
+
+
+def _xattr_counts(names: list[bytes], ignored: set[bytes]) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for name in names:
+        if name not in ignored:
+            raise TreeCustodyError("extended_metadata_not_preserved")
+        try:
+            counts[name.decode("utf-8", errors="strict")] += 1
+        except UnicodeDecodeError as exc:
+            raise TreeCustodyError("xattr_name_not_utf8") from exc
+    return dict(sorted(counts.items()))
 
 
 def _list_xattrs_fd(fd: int) -> list[bytes]:
@@ -336,7 +384,8 @@ def _db_open(path: Path) -> sqlite3.Connection:
         "mtime INTEGER NOT NULL, ctime INTEGER NOT NULL, dev INTEGER NOT NULL, "
         "ino INTEGER NOT NULL, nlink INTEGER NOT NULL, "
         "sig BLOB NOT NULL, link_b64 TEXT, group_id TEXT, primary_path TEXT, digest TEXT, "
-        "chunk_count INTEGER NOT NULL DEFAULT 0, chunk_pages TEXT NOT NULL DEFAULT '[]')"
+        "chunk_count INTEGER NOT NULL DEFAULT 0, chunk_pages TEXT NOT NULL DEFAULT '[]', "
+        "omitted_xattrs TEXT NOT NULL DEFAULT '[]')"
     )
     db.execute(
         "CREATE TABLE groups(dev INTEGER NOT NULL, ino INTEGER NOT NULL, count INTEGER NOT NULL, "
@@ -347,7 +396,11 @@ def _db_open(path: Path) -> sqlite3.Connection:
 
 
 def _row_from_stat(
-    path: str, kind: str, st: os.stat_result, link_b64: str | None = None
+    path: str,
+    kind: str,
+    st: os.stat_result,
+    link_b64: str | None = None,
+    omitted_xattrs: list[str] | None = None,
 ) -> tuple[Any, ...]:
     return (
         path,
@@ -363,6 +416,7 @@ def _row_from_stat(
         st.st_nlink,
         json.dumps(_sig(st), separators=(",", ":")).encode(),
         link_b64,
+        json.dumps(omitted_xattrs or [], separators=(",", ":")),
     )
 
 
@@ -373,26 +427,35 @@ def _walk_into_db(
     *,
     protected: bool,
     capture_id: str,
-) -> tuple[int, int]:
+) -> tuple[int, int, dict[str, int]]:
     count = 0
     total_bytes = 0
+    xattr_counts: Counter[str] = Counter()
 
-    def add(path: str, kind: str, st: os.stat_result, link_b64: str | None = None) -> None:
+    def add(
+        path: str,
+        kind: str,
+        st: os.stat_result,
+        link_b64: str | None = None,
+        omitted_xattrs: list[str] | None = None,
+    ) -> None:
         nonlocal count, total_bytes
         count += 1
         if count > MAX_ENTRIES:
             raise TreeCustodyError("source_entry_limit")
         if st.st_dev != root_device:
             raise TreeCustodyError("source_mount_boundary")
+        _validated_source_flags(st)
+        xattr_counts.update(omitted_xattrs or [])
         if stat.S_ISREG(st.st_mode):
             total_bytes += st.st_size
             if total_bytes > MAX_SOURCE_BYTES:
                 raise TreeCustodyError("source_size_limit")
         db.execute(
             "INSERT INTO entries(path,kind,mode,uid,gid,size,mtime,ctime,dev,ino,"
-            "nlink,sig,link_b64) "
-            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            _row_from_stat(path, kind, st, link_b64),
+            "nlink,sig,link_b64,omitted_xattrs) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            _row_from_stat(path, kind, st, link_b64, omitted_xattrs),
         )
         if kind == "file" and st.st_nlink > 1:
             group_id = hashlib.sha256(
@@ -407,8 +470,8 @@ def _walk_into_db(
     root_st = os.fstat(root_fd)
     if not stat.S_ISDIR(root_st.st_mode):
         raise TreeCustodyError("source_root_changed")
-    _check_extended_metadata_fd(root_fd)
-    add("", "directory", root_st)
+    root_xattrs = _check_extended_metadata_fd(root_fd)
+    add("", "directory", root_st, omitted_xattrs=list(root_xattrs))
 
     def walk(dir_fd: int, prefix: str) -> None:
         try:
@@ -436,8 +499,8 @@ def _walk_into_db(
                         child_st = os.fstat(child_fd)
                         if _sig(child_st) != _sig(st):
                             raise TreeCustodyError("source_inventory_changed")
-                        _check_extended_metadata_fd(child_fd)
-                        add(rel, "directory", st)
+                        omitted_xattrs = _check_extended_metadata_fd(child_fd)
+                        add(rel, "directory", st, omitted_xattrs=list(omitted_xattrs))
                         walk(child_fd, rel)
                     finally:
                         os.close(child_fd)
@@ -446,27 +509,35 @@ def _walk_into_db(
                     try:
                         if _sig(os.fstat(file_fd)) != _sig(st):
                             raise TreeCustodyError("source_inventory_changed")
-                        _check_extended_metadata_fd(file_fd)
+                        omitted_xattrs = _check_extended_metadata_fd(file_fd)
                     finally:
                         os.close(file_fd)
-                    add(rel, "file", st)
+                    add(rel, "file", st, omitted_xattrs=list(omitted_xattrs))
                 elif stat.S_ISLNK(st.st_mode):
                     if sys.platform == "darwin" and hasattr(os, "O_SYMLINK"):
                         link_fd = os.open(name, os.O_RDONLY | os.O_SYMLINK, dir_fd=dir_fd)
                         try:
                             if not stat.S_ISLNK(os.fstat(link_fd).st_mode):
                                 raise TreeCustodyError("source_inventory_changed")
-                            _check_extended_metadata_fd(link_fd)
+                            omitted_xattrs = _check_extended_metadata_fd(link_fd)
                         finally:
                             os.close(link_fd)
                     else:
-                        _check_extended_metadata(f"/dev/fd/{dir_fd}/{name}", is_link=True)
+                        omitted_xattrs = _check_extended_metadata(
+                            f"/dev/fd/{dir_fd}/{name}", is_link=True
+                        )
                     try:
                         target = os.readlink(os.fsencode(name), dir_fd=dir_fd)
                         target_bytes = target if isinstance(target, bytes) else os.fsencode(target)
                     except OSError as exc:
                         raise TreeCustodyError("source_symlink_read_failed") from exc
-                    add(rel, "symlink", st, base64.b64encode(target_bytes).decode("ascii"))
+                    add(
+                        rel,
+                        "symlink",
+                        st,
+                        base64.b64encode(target_bytes).decode("ascii"),
+                        list(omitted_xattrs),
+                    )
                 else:
                     raise TreeCustodyError("source_special_file_rejected")
 
@@ -485,7 +556,7 @@ def _walk_into_db(
             (group_id, primary_path, dev, ino),
         )
     db.commit()
-    return count, total_bytes
+    return count, total_bytes, dict(sorted(xattr_counts.items()))
 
 
 def _open_rel_dir(root_fd: int, relative: str) -> int:
@@ -607,6 +678,7 @@ def _entry_record(row: tuple[Any, ...], *, protected: bool) -> dict[str, Any]:
         digest,
         chunk_count,
         chunk_pages,
+        omitted_xattrs,
     ) = row
     if path:
         _relative(path, protected=protected)
@@ -622,9 +694,13 @@ def _entry_record(row: tuple[Any, ...], *, protected: bool) -> dict[str, Any]:
         "source_device": dev,
         "source_inode": ino,
         "source_nlink": nlink,
+        "source_flags": json.loads(_sig_bytes)[-1],
     }
     if kind == "symlink":
         item["target_b64"] = link_b64
+    omitted_names = json.loads(omitted_xattrs)
+    if omitted_names:
+        item["omitted_xattrs"] = omitted_names
     if group_id:
         item["hardlink_group"] = group_id
         if kind == "file" and primary_path != path:
@@ -668,7 +744,7 @@ def _emit_entry_pages(
 
     for row in db.execute(
         "SELECT path,kind,mode,uid,gid,size,mtime,ctime,dev,ino,nlink,sig,link_b64,"
-        "group_id,primary_path,digest,chunk_count,chunk_pages "
+        "group_id,primary_path,digest,chunk_count,chunk_pages,omitted_xattrs "
         "FROM entries ORDER BY path COLLATE BINARY"
     ):
         item = _entry_record(row, protected=protected)
@@ -696,10 +772,16 @@ def _emit_index_pages(
 
 
 def _manifest(
-    writer: DescriptorWriter, capture_id: str, *, max_bytes: int = MAX_MANIFEST_BYTES
+    writer: DescriptorWriter,
+    capture_id: str,
+    *,
+    max_bytes: int = MAX_MANIFEST_BYTES,
+    expected_sha256: str | None = None,
 ) -> tuple[dict[str, Any], bytes, bytes]:
     base = f"{BASE}/{capture_id}"
     raw = writer.read_bytes(f"{base}/MANIFEST.json", max_bytes=max_bytes)
+    if expected_sha256 is not None and sha256(raw) != expected_sha256:
+        raise TreeCustodyError("restore_manifest_hash_mismatch")
     try:
         manifest = json.loads(raw)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -744,6 +826,13 @@ def _verify_internal(
         "source_root_sha256",
         "symlink_mode_policy",
         "extended_metadata_policy",
+        "xattr_name_counts",
+        "source_flags_or",
+        "capture_start_ns",
+        "capture_end_ns",
+        "stability_claim",
+        "atomicity_scope",
+        "root_closure_scope",
         "created_ns",
         "entry_count",
         "file_count",
@@ -769,10 +858,7 @@ def _verify_internal(
         raise TreeCustodyError("recovery_point_not_asserted")
     if manifest.get("symlink_mode_policy") != "source_mode_recorded_restore_uses_host_default":
         raise TreeCustodyError("symlink_mode_policy_invalid")
-    if manifest.get("extended_metadata_policy") != {
-        "xattrs": "reject_all_except_darwin_com.apple.provenance",
-        "acl": "reject",
-    }:
+    if manifest.get("extended_metadata_policy") != EXTENDED_METADATA_POLICY:
         raise TreeCustodyError("extended_metadata_policy_invalid")
     for key in (
         "entry_count",
@@ -782,11 +868,33 @@ def _verify_internal(
         "source_bytes",
         "entry_page_count",
         "created_ns",
+        "capture_start_ns",
+        "capture_end_ns",
     ):
         if type(manifest.get(key)) is not int or manifest[key] < 0:
             raise TreeCustodyError("manifest_count_invalid")
     if manifest["entry_count"] > MAX_ENTRIES or manifest["source_bytes"] > MAX_SOURCE_BYTES:
         raise TreeCustodyError("manifest_limit_exceeded")
+    if manifest["capture_end_ns"] < manifest["capture_start_ns"]:
+        raise TreeCustodyError("capture_interval_invalid")
+    if (
+        manifest.get("stability_claim") != STABILITY_CLAIM
+        or manifest.get("atomicity_scope") != ATOMICITY_SCOPE
+        or manifest.get("root_closure_scope") != ROOT_CLOSURE_SCOPE
+    ):
+        raise TreeCustodyError("consistency_scope_invalid")
+    if (
+        type(manifest.get("source_flags_or")) is not int
+        or manifest["source_flags_or"] < 0
+        or manifest["source_flags_or"] & ~SUPPORTED_SOURCE_FLAGS
+    ):
+        raise TreeCustodyError("source_flags_invalid")
+    declared_xattrs = manifest.get("xattr_name_counts")
+    if not isinstance(declared_xattrs, dict) or any(
+        name not in OMITTED_DARWIN_XATTRS or type(amount) is not int or amount <= 0
+        for name, amount in declared_xattrs.items()
+    ):
+        raise TreeCustodyError("xattr_counts_invalid")
     _strict_hash(manifest.get("source_root_sha256"), "source_root")
     indexes = manifest.get("index_pages")
     if not isinstance(indexes, list) or len(indexes) > 4096:
@@ -869,6 +977,8 @@ def _verify_internal(
         if len(entry_refs) != manifest["entry_page_count"]:
             raise TreeCustodyError("entry_page_count_mismatch")
         entry_total = file_total = symlink_total = hardlink_total = bytes_total = 0
+        observed_xattrs: Counter[str] = Counter()
+        observed_source_flags = 0
         previous_rel: str | None = None
         for ref in entry_refs:
             if (
@@ -912,19 +1022,33 @@ def _verify_internal(
                     "source_device",
                     "source_inode",
                     "source_nlink",
+                    "source_flags",
                 )
                 if any(type(entry.get(k)) is not int or entry[k] < 0 for k in fields):
                     raise TreeCustodyError("entry_metadata_invalid")
                 if entry["mode"] & ~0o7777:
                     raise TreeCustodyError("entry_mode_invalid")
                 link_b64 = entry.get("target_b64")
+                source_flags = entry["source_flags"]
+                if source_flags & ~SUPPORTED_SOURCE_FLAGS:
+                    raise TreeCustodyError("source_flags_unsupported")
+                observed_source_flags |= source_flags
+                omitted_xattrs = entry.get("omitted_xattrs", [])
+                if (
+                    not isinstance(omitted_xattrs, list)
+                    or omitted_xattrs != sorted(set(omitted_xattrs))
+                    or any(name not in OMITTED_DARWIN_XATTRS for name in omitted_xattrs)
+                ):
+                    raise TreeCustodyError("entry_xattr_omission_invalid")
+                observed_xattrs.update(omitted_xattrs)
+                optional_xattrs = {"omitted_xattrs"} if omitted_xattrs else set()
                 group = entry.get("hardlink_group")
                 primary = entry.get("primary_path")
                 chunk_refs = entry.get("chunk_index_pages", [])
                 digest = entry.get("sha256")
                 common_fields = set(fields) | {"path", "kind"}
                 if kind == "symlink":
-                    if set(entry) != common_fields | {"target_b64"}:
+                    if set(entry) != common_fields | {"target_b64"} | optional_xattrs:
                         raise TreeCustodyError("symlink_entry_invalid")
                     try:
                         base64.b64decode(link_b64, validate=True)
@@ -934,7 +1058,8 @@ def _verify_internal(
                 elif kind == "hardlink":
                     link_to = entry.get("link_to")
                     if (
-                        set(entry) != common_fields | {"hardlink_group", "link_to"}
+                        set(entry)
+                        != common_fields | {"hardlink_group", "link_to"} | optional_xattrs
                         or not isinstance(group, str)
                         or not isinstance(link_to, str)
                         or link_to == rel
@@ -946,7 +1071,11 @@ def _verify_internal(
                     bytes_total += entry["size_bytes"]
                     record_hardlink(group, entry["source_nlink"])
                 elif kind == "file":
-                    allowed = common_fields | {"sha256", "chunk_count", "chunk_index_pages"}
+                    allowed = (
+                        common_fields
+                        | {"sha256", "chunk_count", "chunk_index_pages"}
+                        | optional_xattrs
+                    )
                     if group is not None:
                         allowed |= {"hardlink_group"}
                     if set(entry) not in {
@@ -1023,7 +1152,7 @@ def _verify_internal(
                         raise TreeCustodyError("file_chunk_accounting_invalid")
                     if file_digest.hexdigest() != digest:
                         raise TreeCustodyError("file_hash_mismatch")
-                elif kind == "directory" and set(entry) != common_fields:
+                elif kind == "directory" and set(entry) != common_fields | optional_xattrs:
                     raise TreeCustodyError("directory_entry_fields_invalid")
                 entry_total += 1
                 try:
@@ -1052,6 +1181,8 @@ def _verify_internal(
             or symlink_total != manifest["symlink_count"]
             or hardlink_total != manifest["hardlink_count"]
             or bytes_total != manifest["source_bytes"]
+            or dict(sorted(observed_xattrs.items())) != declared_xattrs
+            or observed_source_flags != manifest["source_flags_or"]
         ):
             raise TreeCustodyError("manifest_totals_mismatch")
         # Every non-root member must have a directory parent; hardlinks resolve
@@ -1079,6 +1210,7 @@ def _verify_internal(
         if require_complete:
             complete_raw = writer.read_bytes(f"{base}/COMPLETE.json", max_bytes=64 * 1024)
             complete = json.loads(complete_raw)
+            complete_ns = complete.get("complete_ns")
             if (
                 canonical_json(complete) != complete_raw
                 or complete
@@ -1087,9 +1219,12 @@ def _verify_internal(
                     "capture_id": capture_id,
                     "manifest_sha256": sha256(manifest_raw),
                     "entry_count": manifest["entry_count"],
-                    "completed_ns": complete.get("completed_ns"),
+                    "capture_start_ns": manifest["capture_start_ns"],
+                    "capture_end_ns": manifest["capture_end_ns"],
+                    "complete_ns": complete_ns,
                 }
-                or type(complete.get("completed_ns")) is not int
+                or type(complete_ns) is not int
+                or complete_ns < manifest["capture_end_ns"]
             ):
                 raise TreeCustodyError("complete_marker_invalid")
         actual_count = 0
@@ -1136,11 +1271,20 @@ def _verify_internal(
         "symlink_count": manifest["symlink_count"],
         "hardlink_count": manifest["hardlink_count"],
         "source_bytes": manifest["source_bytes"],
+        "xattr_name_counts": manifest["xattr_name_counts"],
+        "omitted_metadata_reason": "darwin_host_metadata_policy",
         "verified_bytes": True,
         "complete": require_complete,
     }
     if manifest["scope"] != "protected_opaque":
         result["root_name"] = manifest["root_name"]
+        result["capture_start_ns"] = manifest["capture_start_ns"]
+        result["capture_end_ns"] = manifest["capture_end_ns"]
+        if require_complete:
+            result["complete_ns"] = complete_ns
+        result["stability_claim"] = manifest["stability_claim"]
+        result["atomicity_scope"] = manifest["atomicity_scope"]
+        result["root_closure_scope"] = manifest["root_closure_scope"]
     return result
 
 
@@ -1154,14 +1298,32 @@ def _strict_hash(value: object, label: str) -> str:
     return value
 
 
+def _restore_read_pinned(
+    writer: DescriptorWriter,
+    path: str,
+    expected_hash: str,
+    *,
+    max_bytes: int,
+    label: str,
+) -> bytes:
+    """Read an archive object and bind this restore read to its verified digest."""
+    try:
+        data = writer.read_bytes(path, max_bytes=max_bytes)
+    except (OSError, StorageError) as exc:
+        raise TreeCustodyError(f"restore_{label}_read_failed") from exc
+    if sha256(data) != expected_hash:
+        raise TreeCustodyError(f"restore_{label}_hash_mismatch")
+    return data
+
+
 def capture_tree(
     writer: DescriptorWriter,
     root: TreeRoot,
     *,
     capture_id: str | None = None,
-    now_ns: int | None = None,
 ) -> dict[str, Any]:
     _validate_root(root)
+    capture_start_ns = time.time_ns()
     chosen = capture_id or secrets.token_hex(16)
     if len(chosen) != 32 or any(c not in CAPTURE_ID_CHARS for c in chosen):
         raise TreeCustodyError("capture_id_invalid")
@@ -1172,7 +1334,7 @@ def capture_tree(
     with tempfile.TemporaryDirectory(prefix="brain-tree-capture-") as temp:
         db = _db_open(Path(temp) / "inventory.sqlite")
         try:
-            entry_count, source_bytes = _walk_into_db(
+            entry_count, source_bytes, xattr_name_counts = _walk_into_db(
                 source_fd,
                 source_stat.st_dev,
                 db,
@@ -1220,33 +1382,6 @@ def capture_tree(
                     writer, base, db, protected=root.scope == "protected_opaque"
                 )
                 index_refs = _emit_index_pages(writer, base, entry_refs)
-                manifest = {
-                    "schema": SCHEMA,
-                    "capture_id": chosen,
-                    "scope": root.scope,
-                    "root_name": root.name,
-                    "authority_id": root.authority_id,
-                    "recovery_point_id": root.recovery_point_id,
-                    "recovery_point_source": "caller_asserted",
-                    "source_root_sha256": hashlib.sha256(os.fsencode(root.path)).hexdigest(),
-                    "symlink_mode_policy": "source_mode_recorded_restore_uses_host_default",
-                    "extended_metadata_policy": {
-                        "xattrs": "reject_all_except_darwin_com.apple.provenance",
-                        "acl": "reject",
-                    },
-                    "created_ns": now_ns if now_ns is not None else time.time_ns(),
-                    "entry_count": entry_count,
-                    "file_count": file_count,
-                    "symlink_count": symlink_count,
-                    "hardlink_count": hardlink_count,
-                    "source_bytes": source_bytes,
-                    "entry_page_count": len(entry_refs),
-                    "index_pages": index_refs,
-                }
-                manifest_raw = canonical_json(manifest)
-                if len(manifest_raw) > MAX_MANIFEST_BYTES:
-                    raise TreeCustodyError("manifest_size_limit")
-                writer.create(f"{base}/MANIFEST.json", manifest_raw)
                 # Re-inventory the declared root and compare every signature and
                 # link target before verifying the archive and publishing marker.
                 after_db = sqlite3.connect(Path(temp) / "after.sqlite")
@@ -1257,14 +1392,15 @@ def capture_tree(
                     "dev INTEGER NOT NULL, ino INTEGER NOT NULL, nlink INTEGER NOT NULL, "
                     "sig BLOB NOT NULL, link_b64 TEXT, group_id TEXT, primary_path TEXT, "
                     "digest TEXT, chunk_count INTEGER NOT NULL DEFAULT 0, "
-                    "chunk_pages TEXT NOT NULL DEFAULT '[]')"
+                    "chunk_pages TEXT NOT NULL DEFAULT '[]', "
+                    "omitted_xattrs TEXT NOT NULL DEFAULT '[]')"
                 )
                 after_db.execute(
                     "CREATE TABLE groups(dev INTEGER NOT NULL, ino INTEGER NOT NULL, "
                     "count INTEGER NOT NULL, nlink INTEGER NOT NULL, first_path TEXT NOT NULL, "
                     "group_id TEXT NOT NULL, PRIMARY KEY(dev,ino))"
                 )
-                after_count, after_bytes = _walk_into_db(
+                after_count, after_bytes, after_xattrs = _walk_into_db(
                     source_fd,
                     source_stat.st_dev,
                     after_db,
@@ -1273,14 +1409,18 @@ def capture_tree(
                 )
                 if (after_count, after_bytes) != (entry_count, source_bytes):
                     raise TreeCustodyError("source_membership_drift")
+                if after_xattrs != xattr_name_counts:
+                    raise TreeCustodyError("source_xattr_membership_drift")
                 # SQLite cannot join separate connections without ATTACH; compare
                 # bounded rows through ordered cursors instead of materializing.
                 before_rows = db.execute(
-                    "SELECT path,kind,sig,link_b64,group_id,primary_path FROM entries "
+                    "SELECT path,kind,sig,link_b64,group_id,primary_path,omitted_xattrs "
+                    "FROM entries "
                     "ORDER BY path COLLATE BINARY"
                 )
                 after_rows = after_db.execute(
-                    "SELECT path,kind,sig,link_b64,group_id,primary_path FROM entries "
+                    "SELECT path,kind,sig,link_b64,group_id,primary_path,omitted_xattrs "
+                    "FROM entries "
                     "ORDER BY path COLLATE BINARY"
                 )
                 for before, after in zip(before_rows, after_rows, strict=True):
@@ -1293,14 +1433,56 @@ def capture_tree(
                         raise TreeCustodyError("source_root_replaced")
                 finally:
                     os.close(source_now_fd)
+                capture_end_ns = time.time_ns()
+                if capture_end_ns < capture_start_ns:
+                    raise TreeCustodyError("capture_clock_moved_backwards")
+                source_flags_or = 0
+                for (sig_bytes,) in db.execute("SELECT sig FROM entries"):
+                    source_flags_or |= json.loads(sig_bytes)[-1]
+                manifest = {
+                    "schema": SCHEMA,
+                    "capture_id": chosen,
+                    "scope": root.scope,
+                    "root_name": root.name,
+                    "authority_id": root.authority_id,
+                    "recovery_point_id": root.recovery_point_id,
+                    "recovery_point_source": "caller_asserted",
+                    "source_root_sha256": hashlib.sha256(os.fsencode(root.path)).hexdigest(),
+                    "symlink_mode_policy": "source_mode_recorded_restore_uses_host_default",
+                    "extended_metadata_policy": EXTENDED_METADATA_POLICY,
+                    "xattr_name_counts": xattr_name_counts,
+                    "source_flags_or": source_flags_or,
+                    "created_ns": capture_start_ns,
+                    "capture_start_ns": capture_start_ns,
+                    "capture_end_ns": capture_end_ns,
+                    "stability_claim": STABILITY_CLAIM,
+                    "atomicity_scope": ATOMICITY_SCOPE,
+                    "root_closure_scope": ROOT_CLOSURE_SCOPE,
+                    "entry_count": entry_count,
+                    "file_count": file_count,
+                    "symlink_count": symlink_count,
+                    "hardlink_count": hardlink_count,
+                    "source_bytes": source_bytes,
+                    "entry_page_count": len(entry_refs),
+                    "index_pages": index_refs,
+                }
+                manifest_raw = canonical_json(manifest)
+                if len(manifest_raw) > MAX_MANIFEST_BYTES:
+                    raise TreeCustodyError("manifest_size_limit")
+                writer.create(f"{base}/MANIFEST.json", manifest_raw)
                 verified = _verify_internal(writer, chosen, require_complete=False)
+                complete_ns = time.time_ns()
+                if complete_ns < capture_end_ns:
+                    raise TreeCustodyError("capture_clock_moved_backwards")
                 complete_raw = canonical_json(
                     {
                         "schema": COMPLETE_SCHEMA,
                         "capture_id": chosen,
                         "manifest_sha256": sha256(manifest_raw),
                         "entry_count": entry_count,
-                        "completed_ns": now_ns if now_ns is not None else time.time_ns(),
+                        "capture_start_ns": capture_start_ns,
+                        "capture_end_ns": capture_end_ns,
+                        "complete_ns": complete_ns,
                     }
                 )
                 writer.create(f"{base}/COMPLETE.json", complete_raw)
@@ -1309,6 +1491,7 @@ def capture_tree(
                     raise TreeCustodyError("complete_marker_readback_mismatch")
                 result = dict(verified)
                 result["complete"] = True
+                result["complete_ns"] = complete_ns
                 if root.scope == "protected_opaque":
                     return {
                         "schema": SCHEMA,
@@ -1319,6 +1502,8 @@ def capture_tree(
                         "symlink_count": symlink_count,
                         "hardlink_count": hardlink_count,
                         "source_bytes": source_bytes,
+                        "xattr_name_counts": xattr_name_counts,
+                        "omitted_metadata_reason": "darwin_host_metadata_policy",
                         "manifest_sha256": sha256(manifest_raw),
                         "complete": True,
                     }
@@ -1371,6 +1556,31 @@ def _apply_fd_metadata(fd: int, entry: dict[str, Any], uid: int, gid: int) -> No
     os.fchown(fd, uid, gid)
     os.fchmod(fd, entry["mode"])
     os.utime(fd, ns=(entry["mtime_ns"], entry["mtime_ns"]))
+    _apply_fd_flags(fd, entry["source_flags"])
+
+
+def _apply_fd_flags(fd: int, flags: int) -> None:
+    if not flags:
+        return
+    if sys.platform != "darwin" or flags & ~SUPPORTED_SOURCE_FLAGS:
+        raise TreeCustodyError("restore_source_flags_unmapped")
+    function = getattr(os, "fchflags", None)
+    if function is not None:
+        function(fd, flags)
+        return
+    try:
+        libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
+        function = libc.fchflags
+        function.argtypes = [ctypes.c_int, ctypes.c_uint]
+        function.restype = ctypes.c_int
+        ctypes.set_errno(0)
+        if function(fd, flags) != 0:
+            error = ctypes.get_errno()
+            raise OSError(error, os.strerror(error))
+    except OSError:
+        raise
+    except Exception as exc:
+        raise TreeCustodyError("restore_source_flags_unmapped") from exc
 
 
 def _write_all_fd(fd: int, payload: bytes) -> None:
@@ -1408,6 +1618,8 @@ def _verify_restored_entries(
             raise TreeCustodyError("restore_mode_mismatch")
         if st.st_mtime_ns != entry["mtime_ns"]:
             raise TreeCustodyError("restore_mtime_mismatch")
+        if getattr(st, "st_flags", 0) != entry["source_flags"]:
+            raise TreeCustodyError("restore_flags_mismatch")
 
     for entry in entries:
         kind = entry["kind"]
@@ -1479,11 +1691,17 @@ def extract_tree(
     target_gid: int | None = None,
 ) -> dict[str, Any]:
     verified = verify_tree(writer, capture_id)
-    manifest, manifest_raw, _ = _manifest(writer, capture_id)
+    manifest, manifest_raw, _ = _manifest(
+        writer,
+        capture_id,
+        expected_sha256=verified["manifest_sha256"],
+    )
     uid = os.geteuid() if target_uid is None else target_uid
     gid = os.getegid() if target_gid is None else target_gid
     if type(uid) is not int or uid < 0 or type(gid) is not int or gid < 0:
         raise TreeCustodyError("restore_owner_mapping_invalid")
+    if manifest["source_flags_or"] and sys.platform != "darwin":
+        raise TreeCustodyError("restore_source_flags_unmapped")
     if Path(os.path.abspath(destination)).name in {"", ".", ".."}:
         raise TreeCustodyError("restore_target_invalid")
     with _destination_parent(destination) as (parent_fd, target_name):
@@ -1496,14 +1714,115 @@ def extract_tree(
             root_dir_fd = _ensure_dirs(target_fd, manifest["root_name"])
             os.close(root_dir_fd)
 
-            # Re-stream entry pages after verification; never retain the whole tree.
-            def iter_entries():
-                for iref in manifest["index_pages"]:
-                    idx = json.loads(writer.read_bytes(iref["path"], max_bytes=MAX_PAGE_BYTES))
-                    for eref in idx["rows"]:
-                        raw = writer.read_bytes(eref["path"], max_bytes=MAX_PAGE_BYTES)
-                        for line in raw.splitlines():
-                            yield json.loads(line)
+            # Re-stream metadata after verification, pinning every read to the
+            # digest recorded in the already-verified parent object.
+            def read_index_rows(iref: dict[str, Any]) -> list[dict[str, Any]]:
+                if (
+                    not isinstance(iref, dict)
+                    or set(iref) != {"path", "sha256", "count"}
+                    or type(iref.get("count")) is not int
+                    or iref["count"] < 0
+                ):
+                    raise TreeCustodyError("restore_index_ref_invalid")
+                path = _relative(iref["path"], protected=True)
+                digest = _strict_hash(iref["sha256"], "restore_index")
+                raw = _restore_read_pinned(
+                    writer, path, digest, max_bytes=MAX_PAGE_BYTES, label="index_page"
+                )
+                try:
+                    index = json.loads(raw)
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    raise TreeCustodyError("restore_index_page_invalid") from exc
+                if (
+                    canonical_json(index) != raw
+                    or not isinstance(index, dict)
+                    or set(index) != {"schema", "rows"}
+                    or index.get("schema") != "brain-host-tree-index-v1"
+                    or not isinstance(index.get("rows"), list)
+                    or len(index["rows"]) != iref["count"]
+                ):
+                    raise TreeCustodyError("restore_index_page_invalid")
+                return index["rows"]
+
+            def read_entry_page(eref: dict[str, Any]) -> list[dict[str, Any]]:
+                if (
+                    not isinstance(eref, dict)
+                    or set(eref) != {"path", "sha256", "count"}
+                    or type(eref.get("count")) is not int
+                    or eref["count"] < 0
+                ):
+                    raise TreeCustodyError("restore_entry_page_ref_invalid")
+                path = _relative(eref["path"], protected=True)
+                digest = _strict_hash(eref["sha256"], "restore_entry_page")
+                raw = _restore_read_pinned(
+                    writer, path, digest, max_bytes=MAX_PAGE_BYTES, label="entry_page"
+                )
+                lines = raw.splitlines()
+                if len(lines) != eref["count"]:
+                    raise TreeCustodyError("restore_entry_page_count_mismatch")
+                entries = []
+                try:
+                    for line in lines:
+                        entry = json.loads(line)
+                        if (
+                            not isinstance(entry, dict)
+                            or canonical_json(entry).rstrip(b"\n") != line
+                        ):
+                            raise TreeCustodyError("restore_entry_page_invalid")
+                        entries.append(entry)
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    raise TreeCustodyError("restore_entry_page_invalid") from exc
+                return entries
+
+            def iter_entries(*, reverse: bool = False):
+                index_refs = (
+                    reversed(manifest["index_pages"]) if reverse else manifest["index_pages"]
+                )
+                for iref in index_refs:
+                    rows = read_index_rows(iref)
+                    entry_refs = reversed(rows) if reverse else rows
+                    for eref in entry_refs:
+                        entries = read_entry_page(eref)
+                        yield from reversed(entries) if reverse else entries
+
+            def read_chunk_rows(cref: dict[str, Any], file_id: str) -> list[dict[str, Any]]:
+                if (
+                    not isinstance(cref, dict)
+                    or set(cref) != {"path", "sha256", "count"}
+                    or type(cref.get("count")) is not int
+                    or cref["count"] < 0
+                ):
+                    raise TreeCustodyError("restore_chunk_index_ref_invalid")
+                path = _relative(cref["path"], protected=True)
+                digest = _strict_hash(cref["sha256"], "restore_chunk_index")
+                raw = _restore_read_pinned(
+                    writer, path, digest, max_bytes=MAX_PAGE_BYTES, label="chunk_index_page"
+                )
+                try:
+                    index = json.loads(raw)
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    raise TreeCustodyError("restore_chunk_index_page_invalid") from exc
+                if (
+                    canonical_json(index) != raw
+                    or not isinstance(index, dict)
+                    or set(index) != {"schema", "file_id", "rows"}
+                    or index.get("schema") != "brain-host-tree-chunk-index-v1"
+                    or index.get("file_id") != file_id
+                    or not isinstance(index.get("rows"), list)
+                    or len(index["rows"]) != cref["count"]
+                ):
+                    raise TreeCustodyError("restore_chunk_index_page_invalid")
+                for chunk in index["rows"]:
+                    if (
+                        not isinstance(chunk, dict)
+                        or set(chunk) != {"path", "size_bytes", "sha256"}
+                        or type(chunk.get("size_bytes")) is not int
+                        or not 0 <= chunk["size_bytes"] <= CHUNK_BYTES
+                    ):
+                        raise TreeCustodyError("restore_chunk_ref_invalid")
+                    _relative(chunk["path"], protected=True)
+                    _strict_hash(chunk["sha256"], "restore_chunk")
+                return index["rows"]
 
             # directories are already ordered by path; create all before leaves
             for entry in iter_entries():
@@ -1538,6 +1857,15 @@ def extract_tree(
                             dir_fd=pfd,
                             follow_symlinks=False,
                         )
+                        source_flags = entry["source_flags"]
+                        if source_flags:
+                            if not hasattr(os, "O_SYMLINK"):
+                                raise TreeCustodyError("restore_source_flags_unmapped")
+                            link_fd = os.open(name, os.O_RDONLY | os.O_SYMLINK, dir_fd=pfd)
+                            try:
+                                _apply_fd_flags(link_fd, source_flags)
+                            finally:
+                                os.close(link_fd)
                     elif kind == "hardlink":
                         src = f"{manifest['root_name']}/{entry['link_to']}"
                         src_parent, _, src_name = src.rpartition("/")
@@ -1562,11 +1890,18 @@ def extract_tree(
                         try:
                             whole = hashlib.sha256()
                             bytes_written = 0
+                            file_id = hashlib.sha256(entry["path"].encode("utf-8")).hexdigest()
                             for cref in entry["chunk_index_pages"]:
-                                idx_raw = writer.read_bytes(cref["path"], max_bytes=MAX_PAGE_BYTES)
-                                idx = json.loads(idx_raw)
-                                for chunk in idx["rows"]:
-                                    data = writer.read_bytes(chunk["path"], max_bytes=CHUNK_BYTES)
+                                for chunk in read_chunk_rows(cref, file_id):
+                                    data = _restore_read_pinned(
+                                        writer,
+                                        chunk["path"],
+                                        chunk["sha256"],
+                                        max_bytes=CHUNK_BYTES,
+                                        label="chunk",
+                                    )
+                                    if len(data) != chunk["size_bytes"]:
+                                        raise TreeCustodyError("restore_chunk_size_mismatch")
                                     whole.update(data)
                                     view = memoryview(data)
                                     while view:
@@ -1591,15 +1926,7 @@ def extract_tree(
             # Ownership, modes and times for directories are applied postorder.
             # The manifest path order is ascending; reverse index pages and
             # lines to apply directory metadata postorder without materializing.
-            def iter_entries_reverse():
-                for iref in reversed(manifest["index_pages"]):
-                    idx = json.loads(writer.read_bytes(iref["path"], max_bytes=MAX_PAGE_BYTES))
-                    for eref in reversed(idx["rows"]):
-                        raw = writer.read_bytes(eref["path"], max_bytes=MAX_PAGE_BYTES)
-                        for line in reversed(raw.splitlines()):
-                            yield json.loads(line)
-
-            for entry in iter_entries_reverse():
+            for entry in iter_entries(reverse=True):
                 if entry["kind"] != "directory":
                     continue
                 rel = (
@@ -1626,10 +1953,9 @@ def extract_tree(
                 "manifest_sha256": sha256(manifest_raw),
                 "source_uid_gid_policy": "preserved_as_evidence_mapped_to_caller_selected_owner",
                 "symlink_mode_policy": "source_mode_recorded_restore_uses_host_default",
-                "extended_metadata_policy": {
-                    "xattrs": "reject_all_except_darwin_com.apple.provenance",
-                    "acl": "reject",
-                },
+                "extended_metadata_policy": EXTENDED_METADATA_POLICY,
+                "omitted_metadata_reason": "darwin_host_metadata_policy",
+                "xattr_name_counts": verified["xattr_name_counts"],
                 "target_uid": uid,
                 "target_gid": gid,
                 "uid_mapping": sorted({(entry["uid"], uid) for entry in iter_entries()}),
@@ -1735,6 +2061,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                             "symlink_count",
                             "hardlink_count",
                             "source_bytes",
+                            "xattr_name_counts",
+                            "omitted_metadata_reason",
                             "manifest_sha256",
                             "complete",
                         )
@@ -1754,6 +2082,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                             "symlink_count",
                             "hardlink_count",
                             "source_bytes",
+                            "xattr_name_counts",
+                            "omitted_metadata_reason",
                             "verified_bytes",
                             "complete",
                         )
@@ -1769,7 +2099,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(result, sort_keys=True))
         return 0
     except (TreeCustodyError, StorageError, OSError, ValueError, sqlite3.Error) as exc:
-        print(json.dumps({"state": "failed", "error": str(exc)}, sort_keys=True))
+        if isinstance(exc, OSError):
+            safe_error: dict[str, object] = {"error": "os_error", "errno": exc.errno}
+        elif isinstance(exc, TreeCustodyError):
+            safe_error = {"error": str(exc)}
+        elif isinstance(exc, StorageError):
+            safe_error = {"error": "storage_error"}
+        elif isinstance(exc, sqlite3.Error):
+            safe_error = {"error": "inventory_spool_failed"}
+        else:
+            safe_error = {"error": "operation_invalid"}
+        print(json.dumps({"state": "failed", **safe_error}, sort_keys=True))
         return 2
 
 
