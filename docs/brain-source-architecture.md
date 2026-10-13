@@ -4187,7 +4187,8 @@ bug: it compared serialized policy/epoch bytes to their internal semantic hashes
 semantic hashes; a forced activation/replay regression test covers this path. During fail-closed
 cleanup, replay found that a valid close receipt for all 2,592 unconsumed page IDs exceeded the
 reader's former 64-KiB bound. The receipt reader now allows up to 4 MB and the full close/replay path
-has a focused regression test; the Kingston close receipt still needs read-only replay verification.
+has a focused regression test. Read-only replay on Kingston confirms the hold is closed with all
+2,592 request IDs unconsumed and the receipt matches the ledger.
 The existing activation remains unusable: the source fix changes a pinned file, its first-scan anchor has
 elapsed, and the STOP marker is present. No plist was installed or loaded and no provider request
 occurred. The v3 LaunchAgent is absent and unloaded. The old `runtime-v2` tree hash is unchanged.

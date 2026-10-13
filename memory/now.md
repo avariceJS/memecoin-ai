@@ -1,10 +1,11 @@
 # Current Project State
 
-**As of:** 2026-10-13 17:22Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD and `origin/research/active` `3ab81b2`. `main` and `origin/main` remain
-`770699d`. Worktree includes unrelated dirty build-guard/Agave/capture-watchdog/provider evidence;
-stage only scoped files. Positive-bar event-extraction/projector changes are committed; all evidence
-and tests remain synthetic-only.
+**As of:** 2026-10-13 17:35Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, scoped code commit `f4462fb` (receipt replay fix); final handoff documentation is
+being committed separately. `main`/`origin/main` remain `770699d`. Preserve the unrelated dirty
+build-guard/Agave/capture-watchdog/provider-evidence scope; do not include it in the Senses release.
+Positive-bar projector and discovery evidence remain offline/synthetic; no eligible population or
+economic/lifecycle qualification claim.
 
 ## Prospective acquisition
 
@@ -64,14 +65,19 @@ and tests remain synthetic-only.
   callback verifier uses no-follow file descriptors and validates captured HEAD stability. Activation
   interruption test retries the pre-existing hold/pointer into one authority. Candidate
   `7b15e8d1f3acdbc6b374e349aaeb1282` was prepared at `runtime-v3` from source `9903412`. Its
-  future-only 17:20Z anchor elapsed. Activation and initial ledger hold exist, but bundle verification
-  exposed a raw-document-hash vs semantic-hash bug before plist install/load or provider I/O. A
-  descriptor-bound `runtime-v3/stop.json` now records the failure. Verifier fix and replay regression
-  test are committed/pending validation; changed pinned source makes this activation fail closed. Do
-  not dispatch or reuse it. Old runtime-v2 tree hash remains
+  future-only 17:20Z anchor elapsed. Activation exists but bundle verification failed before plist
+  install/load or provider I/O. Descriptor-bound `runtime-v3/stop.json` records the failure. The
+  verifier fix is in `d86aa6d`; `f4462fb` raises the hold-close receipt read bound to 4 MB and adds a
+  regression. Kingston read-only replay confirms hold `d1740af0b53b05f00206fa4ee300bad2` is closed,
+  all 2,592 request IDs unconsumed, and receipt/ledger agree. STOP remains. Changed pinned source,
+  elapsed anchor, and STOP make this activation unusable. Do not dispatch or reuse it. Old runtime-v2 tree hash remains
   `ef3895bf11079c9bc2686203aab08e9dd00cd7b25c086506d3226dfe8bd31548`; stale candidate
   `3918f088c01caaf414fc37e473ec62b6` untouched. No collector is running; user's next session is
-  portability/DR, no new Senses campaign should start here.
+  portability/DR, no new Senses campaign should start here. Current launchd query shows no matching
+  Brain Senses label; v3 installed plist is absent and no collector process is running. No provider
+  requests were issued. Kingston has 217,316,544,512 bytes free (~202.4 GiB), above the 50-GiB floor.
+  Final scoped discovery focus: 38 tests pass with repo `.venv`; Ruff and format checks pass. Do not
+  start a new prospective lease/campaign before the dedicated Portability / Disaster Recovery session.
 - Full-current replay: 44 roots, 62 historical attempts; all three old v6 roots `verified_none`,
   zero v6 attempts. Runtime binding requires ancestor commit, exact source bytes across release/HEAD/
   checkout, clean pinned paths, and exact plist/live identity. Focused host tests: 43; broader v6
