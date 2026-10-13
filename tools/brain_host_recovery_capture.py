@@ -691,8 +691,9 @@ def _validate_manifest(
         or total_bytes > MAX_TOTAL_BYTES
     ):
         raise RecoveryCaptureError("manifest_accounting_invalid")
-    if chunk_members != sorted(chunk_members, key=lambda row: row["path"]):
-        raise RecoveryCaptureError("manifest_chunk_membership_order_invalid")
+    chunk_members.sort(key=lambda row: row["path"])
+    if len({row["path"] for row in chunk_members}) != len(chunk_members):
+        raise RecoveryCaptureError("manifest_chunk_membership_duplicate")
     return roots, chunk_members
 
 
@@ -710,12 +711,17 @@ def _verify_reserved_capture(
     capture_id: str,
     *,
     verify_bytes: bool,
+    require_complete: bool = True,
 ) -> dict[str, Any]:
     if not CAPTURE_ID_RE.fullmatch(capture_id):
         raise RecoveryCaptureError("capture_id_invalid")
     capture_path = f"{CAPTURES_DIR}/{capture_id}"
     try:
-        complete_bytes = writer.read_bytes(f"{capture_path}/COMPLETE", max_bytes=16_384)
+        complete_bytes = (
+            writer.read_bytes(f"{capture_path}/COMPLETE", max_bytes=16_384)
+            if require_complete
+            else None
+        )
         reserve_bytes = writer.read_bytes(f"{capture_path}/RESERVATION.json", max_bytes=16_384)
         membership_bytes = writer.read_bytes(
             f"{capture_path}/membership.json", max_bytes=MAX_METADATA_BYTES
@@ -725,31 +731,33 @@ def _verify_reserved_capture(
         )
     except (OSError, StorageError) as exc:
         raise RecoveryCaptureError("capture_artifact_missing") from exc
-    complete = _json_load(complete_bytes, "complete")
     reservation = _json_load(reserve_bytes, "reservation")
     membership = _json_load(membership_bytes, "membership")
     manifest = _json_load(manifest_bytes, "manifest")
-    if canonical_json(complete) != complete_bytes or set(complete) != {
-        "schema",
-        "capture_id",
-        "manifest_sha256",
-        "membership_sha256",
-        "reservation_sha256",
-        "member_count",
-        "completed_ns",
-    }:
-        raise RecoveryCaptureError("complete_contract_invalid")
-    if (
-        complete.get("schema") != COMPLETE_SCHEMA
-        or complete.get("capture_id") != capture_id
-        or type(complete.get("member_count")) is not int
-        or complete.get("member_count") != manifest.get("member_count")
-        or type(complete.get("completed_ns")) is not int
-        or complete.get("manifest_sha256") != sha256(manifest_bytes)
-        or complete.get("membership_sha256") != sha256(membership_bytes)
-        or complete.get("reservation_sha256") != sha256(reserve_bytes)
-    ):
-        raise RecoveryCaptureError("complete_hash_mismatch")
+    if require_complete:
+        assert complete_bytes is not None
+        complete = _json_load(complete_bytes, "complete")
+        if canonical_json(complete) != complete_bytes or set(complete) != {
+            "schema",
+            "capture_id",
+            "manifest_sha256",
+            "membership_sha256",
+            "reservation_sha256",
+            "member_count",
+            "completed_ns",
+        }:
+            raise RecoveryCaptureError("complete_contract_invalid")
+        if (
+            complete.get("schema") != COMPLETE_SCHEMA
+            or complete.get("capture_id") != capture_id
+            or type(complete.get("member_count")) is not int
+            or complete.get("member_count") != manifest.get("member_count")
+            or type(complete.get("completed_ns")) is not int
+            or complete.get("manifest_sha256") != sha256(manifest_bytes)
+            or complete.get("membership_sha256") != sha256(membership_bytes)
+            or complete.get("reservation_sha256") != sha256(reserve_bytes)
+        ):
+            raise RecoveryCaptureError("complete_hash_mismatch")
     if (
         canonical_json(reservation) != reserve_bytes
         or set(reservation) != {"schema", "capture_id", "created_ns", "state"}
@@ -773,9 +781,10 @@ def _verify_reserved_capture(
         f"{capture_path}/RESERVATION.json",
         f"{capture_path}/membership.json",
         f"{capture_path}/manifest.json",
-        f"{capture_path}/COMPLETE",
         *(member["path"] for member in chunk_members),
     }
+    if require_complete:
+        expected_files.add(f"{capture_path}/COMPLETE")
     expected_dirs = {
         f"{capture_path}/{path}"
         for path in _expected_directories(
@@ -815,7 +824,7 @@ def _verify_reserved_capture(
         "root_count": len(roots),
         "source_bytes": manifest["total_source_bytes"],
         "verified_bytes": verify_bytes,
-        "complete": True,
+        "complete": require_complete,
     }
 
 
@@ -971,10 +980,16 @@ def capture_static_roots(
                 "completed_ns": now_ns if now_ns is not None else time.time_ns(),
             }
             complete_bytes = canonical_json(complete)
+            prepublication = _verify_reserved_capture(
+                writer,
+                chosen_id,
+                verify_bytes=True,
+                require_complete=False,
+            )
             writer.create(f"{capture_path}/COMPLETE", complete_bytes)
             if writer.read_bytes(f"{capture_path}/COMPLETE", max_bytes=16_384) != complete_bytes:
                 raise RecoveryCaptureError("complete_readback_mismatch")
-        return verify_capture(writer, chosen_id)
+        return {**prepublication, "complete": True}
     except (StorageError, OSError) as exc:
         raise RecoveryCaptureError("descriptor_capture_failed") from exc
     finally:

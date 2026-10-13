@@ -51,6 +51,47 @@ def test_capture_verify_and_extract_roundtrip(harness):
     assert (destination / "RESTORE_COMPLETE.json").exists()
 
 
+def test_multi_file_multi_chunk_capture_verifies_and_extracts(harness):
+    tmp_path, writer, source, root = harness
+    nested = source / "profiles"
+    nested.mkdir()
+    contents: dict[str, bytes] = {
+        "nested/payload.bin": (source / "nested" / "payload.bin").read_bytes()
+    }
+    for index in range(75):
+        relative = f"profiles/profile-{index:02d}.json"
+        payload = (f'{{"profile": {index}, "value": "recovery-{index:02d}"}}').encode()
+        contents[relative] = payload
+        (source / relative).write_bytes(payload)
+    contents["large.bin"] = b"multi-chunk-static-payload-for-recovery"
+    (source / "large.bin").write_bytes(contents["large.bin"])
+
+    result = _capture(writer, root, capture_id="2" * 32)
+    assert result["complete"] is True
+    expected_chunks = sum((len(payload) + 6) // 7 for payload in contents.values())
+    assert result["member_count"] == expected_chunks
+    assert recovery.verify_capture(writer, "2" * 32)["verified_bytes"] is True
+
+    destination = tmp_path / "restored-multi"
+    recovery.extract_capture(writer, "2" * 32, destination)
+    for relative, payload in contents.items():
+        assert (destination / "settings" / relative).read_bytes() == payload
+
+
+def test_internal_prepublication_verification_failure_leaves_no_complete(
+    harness, monkeypatch: pytest.MonkeyPatch
+):
+    _tmp_path, writer, _source, root = harness
+
+    def fail_verification(*_args, **_kwargs):
+        raise recovery.RecoveryCaptureError("injected_prepublication_verification_failure")
+
+    monkeypatch.setattr(recovery, "_validate_manifest", fail_verification)
+    with pytest.raises(recovery.RecoveryCaptureError, match="injected_prepublication"):
+        _capture(writer, root, capture_id="3" * 32)
+    assert "COMPLETE" not in writer.list_names(f"host-recovery/captures/{'3' * 32}")
+
+
 def test_interruption_leaves_no_complete_marker(harness):
     tmp_path, base_writer, _source, root = harness
     base_writer.close()
