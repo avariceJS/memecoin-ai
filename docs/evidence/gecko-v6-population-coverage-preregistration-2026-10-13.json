@@ -22,7 +22,11 @@
     "scope": "One complete deterministic rotation of this pinned 170-pool population, beginning at the pinned first bucket. Continue only forward; no backfill or response-based replacement.",
     "planned_opportunity_unit": "One (bucket_close_ns, pool_id) listed in a durable immutable plan and matching plan journal event.",
     "planned_opportunity_denominator": "Every selected pool in every durable plan counts, including no-intent slots, explicit missed outcomes, ambiguous spent requests, provider failures, empty responses, and malformed or unsupported responses.",
-    "unplanned_gap_handling": "Count every durable gap bucket separately as an unplanned unavailable interval with unknown pool selection. Do not reconstruct or attribute pool slots, infer cursor advancement, or backfill that gap.",
+    "scheduled_bucket_denominator": "Durable plans plus durable gap events.",
+    "planned_pool_opportunity_denominator": "Sum of selected_pool_ids across durable plans only; a plan slot counts even if it has no intent or response.",
+    "unplanned_gap_handling": "Count every durable gap bucket separately as an unplanned unavailable interval with unknown pool selection and zero pool-opportunity slots. A gap has selected_pool_ids=null and cursor_out=cursor_in. Do not reconstruct or attribute pool slots, advance the cursor, or backfill that gap.",
+    "post_gap_selection": "The next durable plan begins from the unchanged cursor and uses only retention/evidence available before that plan.",
+    "gap_replay_tests": "Reject any gap carrying pool IDs or advancing the cursor; verify a following plan uses the pre-gap cursor and only its own prior-known retention evidence.",
     "rotation_stop_for_audit": "End the first-rotation audit only after each of the 170 pinned pool IDs has appeared in at least one durable plan; a gap does not satisfy pool exposure.",
     "transport_and_bar_metrics": [
       "durable planned opportunities",

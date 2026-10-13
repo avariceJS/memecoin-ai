@@ -4067,10 +4067,11 @@ remain false.
 Before the first provider bucket, Sol selected a read-only population/coverage audit as the next
 sensing horizon. The preregistration binds release `94da5c80bdd82308ebbad0c8f2e158b3`, its source,
 policy, selector and 170-pool population pins, and starts at the immutable 13:15Z anchor. Its
-pool-bucket denominator is every member of a durable six-pool plan, regardless of whether an
-intent, successful response, or usable new-open bar follows. Durable gap buckets are counted
-separately as unplanned unknown intervals; no pool IDs are reconstructed for them. The first
-rotation ends only after each pinned pool has appeared in at least one durable plan. Existing raw
+scheduled-bucket denominator is durable plans plus durable gaps; the pool-opportunity denominator
+is only the slots selected in durable plans, regardless of whether an intent, successful response,
+or usable new-open bar follows. Durable gap buckets are unknown intervals with no pool identities
+and no cursor advance; the following plan reuses the pre-gap cursor and pre-decision evidence. The
+first rotation ends only after each pinned pool has appeared in at least one durable plan. Existing raw
 bar classifications, lifecycle-age uncertainty and event/receipt/availability times remain
 separate; misses, empty responses and disappearance never imply zero or death. Receipt:
 [`v6 population-coverage preregistration`](evidence/gecko-v6-population-coverage-preregistration-2026-10-13.json).
