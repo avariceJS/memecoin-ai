@@ -6,6 +6,7 @@ import pytest
 from tools.brain_senses_gecko_v6_observed_values_v1 import (
     ProjectionError,
     audit_verified_prefix,
+    extract_verified_events,
 )
 
 NS = 1_000_000_000
@@ -245,3 +246,105 @@ def test_unconfirmed_successful_response_is_not_projected_as_available_value():
     assert result["per_pool"]["pool-0"]["successful_responses"] == 1
     assert result["per_pool"]["pool-0"]["durably_confirmed_successful_responses"] == 0
     assert result["observed_value_count"] == 0
+
+
+def test_raw_error_response_is_hash_checked_but_never_decoded_as_values():
+    raw_error = b"not-an-ohlcv-response"
+    opportunity = _opportunity("pool-0", "malformed_response", None)
+    opportunity["raw_body"] = raw_error
+    opportunity["raw_sha256"] = hashlib.sha256(raw_error).hexdigest()
+    result = _audit([opportunity])
+    assert result["non_success_raw_response_count"] == 1
+    assert result["observed_value_count"] == 0
+
+
+def test_extracts_plan_slots_and_replays_confirmed_raw_bytes_by_bound_path():
+    pool = "pool-0"
+    request_id = "req-0"
+    raw_hash = hashlib.sha256(NEW_AND_OVERLAP).hexdigest()
+    events = [
+        {"kind": "plan", "fields": {"close_ns": CLOSE, "selected_pool_ids": [pool]}},
+        {
+            "kind": "gap",
+            "fields": {
+                "close_ns": CLOSE + 900 * NS,
+                "selected_pool_ids": None,
+                "cursor_in": 0,
+                "cursor_out": 0,
+            },
+        },
+        {
+            "kind": "intent",
+            "fields": {
+                "request_id": request_id,
+                "close_ns": CLOSE,
+                "pool_id": pool,
+                "intent_ns": CLOSE + 50 * NS,
+            },
+        },
+        {
+            "kind": "dispatch",
+            "fields": {"request_id": request_id, "request_started_ns": CLOSE + 60 * NS},
+        },
+        {
+            "kind": "outcome",
+            "fields": {
+                "request_id": request_id,
+                "status": "received",
+                "raw_path": f"responses/{request_id}.bin",
+                "raw_sha256": raw_hash,
+                "receipt_ns": CLOSE + 62 * NS,
+                "timely": True,
+            },
+        },
+        {
+            "kind": "confirmation",
+            "fields": {
+                "request_id": request_id,
+                "availability_ns": CLOSE + 63 * NS,
+            },
+        },
+    ]
+    plans, gaps, opportunities = extract_verified_events(
+        events,
+        read_raw=lambda path: (
+            NEW_AND_OVERLAP
+            if path == f"responses/{request_id}.bin"
+            else pytest.fail("unexpected raw path")
+        ),
+    )
+    result = _audit(opportunities, plans=plans, gaps=gaps, population=POPULATION[:1])
+    assert result["observed_value_count"] == 1
+    assert result["scheduled_bucket_denominator"] == 2
+    assert result["unplanned_gap_buckets"] == 1
+    assert result["observed_values"][0]["raw_response_sha256"] == raw_hash
+
+
+def test_event_extraction_rejects_unbound_raw_path_and_duplicate_event():
+    base = {
+        "kind": "outcome",
+        "fields": {
+            "request_id": "req-0",
+            "status": "received",
+            "raw_path": "responses/other.bin",
+            "raw_sha256": hashlib.sha256(NEW_AND_OVERLAP).hexdigest(),
+            "receipt_ns": CLOSE + 62 * NS,
+            "timely": True,
+        },
+    }
+    events = [
+        {"kind": "plan", "fields": {"close_ns": CLOSE, "selected_pool_ids": ["pool-0"]}},
+        {
+            "kind": "intent",
+            "fields": {"request_id": "req-0", "close_ns": CLOSE, "pool_id": "pool-0"},
+        },
+        {
+            "kind": "dispatch",
+            "fields": {"request_id": "req-0", "request_started_ns": CLOSE + 60 * NS},
+        },
+        base,
+    ]
+    with pytest.raises(ProjectionError, match="raw_path"):
+        extract_verified_events(events, read_raw=lambda _: NEW_AND_OVERLAP)
+    with pytest.raises(ProjectionError, match="duplicate_request_event"):
+        extract_verified_events([*events, base], read_raw=lambda _: NEW_AND_OVERLAP)

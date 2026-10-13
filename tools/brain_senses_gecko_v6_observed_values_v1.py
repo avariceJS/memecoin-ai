@@ -10,7 +10,7 @@ import hashlib
 import json
 import sys
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -57,6 +57,133 @@ BUCKET_NS = 900 * NS
 
 class ProjectionError(ValueError):
     """The sealed positive-value evidence is inconsistent or out of contract."""
+
+
+def extract_verified_events(
+    events: Sequence[Mapping[str, Any]], *, read_raw: Callable[[str], bytes]
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Extract projector inputs from events already accepted by the v6 journal verifier.
+
+    Raw payload reads are delegated to the caller so live use can remain descriptor-bound.
+    This function does not verify the journal, open the Kingston root, or issue provider calls.
+    """
+    if not isinstance(events, Sequence) or isinstance(events, (str, bytes)):
+        raise ProjectionError("observed_values_events")
+    plans: list[dict[str, Any]] = []
+    gaps: list[dict[str, Any]] = []
+    missed: dict[tuple[int, str], dict[str, Any]] = {}
+    intents: dict[str, dict[str, Any]] = {}
+    dispatches: dict[str, dict[str, Any]] = {}
+    outcomes: dict[str, dict[str, Any]] = {}
+    confirmations: dict[str, dict[str, Any]] = {}
+    for event in events:
+        if not isinstance(event, Mapping) or not isinstance(event.get("fields"), Mapping):
+            raise ProjectionError("observed_values_event_shape")
+        kind, fields = event.get("kind"), dict(event["fields"])
+        if kind == "plan":
+            plans.append(
+                {
+                    "close_ns": fields.get("close_ns"),
+                    "selected_pool_ids": fields.get("selected_pool_ids"),
+                }
+            )
+        elif kind == "gap":
+            gaps.append(
+                {
+                    "close_ns": fields.get("close_ns"),
+                    "selected_pool_ids": fields.get("selected_pool_ids"),
+                    "cursor_in": fields.get("cursor_in"),
+                    "cursor_out": fields.get("cursor_out"),
+                }
+            )
+        elif kind == "missed":
+            key = (fields.get("close_ns"), fields.get("pool_id"))
+            if key in missed:
+                raise ProjectionError("observed_values_duplicate_missed")
+            missed[key] = fields
+        elif kind in {"intent", "dispatch", "outcome", "confirmation"}:
+            request_id = fields.get("request_id")
+            if not isinstance(request_id, str) or not request_id:
+                raise ProjectionError("observed_values_event_request_id")
+            target = {
+                "intent": intents,
+                "dispatch": dispatches,
+                "outcome": outcomes,
+                "confirmation": confirmations,
+            }[kind]
+            if request_id in target:
+                raise ProjectionError("observed_values_duplicate_request_event")
+            target[request_id] = fields
+
+    opportunities: list[dict[str, Any]] = []
+    for plan in plans:
+        close = plan["close_ns"]
+        for pool in plan["selected_pool_ids"] or []:
+            key = (close, pool)
+            if key in missed:
+                opportunities.append(
+                    {"close_ns": close, "pool_id": pool, "status": "missed", "raw_body": None}
+                )
+                continue
+            matching_intents = [
+                (request_id, row)
+                for request_id, row in intents.items()
+                if row.get("close_ns") == close and row.get("pool_id") == pool
+            ]
+            if len(matching_intents) > 1:
+                raise ProjectionError("observed_values_duplicate_slot_intent")
+            if not matching_intents:
+                continue
+            request_id, intent = matching_intents[0]
+            outcome = outcomes.get(request_id)
+            dispatch = dispatches.get(request_id)
+            confirmation = confirmations.get(request_id)
+            if outcome is None:
+                opportunities.append(
+                    {
+                        "close_ns": close,
+                        "pool_id": pool,
+                        "status": "possibly_spent_unresolved",
+                        "raw_body": None,
+                    }
+                )
+                continue
+            raw = None
+            raw_path = outcome.get("raw_path")
+            if raw_path is not None:
+                expected_path = f"responses/{request_id}.bin"
+                if raw_path != expected_path:
+                    raise ProjectionError("observed_values_raw_path")
+                try:
+                    raw = read_raw(raw_path)
+                except Exception as exc:
+                    raise ProjectionError("observed_values_raw_read") from exc
+                if (
+                    not isinstance(raw, bytes)
+                    or not _sha(outcome.get("raw_sha256"))
+                    or hashlib.sha256(raw).hexdigest() != outcome["raw_sha256"]
+                ):
+                    raise ProjectionError("observed_values_raw_hash")
+            opportunities.append(
+                {
+                    "close_ns": close,
+                    "pool_id": pool,
+                    "status": outcome.get("status"),
+                    "raw_body": raw,
+                    "raw_sha256": outcome.get("raw_sha256"),
+                    "request_started_ns": (
+                        dispatch.get("request_started_ns") if dispatch is not None else None
+                    ),
+                    "receipt_ns": outcome.get("receipt_ns"),
+                    "durable_available_ns": (
+                        confirmation.get("availability_ns") if confirmation is not None else None
+                    ),
+                    "confirmed": confirmation is not None,
+                    "timely": outcome.get("timely"),
+                    "intent_ns": intent.get("intent_ns"),
+                }
+            )
+    return plans, gaps, opportunities
 
 
 def _sha(value: Any) -> bool:
@@ -239,6 +366,7 @@ def audit_verified_prefix(
     dispositions: Counter[str] = Counter()
     terminal_states: Counter[str] = Counter()
     availability_states: Counter[str] = Counter()
+    non_success_raw_responses = 0
     observed_values: list[dict[str, Any]] = []
     observed_identities: set[tuple[str, int]] = set()
     per_pool = {
@@ -269,7 +397,13 @@ def audit_verified_prefix(
         raw = opportunity.get("raw_body")
         if status not in {"received", "empty_response"}:
             if raw is not None:
-                raise ProjectionError("observed_values_raw_on_non_success")
+                if (
+                    not isinstance(raw, bytes)
+                    or not _sha(opportunity.get("raw_sha256"))
+                    or hashlib.sha256(raw).hexdigest() != opportunity["raw_sha256"]
+                ):
+                    raise ProjectionError("observed_values_non_success_raw_hash")
+                non_success_raw_responses += 1
             continue
         if not isinstance(raw, bytes):
             raise ProjectionError("observed_values_raw_missing")
@@ -367,6 +501,7 @@ def audit_verified_prefix(
         "unplanned_gap_buckets": sum(kind == "gap" for _, kind in bucket_states),
         "planned_pool_opportunity_denominator": len(plan_by_slot),
         "opportunity_terminal_states": dict(sorted(terminal_states.items())),
+        "non_success_raw_response_count": non_success_raw_responses,
         "response_availability_states": dict(sorted(availability_states.items())),
         "bar_dispositions": dict(sorted(dispositions.items())),
         "distinct_pools_planned": len({pool for _, pool in plan_by_slot}),
