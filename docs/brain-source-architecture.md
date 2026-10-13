@@ -4091,5 +4091,13 @@ v3 raw-response parser implementation. Empty, missed, failed, ambiguous, late, m
 unclosed, out-of-window and overlap-revision cases remain denominators or parser dispositions, never
 zero values or lifecycle evidence. Birth age is explicitly unknown absent independent birth evidence.
 The projector is read-only and grants no coverage, completeness, source, training or economic
-qualification. Its focused synthetic mutation tests pass; real publication waits for natural live
-capture, controlled no-replay recovery and the complete preregistered pool rotation.
+qualification. Its focused synthetic mutation tests pass. The first natural bucket produced four
+confirmed response bodies (3,042 bytes), one permanently spent ambiguous request, and one missed
+slot. Its 12 parsed bars were all outside the eligible interval, so it emitted zero eligible new
+opens. A controlled bootout/bootstrap preserved the attempt-list and source-prefix hashes without
+replay. The v6 launch agent was then unloaded because its fail-closed behavior stops after a
+non-success terminal; a distinct forward-only successor with explicit cooldown/gap lineage is
+required for sustainable collection. The immutable sanitized observation is
+[`v6 first natural bucket`](evidence/gecko-v6-first-natural-bucket-2026-10-13T1315Z.json). The
+preregistered 170-pool rotation remains incomplete and no source, support, lifecycle, training or
+economic qualification follows from this one bucket.

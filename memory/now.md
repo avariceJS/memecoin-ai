@@ -1,7 +1,7 @@
 # Current Project State
 
-**As of:** 2026-10-13 13:06Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD and `origin/research/active` `8ad7ae9`. `main` and `origin/main` remain
+**As of:** 2026-10-13 13:26Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, HEAD and `origin/research/active` `807d28c`. `main` and `origin/main` remain
 `770699d`. Worktree includes unrelated dirty build-guard/Agave/capture-watchdog/provider evidence;
 stage only scoped files. Positive-bar event-extraction/projector changes are committed; all evidence
 and tests remain synthetic-only.
@@ -11,11 +11,14 @@ and tests remain synthetic-only.
 - Kingston `/Volumes/Kingston/BrainData`, root ID `9428695af6d4f46c08e1a444cdc66de8`, UUID
   `8f8f1081-9be4-4914-9111-75f1b90255bf`; last descriptor-bound measurement: 202.4 GiB free,
   above the 50-GiB floor.
-- Gecko v6 LaunchAgent `ai.memecoin.brain.senses.gecko-capture-only-v6` is loaded in `gui/501`,
-  exact pinned plist/argv, 60-second interval. Twenty-nine callbacks have exited 0, including after
-  docs-only descendant commits. Root `94da5c80bdd82308ebbad0c8f2e158b3` is on Kingston; its first
-  natural close is 13:15Z and `events.jsonl` remains empty at 12:54Z. No v6 provider requests or
-  recovery test yet. No backfill/retry. Available space last measured at 202.4 GiB.
+- Gecko v6's first natural bucket at 13:15Z is independently replayed: four confirmed responses
+  (3,042 raw bytes), one permanently spent ambiguous request, one missed slot, cursor out 6. All 12
+  parsed bars were out-of-window; zero eligible new-open values. Bootout/bootstrap preserved the
+  attempt list and source prefix with no replay. The v6 agent is now unloaded; Sol's accepted path is
+  an immutable handoff certificate plus separate forward-only v7 with explicit gaps, cooldown,
+  zero retries, and bounded STOP. Receipt:
+  `docs/evidence/gecko-v6-first-natural-bucket-2026-10-13T1315Z.json`.
+- Kingston descriptor-bound free space: 217,315,987,456 bytes (~202.4 GiB), above the 50-GiB floor.
 - Full-current replay: 44 roots, 62 historical attempts; all three old v6 roots `verified_none`,
   zero v6 attempts. Runtime binding requires ancestor commit, exact source bytes across release/HEAD/
   checkout, clean pinned paths, and exact plist/live identity. Focused host tests: 43; broader v6
