@@ -4033,11 +4033,19 @@ bootstrap initialized Kingston release `259c20d752fa383c3bb42637d10fb5da` with a
 last and an 11:15Z anchor. Its independent replay found zero plans and no provider I/O. The first
 LaunchAgent failed closed on every callback with exit status 2 and wrote no journal event; it has
 been booted out, and its plist and root are preserved read-only. There is no active prospective
-collector and no v6 provider traffic. A separately source-pinned successor is being prepared with a
-release-qualified fixed control pair and a bounded owner-only local diagnostic; it must leave the old
-control pair/root untouched, prove an actual launchd idle callback and exact zero-attempt replay,
-then record one new forward-only six-slot bucket and restart recovery before it is described as live.
-Market-source, training, and economic admission remain false.
+collector and no v6 provider traffic. A source-pinned successor now uses a release-qualified fixed
+control pair, bounded owner-only local diagnostics, and a 45-minute future-anchor margin. Its first
+create-only bootstrap attempt failed closed because usage-inventory-v2 rejects the existing
+`capture-only-v6` service family; no successor root/control files were created (the shared lane lock
+is present). Sol approved additive inventory-v3: retain exact replay of the historical 41-root / 62-
+attempt receipt, independently replay every current v6 root (including the old zero-attempt root),
+and prove a candidate successor ID absent before bootstrap. The implementation passes 52 focused
+tests and a live descriptor-bound read-only replay of all 42 current roots; the historical projection
+and 62 attempts matched, candidate `7a10e2d4c9f84c18a0b53d7e6f214c90` was absent, and no provider I/O
+occurred. The source and tests are being committed before the create-only bootstrap is retried. The
+successor must then prove a launchd idle callback and exact zero-attempt replay, capture one new
+forward-only bucket, and pass restart recovery before being described as live. Market-source,
+training, and economic admission remain false.
 
 A descriptor-bound read-only census independently replayed 41 known roots and 62 attempts, including
 two unresolved response sizes. The conservative prior offset is 1,015,808 raw bytes and 5,079,040

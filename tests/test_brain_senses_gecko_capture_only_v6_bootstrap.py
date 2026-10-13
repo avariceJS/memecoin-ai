@@ -21,6 +21,8 @@ from tools import brain_senses_gecko_capture_only_v6_host as host_v6  # noqa: E4
 from tools import brain_senses_gecko_lane_policy_v3 as frozen_v3  # noqa: E402
 from tools import brain_senses_gecko_lane_policy_v6 as policy_v6  # noqa: E402
 from tools import brain_senses_gecko_rotating_scout_v1 as scout  # noqa: E402
+from tools import brain_senses_gecko_shared_usage_v1 as shared_usage  # noqa: E402
+from tools import brain_senses_gecko_usage_inventory_v3 as inventory_v3  # noqa: E402
 from tools.brain_senses_external_writer_v1 import DescriptorWriter  # noqa: E402
 
 
@@ -117,6 +119,66 @@ def _inventory_from_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _full_v3_inventory_from_receipt(
+    receipt: dict[str, Any], *, candidate_release_id: str, candidate_present: bool
+) -> dict[str, Any]:
+    attempts_by_root = {root: [] for root in receipt["root_inventory"]["root_paths"]}
+    for row in receipt["attempts"]:
+        attempts_by_root[row["root"]].append(
+            {key: value for key, value in row.items() if key != "root"}
+        )
+    v6_ids = [inventory_v3.LEGACY_V6_RELEASE_ID]
+    if candidate_present:
+        v6_ids.append(candidate_release_id)
+    v6_ids.sort()
+    roots = sorted(
+        [
+            *receipt["root_inventory"]["root_paths"],
+            *(f"{inventory_v3.CAPTURE_V6_ROOT}/{release_id}" for release_id in v6_ids),
+        ]
+    )
+    manifest = {
+        "schema": "brain-senses-gecko-full-current-inventory-v3",
+        "schema_version": 3,
+        "service_root": inventory_v3.SERVICE_ROOT,
+        "service_entries": sorted(
+            set(receipt["root_inventory"]["service_entries"]) | {inventory_v3.CAPTURE_V6_ENTRY}
+        ),
+        "historical_v2_root_inventory_sha256": receipt["root_inventory_sha256"],
+        "capture_only_v6_release_ids": v6_ids,
+        "root_paths": roots,
+    }
+    full_hash = shared_usage.sha256(shared_usage.canonical_json(manifest))
+    snapshots = []
+    for root in roots:
+        if root.startswith(f"{inventory_v3.CAPTURE_V6_ROOT}/"):
+            rows = []
+            status = "verified_none"
+            prefix = shared_usage.sha256(root.encode())
+        else:
+            rows = attempts_by_root[root]
+            status = "verified_prefix" if rows else "verified_none"
+            prefix = shared_usage.sha256(root.encode())
+        snapshots.append(
+            shared_usage.make_verified_root_snapshot(
+                root=root,
+                status=status,
+                root_inventory_sha256=full_hash,
+                source_prefix_sha256=prefix,
+                attempts=rows,
+            )
+        )
+    return {
+        "schema": "brain-senses-gecko-shared-usage-inventory-v3",
+        "root_inventory": manifest,
+        "root_inventory_sha256": full_hash,
+        "snapshots": snapshots,
+        "provider_io": False,
+        "candidate_release_present": candidate_present,
+        "historical_attempt_count": receipt["attempt_count"],
+    }
+
+
 class _Guard:
     def __init__(self, mount_fd: int, data_path: Path, root_id: str = "a" * 32) -> None:
         self.mount_fd = mount_fd
@@ -199,9 +261,15 @@ def _install_test_dependencies(
         host_v6.verify_activation_record,
     )
     monkeypatch.setattr(
-        bootstrap.usage_inventory_v2,
-        "build_usage_inventory",
-        lambda _writer: _inventory_from_receipt(receipt),
+        bootstrap.usage_inventory_v3,
+        "build_usage_inventory_v3",
+        lambda _writer, *, candidate_release_id, require_candidate_absent=False, **_kwargs: (
+            _full_v3_inventory_from_receipt(
+                receipt,
+                candidate_release_id=candidate_release_id,
+                candidate_present=not require_candidate_absent,
+            )
+        ),
     )
 
 
@@ -387,12 +455,12 @@ def test_detach_during_create_has_no_mountpoint_underlay_artifacts(
 def test_inventory_attempt_or_snapshot_mutation_is_rejected() -> None:
     _raw, receipt = _receipt()
     inventory = _inventory_from_receipt(receipt)
-    bootstrap._assert_inventory_matches_receipt(inventory, receipt)
+    inventory_v3._historical_projection_matches(inventory, receipt)
     bad = json.loads(json.dumps(inventory))
     bad["snapshots"][0]["attempts"].append({"request_id": "x"})
-    with pytest.raises(bootstrap.BootstrapError, match="inventory_attempt_mismatch"):
-        bootstrap._assert_inventory_matches_receipt(bad, receipt)
+    with pytest.raises(inventory_v3.InventoryV3Error, match="historical_attempt_mismatch"):
+        inventory_v3._historical_projection_matches(bad, receipt)
     bad = json.loads(json.dumps(inventory))
     bad["snapshots"][0]["snapshot_sha256"] = "0" * 64
-    with pytest.raises(bootstrap.BootstrapError, match="inventory_snapshot_hash_mismatch"):
-        bootstrap._assert_inventory_matches_receipt(bad, receipt)
+    with pytest.raises(inventory_v3.InventoryV3Error, match="historical_snapshot_hash_mismatch"):
+        inventory_v3._historical_projection_matches(bad, receipt)

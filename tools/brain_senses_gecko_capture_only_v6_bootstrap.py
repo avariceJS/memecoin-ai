@@ -21,6 +21,7 @@ from tools import brain_senses_gecko_capture_only_v6_host as host_v6
 from tools import brain_senses_gecko_lane_policy_v6 as policy_v6
 from tools import brain_senses_gecko_rotating_scout_v1 as scout
 from tools import brain_senses_gecko_usage_inventory_v2 as usage_inventory_v2
+from tools import brain_senses_gecko_usage_inventory_v3 as usage_inventory_v3
 from tools.brain_senses_external_writer_v1 import DescriptorWriter
 
 SCHEMA = "brain-senses-gecko-capture-v6-bootstrap"
@@ -55,57 +56,6 @@ def _anchor_after(now_ns: int, observed_ns: int, *, margin_ns: int) -> int:
     bucket = policy_v6.BUCKET_NS
     lower = max(now_ns + margin_ns, observed_ns + 1)
     return ((lower + bucket - 1) // bucket) * bucket
-
-
-def _assert_inventory_matches_receipt(
-    inventory: Mapping[str, Any], receipt: Mapping[str, Any]
-) -> None:
-    """Join a fresh v2 full replay to the exact committed metadata census."""
-    roots = receipt.get("root_inventory")
-    snapshots = receipt.get("snapshot_sha256_by_root")
-    attempts = receipt.get("attempts")
-    _require(
-        type(inventory) is dict
-        and set(inventory)
-        == {"schema", "root_inventory", "root_inventory_sha256", "snapshots", "provider_io"}
-        and inventory.get("schema") == "brain-senses-gecko-shared-usage-inventory-v1"
-        and inventory.get("provider_io") is False
-        and inventory.get("root_inventory") == roots
-        and inventory.get("root_inventory_sha256") == receipt.get("root_inventory_sha256")
-        and type(snapshots) is dict
-        and type(attempts) is list
-        and type(inventory.get("snapshots")) is list,
-        "v6_bootstrap_inventory_shape_or_root_mismatch",
-    )
-    replay_rows: list[dict[str, Any]] = []
-    replay_hashes: dict[str, str] = {}
-    for snapshot in inventory["snapshots"]:
-        _require(
-            type(snapshot) is dict
-            and type(snapshot.get("root")) is str
-            and type(snapshot.get("attempts")) is list
-            and type(snapshot.get("snapshot_sha256")) is str,
-            "v6_bootstrap_inventory_snapshot_shape",
-        )
-        root = snapshot["root"]
-        _require(root not in replay_hashes, "v6_bootstrap_inventory_duplicate_root")
-        replay_hashes[root] = snapshot["snapshot_sha256"]
-        for attempt in snapshot["attempts"]:
-            _require(type(attempt) is dict, "v6_bootstrap_inventory_attempt_shape")
-            replay_rows.append({**attempt, "root": root})
-    replay_rows.sort(key=lambda row: (row.get("decision_ns", -1), row.get("request_id", "")))
-    _require(replay_hashes == snapshots, "v6_bootstrap_inventory_snapshot_hash_mismatch")
-    _require(replay_rows == attempts, "v6_bootstrap_inventory_attempt_mismatch")
-    _require(
-        len(replay_rows) == RECEIPT_EXPECTED_ATTEMPTS
-        and sum(row["maximum_response_bytes"] for row in replay_rows) == RECEIPT_EXPECTED_RAW_BYTES
-        and sum(policy_v6.PHYSICAL_RESERVE_PER_INTENT for _ in replay_rows)
-        == RECEIPT_EXPECTED_PHYSICAL_BYTES
-        and receipt.get("attempt_count") == RECEIPT_EXPECTED_ATTEMPTS
-        and receipt.get("raw_bytes_upper_bound") == RECEIPT_EXPECTED_RAW_BYTES
-        and receipt.get("physical_bytes_upper_bound") == RECEIPT_EXPECTED_PHYSICAL_BYTES,
-        "v6_bootstrap_prior_usage_denominator_mismatch",
-    )
 
 
 def _check_prior_caps(rows: Sequence[Mapping[str, int]], *, now_ns: int) -> None:
@@ -183,8 +133,6 @@ def prepare_v6_release(
     `data_root_writer` must already be rooted at the verified BrainData descriptor. The
     function does not open a mount, config file, provider, or launchd service.
     """
-    from tools import brain_senses_gecko_usage_inventory_v2 as inventory_v2
-
     _require(
         (os.fstat(data_root_writer.root_fd).st_dev, os.fstat(data_root_writer.root_fd).st_ino)
         == (os.fstat(lane_lease.writer.root_fd).st_dev, os.fstat(lane_lease.writer.root_fd).st_ino),
@@ -244,14 +192,32 @@ def prepare_v6_release(
             )
             policy = host_v6.load_policy_from_writer(guarded_writer)
             policy_v6.verify_policy_hash(policy)
-
-            # This is the current descriptor-bound v2 full census, not a historical
-            # receipt-only estimate. It must exactly reproduce all receipt roots/hashes.
-            current_inventory = inventory_v2.build_usage_inventory(guarded_writer)
-            _assert_inventory_matches_receipt(current_inventory, receipt)
             observed_ns = receipt["observed_ns"]
             now = wall_ns()
             _require(type(now) is int and now > observed_ns, "v6_bootstrap_clock_before_census")
+
+            # v3 replays the exact historical-v2 projection, then all current v6 roots.
+            current_inventory = usage_inventory_v3.build_usage_inventory_v3(
+                guarded_writer,
+                guard=guard,
+                historical_receipt=receipt,
+                candidate_release_id=host_v6.CONTROL_RELEASE_ID,
+                require_candidate_absent=True,
+                repo_root=repo_root,
+                now_ns=now,
+            )
+            _require(
+                current_inventory.get("provider_io") is False
+                and current_inventory.get("candidate_release_present") is False
+                and current_inventory.get("historical_attempt_count") == RECEIPT_EXPECTED_ATTEMPTS,
+                "v6_bootstrap_full_census_prewrite",
+            )
+            capacity_check = usage_inventory_v3.assess_shared_usage(
+                current_inventory,
+                checked_ns=now,
+                prospective_request_id=f"bootstrap-{host_v6.CONTROL_RELEASE_ID}",
+            )
+            _require(capacity_check.get("admitted") is True, "v6_bootstrap_full_census_cap")
             _check_prior_caps(
                 [
                     {
@@ -512,6 +478,25 @@ def prepare_v6_release(
                 canonical(activation),
                 revalidate=revalidate,
             )
+            final_inventory = usage_inventory_v3.build_usage_inventory_v3(
+                guarded_writer,
+                guard=guard,
+                historical_receipt=receipt,
+                candidate_release_id=release_id,
+                repo_root=repo_root,
+                now_ns=now,
+            )
+            candidate_snapshot = next(
+                (row for row in final_inventory["snapshots"] if row["root"] == service_root),
+                None,
+            )
+            _require(
+                final_inventory.get("candidate_release_present") is True
+                and type(candidate_snapshot) is dict
+                and candidate_snapshot.get("status") == "verified_none"
+                and candidate_snapshot.get("attempts") == [],
+                "v6_bootstrap_final_full_census",
+            )
             if fault_hook is not None:
                 fault_hook("after_activation")
             return {
@@ -529,7 +514,12 @@ def prepare_v6_release(
                 "provider_io": False,
                 "launchd_action": False,
             }
-    except (host_v6.HostV6Error, usage_inventory_v2.InventoryError, OSError) as exc:
+    except (
+        host_v6.HostV6Error,
+        usage_inventory_v2.InventoryError,
+        usage_inventory_v3.InventoryV3Error,
+        OSError,
+    ) as exc:
         raise BootstrapError("v6_bootstrap_prerequisite_failed") from exc
     finally:
         if service_writer is not None:

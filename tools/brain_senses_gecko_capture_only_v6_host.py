@@ -79,6 +79,8 @@ DIAGNOSTIC_REASON_ALLOWLIST = frozenset(
         "v6_owner_service_root_invalid",
         "v6_owner_service_root_replaced",
         "v6_owner_prior_usage_array_census_mismatch",
+        "v6_owner_shared_usage_cap",
+        "v6_owner_shared_usage_census_failed",
         "v6_owner_prior_usage_census_binding",
         "v6_owner_prior_usage_census_inventory",
         "v6_owner_prior_usage_census_totals",
@@ -108,6 +110,7 @@ SOURCE_PATHS = (
     "tools/brain_senses_gecko_capture_only_v6.py",
     "tools/brain_senses_gecko_capture_only_v6_bootstrap.py",
     "tools/brain_senses_gecko_usage_inventory_v2.py",
+    "tools/brain_senses_gecko_usage_inventory_v3.py",
     "tools/brain_senses_gecko_capture_only_v6_host.py",
     PRIOR_USAGE_CENSUS_PATH,
     PLIST_PATH,
@@ -1292,6 +1295,7 @@ def scheduled_tick() -> dict[str, Any]:
         from memecoin_research_storage import writer_guard
         from tools import brain_senses_gecko_capture_only_v6 as capture_v6
         from tools import brain_senses_gecko_lane_policy_v6 as policy_v6
+        from tools import brain_senses_gecko_usage_inventory_v3 as inventory_v3
         from tools.brain_senses_external_writer_v1 import DescriptorWriter
     except ImportError as exc:
         raise HostV6Error("v6_owner_runtime_import_failed") from exc
@@ -1376,6 +1380,10 @@ def scheduled_tick() -> dict[str, Any]:
             )
             if census_rows != pinned_rows:
                 raise HostV6Error("v6_owner_prior_usage_array_census_mismatch")
+            try:
+                historical_receipt = json.loads(census_raw.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise HostV6Error("v6_owner_prior_usage_census_json") from exc
             wall_origin, mono_origin = time.time_ns(), time.monotonic_ns()
 
             def clock_check() -> bool:
@@ -1386,6 +1394,36 @@ def scheduled_tick() -> dict[str, Any]:
                     and mono_delta >= 0
                     and abs(wall_delta - mono_delta) <= 2 * policy_v6.NS
                 )
+
+            def shared_usage_check(now_ns: int, prospective_request_id: str | None) -> None:
+                try:
+                    inventory = inventory_v3.build_usage_inventory_v3(
+                        data_writer,
+                        guard=guard,
+                        historical_receipt=historical_receipt,
+                        candidate_release_id=activation["release_id"],
+                        repo_root=REPO_ROOT,
+                        now_ns=now_ns,
+                    )
+                except inventory_v3.InventoryV3Error as exc:
+                    raise HostV6Error("v6_owner_shared_usage_census_failed") from exc
+                if (
+                    inventory.get("provider_io") is not False
+                    or inventory.get("candidate_release_present") is not True
+                ):
+                    raise HostV6Error("v6_owner_shared_usage_cap")
+                if prospective_request_id is None:
+                    return
+                try:
+                    assessment = inventory_v3.assess_shared_usage(
+                        inventory,
+                        checked_ns=now_ns,
+                        prospective_request_id=prospective_request_id,
+                    )
+                except (inventory_v3.InventoryV3Error, ValueError) as exc:
+                    raise HostV6Error("v6_owner_shared_usage_census_failed") from exc
+                if assessment.get("admitted") is not True:
+                    raise HostV6Error("v6_owner_shared_usage_cap")
 
             # run_scheduled_batch owns the lane for the whole callback. It must
             # reconcile crash prefixes with exact transport proofs before its
@@ -1402,6 +1440,7 @@ def scheduled_tick() -> dict[str, Any]:
                 worker_source_sha256=source_manifest["source_map"][
                     "tools/brain_senses_gecko_capture_only_v6_host.py"
                 ],
+                shared_usage_check=shared_usage_check,
                 quiescence_proofs=lambda events: _collect_quiescence_proofs(
                     events,
                     worker_source_sha256=source_manifest["source_map"][
@@ -1430,6 +1469,7 @@ def run_scheduled_batch(
     clock_check: Callable[[], bool],
     transport: Callable[[Mapping[str, Any]], tuple[int, bytes]],
     worker_source_sha256: str | None = None,
+    shared_usage_check: Callable[[int, str | None], None] | None = None,
     quiescence_proofs: Callable[[Sequence[Mapping[str, Any]]], Mapping[str, Mapping[str, Any]]],
     wall_ns: Callable[[], int] = time.time_ns,
     monotonic_ns: Callable[[], int] = time.monotonic_ns,
@@ -1496,6 +1536,8 @@ def run_scheduled_batch(
                 "provider_io": False,
                 "attempted": [],
             }
+        if shared_usage_check is not None:
+            shared_usage_check(now, None)
 
         anchor = epoch["first_bucket_close_ns"]
         if now < anchor + scout.DISPATCH_EARLIEST_NS:
@@ -1674,6 +1716,9 @@ def run_scheduled_batch(
                 break
             if not clock_check():
                 raise HostV6Error("v6_owner_clock_stop")
+            request = capture_v6.request_for_pool(policy, pool_id, latest_close)
+            if shared_usage_check is not None:
+                shared_usage_check(now, request["request_id"])
             intent = journal.reserve_intent(
                 policy=policy,
                 epoch=epoch,
@@ -1682,8 +1727,6 @@ def run_scheduled_batch(
                 intent_ns=now,
                 inherited_usage_rows=pinned_rows,
             )
-            request = capture_v6.request_for_pool(policy, pool_id, latest_close)
-
             dispatch_marker: dict[str, int] = {}
 
             def mark_dispatch(

@@ -600,6 +600,7 @@ def _run_six_pool_bucket(
     http_status: int = 200,
     transport_counter: list[int] | None = None,
     transport_impl: Any | None = None,
+    shared_usage_check: Any | None = None,
 ) -> dict[str, Any]:
 
     if harness.journal.exclusive_lane_lease._owner_thread is not None:
@@ -637,11 +638,67 @@ def _run_six_pool_bucket(
         selector_sha256=host_selector_sha(),
         clock_check=lambda: True,
         transport=transport_impl or fake_transport,
+        shared_usage_check=shared_usage_check,
         quiescence_proofs=lambda _events: {},
         wall_ns=wall_ns,
         monotonic_ns=monotonic_ns,
         sleep=sleep,
     )
+
+
+def test_shared_usage_gate_runs_before_idle_completion_and_each_reservation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tools import brain_senses_gecko_capture_only_v6 as capture_v6
+
+    harness = Harness(monkeypatch)
+    checks: list[str | None] = []
+    try:
+        result = _run_six_pool_bucket(
+            harness,
+            shared_usage_check=lambda _now, request_id: checks.append(request_id),
+        )
+        events = capture_v6.replay_events(
+            harness.writer.read_bytes(capture_v6.EVENTS_PATH, max_bytes=64 * 1024 * 1024)
+        )
+        assert result["status"] == "bucket_processed"
+        assert checks[0] is None
+        assert len(checks) == 7
+        assert len(set(checks[1:])) == 6
+        assert checks[1:] == [
+            event["fields"]["request_id"] for event in events if event["kind"] == "intent"
+        ]
+    finally:
+        harness.close()
+
+
+def test_shared_usage_gate_rejection_prevents_first_intent_and_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tools import brain_senses_gecko_capture_only_v6 as capture_v6
+
+    harness = Harness(monkeypatch)
+    calls: list[int] = []
+    try:
+
+        def reject_prospective(_now: int, request_id: str | None) -> None:
+            if request_id is not None:
+                raise host.HostV6Error("v6_owner_shared_usage_cap")
+
+        with pytest.raises(host.HostV6Error, match="shared_usage_cap"):
+            _run_six_pool_bucket(
+                harness,
+                transport_counter=calls,
+                shared_usage_check=reject_prospective,
+            )
+        events = capture_v6.replay_events(
+            harness.writer.read_bytes(capture_v6.EVENTS_PATH, max_bytes=64 * 1024 * 1024)
+        )
+        assert any(event["kind"] == "plan" for event in events)
+        assert not any(event["kind"] in {"intent", "dispatch"} for event in events)
+        assert calls == []
+    finally:
+        harness.close()
 
 
 def test_scheduled_batch_recovers_orphan_plan_before_full_replay_then_dispatches(
