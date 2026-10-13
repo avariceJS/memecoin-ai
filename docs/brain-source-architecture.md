@@ -3894,3 +3894,15 @@ repository `src/` path before importing the descriptor-bound storage package. Th
 root and release remain untouched; a new release must pin this correction and target only a future
 bucket. The observed responses and recovery qualify transport/replay behavior only, not price
 coverage, source semantics, or market admission.
+
+The corrected source-pinned release `060bed015daf4918b061d4eea72e2d65` is now loaded as a LaunchAgent
+with a 12-second callback and no calendar lease expiry. It is bound to the verified Kingston root;
+the 02:30Z first bucket is future-only, with no provider intent or result yet. Its policy permits at
+most six selected pools per 15-minute bucket, one request per callback, at least 12 seconds between
+dispatches, 576 requests/10 MiB raw per UTC day, 17,280 requests/300 MiB raw and 2 GiB physical
+reserve per rolling 30 days, a 16 GiB resident ceiling, and a 50 GiB free-space floor. These are
+finite safety limits, not a time-limited lease. Source qualification, training admission and
+economic admission remain false. Recovery was checked by bootout/bootstrap before the first window;
+the new root retained zero intents, global usage counters remained 7 daily / 35 rolling, and the
+health snapshot stayed clear of STOP. The first natural bucket and its independent replay remain
+the next live acceptance evidence.
