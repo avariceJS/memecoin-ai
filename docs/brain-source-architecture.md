@@ -4042,10 +4042,15 @@ attempt receipt, independently replay every current v6 root (including the old z
 and prove a candidate successor ID absent before bootstrap. The implementation passes 52 focused
 tests and a live descriptor-bound read-only replay of all 42 current roots; the historical projection
 and 62 attempts matched, candidate `7a10e2d4c9f84c18a0b53d7e6f214c90` was absent, and no provider I/O
-occurred. The source and tests are being committed before the create-only bootstrap is retried. The
-successor must then prove a launchd idle callback and exact zero-attempt replay, capture one new
-forward-only bucket, and pass restart recovery before being described as live. Market-source,
-training, and economic admission remain false.
+occurred. The first successor root `7a10e2d4c9f84c18a0b53d7e6f214c90` was then initialized
+create-only and replayed as `verified_none`, but its first launchd callback exited 2 because direct
+script execution did not put the repository root on `sys.path`; the bounded owner diagnostic records
+`v6_owner_runtime_import_failed`. No plan, intent, dispatch, response, or provider I/O occurred. The
+agent is unloaded and this root/control pair is preserved immutable. The import path is fixed in a
+new source commit; a separate release `31cf35634151805f006a2cdde943c74c` will receive a fresh
+create-only root. Its idle callback and zero-attempt replay must pass before the first forward-only
+bucket; recovery must then pass before the collector is described as live. Market-source, training,
+and economic admission remain false.
 
 A descriptor-bound read-only census independently replayed 41 known roots and 62 attempts, including
 two unresolved response sizes. The conservative prior offset is 1,015,808 raw bytes and 5,079,040

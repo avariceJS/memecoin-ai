@@ -31,7 +31,7 @@ from typing import Any, cast
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
 SERVICE_PREFIX = "services/gecko-market-v1/capture-only-v6"
-CONTROL_RELEASE_ID = "7a10e2d4c9f84c18a0b53d7e6f214c90"
+CONTROL_RELEASE_ID = "31cf35634151805f006a2cdde943c74c"
 CONTROL_RELEASE_DIRECTORY = f"control/gecko-capture-v6/releases/{CONTROL_RELEASE_ID}"
 ACTIVATION_PATH = f"{CONTROL_RELEASE_DIRECTORY}/activation.json"
 SOURCE_MANIFEST_PATH = f"{CONTROL_RELEASE_DIRECTORY}/source-manifest.json"
@@ -1289,6 +1289,9 @@ def _resource_snapshot(writer: Any, guard: Any, policy_module: Any) -> dict[str,
 
 def scheduled_tick() -> dict[str, Any]:
     """Load every authorization input from fixed sources, then replay before work."""
+    repo_root = str(REPO_ROOT)
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
     if str(REPO_ROOT / "src") not in sys.path:
         sys.path.insert(0, str(REPO_ROOT / "src"))
     try:
