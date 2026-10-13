@@ -4085,7 +4085,8 @@ Sol's next independent source horizon is positive Gecko bar values from that pin
 offline v1 projector consumes only a separately verified v6 prefix; it retains plan-slot and gap
 denominators, emits only timely, durably confirmed `eligible_new_open` values, and binds pool/base/
 quote identity, raw-response hash, source/policy/selector/population pins, and separate event,
-decision, request, receipt and availability times. Empty, missed, failed, ambiguous, late, malformed,
+decision, request, receipt and availability times. Its process-contract hash also binds the exact
+v3 raw-response parser implementation. Empty, missed, failed, ambiguous, late, malformed,
 unclosed, out-of-window and overlap-revision cases remain denominators or parser dispositions, never
 zero values or lifecycle evidence. Birth age is explicitly unknown absent independent birth evidence.
 The projector is read-only and grants no coverage, completeness, source, training or economic

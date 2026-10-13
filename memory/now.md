@@ -1,9 +1,10 @@
 # Current Project State
 
-**As of:** 2026-10-13 12:54Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD and `origin/research/active` `542a150`. `main` and `origin/main` remain
+**As of:** 2026-10-13 12:55Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, HEAD and `origin/research/active` `3121f60`. `main` and `origin/main` remain
 `770699d`. Worktree includes unrelated dirty build-guard/Agave/capture-watchdog/provider evidence;
-stage only scoped files. New positive-bar audit code is uncommitted and synthetic-only.
+stage only scoped files. Positive-bar audit code is committed, synthetic-only; parser-hash refinement
+is in progress.
 
 ## Prospective acquisition
 

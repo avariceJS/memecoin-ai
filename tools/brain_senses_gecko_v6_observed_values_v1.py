@@ -25,7 +25,10 @@ CONTRACT = {
     "version": "gecko-observed-values-process-v1",
     "provider": "geckoterminal",
     "modality": "ohlcv",
-    "unit": "usd_per_base_token_and_base_token_volume",
+    "value_contract": "usd_price_per_base_token_and_base_token_volume",
+    "bar_interval_seconds": 300,
+    "currency": "usd",
+    "priced_token": "base",
     "entity_namespace": "solana/pool/",
     "event_identity": "(pool_id, bar_open_ns)",
     "event_time": "five_minute_bar_open_utc_ns",
@@ -36,8 +39,15 @@ CONTRACT = {
     "value_scope": "positive_values_present_in_sealed_raw_response_only",
     "absence_semantics": "unknown; no zero, inactivity, death, or complete_support inference",
 }
+PARSER_SOURCE_SHA256 = hashlib.sha256(
+    (Path(_TOOLS_DIR) / "brain_senses_gecko_lane_engine_v3.py").read_bytes()
+).hexdigest()
 CONTRACT_SHA256 = hashlib.sha256(
-    json.dumps(CONTRACT, sort_keys=True, separators=(",", ":")).encode()
+    json.dumps(
+        {"contract": CONTRACT, "parser_source_sha256": PARSER_SOURCE_SHA256},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
 ).hexdigest()
 PIN_FIELDS = ("source_sha256", "policy_sha256", "selector_sha256", "population_sha256")
 NS = 1_000_000_000
@@ -336,6 +346,7 @@ def audit_verified_prefix(
                     "age_classification": "unknown",
                     "birth_evidence_pin": None,
                     "source_contract_sha256": CONTRACT_SHA256,
+                    "parser_source_sha256": PARSER_SOURCE_SHA256,
                     **checked_pins,
                 }
             )
@@ -350,6 +361,7 @@ def audit_verified_prefix(
         },
         "contract": CONTRACT,
         "contract_sha256": CONTRACT_SHA256,
+        "parser_source_sha256": PARSER_SOURCE_SHA256,
         "scheduled_bucket_denominator": len(bucket_states),
         "durable_plan_buckets": sum(kind == "plan" for _, kind in bucket_states),
         "unplanned_gap_buckets": sum(kind == "gap" for _, kind in bucket_states),
