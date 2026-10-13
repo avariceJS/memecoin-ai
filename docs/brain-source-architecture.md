@@ -3988,10 +3988,12 @@ ambiguous possibly-spent attempt, and zero eligible new-open bars. The ambiguous
 retried; its cooldown ends at 04:47:52Z. Read-only replay then exposed a temporal-verifier defect:
 the old verifier treats urllib's 20-second per-blocking-operation timeout as a total wall bound and
 rejects this receipt at 20.216 seconds (`v2_terminal_times`). The frozen release remains loaded but
-its subsequent callbacks fail closed before provider I/O; no later bucket or collection is claimed.
-Do not edit or re-run this source-bound release. Reconcile this exact terminal with a separately
-versioned verifier adapter, preserve its spent usage and cooldown, account the two unattempted slots
-as gaps, and resume only from a fresh untouched bucket after the adapter passes a read-only full
+its subsequent callbacks fail closed before provider I/O. The launchd label was absent by 04:49Z;
+there is currently no autonomous collector loaded, and the 04:45 bucket passed without a durable
+dispatch record. Do not claim continuous collection or re-run the old source-bound release. Reconcile
+this exact terminal with a separately versioned verifier adapter, preserve its spent usage and
+cooldown, account the two unattempted 04:30 slots and all six 04:45 slots as explicit gaps in a
+reviewed successor handoff, and resume only from a fresh untouched bucket after full read-only
 census. No request replay or backfill is allowed.
 
 Sol retained six deterministic pools per 15-minute bucket and the existing rotating cursor; these
