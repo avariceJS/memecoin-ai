@@ -43,6 +43,9 @@ CHILD_REAP_TIMEOUT_SECONDS = 5.0
 CHILD_GROUP_QUIESCENCE_TIMEOUT_SECONDS = 2.0
 MAX_SOURCE_BYTES = 4 * 1024 * 1024
 MAX_SOURCE_MAP_BYTES = 1024 * 1024
+TRAIN_METADATA_PREFIX = (
+    "brain/sparse-observation-reference-v1/independent-population-2026-10-08/train"
+)
 HASH_RE = re.compile(r"[0-9a-f]{64}\Z")
 COMMIT_RE = re.compile(r"[0-9a-f]{40}\Z")
 RELEASE_RE = re.compile(r"[0-9a-f]{32}\Z")
@@ -63,11 +66,11 @@ SOURCE_PATHS = (
 )
 SOURCE_INPUTS = {
     "train_enrollment": (
-        f"{SOURCE_BUNDLE_PREFIX}/enrollment.jsonl",
+        f"{TRAIN_METADATA_PREFIX}/enrollment.jsonl",
         "21b56ae5727f6ee6166b595631ddab3b3bf60cbdb3ca599c15e6fba7e4dc6054",
     ),
     "train_role_manifest": (
-        f"{SOURCE_BUNDLE_PREFIX}/manifest.json",
+        f"{TRAIN_METADATA_PREFIX}/manifest.json",
         "9cd169f958e3bc4ea8aec4822dd5e2efcd68257f62a40119a88d19dc39eeb0db",
     ),
     "train_plan": (

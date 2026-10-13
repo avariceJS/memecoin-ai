@@ -126,6 +126,43 @@ def test_source_manifest_rejects_dirty_or_wrong_commit(tmp_path: Path) -> None:
         )
 
 
+def test_train_input_paths_and_hashes_are_fixed_and_mismatch_fails_closed() -> None:
+    assert host.SOURCE_INPUTS == {
+        "train_enrollment": (
+            "brain/sparse-observation-reference-v1/"
+            "independent-population-2026-10-08/train/enrollment.jsonl",
+            "21b56ae5727f6ee6166b595631ddab3b3bf60cbdb3ca599c15e6fba7e4dc6054",
+        ),
+        "train_role_manifest": (
+            "brain/sparse-observation-reference-v1/"
+            "independent-population-2026-10-08/train/manifest.json",
+            "9cd169f958e3bc4ea8aec4822dd5e2efcd68257f62a40119a88d19dc39eeb0db",
+        ),
+        "train_plan": (
+            "brain/source-pins/gecko-train-four-v3/plan.json",
+            "d872e0d8d8266b2dd22b1c2a8ef7e505a12b6f93ccdf82df9b7b6f206d7e7de8",
+        ),
+        "population_selection": (
+            "brain/source-pins/gecko-train-four-v3/population-selection.json",
+            "4aa13b951e11569bb893672c595783482ee7a987f57b26c93fd601150de39172",
+        ),
+    }
+
+    class MismatchedReader:
+        def __init__(self) -> None:
+            self.read_paths: list[str] = []
+
+        def read_bytes(self, path: str, *, max_bytes: int) -> bytes:
+            assert max_bytes == 4 * 1024 * 1024
+            self.read_paths.append(path)
+            return b"mismatched source bytes"
+
+    reader = MismatchedReader()
+    with pytest.raises(host.HostV6Error, match="population_input_hash"):
+        host.load_policy_from_writer(reader)
+    assert reader.read_paths == [host.SOURCE_INPUTS["train_enrollment"][0]]
+
+
 def test_fixed_context_uses_exact_paths_canonical_bytes_and_manifest_pin() -> None:
     core = {
         "schema": host.SOURCE_MANIFEST_SCHEMA,
