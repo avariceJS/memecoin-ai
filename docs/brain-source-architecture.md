@@ -4169,8 +4169,11 @@ on Kingston under descriptor-bound writes: v2 policy/ledger bytes and unresolved
 bridged, and the v3 pointer was durably created last under all v2 lane locks. The v2 source guard
 rejects future mutations after the pointer while preserving read-only replay. The owner and unattended
 epoch renewal remain unqualified; this versioned frontier contract has focused synthetic rollover
-coverage. The source-binding verifier now has descendant, unpinned-dirty, pinned-drift, and divergent-
-history tests. Five forced-recovery cases exercise the real v3 ledger with the descriptor writer:
+coverage. The stale, inert `runtime-v2` candidate stays immutable. A fresh release uses
+`runtime-v3`, a v3 activation path, and a v3 LaunchAgent label/template; shared coordinator-v3 ledger,
+capacity roots, locks, and liability accounting remain common and do not reset. The source-binding
+verifier now has descendant, unpinned-dirty, pinned-drift, and divergent-history tests. Five forced-
+recovery cases exercise the real v3 ledger with the descriptor writer:
 reservation without intent, intent without dispatch, ambiguous dispatch, durable result settlement
 exactly once, and root detach during a page write without underlay artifacts. These are synthetic
 recovery tests, not a live Kingston recovery or provider request. A fresh source-bound release,

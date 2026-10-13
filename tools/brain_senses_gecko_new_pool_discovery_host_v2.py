@@ -15,6 +15,7 @@ import os
 import plistlib
 import re
 import ssl
+import stat
 import subprocess
 import sys
 import time
@@ -31,8 +32,8 @@ from tools import brain_senses_gecko_new_pool_discovery_v1 as discovery
 from tools.brain_senses_external_writer_v1 import DescriptorWriter
 
 SERVICE_ROOT = v3.DISCOVERY_ROOT
-RUNTIME_ROOT = f"{SERVICE_ROOT}/runtime-v2"
-ACTIVATION_PATH = "control/gecko-new-pool-discovery-v2/activation.json"
+RUNTIME_ROOT = f"{SERVICE_ROOT}/runtime-v3"
+ACTIVATION_PATH = "control/gecko-new-pool-discovery-v3/activation.json"
 ACTIVE_EPOCH_PATH = f"{RUNTIME_ROOT}/active-epoch.json"
 EPOCHS_ROOT = f"{RUNTIME_ROOT}/epochs"
 STOP_PATH = f"{RUNTIME_ROOT}/stop.json"
@@ -53,9 +54,9 @@ from memecoin_research_storage.live_writer import revalidate_descriptor_write  #
 
 CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
 PLIST_RELATIVE_PATH = (
-    "ops/launchd/ai.memecoin.brain.senses.gecko-new-pool-discovery-v2.plist.template"
+    "ops/launchd/ai.memecoin.brain.senses.gecko-new-pool-discovery-v3.plist.template"
 )
-LABEL = "ai.memecoin.brain.senses.gecko-new-pool-discovery-v2"
+LABEL = "ai.memecoin.brain.senses.gecko-new-pool-discovery-v3"
 INSTALLED_PLIST = Path.home() / "Library/LaunchAgents" / f"{LABEL}.plist"
 SOURCE_PATHS = (
     "tools/brain_senses_gecko_new_pool_discovery_runtime_v2.py",
@@ -126,18 +127,7 @@ def compile_source_manifest(repo_root: Path = REPO_ROOT) -> dict[str, Any]:
     source_commit = _verify_clean_source_commit(repo_root)
     files = []
     for relative in SOURCE_PATHS:
-        path = repo_root / relative
-        before = path.lstat()
-        if not path.is_file() or path.is_symlink() or before.st_size > 8_000_000:
-            _raise("discovery_source_file_invalid")
-        raw = path.read_bytes()
-        after = path.stat()
-        if (before.st_dev, before.st_ino, before.st_size) != (
-            after.st_dev,
-            after.st_ino,
-            after.st_size,
-        ) or len(raw) != before.st_size:
-            _raise("discovery_source_changed_during_read")
+        raw = _read_source_checkout_file(repo_root / relative)
         files.append({"path": relative, "size": len(raw), "sha256": runtime.sha256(raw)})
     core = {
         "schema": SOURCE_MANIFEST_SCHEMA,
@@ -147,6 +137,38 @@ def compile_source_manifest(repo_root: Path = REPO_ROOT) -> dict[str, Any]:
         "source_order": list(SOURCE_PATHS),
     }
     return {**core, "manifest_sha256": runtime.sha256(runtime.canonical(core))}
+
+
+def _read_source_checkout_file(path: Path) -> bytes:
+    """Read a pinned checkout file through a no-follow regular-file descriptor."""
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(path, flags)
+    except Exception as exc:
+        raise DiscoveryHostError("discovery_source_file_open_failed") from exc
+    try:
+        before = os.fstat(fd)
+        if not stat.S_ISREG(before.st_mode) or before.st_size > 8_000_000:
+            _raise("discovery_source_file_invalid")
+        chunks = []
+        remaining = before.st_size
+        while remaining:
+            chunk = os.read(fd, min(1_000_000, remaining))
+            if not chunk:
+                _raise("discovery_source_changed_during_read")
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        after = os.fstat(fd)
+        if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+        ):
+            _raise("discovery_source_changed_during_read")
+        return b"".join(chunks)
+    finally:
+        os.close(fd)
 
 
 def verify_source_manifest(repo_root: Path, manifest: Mapping[str, Any]) -> None:
@@ -194,7 +216,7 @@ def verify_source_manifest(repo_root: Path, manifest: Mapping[str, Any]) -> None
             timeout=10,
         ).stdout.strip()
         subprocess.run(
-            ["git", "merge-base", "--is-ancestor", commit, "HEAD"],
+            ["git", "merge-base", "--is-ancestor", commit, head],
             cwd=repo_root,
             check=True,
             capture_output=True,
@@ -225,18 +247,7 @@ def verify_source_manifest(repo_root: Path, manifest: Mapping[str, Any]) -> None
         ):
             _raise("discovery_source_manifest_file_hash")
         try:
-            path = repo_root / relative
-            before = path.lstat()
-            if not path.is_file() or path.is_symlink() or before.st_size > 8_000_000:
-                _raise("discovery_source_file_invalid")
-            checkout = path.read_bytes()
-            after = path.stat()
-            if (before.st_dev, before.st_ino, before.st_size) != (
-                after.st_dev,
-                after.st_ino,
-                after.st_size,
-            ) or len(checkout) != before.st_size:
-                _raise("discovery_source_changed_during_read")
+            checkout = _read_source_checkout_file(repo_root / relative)
             release_blob = subprocess.run(
                 ["git", "show", f"{commit}:{relative}"],
                 cwd=repo_root,
@@ -245,7 +256,7 @@ def verify_source_manifest(repo_root: Path, manifest: Mapping[str, Any]) -> None
                 timeout=10,
             ).stdout
             head_blob = subprocess.run(
-                ["git", "show", f"HEAD:{relative}"],
+                ["git", "show", f"{head}:{relative}"],
                 cwd=repo_root,
                 check=True,
                 capture_output=True,
@@ -261,6 +272,27 @@ def verify_source_manifest(repo_root: Path, manifest: Mapping[str, Any]) -> None
             for raw in (release_blob, head_blob, checkout)
         ):
             _raise("discovery_source_manifest_drift")
+    try:
+        final_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout.strip()
+        final_status = subprocess.run(
+            ["git", "status", "--porcelain", "--", *SOURCE_PATHS],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout
+    except Exception as exc:
+        raise DiscoveryHostError("discovery_source_git_unavailable") from exc
+    if final_head != head or final_status:
+        _raise("discovery_source_changed_during_verification")
 
 
 def _verify_clean_source_commit(repo_root: Path) -> str:
@@ -752,7 +784,7 @@ class V3CapacityPort:
         ambiguous: bool = False,
         release: bool = False,
     ) -> None:
-        outcome_path = f"{SERVICE_ROOT}/runtime-v2/outcomes/{reservation_id}.json"
+        outcome_path = f"{RUNTIME_ROOT}/outcomes/{reservation_id}.json"
         _create_json(self.writer, outcome_path, _json(outcome_bytes))
         context = _current_capacity_context(self.writer, self.guard)
         events = v3.verify_v3_ledger(
@@ -925,7 +957,7 @@ def _create_epoch_standby(
         "lifetime_counters_reset": False,
     }
     standby_path = _standby_path(index)
-    outcome_path = f"{SERVICE_ROOT}/runtime-v2/outcomes/epoch-hold-{hold_id}.json"
+    outcome_path = f"{RUNTIME_ROOT}/outcomes/epoch-hold-{hold_id}.json"
     expected = {**core, "path": standby_path, "outcome_path": outcome_path}
     if writer.exists(_epoch_policy_path(index)):
         existing_policy = _read_json(writer, _epoch_policy_path(index), limit=512_000)
@@ -1901,7 +1933,7 @@ def _verify_page_transaction(
     # outcome artifact.
     if not is_missed or writer.exists(intent_path):
         reservation_id = (intent if writer.exists(intent_path) else dispatch)["reservation_id"]
-        outcome_path = f"{SERVICE_ROOT}/runtime-v2/outcomes/{reservation_id}.json"
+        outcome_path = f"{RUNTIME_ROOT}/outcomes/{reservation_id}.json"
         if not writer.exists(outcome_path):
             _raise("discovery_result_missing_coordinator_outcome")
         outcome_raw = writer.read_bytes(outcome_path, max_bytes=32_768)
@@ -2064,7 +2096,7 @@ def _recover_scan(
         dispatch_path = _page_path(plan["epoch_index"], plan["scan_index"], page, "dispatch.json")
         result_path = _page_path(plan["epoch_index"], plan["scan_index"], page, "result.json")
         reservation_id = _reservation_id(expected["request_id"], release_id)
-        outcome_path = f"{SERVICE_ROOT}/runtime-v2/outcomes/{reservation_id}.json"
+        outcome_path = f"{RUNTIME_ROOT}/outcomes/{reservation_id}.json"
         if writer.exists(result_path):
             if not writer.exists(
                 _page_path(plan["epoch_index"], plan["scan_index"], page, "confirmation.json")
@@ -2596,7 +2628,7 @@ def run_scan(
             }
             intent_bytes = runtime.canonical(intent)
             intent_path = _page_path(epoch_index, scan_index, slot["page"], "intent.json")
-            outcome_path = f"{SERVICE_ROOT}/runtime-v2/outcomes/{reservation_id}.json"
+            outcome_path = f"{RUNTIME_ROOT}/outcomes/{reservation_id}.json"
             try:
                 capacity.reserve(
                     request_id=slot["request_id"],
@@ -2796,7 +2828,7 @@ def run_scan(
                 "available_ns": available_ns,
                 "cooldown_until_ns": cooldown,
             }
-            outcome_path = f"{SERVICE_ROOT}/runtime-v2/outcomes/{reservation_id}.json"
+            outcome_path = f"{RUNTIME_ROOT}/outcomes/{reservation_id}.json"
             _check_guard(guard, writer, binding)
             _create_json(writer, outcome_path, outcome)
             allocated = v2.physical_inventory_bytes(writer, SERVICE_ROOT)
@@ -3658,7 +3690,7 @@ def main() -> int:
     """Fixed-path owner entry; no caller can provide paths, hashes, or endpoints."""
     import argparse
 
-    parser = argparse.ArgumentParser(prog="gecko-new-pool-discovery-v2")
+    parser = argparse.ArgumentParser(prog="gecko-new-pool-discovery-v3")
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--prepare-release", action="store_true")
     modes.add_argument("--scheduled-tick", action="store_true")

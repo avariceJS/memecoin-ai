@@ -174,7 +174,7 @@ def _discovery_recovery_fixture(root: Path, monkeypatch):
     release_id = "b" * 32
     reservation_id = discovery_host._reservation_id(request_id, release_id)
     intent_path = discovery_host._page_path(0, 0, 1, "intent.json")
-    outcome_path = f"{discovery_host.SERVICE_ROOT}/runtime-v2/outcomes/{reservation_id}.json"
+    outcome_path = f"{discovery_host.RUNTIME_ROOT}/outcomes/{reservation_id}.json"
     intent = {
         "schema": discovery_runtime.PAGE_INTENT_SCHEMA,
         "schema_version": 2,
@@ -231,7 +231,7 @@ def test_discovery_real_v3_recovery_releases_reservation_without_intent(tmp_path
             ),
             intent_path=discovery_host._page_path(0, 0, 1, "intent.json"),
             outcome_path=(
-                f"{discovery_host.SERVICE_ROOT}/runtime-v2/outcomes/"
+                f"{discovery_host.RUNTIME_ROOT}/outcomes/"
                 f"{discovery_host._reservation_id(plan['page_slots'][0]['request_id'], release_id)}"
                 ".json"
             ),
@@ -265,7 +265,7 @@ def test_discovery_real_v3_recovery_releases_intent_without_dispatch(tmp_path, m
             reservation_id=intent["reservation_id"],
             intent_path=intent_path,
             outcome_path=(
-                f"{discovery_host.SERVICE_ROOT}/runtime-v2/outcomes/{intent['reservation_id']}.json"
+                f"{discovery_host.RUNTIME_ROOT}/outcomes/{intent['reservation_id']}.json"
             ),
         )
         confirmation = json.loads(
@@ -353,7 +353,7 @@ def test_discovery_real_v3_recovery_marks_dispatch_ambiguous_and_stops(tmp_path,
             reservation_id=intent["reservation_id"],
             intent_path=page,
             outcome_path=(
-                f"{discovery_host.SERVICE_ROOT}/runtime-v2/outcomes/{intent['reservation_id']}.json"
+                f"{discovery_host.RUNTIME_ROOT}/outcomes/{intent['reservation_id']}.json"
             ),
         )
         assert status["state"] == "terminal"
@@ -415,7 +415,7 @@ def test_discovery_real_v3_recovery_settles_durable_result_once(tmp_path, monkey
             reservation_id=intent["reservation_id"],
             intent_path=page_path,
             outcome_path=(
-                f"{discovery_host.SERVICE_ROOT}/runtime-v2/outcomes/{intent['reservation_id']}.json"
+                f"{discovery_host.RUNTIME_ROOT}/outcomes/{intent['reservation_id']}.json"
             ),
         )
         confirmation = json.loads(

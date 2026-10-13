@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-13 17:06Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+**As of:** 2026-10-13 17:13Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
 `research/active`, HEAD and `origin/research/active` `3ab81b2`. `main` and `origin/main` remain
 `770699d`. Worktree includes unrelated dirty build-guard/Agave/capture-watchdog/provider evidence;
 stage only scoped files. Positive-bar event-extraction/projector changes are committed; all evidence
@@ -58,11 +58,12 @@ and tests remain synthetic-only.
   across the release commit, HEAD and no-follow checkout. Focused tests pass for descendants, dirty
   unpinned files, pinned drift and divergent history. Five synthetic recovery tests now use the real
   v3 ledger and descriptor writer: reservation/no intent, intent/no dispatch, dispatch ambiguity,
-  durable-result settlement once, and detach during page write with no underlay artifact. These do
+  durable-result settlement once, and detach during page write with no underlay artifact. Sol chose
+  a fresh v3 release namespace at `runtime-v3`, new v3 activation path and LaunchAgent label/template;
+  shared capacity ledger/root remains common. Preserve old runtime-v2 artifacts byte-for-byte. The
+  callback verifier uses no-follow file descriptors and validates captured HEAD stability. These do
   not establish live recovery. Existing inert candidate `3918f088c01caaf414fc37e473ec62b6` is stale
-  (its 17:05Z first-scan anchor passed); preserve it and prepare a distinct future-only release after
-  the pinned code changes are committed. No activation, provider I/O, or LaunchAgent load occurred.
-  The prior source-bound verifier cannot be activated unchanged.
+  (its 17:05Z first-scan anchor passed). No activation, provider I/O, or LaunchAgent load occurred.
 - Full-current replay: 44 roots, 62 historical attempts; all three old v6 roots `verified_none`,
   zero v6 attempts. Runtime binding requires ancestor commit, exact source bytes across release/HEAD/
   checkout, clean pinned paths, and exact plist/live identity. Focused host tests: 43; broader v6

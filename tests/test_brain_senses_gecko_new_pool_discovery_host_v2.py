@@ -140,7 +140,7 @@ def test_unplanned_expired_scan_is_null_identity_gap_without_provider_io(tmp_pat
             scheduled_ns=1_800_000_000_000_000_000,
             observed_ns=1_800_000_061_000_000_000,
         )
-        path = root / "services/gecko-new-pool-discovery-v1/runtime-v2/epochs/000002/gaps/0011.json"
+        path = root / f"{host.RUNTIME_ROOT}/epochs/000002/gaps/0011.json"
         assert json.loads(path.read_text()) == gap
         assert gap["selected_pool_ids"] is None
         assert gap["exposure"] == "unknown"
@@ -257,6 +257,15 @@ def test_source_manifest_rejects_divergent_head_with_identical_pinned_bytes(tmp_
         host.verify_source_manifest(repo, manifest)
 
 
+def test_source_manifest_rejects_checkout_symlink(tmp_path, monkeypatch):
+    repo, manifest, _subprocess = _source_manifest_git_fixture(tmp_path, monkeypatch)
+    (repo / "runtime.py").unlink()
+    (repo / "outside.py").write_bytes(b"runtime-v1\n")
+    (repo / "runtime.py").symlink_to(repo / "outside.py")
+    with pytest.raises(host.DiscoveryHostError):
+        host.verify_source_manifest(repo, manifest)
+
+
 def test_gap_write_after_root_replacement_never_falls_back_to_underlay(tmp_path):
     mount = tmp_path / "mount"
     root = mount / "data"
@@ -283,9 +292,7 @@ def test_gap_write_after_root_replacement_never_falls_back_to_underlay(tmp_path)
                 observed_ns=1_800_000_061_000_000_000,
             )
         assert not [path for path in root.rglob("*") if path.is_file()]
-        assert (
-            moved / "services/gecko-new-pool-discovery-v1/runtime-v2/epochs/000000/gaps/0000.json"
-        ).is_file()
+        assert (moved / f"{host.RUNTIME_ROOT}/epochs/000000/gaps/0000.json").is_file()
     finally:
         writer.close()
 
@@ -791,6 +798,7 @@ def test_release_preparation_is_inert_and_records_zero_followup_sample(tmp_path,
             loaded_labels=set(),
         )
         policy = json.loads((root / host._epoch_policy_path(0)).read_text())
+        epoch = json.loads((root / host._epoch_document_path(0)).read_text())
         assert policy["sample"] == {
             "method": "sha256(policy_sha256 || NUL || network || NUL || pool_id) threshold",
             "numerator": 0,
@@ -800,6 +808,15 @@ def test_release_preparation_is_inert_and_records_zero_followup_sample(tmp_path,
         }
         assert candidate["activation_authorized"] is False
         assert candidate["provider_io"] is False
+        assert host.RUNTIME_ROOT.endswith("/runtime-v3")
+        assert host.ACTIVATION_PATH == "control/gecko-new-pool-discovery-v3/activation.json"
+        assert host.LABEL.endswith("gecko-new-pool-discovery-v3")
+        assert epoch["epoch_start_ns"] > 1_800_000_000_000_000_000
+        assert (
+            "ops/launchd/ai.memecoin.brain.senses.gecko-new-pool-discovery-v3.plist.template"
+            in host.SOURCE_PATHS
+        )
+        assert not writer.exists(f"{host.SERVICE_ROOT}/runtime-v2")
         assert not writer.exists(host.ACTIVATION_PATH)
         assert json.loads((root / f"{host.RUNTIME_ROOT}/release-candidate.json").read_text()) == (
             candidate
