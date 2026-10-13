@@ -18,9 +18,18 @@ def completed(args, *, code=0, stdout=""):
 
 
 class StatusRunner:
-    def __init__(self, *, dirty: str = "", launchd: str = "") -> None:
+    def __init__(
+        self,
+        *,
+        dirty: str = "",
+        launchd: str = "",
+        cwd_output: str = "",
+        cwd_code: int = 0,
+    ) -> None:
         self.dirty = dirty
         self.launchd = launchd
+        self.cwd_output = cwd_output
+        self.cwd_code = cwd_code
         self.calls: list[list[str]] = []
 
     def __call__(self, args, *, cwd=None, timeout=30, env=None):
@@ -36,6 +45,8 @@ class StatusRunner:
             return completed(command, stdout=self.dirty)
         if command == ["launchctl", "list"]:
             return completed(command, stdout=self.launchd)
+        if command == ["lsof", "-nP", "-Fpcn", "-d", "cwd"]:
+            return completed(command, code=self.cwd_code, stdout=self.cwd_output)
         return completed(command, code=1)
 
 
@@ -95,6 +106,7 @@ def test_status_reports_metadata_only_dynamic_launchd_and_storage(
             "-\t0\tai.memecoin.brain.custom\n"
             "-\t0\tai.memecoin.d43.calendar01\n"
         ),
+        cwd_output=f"p77\nccalendar_schedule.py\nn{owner}\n",
     )
 
     result = recovery.status(
@@ -118,6 +130,23 @@ def test_status_reports_metadata_only_dynamic_launchd_and_storage(
         row["label"] for row in result["services"]["launchd"]["labels"]
     }
     assert storage_calls == [tmp_path / "storage.json"]
+    assert result["processes"]["workspace"] == {
+        "state": "present",
+        "processes": [
+            {
+                "pid": 77,
+                "name": "calendar_schedule.py",
+                "cwd": str(owner),
+                "roots": ["owner"],
+            }
+        ],
+        "count": 1,
+        "arguments_read": False,
+        "environment_read": False,
+    }
+    process_call = next(call for call in runner.calls if call[0] == "lsof")
+    assert "-d" in process_call and "cwd" in process_call
+    assert all("args" not in argument and "env" not in argument for argument in process_call)
     assert result["scope"] == {
         "protected_payloads_read": False,
         "secret_values_read": False,
@@ -135,7 +164,49 @@ def test_status_uses_explicit_not_inspected_and_unknown_states(tmp_path: Path) -
     assert result["roots"]["owner"]["state"] == "not_inspected"
     assert result["storage"]["state"] == "not_inspected"
     assert result["services"]["launchd"]["state"] == "unknown"
+    assert result["processes"]["workspace"]["state"] == "not_inspected"
     assert all("/Users/" not in str(value) for value in result["roots"].values())
+
+
+def test_workspace_process_status_excludes_unassociated_cwds(tmp_path: Path) -> None:
+    owner = tmp_path / "owner"
+    owner.mkdir()
+    unrelated = tmp_path / "unrelated"
+    unrelated.mkdir()
+    runner = StatusRunner(cwd_output=f"p88\ncworker\nn{unrelated}\n")
+    result = recovery.status(repo=None, owner_root=owner, runner=runner, system="Darwin")
+    assert result["processes"]["workspace"]["state"] == "absent"
+    assert result["processes"]["workspace"]["processes"] == []
+
+
+def test_workspace_process_parse_failure_is_unknown(tmp_path: Path) -> None:
+    owner = tmp_path / "owner"
+    owner.mkdir()
+    runner = StatusRunner(cwd_output="cmissing-pid\n")
+    result = recovery.status(repo=None, owner_root=owner, runner=runner, system="Darwin")
+    assert result["processes"]["workspace"]["state"] == "unknown"
+    assert result["processes"]["workspace"]["reason"] == "cwd_process_probe_incomplete"
+
+
+def test_workspace_process_probe_failure_is_unknown(tmp_path: Path) -> None:
+    owner = tmp_path / "owner"
+    owner.mkdir()
+    runner = StatusRunner(cwd_code=1)
+    result = recovery.status(repo=None, owner_root=owner, runner=runner, system="Darwin")
+    assert result["processes"]["workspace"]["state"] == "unknown"
+
+
+def test_workspace_process_inventory_is_unknown_off_macos(tmp_path: Path) -> None:
+    owner = tmp_path / "owner"
+    owner.mkdir()
+    runner = StatusRunner()
+    result = recovery.status(repo=None, owner_root=owner, runner=runner, system="Linux")
+    assert result["processes"]["workspace"] == {
+        "state": "unknown",
+        "reason": "cwd_process_probe_not_supported",
+        "processes": [],
+    }
+    assert not any(call and call[0] == "lsof" for call in runner.calls)
 
 
 def test_status_does_not_follow_or_read_symlink_root(tmp_path: Path) -> None:

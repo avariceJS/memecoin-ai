@@ -3,8 +3,10 @@
 
 This tool never reads application state or protected payloads. Status probes only
 repository metadata, root metadata, host tool versions, the bound storage marker,
-and the currently loaded launchd labels. Bootstrap writes only a new destination
-checkout and its virtual environment; it does not install or start services.
+the currently loaded launchd labels, and PID/name/cwd metadata for processes under
+explicitly configured owner or research roots. It does not read process arguments or
+environments. Bootstrap writes only a new destination checkout and virtual environment;
+it does not install or start services.
 """
 
 from __future__ import annotations
@@ -165,6 +167,119 @@ def _launchd(runner: Runner, system: str) -> dict[str, Any]:
     }
 
 
+def _workspace_processes(
+    runner: Runner,
+    system: str,
+    *,
+    research_root: Path | None,
+    owner_root: Path | None,
+) -> dict[str, Any]:
+    roots: dict[str, Path] = {}
+    for name, path in (("research", research_root), ("owner", owner_root)):
+        if path is None:
+            continue
+        try:
+            resolved = path.expanduser().resolve(strict=True)
+        except (OSError, RuntimeError):
+            continue
+        if resolved.is_dir():
+            roots[name] = resolved
+    if not roots:
+        return {"state": "not_inspected", "processes": []}
+    if system != "Darwin":
+        return {"state": "unknown", "reason": "cwd_process_probe_not_supported", "processes": []}
+    command = ["lsof", "-nP", "-Fpcn", "-d", "cwd"]
+    try:
+        result = runner(command, timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        return {"state": "unknown", "reason": "cwd_process_probe_failed", "processes": []}
+
+    parsed: list[dict[str, Any]] = []
+    malformed = False
+    current: dict[str, Any] | None = None
+
+    def finish() -> None:
+        nonlocal current, malformed
+        if current is None:
+            return
+        pid = current.get("pid")
+        name = current.get("name")
+        cwd = current.get("cwd")
+        if (
+            type(pid) is not int
+            or pid <= 0
+            or not isinstance(name, str)
+            or not name
+            or any(ord(char) < 32 for char in name)
+        ):
+            malformed = True
+        elif (
+            isinstance(cwd, str) and cwd.startswith("/") and not any(ord(char) < 32 for char in cwd)
+        ):
+            try:
+                actual_cwd = Path(cwd).resolve(strict=False)
+                matched = sorted(
+                    root_name
+                    for root_name, root in roots.items()
+                    if actual_cwd == root or root in actual_cwd.parents
+                )
+                if matched:
+                    parsed.append(
+                        {
+                            "pid": pid,
+                            "name": name[:128],
+                            "cwd": str(actual_cwd),
+                            "roots": matched,
+                        }
+                    )
+            except (OSError, RuntimeError):
+                malformed = True
+        else:
+            malformed = True
+        current = None
+
+    try:
+        for line in result.stdout.splitlines():
+            if not line:
+                continue
+            field, value = line[0], line[1:]
+            if field == "p":
+                finish()
+                try:
+                    current = {"pid": int(value)}
+                except ValueError:
+                    current = {"pid": None}
+                    malformed = True
+            elif field == "c":
+                if current is None:
+                    malformed = True
+                else:
+                    current["name"] = value
+            elif field == "n":
+                if current is None:
+                    malformed = True
+                else:
+                    current["cwd"] = value
+        finish()
+    except (TypeError, ValueError):
+        malformed = True
+
+    parsed.sort(key=lambda item: (item["pid"], item["name"], item["cwd"]))
+    if result.returncode != 0 or malformed:
+        return {
+            "state": "unknown",
+            "reason": "cwd_process_probe_incomplete",
+            "processes": parsed,
+        }
+    return {
+        "state": "present" if parsed else "absent",
+        "processes": parsed,
+        "count": len(parsed),
+        "arguments_read": False,
+        "environment_read": False,
+    }
+
+
 def _storage_status(config_path: Path | None, *, probe: Any = None) -> dict[str, Any]:
     if config_path is None:
         return {"state": "not_inspected"}
@@ -217,6 +332,12 @@ def status(
     python = python_version or platform.python_version()
     git_version = _result(["git", "--version"], runner=runner)
     launchd = _launchd(runner, detected_system)
+    workspace_processes = _workspace_processes(
+        runner,
+        detected_system,
+        research_root=repo,
+        owner_root=owner_root,
+    )
     return {
         "schema": "brain-host-recovery-status-v1",
         "host": {
@@ -236,6 +357,7 @@ def status(
         },
         "storage": _storage_status(storage_config, probe=storage_probe),
         "services": {"launchd": launchd},
+        "processes": {"workspace": workspace_processes},
         "scope": {
             "protected_payloads_read": False,
             "secret_values_read": False,
@@ -265,9 +387,20 @@ def render_status(payload: dict[str, Any]) -> str:
             if launchd.get("state") in {"present", "absent"}
             else ""
         ),
+        f"Owner/research cwd processes: {payload['processes']['workspace']['state']}"
+        + (
+            f"; {payload['processes']['workspace']['count']} found"
+            if payload["processes"]["workspace"].get("state") in {"present", "absent"}
+            else ""
+        ),
         "Protected payloads read: no; secret values read: no; services changed: no;",
         "provider requests: 0",
     ]
+    for process in payload["processes"]["workspace"].get("processes", []):
+        lines.append(
+            f"  PID {process['pid']} {process['name']} cwd={process['cwd']} "
+            f"roots={','.join(process['roots'])}"
+        )
     return "\n".join(lines)
 
 
