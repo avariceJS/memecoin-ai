@@ -403,6 +403,17 @@ def test_discovery_v3_activation_interruption_retries_one_authority(tmp_path, mo
                 binding=binding,
                 loaded_labels=set(),
             )
+        standby = json.loads(writer.read_bytes(discovery_host._standby_path(0)))
+        capacity = discovery_host.V3CapacityPort(writer, guard, binding)
+        close_record = capacity.close_epoch_hold(
+            standby=standby,
+            at_ns=1_900_000_000_000_000_200,
+            reason="test_release_hold_cleanup",
+        )
+        hold_status = capacity._hold_status(standby["hold_id"])
+        assert hold_status is not None and hold_status["closed"] is True
+        assert hold_status["close_record"] == close_record
+        assert len(close_record["unconsumed_request_ids"]) == 2_592
         assert (
             len(
                 [

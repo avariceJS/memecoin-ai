@@ -4182,14 +4182,17 @@ recovery tests, not a live Kingston recovery or provider request. V3 release
 `7b15e8d1f3acdbc6b374e349aaeb1282` was prepared on Kingston from source commit `9903412` with a
 future-only first-scan anchor; that anchor has since elapsed. Its create-only activation record and
 initial capacity hold were written, but immediate release-bundle verification exposed a verifier
-bug: it compared serialized
-policy/epoch bytes to their internal semantic hashes. No plist was installed or loaded and no provider
-request occurred. A descriptor-bound `stop.json` now records the verification failure. The verifier
-now compares the canonical documents' validated semantic hashes; a forced activation/replay regression
-test covers this path. The fix changes a pinned source file, so the existing v3 activation no longer
-matches its manifest and must remain inert. The v3 LaunchAgent is absent and unloaded. The old
-`runtime-v2` tree hash is unchanged. A new versioned release namespace, first natural scan, and
-controlled LaunchAgent restart/replay remain pending. No provider I/O has occurred under this policy.
+bug: it compared serialized policy/epoch bytes to their internal semantic hashes. A descriptor-bound
+`stop.json` records the failure. The verifier now compares the canonical documents' validated
+semantic hashes; a forced activation/replay regression test covers this path. During fail-closed
+cleanup, replay found that a valid close receipt for all 2,592 unconsumed page IDs exceeded the
+reader's former 64-KiB bound. The receipt reader now allows up to 4 MB and the full close/replay path
+has a focused regression test; the Kingston close receipt still needs read-only replay verification.
+The existing activation remains unusable: the source fix changes a pinned file, its first-scan anchor has
+elapsed, and the STOP marker is present. No plist was installed or loaded and no provider request
+occurred. The v3 LaunchAgent is absent and unloaded. The old `runtime-v2` tree hash is unchanged.
+Do not reuse this activation; a fresh reviewed release and first natural scan remain pending. No
+provider I/O has occurred under this policy.
 
 The separate read-only discovery-to-enrollment projector replays explicit contiguous plan/gap
 prefixes against the pinned epoch history and exact raw page hashes. It retains page and scan

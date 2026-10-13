@@ -703,8 +703,8 @@ class V3CapacityPort:
             )
             close_record = None
             if closed is not None:
-                close_record = _read_json(self.writer, fields["outcome_path"], limit=64_000)
-                raw = self.writer.read_bytes(fields["outcome_path"], max_bytes=64_000)
+                close_record = _read_json(self.writer, fields["outcome_path"], limit=4_000_000)
+                raw = self.writer.read_bytes(fields["outcome_path"], max_bytes=4_000_000)
                 if runtime.sha256(raw) != closed["fields"]["outcome_sha256"]:
                     _raise("discovery_hold_close_outcome_hash")
             standby_raw = self.writer.read_bytes(fields["intent_path"], max_bytes=4_000_000)
