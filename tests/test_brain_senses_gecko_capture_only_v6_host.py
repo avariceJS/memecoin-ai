@@ -22,12 +22,13 @@ if str(TESTS_DIR) not in os.sys.path:
 from test_brain_senses_gecko_capture_only_v6 import Harness  # noqa: E402
 
 
-def _fake_repo(tmp_path: Path) -> tuple[Path, dict[str, bytes], Any]:
+def _fake_repo(tmp_path: Path) -> tuple[Path, dict[str, bytes], Any, Any]:
     committed: dict[str, bytes] = {}
     for index, relative in enumerate(host.SOURCE_PATHS):
         path = tmp_path / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        raw = f"pinned source {index}\n".encode()
+        suffix = "\n" if index != 1 else ""
+        raw = f"pinned source {index}{suffix}".encode()
         path.write_bytes(raw)
         committed[relative] = raw
 
@@ -42,7 +43,11 @@ def _fake_repo(tmp_path: Path) -> tuple[Path, dict[str, bytes], Any]:
             return committed[relative].decode()
         raise AssertionError(args)
 
-    return tmp_path, committed, fake_git
+    def fake_git_show(_root: Path, commit: str, relative: str) -> bytes:
+        assert commit == "a" * 40
+        return committed[relative]
+
+    return tmp_path, committed, fake_git, fake_git_show
 
 
 def _plist(repo_root: Path) -> bytes:
@@ -68,18 +73,43 @@ def _plist(repo_root: Path) -> bytes:
 
 
 def test_source_manifest_pins_clean_bytes_and_rejects_drift(tmp_path: Path) -> None:
-    repo, committed, fake_git = _fake_repo(tmp_path)
-    manifest = host.compile_source_manifest(repo, git=fake_git)
-    host.verify_source_manifest(repo, manifest, git=fake_git)
+    repo, committed, fake_git, fake_git_show = _fake_repo(tmp_path)
+    manifest = host.compile_source_manifest(repo, git=fake_git, git_show=fake_git_show)
+    assert manifest["source_map"][host.SOURCE_PATHS[0]] == host.sha256(b"pinned source 0\n")
+    assert manifest["source_map"][host.SOURCE_PATHS[1]] == host.sha256(b"pinned source 1")
+    host.verify_source_manifest(repo, manifest, git=fake_git, git_show=fake_git_show)
     changed = repo / host.SOURCE_PATHS[0]
     changed.write_bytes(b"changed\n")
     with pytest.raises(host.HostV6Error, match="source_blob_mismatch"):
-        host.verify_source_manifest(repo, manifest, git=fake_git)
+        host.verify_source_manifest(repo, manifest, git=fake_git, git_show=fake_git_show)
     assert committed[host.SOURCE_PATHS[0]] != changed.read_bytes()
 
 
+def test_git_blob_reader_preserves_final_and_missing_newline_bytes(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "Senses Test"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "senses-test@example.invalid"],
+        cwd=tmp_path,
+        check=True,
+    )
+    with_lf = host.SOURCE_PATHS[0]
+    without_lf = host.SOURCE_PATHS[1]
+    for relative in (with_lf, without_lf):
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / with_lf).write_bytes(b"tracked with final LF\n")
+    (tmp_path / without_lf).write_bytes(b"tracked without final LF")
+    subprocess.run(["git", "add", with_lf, without_lf], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "byte-exact fixture"], cwd=tmp_path, check=True)
+    commit = host._git(tmp_path, "rev-parse", "HEAD")
+
+    assert host._git_show_blob(tmp_path, commit, with_lf) == b"tracked with final LF\n"
+    assert host._git_show_blob(tmp_path, commit, without_lf) == b"tracked without final LF"
+
+
 def test_source_manifest_rejects_dirty_or_wrong_commit(tmp_path: Path) -> None:
-    repo, _committed, fake_git = _fake_repo(tmp_path)
+    repo, _committed, fake_git, fake_git_show = _fake_repo(tmp_path)
 
     def dirty_git(_root: Path, *args: str) -> str:
         if args == ("rev-parse", "HEAD"):
@@ -89,9 +119,11 @@ def test_source_manifest_rejects_dirty_or_wrong_commit(tmp_path: Path) -> None:
         return fake_git(_root, *args)
 
     with pytest.raises(host.HostV6Error, match="source_paths_dirty"):
-        host.compile_source_manifest(repo, git=dirty_git)
+        host.compile_source_manifest(repo, git=dirty_git, git_show=fake_git_show)
     with pytest.raises(host.HostV6Error, match="source_commit_mismatch"):
-        host.compile_source_manifest(repo, source_commit="b" * 40, git=fake_git)
+        host.compile_source_manifest(
+            repo, source_commit="b" * 40, git=fake_git, git_show=fake_git_show
+        )
 
 
 def test_fixed_context_uses_exact_paths_canonical_bytes_and_manifest_pin() -> None:

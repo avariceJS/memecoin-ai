@@ -410,11 +410,33 @@ def _git(repo_root: Path, *arguments: str) -> str:
     return result.stdout.strip()
 
 
+def _git_show_blob(repo_root: Path, commit: str, relative_path: str) -> bytes:
+    """Read one pinned Git blob without text decoding or newline normalization."""
+    if not COMMIT_RE.fullmatch(commit) or relative_path not in SOURCE_PATHS:
+        raise HostV6Error("v6_owner_git_blob_path_invalid")
+    try:
+        result = subprocess.run(
+            ["git", "show", f"{commit}:{relative_path}"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=False,
+            timeout=5,
+            env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LC_ALL": "C"},
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise HostV6Error("v6_owner_git_check_failed") from exc
+    if len(result.stdout) > MAX_SOURCE_BYTES:
+        raise HostV6Error("v6_owner_git_blob_oversize")
+    return result.stdout
+
+
 def compile_source_manifest(
     repo_root: Path,
     *,
     source_commit: str | None = None,
     git: Callable[..., str] = _git,
+    git_show: Callable[[Path, str, str], bytes] = _git_show_blob,
 ) -> dict[str, Any]:
     """Bind exact code bytes to a clean source commit; unrelated dirty files are ignored."""
     actual_commit = git(repo_root, "rev-parse", "HEAD")
@@ -428,7 +450,7 @@ def compile_source_manifest(
     file_map: dict[str, str] = {}
     for relative in SOURCE_PATHS:
         current = _read_repo_file(repo_root, relative)
-        committed = git(repo_root, "show", f"{actual_commit}:{relative}").encode()
+        committed = git_show(repo_root, actual_commit, relative)
         if current != committed:
             raise HostV6Error("v6_owner_source_blob_mismatch")
         file_map[relative] = sha256(current)
@@ -447,11 +469,15 @@ def verify_source_manifest(
     manifest: Mapping[str, Any],
     *,
     git: Callable[..., str] = _git,
+    git_show: Callable[[Path, str, str], bytes] = _git_show_blob,
 ) -> None:
     if type(manifest) is not dict:
         raise HostV6Error("v6_owner_source_manifest_shape")
     expected = compile_source_manifest(
-        repo_root, source_commit=manifest.get("source_commit"), git=git
+        repo_root,
+        source_commit=manifest.get("source_commit"),
+        git=git,
+        git_show=git_show,
     )
     if canonical(dict(manifest)) != canonical(expected):
         raise HostV6Error("v6_owner_source_manifest_drift")
