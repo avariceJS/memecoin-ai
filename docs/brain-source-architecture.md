@@ -3979,3 +3979,28 @@ descriptor-bound writes remain bound to Kingston. This demonstrates one bounded 
 restart recovery, not sustained coverage or market-source qualification. Provider charge remains
 unknown/unverified; training and economic admission remain false. Receipt:
 [`v4 forward-canary observation`](evidence/gecko-capture-only-v4-live-observation-2026-10-13T0421Z.json).
+
+The next untouched bucket closed at 04:30Z with four of six selected requests dispatched: three
+HTTP 200 responses and one durable `URLError` terminal classified
+`transport_uncertain_possibly_spent`; two opportunities remained unattempted. Across both buckets,
+the Kingston root holds ten intents and confirmations, nine HTTP 200s / 7,445 raw bytes, one
+ambiguous possibly-spent attempt, and zero eligible new-open bars. The ambiguous request is never
+retried; its cooldown ends at 04:47:52Z. Read-only replay then exposed a temporal-verifier defect:
+the old verifier treats urllib's 20-second per-blocking-operation timeout as a total wall bound and
+rejects this receipt at 20.216 seconds (`v2_terminal_times`). The frozen release remains loaded but
+its subsequent callbacks fail closed before provider I/O; no later bucket or collection is claimed.
+Do not edit or re-run this source-bound release. Reconcile this exact terminal with a separately
+versioned verifier adapter, preserve its spent usage and cooldown, account the two unattempted slots
+as gaps, and resume only from a fresh untouched bucket after the adapter passes a read-only full
+census. No request replay or backfill is allowed.
+
+Sol retained six deterministic pools per 15-minute bucket and the existing rotating cursor; these
+two buckets do not justify increased cadence or response-driven selection. After exact replay repair,
+require one clean six-slot recovery bucket, then measure one frozen 170-pool sweep: about 29 completed
+buckets with no eligible-retention fills, or up to 43 if both retention slots fill. This is an
+observation horizon, not source qualification. Keep separate cumulative and per-bucket denominators
+for selected distinct pools / 170, confirmed/ambiguous/failed/missed transport outcomes per selected
+opportunity, and timely raw-replayed new-open bars per opportunity and per confirmed response.
+Record bar-age/window-rejection histograms and failure reasons. A full sweep with no eligible bars
+triggers source/window/availability semantics review before changing the sampler; sparse positive
+coverage still requires independent source qualification and never implies training admission.
