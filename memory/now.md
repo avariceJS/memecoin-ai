@@ -2,7 +2,7 @@
 
 **As of:** 2026-10-13 17:35Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
 `research/active`, scoped code commit `f4462fb` (receipt replay fix); final handoff documentation is
-being committed separately. `main`/`origin/main` remain `770699d`. Preserve the unrelated dirty
+committed and pushed in follow-up `efeb7c2`. `main`/`origin/main` remain `770699d`. Preserve the unrelated dirty
 build-guard/Agave/capture-watchdog/provider-evidence scope; do not include it in the Senses release.
 Positive-bar projector and discovery evidence remain offline/synthetic; no eligible population or
 economic/lifecycle qualification claim.
