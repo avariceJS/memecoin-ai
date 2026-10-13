@@ -1,7 +1,7 @@
 # Current Project State
 
-**As of:** 2026-10-13 16:47Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD and `origin/research/active` `6316568`. `main` and `origin/main` remain
+**As of:** 2026-10-13 17:06Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, HEAD and `origin/research/active` `3ab81b2`. `main` and `origin/main` remain
 `770699d`. Worktree includes unrelated dirty build-guard/Agave/capture-watchdog/provider evidence;
 stage only scoped files. Positive-bar event-extraction/projector changes are committed; all evidence
 and tests remain synthetic-only.
@@ -52,6 +52,17 @@ and tests remain synthetic-only.
   previously omitted `live_writer.py` and external-writer schema, both part of the runtime write
   authority closure. No provider I/O or LaunchAgent activation occurred. The source-pinned owner
   release and unattended service remain unqualified; no Senses collector is loaded.
+- Current `launchctl list`/process check confirms no prospective collector; latest `df` shows 202 GiB
+  available on Kingston. Sol selected ancestor-plus-exact-bytes source binding: at every callback,
+  the release commit must be an ancestor of HEAD and the 12 pinned files must be clean and byte-equal
+  across the release commit, HEAD and no-follow checkout. Focused tests pass for descendants, dirty
+  unpinned files, pinned drift and divergent history. Five synthetic recovery tests now use the real
+  v3 ledger and descriptor writer: reservation/no intent, intent/no dispatch, dispatch ambiguity,
+  durable-result settlement once, and detach during page write with no underlay artifact. These do
+  not establish live recovery. Existing inert candidate `3918f088c01caaf414fc37e473ec62b6` is stale
+  (its 17:05Z first-scan anchor passed); preserve it and prepare a distinct future-only release after
+  the pinned code changes are committed. No activation, provider I/O, or LaunchAgent load occurred.
+  The prior source-bound verifier cannot be activated unchanged.
 - Full-current replay: 44 roots, 62 historical attempts; all three old v6 roots `verified_none`,
   zero v6 attempts. Runtime binding requires ancestor commit, exact source bytes across release/HEAD/
   checkout, clean pinned paths, and exact plist/live identity. Focused host tests: 43; broader v6

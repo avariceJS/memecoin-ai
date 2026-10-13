@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from tools import brain_senses_capacity_coordinator_v2 as v2
 from tools import brain_senses_capacity_coordinator_v3 as v3
 from tools import brain_senses_capacity_coordinator_v3_host as host
+from tools import brain_senses_gecko_new_pool_discovery_host_v2 as discovery_host
+from tools import brain_senses_gecko_new_pool_discovery_runtime_v2 as discovery_runtime
 from tools.brain_senses_capacity_coordinator_v3_host import (
     QUIESCENCE_SCHEMA,
     V2_MUTATING_CLIENT_LABELS,
@@ -71,6 +75,7 @@ class Guard:
         self.root = root
         self.root_id = root_id
         self.volume_uuid = uuid
+        self.config = SimpleNamespace(mount_path=root.parent, data_root=root.name)
         self.expected = (root.stat().st_dev, root.stat().st_ino)
 
     def revalidate(self, *, min_free_bytes: int | None = None):
@@ -140,6 +145,289 @@ def _fixture(root: Path, *, fault_hook=None):
     finally:
         os.close(root_fd)
     return writer, guard, binding
+
+
+def _discovery_recovery_fixture(root: Path, monkeypatch):
+    writer, guard, binding = _fixture(root)
+    publish_cutover_v3(
+        writer=writer,
+        guard=guard,
+        cutover_ns=1_900_000_000_000_000_001,
+        free_bytes_probe=_free_bytes,
+        quiescence_verifier=_quiescence,
+    )
+    for path in (
+        f"{discovery_host.RUNTIME_ROOT}/outcomes",
+        discovery_host._epoch_root(0),
+        discovery_host._epoch_scans_root(0),
+        f"{discovery_host._epoch_scans_root(0)}/0000",
+    ):
+        writer.mkdir(path)
+    capacity = discovery_host.V3CapacityPort(writer, guard, binding)
+    capacity_context = discovery_host._current_capacity_context
+
+    def ample_test_capacity(*args, **kwargs):
+        return {**capacity_context(*args, **kwargs), "free_bytes": 250_000_000_000}
+
+    monkeypatch.setattr(discovery_host, "_current_capacity_context", ample_test_capacity)
+    request_id = "a" * 64
+    release_id = "b" * 32
+    reservation_id = discovery_host._reservation_id(request_id, release_id)
+    intent_path = discovery_host._page_path(0, 0, 1, "intent.json")
+    outcome_path = f"{discovery_host.SERVICE_ROOT}/runtime-v2/outcomes/{reservation_id}.json"
+    intent = {
+        "schema": discovery_runtime.PAGE_INTENT_SCHEMA,
+        "schema_version": 2,
+        "request_id": request_id,
+        "reservation_id": reservation_id,
+        "scan_index": 0,
+        "page": 1,
+        "planned_dispatch_ns": 1_900_000_000_000_000_010,
+        "method": "GET",
+        "url": "https://example.invalid/pools",
+        "accept": "application/json",
+        "provider_io_possible": False,
+    }
+    intent_raw = discovery_runtime.canonical(intent)
+    capacity.reserve(
+        request_id=request_id,
+        page_ordinal=1,
+        reservation_id=reservation_id,
+        intent_path=intent_path,
+        outcome_path=outcome_path,
+        intent_bytes=intent_raw,
+        at_ns=1_900_000_000_000_000_002,
+    )
+    plan = {
+        "epoch_index": 0,
+        "scan_index": 0,
+        "expires_ns": 1_900_000_100_000_000_000,
+        "page_slots": [{"page": 1, "request_id": request_id}],
+    }
+    return writer, guard, binding, capacity, plan, release_id, intent, intent_raw
+
+
+def test_discovery_real_v3_recovery_releases_reservation_without_intent(tmp_path, monkeypatch):
+    writer, guard, binding, capacity, plan, release_id, _intent, intent_raw = (
+        _discovery_recovery_fixture(tmp_path / "data", monkeypatch)
+    )
+    try:
+        discovery_host._recover_scan(
+            writer=writer,
+            guard=guard,
+            binding=binding,
+            plan=plan,
+            capacity=capacity,
+            release_id=release_id,
+            now_ns=1_900_000_050_000_000_000,
+        )
+        result = json.loads(writer.read_bytes(discovery_host._page_path(0, 0, 1, "result.json")))
+        assert result["status"] == "missed"
+        assert not writer.exists(discovery_host._page_path(0, 0, 1, "intent.json"))
+        status = capacity.reservation_status(
+            request_id=plan["page_slots"][0]["request_id"],
+            reservation_id=discovery_host._reservation_id(
+                plan["page_slots"][0]["request_id"], release_id
+            ),
+            intent_path=discovery_host._page_path(0, 0, 1, "intent.json"),
+            outcome_path=(
+                f"{discovery_host.SERVICE_ROOT}/runtime-v2/outcomes/"
+                f"{discovery_host._reservation_id(plan['page_slots'][0]['request_id'], release_id)}"
+                ".json"
+            ),
+        )
+        assert status["state"] == "terminal"
+        assert status["terminal"]["kind"] == "released"
+        assert intent_raw
+    finally:
+        writer.close()
+
+
+def test_discovery_real_v3_recovery_releases_intent_without_dispatch(tmp_path, monkeypatch):
+    writer, guard, binding, capacity, plan, release_id, intent, intent_raw = (
+        _discovery_recovery_fixture(tmp_path / "data", monkeypatch)
+    )
+    try:
+        intent_path = discovery_host._page_path(0, 0, 1, "intent.json")
+        writer.create(intent_path, intent_raw)
+        expired_plan = {**plan, "expires_ns": 1_900_000_030_000_000_000}
+        discovery_host._recover_scan(
+            writer=writer,
+            guard=guard,
+            binding=binding,
+            plan=expired_plan,
+            capacity=capacity,
+            release_id=release_id,
+            now_ns=1_900_000_050_000_000_000,
+        )
+        status = capacity.reservation_status(
+            request_id=intent["request_id"],
+            reservation_id=intent["reservation_id"],
+            intent_path=intent_path,
+            outcome_path=(
+                f"{discovery_host.SERVICE_ROOT}/runtime-v2/outcomes/{intent['reservation_id']}.json"
+            ),
+        )
+        confirmation = json.loads(
+            writer.read_bytes(discovery_host._page_path(0, 0, 1, "confirmation.json"))
+        )
+        assert status["state"] == "terminal"
+        assert status["terminal"]["kind"] == "released"
+        assert confirmation["provider_io"] is False
+        assert not writer.exists(discovery_host.STOP_PATH)
+    finally:
+        writer.close()
+
+
+def test_discovery_real_v3_recovery_detach_during_page_write_has_no_underlay_artifact(
+    tmp_path, monkeypatch
+):
+    root = tmp_path / "data"
+    writer, guard, binding, capacity, plan, release_id, _intent, _intent_raw = (
+        _discovery_recovery_fixture(root, monkeypatch)
+    )
+    moved = tmp_path / "held-data"
+    detached = False
+
+    def detach_before_create(operation: str):
+        nonlocal detached
+        if operation == "create" and not detached:
+            detached = True
+            os.rename(root, moved)
+            root.mkdir(mode=0o700)
+
+    writer._fault_hook = detach_before_create
+    try:
+        with pytest.raises(
+            discovery_host.DiscoveryHostError,
+            match="revalidation|discovery_v3_context_unverified",
+        ):
+            discovery_host._recover_scan(
+                writer=writer,
+                guard=guard,
+                binding=binding,
+                plan=plan,
+                capacity=capacity,
+                release_id=release_id,
+                now_ns=1_900_000_050_000_000_000,
+            )
+        assert detached
+        assert not [path for path in root.rglob("*") if path.is_file()]
+        assert moved.joinpath(discovery_host._page_path(0, 0, 1, "result.json")).is_file()
+    finally:
+        writer.close()
+
+
+def test_discovery_real_v3_recovery_marks_dispatch_ambiguous_and_stops(tmp_path, monkeypatch):
+    writer, guard, binding, capacity, plan, release_id, intent, intent_raw = (
+        _discovery_recovery_fixture(tmp_path / "data", monkeypatch)
+    )
+    try:
+        page = discovery_host._page_path(0, 0, 1, "intent.json")
+        writer.create(page, intent_raw)
+        writer.create(
+            discovery_host._page_path(0, 0, 1, "dispatch.json"),
+            discovery_runtime.canonical(
+                {
+                    "schema": f"{discovery_runtime.SCHEMA}-dispatch",
+                    "schema_version": 2,
+                    "request_id": intent["request_id"],
+                    "reservation_id": intent["reservation_id"],
+                    "dispatch_ns": 1_900_000_000_000_000_020,
+                    "provider_io_possible": True,
+                }
+            ),
+        )
+        expired_plan = {**plan, "expires_ns": 1_900_000_030_000_000_000}
+        discovery_host._recover_scan(
+            writer=writer,
+            guard=guard,
+            binding=binding,
+            plan=expired_plan,
+            capacity=capacity,
+            release_id=release_id,
+            now_ns=1_900_000_050_000_000_000,
+        )
+        status = capacity.reservation_status(
+            request_id=intent["request_id"],
+            reservation_id=intent["reservation_id"],
+            intent_path=page,
+            outcome_path=(
+                f"{discovery_host.SERVICE_ROOT}/runtime-v2/outcomes/{intent['reservation_id']}.json"
+            ),
+        )
+        assert status["state"] == "terminal"
+        assert status["terminal"]["kind"] == "ambiguous_terminal"
+        assert writer.exists(discovery_host.STOP_PATH)
+        assert writer.exists(discovery_host._page_path(0, 0, 1, "confirmation.json"))
+    finally:
+        writer.close()
+
+
+def test_discovery_real_v3_recovery_settles_durable_result_once(tmp_path, monkeypatch):
+    writer, guard, binding, capacity, plan, release_id, intent, intent_raw = (
+        _discovery_recovery_fixture(tmp_path / "data", monkeypatch)
+    )
+    try:
+        page_path = discovery_host._page_path(0, 0, 1, "intent.json")
+        writer.create(page_path, intent_raw)
+        writer.create(
+            discovery_host._page_path(0, 0, 1, "dispatch.json"),
+            discovery_runtime.canonical(
+                {
+                    "schema": f"{discovery_runtime.SCHEMA}-dispatch",
+                    "schema_version": 2,
+                    "request_id": intent["request_id"],
+                    "reservation_id": intent["reservation_id"],
+                    "dispatch_ns": 1_900_000_000_000_000_020,
+                    "provider_io_possible": True,
+                }
+            ),
+        )
+        raw = b"[]"
+        writer.create(discovery_host._page_path(0, 0, 1, "raw.bin"), raw)
+        result = discovery_runtime.make_page_record(
+            request_id=intent["request_id"],
+            status="received",
+            request_started_ns=1_900_000_000_000_000_020,
+            receipt_ns=1_900_000_000_000_000_030,
+            durable_available_ns=1_900_000_000_000_000_040,
+            raw_body=raw,
+            http_status=200,
+            body_truncated=False,
+        )
+        writer.create(
+            discovery_host._page_path(0, 0, 1, "result.json"),
+            discovery_runtime.canonical({**result, "raw_body": None}),
+        )
+        for _ in range(2):
+            discovery_host._recover_scan(
+                writer=writer,
+                guard=guard,
+                binding=binding,
+                plan=plan,
+                capacity=capacity,
+                release_id=release_id,
+                now_ns=1_900_000_050_000_000_000,
+            )
+        status = capacity.reservation_status(
+            request_id=intent["request_id"],
+            reservation_id=intent["reservation_id"],
+            intent_path=page_path,
+            outcome_path=(
+                f"{discovery_host.SERVICE_ROOT}/runtime-v2/outcomes/{intent['reservation_id']}.json"
+            ),
+        )
+        confirmation = json.loads(
+            writer.read_bytes(discovery_host._page_path(0, 0, 1, "confirmation.json"))
+        )
+        assert status["state"] == "terminal"
+        assert status["terminal"]["kind"] == "settled"
+        assert confirmation["availability_ns"] == result["durable_available_ns"]
+        assert confirmation["provider_io"] is True
+        assert writer.read_bytes(discovery_host._page_path(0, 0, 1, "raw.bin")) == raw
+    finally:
+        writer.close()
 
 
 def test_host_cutover_is_pointer_last_and_retry_is_idempotent(tmp_path):

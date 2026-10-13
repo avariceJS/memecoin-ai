@@ -202,6 +202,61 @@ def test_source_manifest_pins_descriptor_writer_implementation_closure():
     assert host.SOURCE_MANIFEST_SCHEMA.endswith("source-manifest-v3")
 
 
+def _source_manifest_git_fixture(tmp_path, monkeypatch):
+    import subprocess
+
+    repo = tmp_path / "source-repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(
+        ["git", "-C", str(repo), "config", "user.email", "tests@example.invalid"], check=True
+    )
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "Tests"], check=True)
+    monkeypatch.setattr(host, "SOURCE_PATHS", ("runtime.py", "agent.plist"))
+    (repo / "runtime.py").write_bytes(b"runtime-v1\n")
+    (repo / "agent.plist").write_bytes(b"plist-v1\n")
+    subprocess.run(["git", "-C", str(repo), "add", "runtime.py", "agent.plist"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "release"], check=True)
+    manifest = host.compile_source_manifest(repo)
+    return repo, manifest, subprocess
+
+
+def test_source_manifest_accepts_descendant_and_unpinned_dirty_files(tmp_path, monkeypatch):
+    repo, manifest, subprocess = _source_manifest_git_fixture(tmp_path, monkeypatch)
+    (repo / "notes.md").write_text("untracked note\n")
+    (repo / "docs.md").write_text("descendant change\n")
+    subprocess.run(["git", "-C", str(repo), "add", "docs.md"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "docs"], check=True)
+    (repo / "notes.md").write_text("untracked note changed\n")
+    host.verify_source_manifest(repo, manifest)
+
+
+@pytest.mark.parametrize("mutation", ["dirty", "committed"])
+def test_source_manifest_rejects_pinned_drift(tmp_path, monkeypatch, mutation):
+    repo, manifest, subprocess = _source_manifest_git_fixture(tmp_path, monkeypatch)
+    (repo / "runtime.py").write_bytes(b"runtime-v2\n")
+    if mutation == "committed":
+        subprocess.run(["git", "-C", str(repo), "add", "runtime.py"], check=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "-qm", "pinned drift"], check=True)
+    with pytest.raises(host.DiscoveryHostError):
+        host.verify_source_manifest(repo, manifest)
+
+
+def test_source_manifest_rejects_divergent_head_with_identical_pinned_bytes(tmp_path, monkeypatch):
+    repo, manifest, subprocess = _source_manifest_git_fixture(tmp_path, monkeypatch)
+    subprocess.run(
+        ["git", "-C", str(repo), "checkout", "--orphan", "divergent"],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(["git", "-C", str(repo), "add", "runtime.py", "agent.plist"], check=True)
+    subprocess.run(
+        ["git", "-C", str(repo), "commit", "-qm", "same bytes, divergent history"], check=True
+    )
+    with pytest.raises(host.DiscoveryHostError, match="discovery_source_commit_not_ancestor"):
+        host.verify_source_manifest(repo, manifest)
+
+
 def test_gap_write_after_root_replacement_never_falls_back_to_underlay(tmp_path):
     mount = tmp_path / "mount"
     root = mount / "data"
@@ -533,9 +588,7 @@ def test_one_provider_request_is_started_per_scheduled_tick(tmp_path, monkeypatc
             scan_index=0,
             scheduled_ns=first_scan_ns,
             now_ns=lambda: now,
-            fetch_page=lambda _url: (
-                fetch_log.append("request") or (200, b"{}", now)
-            ),
+            fetch_page=lambda _url: fetch_log.append("request") or (200, b"{}", now),
             capacity=Capacity(),
             priority_gate=lambda: False,
         )
@@ -600,21 +653,30 @@ def test_owner_fast_path_is_read_only_until_the_next_planned_trigger(tmp_path, m
     )
     before = sorted(str(path.relative_to(root)) for path in root.rglob("*") if path.is_file())
     try:
-        assert host._owner_next_full_tick_ns(
-            writer=writer,
-            now_ns=first_scan_ns - 20 * NS,
-        ) == first_scan_ns
+        assert (
+            host._owner_next_full_tick_ns(
+                writer=writer,
+                now_ns=first_scan_ns - 20 * NS,
+            )
+            == first_scan_ns
+        )
         after = sorted(str(path.relative_to(root)) for path in root.rglob("*") if path.is_file())
         assert after == before
-        assert host._owner_next_full_tick_ns(
-            writer=writer,
-            now_ns=first_scan_ns + 1,
-        ) is None
+        assert (
+            host._owner_next_full_tick_ns(
+                writer=writer,
+                now_ns=first_scan_ns + 1,
+            )
+            is None
+        )
         writer.create(host._standby_path(1), b"standby-exists", mode=0o600)
-        assert host._owner_next_full_tick_ns(
-            writer=writer,
-            now_ns=epoch["epoch_end_ns"] - 30 * 60 * NS,
-        ) == epoch["epoch_end_ns"]
+        assert (
+            host._owner_next_full_tick_ns(
+                writer=writer,
+                now_ns=epoch["epoch_end_ns"] - 30 * 60 * NS,
+            )
+            == epoch["epoch_end_ns"]
+        )
     finally:
         writer.close()
 
@@ -840,9 +902,7 @@ def test_expired_epoch_seals_gaps_and_creates_continuous_successor(tmp_path, mon
                 observed_ns=max(renewal_time_ns, scheduled_ns + discovery.SCAN_EXPIRY_NS),
             )
 
-        terminal_rows = host._terminal_frontier_rows(
-            writer, policy, epoch, require_complete=True
-        )
+        terminal_rows = host._terminal_frontier_rows(writer, policy, epoch, require_complete=True)
         assert len(terminal_rows) == 864
         assert host._frontier_from_rows(terminal_rows)["terminal_scan_index"] == 863
         assert host._frontier_from_rows(terminal_rows)["kind"] == "gap"

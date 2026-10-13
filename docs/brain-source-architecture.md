@@ -4159,15 +4159,23 @@ the current pilot's follow-up fraction is zero.
 The discovery source-manifest v3 pins the descriptor-bound `live_writer.py` implementation and
 external-writer schema alongside the collector, coordinator, storage root resolver, and LaunchAgent
 template. These files are part of the write-authority closure and must be committed and clean before
-release preparation can produce an activatable source identity.
+release preparation can produce an activatable source identity. At callback time, the recorded
+release commit must be an ancestor of current HEAD; each pinned path must be clean and byte-identical
+across the release-commit blob, current-HEAD blob, and no-follow checkout read. This allows safe
+descendant work outside the pinned closure while source drift or divergent history fails closed.
 
 The discovery policy/replay kernel is offline-qualified. Coordinator-v3 migration is now published
 on Kingston under descriptor-bound writes: v2 policy/ledger bytes and unresolved liabilities are
 bridged, and the v3 pointer was durably created last under all v2 lane locks. The v2 source guard
 rejects future mutations after the pointer while preserving read-only replay. The owner and unattended
 epoch renewal remain unqualified; this versioned frontier contract has focused synthetic rollover
-coverage, but the source-bound release, forced recovery acceptance, and LaunchAgent are still pending.
-No provider I/O has occurred under this discovery policy.
+coverage. The source-binding verifier now has descendant, unpinned-dirty, pinned-drift, and divergent-
+history tests. Five forced-recovery cases exercise the real v3 ledger with the descriptor writer:
+reservation without intent, intent without dispatch, ambiguous dispatch, durable result settlement
+exactly once, and root detach during a page write without underlay artifacts. These are synthetic
+recovery tests, not a live Kingston recovery or provider request. A fresh source-bound release,
+activation, first natural scan, and controlled LaunchAgent restart/replay remain pending. No provider
+I/O has occurred under this discovery policy.
 
 The separate read-only discovery-to-enrollment projector replays explicit contiguous plan/gap
 prefixes against the pinned epoch history and exact raw page hashes. It retains page and scan

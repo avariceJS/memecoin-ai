@@ -150,8 +150,117 @@ def compile_source_manifest(repo_root: Path = REPO_ROOT) -> dict[str, Any]:
 
 
 def verify_source_manifest(repo_root: Path, manifest: Mapping[str, Any]) -> None:
-    if dict(manifest) != compile_source_manifest(repo_root):
-        _raise("discovery_source_manifest_drift")
+    """Verify immutable release bytes against both Git trees and the no-follow checkout.
+
+    The release commit may be an ancestor of HEAD so unrelated descendant work can
+    continue while the service is loaded. The pinned closure itself remains clean
+    and byte-identical at the release commit, current HEAD, and checkout.
+    """
+    if type(manifest) is not dict or set(manifest) != {
+        "schema",
+        "schema_version",
+        "source_commit",
+        "files",
+        "source_order",
+        "manifest_sha256",
+    }:
+        _raise("discovery_source_manifest_shape")
+    commit = manifest.get("source_commit")
+    if (
+        manifest.get("schema") != SOURCE_MANIFEST_SCHEMA
+        or manifest.get("schema_version") != 3
+        or not isinstance(commit, str)
+        or not re.fullmatch(r"[0-9a-f]{40}", commit)
+        or manifest.get("source_order") != list(SOURCE_PATHS)
+    ):
+        _raise("discovery_source_manifest_schema")
+    files = manifest.get("files")
+    if type(files) is not list or len(files) != len(SOURCE_PATHS):
+        _raise("discovery_source_manifest_files")
+    core = {
+        key: manifest[key]
+        for key in ("schema", "schema_version", "source_commit", "files", "source_order")
+    }
+    if manifest.get("manifest_sha256") != runtime.sha256(runtime.canonical(core)):
+        _raise("discovery_source_manifest_hash")
+
+    try:
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout.strip()
+        subprocess.run(
+            ["git", "merge-base", "--is-ancestor", commit, "HEAD"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            timeout=10,
+        )
+        status = subprocess.run(
+            ["git", "status", "--porcelain", "--", *SOURCE_PATHS],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout
+    except subprocess.CalledProcessError as exc:
+        raise DiscoveryHostError("discovery_source_commit_not_ancestor") from exc
+    except Exception as exc:
+        raise DiscoveryHostError("discovery_source_git_unavailable") from exc
+    if not re.fullmatch(r"[0-9a-f]{40}", head) or status:
+        _raise("discovery_source_not_clean_committed")
+
+    for relative, entry in zip(SOURCE_PATHS, files, strict=True):
+        if type(entry) is not dict or set(entry) != {"path", "size", "sha256"}:
+            _raise("discovery_source_manifest_file_shape")
+        if entry["path"] != relative or type(entry["size"]) is not int or entry["size"] < 0:
+            _raise("discovery_source_manifest_file_order")
+        if not isinstance(entry["sha256"], str) or not re.fullmatch(
+            r"[0-9a-f]{64}", entry["sha256"]
+        ):
+            _raise("discovery_source_manifest_file_hash")
+        try:
+            path = repo_root / relative
+            before = path.lstat()
+            if not path.is_file() or path.is_symlink() or before.st_size > 8_000_000:
+                _raise("discovery_source_file_invalid")
+            checkout = path.read_bytes()
+            after = path.stat()
+            if (before.st_dev, before.st_ino, before.st_size) != (
+                after.st_dev,
+                after.st_ino,
+                after.st_size,
+            ) or len(checkout) != before.st_size:
+                _raise("discovery_source_changed_during_read")
+            release_blob = subprocess.run(
+                ["git", "show", f"{commit}:{relative}"],
+                cwd=repo_root,
+                check=True,
+                capture_output=True,
+                timeout=10,
+            ).stdout
+            head_blob = subprocess.run(
+                ["git", "show", f"HEAD:{relative}"],
+                cwd=repo_root,
+                check=True,
+                capture_output=True,
+                timeout=10,
+            ).stdout
+        except DiscoveryHostError:
+            raise
+        except Exception as exc:
+            raise DiscoveryHostError("discovery_source_blob_unavailable") from exc
+        expected = (entry["size"], entry["sha256"])
+        if any(
+            (len(raw), runtime.sha256(raw)) != expected
+            for raw in (release_blob, head_blob, checkout)
+        ):
+            _raise("discovery_source_manifest_drift")
 
 
 def _verify_clean_source_commit(repo_root: Path) -> str:
@@ -1173,8 +1282,16 @@ def _terminal_frontier_rows(
                 type(gap) is not dict
                 or set(gap)
                 != {
-                    "schema", "schema_version", "scan_index", "scheduled_ns", "observed_ns",
-                    "reason", "exposure", "selected_pool_ids", "provider_io", "cursor_advanced",
+                    "schema",
+                    "schema_version",
+                    "scan_index",
+                    "scheduled_ns",
+                    "observed_ns",
+                    "reason",
+                    "exposure",
+                    "selected_pool_ids",
+                    "provider_io",
+                    "cursor_advanced",
                 }
                 or gap.get("schema") != f"{runtime.SCHEMA}-unplanned-gap"
                 or gap.get("schema_version") != 2
@@ -1189,12 +1306,14 @@ def _terminal_frontier_rows(
                 or gap.get("cursor_advanced") is not False
             ):
                 _raise("discovery_epoch_gap_invalid")
-            rows.append({
-                "epoch_index": epoch_index,
-                "terminal_scan_index": scan_index,
-                "kind": "gap",
-                "artifact_sha256": runtime.sha256(runtime.canonical(gap)),
-            })
+            rows.append(
+                {
+                    "epoch_index": epoch_index,
+                    "terminal_scan_index": scan_index,
+                    "kind": "gap",
+                    "artifact_sha256": runtime.sha256(runtime.canonical(gap)),
+                }
+            )
             continue
         plan = _read_json(writer, plan_path)
         runtime.verify_epoch_scan_plan(plan, policy=policy, epoch=epoch)
@@ -1208,7 +1327,10 @@ def _terminal_frontier_rows(
                 _raise("discovery_epoch_frontier_incomplete")
             break
         replayed = runtime.verify_persisted_scan(
-            policy=policy, plan=plan, page_records=records, raw_by_request_id=raws,
+            policy=policy,
+            plan=plan,
+            page_records=records,
+            raw_by_request_id=raws,
             previously_seen_pool_ids=seen,
         )
         summary_path = f"{_page_directory(epoch_index, scan_index)}/summary.json"
@@ -1218,14 +1340,16 @@ def _terminal_frontier_rows(
         if summary != replayed:
             _raise("discovery_scan_summary_replay_mismatch")
         summary_sha = runtime.sha256(runtime.canonical(summary))
-        rows.append({
-            "epoch_index": epoch_index,
-            "terminal_scan_index": scan_index,
-            "kind": "plan_summary",
-            "artifact_sha256": summary_sha,
-            "plan_id": plan["scan_id"],
-            "plan_sha256": plan["plan_sha256"],
-        })
+        rows.append(
+            {
+                "epoch_index": epoch_index,
+                "terminal_scan_index": scan_index,
+                "kind": "plan_summary",
+                "artifact_sha256": summary_sha,
+                "plan_id": plan["scan_id"],
+                "plan_sha256": plan["plan_sha256"],
+            }
+        )
         seen.extend(replayed["first_seen_pool_ids"])
     return rows
 
@@ -3194,11 +3318,7 @@ def _owner_next_full_tick_ns(*, writer: Any, now_ns: int) -> int | None:
             # The first tick at the T−1h gate prepares the standby. Once its
             # immutable file exists, defer further full replay until handoff.
             # A corrupt standby will fail the full verifier at transition.
-            return (
-                epoch["epoch_end_ns"]
-                if writer.exists(_standby_path(epoch_index + 1))
-                else None
-            )
+            return epoch["epoch_end_ns"] if writer.exists(_standby_path(epoch_index + 1)) else None
         if now_ns < policy["first_scan_ns"]:
             return policy["first_scan_ns"]
         interval_ns = policy["scan_interval_seconds"] * NS
@@ -3216,9 +3336,7 @@ def _owner_next_full_tick_ns(*, writer: Any, now_ns: int) -> int | None:
         for slot in plan["page_slots"]:
             result_path = _page_path(epoch_index, scan_index, slot["page"], "result.json")
             if not writer.exists(result_path):
-                dispatch_path = _page_path(
-                    epoch_index, scan_index, slot["page"], "dispatch.json"
-                )
+                dispatch_path = _page_path(epoch_index, scan_index, slot["page"], "dispatch.json")
                 if writer.exists(dispatch_path):
                     return plan["expires_ns"]
                 return slot["planned_dispatch_ns"]
@@ -3367,12 +3485,8 @@ def _renew_epochs_locked(
                             "gap_sha256": runtime.sha256(runtime.canonical(gap)),
                         }
                     )
-            frontier_rows = _terminal_frontier_rows(
-                writer, policy, epoch, require_complete=True
-            )
-            successor_standby = _read_json(
-                writer, _standby_path(epoch_index + 1), limit=4_000_000
-            )
+            frontier_rows = _terminal_frontier_rows(writer, policy, epoch, require_complete=True)
+            successor_standby = _read_json(writer, _standby_path(epoch_index + 1), limit=4_000_000)
             _verify_successor_frontier(
                 successor_standby, predecessor_epoch=epoch, rows=frontier_rows
             )
@@ -3441,9 +3555,7 @@ def _renew_epochs_locked(
             _create_json(writer, seal_path, seal)
             _check_guard(guard, writer, binding)
         runtime._verify_epoch_seal(seal, epoch=epoch)
-        frontier_rows = _terminal_frontier_rows(
-            writer, policy, epoch, require_complete=True
-        )
+        frontier_rows = _terminal_frontier_rows(writer, policy, epoch, require_complete=True)
         next_index = epoch["epoch_index"] + 1
         next_standby = _read_json(writer, _standby_path(next_index), limit=4_000_000)
         standby_core = dict(next_standby)
@@ -3561,9 +3673,7 @@ def main() -> int:
     if args.prepare_release:
         return 0 if result.get("status") == "release_candidate_prepared" else 1
     return (
-        0
-        if result.get("status") in {"idle", "processed", "epoch_terminal_requires_renewal"}
-        else 1
+        0 if result.get("status") in {"idle", "processed", "epoch_terminal_requires_renewal"} else 1
     )
 
 
