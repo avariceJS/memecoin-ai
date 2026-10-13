@@ -4017,3 +4017,11 @@ events into full shared usage before a v2 host may dispatch. The frozen v1/v2 ru
 As of 05:23Z, no collector LaunchAgent is loaded and no prospective provider I/O is active; Kingston
 has 202 GiB free. Continue only with synthetic tests until the versioned host, release/plist binding,
 crash/ambiguity recovery, deadline semantics, and forced detach qualification are complete.
+
+The chain-v2 capture-prefix verifier and inventory-v4 now pass synthetic replay for plan-only,
+expired-unaccounted, and unresolved-intent prefixes; unresolved attempts consume their maximum
+response reserve in shared usage. A separate descriptor writer/host transaction library passes
+synthetic reservation, dispatch, terminal/confirmation, no-replay recovery, and path-replacement
+tests. These modules have no owner-host loader or activation path and were not run against Kingston
+or a provider. Source-bound release loading, plist/watchdog identity, every-write detach coverage,
+and runtime installation remain open; no autonomous collector is loaded.
