@@ -4039,14 +4039,23 @@ zero-attempt roots), and prove a candidate successor ID absent before bootstrap.
 tests and descriptor-bound live replays (42 roots before bootstrap, then all current roots). The first
 successor `7a10e2d4c9f84c18a0b53d7e6f214c90` was create-only initialized but its launchd callback
 exposed a direct-script import defect; sanitized diagnostic `v6_owner_runtime_import_failed` was
-written, with no plan, intent, dispatch, response, or provider I/O. This root/control pair is
-preserved immutable. The repository-root import path is fixed in a pushed source commit, and a fresh
-release `31cf35634151805f006a2cdde943c74c` is initialized create-only. The LaunchAgent is loaded
-from the exact pinned plist; three callbacks completed with exit 0 while its 45-minute anchor remained
-in the future. The 44-root replay confirms the new root is `verified_none` with no plans, intents,
-dispatches, or responses; provider I/O remains zero so far. It polls every 60 seconds and the policy
-has no finite lease expiry. The first forward-only bucket and restart recovery are still required
-before calling it a working prospective collector. Market-source, training, and economic admission
+written, with no plan, intent, dispatch, response, or provider I/O. The repository-root import path
+was fixed, and release `31cf35634151805f006a2cdde943c74c` was initialized create-only. Three idle
+callbacks exited 0, but a later docs-only descendant commit invalidated its exact-HEAD source pin;
+the agent is now unloaded and no provider I/O occurred. A fresh full-current read-only replay of 44
+roots still verifies the three v6 roots as `verified_none`, with zero v6 attempts and 62 historical
+attempts. The root/control records remain immutable.
+
+Sol selected ancestor-plus-exact-bytes runtime binding for future releases: pin creation still
+requires clean current HEAD; each callback requires that source commit to be an ancestor of HEAD,
+the pinned paths clean, and exact byte equality among release-commit blobs, current-HEAD blobs, and
+no-follow checkout reads, in addition to exact installed plist and launchd identity. A docs-only
+descendant is accepted; source, manifest, plist, or process drift fails before intent. The old
+`31cf...` release cannot resume under changed pinned host code. A fresh release/root and untouched
+future anchor are required; only its first forward bucket plus controlled restart/no-replay replay
+can qualify autonomous capture. Capture policy remains six selected pools per 15-minute bucket,
+one forward-only request per slot, 12-second spacing, bounded request/byte/storage caps, a 16-GiB
+resident ceiling, and a 50-GiB free-space floor. Market-source, training, and economic admission
 remain false.
 
 A descriptor-bound read-only census independently replayed 41 known roots and 62 attempts, including

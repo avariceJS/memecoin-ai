@@ -38,6 +38,9 @@ def _fake_repo(tmp_path: Path) -> tuple[Path, dict[str, bytes], Any, Any]:
             return "a" * 40
         if args[:1] == ("status",):
             return ""
+        if args[:2] == ("merge-base", "--is-ancestor"):
+            assert args[2:] == ("a" * 40, "a" * 40)
+            return ""
         if len(args) == 2 and args[0] == "show":
             commit, relative = args[1].split(":", 1)
             assert commit == "a" * 40
@@ -84,6 +87,43 @@ def test_source_manifest_pins_clean_bytes_and_rejects_drift(tmp_path: Path) -> N
     with pytest.raises(host.HostV6Error, match="source_blob_mismatch"):
         host.verify_source_manifest(repo, manifest, git=fake_git, git_show=fake_git_show)
     assert committed[host.SOURCE_PATHS[0]] != changed.read_bytes()
+
+
+def test_source_manifest_accepts_docs_only_descendant_with_exact_source_bytes(
+    tmp_path: Path,
+) -> None:
+    repo, committed, base_git, base_show = _fake_repo(tmp_path)
+    manifest = host.compile_source_manifest(repo, git=base_git, git_show=base_show)
+    release = "a" * 40
+    current = "b" * 40
+
+    def fake_git(_root: Path, *args: str) -> str:
+        if args == ("rev-parse", "HEAD"):
+            return current
+        if args[:1] == ("status",):
+            return ""
+        if args[:2] == ("merge-base", "--is-ancestor"):
+            assert args[2:] == (release, current)
+            return ""
+        raise AssertionError(args)
+
+    def fake_git_show(_root: Path, commit: str, relative: str) -> bytes:
+        assert commit in (release, current)
+        return committed[relative]
+
+    host.verify_source_manifest(repo, manifest, git=fake_git, git_show=fake_git_show)
+
+    def not_ancestor(_root: Path, *args: str) -> str:
+        if args == ("rev-parse", "HEAD"):
+            return current
+        if args[:1] == ("status",):
+            return ""
+        if args[:2] == ("merge-base", "--is-ancestor"):
+            raise host.HostV6Error("git command failed")
+        raise AssertionError(args)
+
+    with pytest.raises(host.HostV6Error, match="source_commit_mismatch"):
+        host.verify_source_manifest(repo, manifest, git=not_ancestor, git_show=fake_git_show)
 
 
 def test_git_blob_reader_preserves_final_and_missing_newline_bytes(tmp_path: Path) -> None:

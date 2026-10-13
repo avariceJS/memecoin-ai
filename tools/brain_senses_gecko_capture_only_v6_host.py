@@ -31,7 +31,7 @@ from typing import Any, cast
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
 SERVICE_PREFIX = "services/gecko-market-v1/capture-only-v6"
-CONTROL_RELEASE_ID = "31cf35634151805f006a2cdde943c74c"
+CONTROL_RELEASE_ID = "94da5c80bdd82308ebbad0c8f2e158b3"
 CONTROL_RELEASE_DIRECTORY = f"control/gecko-capture-v6/releases/{CONTROL_RELEASE_ID}"
 ACTIVATION_PATH = f"{CONTROL_RELEASE_DIRECTORY}/activation.json"
 SOURCE_MANIFEST_PATH = f"{CONTROL_RELEASE_DIRECTORY}/source-manifest.json"
@@ -527,12 +527,44 @@ def verify_source_manifest(
 ) -> None:
     if type(manifest) is not dict:
         raise HostV6Error("v6_owner_source_manifest_shape")
-    expected = compile_source_manifest(
-        repo_root,
-        source_commit=manifest.get("source_commit"),
-        git=git,
-        git_show=git_show,
-    )
+    source_commit = manifest.get("source_commit")
+    if not isinstance(source_commit, str) or not COMMIT_RE.fullmatch(source_commit):
+        raise HostV6Error("v6_owner_source_manifest_shape")
+    current_commit = git(repo_root, "rev-parse", "HEAD")
+    if not COMMIT_RE.fullmatch(current_commit):
+        raise HostV6Error("v6_owner_source_commit_mismatch")
+    try:
+        git(repo_root, "merge-base", "--is-ancestor", source_commit, current_commit)
+    except HostV6Error as exc:
+        raise HostV6Error("v6_owner_source_commit_mismatch") from exc
+    status = git(repo_root, "status", "--porcelain=v1", "--", *SOURCE_PATHS)
+    if status:
+        raise HostV6Error("v6_owner_source_paths_dirty")
+    source_map = manifest.get("source_map")
+    if (
+        manifest.get("schema") != SOURCE_MANIFEST_SCHEMA
+        or manifest.get("schema_version") != 6
+        or manifest.get("source_paths") != list(SOURCE_PATHS)
+        or type(source_map) is not dict
+        or set(source_map) != set(SOURCE_PATHS)
+    ):
+        raise HostV6Error("v6_owner_source_manifest_shape")
+    file_map: dict[str, str] = {}
+    for relative in SOURCE_PATHS:
+        release_bytes = git_show(repo_root, source_commit, relative)
+        current_bytes = git_show(repo_root, current_commit, relative)
+        checkout_bytes = _read_repo_file(repo_root, relative)
+        if release_bytes != current_bytes or current_bytes != checkout_bytes:
+            raise HostV6Error("v6_owner_source_blob_mismatch")
+        file_map[relative] = sha256(release_bytes)
+    core = {
+        "schema": SOURCE_MANIFEST_SCHEMA,
+        "schema_version": 6,
+        "source_commit": source_commit,
+        "source_paths": list(SOURCE_PATHS),
+        "source_map": file_map,
+    }
+    expected = {**core, "source_manifest_sha256": sha256(canonical(core))}
     if canonical(dict(manifest)) != canonical(expected):
         raise HostV6Error("v6_owner_source_manifest_drift")
 
