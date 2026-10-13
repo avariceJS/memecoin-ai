@@ -25,6 +25,9 @@ from tools import (
     brain_senses_gecko_capture_only_v2_health_v1 as health_v2,
 )
 from tools import (
+    brain_senses_gecko_capture_only_v2_terminal_usage_v1 as terminal_v2_usage,
+)
+from tools import (
     brain_senses_gecko_capture_only_v2_verify as capture_v2_verify,
 )
 from tools import (
@@ -442,6 +445,16 @@ def _load_present_root(
                 snapshot["observed_ns"] <= now_ns,
                 "gecko_health_snapshot_from_future",
             )
+            if root == terminal_v2_usage.HEALTH_ROOT:
+                try:
+                    return terminal_v2_usage.reconcile_stopped_health_root(
+                        writer,
+                        root=root,
+                        root_inventory_sha256=root_inventory_sha256,
+                        storage=storage,
+                    )
+                except terminal_v2_usage.TerminalUsageError as exc:
+                    raise InventoryError(str(exc)) from exc
             # Health is diagnostic, not usage authority. The matching request root is
             # replayed under its own lock below, so an old clean sidecar cannot block
             # admission forever after an otherwise safe stop or source-pin refresh.

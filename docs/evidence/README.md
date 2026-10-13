@@ -31,6 +31,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - [`Gecko v4 usage reconciliation`](gecko-v4-usage-reconciliation-2026-10-12.json): one exact,
   immutable orphan-clock case tied to its old source closure, root prefix, storage identity, and
   four missed-dispatch skips; all 18 actual requests replay with terminal results and confirmations.
+- [`a078 terminal usage reconciliation`](gecko-capture-only-v2-a078-terminal-usage-2026-10-13.json):
+  exact stopped-release receipt; independently replays four attempts, two unknown slots, and the
+  terminal health sidecar as empty under a stable global root census.
 - [`Gecko shared-usage reconciliation observation`](gecko-shared-usage-reconciliation-observation-2026-10-12T2309Z.json):
   read-only replay of 11 roots / 28 attempts / 21,400 response bytes. A synthetic 16-KiB reserve fits
   caps; no provider I/O or dispatch authority, and actual charge remains unknown/unverified.

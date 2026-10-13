@@ -3772,12 +3772,21 @@ the replacement mount untouched. This is not yet a provider runtime or LaunchAge
 The prior v4 LaunchAgent was loaded but stopped with exit 2 after the exact capture root failed replay
 on one unreferenced clock file for a bucket with four durable missed-dispatch skips and no intents or
 dispatches; it has been booted out. The root remains immutable. The global same-provider census now
-succeeds through the exact one-case reconciliation above; no generic clock-closure bypass was added.
-A v2 host scheduler/runtime,
-crash/race/recovery qualification, release/source binding, and bounded forward-only provider pilot
-remain open. Before v2 provider I/O, v4 must remain unloaded because its pacing check does not
-account for v2 dispatches. Existing v4 budget logic still omits capture-only roots, so it is not
-shared cross-version admission authority.
+succeeds through two exact, release-specific usage reconciliations; no generic clock-closure bypass
+was added. The a078 v2 health sidecar is accepted as `verified_none` only after replaying its
+terminal receipt against the unchanged request root and stable 19-root census. That receipt binds
+the old source map/commit, storage identity, plan and six slots, STOP snapshot/event, four unique
+intent/dispatch/HTTP-200/raw-result/settlement/confirmation chains (3,041 bytes), two unknown
+no-intent/no-skip slots, and absence of any post-STOP artifact. The independent live inventory
+replayed that request root as `verified_prefix` (four attempts) and the health root as `verified_none`
+with provider I/O disabled. Receipt:
+[`a078 terminal usage reconciliation`](evidence/gecko-capture-only-v2-a078-terminal-usage-2026-10-13.json).
+The old release remains terminal; the reconciliation grants no source, training, economic, retry, or
+dispatch authority. A corrected v2 host scheduler/runtime, crash/race/recovery qualification,
+release/source/plist binding, and bounded forward-only provider pilot remain open. Before v2
+provider I/O, v4 must remain unloaded because its pacing check does not account for v2 dispatches.
+Existing v4 budget logic still omits capture-only roots, so it is not shared cross-version admission
+authority.
 Physical allocation remains the shared coordinator's responsibility.
 
 The Agave build runner v1 remains rejected. A separately versioned default-deny Seatbelt fixture
