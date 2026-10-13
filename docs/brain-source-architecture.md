@@ -545,6 +545,24 @@ requests and left c3 and c4 tail2 unopened. Its receipt records the internal c4 
 device, owner and inode; the c4 receipts do not pin a volume UUID or Kingston identity.
 [`c4 first-four raw-capture replay`](evidence/pumpswap-sell23-c4-first-four-raw-capture-replay-2026-10-13.json).
 
+A separate read-only capability census of those same four hash-verified frames records every
+structural reference. All 388 transaction metas contain pre/post lamport and token-balance arrays
+and an inner-instruction array; for the 342 native-close rows, the source and close-destination
+lamport endpoints are present, while both closed-account token endpoints and account-program-owner
+endpoints are missing. All 342 destination lamport endpoints remain unattributed because other
+transaction instructions also touch the destination. The destination is the message signer and fee
+payer in all 342 rows, but token-owner metadata and historical Rent are unavailable. The 341 exact
+source-flow rows each show the expected temporary-account lifecycle; the remaining row fingerprints
+an unsupported Jupiter outer touch at `[4]` (35 raw data bytes; SHA-256
+`9fa596ce300b827773ac667b055ba63f1a2d14902fc71de99c687fc63e316a47`) alongside target CPI `[4,0]`.
+The selected blocks contain 1,151 observed transactions with raw discriminator
+`c62e1552b4d9e870` and 25-byte instruction data; examples retain only raw discriminator, path, and
+observed program-flow counts, with no argument decoding. These are transaction-completion facts
+available after execution: event time, capture receipt time, local availability time, and decision
+time remain separate, and no decision-time availability is inferred. Wallet net, Rent, destination
+settlement, economics, and admissions remain unqualified. Receipt:
+[`c4 raw capability census`](evidence/pumpswap-sell23-c4-raw-capability-census-2026-10-13.json).
+
 A separate bounded-search deviation emitted a truncated 13:00Z buyExact state-locator result before
 the audit. Sol adjudicated that this artifact was outside the frozen 14:00Z–17:00Z sell23 population
 and that no selected sell23 case was opened or used by the search. Because the search recursively

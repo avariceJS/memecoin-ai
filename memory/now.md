@@ -27,6 +27,10 @@ Production, champion, protected samples, real trading, and Cortex remain untouch
 - Native `sell23` settlement sufficiency remains a narrow independent replay: only 341 rows are
   source-flow exact; destination/native settlement, proceeds, wallet net, `buyExact25`, training, and
   economics remain unqualified.
+- The c4 14:00Z–17:00Z raw capability census closes 388 structural refs and 342 native-close rows.
+  Transaction-boundary source/destination lamports and destination fee-payer/signer links are
+  visible ex post, while closed token endpoints, account-program owners, and historical Rent are
+  missing; all destinations remain unattributed. No economic admission followed.
 - Agave Seatbelt confinement v2 remains NO-GO after forced stage-path replacement wrote into the
   underlay. Preserve the dirty checkout/cache; do not run Cargo/Agave on this owner Mac.
 - Senses stop condition is not met. Continue through consecutive engineering horizons; do not begin

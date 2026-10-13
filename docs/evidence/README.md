@@ -699,6 +699,13 @@ contain large exact payloads, so open only the named artifact needed for a speci
   14:00Z–17:00Z raw frames and adapter outputs; confirms 341 exact source flows, one unsupported
   touch, all raw destinations ambiguous, adapter evidence insufficient, and zero admissions or
   provider requests; c3 and tail2 remain unopened).
+- c4 raw capability census:
+  `pumpswap-sell23-c4-raw-capability-census-2026-10-13.json` (per-reference matrix across 388
+  structural refs and 342 native-close rows. Transaction metas contain boundary arrays, but closed
+  source token endpoints, account-program-owner endpoints and historical Rent remain unavailable;
+  close-destination lamports are present but unattributed. Destination message-signer/fee-payer
+  links are observed for all 342 rows; no wallet-net or economic admission follows. It records
+  1,151 raw 25-byte observations for discriminator `c62e1552b4d9e870` without decoding arguments).
 - Sell23 audit bounded-search scope deviation:
   `sell23-c4-bounded-search-scope-deviation-2026-10-10.json` (records a truncated accidental
   emission of the 13:00Z buyExact locator, its exact artifact hash and command digest, and Sol's
