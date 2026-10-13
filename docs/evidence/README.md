@@ -11,6 +11,14 @@ contain large exact payloads, so open only the named artifact needed for a speci
   read/write/network denial, symlink escape denial, and detached-child cleanup, but forced
   stage-path replacement writes into a same-name underlay. This falsifies mount-identity safety;
   v2 is NO-GO and authorizes no Agave/Cargo execution).
+- [`Helius v5r2 cutover preflight`](helius-v5r2-cutover-preflight-2026-10-13T0245Z.json):
+  read-only Kingston replay of all 35 prior attempts (33 captured, two possibly spent), exact
+  inherited/shared usage accounting, and a future-only 19:00Z anchor. Offline cutover/recovery
+  gates pass; activation and actual provider charge remain unverified.
+- [`Gecko capture-only v2 live observation`](gecko-capture-only-v2-live-observation-2026-10-13T0252Z.json):
+  independent 25-root/40-attempt usage replay after five actual HTTP 200 responses across two
+  prospective buckets, seven explicit missed dispatches, and a post-capture LaunchAgent restart.
+  All returned bars were outside the new-open window; this is acquisition/recovery evidence only.
 - Gecko capture-only v4 first live bucket:
   [`gecko-capture-only-v4-first-live-bucket-2026-10-12T2100Z.json`](gecko-capture-only-v4-first-live-bucket-2026-10-12T2100Z.json)
   (four actual future-only HTTP 200 requests, four durable results/captures/confirmations and a

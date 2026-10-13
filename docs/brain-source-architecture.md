@@ -3838,6 +3838,19 @@ confinement approaches impossible. Preserve the dirty Agave checkout/cache and d
 ProgramTest. A future route requires a demonstrated kernel-enforced mount-identity boundary or an
 unprivileged identity unable to access the underlay, plus source/cache review.
 
+Sol selected a fresh unprivileged build identity as the next inert feasibility gate, layered with
+the path-restricting profile. Its OS-level DAC/ACL must deny search/write access to the mountpoint
+underlay and owner checkout/credentials even after Kingston detaches or the staged path is replaced;
+only a dedicated subtree on the verified mounted volume may be writable. Before any offline Cargo
+build, a disposable-volume test must force detach/path replacement across absolute paths, held
+directories, symlinks, renames, build-script children and detached children, with an unchanged
+underlay, no internal fallback, no surviving child, pinned offline source/cache closure, verified
+mount identity and bounded allocation. Any escape is NO-GO and moves the build to an isolated VM or
+worker without a writable host share. The current owner Mac has no dedicated service identity; the
+only non-owner local account is a system PostgreSQL account, and switching to it requires admin
+authentication. No account or ACL has been changed. Passing this gate would permit only a separately
+reviewed offline build; runtime/source-law and rooted economic qualification remain later gates.
+
 The shared capacity coordinator v2 is initialized on the configured Kingston data root. Its
 descriptor-bound policy binds root ID, UUID, device, and inode; live Helius v5 admission and Gecko
 pilot use the same canonical ledger while holding their lane locks. It reuses the existing v4
@@ -3863,9 +3876,14 @@ possibly-spent request, and the following open 23:00Z epoch missed its dispatch 
 immutable and cannot be resumed or repaired in place. Sol approved a distinct v5r2 release with a
 narrow cutover exception for that exact no-dispatch open root; it must replay all 35 prior attempts,
 including both ambiguous requests, preserve shared coordinator semantics, and anchor only at a
-fresh future epoch after the two-abandonment window clears. That successor has not yet passed its
-implementation and activation gates. The old LaunchAgent stays unloaded. Market bars, complete
-structural inventory, and economic qualification remain unproven.
+fresh future epoch after the two-abandonment window clears. The separate v5r2 implementation now
+passes focused replay tests and a fresh read-only Kingston preflight: all 35 attempts reconcile
+(33 captured, two possibly spent), inherited and shared-capacity accounting closes at 651 lifetime
+requests / 6,510 modeled credits, and the next anchor is 2026-10-13 19:00Z. The exact preflight
+receipt is [`Helius v5r2 cutover preflight`](evidence/helius-v5r2-cutover-preflight-2026-10-13T0245Z.json).
+This closes offline cutover/recovery accounting only. The old LaunchAgent stays unloaded; the new
+one is not activated before the pinned future anchor. Provider charge remains unknown/unverified.
+Market bars, complete structural inventory, and economic qualification remain unproven.
 
 The new Gecko capture-only-v2 release `00263d9787393fbc4d0fa3db8a276d7c` was prepared as a
 plan-only Kingston root and briefly loaded with a 12-second callback. It failed closed before any
@@ -3895,14 +3913,19 @@ root and release remain untouched; a new release must pin this correction and ta
 bucket. The observed responses and recovery qualify transport/replay behavior only, not price
 coverage, source semantics, or market admission.
 
-The corrected source-pinned release `060bed015daf4918b061d4eea72e2d65` is now loaded as a LaunchAgent
-with a 12-second callback and no calendar lease expiry. It is bound to the verified Kingston root;
-the 02:30Z first bucket is future-only, with no provider intent or result yet. Its policy permits at
-most six selected pools per 15-minute bucket, one request per callback, at least 12 seconds between
-dispatches, 576 requests/10 MiB raw per UTC day, 17,280 requests/300 MiB raw and 2 GiB physical
-reserve per rolling 30 days, a 16 GiB resident ceiling, and a 50 GiB free-space floor. These are
-finite safety limits, not a time-limited lease. Source qualification, training admission and
-economic admission remain false. Recovery was checked by bootout/bootstrap before the first window;
-the new root retained zero intents, global usage counters remained 7 daily / 35 rolling, and the
-health snapshot stayed clear of STOP. The first natural bucket and its independent replay remain
-the next live acceptance evidence.
+The corrected source-pinned release `060bed015daf4918b061d4eea72e2d65` is loaded as a LaunchAgent
+with a 12-second callback and no calendar lease expiry. It is bound to the verified Kingston root.
+Its policy permits at most six selected pools per 15-minute bucket, one request per callback, at
+least 12 seconds between dispatches, 576 requests/10 MiB raw per UTC day, 17,280 requests/300 MiB
+raw and 2 GiB physical reserve per rolling 30 days, a 16 GiB resident ceiling, and a 50 GiB
+free-space floor. These are finite safety limits, not a time-limited lease. Recovery was checked by
+bootout/bootstrap before the first provider window. The first two natural buckets produced five
+actual GeckoTerminal HTTP 200 responses / 4,770 raw bytes; independent inventory replay verified
+the exact prefix and global accounting ([live observation receipt](evidence/gecko-capture-only-v2-live-observation-2026-10-13T0252Z.json)). Both windows had zero eligible new-open bars: the first
+completed 3/6 requests and the second 2/6, with all seven remaining selected slots durably marked
+`missed_dispatch`. Health is paused outside the window with `stop_latched=false`; the collector has
+restarted after these observations without replaying a spent request. Measured live callbacks exceed
+the 12-second cadence, so useful coverage is currently constrained. A two-tier descriptor-bound
+write validation and census-cost reduction must be source-bound and detach-path qualified before a
+successor can replace this release. No calendar gap is backfilled. Provider charge remains
+unknown/unverified; market-source, training, and economic admission remain false.
