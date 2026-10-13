@@ -33,6 +33,7 @@ CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
 SERVICE_PREFIX = "services/gecko-market-v1/capture-only-v6"
 ACTIVATION_PATH = "control/gecko-capture-v6/activation.json"
 SOURCE_MANIFEST_PATH = "control/gecko-capture-v6/source-manifest.json"
+PRIOR_USAGE_CENSUS_PATH = "docs/evidence/gecko-v6-prior-usage-census-2026-10-13T1045Z.json"
 SOURCE_BUNDLE_PREFIX = "brain/source-pins/gecko-train-four-v3"
 PLIST_PATH = "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v6.plist.template"
 LABEL = "ai.memecoin.brain.senses.gecko-capture-only-v6"
@@ -61,7 +62,9 @@ SOURCE_PATHS = (
     "tools/brain_senses_gecko_lane_engine_v3.py",
     "tools/brain_senses_gecko_lane_policy_v6.py",
     "tools/brain_senses_gecko_capture_only_v6.py",
+    "tools/brain_senses_gecko_usage_inventory_v2.py",
     "tools/brain_senses_gecko_capture_only_v6_host.py",
+    PRIOR_USAGE_CENSUS_PATH,
     PLIST_PATH,
 )
 SOURCE_INPUTS = {
@@ -484,6 +487,172 @@ def verify_source_manifest(
     )
     if canonical(dict(manifest)) != canonical(expected):
         raise HostV6Error("v6_owner_source_manifest_drift")
+
+
+def verify_prior_usage_census(
+    receipt_raw: bytes,
+    *,
+    source_manifest: Mapping[str, Any],
+    epoch: Mapping[str, Any],
+    storage: Mapping[str, Any],
+    repo_root: Path = REPO_ROOT,
+) -> list[dict[str, int]]:
+    """Verify committed census provenance and derive its conservative carry-in rows."""
+    try:
+        receipt = json.loads(receipt_raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HostV6Error("v6_owner_prior_usage_census_json") from exc
+    if type(receipt) is not dict or canonical(receipt) != receipt_raw:
+        raise HostV6Error("v6_owner_prior_usage_census_canonical")
+    required = {
+        "schema",
+        "schema_version",
+        "source_commit",
+        "verifier",
+        "verifier_sha256",
+        "observed_ns",
+        "storage",
+        "root_inventory",
+        "root_inventory_sha256",
+        "root_count",
+        "provider_io",
+        "attempt_count",
+        "unresolved_response_count",
+        "raw_bytes_upper_bound",
+        "physical_bytes_upper_bound",
+        "prior_usage_rows_sha256",
+        "attempts",
+        "snapshot_sha256_by_root",
+    }
+    digest = sha256(receipt_raw)
+    epoch_binding = epoch.get("prior_usage_census")
+    source_map = source_manifest.get("source_map")
+    if (
+        set(receipt) != required
+        or receipt.get("schema") != "brain-senses-gecko-v6-prior-usage-census"
+        or receipt.get("schema_version") != 1
+        or type(source_map) is not dict
+        or source_map.get(PRIOR_USAGE_CENSUS_PATH) != digest
+        or type(epoch_binding) is not dict
+        or epoch_binding
+        != {
+            "receipt_path": PRIOR_USAGE_CENSUS_PATH,
+            "receipt_sha256": digest,
+            "root_inventory_sha256": receipt.get("root_inventory_sha256"),
+            "attempt_count": receipt.get("attempt_count"),
+            "observed_ns": receipt.get("observed_ns"),
+        }
+        or type(receipt.get("source_commit")) is not str
+        or not COMMIT_RE.fullmatch(receipt["source_commit"])
+        or receipt.get("verifier") != "tools/brain_senses_gecko_usage_inventory_v2.py"
+        or not HASH_RE.fullmatch(str(receipt.get("verifier_sha256", "")))
+        or type(receipt.get("observed_ns")) is not int
+        or receipt["observed_ns"] <= 0
+        or receipt["observed_ns"] >= epoch.get("first_bucket_close_ns", 0)
+        or receipt.get("storage")
+        != {
+            "root_id": storage.get("root_id"),
+            "volume_uuid": storage.get("volume_uuid"),
+            "device": storage.get("data_root", {}).get("device"),
+            "inode": storage.get("data_root", {}).get("inode"),
+        }
+        or receipt.get("provider_io") is not False
+    ):
+        raise HostV6Error("v6_owner_prior_usage_census_binding")
+    from tools import brain_senses_gecko_lane_policy_v6 as policy_v6
+
+    inventory = receipt.get("root_inventory")
+    attempts = receipt.get("attempts")
+    snapshots = receipt.get("snapshot_sha256_by_root")
+    if (
+        type(inventory) is not dict
+        or not HASH_RE.fullmatch(str(receipt.get("root_inventory_sha256", "")))
+        or receipt["root_inventory_sha256"] != sha256(canonical(inventory))
+        or type(inventory.get("root_paths")) is not list
+        or any(type(path) is not str for path in inventory["root_paths"])
+        or inventory["root_paths"] != sorted(set(inventory["root_paths"]))
+        or type(receipt.get("root_count")) is not int
+        or receipt["root_count"] != len(inventory["root_paths"])
+        or type(snapshots) is not dict
+        or set(snapshots) != set(inventory["root_paths"])
+        or any(not HASH_RE.fullmatch(str(value)) for value in snapshots.values())
+        or type(attempts) is not list
+        or receipt.get("attempt_count") != len(attempts)
+        or any(type(row) is not dict for row in attempts)
+    ):
+        raise HostV6Error("v6_owner_prior_usage_census_inventory")
+    sorted_attempts = sorted(
+        attempts, key=lambda row: (row.get("decision_ns", 0), row.get("request_id", ""))
+    )
+    rows: list[dict[str, int]] = []
+    seen_ids: set[str] = set()
+    unresolved = 0
+    for attempt in attempts:
+        if (
+            type(attempt) is not dict
+            or set(attempt)
+            != {
+                "root",
+                "request_id",
+                "decision_ns",
+                "maximum_response_bytes",
+                "response_bytes",
+                "response_sha256",
+            }
+            or attempt.get("root") not in inventory["root_paths"]
+            or type(attempt.get("request_id")) is not str
+            or not HASH_RE.fullmatch(attempt["request_id"])
+            or attempt["request_id"] in seen_ids
+            or type(attempt.get("decision_ns")) is not int
+            or attempt["decision_ns"] <= 0
+            or attempt["decision_ns"] > receipt["observed_ns"]
+            or attempt.get("maximum_response_bytes") != policy_v6.MAX_RESPONSE_BYTES
+        ):
+            raise HostV6Error("v6_owner_prior_usage_census_attempt")
+        seen_ids.add(attempt["request_id"])
+        response_bytes = attempt.get("response_bytes")
+        response_sha = attempt.get("response_sha256")
+        if response_bytes is None:
+            if response_sha is not None:
+                raise HostV6Error("v6_owner_prior_usage_census_ambiguous")
+            unresolved += 1
+        elif (
+            type(response_bytes) is not int
+            or not 0 <= response_bytes <= policy_v6.MAX_RESPONSE_BYTES
+            or type(response_sha) is not str
+            or not HASH_RE.fullmatch(response_sha)
+        ):
+            raise HostV6Error("v6_owner_prior_usage_census_response")
+        rows.append(
+            {
+                "intent_ns": attempt["decision_ns"],
+                "raw_bytes_upper_bound": attempt["maximum_response_bytes"],
+                "physical_bytes_upper_bound": policy_v6.PHYSICAL_RESERVE_PER_INTENT,
+            }
+        )
+    if (
+        attempts != sorted_attempts
+        or receipt.get("unresolved_response_count") != unresolved
+        or receipt.get("raw_bytes_upper_bound") != sum(row["raw_bytes_upper_bound"] for row in rows)
+        or receipt.get("physical_bytes_upper_bound")
+        != sum(row["physical_bytes_upper_bound"] for row in rows)
+        or receipt.get("prior_usage_rows_sha256") != sha256(canonical(rows))
+    ):
+        raise HostV6Error("v6_owner_prior_usage_census_totals")
+    try:
+        verifier = _git_show_blob(repo_root, receipt["source_commit"], receipt["verifier"])
+        _git(
+            repo_root,
+            "merge-base",
+            "--is-ancestor",
+            receipt["source_commit"],
+            str(source_manifest["source_commit"]),
+        )
+    except (HostV6Error, KeyError) as exc:
+        raise HostV6Error("v6_owner_prior_usage_census_source") from exc
+    if sha256(verifier) != receipt["verifier_sha256"]:
+        raise HostV6Error("v6_owner_prior_usage_census_verifier_hash")
+    return rows
 
 
 def load_policy_from_writer(data_writer: Any) -> dict[str, Any]:
@@ -1015,6 +1184,18 @@ def scheduled_tick() -> dict[str, Any]:
                 exclusive_lane_lease=lane_lease,
             )
             pinned_raw, pinned_rows = capture_v6._load_pinned_prior_usage(service_writer, epoch)
+            census_raw = _read_repo_file(
+                REPO_ROOT, PRIOR_USAGE_CENSUS_PATH, maximum=2 * 1024 * 1024
+            )
+            census_rows = verify_prior_usage_census(
+                census_raw,
+                source_manifest=source_manifest,
+                epoch=epoch,
+                storage=storage,
+                repo_root=REPO_ROOT,
+            )
+            if census_rows != pinned_rows:
+                raise HostV6Error("v6_owner_prior_usage_array_census_mismatch")
             wall_origin, mono_origin = time.time_ns(), time.monotonic_ns()
 
             def clock_check() -> bool:

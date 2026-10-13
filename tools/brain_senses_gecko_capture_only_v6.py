@@ -238,6 +238,7 @@ def epoch_document(
     storage: Mapping[str, Any],
     prior_usage_path: str,
     prior_usage_sha256: str,
+    prior_usage_census: Mapping[str, Any],
 ) -> dict[str, Any]:
     """Compile the explicit new sampling epoch; cursor reset is part of its identity."""
     if (
@@ -251,6 +252,24 @@ def epoch_document(
         or not _storage_shape(dict(storage))
         or not prior_usage_path.startswith("control/gecko-v6-prior-usage/")
         or not _sha(prior_usage_sha256)
+        or type(prior_usage_census) is not dict
+        or set(prior_usage_census)
+        != {
+            "receipt_path",
+            "receipt_sha256",
+            "root_inventory_sha256",
+            "attempt_count",
+            "observed_ns",
+        }
+        or type(prior_usage_census.get("receipt_path")) is not str
+        or not prior_usage_census["receipt_path"].startswith("docs/evidence/")
+        or not _sha(prior_usage_census.get("receipt_sha256"))
+        or not _sha(prior_usage_census.get("root_inventory_sha256"))
+        or type(prior_usage_census.get("attempt_count")) is not int
+        or prior_usage_census["attempt_count"] < 0
+        or type(prior_usage_census.get("observed_ns")) is not int
+        or prior_usage_census["observed_ns"] <= 0
+        or prior_usage_census["observed_ns"] >= anchor_close_ns
     ):
         raise CaptureV6Error("v6_epoch_input_invalid")
     core = {
@@ -270,6 +289,7 @@ def epoch_document(
         "predecessor_cursor_disposition": "not_carried_new_epoch",
         "reset_reason": "explicit_new_v6_sampling_epoch",
         "prior_usage": {"path": prior_usage_path, "sha256": prior_usage_sha256},
+        "prior_usage_census": dict(prior_usage_census),
         "storage": dict(storage),
         "provider_io": False,
         "market_source_qualified": False,
@@ -297,6 +317,7 @@ def verify_epoch(epoch: dict[str, Any], *, now_ns: int | None = None) -> None:
         "predecessor_cursor_disposition",
         "reset_reason",
         "prior_usage",
+        "prior_usage_census",
         "storage",
         "provider_io",
         "market_source_qualified",
@@ -330,6 +351,23 @@ def verify_epoch(epoch: dict[str, Any], *, now_ns: int | None = None) -> None:
         or not epoch["prior_usage"]["path"].startswith("control/gecko-v6-prior-usage/")
         or any(part in {"", ".", ".."} for part in epoch["prior_usage"]["path"].split("/"))
         or not _sha(epoch["prior_usage"].get("sha256"))
+        or type(epoch.get("prior_usage_census")) is not dict
+        or set(epoch["prior_usage_census"])
+        != {
+            "receipt_path",
+            "receipt_sha256",
+            "root_inventory_sha256",
+            "attempt_count",
+            "observed_ns",
+        }
+        or type(epoch["prior_usage_census"].get("receipt_path")) is not str
+        or not epoch["prior_usage_census"]["receipt_path"].startswith("docs/evidence/")
+        or not _sha(epoch["prior_usage_census"].get("receipt_sha256"))
+        or not _sha(epoch["prior_usage_census"].get("root_inventory_sha256"))
+        or type(epoch["prior_usage_census"].get("attempt_count")) is not int
+        or epoch["prior_usage_census"]["attempt_count"] < 0
+        or type(epoch["prior_usage_census"].get("observed_ns")) is not int
+        or epoch["prior_usage_census"]["observed_ns"] >= epoch["first_bucket_close_ns"]
         or not _storage_shape(epoch.get("storage"))
         or any(
             epoch.get(key) is not False

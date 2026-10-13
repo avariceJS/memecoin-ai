@@ -113,6 +113,13 @@ class Harness:
             "service_root": {"device": service_stat.st_dev, "inode": service_stat.st_ino},
         }
         self.prior_usage_bytes = canonical_json(prior_usage_rows or [])
+        self.prior_usage_census = {
+            "receipt_path": "docs/evidence/test-prior-usage-census.json",
+            "receipt_sha256": hashlib.sha256(b"test-receipt").hexdigest(),
+            "root_inventory_sha256": hashlib.sha256(b"test-inventory").hexdigest(),
+            "attempt_count": len(prior_usage_rows or []),
+            "observed_ns": CLOSE - policy_v6.BUCKET_NS,
+        }
         self.epoch = capture_v6.epoch_document(
             release_id="b" * 32,
             anchor_close_ns=CLOSE,
@@ -122,6 +129,7 @@ class Harness:
             storage=self.storage,
             prior_usage_path="control/gecko-v6-prior-usage/test.json",
             prior_usage_sha256=hashlib.sha256(self.prior_usage_bytes).hexdigest(),
+            prior_usage_census=self.prior_usage_census,
         )
         self.writer = DescriptorWriter(self.service_fd)
         self.lane_tmp = tempfile.TemporaryDirectory()

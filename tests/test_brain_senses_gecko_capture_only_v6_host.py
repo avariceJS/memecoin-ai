@@ -391,6 +391,56 @@ def test_storage_identity_binds_nested_service_descriptor_and_rejects_path_repla
         os.close(mount_fd)
 
 
+def test_prior_usage_census_replays_pinned_attempts_and_rejects_epoch_drift() -> None:
+    receipt_raw = (host.REPO_ROOT / host.PRIOR_USAGE_CENSUS_PATH).read_bytes()
+    receipt = json.loads(receipt_raw)
+    storage = {
+        "root_id": receipt["storage"]["root_id"],
+        "volume_uuid": receipt["storage"]["volume_uuid"],
+        "data_root": {
+            "device": receipt["storage"]["device"],
+            "inode": receipt["storage"]["inode"],
+        },
+        "service_root": {
+            "device": receipt["storage"]["device"],
+            "inode": receipt["storage"]["inode"] + 1,
+        },
+    }
+    receipt_sha256 = host.sha256(receipt_raw)
+    binding = {
+        "receipt_path": host.PRIOR_USAGE_CENSUS_PATH,
+        "receipt_sha256": receipt_sha256,
+        "root_inventory_sha256": receipt["root_inventory_sha256"],
+        "attempt_count": receipt["attempt_count"],
+        "observed_ns": receipt["observed_ns"],
+    }
+    source_manifest = {
+        "source_commit": host._git(host.REPO_ROOT, "rev-parse", "HEAD"),
+        "source_map": {host.PRIOR_USAGE_CENSUS_PATH: receipt_sha256},
+    }
+    epoch = {
+        "first_bucket_close_ns": receipt["observed_ns"] + 900 * 1_000_000_000,
+        "prior_usage_census": binding,
+    }
+    rows = host.verify_prior_usage_census(
+        receipt_raw,
+        source_manifest=source_manifest,
+        epoch=epoch,
+        storage=storage,
+    )
+    assert len(rows) == 62
+    assert sum(row["raw_bytes_upper_bound"] for row in rows) == 1_015_808
+    assert sum(row["physical_bytes_upper_bound"] for row in rows) == 5_079_040
+    bad_epoch = {**epoch, "prior_usage_census": {**binding, "attempt_count": 61}}
+    with pytest.raises(host.HostV6Error, match="prior_usage_census_binding"):
+        host.verify_prior_usage_census(
+            receipt_raw,
+            source_manifest=source_manifest,
+            epoch=bad_epoch,
+            storage=storage,
+        )
+
+
 def test_owner_tick_refuses_unreplayed_or_malformed_binding_without_io() -> None:
     # No caller-controlled replay or activation context is accepted by entry.
     with pytest.raises(TypeError):
