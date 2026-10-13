@@ -1,8 +1,9 @@
 # Current Project State
 
-**As of:** 2026-10-13 12:37Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD and `origin/research/active` `49e6142`. `main` and `origin/main` remain
-`770699d`. Verify live state before handoff. Preserve unrelated dirty build-guard/Agave work.
+**As of:** 2026-10-13 12:54Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, HEAD and `origin/research/active` `542a150`. `main` and `origin/main` remain
+`770699d`. Worktree includes unrelated dirty build-guard/Agave/capture-watchdog/provider evidence;
+stage only scoped files. New positive-bar audit code is uncommitted and synthetic-only.
 
 ## Prospective acquisition
 
@@ -10,10 +11,10 @@
   `8f8f1081-9be4-4914-9111-75f1b90255bf`; last descriptor-bound measurement: 202.4 GiB free,
   above the 50-GiB floor.
 - Gecko v6 LaunchAgent `ai.memecoin.brain.senses.gecko-capture-only-v6` is loaded in `gui/501`,
-  exact pinned plist/argv, 60-second interval. Nine natural callbacks exited 0, including after
-  docs-only descendant commits. Root `94da5c80bdd82308ebbad0c8f2e158b3` is on Kingston with
-  13:15Z first close; `events.jsonl` remains empty at 12:37Z. No provider requests, payloads or
-  recovery test yet. No backfill/retry.
+  exact pinned plist/argv, 60-second interval. Thirteen callbacks exited 0, including after
+  docs-only descendant commits. Root `94da5c80bdd82308ebbad0c8f2e158b3` is on Kingston; its first
+  natural close is 13:15Z and `events.jsonl` remains empty at 12:54Z. No v6 provider requests or
+  recovery test yet. No backfill/retry. Available space last measured at 202.4 GiB.
 - Full-current replay: 44 roots, 62 historical attempts; all three old v6 roots `verified_none`,
   zero v6 attempts. Runtime binding requires ancestor commit, exact source bytes across release/HEAD/
   checkout, clean pinned paths, and exact plist/live identity. Focused host tests: 43; broader v6
@@ -22,6 +23,12 @@
   `docs/evidence/gecko-v6-population-coverage-preregistration-2026-10-13.json`. Denominator uses
   durable plan slots; explicit gaps remain separate unknown intervals. After one live bucket and
   no-replay restart, implement the read-only coverage adapter for the frozen 170-pool population.
+- Sol's next horizon is positive `eligible_new_open` values only. Offline projector
+  `tools/brain_senses_gecko_v6_observed_values_v1.py` binds raw hashes, pool/base/quote identity,
+  provenance pins and distinct event/decision/request/receipt/durable-availability times. It emits
+  no completeness, lifecycle, source, training or economic claim; age is unknown without independent
+  birth evidence. Focused tests pass, but code is synthetic-only until live root replay/recovery and
+  full preregistered rotation.
 - Policy remains six pools per 15 minutes, up to 24 requests/hour, 12-second spacing, forward-only;
   caps include 576 requests/day, 10 MiB/day raw, 80 KiB physical reserve/request, 16-GiB resident
   ceiling and 50-GiB free floor. Qualification/training/economic admission false.

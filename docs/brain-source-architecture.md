@@ -4080,3 +4080,14 @@ A descriptor-bound read-only census independently replayed 41 known roots and 62
 two unresolved response sizes. The conservative prior offset is 1,015,808 raw bytes and 5,079,040
 physical bytes. The immutable sanitized census receipt is
 [`v6 prior-usage census`](evidence/gecko-v6-prior-usage-census-2026-10-13T1045Z.json).
+
+Sol's next independent source horizon is positive Gecko bar values from that pinned rotation. The
+offline v1 projector consumes only a separately verified v6 prefix; it retains plan-slot and gap
+denominators, emits only timely, durably confirmed `eligible_new_open` values, and binds pool/base/
+quote identity, raw-response hash, source/policy/selector/population pins, and separate event,
+decision, request, receipt and availability times. Empty, missed, failed, ambiguous, late, malformed,
+unclosed, out-of-window and overlap-revision cases remain denominators or parser dispositions, never
+zero values or lifecycle evidence. Birth age is explicitly unknown absent independent birth evidence.
+The projector is read-only and grants no coverage, completeness, source, training or economic
+qualification. Its focused synthetic mutation tests pass; real publication waits for natural live
+capture, controlled no-replay recovery and the complete preregistered pool rotation.
