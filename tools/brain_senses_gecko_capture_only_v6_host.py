@@ -62,6 +62,7 @@ SOURCE_PATHS = (
     "tools/brain_senses_gecko_lane_engine_v3.py",
     "tools/brain_senses_gecko_lane_policy_v6.py",
     "tools/brain_senses_gecko_capture_only_v6.py",
+    "tools/brain_senses_gecko_capture_only_v6_bootstrap.py",
     "tools/brain_senses_gecko_usage_inventory_v2.py",
     "tools/brain_senses_gecko_capture_only_v6_host.py",
     PRIOR_USAGE_CENSUS_PATH,
