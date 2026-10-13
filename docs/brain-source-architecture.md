@@ -4032,25 +4032,22 @@ through the held BrainData descriptor before dispatch and verifies the writer FD
 bootstrap initialized Kingston release `259c20d752fa383c3bb42637d10fb5da` with activation written
 last and an 11:15Z anchor. Its independent replay found zero plans and no provider I/O. The first
 LaunchAgent failed closed on every callback with exit status 2 and wrote no journal event; it has
-been booted out, and its plist and root are preserved read-only. There is no active prospective
-collector and no v6 provider traffic. A source-pinned successor now uses a release-qualified fixed
-control pair, bounded owner-only local diagnostics, and a 45-minute future-anchor margin. Its first
-create-only bootstrap attempt failed closed because usage-inventory-v2 rejects the existing
-`capture-only-v6` service family; no successor root/control files were created (the shared lane lock
-is present). Sol approved additive inventory-v3: retain exact replay of the historical 41-root / 62-
-attempt receipt, independently replay every current v6 root (including the old zero-attempt root),
-and prove a candidate successor ID absent before bootstrap. The implementation passes 52 focused
-tests and a live descriptor-bound read-only replay of all 42 current roots; the historical projection
-and 62 attempts matched, candidate `7a10e2d4c9f84c18a0b53d7e6f214c90` was absent, and no provider I/O
-occurred. The first successor root `7a10e2d4c9f84c18a0b53d7e6f214c90` was then initialized
-create-only and replayed as `verified_none`, but its first launchd callback exited 2 because direct
-script execution did not put the repository root on `sys.path`; the bounded owner diagnostic records
-`v6_owner_runtime_import_failed`. No plan, intent, dispatch, response, or provider I/O occurred. The
-agent is unloaded and this root/control pair is preserved immutable. The import path is fixed in a
-new source commit; a separate release `31cf35634151805f006a2cdde943c74c` will receive a fresh
-create-only root. Its idle callback and zero-attempt replay must pass before the first forward-only
-bucket; recovery must then pass before the collector is described as live. Market-source, training,
-and economic admission remain false.
+been booted out, and its plist and root are preserved read-only. At that point there was no active
+prospective collector or v6 provider traffic. Sol approved additive inventory-v3: retain exact replay of the
+historical 41-root / 62-attempt receipt, independently replay every current v6 root (including old
+zero-attempt roots), and prove a candidate successor ID absent before bootstrap. It passes 52 focused
+tests and descriptor-bound live replays (42 roots before bootstrap, then all current roots). The first
+successor `7a10e2d4c9f84c18a0b53d7e6f214c90` was create-only initialized but its launchd callback
+exposed a direct-script import defect; sanitized diagnostic `v6_owner_runtime_import_failed` was
+written, with no plan, intent, dispatch, response, or provider I/O. This root/control pair is
+preserved immutable. The repository-root import path is fixed in a pushed source commit, and a fresh
+release `31cf35634151805f006a2cdde943c74c` is initialized create-only. The LaunchAgent is loaded
+from the exact pinned plist; three callbacks completed with exit 0 while its 45-minute anchor remained
+in the future. The 44-root replay confirms the new root is `verified_none` with no plans, intents,
+dispatches, or responses; provider I/O remains zero so far. It polls every 60 seconds and the policy
+has no finite lease expiry. The first forward-only bucket and restart recovery are still required
+before calling it a working prospective collector. Market-source, training, and economic admission
+remain false.
 
 A descriptor-bound read-only census independently replayed 41 known roots and 62 attempts, including
 two unresolved response sizes. The conservative prior offset is 1,015,808 raw bytes and 5,079,040
