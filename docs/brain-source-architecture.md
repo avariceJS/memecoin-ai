@@ -2978,6 +2978,12 @@ account limit and project charges remain unavailable. Helius MCP confirmed a con
 could not return usage without a JWT session. Neither account surface was used for chain RPC.
 Receipt: [`provider usage refresh 12:28Z`](evidence/alchemy-usage-refresh-mcp-2026-10-13T1228Z.json).
 
+Later read-only Alchemy refreshes at 07:26Z and 12:17Z on Oct 13 continued to report 18,680
+team-wide CU / $0.01 across MTD, seven-day and 30-day windows, with no account limit and an empty
+hourly series. Neither result attributes usage to this repository or establishes an invoice or
+research charge. Receipts: [`07:26Z usage summary`](evidence/alchemy-usage-summary-mcp-2026-10-13T0726Z.json)
+and [`12:17Z account refresh`](evidence/alchemy-usage-account-refresh-2026-10-13T1217Z.json).
+
 A fresh read-only storage feasibility check at 2026-10-11 16:54Z measured 26,090,602,496 bytes
 available on the internal APFS container, 27,596,488,704 bytes below the 50-GiB floor. The
 maximum identified rebuildable cache plus `dist/` allocation was 110,530,560 bytes and would still
@@ -3887,6 +3893,29 @@ worker without a writable host share. The current owner Mac has no dedicated ser
 only non-owner local account is a system PostgreSQL account, and switching to it requires admin
 authentication. No account or ACL has been changed. Passing this gate would permit only a separately
 reviewed offline build; runtime/source-law and rooted economic qualification remain later gates.
+
+An offline Agave build-runner prototype and opt-in allowance for ordinary Cargo Git-checkout
+symlinks were added after the NO-GO above. The runner pins its command vectors, source/cache and
+build-script closure, denies network and writes to the checkout/cache in its Seatbelt profile,
+bounds output, process lifetime, allocation and collector headroom, and writes receipts under a new
+Kingston stage. These controls do not solve the demonstrated same-name mountpoint-underlay write
+after detach. The runner has **not** been executed; do not invoke it or run Cargo/ProgramTest until a
+separately qualified OS identity or mount-identity boundary closes that escape. The opt-in Cargo
+symlink allowance has synthetic tests only; the existing APFS receipt does not bind this changed
+guard revision and must not be cited as its qualification. No account, ACL, or runtime was changed.
+
+Offline Gecko capture v3 owner/preflight/runtime, versioned activation with replay-context binding,
+and a canary-to-continuous handoff supervisor were added with a pure v6-to-v7 handoff policy. The
+one-shot owner contract binds exact source, release, plist, storage and replay identities, records
+intent before transport, and does not retry ambiguous requests. The v7 policy preserves spent
+ambiguous capacity, explicit missing slots and cooldown while refusing source/population/replay
+drift. A watchdog contract bootouts first and replays the closed prefix before publishing a diagnostic;
+its LaunchAgent template has a 15-second interval, but the checked-in callback deliberately fails
+closed because no owner adapter is bound. No plist was installed or loaded, no provider request was
+made, and no new prospective campaign was started. These implementations remain offline/synthetic
+qualification: 123 focused tests pass, as do scoped Ruff/format and `make smoke`. Repository-wide
+`make check` remains blocked by unrelated WSS Ruff findings (107 existing findings); no WSS files
+were changed.
 
 The shared capacity coordinator v2 is initialized on the configured Kingston data root. Its
 descriptor-bound policy binds root ID, UUID, device, and inode; live Helius v5 admission and Gecko

@@ -485,6 +485,7 @@ def run_guarded_stage(
     working_directory: Path | None = None,
     poll_seconds: float = POLL_SECONDS,
     term_grace_seconds: float = TERM_GRACE_SECONDS,
+    allow_cargo_git_checkout_symlinks: bool = False,
     popen: Callable[..., ManagedProcess] = subprocess.Popen,
     sleep: Callable[[float], None] = time.sleep,
 ) -> int:
@@ -502,7 +503,11 @@ def run_guarded_stage(
         raise GuardFailure("working_directory_missing")
     if initial and first.available_bytes < INITIAL_FREE_BYTES:
         raise GuardFailure("initial_free_below_90_gib")
-    allocation = _allocated_bytes(paths, first.mount_device)
+    allocation = _allocated_bytes(
+        paths,
+        first.mount_device,
+        allow_cargo_git_checkout_symlinks=allow_cargo_git_checkout_symlinks,
+    )
     if allocation > ALLOCATION_CAP_BYTES:
         raise GuardFailure("allocation_over_32_gib")
     required_free = MIN_FREE_BYTES + max(0, ALLOCATION_CAP_BYTES - allocation)
@@ -529,7 +534,11 @@ def run_guarded_stage(
     ):
         raise GuardFailure("storage_identity_changed_before_stage")
     paths = _check_stage_paths(paths, before_start)
-    before_start_allocation = _allocated_bytes(paths, before_start.mount_device)
+    before_start_allocation = _allocated_bytes(
+        paths,
+        before_start.mount_device,
+        allow_cargo_git_checkout_symlinks=allow_cargo_git_checkout_symlinks,
+    )
     if before_start_allocation > ALLOCATION_CAP_BYTES:
         raise GuardFailure("allocation_over_32_gib")
     if before_start.available_bytes < MIN_FREE_BYTES + max(
@@ -554,6 +563,7 @@ def run_guarded_stage(
                 paths,
                 first,
                 timeout_seconds=PROBE_TIMEOUT_SECONDS,
+                allow_cargo_git_checkout_symlinks=allow_cargo_git_checkout_symlinks,
             )
         except BaseException as exc:
             _terminate_group(process, grace_seconds=term_grace_seconds)
@@ -574,6 +584,7 @@ def run_guarded_stage(
                     paths,
                     first,
                     timeout_seconds=PROBE_TIMEOUT_SECONDS,
+                    allow_cargo_git_checkout_symlinks=allow_cargo_git_checkout_symlinks,
                 )
                 if final.available_bytes < MIN_FREE_BYTES:
                     raise GuardFailure("final_storage_check_failed")

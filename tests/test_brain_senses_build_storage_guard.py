@@ -67,7 +67,11 @@ def test_initial_free_gate_and_allocation_gate_are_fail_closed(
         _run(monkeypatch, FakeProvider(root, available=89 * guard.GIB), ["true"])
 
     provider = FakeProvider(root)
-    monkeypatch.setattr(guard, "_allocated_bytes", lambda _paths, _device: 33 * guard.GIB)
+    monkeypatch.setattr(
+        guard,
+        "_allocated_bytes",
+        lambda _paths, _device, **_kwargs: 33 * guard.GIB,
+    )
     with pytest.raises(guard.GuardFailure, match="allocation_over_32_gib"):
         _run(monkeypatch, provider, ["true"])
 
@@ -191,6 +195,67 @@ def test_allocated_bytes_allows_only_internal_pinned_cargo_git_checkout_links(
     link.symlink_to((checkout / "no_atomic.rs").resolve())
     with pytest.raises(guard.GuardFailure, match="absolute_cargo_checkout_symlink"):
         guard._allocated_bytes(paths, root.stat().st_dev, allow_cargo_git_checkout_symlinks=True)
+
+
+def test_run_guarded_stage_threads_explicit_cargo_checkout_link_allowance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "BrainData"
+    root.mkdir()
+    source = root / "source"
+    source.mkdir()
+    cargo_home = root / "cargo-home"
+    checkout = cargo_home / "git" / "checkouts" / "crossbeam" / "fd279d7"
+    (checkout / "crossbeam-epoch").mkdir(parents=True)
+    (checkout / "no_atomic.rs").write_text("// pinned", encoding="utf-8")
+    (checkout / "crossbeam-epoch" / "no_atomic.rs").symlink_to("../no_atomic.rs")
+    cargo_home.chmod(0o700)
+    target = root / "target"
+    target.mkdir(mode=0o700)
+    tmpdir = root / "tmp"
+    tmpdir.mkdir(mode=0o700)
+    monkeypatch.setattr(guard, "_check_unprivileged_root1", lambda: None)
+    monkeypatch.setattr(guard, "_check_rust_toolchain", lambda _env: None)
+
+    class DoneProcess:
+        pid = 987_654_321
+
+        def poll(self) -> int:
+            return 0
+
+        def wait(self, timeout: float | None = None) -> int:
+            del timeout
+            return 0
+
+    def fake_popen(*_args: object, **_kwargs: object) -> DoneProcess:
+        return DoneProcess()
+
+    with pytest.raises(guard.GuardFailure, match="symlink_in_non_source_stage"):
+        guard.run_guarded_stage(
+            ["cargo", "test"],
+            source=source,
+            cargo_home=cargo_home,
+            target_dir=target,
+            tmpdir=tmpdir,
+            initial=False,
+            snapshot_provider=FakeProvider(root),
+            allow_cargo_git_checkout_symlinks=False,
+            popen=fake_popen,
+        )
+    assert (
+        guard.run_guarded_stage(
+            ["cargo", "test"],
+            source=source,
+            cargo_home=cargo_home,
+            target_dir=target,
+            tmpdir=tmpdir,
+            initial=False,
+            snapshot_provider=FakeProvider(root),
+            allow_cargo_git_checkout_symlinks=True,
+            popen=fake_popen,
+        )
+        == 0
+    )
 
 
 @pytest.mark.parametrize("structural_level", ["repository", "revision"])
