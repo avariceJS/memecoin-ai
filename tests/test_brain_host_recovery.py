@@ -89,7 +89,12 @@ def test_status_reports_metadata_only_dynamic_launchd_and_storage(
     storage_calls = _fake_storage(monkeypatch)
     runner = StatusRunner(
         dirty=" M docs/now.md\n",
-        launchd="PID\tStatus\tLabel\n42\t0\tai.memecoin.brain.operator\n-\t0\tai.memecoin.brain.custom\n",
+        launchd=(
+            "PID\tStatus\tLabel\n"
+            "42\t0\tai.memecoin.brain.operator\n"
+            "-\t0\tai.memecoin.brain.custom\n"
+            "-\t0\tai.memecoin.d43.calendar01\n"
+        ),
     )
 
     result = recovery.status(
@@ -107,8 +112,11 @@ def test_status_reports_metadata_only_dynamic_launchd_and_storage(
     assert result["roots"]["data"]["state"] == "present"
     assert result["storage"]["state"] == "present"
     assert result["storage"]["root_id"] == "9428695af6d4f46c08e1a444cdc66de8"
-    assert result["services"]["launchd"]["loaded_count"] == 2
+    assert result["services"]["launchd"]["loaded_count"] == 3
     assert result["services"]["launchd"]["running_count"] == 1
+    assert "ai.memecoin.d43.calendar01" in {
+        row["label"] for row in result["services"]["launchd"]["labels"]
+    }
     assert storage_calls == [tmp_path / "storage.json"]
     assert result["scope"] == {
         "protected_payloads_read": False,

@@ -24,6 +24,7 @@ from typing import Any, Protocol
 
 COMMIT_RE = re.compile(r"[0-9a-f]{40}\Z")
 CONFIG_KEYS = {"research_root", "owner_root", "data_root", "storage_config"}
+SERVICE_LABEL_PREFIXES = ("ai.memecoin.brain.", "ai.memecoin.d43.")
 
 
 class Runner(Protocol):
@@ -148,7 +149,7 @@ def _launchd(runner: Runner, system: str) -> dict[str, Any]:
     labels: list[dict[str, Any]] = []
     for line in output.splitlines():
         fields = line.split(None, 2)
-        if len(fields) != 3 or not fields[2].startswith("ai.memecoin.brain."):
+        if len(fields) != 3 or not fields[2].startswith(SERVICE_LABEL_PREFIXES):
             continue
         pid: int | None
         try:
