@@ -368,8 +368,7 @@ def install_launchd_agent(release_id: str) -> dict[str, Any]:
     competing = {
         value
         for value in loaded_launchd_labels()
-        if value.startswith("ai.memecoin.brain.senses.gecko")
-        and value != launchd_label(release_id)
+        if value.startswith("ai.memecoin.brain.senses.gecko") and value != launchd_label(release_id)
     }
     if competing:
         raise HostReleaseError("competing_gecko_launchd_agent_loaded")
@@ -437,9 +436,7 @@ def install_from_owner_host(release_id: str) -> dict[str, Any]:
         finally:
             os.close(data_root_fd)
         try:
-            _coordinator = v4_host.make_capacity_coordinator(
-                writer, guard, now_ns=time.time_ns
-            )
+            _coordinator = v4_host.make_capacity_coordinator(writer, guard, now_ns=time.time_ns)
             verify_prepared_release(writer, guard, release_id)
             guard.revalidate()
             return install_launchd_agent(release_id)
@@ -760,9 +757,7 @@ def attempt_one_slot(
                     and type(outcome.get("cooldown_until_ns")) is int
                     and type(bound_request.get("bucket_close_ns")) is int
                 ):
-                    cooldown_stops.append(
-                        (outcome["receipt_ns"], bound_request["bucket_close_ns"])
-                    )
+                    cooldown_stops.append((outcome["receipt_ns"], bound_request["bucket_close_ns"]))
             if cooldown_stops:
                 last_stop_receipt, last_stop_bucket = max(cooldown_stops)
                 if (
@@ -787,10 +782,13 @@ def attempt_one_slot(
                                 "cooldown_until_ns": cooldown_until_ns,
                                 "stop_reason": "recovery_probe_already_used",
                             }
-            slot = scheduler.due_slot(
-                plan, state["intents"], state["skips"], now_ns=first_now
-            )
+            slot = scheduler.due_slot(plan, state["intents"], state["skips"], now_ns=first_now)
             if slot is None:
+                if (
+                    len(scheduler.used_slots(plan, state["intents"], state["skips"]))
+                    == scout.SLOTS_PER_BUCKET
+                ):
+                    return {"status": "bucket_complete", "provider_io": False}
                 return {"status": "outside_window_or_slots_spent", "provider_io": False}
             if cooldown_until_ns is not None and first_now < cooldown_until_ns:
                 return {
@@ -854,7 +852,18 @@ def attempt_one_slot(
                         or close_ns + verifier.REQUEST_START_END_NS - pre_dispatch_ns
                         < 25 * scout.NS
                     ):
-                        return {"status": "window_expired_after_census", "provider_io": False}
+                        if (
+                            len(scheduler.used_slots(plan, state["intents"], state["skips"]))
+                            == scout.SLOTS_PER_BUCKET
+                        ):
+                            return {"status": "bucket_complete", "provider_io": False}
+                        if (
+                            pre_dispatch_ns >= close_ns + verifier.REQUEST_START_END_NS
+                            or close_ns + verifier.REQUEST_START_END_NS - pre_dispatch_ns
+                            < 25 * scout.NS
+                        ):
+                            return {"status": "no_intent_window_expired", "provider_io": False}
+                        return {"status": "outside_window_or_slots_spent", "provider_io": False}
                     external_clock.validate_progress(
                         clock_record,
                         wall_ns=pre_dispatch_ns,
@@ -980,9 +989,7 @@ def mark_expired_slots(
         with coordinator.lane_lock("gecko", blocking=False) as lane:
             inventory = usage_inventory.build_usage_inventory(writer)
             snapshot = next(
-                row
-                for row in inventory["snapshots"]
-                if row["root"] == capture_writer.root
+                row for row in inventory["snapshots"] if row["root"] == capture_writer.root
             )
             with capture_writer.runner_lock(
                 coordinator=coordinator,
@@ -1045,8 +1052,7 @@ def run_callback(
     close_ns = observed - observed % scout.BUCKET_NS
     records = journal.records()
     window_open = (
-        close_ns + scout.DISPATCH_EARLIEST_NS <= observed
-        < close_ns + verifier.REQUEST_START_END_NS
+        close_ns + scout.DISPATCH_EARLIEST_NS <= observed < close_ns + verifier.REQUEST_START_END_NS
         and close_ns >= records[0].get("first_bucket_close_ns", close_ns)
     )
     last = records[-1]
@@ -1122,9 +1128,8 @@ def run_callback(
         plan = dict(last)
     elif last.get("schema") == chain.GAP_SCHEMA and last.get("bucket_close_ns") == close_ns:
         plan = dict(last)
-    elif (
-        observed >= close_ns + verifier.REQUEST_START_END_NS
-        and close_ns >= records[0].get("first_bucket_close_ns", close_ns)
+    elif observed >= close_ns + verifier.REQUEST_START_END_NS and close_ns >= records[0].get(
+        "first_bucket_close_ns", close_ns
     ):
         try:
             journal.ensure_plan_for_current_bucket(now_ns=observed, bucket_close_ns=close_ns)
@@ -1156,8 +1161,10 @@ def run_callback(
     existing_health = release["health"]
     status = "healthy" if window_open else "paused"
     reason = (
-        "resumed" if window_open and existing_health.get("status") != "healthy"
-        else "none" if window_open
+        "resumed"
+        if window_open and existing_health.get("status") != "healthy"
+        else "none"
+        if window_open
         else "outside_window"
     )
     snapshot = publish_health(
@@ -1205,7 +1212,13 @@ def run_callback(
                     monotonic_ns=monotonic_ns,
                 )
         return {
-            "status": "outside_window",
+            "status": (
+                "bucket_complete"
+                if plan.get("schema") == chain.PLAN_SCHEMA
+                and len(scheduler.used_slots(plan, state["intents"], state["skips"]))
+                == scout.SLOTS_PER_BUCKET
+                else "outside_window"
+            ),
             "provider_io": False,
             "explicit_missed_slots": expired_count,
             "health": snapshot,
@@ -1227,11 +1240,16 @@ def run_callback(
     recovery_after = recovery_gate(state_after)
     post_inventory = usage_inventory.build_usage_inventory(writer)
     terminal_status = result.get("status")
-    stop_latched = recovery_after != "recovered" or terminal_status in {
-        "client_or_access_error",
-        "malformed_response",
-        "response_over_budget",
-    } or result.get("stop_reason") == "review_required_retry_after"
+    stop_latched = (
+        recovery_after != "recovered"
+        or terminal_status
+        in {
+            "client_or_access_error",
+            "malformed_response",
+            "response_over_budget",
+        }
+        or result.get("stop_reason") == "review_required_retry_after"
+    )
     if stop_latched:
         health_status, health_reason = "stopped", "manual_reconciliation_required"
         error_code = recovery_after if recovery_after != "recovered" else str(terminal_status)
@@ -1256,6 +1274,10 @@ def run_callback(
         health_status, health_reason, error_code = "paused", "storage_floor", "storage_floor"
     elif terminal_status in {"root_busy", "lane_busy", "pacing_wait"}:
         health_status, health_reason, error_code = "paused", "busy", str(terminal_status)
+    elif terminal_status == "no_intent_window_expired":
+        health_status, health_reason, error_code = "paused", "outside_window", None
+    elif terminal_status == "bucket_complete":
+        health_status, health_reason, error_code = "paused", "bucket_complete", None
     elif terminal_status in {"intent_spent_without_dispatch", "window_expired_after_census"}:
         health_status, health_reason, error_code = (
             "stopped",
@@ -1304,9 +1326,7 @@ def prepare_from_owner_host() -> dict[str, Any]:
             os.close(data_root_fd)
         try:
             material = compile_release_material(writer, guard)
-            coordinator = v4_host.make_capacity_coordinator(
-                writer, guard, now_ns=time.time_ns
-            )
+            coordinator = v4_host.make_capacity_coordinator(writer, guard, now_ns=time.time_ns)
             observed_ns = time.time_ns()
             first_close = (observed_ns // scout.BUCKET_NS + 1) * scout.BUCKET_NS
             receipt = initialize_release(
@@ -1348,9 +1368,7 @@ def run_from_owner_host(release_id: str) -> dict[str, Any]:
         finally:
             os.close(data_root_fd)
         try:
-            coordinator = v4_host.make_capacity_coordinator(
-                writer, guard, now_ns=time.time_ns
-            )
+            coordinator = v4_host.make_capacity_coordinator(writer, guard, now_ns=time.time_ns)
             release = verify_prepared_release(writer, guard, release_id)
             verify_launchd_loaded(release_id)
             result = run_callback(writer, release=release, coordinator=coordinator)

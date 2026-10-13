@@ -509,13 +509,8 @@ def test_pacing_binds_cutover_quiet_time_spacing_and_rolling_minute() -> None:
     assert not scheduler.dispatch_allowed(
         cutover + 59 * scout.NS, [], cutover_last_dispatch_ns=cutover
     )
-    assert scheduler.dispatch_allowed(
-        cutover + 60 * scout.NS, [], cutover_last_dispatch_ns=cutover
-    )
-    prior = [
-        {"dispatch_ns": cutover + 60 * scout.NS + index * 12 * scout.NS}
-        for index in range(5)
-    ]
+    assert scheduler.dispatch_allowed(cutover + 60 * scout.NS, [], cutover_last_dispatch_ns=cutover)
+    prior = [{"dispatch_ns": cutover + 60 * scout.NS + index * 12 * scout.NS} for index in range(5)]
     assert scheduler.dispatch_allowed(
         cutover + 60 * scout.NS + 60 * scout.NS,
         prior,
@@ -576,9 +571,7 @@ def test_host_release_initialization_is_inert_and_inventory_visible(tmp_path: Pa
         roots = {row["root"]: row for row in inventory["snapshots"]}
         assert roots[receipt["root"]]["status"] == "verified_none"
         assert roots[receipt["health_root"]]["status"] == "verified_none"
-        assert host_release.read_capture_state(fixture.writer, receipt["root"])[
-            "dispatches"
-        ] == []
+        assert host_release.read_capture_state(fixture.writer, receipt["root"])["dispatches"] == []
         release_journal = DescriptorScoutJournal(
             fixture.writer,
             root=receipt["root"],
@@ -815,6 +808,293 @@ def test_attempt_one_slot_replays_inventory_and_writes_one_mocked_request(
         fixture.close()
 
 
+def test_preintent_census_crossing_is_non_latching_and_spends_no_slot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = _Fixture(tmp_path / "gecko-v2-preintent-expiry")
+    try:
+        close_ns = FIRST_CLOSE_NS
+        plan = fixture.journal.ensure_plan_for_current_bucket(
+            now_ns=close_ns + 70 * scout.NS,
+            bucket_close_ns=close_ns,
+        )
+        original_inventory = usage_inventory.build_usage_inventory
+
+        def inventory_with_cutover(writer: DescriptorWriter) -> dict[str, Any]:
+            inventory = original_inventory(writer)
+            inventory["snapshots"].append(
+                shared_usage.make_verified_root_snapshot(
+                    root="services/gecko-market-v1/capture-only-v1/f4412b7a531d4e3cb3414a2862b8ee76",
+                    status="verified_prefix",
+                    root_inventory_sha256=inventory["root_inventory_sha256"],
+                    source_prefix_sha256=host_release.CUTOVER_PREFIX_SHA256,
+                    attempts=[
+                        {
+                            "request_id": hashlib.sha256(b"prior-v4-attempt").hexdigest(),
+                            "decision_ns": host_release.CUTOVER_LAST_DISPATCH_NS,
+                            "maximum_response_bytes": scout.MAX_RESPONSE_BYTES,
+                            "response_bytes": 100,
+                            "response_sha256": hashlib.sha256(b"legacy").hexdigest(),
+                        }
+                    ],
+                )
+            )
+            inventory["snapshots"].sort(key=lambda row: row["root"])
+            return inventory
+
+        monkeypatch.setattr(usage_inventory, "build_usage_inventory", inventory_with_cutover)
+        # The callback starts in-window, then the census/root-lock boundary crosses
+        # the 25-second persistence margin. No intent or provider call may occur.
+        wall_values = [
+            close_ns + 70 * scout.NS,
+            close_ns + 221 * scout.NS,
+            close_ns + 246 * scout.NS,
+        ]
+        wall_index = 0
+
+        def wall_now() -> int:
+            nonlocal wall_index
+            value = wall_values[min(wall_index, len(wall_values) - 1)]
+            wall_index += 1
+            return value
+
+        mono = iter((81 * scout.NS, 82 * scout.NS, 107 * scout.NS))
+        calls: list[bool] = []
+        result = host_release.attempt_one_slot(
+            fixture.writer,
+            coordinator=fixture.coordinator,
+            capture_writer=fixture.capture_writer,
+            policy=fixture.policy,
+            binding=fixture.journal.binding,
+            plan=plan,
+            now_ns=wall_now,
+            monotonic_ns=lambda: next(mono),
+            clock_probe=lambda: _clock(close_ns + 220 * scout.NS, 81 * scout.NS),
+            fetch_once=lambda _request: calls.append(True),
+        )
+        assert result == {"status": "no_intent_window_expired", "provider_io": False}
+        state = host_release.read_capture_state(fixture.writer, RELEASE_ROOT)
+        assert state["intents"] == []
+        assert state["dispatches"] == []
+        assert state["skips"] == []
+        assert calls == []
+    finally:
+        fixture.close()
+
+
+def test_preintent_expiry_health_does_not_latch_stop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = _Fixture(tmp_path / "gecko-v2-preintent-health")
+    try:
+        close_ns = FIRST_CLOSE_NS
+        fixture.journal.ensure_plan_for_current_bucket(
+            now_ns=close_ns + 70 * scout.NS,
+            bucket_close_ns=close_ns,
+        )
+        published: list[dict[str, Any]] = []
+
+        def publish(_writer: Any, **kwargs: Any) -> dict[str, Any]:
+            snapshot = {
+                "status": kwargs["status"],
+                "reason": kwargs["reason"],
+                "stop_latched": kwargs.get("stop_latched", False),
+                "cooldown_until_ns": kwargs.get("cooldown_until_ns"),
+            }
+            published.append(snapshot)
+            return snapshot
+
+        monkeypatch.setattr(host_release, "publish_health", publish)
+        monkeypatch.setattr(
+            host_release,
+            "attempt_one_slot",
+            lambda *_args, **_kwargs: {
+                "status": "no_intent_window_expired",
+                "provider_io": False,
+            },
+        )
+        release = {
+            "root": RELEASE_ROOT,
+            "policy": fixture.policy,
+            "binding": fixture.journal.binding,
+            "journal": fixture.journal,
+            "health": {"status": "healthy", "stop_latched": False, "cooldown_until_ns": None},
+        }
+        result = host_release.run_callback(
+            fixture.writer,
+            release=release,
+            coordinator=fixture.coordinator,
+            now_ns=lambda: close_ns + 70 * scout.NS,
+            monotonic_ns=lambda: 100 * scout.NS,
+            clock_probe=lambda: pytest.fail("mocked pre-intent result needs no new probe"),
+            fetch_once=lambda _request: pytest.fail("pre-intent expiry cannot fetch"),
+        )
+        assert result["status"] == "no_intent_window_expired"
+        assert result["provider_io"] is False
+        assert published[-1]["status"] == "paused"
+        assert published[-1]["stop_latched"] is False
+    finally:
+        fixture.close()
+
+
+def test_four_confirmed_results_plus_two_expired_skips_are_bucket_complete(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = _Fixture(tmp_path / "gecko-v2-four-plus-two")
+    try:
+        close_ns = FIRST_CLOSE_NS
+        plan = fixture.journal.ensure_plan_for_current_bucket(
+            now_ns=close_ns + 70 * scout.NS,
+            bucket_close_ns=close_ns,
+        )
+        original_inventory = usage_inventory.build_usage_inventory
+
+        def inventory_with_cutover(writer: DescriptorWriter) -> dict[str, Any]:
+            inventory = original_inventory(writer)
+            inventory["snapshots"].append(
+                shared_usage.make_verified_root_snapshot(
+                    root="services/gecko-market-v1/capture-only-v1/f4412b7a531d4e3cb3414a2862b8ee76",
+                    status="verified_prefix",
+                    root_inventory_sha256=inventory["root_inventory_sha256"],
+                    source_prefix_sha256=host_release.CUTOVER_PREFIX_SHA256,
+                    attempts=[
+                        {
+                            "request_id": hashlib.sha256(b"prior-v4-attempt").hexdigest(),
+                            "decision_ns": host_release.CUTOVER_LAST_DISPATCH_NS,
+                            "maximum_response_bytes": scout.MAX_RESPONSE_BYTES,
+                            "response_bytes": 100,
+                            "response_sha256": hashlib.sha256(b"legacy").hexdigest(),
+                        }
+                    ],
+                )
+            )
+            inventory["snapshots"].sort(key=lambda row: row["root"])
+            return inventory
+
+        monkeypatch.setattr(usage_inventory, "build_usage_inventory", inventory_with_cutover)
+        for index in range(4):
+            offset = 70 + 24 * index
+            wall = iter(close_ns + value * scout.NS for value in range(offset, offset + 8))
+            mono_start = 81 + 24 * index
+            mono = iter(
+                (mono_start * scout.NS, (mono_start + 1) * scout.NS, (mono_start + 6) * scout.NS)
+            )
+            result = host_release.attempt_one_slot(
+                fixture.writer,
+                coordinator=fixture.coordinator,
+                capture_writer=fixture.capture_writer,
+                policy=fixture.policy,
+                binding=fixture.journal.binding,
+                plan=plan,
+                now_ns=lambda wall=wall: next(wall),
+                monotonic_ns=lambda mono=mono: next(mono),
+                clock_probe=lambda offset=offset, mono_start=mono_start: _clock(
+                    close_ns + (offset + 1) * scout.NS, (mono_start - 1) * scout.NS
+                ),
+                fetch_once=lambda _request: service.FetchResult(
+                    200, b'{"data":{"attributes":{"ohlcv_list":[]}}}', {}
+                ),
+            )
+            assert result["status"] == "empty_response"
+            assert result["provider_io"] is True
+
+        count = host_release.mark_expired_slots(
+            fixture.writer,
+            coordinator=fixture.coordinator,
+            capture_writer=fixture.capture_writer,
+            plan=plan,
+            now_ns=close_ns + 270 * scout.NS,
+        )
+        assert count == 2
+        assert (
+            host_release.mark_expired_slots(
+                fixture.writer,
+                coordinator=fixture.coordinator,
+                capture_writer=DescriptorCaptureWriter(
+                    fixture.writer, root=RELEASE_ROOT, binding=fixture.journal.binding
+                ),
+                plan=plan,
+                now_ns=close_ns + 271 * scout.NS,
+            )
+            == 0
+        )
+        final_state = host_release.read_capture_state(fixture.writer, RELEASE_ROOT)
+        assert len(final_state["intents"]) == 4
+        assert len(final_state["results"]) == 4
+        assert len(final_state["confirmations"]) == 4
+        assert len(final_state["skips"]) == 2
+        with pytest.raises(scheduler.SchedulerError, match="slot_consumed_twice"):
+            scheduler.used_slots(
+                plan, final_state["intents"], final_state["skips"] + [final_state["skips"][0]]
+            )
+
+        restarted_journal = DescriptorScoutJournal(
+            fixture.writer,
+            root=RELEASE_ROOT,
+            policy=fixture.policy,
+            storage_binding=fixture.storage,
+            release_sha256=hashlib.sha256(b"test-release").hexdigest(),
+        )
+        restarted_writer = DescriptorCaptureWriter(
+            fixture.writer, root=RELEASE_ROOT, binding=restarted_journal.binding
+        )
+        completed = host_release.attempt_one_slot(
+            fixture.writer,
+            coordinator=fixture.coordinator,
+            capture_writer=restarted_writer,
+            policy=fixture.policy,
+            binding=restarted_journal.binding,
+            plan=plan,
+            now_ns=lambda: close_ns + 300 * scout.NS,
+            monotonic_ns=lambda: 500 * scout.NS,
+            clock_probe=lambda: pytest.fail("completed bucket must not probe clock"),
+            fetch_once=lambda _request: pytest.fail("completed bucket must not fetch"),
+        )
+        assert completed["status"] == "bucket_complete"
+        assert completed["provider_io"] is False
+        assert (
+            scheduler.due_slot(
+                plan, final_state["intents"], final_state["skips"], now_ns=close_ns + 300 * scout.NS
+            )
+            is None
+        )
+        monkeypatch.setattr(
+            host_release,
+            "publish_health",
+            lambda _writer, **kwargs: {
+                "cooldown_until_ns": kwargs.get("cooldown_until_ns"),
+                "stop_latched": kwargs.get("stop_latched", False),
+            },
+        )
+        monkeypatch.setattr(host_release, "mark_expired_slots", lambda *_args, **_kwargs: 0)
+        release = {
+            "root": RELEASE_ROOT,
+            "policy": fixture.policy,
+            "binding": restarted_journal.binding,
+            "journal": restarted_journal,
+            "health": {"status": "paused", "stop_latched": False, "cooldown_until_ns": None},
+        }
+        expired_callback = host_release.run_callback(
+            fixture.writer,
+            release=release,
+            coordinator=fixture.coordinator,
+            now_ns=lambda: close_ns + 300 * scout.NS,
+            monotonic_ns=lambda: 501 * scout.NS,
+            clock_probe=lambda: pytest.fail("completed bucket must not probe clock"),
+            fetch_once=lambda _request: pytest.fail("completed bucket must not fetch"),
+        )
+        assert expired_callback["status"] == "bucket_complete"
+        assert expired_callback["provider_io"] is False
+        next_close = close_ns + scout.BUCKET_NS
+        next_plan = restarted_journal.ensure_plan_for_current_bucket(
+            now_ns=next_close + 70 * scout.NS,
+            bucket_close_ns=next_close,
+        )
+        assert scheduler.due_slot(next_plan, [], [], now_ns=next_close + 70 * scout.NS) == 0
+    finally:
+        fixture.close()
+
+
 def test_rate_limit_is_durable_bucket_stop_after_capture_writer_restart(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -859,9 +1139,7 @@ def test_rate_limit_is_durable_bucket_stop_after_capture_writer_restart(
             binding=fixture.journal.binding,
             plan=plan,
             now_ns=lambda: next(wall),
-            monotonic_ns=iter(
-                (81 * scout.NS, 82 * scout.NS, 87 * scout.NS)
-            ).__next__,
+            monotonic_ns=iter((81 * scout.NS, 82 * scout.NS, 87 * scout.NS)).__next__,
             clock_probe=lambda: _clock(close_ns + 71 * scout.NS, 81 * scout.NS),
             fetch_once=lambda _request: service.FetchResult(429, None, {}),
         )
