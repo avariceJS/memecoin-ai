@@ -204,16 +204,27 @@ def _safe_release_id(value: Any) -> bool:
 
 
 def _storage_shape(storage: Any) -> bool:
+    data_root = storage.get("data_root") if type(storage) is dict else None
+    service_root = storage.get("service_root") if type(storage) is dict else None
     return (
         type(storage) is dict
-        and set(storage) == {"root_id", "volume_uuid", "device", "inode"}
+        and set(storage) == {"root_id", "volume_uuid", "data_root", "service_root"}
         and _safe_release_id(storage.get("root_id"))
         and type(storage.get("volume_uuid")) is str
         and UUID_RE.fullmatch(cast(str, storage.get("volume_uuid")).lower()) is not None
-        and type(storage.get("device")) is int
-        and storage["device"] >= 0
-        and type(storage.get("inode")) is int
-        and storage["inode"] > 0
+        and type(data_root) is dict
+        and set(data_root) == {"device", "inode"}
+        and type(data_root["device"]) is int
+        and data_root["device"] >= 0
+        and type(data_root["inode"]) is int
+        and data_root["inode"] > 0
+        and type(service_root) is dict
+        and set(service_root) == {"device", "inode"}
+        and type(service_root["device"]) is int
+        and service_root["device"] == data_root["device"]
+        and type(service_root["inode"]) is int
+        and service_root["inode"] > 0
+        and service_root["inode"] != data_root["inode"]
     )
 
 
@@ -817,8 +828,8 @@ class LocalJournalV6:
         self.revalidate_storage()
         root_stat = os.fstat(self.writer.root_fd)
         if (root_stat.st_dev, root_stat.st_ino) != (
-            self.expected_storage["device"],
-            self.expected_storage["inode"],
+            self.expected_storage["service_root"]["device"],
+            self.expected_storage["service_root"]["inode"],
         ) or dict(self.observed_storage()) != self.expected_storage:
             raise CaptureV6Error("v6_storage_identity_mismatch")
 
@@ -1785,15 +1796,18 @@ def initialize_existing_root_v6(
         raise CaptureV6Error("v6_initialize_binding")
     _prior_usage_rows(prior_usage_bytes)
     if (os.fstat(writer.root_fd).st_dev, os.fstat(writer.root_fd).st_ino) != (
-        expected_storage["device"],
-        expected_storage["inode"],
+        expected_storage["service_root"]["device"],
+        expected_storage["service_root"]["inode"],
     ) or dict(observed_storage()) != dict(expected_storage):
         raise CaptureV6Error("v6_initialize_storage_identity")
 
     def checked() -> None:
         revalidate_storage()
         stat = os.fstat(writer.root_fd)
-        if (stat.st_dev, stat.st_ino) != (expected_storage["device"], expected_storage["inode"]):
+        if (stat.st_dev, stat.st_ino) != (
+            expected_storage["service_root"]["device"],
+            expected_storage["service_root"]["inode"],
+        ):
             raise CaptureV6Error("v6_initialize_detached")
         if dict(observed_storage()) != dict(expected_storage):
             raise CaptureV6Error("v6_initialize_identity_changed")
@@ -1877,8 +1891,8 @@ def verify_local_journal(
         raise CaptureV6Error("v6_replay_resource_cap")
     writer_stat = os.fstat(writer.root_fd)
     if (writer_stat.st_dev, writer_stat.st_ino) != (
-        expected_storage["device"],
-        expected_storage["inode"],
+        expected_storage["service_root"]["device"],
+        expected_storage["service_root"]["inode"],
     ) or dict(observed_storage()) != dict(expected_storage):
         raise CaptureV6Error("v6_replay_storage_identity")
     if (

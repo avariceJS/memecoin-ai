@@ -4025,3 +4025,13 @@ synthetic reservation, dispatch, terminal/confirmation, no-replay recovery, and 
 tests. These modules have no owner-host loader or activation path and were not run against Kingston
 or a provider. Source-bound release loading, plist/watchdog identity, every-write detach coverage,
 and runtime installation remain open; no autonomous collector is loaded.
+
+The v6 source-bound owner callback now has a separately pinned storage identity for BrainData and
+its nested service root. Epoch and activation must bind both device/inode pairs; the host reopens the
+exact service path through the held BrainData descriptor before dispatch and verifies the writer FD.
+This corrects a release-blocking mismatch where the writer descriptor had been compared with the
+BrainData inode. Focused kernel/host and activation/replay suites pass (69 tests), as does `make
+smoke`. The callback has not been initialized against Kingston, no provider I/O has occurred, and
+no collector LaunchAgent is loaded. The remaining immediate gate is create-only release
+initialization and first-bucket recovery evidence; this grants no source, training, or economic
+admission.

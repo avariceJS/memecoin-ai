@@ -100,12 +100,17 @@ class Harness:
         self.tmp = tempfile.TemporaryDirectory()
         os.chmod(self.tmp.name, 0o700)
         self.fd = os.open(self.tmp.name, os.O_RDONLY | os.O_DIRECTORY)
+        self.service_path = os.path.join(self.tmp.name, "service")
+        os.mkdir(self.service_path, 0o700)
+        self.service_fd = os.open(self.service_path, os.O_RDONLY | os.O_DIRECTORY)
         self.policy = _policy(monkeypatch)
+        data_stat = os.fstat(self.fd)
+        service_stat = os.fstat(self.service_fd)
         self.storage = {
             "root_id": "a" * 32,
             "volume_uuid": "12345678-1234-1234-1234-123456789abc",
-            "device": os.fstat(self.fd).st_dev,
-            "inode": os.fstat(self.fd).st_ino,
+            "data_root": {"device": data_stat.st_dev, "inode": data_stat.st_ino},
+            "service_root": {"device": service_stat.st_dev, "inode": service_stat.st_ino},
         }
         self.prior_usage_bytes = canonical_json(prior_usage_rows or [])
         self.epoch = capture_v6.epoch_document(
@@ -118,7 +123,7 @@ class Harness:
             prior_usage_path="control/gecko-v6-prior-usage/test.json",
             prior_usage_sha256=hashlib.sha256(self.prior_usage_bytes).hexdigest(),
         )
-        self.writer = DescriptorWriter(self.fd)
+        self.writer = DescriptorWriter(self.service_fd)
         self.lane_tmp = tempfile.TemporaryDirectory()
         os.chmod(self.lane_tmp.name, 0o700)
         self.lane_fd = os.open(self.lane_tmp.name, os.O_RDONLY | os.O_DIRECTORY)
@@ -152,6 +157,7 @@ class Harness:
     def close(self) -> None:
         self._held_lane.__exit__(None, None, None)
         self.writer.close()
+        os.close(self.service_fd)
         os.close(self.fd)
         self.lane_writer.close()
         os.close(self.lane_fd)
@@ -1308,8 +1314,8 @@ def test_forced_detach_during_event_append_never_writes_underlay(
     def revalidate_mount() -> None:
         current = os.stat(mount, follow_symlinks=False)
         if (current.st_dev, current.st_ino) != (
-            harness.storage["device"],
-            harness.storage["inode"],
+            harness.storage["data_root"]["device"],
+            harness.storage["data_root"]["inode"],
         ):
             raise OSError("mount detached")
 
@@ -1331,7 +1337,7 @@ def test_forced_detach_during_event_append_never_writes_underlay(
         assert state["detached"] is True
         assert (mount / "underlay-sentinel").read_bytes() == b"unchanged"
         assert sorted(path.name for path in mount.iterdir()) == ["underlay-sentinel"]
-        event_file = detached / capture_v6.EVENTS_PATH
+        event_file = next(detached.rglob("events.jsonl"))
         assert event_file.exists()
         assert b'"kind":"dispatch"' in event_file.read_bytes()
     finally:
@@ -1355,4 +1361,28 @@ def test_data_root_lane_lease_is_exclusive_across_release_objects(
                 pytest.fail("a second release acquired the shared Gecko lane")
     finally:
         second_writer.close()
+        harness.close()
+
+
+def test_service_root_identity_change_is_rejected_before_event_write(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    harness = Harness(monkeypatch)
+    try:
+        events_before = harness.writer.read_bytes(
+            capture_v6.EVENTS_PATH, max_bytes=64 * 1024 * 1024
+        )
+        replacement = dict(harness.storage)
+        replacement["service_root"] = {
+            **harness.storage["service_root"],
+            "inode": harness.storage["service_root"]["inode"] + 1,
+        }
+        harness.journal.observed_storage = lambda: replacement
+        with pytest.raises(capture_v6.CaptureV6Error, match="storage_identity_mismatch"):
+            harness.journal._append("dispatch", CLOSE + NS, {"unreachable": True})
+        assert (
+            harness.writer.read_bytes(capture_v6.EVENTS_PATH, max_bytes=64 * 1024 * 1024)
+            == events_before
+        )
+    finally:
         harness.close()

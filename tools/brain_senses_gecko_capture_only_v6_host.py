@@ -623,22 +623,40 @@ def verify_loaded_owner(
         raise HostV6Error("v6_owner_launch_identity")
 
 
-def storage_identity(guard: Any, data_root_fd: int) -> dict[str, Any]:
-    """Return the exact configured volume and opened data-root identity."""
-    root_stat = os.fstat(data_root_fd)
+def storage_identity(
+    guard: Any, data_root_fd: int, service_root_fd: int, service_root: str
+) -> dict[str, Any]:
+    """Return current identities for the bound BrainData and service descriptors."""
+    data_stat = os.fstat(data_root_fd)
+    service_stat = os.fstat(service_root_fd)
     if (
-        not stat.S_ISDIR(root_stat.st_mode)
-        or root_stat.st_uid != os.getuid()
-        or stat.S_IMODE(root_stat.st_mode) != 0o700
-        or root_stat.st_dev != os.fstat(guard.mount_fd).st_dev
+        not stat.S_ISDIR(data_stat.st_mode)
+        or data_stat.st_uid != os.getuid()
+        or stat.S_IMODE(data_stat.st_mode) != 0o700
+        or data_stat.st_dev != os.fstat(guard.mount_fd).st_dev
+        or not stat.S_ISDIR(service_stat.st_mode)
+        or service_stat.st_uid != os.getuid()
+        or stat.S_IMODE(service_stat.st_mode) != 0o700
+        or service_stat.st_dev != data_stat.st_dev
+        or service_stat.st_ino == data_stat.st_ino
         or guard.config.data_root != "BrainData"
     ):
         raise HostV6Error("v6_owner_data_root_identity")
+    reopened_fd = _open_private_directory(data_root_fd, service_root)
+    try:
+        reopened_stat = os.fstat(reopened_fd)
+        if (reopened_stat.st_dev, reopened_stat.st_ino) != (
+            service_stat.st_dev,
+            service_stat.st_ino,
+        ):
+            raise HostV6Error("v6_owner_service_root_replaced")
+    finally:
+        os.close(reopened_fd)
     return {
         "root_id": guard.root_id,
         "volume_uuid": guard.volume_uuid.lower(),
-        "device": root_stat.st_dev,
-        "inode": root_stat.st_ino,
+        "data_root": {"device": data_stat.st_dev, "inode": data_stat.st_ino},
+        "service_root": {"device": service_stat.st_dev, "inode": service_stat.st_ino},
     }
 
 
@@ -713,6 +731,7 @@ def verify_activation_record(
         or activation.get("training_admission") is not False
         or activation.get("economic_admission") is not False
         or activation.get("epoch_sha256") != epoch.get("epoch_sha256")
+        or activation.get("storage") != epoch.get("storage")
         or not HASH_RE.fullmatch(str(activation.get("epoch_sha256", "")))
         or digest != sha256(canonical(core))
     ):
@@ -940,7 +959,6 @@ def scheduled_tick() -> dict[str, Any]:
         service_fd = -1
         service_writer = None
         try:
-            storage = storage_identity(guard, data_fd)
             context = load_fixed_release_context(data_writer)
             source_manifest = context["source_manifest"]
             verify_source_manifest(REPO_ROOT, source_manifest)
@@ -966,6 +984,11 @@ def scheduled_tick() -> dict[str, Any]:
                 plist_path=INSTALLED_PLIST_PATH,
             )
             _assert_no_legacy_gecko_labels(uid)
+            service_root = context["activation"].get("service_root")
+            if type(service_root) is not str:
+                raise HostV6Error("v6_owner_service_root_invalid")
+            service_fd = _open_private_directory(data_fd, service_root)
+            storage = storage_identity(guard, data_fd, service_fd, service_root)
             activation = verify_activation_record(
                 context["activation"],
                 source_manifest=source_manifest,
@@ -975,8 +998,6 @@ def scheduled_tick() -> dict[str, Any]:
                 epoch=epoch,
                 repo_root=REPO_ROOT,
             )
-            service_root = activation["service_root"]
-            service_fd = _open_private_directory(data_fd, service_root)
             service_writer = DescriptorWriter(
                 service_fd,
                 before_write=lambda: guard.revalidate(min_free_bytes=policy_v6.MIN_FREE_BYTES),
@@ -986,7 +1007,7 @@ def scheduled_tick() -> dict[str, Any]:
             journal = capture_v6.LocalJournalV6(
                 service_writer,
                 expected_storage=storage,
-                observed_storage=lambda: storage_identity(guard, data_fd),
+                observed_storage=lambda: storage_identity(guard, data_fd, service_fd, service_root),
                 revalidate_storage=lambda: guard.revalidate(
                     min_free_bytes=policy_v6.MIN_FREE_BYTES
                 ),

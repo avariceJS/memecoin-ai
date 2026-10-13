@@ -10,6 +10,7 @@ import subprocess
 import textwrap
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -234,13 +235,13 @@ def _valid_activation(
         "policy_sha256": "3" * 64,
         "source": {"population_sha256": "4" * 64},
     }
-    epoch = {"epoch_sha256": "5" * 64}
     storage = {
         "root_id": "6" * 32,
         "volume_uuid": "12345678-1234-1234-1234-123456789abc",
-        "device": 2,
-        "inode": 7,
+        "data_root": {"device": 2, "inode": 7},
+        "service_root": {"device": 2, "inode": 8},
     }
+    epoch = {"epoch_sha256": "5" * 64, "storage": storage}
     core = {
         "schema": host.ACTIVATION_SCHEMA,
         "schema_version": 6,
@@ -348,6 +349,46 @@ def test_loaded_owner_must_be_exact_current_process_and_label() -> None:
             repo_root=host.REPO_ROOT,
             plist_path=host.PLIST_PATH,
         )
+
+
+def test_storage_identity_binds_nested_service_descriptor_and_rejects_path_replacement(
+    tmp_path: Path,
+) -> None:
+    mount = tmp_path / "mount"
+    data_root = mount / "BrainData"
+    service_path = "services/gecko-market-v1/capture-only-v6/" + "a" * 32
+    service_dir = data_root / service_path
+    service_dir.mkdir(mode=0o700, parents=True)
+    os.chmod(mount, 0o700)
+    os.chmod(data_root, 0o700)
+    for parent in (
+        data_root / "services",
+        data_root / "services/gecko-market-v1",
+        data_root / "services/gecko-market-v1/capture-only-v6",
+    ):
+        os.chmod(parent, 0o700)
+    mount_fd = os.open(mount, os.O_RDONLY | os.O_DIRECTORY)
+    data_fd = os.open(data_root, os.O_RDONLY | os.O_DIRECTORY)
+    service_fd = os.open(service_dir, os.O_RDONLY | os.O_DIRECTORY)
+    guard = SimpleNamespace(
+        mount_fd=mount_fd,
+        root_id="6" * 32,
+        volume_uuid="12345678-1234-1234-1234-123456789abc",
+        config=SimpleNamespace(data_root="BrainData"),
+    )
+    try:
+        identity = host.storage_identity(guard, data_fd, service_fd, service_path)
+        assert identity["data_root"]["inode"] != identity["service_root"]["inode"]
+        assert identity["data_root"]["device"] == identity["service_root"]["device"]
+
+        os.rename(service_dir, data_root / "old-service")
+        service_dir.mkdir(mode=0o700)
+        with pytest.raises(host.HostV6Error, match="service_root_replaced"):
+            host.storage_identity(guard, data_fd, service_fd, service_path)
+    finally:
+        os.close(service_fd)
+        os.close(data_fd)
+        os.close(mount_fd)
 
 
 def test_owner_tick_refuses_unreplayed_or_malformed_binding_without_io() -> None:
