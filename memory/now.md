@@ -1,9 +1,9 @@
 # Current Project State
 
-**As of:** 2026-10-13 04:23Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD `561876a` (same as origin at last verification); `main` is `19c2aa3`.
-Working tree contains complete-but-uncommitted Gecko v4 canary work plus separate Agave,
-build-guard, account-feasibility, and Gecko-lane scopes. Keep unrelated scopes separate. Production,
+**As of:** 2026-10-13 04:24Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, HEAD `56f03ee` (not yet pushed); `main` is `19c2aa3`. The verified Gecko v4
+canary scope is committed; separate Agave, build-guard, and account-feasibility work remains dirty.
+Keep unrelated scopes separate. Production,
 champion, protected data, real trading, and Cortex remain untouched.
 
 ## Prospective acquisition
@@ -29,6 +29,6 @@ champion, protected data, real trading, and Cortex remain untouched.
   do not convert synthetic traces into public-chain finality. c4 remains terminal.
 - Agave build runner is NO-GO on the owner Mac until mount-detach isolation uses an unprivileged
   identity or isolated VM. This does not block continuous bounded market collection.
-- Next: verify a second natural Gecko bucket and recovery, then advance the approved candidate-position
-  witness source horizon. Market-source, training, and economic admission remain false; Senses is not
-  at the Cortex boundary.
+- Next: verify the 04:30Z natural Gecko bucket; then advance the approved candidate-position witness
+  source horizon. Market-source, training, and economic admission remain false; Senses is not at the
+  Cortex boundary.
