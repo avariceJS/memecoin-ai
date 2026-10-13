@@ -4034,4 +4034,8 @@ BrainData inode. Focused kernel/host and activation/replay suites pass (69 tests
 smoke`. The callback has not been initialized against Kingston, no provider I/O has occurred, and
 no collector LaunchAgent is loaded. The remaining immediate gate is create-only release
 initialization and first-bucket recovery evidence; this grants no source, training, or economic
-admission.
+admission. A fresh descriptor-bound read-only census independently replayed 41 known roots and 62
+attempts, including two unresolved response sizes. The conservative prior offset is 1,015,808 raw
+bytes and 5,079,040 physical bytes. The immutable sanitized census receipt is
+[`v6 prior-usage census`](evidence/gecko-v6-prior-usage-census-2026-10-13T1045Z.json); it does not
+authorize a lease or collection.
