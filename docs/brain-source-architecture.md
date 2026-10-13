@@ -534,6 +534,17 @@ completeness, or admission claim, and it does not justify generalizing the earli
 development result. The correction made zero provider requests and did not modify c4. Receipt:
 [`sell23 c4 native-flow audit v2`](evidence/pumpswap-sell23-c4-native-flow-audit-v2-2026-10-10.json).
 
+An independent raw-capture replay then re-read only those four pinned c4 frames and cross-checked
+the frozen native-sufficiency adapter. It reproduced 388 structural references (387 successful,
+one failed), 45 successful references outside native-close, and 342 native-close rows. The raw
+source-flow diagnostic again classified 341 exact rows and one unsupported touch; the adapter
+reported 341 `evidence_insufficient` rows and one `unsupported_instruction`, with 341 ambiguous
+destinations and one unqualified destination. The independent raw-flow denominator remains 342
+ambiguous destinations. No economic or training admission followed. The replay made zero provider
+requests and left c3 and c4 tail2 unopened. Its receipt records the internal c4 root's observed
+device, owner and inode; the c4 receipts do not pin a volume UUID or Kingston identity.
+[`c4 first-four raw-capture replay`](evidence/pumpswap-sell23-c4-first-four-raw-capture-replay-2026-10-13.json).
+
 A separate bounded-search deviation emitted a truncated 13:00Z buyExact state-locator result before
 the audit. Sol adjudicated that this artifact was outside the frozen 14:00Z–17:00Z sell23 population
 and that no selected sell23 case was opened or used by the search. Because the search recursively

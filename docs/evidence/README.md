@@ -691,6 +691,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   `pumpswap-sell23-c4-native-flow-audit-v2-2026-10-10.json` (first four frozen frames, all raw
   denominators reconciled, 341/342 native-close source-account flows exact, one unsupported touch
   quarantined; no wallet-net, rent, destination attribution, or admission claim).
+- Independent c4 first-four raw-capture replay:
+  `pumpswap-sell23-c4-first-four-raw-capture-replay-2026-10-13.json` (replays only the pinned
+  14:00Z–17:00Z raw frames and adapter outputs; confirms 341 exact source flows, one unsupported
+  touch, all raw destinations ambiguous, adapter evidence insufficient, and zero admissions or
+  provider requests; c3 and tail2 remain unopened).
 - Sell23 audit bounded-search scope deviation:
   `sell23-c4-bounded-search-scope-deviation-2026-10-10.json` (records a truncated accidental
   emission of the 13:00Z buyExact locator, its exact artifact hash and command digest, and Sol's
