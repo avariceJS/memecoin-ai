@@ -4006,3 +4006,14 @@ opportunity, and timely raw-replayed new-open bars per opportunity and per confi
 Record bar-age/window-rejection histograms and failure reasons. A full sweep with no eligible bars
 triggers source/window/availability semantics review before changing the sampler; sparse positive
 coverage still requires independent source qualification and never implies training admission.
+
+The 04:30 cutover was subsequently replayed into a source-bound handoff certificate, and a separate
+scout-chain v2 now verifies the predecessor at cursor 12, requires explicit elapsed-bucket gaps, and
+opens plan creation only from close+60 seconds through before close+180 seconds. Its synthetic
+chain/handoff/inventory tests pass; it has no provider or dispatch authority. Inventory-v3 currently
+accepts only zero-attempt v2 successor roots. A distinct capture-prefix verifier and inventory-v4
+must replay v2 intents, dispatches, terminals, raw responses, confirmations, skips, and coordinator
+events into full shared usage before a v2 host may dispatch. The frozen v1/v2 runtime is unchanged.
+As of 05:23Z, no collector LaunchAgent is loaded and no prospective provider I/O is active; Kingston
+has 202 GiB free. Continue only with synthetic tests until the versioned host, release/plist binding,
+crash/ambiguity recovery, deadline semantics, and forced detach qualification are complete.

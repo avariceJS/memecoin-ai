@@ -40,6 +40,7 @@ RELEASE_CODE_PATHS = (
     "tools/brain_senses_gecko_capture_only_v4_host.py",
     "tools/brain_senses_gecko_canary_watchdog_v2.py",
     "tools/brain_senses_gecko_usage_inventory_v2.py",
+    "tools/brain_senses_gecko_capture_only_v2_legacy_timeout_v1.py",
     "tools/brain_senses_gecko_capture_only_v2_terminal_usage_v4.py",
     "src/memecoin_research_storage/live_writer.py",
 )

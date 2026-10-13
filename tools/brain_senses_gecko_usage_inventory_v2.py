@@ -25,13 +25,13 @@ from tools import (
     brain_senses_gecko_capture_only_v2_health_v1 as health_v2,
 )
 from tools import (
+    brain_senses_gecko_capture_only_v2_legacy_timeout_v1 as legacy_timeout_v2,
+)
+from tools import (
     brain_senses_gecko_capture_only_v2_terminal_usage_v1 as terminal_v2_usage,
 )
 from tools import (
     brain_senses_gecko_capture_only_v2_terminal_usage_v4 as terminal_v3_bridge,
-)
-from tools import (
-    brain_senses_gecko_capture_only_v2_verify as capture_v2_verify,
 )
 from tools import (
     brain_senses_gecko_capture_only_verify_v1 as capture_verify,
@@ -778,7 +778,7 @@ def _load_present_root(
                     )
             except (ValueError, KeyError, TypeError, capacity.CoordinatorError) as exc:
                 raise InventoryError("gecko_v2_coordinator_replay_failed") from exc
-            summary = capture_v2_verify.verify_capture_prefix_v2(
+            summary = legacy_timeout_v2.verify_capture_prefix_v2(
                 root=root,
                 binding=binding,
                 policy=policy,
