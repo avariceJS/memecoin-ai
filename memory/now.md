@@ -1,10 +1,10 @@
 # Current Project State
 
-**As of:** 2026-10-13 13:02Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD and `origin/research/active` `94f8631`. `main` and `origin/main` remain
+**As of:** 2026-10-13 13:06Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, HEAD and `origin/research/active` `8ad7ae9`. `main` and `origin/main` remain
 `770699d`. Worktree includes unrelated dirty build-guard/Agave/capture-watchdog/provider evidence;
-stage only scoped files. Positive-bar event-extraction/projector refinements are in progress and
-synthetic-only.
+stage only scoped files. Positive-bar event-extraction/projector changes are committed; all evidence
+and tests remain synthetic-only.
 
 ## Prospective acquisition
 
@@ -12,7 +12,7 @@ synthetic-only.
   `8f8f1081-9be4-4914-9111-75f1b90255bf`; last descriptor-bound measurement: 202.4 GiB free,
   above the 50-GiB floor.
 - Gecko v6 LaunchAgent `ai.memecoin.brain.senses.gecko-capture-only-v6` is loaded in `gui/501`,
-  exact pinned plist/argv, 60-second interval. Twenty-six callbacks have exited 0, including after
+  exact pinned plist/argv, 60-second interval. Twenty-nine callbacks have exited 0, including after
   docs-only descendant commits. Root `94da5c80bdd82308ebbad0c8f2e158b3` is on Kingston; its first
   natural close is 13:15Z and `events.jsonl` remains empty at 12:54Z. No v6 provider requests or
   recovery test yet. No backfill/retry. Available space last measured at 202.4 GiB.

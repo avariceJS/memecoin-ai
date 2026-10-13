@@ -56,7 +56,15 @@ def _opportunity(pool, status, raw, *, close=CLOSE, available=None):
     }
 
 
-def _audit(opportunities, *, gaps=(), plans=(PLAN,), population=POPULATION, pins=PINS):
+def _audit(
+    opportunities,
+    *,
+    gaps=(),
+    plans=(PLAN,),
+    population=POPULATION,
+    pins=PINS,
+    replay_changes=None,
+):
     slots = {}
     for plan in plans:
         for pool in plan["selected_pool_ids"]:
@@ -89,6 +97,7 @@ def _audit(opportunities, *, gaps=(), plans=(PLAN,), population=POPULATION, pins
         "training_admission": False,
         "economic_admission": False,
     }
+    replay_report.update(replay_changes or {})
     return audit_verified_prefix(
         replay_report=replay_report,
         plans=plans,
@@ -348,3 +357,22 @@ def test_event_extraction_rejects_unbound_raw_path_and_duplicate_event():
         extract_verified_events(events, read_raw=lambda _: NEW_AND_OVERLAP)
     with pytest.raises(ProjectionError, match="duplicate_request_event"):
         extract_verified_events([*events, base], read_raw=lambda _: NEW_AND_OVERLAP)
+
+
+@pytest.mark.parametrize(
+    "replay_changes",
+    [
+        {"provider_io": True},
+        {"market_source_qualified": True},
+        {"selector_sha256": "0" * 64},
+        {"slots": {"injected": "intent"}},
+    ],
+)
+def test_rejects_replay_report_that_expands_authority_or_changes_source(replay_changes):
+    with pytest.raises(ProjectionError, match="replay_report|replay_slots"):
+        _audit([], replay_changes=replay_changes)
+
+
+def test_event_extraction_rejects_unrecognized_journal_event_kind():
+    with pytest.raises(ProjectionError, match="event_kind"):
+        extract_verified_events([{"kind": "surprise", "fields": {}}], read_raw=lambda _: b"")

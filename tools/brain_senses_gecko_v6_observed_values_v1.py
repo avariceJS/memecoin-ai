@@ -114,6 +114,8 @@ def extract_verified_events(
             if request_id in target:
                 raise ProjectionError("observed_values_duplicate_request_event")
             target[request_id] = fields
+        elif kind != "request_abandoned":
+            raise ProjectionError("observed_values_event_kind")
 
     opportunities: list[dict[str, Any]] = []
     for plan in plans:
