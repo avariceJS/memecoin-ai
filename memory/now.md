@@ -1,7 +1,7 @@
 # Current Project State
 
-**As of:** 2026-10-13 13:26Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
-`research/active`, HEAD and `origin/research/active` `807d28c`. `main` and `origin/main` remain
+**As of:** 2026-10-13 16:47Z. Owner checkout `/Users/root1/Developer/memecoin-research`, branch
+`research/active`, HEAD and `origin/research/active` `6316568`. `main` and `origin/main` remain
 `770699d`. Worktree includes unrelated dirty build-guard/Agave/capture-watchdog/provider evidence;
 stage only scoped files. Positive-bar event-extraction/projector changes are committed; all evidence
 and tests remain synthetic-only.
@@ -19,6 +19,39 @@ and tests remain synthetic-only.
   zero retries, and bounded STOP. Receipt:
   `docs/evidence/gecko-v6-first-natural-bucket-2026-10-13T1315Z.json`.
 - Kingston descriptor-bound free space: 217,315,987,456 bytes (~202.4 GiB), above the 50-GiB floor.
+- V3 capacity migration was published on Kingston at 14:52Z using `StorageGuard` and a held
+  `DescriptorWriter` root fd. Pointer-last create-only migration ID
+  `95666bfe6c9fed8a99cc29af4e509b1c`; bridge `0df0e66082e3825dce12db54d682451f34d643ac263c1181787db49a7ebe71d5`.
+  A second live host replay produced no writes and the same hashes. Provider I/O was false. All 18
+  known v2 mutating LaunchAgent labels remain disabled/unloaded; no Senses collector or matching
+  process is loaded. Latest `df`: ~202.4 GiB free.
+- Sol superseded the discovery day-45 STOP: retain immutable 72-hour epochs and auto-renew unchanged
+  policy indefinitely. Day 45 is diagnostic only. Non-resetting physical cap is 101,921,587,200 B;
+  next-epoch reservation reconciles allocation/debt and reserves only the uncommitted runway. Source-
+  bound v3 discovery owner/runtime, autonomous renewal and provider acceptance are still pending;
+  do not claim live prospective collection.
+- Added a separate read-only discovery-to-enrollment projector. It replays plan/gap prefixes and raw
+  page hashes, keeps first durable availability and conflict provenance, and emits only unassigned
+  diagnostic candidates (zero price follow-up; protected exclusion unchecked). Ten focused property,
+  replay, and epoch-boundary tests pass. It cannot publish an eligible population or make
+  lifecycle/economic claims.
+- Coordinator v3 page reservations now bind ordered one-based request ordinals within each epoch
+  hold. A recorded schedule gap may be skipped, but a lower ordinal can never be reserved later;
+  cross-provider event order is unaffected. The host derives ordinals from the fixed epoch schedule.
+  The owner entrypoint's unsupported argument and unresolved-prior-dispatch behavior were fixed.
+  The new owner uses 10-second LaunchAgent wakeups, one provider request per tick, read-only idle
+  hints, no reservation on early/rate-blocked ticks, and explicit no-dispatch terminalization on a
+  rate/priority race after intent. Sol declined a new source-tail ledger field; the verified
+  plan/gap/result prefix plus monotonic ordinals is sufficient. Successor standby now has a separately
+  versioned v3 schema binding the latest contiguous terminal plan-summary or explicit-gap frontier
+  and prefix hash. Rollover compares that immutable prepared frontier to the completed predecessor
+  replay, so no-traffic epochs renew without invented provider activity. The combined storage,
+  coordinator, discovery, and enrollment focus has 169 passing tests; scoped Ruff, py_compile,
+  diff-check, and smoke pass. Repository-wide `make check` still fails on unrelated WSS Ruff findings.
+  Source-manifest v3 includes the
+  previously omitted `live_writer.py` and external-writer schema, both part of the runtime write
+  authority closure. No provider I/O or LaunchAgent activation occurred. The source-pinned owner
+  release and unattended service remain unqualified; no Senses collector is loaded.
 - Full-current replay: 44 roots, 62 historical attempts; all three old v6 roots `verified_none`,
   zero v6 attempts. Runtime binding requires ancestor commit, exact source bytes across release/HEAD/
   checkout, clean pinned paths, and exact plist/live identity. Focused host tests: 43; broader v6

@@ -713,11 +713,9 @@ def test_cross_service_pending_reservation_protects_shared_free_margin(
                 service=second_service,
             )
         events = _events(fixture)
-        assert [
-            event["fields"]["service"]
-            for event in events
-            if event["kind"] == "reserved"
-        ] == [first_service]
+        assert [event["fields"]["service"] for event in events if event["kind"] == "reserved"] == [
+            first_service
+        ]
     finally:
         fixture.close()
 
@@ -960,6 +958,56 @@ def test_service_recovery_fails_closed_on_global_ledger_corruption(tmp_path: Pat
             fixture.coordinator.recover_service(
                 "helius", intent_exists=lambda writer, path: writer.exists(path)
             )
+    finally:
+        fixture.close()
+
+
+def test_all_v2_mutators_refuse_after_v3_pointer_without_side_effects(tmp_path: Path) -> None:
+    fixture = _fixture(tmp_path)
+    try:
+        reservation = _reservation(fixture, request_id="pre-cutover")
+        before_ledger = fixture.writer.read_bytes(coordinator_module.LEDGER_PATH)
+        before_intent = fixture.writer.read_bytes(reservation.intent_path)
+
+        fixture.writer.mkdir("services/senses-capacity-v3")
+        fixture.writer.create(coordinator_module.V3_CUTOVER_POINTER_PATH, b'{"pointer":true}\n')
+
+        with pytest.raises(
+            coordinator_module.CoordinatorError,
+            match="v2_mutation_disabled_after_v3_cutover",
+        ):
+            _reservation(fixture, request_id="post-cutover")
+
+        with pytest.raises(
+            coordinator_module.CoordinatorError,
+            match="v2_mutation_disabled_after_v3_cutover",
+        ):
+            fixture.coordinator.settle(
+                reservation,
+                outcome="captured",
+                outcome_bytes=b'{"ok":true}\n',
+                outcome_path=reservation.outcome_path,
+                ambiguous=False,
+            )
+
+        with pytest.raises(
+            coordinator_module.CoordinatorError,
+            match="v2_mutation_disabled_after_v3_cutover",
+        ):
+            fixture.coordinator.recover_service(
+                "alchemy", intent_exists=lambda writer, path: writer.exists(path)
+            )
+
+        with pytest.raises(
+            coordinator_module.CoordinatorError,
+            match="v2_mutation_disabled_after_v3_cutover",
+        ):
+            fixture.coordinator.initialize()
+
+        assert fixture.writer.read_bytes(coordinator_module.LEDGER_PATH) == before_ledger
+        assert fixture.writer.read_bytes(reservation.intent_path) == before_intent
+        assert not fixture.writer.exists(reservation.outcome_path)
+        assert not fixture.writer.exists(f"{SERVICE_ROOTS['alchemy']}/intents/post-cutover.json")
     finally:
         fixture.close()
 

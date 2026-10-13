@@ -4101,3 +4101,80 @@ required for sustainable collection. The immutable sanitized observation is
 [`v6 first natural bucket`](evidence/gecko-v6-first-natural-bucket-2026-10-13T1315Z.json). The
 preregistered 170-pool rotation remains incomplete and no source, support, lifecycle, training or
 economic qualification follows from this one bucket.
+
+## Forward-only GeckoTerminal pool discovery (2026-10-13)
+
+Sol approved a separate provider-indexed Solana pool-discovery lane. It scans fixed pages 1–3 every
+five minutes, in order at the scan anchor and +12/+24 seconds, with a 60-second scan expiry. Each
+scheduled page has one attempt; unavailable capacity becomes a durable missed slot, and ambiguous
+transport is never retried. The three-page discovery schedule uses at most 864 calls per UTC day.
+The owner LaunchAgent wakes every 10 seconds, treats wakeups as hints rather than schedule state,
+and starts at most one page request per callback. Early or shared-rate-blocked wakeups do not reserve
+capacity; a priority/rate race after intent is terminalized as a no-dispatch miss. A read-only idle
+path avoids full source and history replay when the next page or maintenance trigger is not due.
+The discovery lane locally enforces at least 12 seconds between starts and no more than five starts
+in any rolling 60-second window, and refuses to start while a v7 owner label is loaded. It is not
+yet a shared cross-release rate arbiter, so concurrent v7/discovery collection is not qualified.
+The public API currently
+describes an approximately ten-call/minute limit and one-minute response caching; these are provider
+guidance, not guarantees ([official API guide](https://api.geckoterminal.com/docs/index.html)).
+
+Collection uses immutable 72-hour epochs, each with at most 2,592 requests, 1,358,954,496 raw
+bytes, and 6,794,772,480 bytes of physical reservation. Every page reserves 512 KiB raw and
+2.5 MiB physical. The owner may automatically renew unchanged policy indefinitely; day 45 is a
+review alert, not an expiry. Lifetime discovery storage remains capped at 101,921,587,200 bytes
+across all epochs, with alerts at 70%, 85%, and 95%; actual allocation and unresolved debt never
+reset. Before each epoch end, the owner prepares a successor at T−1h. It cannot dispatch until the
+old epoch is terminal, quiescent, independently replayed, and gaps, ambiguous debt, rate counters,
+and storage accounting have transferred exactly once. The next epoch reserves only its uncommitted
+runway above the 50-GiB free floor and all carried liabilities. No artifact is deleted or offloaded
+to create capacity. Capacity exhaustion, a floor breach, provider STOP, source/ledger drift, or
+failed handoff stops dispatch with explicit missed slots; poor yield and pending semantic qualification
+do not. Changed source, endpoint, cadence, page set, caps, root, or provider entitlement requires a
+new reviewed release. This diagnostic lane does not claim a complete pool census, verified on-chain
+birth, point-in-time availability, inactivity, or lifecycle death.
+
+Successor standby schema v3 records a typed predecessor frontier: the latest contiguous terminal
+plan-summary or explicit-gap row at preparation, its artifact hash, and a canonical prefix hash.
+At rollover, replay verifies that the recorded frontier is unchanged within the completed epoch
+seal. A final gap or an all-gap epoch is valid and remains unknown; an incomplete plan is not a
+frontier, and evidence after a missing interior scan fails closed. This permits no-traffic epochs
+to renew without manufacturing a successful plan or treating missing observations as zero.
+
+Within an epoch hold, the capacity ledger binds each page request ID to its one-based planned
+ordinal and accepts only strictly increasing ordinals. Gaps are allowed so a durably recorded missed
+slot does not block later scheduled pages, but a skipped ordinal can never be reserved later as a
+backfill. The discovery schedule remains responsible for recording each terminal or explicit missed
+slot and independently replaying the page prefix before dispatch; the global ledger does not impose
+an order across unrelated provider lanes.
+
+Enrollment is based on a syntactically valid Solana pool address before content or activity filters.
+The provider's `pool_created_at` remains an assertion; first durable availability, request start,
+receipt, scheduled time, and model decision time stay separate. Malformed page bodies, malformed
+relationships, duplicate rows, page overlap/order changes, oversize responses, HTTP failures, and
+missing slots retain explicit denominators and unknown exposure. Disappearance is not death. A
+deterministic hash-sampling contract is retained for a later, separately leased follow-up stage, but
+the current pilot's follow-up fraction is zero.
+
+The discovery source-manifest v3 pins the descriptor-bound `live_writer.py` implementation and
+external-writer schema alongside the collector, coordinator, storage root resolver, and LaunchAgent
+template. These files are part of the write-authority closure and must be committed and clean before
+release preparation can produce an activatable source identity.
+
+The discovery policy/replay kernel is offline-qualified. Coordinator-v3 migration is now published
+on Kingston under descriptor-bound writes: v2 policy/ledger bytes and unresolved liabilities are
+bridged, and the v3 pointer was durably created last under all v2 lane locks. The v2 source guard
+rejects future mutations after the pointer while preserving read-only replay. The owner and unattended
+epoch renewal remain unqualified; this versioned frontier contract has focused synthetic rollover
+coverage, but the source-bound release, forced recovery acceptance, and LaunchAgent are still pending.
+No provider I/O has occurred under this discovery policy.
+
+The separate read-only discovery-to-enrollment projector replays explicit contiguous plan/gap
+prefixes against the pinned epoch history and exact raw page hashes. It retains page and scan
+denominators, first durable pool availability, source row/page provenance, and conflicting identity
+claims; duplicate appearances do not replace first-seen facts. Current output is diagnostic
+`unassigned_observation` with protected exclusion unchecked, zero price follow-up, and no market,
+lifecycle, economic, training, or evaluation claim. It does not read protected cohorts. Focused
+synthetic mutation/reorder/raw-mismatch tests pass; one real prospective scan and authenticated
+protected-exclusion membership are still required before provider-discovered enrollment can be
+published as an eligible population.

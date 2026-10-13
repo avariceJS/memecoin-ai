@@ -25,6 +25,7 @@ from typing import Any, Protocol
 POLICY_PATH = "services/senses-capacity-v2/policy.json"
 LEDGER_PATH = "services/senses-capacity-v2/ledger.jsonl"
 LOCK_PATH = "services/senses-capacity-v2/.lock"
+V3_CUTOVER_POINTER_PATH = "services/senses-capacity-v3/v2-cutover-pointer.json"
 COORDINATOR_ROOT = "services/senses-capacity-v2"
 POLICY_SCHEMA = "brain-senses-capacity-coordinator-policy-v2"
 LEDGER_SCHEMA = "brain-senses-capacity-coordinator-ledger-event-v2"
@@ -541,14 +542,22 @@ class CapacityCoordinator:
             raise CoordinatorError("coordinator_root_binding_mismatch")
         self.source.verify_root(self.writer)
 
+    def _assert_no_v3_cutover(self) -> None:
+        """Refuse all v2 mutations once the v3 cutover pointer is durable."""
+        self._verify_root()
+        if self.writer.exists(V3_CUTOVER_POINTER_PATH):
+            raise CoordinatorError("v2_mutation_disabled_after_v3_cutover")
+
     def initialize(self) -> None:
         self._verify_root()
-        for root in {path for paths in self.allocation_roots.values() for path in paths}:
-            self.writer.mkdir(root)
         with self.writer.lock(LOCK_PATH, blocking=True):
-            self._verify_root()
+            self._assert_no_v3_cutover()
+            for root in {path for paths in self.allocation_roots.values() for path in paths}:
+                self._assert_no_v3_cutover()
+                self.writer.mkdir(root)
             for relative in self.service_lock_paths.values():
                 if not self.writer.exists(relative):
+                    self._assert_no_v3_cutover()
                     self.writer.create(relative, b"capacity-service-lock-v1\n")
             policy_exists, ledger_exists = (
                 self.writer.exists(POLICY_PATH),
@@ -557,6 +566,7 @@ class CapacityCoordinator:
             if policy_exists != ledger_exists:
                 raise CoordinatorError("coordinator_partial_initialization")
             if not policy_exists:
+                self._assert_no_v3_cutover()
                 self.writer.create(POLICY_PATH, self.policy_bytes)
                 genesis = _event(
                     seq=0,
@@ -565,6 +575,7 @@ class CapacityCoordinator:
                     previous=None,
                     fields={"policy_sha256": sha256(self.policy_bytes)},
                 )
+                self._assert_no_v3_cutover()
                 self.writer.append(LEDGER_PATH, canonical(genesis))
             else:
                 if self.writer.read_bytes(POLICY_PATH, max_bytes=1_000_000) != self.policy_bytes:
@@ -609,9 +620,8 @@ class CapacityCoordinator:
                 yield
             return
         self._validate_lane_lease(service, lease)
-        self._verify_root()
         with self.writer.lock(LOCK_PATH, blocking=True):
-            self._verify_root()
+            self._assert_no_v3_cutover()
             yield
 
     def _validate_lane_lease(self, service: str, lease: LaneLockLease) -> None:
@@ -731,7 +741,7 @@ class CapacityCoordinator:
         )
         if len(raw) + len(canonical(event)) > 64_000_000:
             raise CoordinatorError("coordinator_ledger_cap_exceeded")
-        self._verify_root()
+        self._assert_no_v3_cutover()
         self.writer.append(LEDGER_PATH, canonical(event))
         return event
 
@@ -897,7 +907,7 @@ class CapacityCoordinator:
                     pending_coordinator=pending_coordinator,
                     coordinator_append_bytes=0,
                 )
-                self._verify_root()
+                self._assert_no_v3_cutover()
                 if persist_intent is None:
                     self.writer.create(intent_path, intent_bytes)
                 else:
@@ -1000,12 +1010,11 @@ class CapacityCoordinator:
                     or pinned["intent_sha256"] != reservation.intent_sha256
                 ):
                     raise CoordinatorError("settlement_reservation_binding_invalid")
-            if persist_outcome is None:
-                self._verify_root()
-                self.writer.create(outcome_path, outcome_bytes)
-            else:
-                self._verify_root()
-                persist_outcome(self.writer, outcome_path, outcome_bytes)
+                self._assert_no_v3_cutover()
+                if persist_outcome is None:
+                    self.writer.create(outcome_path, outcome_bytes)
+                else:
+                    persist_outcome(self.writer, outcome_path, outcome_bytes)
             with self._shared_lock(service, held_lease):
                 self._verify_root()
                 raw, events = self._load_ledger()
