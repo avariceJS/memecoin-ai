@@ -656,6 +656,42 @@ handling, symlink xattr restoration, and owner-scale in-memory roster capacity a
 This is an implementation contract test only; source completeness, Kingston durability, a full
 restore, and factory-reset readiness remain unproven.
 
+The next synthetic boundary, `tools/brain_host_tree_restore_v4_synthetic.py`, consumes only that
+capture bundle and recreates included directories, bytes, and within-capture hardlink topology under
+a fresh 0700 disposable quarantine. It validates the canonical plan, receipt-bound manifest hash,
+exact source bundle membership, every captured object hash, metadata evidence roster, and a second
+source-bundle read against the original pins before returning. The witness remains under a pending
+name until fresh quarantine and capture readback pass, then is renamed descriptor-relatively and
+read back again. It never materializes symlinks, including absolute or dangling
+links; exact `.env.local` entries and aliases remain absent. Source xattr/ACL/flags/owner metadata is
+preserved as a mode-0600 evidence member but is not applied. External hardlink aliases remain
+explicitly unresolved by count, without a guessed location. The witness also fixes `real_T`,
+Kingston custody, full restore, and erase readiness to false.
+
+The focused capture/restore suite passes 21 tests (85 combined APFS attestor/v4 planner/synthetic
+planner/capture/restore tests). It includes cross-root hardlinks, unresolved
+outside aliases, excluded credentials and aliases, absolute/dangling symlinks, corrupt objects,
+missing/unexpected members, wrong object/group mapping, preexisting-target refusal, FIFO rejection,
+simulated cross-device link failure, interrupted open/write cleanup, bundle replacement, and
+post-write quarantine mutation. Readback checks exact tree membership, object bytes, hardlink inode
+identity, private metadata evidence, witness bytes, and
+source capture integrity against the initially verified manifest, receipt, and object map. Object
+preflight streams hashes under a 128-MiB per-object and 512-MiB aggregate synthetic fixture limit.
+Restore also checks distinct hardlink groups have distinct inodes and every file's link count equals
+its in-quarantine alias count. After acquiring the quarantine descriptor, recursive failure cleanup
+is descriptor-relative; if it cannot acquire that descriptor, it removes only the still-empty
+nonce directory and reports incomplete cleanup if that fails. Ruff and strict mypy pass for the
+restore implementation. This is still
+same-host disposable synthetic evidence: it does not exercise owner state, a real T, Kingston,
+compatible-host restore, metadata application, launchd, or user authentication. Caller-selected
+scratch and the process-local synthetic label are not authority controls. It does not change the
+NO-GO factory-reset verdict.
+
+Sol independently accepted this bounded implementation after reviewing its input/output identity,
+cleanup, FIFO rejection, link-topology, and publication-failure boundaries. Sol did not rerun the
+85 tests and did not access owner or protected payloads; the pass count above is local execution
+evidence, not an independent reproduction.
+
 ## Portability boundary and remaining risk
 
 The currently tested host bootstrap is macOS-specific. Kingston qualification uses `diskutil`, APFS,
@@ -676,14 +712,16 @@ as a new replication capability with hash verification and a full recovery rehea
 
 ## Remaining gates before `SAFE TO ERASE`
 
-The next meaningful step is to qualify a conservative Data free-space floor, bounded snapshot
+The next stateful gate is still to qualify a conservative Data free-space floor, bounded snapshot
 retention, and interactive admin procedure before any snapshot is created. The latest read-only
-check found 14 GiB free at 97% Data use and no Data snapshot, so creating one is not currently
-qualified. The APFS T attestor contract is synthetic-tested, but a real Data T still requires a
-separately reviewed host plan and post-creation UUID/XID pin delivered outside the snapshot. The
-three `work/wallets` subtrees are authorized for opaque, private, unresolved custody only; preserve
-them without semantic reading and do not infer a role from their names. No payload has yet been read
-or copied. The existing recovery procedure keeps services inert; this checkpoint does not authorize
+preflight found about 13.8 GiB free at 97% Data use and no Data snapshot, so creating one is not
+currently qualified. The APFS T attestor contract is synthetic-tested, but a real Data T still
+requires a separately reviewed host plan and post-creation UUID/XID pin delivered outside the
+snapshot. A fresh read-only status check still sees 18 Brain/D43 launchd labels, eight with PIDs,
+and 72 processes in the configured owner/research roots; this work changed none of them. The three
+`work/wallets` subtrees are authorized for opaque, private, unresolved custody only; preserve them
+without semantic reading and do not infer a role from their names. No payload has yet been read or
+copied. The existing recovery procedure keeps services inert; this checkpoint does not authorize
 starting them.
 
 1. Inventory every owner/research/local-config/service root and bind each to a source point or an
