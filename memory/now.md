@@ -1,21 +1,14 @@
 # Current Project State
 
-**As of:** 2026-10-13 21:29Z. Portability/DR assessment is recorded in
-`docs/portability-disaster-recovery.md` and its 2026-10-14 receipt on `research/active`; the
-software restore rehearsal used source baseline `33ff52f`. `main` and `origin/main` remain
-`770699d`; do not advance main before a verified capability milestone.
-Portability/DR remains **NO-GO for factory reset** under the user's accepted scope of owner-Mac loss
-with healthy Kingston. Kingston is the only reset-surviving physical copy; simultaneous Kingston
-loss is explicitly uncovered and accepted for this iteration. A fresh exact-current software
-restore took ~82 seconds, Kingston root verification passed, and a synthetic encrypted archive
-round-trip plus injected-failure cleanup passed metadata/integrity/failure checks. Owner processes
-remain active; no qualified owner-wide read-only snapshot exists, no recovery secret custody is
-verified, and no actual owner/protected archive or full restore has been performed. The 18-label
-owner-service inventory is captured; clean restore keeps all Brain/Senses services unloaded until
-separate authorization. No provider requests or source services changed. See
-`docs/portability-disaster-recovery.md` and
-`docs/evidence/portability-dr-qualification-2026-10-14.json`. Positive-bar projector and discovery
-evidence remain offline/synthetic; no eligible population or economic/lifecycle qualification claim.
+**As of:** 2026-10-14 01:10Z. Portability/DR remains **NO-GO for factory reset**. Current pushed
+`research/active` is `79352d7`; `main` remains `770699d`. Exact commit `7d8dc82` freshly cloned,
+bootstrapped Python 3.13, passed `make smoke`, and passed direct recovery CLI help checks. This is
+software-only evidence: no owner/private/protected/Kingston state was restored. Owner processes
+remain active, internal Data has ~14 GiB free, no qualified owner-wide snapshot exists, write churn
+is unbounded, and no owner/protected archive or full restore has been performed. The no-encryption
+and single-Kingston risks are accepted for this iteration. No provider requests or source services
+changed. See `docs/portability-disaster-recovery.md` and the immutable DR inventory and bootstrap
+receipts. Do not advance `main` or erase the Mac.
 
 ## Prospective acquisition
 
