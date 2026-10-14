@@ -690,6 +690,30 @@ on the current online host. It is not a qualified Recovery runtime or real Data-
 the Recovery route as a conditional candidate, not a currently executable recovery procedure,
 qualified T, or approval to interrupt the running host.
 
+A fresh read-only `diskutil info` observation confirms that the current Data volume has FileVault
+enabled and is mounted/unlocked under the live OS. A first Recovery Terminal check of the pinned Data
+UUID, FileVault state, lock state, and mountpoint is a necessary gate: require `FileVault: Yes`,
+`Locked: Yes`, and no mountpoint; stop if any check fails. Record the clean shutdown-to-Recovery boot
+chain and every earlier authentication choice. Apple documents Recovery Assistant and notes that a
+personal recovery key can unlock the volume while entering recoveryOS, so abort if any pre-Terminal
+step unlocked Data ([Apple FileVault deployment guide](https://support.apple.com/guide/deployment/manage-filevault-with-device-management-dep0a2cb7686/web)).
+Even `Locked: Yes` is only a point-in-time check; by itself it cannot exclude an earlier
+unlock/mount/relock or another Data alias. A qualified history boundary also needs the earliest
+available boot-session disk arbitration/mount logs, explicit treatment of missing log coverage, and
+enumeration of all Data aliases and snapshots. If those logs cannot establish prior events, retain
+the residual assumption and do not claim independently proven no-prior-writable mount or qualified
+T. Then, if the history boundary is accepted, consider interactive unlock with `-nomount` followed by
+an explicit read-only mount. The current online `diskutil(8)` manual says read-only mount denies writes
+even to superuser, but Disk Arbitration may run `fsck_apfs -q`; the local `fsck_apfs(8)` manual says
+quick check attempts no repairs. Recovery's bundled versions and actual mount behavior remain
+unobserved. See the
+[`Recovery locked-preflight feasibility receipt`](evidence/portability-dr-recovery-locked-preflight-2026-10-14T0653Z.json).
+Sol independently reviewed this gate and rejected the Locked/no-mount observation as sufficient
+history proof. Acceptance also requires shutdown-to-first-probe and authentication records, earliest
+available mount events with gaps accounted for, all Data UUID/group/device/mount aliases checked
+before unlock, and a second unmounted check after `unlockVolume -nomount`. If the log history cannot
+establish prior events, state the remaining assumption; do not claim independent proof or qualify T.
+
 Read-only `lstat` at 06:15Z found that the named owner checkout/work, research checkout/work, private
 Brain config, and `~/Library/LaunchAgents` root entries reported the same local `st_dev` as internal
 Data; Kingston `BrainData` reported a different `st_dev` and has its own pinned volume UUID/root.
@@ -916,11 +940,15 @@ as a new replication capability with hash verification and a full recovery rehea
 ## Remaining gates before `SAFE TO ERASE`
 
 The next source-view gate is a **user-dependent** Recovery compatibility and mount-history rehearsal,
-initially without unlocking or mounting Data and without capturing owner files. Determine how that
-rehearsal can prove that no earlier writable Data mount occurred; a current read-only mount
-observation alone cannot prove that history. Metadata-only owner/local-root closure can proceed
-independently. Only after these boundaries are designed should a real offline Data-view adapter be
-implemented. If the offline route is infeasible, qualify a conservative Data free-space floor,
+initially without unlocking or mounting Data and without capturing owner files. Start with clean
+shutdown, record every Recovery authentication choice, and make the first Terminal action check the
+pinned Data UUID, FileVault, lock, and mount state before Disk Utility or source access. Inspect the
+earliest available boot-session mount logs for gaps and enumerate all Data aliases/snapshots. The
+Locked/no-mount check is necessary but cannot alone exclude an earlier unlock/mount/relock. If
+independent boot history cannot be established, record the remaining assumption rather than claiming
+a proven no-prior-writable boundary. Metadata-only owner/local-root closure can proceed independently.
+Only after these boundaries are designed should a real offline Data-view adapter be implemented. If
+the offline route is infeasible, qualify a conservative Data free-space floor,
 bounded snapshot retention, and interactive admin
 procedure before creating a source snapshot. The 06:15Z read-only preflight found about 12.8 GiB
 free at 97% Data use and no Data snapshot; the prior 06:10Z check found about 12 GiB at 98%. An
@@ -940,8 +968,11 @@ starting them.
    private environment entries and all excluded Codex worktree ignored records. Keep the three
    research `work/wallets` roots opaque, private, unresolved, and backup-required. Preserve all 56
    Brain/D43 definitions inert or prove which are reproducible.
-2. Rehearse the conditional offline read-only Data view or, if it is infeasible, qualify a
-   conservative free-space floor, bounded snapshot retention, and interactive admin procedure.
+2. Rehearse the conditional offline read-only Data view, including first-action Locked-state gate,
+   pre-Terminal authentication log, boot-session mount history/gaps, all Data aliases, and explicit
+   read-only held-view checks. If prior mount history cannot be established, retain that assumption
+   explicitly. If the offline route is infeasible, qualify a conservative free-space floor, bounded
+   snapshot retention, and interactive admin procedure.
    Bind the exact approved Data volume and all declared roots; select and independently pin the
    approved source view. No live-copy pass can prove an owner frontier while state changes.
 3. Complete opaque custody of every identified F01/D43/reserved root and its lineage; verify hashes

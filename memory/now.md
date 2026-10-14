@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-14 06:51Z. Portability/DR remains **NO-GO for factory reset**. Work continues on
+**As of:** 2026-10-14 06:57Z. Portability/DR remains **NO-GO for factory reset**. Work continues on
 `research/active`; do not erase the Mac. The owner-Mac-loss scope assumes Kingston remains healthy.
 Kingston is the sole reset-surviving physical copy; its single-copy and plaintext risks are accepted.
 
@@ -41,8 +41,22 @@ Kingston is the sole reset-surviving physical copy; its single-copy and plaintex
   Recovery compatibility/mount-history work now depends on a user-assisted session; metadata root
   closure can proceed independently. Receipt:
   `docs/evidence/portability-dr-root-entry-identity-2026-10-14T0647Z.json`.
-- Remaining stateful gates include headroom/admin procedure for an owner source view, complete
-  owner/protected custody, a real Kingston durable frontier, and compatible-host inert restore.
+- The current Data volume reports FileVault enabled. A candidate Recovery first-action gate would
+  require the pinned UUID, encrypted/Locked state, and no mountpoint before any unlock/mount command,
+  then use interactive `-nomount` and explicit read-only mount. Sol says this is necessary but not
+  enough to prove history; record shutdown/authentication, inspect boot mount logs/gaps, enumerate
+  all aliases before unlock, then verify still-unmounted after `-nomount`. If history is unavailable,
+  retain it as an assumption. This is not rehearsed or accepted. Receipt:
+  `docs/evidence/portability-dr-recovery-locked-preflight-2026-10-14T0653Z.json`.
+- Fresh read-only owner runtime query: 18 Brain/D43 launchd labels loaded, eight with PIDs; no
+  service changes. Data is FileVault-enabled, unlocked/mounted under the live OS, 13,371,388 KiB
+  free (97% used), with no APFS snapshots. Kingston is mounted read/write at its pinned UUID with
+  211,803,256 KiB free (~202 GiB). Do not create a source snapshot at current Data headroom.
+- Current Git: `research/active` and `origin/research/active` at `7146d02f13ca9b405767fc5ce6833124b68df014`;
+  `main` and cached `origin/main` remain at `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. The new
+  evidence correction scope is being finalized; no main movement is authorized.
+- Remaining stateful gates include a qualified source view/history boundary, complete owner/protected
+  custody, a real Kingston durable frontier, and compatible-host inert restore.
   `research/work/wallets` remains private, opaque, unresolved, and backup-required. F01/D43/reserved
   remain protected; no semantic access is authorized.
 - Fresh read-only APFS check at 06:15Z: Data has about 12.8 GiB free (97% used) and no snapshots.
