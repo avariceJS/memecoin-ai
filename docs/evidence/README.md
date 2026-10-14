@@ -73,6 +73,15 @@ contain large exact payloads, so open only the named artifact needed for a speci
   opaque Kingston quarantine and isolated inert restore of all 60 current plist files. Four files
   are beyond the prior 56 Brain/D43 metadata count and remain unclassified; no quarantined
   definition was loaded by this DR work.
+- [`Portability and DR host metadata census`](portability-dr-host-metadata-census-2026-10-14T0153Z.json):
+  counts owner/research work files and symlinks, private config and LaunchAgent metadata, records
+  host tool versions and `.env.local` metadata-only reissue disposition, and observes metadata churn
+  in owner work and point-in-time open-file categories for owner-cwd processes. It reads no file
+  contents and does not establish a recovery boundary.
+- [`Portability and DR protected-candidate path inventory`](portability-dr-protected-candidate-path-inventory-2026-10-14T0155Z.json):
+  stores 178 basename-prefix candidate paths and lstat metadata in a private Kingston manifest,
+  reread and hash-verified through a fresh descriptor-bound verifier. This proves neither protected
+  role nor byte custody or a consistent source point.
 - [`Portability and DR owner Git remote check`](portability-dr-owner-git-remote-check-2026-10-14T0122Z.json):
   a read-only live owner remote query showing its main head differs from the cached tracking ref.
   The next receipt resolves ancestry using existing objects; deployed runtime identity remains

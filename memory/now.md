@@ -1,8 +1,9 @@
 # Current Project State
 
-**As of:** 2026-10-14 01:43Z. Portability/DR is **NO-GO for factory reset**. Earlier DR work is
-published on `research/active`; the ignored-state, local restore witness, and LaunchAgent custody
-updates are pending commit. `main` remains the verified baseline. Do not erase the owner Mac.
+**As of:** 2026-10-14 01:55Z. Portability/DR is **NO-GO for factory reset**. All DR work through
+the LaunchAgent and ignored-state witnesses is published on `research/active`; the host census and
+private candidate-path inventory are the current uncommitted scope. `main` remains the verified
+baseline. Do not erase the owner Mac.
 
 - Owner checkout was last verified clean at `a594474` on `main`; its cached `origin/main` is 15
   ahead, while live remote main `770699` is 507 commits ahead (verified in research object DB).
@@ -45,6 +46,15 @@ updates are pending commit. `main` remains the verified baseline. Do not erase t
   requests were zero for DR work. One later broad tracked-source grep included
   `docs/evidence`; its truncated output was not used, and whether a protected receipt line was printed
   is unresolved. Do not rely on that output.
+- Metadata-only census found about 28.6 GB across 615,850 regular files and 126 symlinks under the
+  owner/research `work/` trees. Owner-tree apparent bytes fell 594,048 across consecutive full scans;
+  a short repeat changed metadata on three owner entries, including a growing log and a SQLite
+  file. This proves churn, not a consistent source point. `.env.local` is 0600/470 bytes, unopened
+  and unhashed, designated for archive exclusion and credential reissue. See the canonical DR handoff
+  and census receipt.
+- A private metadata-only inventory of 178 F01/D43/reserved-prefix candidates is now on Kingston and
+  was reread/hash-verified through a fresh descriptor-bound verifier. Candidate paths remain private;
+  roles and payload custody are unproven. See the canonical handoff and public aggregate receipt.
 - Next gate: classify private config, owner/research state, service roots, Codex ignored roles and
   external runtime dependencies; then establish a qualified consistent source point and protected
   opaque custody before a full inert isolated restore. Obtain independent Sol review before any

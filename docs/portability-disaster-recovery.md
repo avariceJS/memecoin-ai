@@ -33,11 +33,24 @@ Live checks on the current Mac:
   28 pending predictions respectively; these
   remain pending and are not to be resumed. This status does not audit owner operator/paper state.
   The owner operator and several owner paper/UI processes remain running.
-- Internal `work/` trees occupy about 16 GiB in research and 11 GiB in owner. Their top levels have
-  234 and 275 mixed entries respectively, so they still need a complete recovery classification.
+- A metadata-only census counted 330,273 regular files and 108 symlinks in research `work/`, and
+  285,577 regular files and 18 symlinks in owner `work/` (about 28.6 GB combined). It read no file
+  bytes and found no unreadable entries. These are large mixed state trees, not classified recovery
+  sets. Across consecutive full scans, owner `work/` kept the same entry counts but its apparent
+  regular-file bytes fell by 594,048 and its membership/metadata digest changed. A short repeat
+  observed metadata changes to three owner entries, including one growing log (+56,423 bytes) and
+  one SQLite file; no entries were added or removed. Research `work/` metadata remained stable over
+  that short repeat. This confirms active owner-state churn and does not bound byte writes or qualify
+  a snapshot. A point-in-time `lsof` metadata pass over 12 owner-cwd processes found 26 open-file
+  records within owner `work/`; it found no named SQLite-family descriptors within either `work/`
+  root. This does not establish inactivity or a write frontier. Receipt:
+  [`host metadata census`](evidence/portability-dr-host-metadata-census-2026-10-14T0153Z.json).
+  Both trees still need complete recovery classification.
   `~/.config/brain-research` occupies about 348 KiB and currently has 14 entries. The owner
-  `.env.local` is mode 0600 (470 bytes); its contents were not read. Credentials are reissued by the
-  user after restore. `~/Library/LaunchAgents` contains 55 Brain plist files plus one D43 plist.
+  `.env.local` is mode 0600 (470 bytes); its contents were not read or hashed and it is designated
+  for exclusion from future recovery archives. Its disposition is user credential reissue.
+  `~/Library/LaunchAgents` contains
+  55 Brain plist files plus one D43 plist.
   At 01:12Z, 18 labels were loaded and nine had PIDs, including `ai.memecoin.brain.b09r2.source`; by
   01:17Z, 18 remained
   loaded and eight had PIDs, with that source label loaded but without a PID. At the later probe,
@@ -105,6 +118,13 @@ Live checks on the current Mac:
   suffixes include JSON, logs, Markdown, Python, and Rust source. Nested entries can be related or
   duplicated; extensions do not establish role. See the
   [`candidate entry-type receipt`](evidence/portability-dr-candidate-entry-types-2026-10-14T0119Z.json).
+  A follow-up kept a private path inventory of all 178 matching entries in those three roots on
+  Kingston at `host-recovery/private-path-inventory-20261014-a1/`. The 62,395-byte manifest records
+  relative paths, lstat metadata, and symlink link text; no payload was opened and no symlink was followed.
+  The manifest and completion marker were reread through a fresh descriptor-bound verifier and
+  hash-checked. All candidate entry metadata was stable at the end of the scan, which does not make
+  this a common source point or establish role/byte custody. See the
+  [`private candidate-path inventory receipt`](evidence/portability-dr-protected-candidate-path-inventory-2026-10-14T0155Z.json).
 
 - Recursive metadata for `~/.config/brain-research` finds 13 directories and 75 files (about
   184 KiB), all files mode 0600. Its top-level entries include five versioned external configuration
@@ -191,7 +211,7 @@ and completeness remain unresolved and block `SAFE TO ERASE`.
 | Owner code and deployed runtime identity | Owner Git remote plus exact runtime bundles, deployment pointers, and state under owner `work/` | Restore an inert copy; never infer the deployed bundle from repository `HEAD` or recreate active services automatically. |
 | Large research captures, datasets, journals, immutable evidence, and recovery records | Kingston `BrainData` plus each object's manifest, lineage, STOP, and recovery records | Verify UUID, root marker, artifact hashes, and semantic replay before admission. This is canonical storage, not a second backup. |
 | Unique local owner/research state | Local owner/research `work/`, `~/.config/brain-research`, and Brain LaunchAgent definitions until a verified Kingston custody set is published | Capture from one read-only APFS source view where available. Use SQLite online backups for declared non-protected databases. Preserve unknown and unfinished state; never copy a live database/WAL family file-by-file. |
-| Private provider configuration | User reauthentication/reissuance; current `.env.local` is not needed for inert restore | Do not capture secret values. Keep local values mode 0600 and never place them in Git, public receipts, logs, plists, or process arguments. |
+| Private provider configuration | User reauthentication/reissuance; current `.env.local` is not needed for inert restore | Exclude the exact owner `.env.local` path from every recovery archive. Record metadata only; do not open or hash its bytes. Keep local values mode 0600 and never place them in Git, public receipts, logs, plists, or process arguments. |
 | Protected F01, D43, and reserved holdout | Existing protected source roots and their frozen declarations/manifests/lineage | Preserve exact bytes, classification, and lineage as opaque custody. Verify byte/custody metadata only; no protected application readers, replay, training, evaluation, admission, or relabeling. |
 | Host bindings | Per-host private config, including Kingston UUID/root binding | Recreate from the attached volume and verify explicitly. Paths are locators, not artifact identity. |
 | Runtime and recovery authority | Versioned source, immutable journals/STOPs, activation records, and service definitions | Restore inert. Expired anchors, STOPs, spent reservations, ambiguity, gaps, and failures remain facts; none grants restart permission. |
