@@ -714,6 +714,24 @@ available mount events with gaps accounted for, all Data UUID/group/device/mount
 before unlock, and a second unmounted check after `unlockVolume -nomount`. If the log history cannot
 establish prior events, state the remaining assumption; do not claim independent proof or qualify T.
 
+`tools/brain_host_recovery_preflight_v1.py` now implements the bounded first-action observation.
+Invocation requires independently pinned Data UUID, volume-group UUID, container UUID, and device
+identifier; all four must match before the point-in-time check can pass. It checks APFS
+container/group membership, FileVault/lock/mount state, Data snapshots, and matching kernel mount
+entries. It resolves APFS sources by container role or `diskutil info` identity; incomplete mount
+lines, unresolved aliases in the pinned container, and group-only ambiguity return `unknown`. It
+never unlocks or mounts, omits mountpoint and snapshot-name strings from output, and always leaves
+prior-mount history and erase readiness false. CLI exit status is nonzero for every blocked/unknown
+state. The commands are sequential rather than atomic; recheck immediately before any dependent
+Recovery action, and treat the reported host timestamp as untrusted. Seventeen focused synthetic
+tests, scoped Ruff/format, and mypy pass. A live read-only run at 09:15Z
+matched the pinned Data/container/group/device, found FileVault enabled, Data unlocked and mounted
+writable, no Data snapshots, and returned `blocked_unlocked` with `safe_to_erase=false`. This
+demonstrates the observer's current-host blocked path only; it is not Recovery behavior, mount-history
+evidence, a qualified source view, or an erase gate. The first Recovery Terminal invocation still
+needs the user-assisted sequence and history review described above. On Recovery, stop if any pinned
+identity differs or any alias cannot be mapped; do not change the expected pins merely to continue.
+
 Read-only `lstat` at 06:15Z found that the named owner checkout/work, research checkout/work, private
 Brain config, and `~/Library/LaunchAgents` root entries reported the same local `st_dev` as internal
 Data; Kingston `BrainData` reported a different `st_dev` and has its own pinned volume UUID/root.
