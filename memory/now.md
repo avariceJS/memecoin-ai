@@ -5,9 +5,9 @@ the owner Mac. The user has resumed bounded work without Recovery reboot for now
 interrupt again in roughly 1.3–2 hours. No new prospective collector, production, champion,
 protected evaluation, paper, or trading state was changed.
 
-- Current `research/active` HEAD is `eee6676b794c5dafa9d616b2899174594a8d9b6f`, clean and
-  pushed to `origin/research/active`; it refreshes this memory handoff. The last DR implementation
-  commit is `04cbf2b3c3d2dc9a83745f8da19fb19f46702b53`. `main` and `origin/main` remain at
+- `research/active` is clean and synchronized with `origin/research/active`; read Git for the exact
+  current tip at handoff. The last DR implementation commit is
+  `04cbf2b3c3d2dc9a83745f8da19fb19f46702b53`. `main` and `origin/main` remain at
   `770699d3ef8558518ae750b6d5d6cab41c2e82c8`.
 - Data identity remains UUID `430740ca-42e7-4e6c-a07a-e4e7370152cc`, APFS group UUID equal to the
   Data UUID, container UUID `414bc719-2fea-44a6-9952-d12cd31cb0ca`, device `disk3s5`. It is
