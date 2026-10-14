@@ -1,7 +1,7 @@
 # Current Project State
 
-**As of:** 2026-10-14 01:10Z. Portability/DR remains **NO-GO for factory reset**. Current pushed
-`research/active` is `3048a1b`; `main` remains `770699d`. Exact commit `7d8dc82` freshly cloned,
+**As of:** 2026-10-14 01:10Z. Portability/DR remains **NO-GO for factory reset**. DR changes are
+committed and pushed on `research/active`; `main` remains `770699d`. Exact commit `7d8dc82` freshly cloned,
 bootstrapped Python 3.13, passed `make smoke`, and passed direct recovery CLI help checks. This is
 software-only evidence: no owner/private/protected/Kingston state was restored. Owner processes
 remain active, internal Data has ~14 GiB free, no qualified owner-wide snapshot exists, write churn

@@ -16,11 +16,10 @@ replica and a Kingston-loss rehearsal.
 Live checks on the current Mac:
 
 - The latest exact-code restore rehearsal used `7d8dc82f94e5c9e2631bc38ae79f1229cccdeea1`, an
-  ancestor of the current pushed `research/active` and `origin/research/active` commit
-  `3048a1b0c610ec0e257c6313b622f8eac8dab93d`. The immutable inventory receipt records the prior
-  source cutoff at `eaedeae61cd101882835095c2f54158ca07a2945`. `main` and `origin/main` remain at
-  `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; do not advance `main` until the capability is
-  qualified.
+  ancestor of the published DR changes on `research/active`. The immutable inventory receipt
+  records the prior source cutoff at `eaedeae61cd101882835095c2f54158ca07a2945`. `main` and
+  `origin/main` remain at `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; do not advance `main` until
+  the capability is qualified.
 - The owner checkout at `/Users/root1/Desktop/memecoin-ai` is clean at
   `a5944742b6b8ed0466c50bdeb72370ed3e3f2a31`. Read-only B01–B04 status reports all four scopes
   STOPped and expired. They retain 48, 48, 19, and 28 pending predictions respectively; these
