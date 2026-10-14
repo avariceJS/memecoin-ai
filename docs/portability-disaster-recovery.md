@@ -618,11 +618,43 @@ selection, exact source-name binding, absolute `diskutil` path, and post-query d
 The second independent review found no remaining blocker for this bounded identity contract; it did
 not qualify plan approval or an actual Data T. Optional plist creation time is normalized as UTC.
 
-The v4 private custody planner and synthetic-only artifact exerciser also exist in the current
-uncommitted worktree. They classify one exact three-root group as private, opaque, unresolved, and
-backup-required; the exerciser writes only synthetic fixture bytes into a disposable temporary
-directory and verifies the regular-file artifact roster through fresh descriptors. It cannot prove
-source completeness, mint `COMPLETE` or T, or publish durable custody.
+The v4 private custody planner and synthetic-only artifact exerciser classify one exact three-root
+group as private, opaque, unresolved, and backup-required. The separate
+`tools/brain_host_tree_capture_v4.py` now exercises the source capture path against a synthetic held
+snapshot handle: it traverses all three held roots without following links, builds the complete
+cross-root hardlink roster using stat/type observations before excluding exact `.env.local` files
+and every alias, then probes xattr/ACL/flag metadata only for included objects. It streams only
+included regular-file groups, records symlink text without materializing targets, and fails closed
+when metadata cannot be observed. Darwin symlink metadata uses `O_SYMLINK` descriptors; the Linux
+fixture adapter uses `/proc/self/fd` with no-follow xattr calls at the leaf. Darwin ACL values use
+the versioned `acl_to_text` representation
+(whose returned text allocation is released with `acl_free`, as documented by [Apple's acl_to_text
+manual](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/acl_to_text.3.html));
+the ACL and allocated text buffers are both freed. A disposable Darwin fd probe observed ENOENT
+for no extended ACL; other ACL errors remain unresolved. It captures only disposable synthetic
+filesystem fixtures and does not access project state.
+
+Metadata reads check planned object identity before and after access and validate exact xattr, ACL,
+and flag obligations. After source streaming, the implementation re-walks the held roots and
+metadata, compares the canonical roster, and rereads the exact output member set (objects, manifest,
+and receipt) through fresh no-follow descriptors. Interruption, source drift, or post-borrow
+revalidation failure removes only its nonce-scoped temporary tree. Tests assert that excluded
+credential inode bytes and xattr values are never read, a path swapped to a credential inode fails
+before metadata reads, unresolved outside hardlink aliases remain explicit, excluded `.env.local`
+symlink text is not queried, symlink targets are not followed, unsupported xattr inventory fails
+closed, xattrs are captured, drift and interruption do not leave artifacts, and readback hashes
+match. The 71 focused attestor/v4 tests,
+scoped Ruff/format, strict mypy for the capture module, and `git diff --check` pass.
+
+This path requires a synthetic `HeldSnapshotT`; its receipt sets `complete_marker_published`, real
+T, real capture, Kingston custody, restore verification, and erase readiness to false. The
+synthetic flag is an in-process label, and the output parent is caller-supplied: invoke this API only
+with disposable fixture roots and private scratch. It is not wired to owner-data capture or
+persistent publication and cannot mint a production `COMPLETE` marker. Darwin execution is tested
+on this Mac's temporary fixture filesystem, not a real read-only Data snapshot. Populated ACL
+handling, symlink xattr restoration, and owner-scale in-memory roster capacity are not qualified.
+This is an implementation contract test only; source completeness, Kingston durability, a full
+restore, and factory-reset readiness remain unproven.
 
 ## Portability boundary and remaining risk
 
