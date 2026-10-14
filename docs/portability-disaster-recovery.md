@@ -25,21 +25,27 @@ Live checks on the current Mac:
   STOPped and expired. They retain 48, 48, 19, and 28 pending predictions respectively; these
   remain pending and are not to be resumed. This status does not audit owner operator/paper state.
   The owner operator and several owner paper/UI processes remain running.
-- Internal `work/` trees occupy about 16 GiB in research and 11 GiB in owner. `~/.config/brain-research`
-  occupies about 348 KiB. The owner `.env.local` is mode 0600 (470 bytes); its contents were not
-  read. Credentials are reissued by the user after restore. `~/Library/LaunchAgents` contains 55
-  Brain plist files while `launchctl list` reports 18 loaded labels, eight with PIDs. The loaded
-  service list is not the full host-definition inventory; preserve definitions inert or prove them
-  reproducible before erase.
+- Internal `work/` trees occupy about 16 GiB in research and 11 GiB in owner. Their top levels have
+  234 and 275 mixed entries respectively, so they still need a complete recovery classification.
+  `~/.config/brain-research` occupies about 348 KiB and currently has 14 entries. The owner
+  `.env.local` is mode 0600 (470 bytes); its contents were not read. Credentials are reissued by the
+  user after restore. `~/Library/LaunchAgents` contains 55 Brain plist files while `launchctl list`
+  reports 18 loaded labels, nine with PIDs. `ai.memecoin.brain.b09r2.source` is currently running;
+  this is observed source state and was not changed or activated by DR work. The loaded service list
+  is not the full host-definition inventory; preserve definitions inert or prove them reproducible
+  before erase.
 - Kingston `BrainData` occupies about 19 GiB and remains on case-sensitive APFS with UUID
   `8f8f1081-9be4-4914-9111-75f1b90255bf`, root ID
   `9428695af6d4f46c08e1a444cdc66de8`, and about 203 GiB free. The 50-GiB storage floor passes.
   Kingston is the only reset-surviving physical copy.
-- The internal Data volume has about 14 GiB free. `diskutil apfs listSnapshots` finds no Data
-  snapshots and `tmutil` reports no configured destination. A noninteractive privilege check
-  confirms the session cannot create or mount a privileged snapshot without user authentication.
-  The available unprivileged `iostat` view combines reads and writes, so it did not establish a
-  safe write-churn bound. A read-only owner-wide snapshot has not been created or qualified.
+- The read-only refresh receipt measured 12,960,665,600 bytes free before removal of two agent-created
+  rehearsal clones. Removing those exact, verified disposable checkouts reclaimed 596,779,008 bytes;
+  current `df` reports 13,239,692 KiB free (about 12.6 GiB). `diskutil apfs listSnapshots` finds no
+  Data snapshots and `tmutil` reports no configured destination. A fresh
+  noninteractive privilege check confirms the session cannot create or mount a privileged snapshot
+  without user authentication. The available unprivileged `iostat` view combines reads and writes,
+  so it did not establish a safe write-churn bound. A read-only owner-wide snapshot has not been
+  created or qualified.
   Copying live SQLite/WAL files individually is not an acceptable substitute. Any snapshot needs a
   short, monitored retention window and a conservative free-space abort floor.
 - Prior exact-current clone and uncached dependency bootstrap took about 82 seconds on this
@@ -60,6 +66,18 @@ Live checks on the current Mac:
   false; the current set schema is an integrity index, not owner-root closure or erase approval.
 - These live inventory and qualification observations are recorded in the immutable
   [`read-only DR inventory receipt`](evidence/portability-dr-readonly-inventory-2026-10-14T0101Z.json).
+- The fresh [`read-only DR refresh receipt`](evidence/portability-dr-readonly-refresh-2026-10-14T0112Z.json)
+  records 18 loaded labels / nine running, 12.1 GiB free on Data, and a recursive metadata-only name
+  scan across owner/research work, private config, and Kingston. The scan located
+  `owner/work/calendar-execution-01`; no exact F01, reserved, or holdout component name matched.
+  This name-based scan does not prove those roots are absent or that protected custody is complete.
+
+Scope caveat after that receipt: a later broad `git grep` covered tracked `docs/`, `src/`, `tools/`,
+and `tests/`, which includes `docs/evidence/`. Its output was truncated before matching files could
+be classified. No result was used for protected-data analysis or copied into project artifacts, and
+no files were changed by the search. Whether a protected receipt line was printed is unresolved;
+the refresh receipt's `protected_payloads_read=false` applies only to its 01:12Z capture. Do not
+rely on that later search output or treat it as protected custody evidence.
 
 No providers, prospective collectors, owner services, champion, protected evaluation, or trading
 state were changed by the DR work. No provider request or collector was initiated by the DR work.
@@ -159,10 +177,11 @@ read.
 
 ## Service restore posture
 
-The read-only `launchctl list` inventory captured 18 loaded labels. Eight had a running PID: the owner
-`operator` and seven owner UI processes. Ten were listed without a PID, including the D43 calendar,
-paper/audit/train/source labels, and the research storage-health monitor. This is observed source
-state, not a proposed startup set. No Senses capture/watchdog label was listed.
+The latest read-only `launchctl list` inventory captured 18 loaded labels. Nine had a running PID:
+the owner `operator`, seven owner UI processes, and `ai.memecoin.brain.b09r2.source`. Nine were listed
+without a PID, including the D43 calendar, paper/audit/train labels, and the research storage-health
+monitor. This is observed source state, not a proposed startup set. No Senses capture/watchdog label
+was listed.
 
 There are 55 Brain-named plist files in `~/Library/LaunchAgents`; 37 are not represented among the
 18 currently loaded labels. Their definitions remain host-local. Preserve them as inert custody
@@ -174,7 +193,7 @@ directory wholesale.
 | Owner control: `ai.memecoin.brain.operator` (running) | Preserve its exact deployment definition and state. Keep unloaded; any later start requires separate owner release/recovery authorization and identity/STOP checks. |
 | Storage monitor: `ai.memecoin.brain.research-storage-health-v1` (listed, no PID) | Preserve the definition. Keep unloaded during restore; later activation is a candidate only after the new host binding, source, and plist are verified. It records storage health and has no acquisition authority. |
 | Protected evaluation: `ai.memecoin.d43.calendar01` (listed, no PID) | Preserve its definition and protected custody only. Do not install, load, or run evaluation as part of recovery. |
-| Legacy jobs/source/audit/train/paper: `b04`, `b09r2.audit`, `b09r2.source`, `b10r2.train`, `b12.paper`, `expansion.paper`, `b10r2.paper`, `b12r2.paper` (all listed, no PID) | Preserve definitions and unique state in custody. Exclude from automatic install/start; each needs separate current justification and authorization. |
+| Legacy jobs/source/audit/train/paper: `b04`, `b09r2.audit`, `b09r2.source`, `b10r2.train`, `b12.paper`, `expansion.paper`, `b10r2.paper`, `b12r2.paper` (`b09r2.source` currently has a PID; others have none) | Preserve definitions and unique state in custody. Exclude from automatic install/start; each needs separate current justification and authorization. |
 | Owner UI services: `b12.ui`, `b10.ui`, `expansion.ui`, `b12r2.ui`, `b10r2.ui`, `b12r1.ui`, `b10r1.ui` (all running) | Preserve definitions and exact runtime identity. Leave absent/unloaded on the restored host; a UI label does not prove read-only behavior or deployment authority. |
 
 The initial restored-host baseline is zero loaded Brain/Senses labels. Keep historical plist files in
