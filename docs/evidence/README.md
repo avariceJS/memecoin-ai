@@ -118,6 +118,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   verifies one documented nonprotected owner operator `deployment.json` pin against its bundle
   manifest hash. It does not prove the running process image, bind an owner Git revision, or close
   the seven other running Brain roles.
+- [`Portability and DR active service roots`](portability-dr-active-service-roots-2026-10-14T0255Z.json):
+  reconciles five declared nonprotected owner/work `WorkingDirectory` entries for currently running
+  Brain labels to the private recursive metadata inventory. Three sensitive/candidate entries are
+  excluded without paths or content; plist declarations do not prove process identity.
 - [`Portability and DR owner Git remote check`](portability-dr-owner-git-remote-check-2026-10-14T0122Z.json):
   a read-only live owner remote query showing its main head differs from the cached tracking ref.
   The next receipt resolves ancestry using existing objects; deployed runtime identity remains

@@ -1,7 +1,7 @@
 # Current Project State
 
-**As of:** 2026-10-14 02:50Z. Portability/DR is **NO-GO for factory reset**. Current published DR
-work is on `research/active` through `8f739a4`; `main` remains the verified baseline. Do not erase
+**As of:** 2026-10-14 02:56Z. Portability/DR is **NO-GO for factory reset**. Current published DR
+work is on `research/active` through `502f6f7`; `main` remains the verified baseline. Do not erase
 the owner Mac.
 
 - Owner checkout was last verified clean at `a594474` on `main`; its cached `origin/main` is 15
@@ -87,6 +87,12 @@ the owner Mac.
   recursive inventory; the running process image and seven other running Brain code identities remain
   unresolved. At 02:50Z, 17 Brain labels were loaded/eight running and one D43 label was loaded with
   no PID. See the canonical DR handoff and pointer receipt.
+- A metadata-only pass over the eight then-running Brain labels matched five declared nonprotected
+  plist working directories to the private recursive inventory; three sensitive/protected-candidate
+  entries were excluded without retaining paths. Sol reviewed both this pass and the prior operator
+  deployment-pointer scope; neither proves process/code identity or changes NO-GO. At 02:55Z, 17 Brain
+  labels were loaded/eight with PIDs and one D43 label was loaded with no PID. See the canonical DR
+  handoff and active service-root receipt.
 - A metadata-only count of three research directories named `wallets` found 21 files and three
   subdirectories, matching the earlier census delta. Child names were enumerated transiently but not
   retained or emitted; payloads were not read. Contents and role remain unknown; this sensitive

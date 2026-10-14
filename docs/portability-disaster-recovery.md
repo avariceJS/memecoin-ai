@@ -288,6 +288,12 @@ Research checkout authentication remains a clean-host user step. Sol review defe
 exact-commit local source bundle: remote user reauthentication is accepted, while the bundle adds
 little recovery value and would duplicate reachable history into plaintext Kingston custody.
 
+Sol separately reviewed the 02:50Z operator deployment-pointer pass and the 02:55Z active service-root
+pass. Both scopes and limitations are accepted: the deployment pin matches its manifest, and five
+declared nonprotected working-directory entries match the private inventory while three sensitive
+or protected-candidate entries remain excluded. Neither pass proves loaded process/code identity or
+changes the owner-wide custody and source-consistency NO-GO.
+
 ## State ownership and restore rules
 
 | State | Canonical source of truth | Recovery rule |
@@ -424,6 +430,16 @@ seven other running Brain code identities unresolved. One D43 label was loaded w
 does not establish an owner-wide source frontier. Private locators and hashes are in the
 [`owner deployment-pointer receipt`](evidence/portability-dr-owner-deployment-pointer-2026-10-14T0250Z.json)
 and its Kingston-only manifest.
+
+A 02:55Z metadata-only pass covered the eight Brain LaunchAgent labels then running. It read only
+their current plists' `WorkingDirectory` field and lstat metadata. Five declared nonprotected
+owner/work working-directory entries matched the recursive inventory; three entries intersected
+the protected-candidate inventory or sensitive-name rule and were excluded without retaining their
+paths. No environment values, program arguments, process arguments, or protected payloads were
+inspected. This reconciles five declared path entries but does not prove that the loaded definitions
+match those files, that running processes use those directories, or that their code identities are
+known. See the [`active service-root receipt`](evidence/portability-dr-active-service-roots-2026-10-14T0255Z.json)
+and its private Kingston manifest.
 
 The four additional host-software definitions are `com.valvesoftware.steamclean`, two Zoom services,
 and `homebrew.mxcl.postgresql@16`. They were already loaded without PIDs at the latest probe; three
