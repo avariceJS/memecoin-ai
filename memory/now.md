@@ -1,7 +1,7 @@
 # Current Project State
 
-**As of:** 2026-10-14 04:38Z. Portability/DR remains **NO-GO for factory reset**. Published work
-is on `research/active` through `b80fbf6`; `main` remains at the verified baseline
+**As of:** 2026-10-14 04:51Z. Portability/DR remains **NO-GO for factory reset**. Published work
+is on `research/active` through `89ff00f`; `main` remains at the verified baseline
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Do not erase the owner Mac.
 
 - Accepted recovery case is owner-Mac loss with healthy Kingston. Kingston is the sole
@@ -24,6 +24,18 @@ is on `research/active` through `b80fbf6`; `main` remains at the verified baseli
   six pinned fixture roles into a synthetic quarantine, with source closure/T/K/host/erase false.
   Its owner-root exclusions depend on caller-supplied paths. Latest assessor receipt:
   `docs/evidence/portability-dr-restore-assessment-v1-2026-10-14T0411Z.json`.
+- The conductor-to-assessor operator flow passed on Kingston with six synthetic roles, isolated
+  temporary HOME, a separate-device quarantine, and witness readback. Known run nonce paths were
+  removed and no set/witness ID remained in filtered 32-hex ID lists; shared parent effects were not
+  classified. Set/witness pin pass was internal to the synthetic run, without external trusted
+  recovery authority; pytest-managed local temporary state removal was not asserted. Assessor
+  remained blocked with T/K/owner-protected closure unknown. No provider requests, service changes,
+  or persistent set/witness ID. Receipt:
+  `docs/evidence/portability-dr-kingston-inert-restore-flow-2026-10-14T0450Z.json`.
+- Sol independently reviewed the bounded flow and confirms **NO-GO**. No further non-invasive or
+  synthetic run materially closes readiness gates. Required next inputs are an admin-assisted
+  owner-wide source view, custody/classification decisions, and user Git authentication for a clean
+  compatible-host restore. See `docs/portability-disaster-recovery.md`.
 - No prospective campaign or provider requests were started for DR. Continue from the canonical
   handoff in `docs/portability-disaster-recovery.md`; it records remaining gates and evidence.
 
