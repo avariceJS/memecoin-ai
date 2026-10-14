@@ -1,7 +1,7 @@
 # Current Project State
 
 **As of:** 2026-10-14 02:56Z. Portability/DR is **NO-GO for factory reset**. Current published DR
-work is on `research/active` through `502f6f7`; `main` remains the verified baseline. Do not erase
+work is on `research/active` through `ed5c996`; `main` remains the verified baseline. Do not erase
 the owner Mac.
 
 - Owner checkout was last verified clean at `a594474` on `main`; its cached `origin/main` is 15
