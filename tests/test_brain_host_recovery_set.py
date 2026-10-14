@@ -92,9 +92,21 @@ def _setup_set(
     extra_owner_files: dict[str, bytes] | None = None,
     owner_symlinks: dict[str, str] | None = None,
     protected_symlink: bool = False,
+    synthetic_ids: dict[str, str] | None = None,
 ):
     import tools.brain_host_sqlite_backup as backup_tool
     import tools.brain_host_tree_custody as tree_v2
+
+    ids = {
+        "owner_work": "a" * 32,
+        "research_work": "b" * 32,
+        "private_config": "c" * 32,
+        "launchagent_definitions": "d" * 32,
+        "protected_d43": "e" * 32,
+        "sqlite_backup": "f" * 32,
+        "set": "f" * 32,
+    }
+    ids.update(synthetic_ids or {})
 
     archive_path = tmp_path / "archive"
     writer = _writer(archive_path)
@@ -136,7 +148,7 @@ def _setup_set(
     owner_member, _ = _capture(
         writer,
         owner_root,
-        "a" * 32,
+        ids["owner_work"],
         "owner_work",
         exact_exclusions,
     )
@@ -144,17 +156,19 @@ def _setup_set(
     research_root.mkdir()
     (research_root / "research.txt").write_text("synthetic", encoding="utf-8")
     os.link(research_root / "research.txt", research_root / "research-alias.txt")
-    research_member, _ = _capture(writer, research_root, "b" * 32, "research_work")
+    research_member, _ = _capture(writer, research_root, ids["research_work"], "research_work")
 
     private_root = (tmp_path / "private-config").resolve()
     private_root.mkdir()
     (private_root / "config.json").write_text("{}", encoding="utf-8")
-    config_member, _ = _capture(writer, private_root, "c" * 32, "private_config")
+    config_member, _ = _capture(writer, private_root, ids["private_config"], "private_config")
 
     launch_root = (tmp_path / "launch-defs").resolve()
     launch_root.mkdir()
     (launch_root / "service.plist").write_bytes(b"synthetic definition")
-    launch_member, _ = _capture(writer, launch_root, "d" * 32, "launchagent_definitions")
+    launch_member, _ = _capture(
+        writer, launch_root, ids["launchagent_definitions"], "launchagent_definitions"
+    )
 
     tree_v2.capture_tree(
         writer,
@@ -165,9 +179,9 @@ def _setup_set(
             d43,
             "protected_opaque",
         ),
-        capture_id="e" * 32,
+        capture_id=ids["protected_d43"],
     )
-    protected_base = f"{tree_v2.BASE}/{'e' * 32}"
+    protected_base = f"{tree_v2.BASE}/{ids['protected_d43']}"
     protected_manifest = writer.read_bytes(
         f"{protected_base}/MANIFEST.json", max_bytes=tree_v2.MAX_MANIFEST_BYTES
     )
@@ -175,7 +189,7 @@ def _setup_set(
     protected_member = {
         "role": "protected_d43",
         "format": "tree-custody-v2",
-        "artifact_id": "e" * 32,
+        "artifact_id": ids["protected_d43"],
         "manifest_sha256": sha256(protected_manifest),
         "complete_sha256": sha256(protected_complete),
         "scope": "protected_opaque",
@@ -192,7 +206,7 @@ def _setup_set(
         logical_id="operator04-synthetic",
         max_output_bytes=1024 * 1024,
     )
-    sqlite_id = "f" * 32
+    sqlite_id = ids["sqlite_backup"]
     sqlite_base = f"{SQLITE_BASE}/{sqlite_id}"
     writer.mkdir(sqlite_base)
     backup_bytes = local_backup.read_bytes()
@@ -219,7 +233,7 @@ def _setup_set(
     }
     spec = {
         "schema": SPEC_SCHEMA,
-        "set_id": "f" * 32,
+        "set_id": ids["set"],
         "volume_uuid": UUID,
         "root_id": ROOT_ID,
         "research_commit": RESEARCH_COMMIT,
