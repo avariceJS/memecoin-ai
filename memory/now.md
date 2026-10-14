@@ -1,41 +1,43 @@
 # Current Project State
 
-**As of:** 2026-10-14 10:08Z. Portability/DR is **NO-GO for factory reset**. Do not erase the
-owner Mac. The accepted Mac-loss scope assumes Kingston remains healthy; its single-copy and plaintext
-risks are accepted. F01/D43/reserved material remains protected and was not read.
+**As of:** 2026-10-14 13:32Z. Portability/DR remains **NO-GO for factory reset**. Do not erase
+the owner Mac. The user has resumed bounded work without Recovery reboot for now and expects to
+interrupt again in roughly 1.3–2 hours. No new prospective collector, production, champion,
+protected evaluation, paper, or trading state was changed.
 
-- A first-host code entry card is on Kingston at `BrainData/host-recovery/ENTRY.txt`. Its source
-  revision is `edf2898ba4fb877ed8bee159fc9673754f7e12e4`; SHA-256 is
-  `ac8859ee4fc499ffe55dc1824be11a55fd4475fee2dbe0cae749a7f6cbbb5b76`. Verify the hash before
-  following the card. Keep these pins in an independent handoff; none has been created yet.
-- `tools/brain_host_recovery_preflight_v1.py` is a read-only, sequential Recovery first-action
-  observer. It requires separately pinned Data UUID/group/container/device values, fails closed on
-  unmapped APFS aliases, never unlocks or mounts, and never proves prior mount history or erase
-  readiness. Sol reviewed the implementation; 17 focused tests, Ruff/format, and mypy pass. A live
-  current-host probe matches identity but returns `blocked_unlocked`; Data is mounted writable.
-  Do not reuse the current-OS result as Recovery evidence. Details: `docs/portability-disaster-recovery.md`.
-- Current Data: UUID `430740ca-42e7-4e6c-a07a-e4e7370152cc`, group UUID currently the same,
-  container UUID `414bc719-2fea-44a6-9952-d12cd31cb0ca`, device `disk3s5`; FileVault enabled,
-  unlocked and mounted writable, zero snapshots observed. At 10:07Z it had 16,511,956 KiB free
-  (97% used). No source snapshot/capture was attempted. The boot-to-probe mount history is unknown;
-  `no_prior_writable_mount_proven=false`.
-- Kingston is mounted read/write at `/Volumes/Kingston`, UUID
-  `8f8f1081-9be4-4914-9111-75f1b90255bf`; known `BrainData` root ID is
-  `9428695af6d4f46c08e1a444cdc66de8`. At 10:07Z it had 211,808,096 KiB free (about 202 GiB).
-  It remains the only reset-surviving physical copy.
-- Read-only owner runtime status: 18 Brain/D43 LaunchAgent labels loaded, eight with PIDs; 64
-  owner/research cwd-matched processes. No arguments or environments were read. DR changed no
-  services, production behavior, provider state, protected evaluation, paper state, or trading.
-- Git: observer implementation is commit `254ddc79e58eca4811c8d11d6869b6f30825469e`; this
-  handoff commit is the current pushed tip of `research/active` and `origin/research/active`, with a
-  clean worktree. `main` and cached `origin/main` remain at
-  `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; main did not move.
-- Remaining real gates: user-assisted Recovery boot/history boundary; qualified Data T; complete
-  owner/protected custody and restore witness; real Kingston K frontier; authenticated compatible-host
-  inert restore. Research `work/wallets` remains private, opaque, unresolved, and backup-required.
-  Single-Kingston and plaintext risks are accepted, not blockers.
-- Exact next decision horizon: when the user can enter Recovery, record shutdown/authentication steps;
-  run the pinned observer before any Data action; stop on any identity mismatch, non-Locked state,
-  mount, or unresolved APFS alias. Inspect earliest boot-session mount events and gaps. If no-prior
-  writable mount cannot be evidenced, keep it explicitly as an assumption and do not qualify T.
-  Continue only after that gate; no factory reset is authorized.
+- The last committed DR implementation is `04cbf2b3c3d2dc9a83745f8da19fb19f46702b53`, clean and
+  pushed to `origin/research/active`. `main` and `origin/main` remain at
+  `770699d3ef8558518ae750b6d5d6cab41c2e82c8`.
+- Data identity remains UUID `430740ca-42e7-4e6c-a07a-e4e7370152cc`, APFS group UUID equal to the
+  Data UUID, container UUID `414bc719-2fea-44a6-9952-d12cd31cb0ca`, device `disk3s5`. It is
+  FileVault-protected, currently unlocked and writable. At 13:32Z Data had 15,418,336 KiB free
+  (97% used); `diskutil apfs listSnapshots disk3s5` reported none. No source capture was attempted.
+- Kingston is **not currently present/mounted**. `/Volumes` has no Kingston entry and `diskutil
+  list` shows only internal storage and the ChatGPT Installer image. Do not write or mount by
+  assumption. Last known accepted binding remains volume UUID
+  `8f8f1081-9be4-4914-9111-75f1b90255bf`, BrainData root ID
+  `9428695af6d4f46c08e1a444cdc66de8`; storage capacity and artifacts need a fresh check when it is
+  attached. This prevents publishing the private locator manifest needed for the current census.
+- A live, aggregate-only, metadata/no-follow descendant census examined owner checkout, research
+  checkout, verifier worktree, private Brain config, LaunchAgents, and the linked Codex worktree.
+  Counts respectively: 331,267 entries (21 symlinks; one `.env.local` excluded); 431,714 (120
+  symlinks; one `.env.local` and three opaque `wallets` subtrees excluded); 1,685 (no symlinks); 88
+  (no symlinks); 60 (no symlinks); and 12,231 (11 symlinks; `.local` subtree excluded). No
+  cross-device descendants or unreadable entries were observed; held root descriptors were stable.
+  Payload bytes, link targets, xattr values, and credential values were not read. This was an
+  unreceipted aggregate-only live pass: no private locators were retained, child-level changes,
+  firmlinks/mount aliases, exact host-tool root coverage, owner-wide closure, and a common source
+  point remain unproven. Do not treat it as a recovery boundary. Sol reviewed and classified it as a
+  provisional aggregate topology sample; counts are not comparable with earlier work-only scans.
+- Read-only owner runtime status at 13:32Z: 18 Brain/D43 labels loaded, nine with PIDs, and 74
+  processes with cwd under configured owner/research roots. No process arguments or environments
+  were read; this is not inactivity evidence.
+- Recovery first-action observer remains read-only and sequential, requires independently pinned
+  Data/group/container/device identity, and cannot establish prior mount history or SAFE TO ERASE.
+  No Recovery reboot was performed. Recovery boot/history, qualified Data T, complete owner and
+  protected custody, real Kingston K, and authenticated compatible-host inert restore remain open.
+- Next bounded scope: when Kingston is attached, revalidate its pinned UUID/root and available
+  capacity, then rerun the declared-root census with a private locator manifest written through the
+  bound storage interface and an aggregate-only receipt. Preserve exclusions for `.env.local`,
+  opaque `wallets`, and Codex `.local`; retain NO-GO absent source-point and recovery gates.
+  The user-assisted Recovery rehearsal remains a later, separately gated horizon.
