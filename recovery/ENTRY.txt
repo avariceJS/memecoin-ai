@@ -18,7 +18,7 @@ Requirements
 1. Install a supported Git and Python 3.11 or newer using the normal macOS installer/account.
 2. Attach Kingston. Do not use a similarly named volume. Before cloning, inspect it read-only:
 
-   KINGSTON_FACTS=$(python3 -c 'import plistlib,subprocess; p=plistlib.loads(subprocess.check_output(["/usr/sbin/diskutil","info","-plist","/Volumes/Kingston"])); print("|".join(str(p.get(k,"")) for k in ("VolumeUUID","MountPoint","FilesystemType","FilesystemName")))') || exit 2
+   KINGSTON_FACTS=$(python3 -c 'import plistlib,subprocess; p=plistlib.loads(subprocess.check_output(["/usr/sbin/diskutil","info","-plist","/Volumes/Kingston"])); print("|".join((str(p.get("VolumeUUID","")).lower(), *(str(p.get(k,"")) for k in ("MountPoint","FilesystemType","FilesystemName")))))') || exit 2
    test "$KINGSTON_FACTS" = '8f8f1081-9be4-4914-9111-75f1b90255bf|/Volumes/Kingston|apfs|Case-sensitive APFS' || exit 2
    test -d /Volumes/Kingston/BrainData && test ! -L /Volumes/Kingston/BrainData || exit 2
    test -f /Volumes/Kingston/BrainData/.research-root.json && test ! -L /Volumes/Kingston/BrainData/.research-root.json || exit 2
