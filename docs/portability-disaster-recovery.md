@@ -53,22 +53,31 @@ Live checks on the current Mac:
   [`host metadata census`](evidence/portability-dr-host-metadata-census-2026-10-14T0153Z.json).
   Both trees still need complete recovery classification.
   `~/.config/brain-research` occupies about 348 KiB and currently has 14 entries. The owner
-  The owner `.env.local` is mode 0600 (470 bytes); its contents were not read or hashed. The
+  `.env.local` is mode 0600 (470 bytes); its contents were not read or hashed. The
   owner and research checkout `.env.local` were excluded from the three-member MCP custody capture;
   every future recovery archive must exclude `.env.local` credential files for user reissue.
-  `~/Library/LaunchAgents` contains
-  55 Brain plist files plus one D43 plist.
+  `~/Library/LaunchAgents` has 60 plist files: 55 Brain, one D43, and four host-software definitions
+  for Steam cleanup, Zoom, and Homebrew PostgreSQL. The four host-software labels were already
+  loaded without PIDs; DR did not load or change them. The PostgreSQL label has no PID and its last
+  status is nonzero; a read-only search of the owner checkout found no PostgreSQL references in its
+  recorded scope. A negative search does not prove absence of dependency; keep this service outside
+  the inert Brain baseline pending explicit dependency proof.
   At 01:12Z, 18 labels were loaded and nine had PIDs, including `ai.memecoin.brain.b09r2.source`; by
   01:17Z, 18 remained
   loaded and eight had PIDs, with that source label loaded but without a PID. At the later probe,
   72 processes had cwd metadata under owner/research roots. No process arguments or environments
   were read. These time-bounded observations do not establish whether the source label performed
   earlier work or whether other services wrote state. DR work did not change or activate services.
-  The loaded service list is not the full host-definition inventory. Metadata-only inspection found
-  all 56 definitions have `RunAtLoad`; four contain five environment entries whose values have not
-  been classified. Do not copy those entries blindly: treat them as potentially private, preserve
-  only safe inert definitions, and restore credentials by user reauthentication. See the
-  [`LaunchAgent metadata receipt`](evidence/portability-dr-launchagent-metadata-2026-10-14T0120Z.json).
+  A value-filtered plist projection confirms all 56 Brain/D43 definitions contain `RunAtLoad` (54
+  true, two false) and the four host-software definitions contain three true and one false. The plist
+  byte streams were opened to project selected fields, but environment values were not inspected or
+  interpreted, retained, or emitted. Five environment-key names occur across four Brain/D43 plists;
+  one additional environment key occurs in one host-software plist. Keep credentials private and
+  reissue them. The existing
+  [`LaunchAgent metadata receipt`](evidence/portability-dr-launchagent-metadata-2026-10-14T0120Z.json)
+  remains the original metadata-only record; the later
+  [`root/dependency map`](evidence/portability-dr-root-dependency-map-2026-10-14T0221Z.json)
+  owns this bounded classification.
 - Kingston `BrainData` occupies about 19 GiB and remains on case-sensitive APFS with UUID
   `8f8f1081-9be4-4914-9111-75f1b90255bf`, root ID
   `9428695af6d4f46c08e1a444cdc66de8`, and about 203 GiB free. The 50-GiB storage floor passes.
@@ -97,10 +106,11 @@ Live checks on the current Mac:
   service changes. This still ran on the existing Mac, did not isolate host caches, and restored no
   owner/private/protected/Kingston state. See the
   [`bootstrap rehearsal receipt`](evidence/portability-dr-bootstrap-rehearsal-2026-10-14T0107Z.json).
-  Since that rehearsal, the private config root has been captured to Kingston as provisional opaque
-  quarantine, but it has not been restored or activated. No owner runtime, LaunchAgent, classified
-  protected, or Kingston corpus recovery set has been captured and restored. No full clean-room
-  restore has been rehearsed.
+  Since that rehearsal, the private config root and all 60 current LaunchAgent definitions were
+  captured to Kingston and byte-verified after isolated quarantine restore. Neither group was
+  activated. Owner runtime/state, protected custody, and Kingston corpus dependencies still lack a
+  qualified complete recovery set and full restore witness. No full clean-room restore has been
+  rehearsed.
 - `tools/brain_host_recovery.py` provides read-only host status and inert research-checkout bootstrap.
   `tools/brain_host_tree_custody_v3.py` and `tools/brain_host_recovery_set.py` verify declared tree
   members and a restored quarantine witness. Their `application_recovery_qualified` result remains
@@ -153,13 +163,26 @@ Live checks on the current Mac:
   `brain-research/` source root plus its 13 descendant directories.
 
 - A later metadata-only filesystem count found 60 regular plist files in `~/Library/LaunchAgents`;
-  the earlier Brain/D43 metadata receipt covers 56, leaving four unclassified. All 60 files were
-  copied into a private Kingston quarantine and restored into a temporary inert directory; all
-  member hashes matched. No plist was parsed in this capture or installed from quarantine; none was
-  loaded by this DR work. The copy
-  remains a live provisional capture without an atomic owner-wide boundary; private environment values and
-  the four extra roles require classification. See the
-  [`LaunchAgent custody receipt`](evidence/portability-dr-launchagent-custody-2026-10-14T0143Z.json).
+  the earlier Brain/D43 metadata receipt covers 56. All 60 files were privately captured and
+  restored into temporary inert quarantine; member hashes matched. A later value-filtered projection
+  classified the four extra files as Steam cleanup, two Zoom services, and Homebrew PostgreSQL 16.
+  Their selected path fields were reduced to root categories; environment values were not inspected
+  or interpreted, retained, or emitted. All
+  four labels were already loaded without a PID, with three nonzero last statuses. No definition was
+  installed or loaded by DR. These are host application services, not part of the replacement Brain
+  baseline. All 56 Brain/D43 definitions remain historical inert custody and need per-role
+  authorization before any later install. The copy is still a live provisional capture without an
+  atomic owner-wide boundary; see the
+  [`LaunchAgent custody receipt`](evidence/portability-dr-launchagent-custody-2026-10-14T0143Z.json)
+  and [`root/dependency map`](evidence/portability-dr-root-dependency-map-2026-10-14T0221Z.json).
+
+- The private root/dependency map stores metadata for the immediate owner/research `work/` children,
+  all 88 entries in private Brain config, and all 60 LaunchAgents; raw paths stay on Kingston. The
+  recursive work census remains 285,577 owner and 330,273 research files. Among 657 recorded entries,
+  604 have extended attributes (mostly `com.apple.provenance`); ACL markers were absent. Values were
+  not read, and current custody archives do not preserve xattrs/ACLs. Root-only mapping is not a
+  recursive owner-state closure. Broad activation/deployment basenames also match generated files,
+  so exact nonprotected pointer closure remains open.
 
 Scope caveat after that receipt: a later broad `git grep` covered tracked `docs/`, `src/`, `tools/`,
 and `tests/`, which includes `docs/evidence/`. Its output was truncated before matching files could
@@ -336,6 +359,13 @@ or to `/dev`; six owner log path references per stream currently point to missin
 path-field references, not a count of unique dependencies. On a replacement host, rebuild any authorized
 service definitions against verified roots instead of recreating old symlink accidents. See the
 [`LaunchAgent path receipt`](evidence/portability-dr-launchagent-paths-2026-10-14T0124Z.json).
+
+The four additional host-software definitions are `com.valvesoftware.steamclean`, two Zoom services,
+and `homebrew.mxcl.postgresql@16`. They were already loaded without PIDs at the latest probe; three
+had nonzero last status. A scoped owner-checkout search found no PostgreSQL source references, which
+does not prove that no dependency exists. Keep all four outside the restored Brain service set;
+PostgreSQL remains outside pending explicit dependency proof, and other applications may need their
+own reinstall/state review.
 
 | Observed role and labels | Clean restore posture |
 |---|---|

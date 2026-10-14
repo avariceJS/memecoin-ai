@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-14 02:08Z. Portability/DR is **NO-GO for factory reset**. Current DR work is
+**As of:** 2026-10-14 02:21Z. Portability/DR is **NO-GO for factory reset**. Current DR work is
 being published on `research/active`; `main` remains the verified baseline. Do not erase the owner
 Mac.
 
@@ -11,13 +11,12 @@ Mac.
   loaded, eight with PIDs; `ai.memecoin.brain.b09r2.source` was loaded without a PID. There were 72
   cwd-matched processes under owner/research roots. No arguments or environments were read. This
   does not establish the source write frontier or earlier workload.
-- LaunchAgent metadata: 55 Brain + one D43 plist; all have `RunAtLoad`; four have five environment
-  entries with unclassified values. Their arguments refer to owner/research/config roots through
-  three host symlink mappings; keep quarantined definitions inert and do not install definitions
-  blindly. Source service state was not changed.
-  A later inventory found 60 current plist files total; all 60 are in an opaque Kingston quarantine
-  and were hash-verified after isolated inert restore. Four files remain unclassified; no service
-  definition was loaded by this DR work. Existing source service state was not changed.
+- LaunchAgent metadata: 55 Brain + one D43 plist; all have `RunAtLoad` (54 true, two false), with
+  five environment-key names across four definitions; values were not inspected or emitted. Four
+  additional Steam, Zoom, and Homebrew PostgreSQL definitions are classified as host-software
+  services. All 60 are
+  quarantined on Kingston and were isolated-restored; none was installed or loaded by DR. Source
+  service state was not changed.
 - Private Brain config has 13 directories/75 files (~184 KiB), all files mode 0600; it includes
   versioned activation/config sets, one retired plist set (15 mode-0600 copies), storage health,
   and handoffs. All bytes are now in a provisional Kingston quarantine; they were hashed but not
@@ -64,6 +63,11 @@ Mac.
   requires account authentication. No credential or auth store was copied; the temporary home was
   removed. User login is an explicit clean-host restore step; a fully authenticated bootstrap remains
   unproven. See the canonical DR procedure and auth-boundary receipt.
+- A private Kingston root/dependency map now records 657 selected entries and value-filtered paths
+  for all 60 LaunchAgents. The four extra definitions are Steam/Zoom/Homebrew host services, not
+  Brain services. Extended attributes are present on many recorded entries and remain unclassified;
+  work-tree closure and a consistent source boundary are still missing. See the canonical DR handoff
+  and root/dependency receipt.
 - Next gate: classify private config, owner/research state, service roots, Codex ignored roles and
   external runtime dependencies; then establish a qualified consistent source point and protected
   opaque custody before a full inert isolated restore. Obtain independent Sol review before any

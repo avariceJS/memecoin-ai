@@ -71,8 +71,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
   match inside the isolated restore. It makes no application-readiness claim.
 - [`Portability and DR LaunchAgent custody`](portability-dr-launchagent-custody-2026-10-14T0143Z.json):
   opaque Kingston quarantine and isolated inert restore of all 60 current plist files. Four files
-  are beyond the prior 56 Brain/D43 metadata count and remain unclassified; no quarantined
-  definition was loaded by this DR work.
+  were beyond the prior 56 Brain/D43 metadata count at capture; a later value-filtered root/dependency
+  map classifies their labels and path categories. No quarantined definition was loaded by this DR
+  work.
 - [`Portability and DR host metadata census`](portability-dr-host-metadata-census-2026-10-14T0153Z.json):
   counts owner/research work files and symlinks, private config and LaunchAgent metadata, records
   host tool versions and `.env.local` metadata-only reissue disposition, and observes metadata churn
@@ -92,6 +93,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   an isolated bootstrap stopped before checkout because the private remote requires user-controlled
   Git authentication. No checkout or environment was created and no persistent Kingston or
   production storage changed; authenticated bootstrap remains open.
+- [`Portability and DR root/dependency map`](portability-dr-root-dependency-map-2026-10-14T0221Z.json):
+  privately stores owner/research root-child metadata, the full private-config path tree, and
+  value-filtered LaunchAgent path categories. It classifies four host-software services, finds
+  xattrs on recorded entries, and leaves recursive state closure, xattr semantics, and a consistent
+  source point unresolved.
 - [`Portability and DR owner Git remote check`](portability-dr-owner-git-remote-check-2026-10-14T0122Z.json):
   a read-only live owner remote query showing its main head differs from the cached tracking ref.
   The next receipt resolves ancestry using existing objects; deployed runtime identity remains
