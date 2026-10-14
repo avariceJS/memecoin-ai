@@ -15,6 +15,18 @@ replica and a Kingston-loss rehearsal.
 
 Live checks on the current Mac:
 
+- On 2026-10-14 at 14:51Z, a descriptor-bound, metadata-only census published and reread-verified
+  its private JSONL manifest and completion marker on the pinned Kingston root (299,700,736 bytes).
+  It covered nine declared roots and four Git bindings; all roots remained on the pinned Data UUID
+  and no separate Git metadata roots were found. The census is **incomplete**: one directory in
+  `owner_checkout` changed metadata during traversal, so `scan_complete=false`. The exact locator
+  is retained only in the private Kingston manifest. The other eight roots passed their included
+  traversal checks; three research `wallets` roots and owner Codex `.local` remain explicitly
+  opaque, backup-required exclusions. Two `.env.local` files were excluded for credential reissue.
+  No application, credential, symlink-target, xattr, or protected payload bytes were read; no
+  provider request or service change occurred. This sequential census is neither a common source
+  point nor root-closure, custody, or erase evidence. Receipt:
+  [`declared-root boundary census`](evidence/portability-dr-root-boundary-census-2026-10-14T1451Z.json).
 - The earlier exact-code clean-clone/bootstrap rehearsal used
   `7d8dc82f94e5c9e2631bc38ae79f1229cccdeea1`, an ancestor of the published DR changes on
   `research/active`. The later Kingston operator-flow rehearsal used current commit
