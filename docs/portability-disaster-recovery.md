@@ -673,6 +673,154 @@ selection, exact source-name binding, absolute `diskutil` path, and post-query d
 The second independent review found no remaining blocker for this bounded identity contract; it did
 not qualify plan approval or an actual Data T. Optional plist creation time is normalized as UTC.
 
+## Offline read-only Data view feasibility
+
+A bounded metadata-only feasibility pass found a possible source-view route that does not need APFS
+snapshot headroom: shut the owner Mac down cleanly, start it in macOS Recovery (or another qualified
+offline environment), unlock Data without mounting it if the volume is encrypted/locked, then explicitly mount the exact Data volume
+read-only. The current host's `diskutil(8)` documents `apfs unlockVolume ... -nomount` and
+`diskutil mount readOnly`; the read-only mount option denies writes even to superuser. Apple documents
+Recovery Terminal and Share Disk on Apple silicon, but Share Disk is a transfer facility and does not
+establish a read-only source export ([Apple Recovery guide](https://support.apple.com/guide/mac-help/macos-recovery-a-mac-apple-silicon-mchl82829c17/mac)).
+No Recovery boot, unlock, mount, or capture was attempted. The current
+`brain_host_tree_capture_v4.py` and `brain_host_source_view_adapter_v1.py` are explicitly
+synthetic-only, and the former refuses a non-synthetic held snapshot handle. A pinned execution-kit
+candidate now exists on Kingston and passed a bounded synthetic launch probe from its read-only image
+on the current online host. It is not a qualified Recovery runtime or real Data-view adapter. Treat
+the Recovery route as a conditional candidate, not a currently executable recovery procedure,
+qualified T, or approval to interrupt the running host.
+
+Read-only `lstat` at 06:15Z found that the named owner checkout/work, research checkout/work, private
+Brain config, and `~/Library/LaunchAgents` root entries reported the same local `st_dev` as internal
+Data; Kingston `BrainData` reported a different `st_dev` and has its own pinned volume UUID/root.
+This groups the root entries only. It does not prove their types, exclude symlinks/firmlinks or other
+aliases, place descendants on the same volume, or close root coverage. `st_dev` is a local boot
+identifier, not an APFS identity pin. A fresh read-only check found about 12.8 GiB free on Data at
+97%, no Data snapshots, and 18 Brain/D43 launchd labels loaded, eight with PIDs. Prior metadata
+scans observed active owner-tree churn. There is no credible live non-snapshot cutoff while those
+source services remain active.
+
+For a future offline rehearsal, acceptance requires a clean shutdown before the capture environment
+starts, no earlier automatic writable Data mount in Recovery before the selected T, exact Data APFS
+UUID/group/container/device checks, all source roots bound to the same held Data view (or individually
+marked unresolved), an interactive unlock with no credential in argv or logs, explicit read-only
+mount and filesystem-flag checks before and after capture, and held descriptor identity checks
+throughout. T, if qualified, is scoped to Data; Kingston K remains a separate frontier. A pinned
+capture tool/runtime must be runnable offline without installing onto the source Data volume. Stop if
+the view is writable or ambiguous, any source writer remains, APFS requires repair/replay, a root
+escapes the view, or protected/SQLite/metadata restore semantics are unresolved. The current
+machine-readable feasibility observation is the
+[`offline-view feasibility receipt`](evidence/portability-dr-offline-view-feasibility-2026-10-14T0616Z.json).
+
+This route does not close protected-root classification, owner-root closure, xattr/ACL restore
+semantics, capture-tool availability in Recovery, SQLite recovery behavior, Kingston K lineage, or
+clean-host restore. All remain open, and `SAFE TO ERASE` remains false.
+
+Sol independently reviewed this feasibility boundary. The offline route is a credible conditional
+Data-volume source view, but no real T is qualified and the NO-GO verdict is unchanged. A later
+read-only `fstatfs` result cannot prove that Recovery did not previously auto-mount Data writable.
+That boot/mount history needs independent evidence from a user-assisted rehearsal or another trusted
+observable mechanism. The next implementation horizon is to close the candidate runtime dependency
+boundary before building a real `HeldDataT` adapter; caller-supplied JSON alone must not assert
+boot-history facts. Kingston K remains a separate frontier.
+
+### Pinned execution-kit candidate
+
+The candidate at `BrainData/host-recovery/offline-execution-kit-v1/candidate-20261014T0624Z-a1.dmg`
+is pinned by an immutable image manifest and was published create-only to Kingston with exact fresh
+descriptor readback. A same-host probe mounted the image read-only, used an isolated HOME/PATH and
+Kingston scratch, launched the bundled recovery CLI, imported SQLite/hash support, and exercised
+only the synthetic capture path and interruption cleanup. It made no provider requests, activated
+no service, and read no Data or protected payload. The candidate image remained hash-stable. See the
+[`execution-kit rehearsal receipt`](evidence/portability-dr-offline-execution-kit-2026-10-14T0630Z.json).
+
+This is an online current-host probe, not an offline Recovery or clean-host rehearsal. A metadata-only
+`otool` survey covered 82 Mach-O members and 12 symlinks. It found Homebrew absolute install names
+and RPATHs. A sandbox probe denying reads beneath `/opt/homebrew` stopped dyld at the absolute
+Python.framework dependency before Python startup. The earlier invalid-shadow-library probe remains
+inconclusive and does not prove fallback behavior. The candidate is therefore not independent of
+this host's Homebrew prefix; its dependency closure and Recovery compatibility are unqualified. Do
+not alter the owner's Homebrew installation to simulate absence.
+
+A second immutable candidate, `candidate-20261014T0635Z-a2.dmg`, bundles five required dylibs,
+rewrites the Homebrew references found in 85 surveyed Mach-O members to bundled-relative load names,
+removes Homebrew RPATHs, and regenerates local ad-hoc signatures; explicit macOS system references
+remain. Its manifest pins 3,689 runtime members and 373 source files. It was
+published create-only to Kingston with exact fresh descriptor readback, then the Kingston copy was
+mounted read-only and tested while sandbox rules denied all reads beneath `/opt/homebrew`. Selected
+SQLite, hashing, TLS, decimal, and lzma imports and the recovery CLI help path passed with dynamic
+loader override variables unset; no absolute Homebrew install names or RPATHs remained in the Mach-O
+survey. See the [`dependency-closure rehearsal receipt`](evidence/portability-dr-offline-execution-kit-closure-2026-10-14T0637Z.json).
+
+This closes only the dependency path used by those current-host probes. It is not a clean compatible
+Mac or Recovery test; system library/version compatibility, unexercised Python modules, real source
+capture, and restore remain open. Ad-hoc signing supplies no publisher identity or notarization. Sol
+independently accepted this bounded current-host closure claim; it did not qualify Recovery,
+clean-host compatibility, exhaustive dynamic closure, or Data T.
+
+A third immutable candidate, `candidate-20261014T0640Z-a3.dmg`, removes one dangling Homebrew
+`site-packages` symlink. Its static audit verified all 3,688 runtime members against the manifest,
+resolved all 11 remaining symlinks and 15 `@loader_path` dependencies within the image, checked the
+10 explicit macOS system dependencies against the allowlist, and found no unresolved entries. The
+exact Kingston-published image then passed synthetic descriptor capture, inert topology restore, and
+interruption cleanup under the same Homebrew-denial sandbox; its image hash matched before and after.
+The test used only disposable fixtures and did not access Data, protected payloads, services, or
+provider APIs. See the
+[`capture/restore rehearsal receipt`](evidence/portability-dr-offline-execution-kit-capture-restore-2026-10-14T0640Z.json).
+Sol independently accepted this narrow current-host result from the receipt and recorded procedure;
+Sol did not open or re-hash the Kingston image.
+
+This still proves only bounded tool and dependency behavior on the current online host. Real Recovery
+availability, system-library compatibility, clean compatible-host restore, no-prior-writable-Data
+mount evidence, real Data T, owner/protected custody, Kingston K, and full restore remain open. The
+Recovery compatibility and mount-history rehearsal is user-dependent. Metadata-only root closure can
+proceed separately without interrupting the live owner host. Do not erase or reboot the Mac as part
+of this work.
+
+### Ignored roots and unpushed owner-worktree history
+
+A read-only Git/filesystem metadata census covered the current research checkout, owner checkout, the
+research verifier worktree, and the linked owner Codex worktree. It found path-class candidates with
+names associated with Python caches, build outputs, virtual environments, and dependency directories,
+plus the already excluded `.env.local` credential files. Names and ignore rules do not prove that
+every ignored artifact is disposable, reproducible, or free of unique evidence; no deletion or
+recovery-exclusion decision follows from this census. Git reports each `work/` root as one ignored
+entry; previous metadata-only counts are 330,273 regular files plus 108 symlinks under research
+`work/`, and 285,577
+regular files plus 18 symlinks under owner `work/`. Those roots are still opaque and backup-required.
+
+The owner Codex worktree also has a clean `control-center/observatory-handoff` branch with nine local
+commits beyond its cached local upstream ref. A verified Git bundle containing opaque reachable Git
+objects/history was written create-only to Kingston at
+`BrainData/host-recovery/git-bundles/control-center-observatory-handoff-20261014.bundle`; its exact
+head, upstream, and bundle hash are in the
+[`ignored-root custody receipt`](evidence/portability-dr-ignored-root-and-branch-custody-2026-10-14T0645Z.json).
+The commit payloads were not semantically inspected and could contain protected-like material; the
+bundle is not merged into `research/active`. An earlier read-only remote query found the tip absent
+from the queried remote ref set only; it does not prove there is no other remote copy.
+
+The same owner worktree contains ignored `apps/control-center/.local` state: six directories, 32
+regular files (three `.log`, 21 `.png`, eight `.json`), and 2,941,740 bytes. No contents were read.
+Classify the current live state as private, opaque, unresolved, and backup-required until it is
+covered by an accepted source view or separately screened. A provisional Kingston tar with
+per-file hashes was previously verified and restored to quarantine, but it is an uncoordinated live
+copy: three logs may have changed outside individual read windows, and xattrs/ACLs were omitted. A
+06:50Z current-path hash check confirms the same archive remains present. `lsof` reported no open
+files under the source path at that instant, which does not prove source inactivity or a cutoff. The
+fresh Git bundle does not contain `.local`. See the
+[`opaque archive recheck receipt`](evidence/portability-dr-codex-local-archive-recheck-2026-10-14T0650Z.json)
+and [`claim correction receipt`](evidence/portability-dr-ignored-root-claim-correction-2026-10-14T0651Z.json).
+This review also does not close owner/protected roots or establish a durable source boundary.
+
+A follow-up `lstat`/device lookup verified that the declared owner/research checkouts and `work/`
+roots, private Brain config, LaunchAgents, owner Codex worktree, and its `.local` state are directory
+entries on the current Data APFS volume (UUID
+`430740ca-42e7-4e6c-a07a-e4e7370152cc`). Kingston `BrainData` is a separate directory entry on its
+pinned volume UUID/root. The named entries had no symlink path components and resolve to their
+declared paths. This is an entry-level identity check only; descendants, internal firmlinks, full
+root closure, and a held offline Data view remain unproven. See the
+[`root entry identity receipt`](evidence/portability-dr-root-entry-identity-2026-10-14T0647Z.json).
+
 The v4 private custody planner and synthetic-only artifact exerciser classify one exact three-root
 group as private, opaque, unresolved, and backup-required. The separate
 `tools/brain_host_tree_capture_v4.py` now exercises the source capture path against a synthetic held
@@ -767,29 +915,35 @@ as a new replication capability with hash verification and a full recovery rehea
 
 ## Remaining gates before `SAFE TO ERASE`
 
-The next stateful gate is still to qualify a conservative Data free-space floor, bounded snapshot
-retention, and interactive admin procedure before any snapshot is created. The latest read-only
-06:10Z read-only preflight found about 12 GiB free at 98% Data use and no Data snapshot; an earlier
-check found 13.8 GiB at 97%. Creating a source snapshot is not currently qualified. The APFS T
-attestor contract is synthetic-tested, but a real Data T still
-requires a separately reviewed host plan and post-creation UUID/XID pin delivered outside the
-snapshot. A fresh read-only status check still sees 18 Brain/D43 launchd labels, eight with PIDs,
-and 72 processes in the configured owner/research roots; this work changed none of them. The three
+The next source-view gate is a **user-dependent** Recovery compatibility and mount-history rehearsal,
+initially without unlocking or mounting Data and without capturing owner files. Determine how that
+rehearsal can prove that no earlier writable Data mount occurred; a current read-only mount
+observation alone cannot prove that history. Metadata-only owner/local-root closure can proceed
+independently. Only after these boundaries are designed should a real offline Data-view adapter be
+implemented. If the offline route is infeasible, qualify a conservative Data free-space floor,
+bounded snapshot retention, and interactive admin
+procedure before creating a source snapshot. The 06:15Z read-only preflight found about 12.8 GiB
+free at 97% Data use and no Data snapshot; the prior 06:10Z check found about 12 GiB at 98%. An
+offline route must still prove shutdown boundary, exact volume/root identity, read-only mount flags,
+held-view stability, and tool availability. The APFS T attestor contract remains synthetic-tested; a
+real T still requires an independently pinned source-view identity and Sol-reviewed host plan. A
+fresh read-only status check sees 18 Brain/D43 launchd labels, eight with PIDs; the earlier process
+census found 72 processes in the configured owner/research roots. This work changed none of them. The three
 `work/wallets` subtrees are authorized for opaque, private, unresolved custody only; preserve them
 without semantic reading and do not infer a role from their names. No payload has yet been read or
 copied. The existing recovery procedure keeps services inert; this checkpoint does not authorize
 starting them.
 
-1. Inventory every owner/research/local-config/service root and bind each to a source point or an
+1. Inventory every owner/research/local-config/service root, including owner Codex worktree local
+   state, and bind each to a source point or an
    explicit reauthentication, rebuild, disposable, or unresolved disposition. Classify potentially
    private environment entries and all excluded Codex worktree ignored records. Keep the three
    research `work/wallets` roots opaque, private, unresolved, and backup-required. Preserve all 56
    Brain/D43 definitions inert or prove which are reproducible.
-2. Qualify a conservative free-space floor, bounded retention, and interactive admin procedure.
-   Obtain a Sol-reviewed Data source snapshot or another owner-wide consistent read-only recovery
-   point without changing production services. Bind the exact approved Data volume and three roots;
-   select and independently pin the resulting snapshot UUID/XID. Current live-copy alternatives
-   cannot prove an atomic owner frontier.
+2. Rehearse the conditional offline read-only Data view or, if it is infeasible, qualify a
+   conservative free-space floor, bounded snapshot retention, and interactive admin procedure.
+   Bind the exact approved Data volume and all declared roots; select and independently pin the
+   approved source view. No live-copy pass can prove an owner frontier while state changes.
 3. Complete opaque custody of every identified F01/D43/reserved root and its lineage; verify hashes
    without semantic access. Current metadata-only path inventory does not prove F01/reserved are
    absent or covered.
