@@ -15,8 +15,8 @@ replica and a Kingston-loss rehearsal.
 
 Live checks on the current Mac:
 
-- Current `research/active` and `origin/research/active` are both at
-  `b90fd29517a7871ef1771c95ff5153adafab484d`, with a clean worktree. The immutable inventory
+- The latest reviewed/pushed code baseline `research/active` and `origin/research/active` use is
+  `7d8dc82f94e5c9e2631bc38ae79f1229cccdeea1`; the immutable inventory
   receipt records the prior source cutoff at `eaedeae61cd101882835095c2f54158ca07a2945`. `main`
   and `origin/main` remain at `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; do not advance `main`
   until the capability is qualified.
@@ -47,6 +47,11 @@ Live checks on the current Mac:
   restore-witness, tree-custody-v3, bootstrap, SQLite-backup, and static-custody focused suite passes
   90 tests; scoped Ruff/format and `git diff --check` pass. Repository-wide `make check` stops at
   Ruff with 107 findings outside the DR scope. These are synthetic engineering checks.
+- A fresh clone of `7d8dc82` bootstrapped Python 3.13 and passed `make smoke`; both new recovery CLIs
+  also passed direct `--help` invocation from that clone. The bootstrap reported no storage or
+  service changes. This still ran on the existing Mac, did not isolate host caches, and restored no
+  owner/private/protected/Kingston state. See the
+  [`bootstrap rehearsal receipt`](evidence/portability-dr-bootstrap-rehearsal-2026-10-14T0107Z.json).
   No actual owner, private-config, LaunchAgent, protected, or Kingston corpus recovery archive has
   been captured or restored. No full clean-room restore has been rehearsed.
 - `tools/brain_host_recovery.py` provides read-only host status and inert research-checkout bootstrap.
