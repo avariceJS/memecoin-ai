@@ -1,7 +1,7 @@
 # Current Project State
 
-**As of:** 2026-10-14 02:43Z. Portability/DR is **NO-GO for factory reset**. Current published DR
-work is on `research/active` through `beac499`; `main` remains the verified baseline. Do not erase
+**As of:** 2026-10-14 02:45Z. Portability/DR is **NO-GO for factory reset**. Current published DR
+work is on `research/active` through `40d9f18`; `main` remains the verified baseline. Do not erase
 the owner Mac.
 
 - Owner checkout was last verified clean at `a594474` on `main`; its cached `origin/main` is 15
@@ -78,6 +78,10 @@ the owner Mac.
 - Selected LaunchAgent path fields now reconcile to that private map: all four private-config refs
   match; 203 of 215 owner/work refs match and 12 absent log destinations are confirmed; no paths
   point into research/work. This still does not establish which runtime source revision executed.
+- Sol independently reviewed the published `beac499` handoff and confirms NO-GO under the accepted
+  Kingston/plaintext scope. The 02:43Z status is time-bounded, not a source frontier; next material
+  gate is admin-assisted qualified source view, measured snapshot headroom, complete custody, and
+  isolated inert restore.
 - A metadata-only count of three research directories named `wallets` found 21 files and three
   subdirectories, matching the earlier census delta. Child names were enumerated transiently but not
   retained or emitted; payloads were not read. Contents and role remain unknown; this sensitive

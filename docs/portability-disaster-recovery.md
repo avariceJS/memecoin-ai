@@ -39,6 +39,10 @@ Live checks on the current Mac:
   28 pending predictions respectively; these
   remain pending and are not to be resumed. This status does not audit owner operator/paper state.
   The owner operator and several owner paper/UI processes remain running.
+  A 02:43Z read-only probe found 18 Brain labels loaded, nine with PIDs, and 72 cwd-matched
+  owner/research processes, including three owner Python paper/operator processes. It read no
+  arguments or environments and made no changes; this point-in-time observation does not establish
+  a write frontier or consistent source view.
 - An earlier metadata-only census counted 330,273 regular files and 108 symlinks in research `work/`, and
   285,577 regular files and 18 symlinks in owner `work/` (about 28.6 GB combined). It read no file
   bytes and found no unreadable entries. These are large mixed state trees, not classified recovery
@@ -273,6 +277,15 @@ only caller-declared roles and one opaque D43 root; it does not prove full owner
 F01/reserved custody, service-definition closure, or semantic replay. Recovery-secret custody is not required for the accepted plaintext
 custody scope; provider credentials require user reauthentication after restore. Source consistency
 and completeness remain unresolved and block `SAFE TO ERASE`.
+
+Independent Sol review of the published `beac49989afb416695c46258c2e0c747e93e2df9` handoff
+confirms **NO-GO** under the accepted healthy-Kingston/plaintext scope. The review found no material
+claim correction: current receipts prove provisional local-group custody and narrow isolated
+restores, not an owner-wide consistent cutoff, complete owner/protected custody, or a full inert
+Brain restore. The next material horizon requires interactive admin authentication for a qualified
+source view, a monitored snapshot headroom budget, then complete custody and isolated restore.
+Research checkout authentication remains a clean-host user step; an optional exact-commit local
+source bundle could provide an auth-free code-only fallback, but would not close Brain-state recovery.
 
 ## State ownership and restore rules
 
