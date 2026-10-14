@@ -117,6 +117,7 @@ def test_physical_kingston_inert_restore_cli_flow(tmp_path: Path) -> None:
     owner_root.mkdir(mode=0o700)
     result_path = tmp_path / "restore-result.json"
     local_archive_root = tmp_path / "synthetic-source-archive"
+    local_archive_root.mkdir(mode=0o700)
 
     from tools.brain_host_restore_assessment import open_readonly_storage_reader
 
