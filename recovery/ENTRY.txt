@@ -18,12 +18,14 @@ Requirements
 1. Install a supported Git and Python 3.11 or newer using the normal macOS installer/account.
 2. Attach Kingston. Do not use a similarly named volume. Before cloning, inspect it read-only:
 
-   /usr/sbin/diskutil info /Volumes/Kingston
+   KINGSTON_FACTS=$(python3 -c 'import plistlib,subprocess; p=plistlib.loads(subprocess.check_output(["/usr/sbin/diskutil","info","-plist","/Volumes/Kingston"])); print("|".join(str(p.get(k,"")) for k in ("VolumeUUID","MountPoint","FilesystemType","FilesystemName")))') || exit 2
+   test "$KINGSTON_FACTS" = '8f8f1081-9be4-4914-9111-75f1b90255bf|/Volumes/Kingston|apfs|Case-sensitive APFS' || exit 2
+   test -d /Volumes/Kingston/BrainData && test ! -L /Volumes/Kingston/BrainData || exit 2
+   test -f /Volumes/Kingston/BrainData/.research-root.json && test ! -L /Volumes/Kingston/BrainData/.research-root.json || exit 2
 
-   Confirm MountPoint is /Volumes/Kingston, VolumeUUID is
-   8f8f1081-9be4-4914-9111-75f1b90255bf, FilesystemType is apfs, and FilesystemName is
-   case-sensitive APFS. Confirm /Volumes/Kingston/BrainData/.research-root.json is a regular
-   file, not a symlink. If any check fails, stop. Do not create a replacement root.
+If any check fails, stop. Do not create a replacement root. These checks identify the mounted
+volume and confirm the existing root marker is present; the later bound storage check verifies
+the marker contents and ownership before any data restore.
 
 Entry checkout
 ==============
