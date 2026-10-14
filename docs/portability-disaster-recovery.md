@@ -160,9 +160,12 @@ rely on that later search output or treat it as protected custody evidence.
   member paths. The 10,693 status records reconcile as 10,631 under `node_modules`, ten under
   `dist`, 11 under `.ruff_cache`, nine other ignored records, and 32 separately captured `.local`
   files. Their role and rebuildability/disposability remain unclassified; empty directories,
-  xattrs, and ACLs are not preserved. The 11 symlink link texts are preserved and verified, but
-  their target dependencies are not classified or proven recoverable. See the
+  xattrs, and ACLs are not preserved. A follow-up metadata check found all 11 symlinks resolve to
+  regular files inside the captured tree; those targets were present and hash-matched in the
+  isolated restore. This closes these path-level dependencies only, not package/runtime readiness
+  or external dependencies. See the
   [`ignored-state custody receipt`](evidence/portability-dr-codex-ignored-custody-2026-10-14T0140Z.json).
+  See also the [`symlink closure receipt`](evidence/portability-dr-codex-symlink-closure-2026-10-14T0145Z.json).
   These archives are provisional live copies and do not establish a consistent source point or close
   the owner-wide recovery boundary. All three archives (`.local`, private config, ignored state)
   have since been restored into temporary quarantine roots, with every file hash and symlink link

@@ -66,6 +66,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - [`Portability and DR opaque restore witness`](portability-dr-opaque-restore-witness-2026-10-14T0141Z.json):
   restores the `.local`, private-config, and ignored-state archives into temporary quarantine roots
   and verifies member bytes and symlink link texts. It starts no code and is not a Brain-wide restore.
+- [`Portability and DR Codex symlink closure`](portability-dr-codex-symlink-closure-2026-10-14T0145Z.json):
+  verifies all 11 ignored-worktree symlinks resolve to archived regular files and those file hashes
+  match inside the isolated restore. It makes no application-readiness claim.
 - [`Portability and DR LaunchAgent custody`](portability-dr-launchagent-custody-2026-10-14T0143Z.json):
   opaque Kingston quarantine and isolated inert restore of all 60 current plist files. Four files
   are beyond the prior 56 Brain/D43 metadata count and remain unclassified; no quarantined

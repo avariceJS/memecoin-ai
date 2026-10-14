@@ -32,7 +32,8 @@ updates are pending commit. `main` remains the verified baseline. Do not erase t
   A 19.4 MB bundle, 32-file `.local` archive, and second tar with all 10,661 other ignored-status
   entries were written create-only to Kingston and hash-verified after reread. The `.local` copy
   remains provisional because three logs may have changed; ignored-state roles/rebuildability,
-  empty dirs, symlink targets, xattrs, and ACLs remain unresolved. All three archives were restored
+  empty dirs, xattrs, and ACLs remain unresolved. All 11 ignored symlinks resolve to regular files
+  included and hash-verified in the isolated restore. All three archives were restored
   into temporary quarantine roots and hash-verified; no content was executed or parsed. See the
   custody/restore receipts and canonical DR handoff.
 - Metadata-only scans found `owner/work/calendar-execution-01` and basename-prefix candidates under
@@ -44,8 +45,8 @@ updates are pending commit. `main` remains the verified baseline. Do not erase t
   requests were zero for DR work. One later broad tracked-source grep included
   `docs/evidence`; its truncated output was not used, and whether a protected receipt line was printed
   is unresolved. Do not rely on that output.
-- Next gate: classify private config, owner/research state, service roots, Codex ignored roles, and
-  symlink target dependencies; then establish a qualified consistent source point and protected
+- Next gate: classify private config, owner/research state, service roots, Codex ignored roles and
+  external runtime dependencies; then establish a qualified consistent source point and protected
   opaque custody before a full inert isolated restore. Obtain independent Sol review before any
   erase verdict.
 
