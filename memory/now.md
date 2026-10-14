@@ -1,44 +1,31 @@
 # Current Project State
 
-**As of:** 2026-10-14 13:32Z. Portability/DR remains **NO-GO for factory reset**. Do not erase
-the owner Mac. The user has resumed bounded work without Recovery reboot for now and expects to
-interrupt again in roughly 1.3–2 hours. No new prospective collector, production, champion,
-protected evaluation, paper, or trading state was changed.
+**As of:** 2026-10-14 14:53Z. Portability/DR remains **NO-GO for factory reset**. The user is
+home with Kingston attached; no Recovery reboot/reset occurred. No production, champion, protected
+evaluation, paper/trading state, or prospective collector changed.
 
-- `research/active` is clean and synchronized with `origin/research/active`; read Git for the exact
-  current tip at handoff. The last DR implementation commit is
-  `04cbf2b3c3d2dc9a83745f8da19fb19f46702b53`. `main` and `origin/main` remain at
-  `770699d3ef8558518ae750b6d5d6cab41c2e82c8`.
-- Data identity remains UUID `430740ca-42e7-4e6c-a07a-e4e7370152cc`, APFS group UUID equal to the
-  Data UUID, container UUID `414bc719-2fea-44a6-9952-d12cd31cb0ca`, device `disk3s5`. It is
-  FileVault-protected, currently unlocked and writable. At 13:32Z Data had 15,418,336 KiB free
-  (97% used); `diskutil apfs listSnapshots disk3s5` reported none. No source capture was attempted.
-- Kingston is **not currently present/mounted**. `/Volumes` has no Kingston entry and `diskutil
-  list` shows only internal storage and the ChatGPT Installer image. Do not write or mount by
-  assumption. Last known accepted binding remains volume UUID
-  `8f8f1081-9be4-4914-9111-75f1b90255bf`, BrainData root ID
-  `9428695af6d4f46c08e1a444cdc66de8`; storage capacity and artifacts need a fresh check when it is
-  attached. This prevents publishing the private locator manifest needed for the current census.
-- A live, aggregate-only, metadata/no-follow descendant census examined owner checkout, research
-  checkout, verifier worktree, private Brain config, LaunchAgents, and the linked Codex worktree.
-  Counts respectively: 331,267 entries (21 symlinks; one `.env.local` excluded); 431,714 (120
-  symlinks; one `.env.local` and three opaque `wallets` subtrees excluded); 1,685 (no symlinks); 88
-  (no symlinks); 60 (no symlinks); and 12,231 (11 symlinks; `.local` subtree excluded). No
-  cross-device descendants or unreadable entries were observed; held root descriptors were stable.
-  Payload bytes, link targets, xattr values, and credential values were not read. This was an
-  unreceipted aggregate-only live pass: no private locators were retained, child-level changes,
-  firmlinks/mount aliases, exact host-tool root coverage, owner-wide closure, and a common source
-  point remain unproven. Do not treat it as a recovery boundary. Sol reviewed and classified it as a
-  provisional aggregate topology sample; counts are not comparable with earlier work-only scans.
-- Read-only owner runtime status at 13:32Z: 18 Brain/D43 labels loaded, nine with PIDs, and 74
-  processes with cwd under configured owner/research roots. No process arguments or environments
-  were read; this is not inactivity evidence.
-- Recovery first-action observer remains read-only and sequential, requires independently pinned
-  Data/group/container/device identity, and cannot establish prior mount history or SAFE TO ERASE.
-  No Recovery reboot was performed. Recovery boot/history, qualified Data T, complete owner and
-  protected custody, real Kingston K, and authenticated compatible-host inert restore remain open.
-- Next bounded scope: when Kingston is attached, revalidate its pinned UUID/root and available
-  capacity, then rerun the declared-root census with a private locator manifest written through the
-  bound storage interface and an aggregate-only receipt. Preserve exclusions for `.env.local`,
-  opaque `wallets`, and Codex `.local`; retain NO-GO absent source-point and recovery gates.
-  The user-assisted Recovery rehearsal remains a later, separately gated horizon.
+- `research/active` is the working branch. The bounded root-census implementation and aggregate
+  receipt are committed as `614d8cb` (`Add bounded host root boundary census`); this state note is
+  the final handoff update. Read `git rev-parse HEAD` for its commit. `main` and `origin/main` remain
+  `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; do not move `main`. Push the completed work to
+  `origin/research/active` before handoff.
+- The 14:51Z sequential metadata-only census published and reread-verified a 299,700,736-byte
+  private manifest plus completion marker on Kingston. Nine declared roots and four Git bindings
+  were observed, with no external Git metadata roots. The census is incomplete because one owner
+  checkout directory changed metadata during traversal. Do not rerun against the live host or
+  infer a common source point, root closure, custody, or erase readiness. Private manifest locator
+  and hashes are recorded in
+  `docs/evidence/portability-dr-root-boundary-census-2026-10-14T1451Z.json`; exact drift path stays
+  in the private manifest. Sol accepted the scanner for this bounded census only.
+- Data is UUID `430740ca-42e7-4e6c-a07a-e4e7370152cc`, device `disk3s5`, mounted at
+  `/System/Volumes/Data`; latest `df` showed 13,252,360 KiB free (97% used). Kingston is mounted at
+  `/Volumes/Kingston`, UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`, root ID
+  `9428695af6d4f46c08e1a444cdc66de8`; latest verified free space is 216,588,333,056 bytes
+  (about 201.7 GiB). Kingston is the only reset-surviving physical copy.
+- Read-only runtime at 14:53Z: 18 Brain/D43 launchd labels loaded, eight with PIDs. This is not
+  inactivity or write-frontier evidence. Recovery mount history / real Data T, complete owner and
+  protected custody, Kingston K lineage, and authenticated clean-host inert restore remain open.
+- **Next decision horizon:** user-assisted macOS Recovery mount-history and Locked-state rehearsal,
+  then Sol-reviewed real read-only Data-view/T design. Do not repeat the live root census; resolve
+  its owner-checkout metadata drift from a qualified source view. The user may need to perform the
+  Recovery reboot in the next session. Keep services inert and retain NO-GO.
