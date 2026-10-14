@@ -59,6 +59,17 @@ contain large exact payloads, so open only the named artifact needed for a speci
   and independently verified through a fresh bare Git import and per-file hashes. The live `.local`
   capture is provisional; excluded build/cache entries, source consistency, and owner-wide closure
   remain unresolved.
+- [`Portability and DR Codex ignored-state custody`](portability-dr-codex-ignored-custody-2026-10-14T0140Z.json):
+  follows up by preserving all 10,661 other ignored-status records as opaque tar members and
+  verifying their hashes after Kingston reread. This is still a live provisional capture; it does
+  not classify the entries or establish an atomic recovery point.
+- [`Portability and DR opaque restore witness`](portability-dr-opaque-restore-witness-2026-10-14T0141Z.json):
+  restores the `.local`, private-config, and ignored-state archives into temporary quarantine roots
+  and verifies member bytes and symlink link texts. It starts no code and is not a Brain-wide restore.
+- [`Portability and DR LaunchAgent custody`](portability-dr-launchagent-custody-2026-10-14T0143Z.json):
+  opaque Kingston quarantine and isolated inert restore of all 60 current plist files. Four files
+  are beyond the prior 56 Brain/D43 metadata count and remain unclassified; no quarantined
+  definition was loaded by this DR work.
 - [`Portability and DR owner Git remote check`](portability-dr-owner-git-remote-check-2026-10-14T0122Z.json):
   a read-only live owner remote query showing its main head differs from the cached tracking ref.
   The next receipt resolves ancestry using existing objects; deployed runtime identity remains

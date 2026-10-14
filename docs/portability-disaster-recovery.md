@@ -122,6 +122,17 @@ Live checks on the current Mac:
   stable during this live pass, but no atomic cross-file boundary is proved. The archive is not
   restored or activated automatically; see the
   [`private-config custody receipt`](evidence/portability-dr-private-config-custody-2026-10-14T0140Z.json).
+  The opaque restore witness counts 14 archive directory entries because it includes the archived
+  `brain-research/` source root plus its 13 descendant directories.
+
+- A later metadata-only filesystem count found 60 regular plist files in `~/Library/LaunchAgents`;
+  the earlier Brain/D43 metadata receipt covers 56, leaving four unclassified. All 60 files were
+  copied into a private Kingston quarantine and restored into a temporary inert directory; all
+  member hashes matched. No plist was parsed in this capture or installed from quarantine; none was
+  loaded by this DR work. The copy
+  remains a live provisional capture without an atomic owner-wide boundary; private environment values and
+  the four extra roles require classification. See the
+  [`LaunchAgent custody receipt`](evidence/portability-dr-launchagent-custody-2026-10-14T0143Z.json).
 
 Scope caveat after that receipt: a later broad `git grep` covered tracked `docs/`, `src/`, `tools/`,
 and `tests/`, which includes `docs/evidence/`. Its output was truncated before matching files could
@@ -140,18 +151,29 @@ rely on that later search output or treat it as protected custody evidence.
   the private backup manifest. A fresh empty bare repository recovered the branch tip and all nine
   commits absent from cached origin refs; all tar member hashes matched after rereading the backup
   from Kingston. The immutable [`provisional Codex worktree custody receipt`](evidence/portability-dr-codex-worktree-custody-2026-10-14T0133Z.json)
-  pins the bundle, tar, private manifest, and completion marker hashes. This is opaque, provisional custody: the three log files may
-  have changed outside the per-file read windows, xattrs/ACLs are not preserved, and no application
-  state was interpreted. The 10,693 ignored-status records reconcile as 10,631 under `node_modules`,
-  ten under `dist`, 11 under `.ruff_cache`, nine other ignored records, and 32 `.local` files. The
-  first 10,661 records were excluded from this archive; their rebuildability/disposability is not
-  yet proven. This does not establish a
-  consistent source point or close the owner-wide recovery boundary.
+  pins the bundle, tar, private manifest, and completion marker hashes. This is opaque, provisional
+  custody: the three log files may have changed outside the per-file read windows, xattrs/ACLs are
+  not preserved, and no application
+  state was interpreted. All 10,661 other ignored-status records (10,650 regular files and 11
+  symlinks) were also copied into a separate opaque tar and verified after Kingston reread. Their
+  metadata remained stable during capture, and a post-capture status comparison matched all archive
+  member paths. The 10,693 status records reconcile as 10,631 under `node_modules`, ten under
+  `dist`, 11 under `.ruff_cache`, nine other ignored records, and 32 separately captured `.local`
+  files. Their role and rebuildability/disposability remain unclassified; empty directories,
+  xattrs, and ACLs are not preserved. The 11 symlink link texts are preserved and verified, but
+  their target dependencies are not classified or proven recoverable. See the
+  [`ignored-state custody receipt`](evidence/portability-dr-codex-ignored-custody-2026-10-14T0140Z.json).
+  These archives are provisional live copies and do not establish a consistent source point or close
+  the owner-wide recovery boundary. All three archives (`.local`, private config, ignored state)
+  have since been restored into temporary quarantine roots, with every file hash and symlink link
+  text checked; the temporary roots were removed after verification. No contents were parsed or
+  executed. This is only a local-group restore witness, not a Brain-wide clean-room restore; see the
+  [`opaque restore witness receipt`](evidence/portability-dr-opaque-restore-witness-2026-10-14T0141Z.json).
 
 No providers, prospective collectors, owner services, champion, protected evaluation, or trading
 state were changed by the DR work. No provider request or collector was initiated by the DR work.
 No protected application or dataset reader was used. No qualified owner-wide recovery set, classified
-F01/D43/reserved custody set, or complete restore witness exists. The provisional Codex bundle may
+F01/D43/reserved custody set, or complete Brain restore witness exists. The provisional Codex bundle may
 contain protected-like objects whose role remains unclassified. Recovery-set code currently binds
 only caller-declared roles and one opaque D43 root; it does not prove full owner-root closure,
 F01/reserved custody, service-definition closure, or semantic replay. Recovery-secret custody is not required for the accepted plaintext
