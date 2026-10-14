@@ -77,8 +77,10 @@ Live checks on the current Mac:
   service changes. This still ran on the existing Mac, did not isolate host caches, and restored no
   owner/private/protected/Kingston state. See the
   [`bootstrap rehearsal receipt`](evidence/portability-dr-bootstrap-rehearsal-2026-10-14T0107Z.json).
-  No actual owner, private-config, LaunchAgent, protected, or Kingston corpus recovery archive has
-  been captured or restored. No full clean-room restore has been rehearsed.
+  Since that rehearsal, the private config root has been captured to Kingston as provisional opaque
+  quarantine, but it has not been restored or activated. No owner runtime, LaunchAgent, classified
+  protected, or Kingston corpus recovery set has been captured and restored. No full clean-room
+  restore has been rehearsed.
 - `tools/brain_host_recovery.py` provides read-only host status and inert research-checkout bootstrap.
   `tools/brain_host_tree_custody_v3.py` and `tools/brain_host_recovery_set.py` verify declared tree
   members and a restored quarantine witness. Their `application_recovery_qualified` result remains
@@ -104,6 +106,23 @@ Live checks on the current Mac:
   duplicated; extensions do not establish role. See the
   [`candidate entry-type receipt`](evidence/portability-dr-candidate-entry-types-2026-10-14T0119Z.json).
 
+- Recursive metadata for `~/.config/brain-research` finds 13 directories and 75 files (about
+  184 KiB), all files mode 0600. Its top-level entries include five versioned external configuration
+  sets, three timing-rehearsal sets, one retired-LaunchAgent set, one storage-health set, four
+  handoff/binding files, and no symlinks. These host-local records may include old activations or
+  private configuration; names and modes do not prove contents safe or disposable. Preserve or
+  explicitly reissue them after private classification. Metadata-only follow-up counted 15 mode-0600
+  plist copies in the retired set; they remain inert custody candidates and have not been compared
+  to live definitions. The metadata inventory opened no contents; a later opaque backup copied and
+  hashed bytes without parsing them. See the
+  [`private-config metadata receipt`](evidence/portability-dr-private-config-metadata-2026-10-14T0127Z.json).
+  The focused [`retired plist set receipt`](evidence/portability-dr-retired-launchagent-set-metadata-2026-10-14T0136Z.json)
+  records the follow-up count without file names or contents. The entire private root is now in a
+  provisional Kingston quarantine; all member hashes were verified after reread. Its metadata was
+  stable during this live pass, but no atomic cross-file boundary is proved. The archive is not
+  restored or activated automatically; see the
+  [`private-config custody receipt`](evidence/portability-dr-private-config-custody-2026-10-14T0140Z.json).
+
 Scope caveat after that receipt: a later broad `git grep` covered tracked `docs/`, `src/`, `tools/`,
 and `tests/`, which includes `docs/evidence/`. Its output was truncated before matching files could
 be classified. No result was used for protected-data analysis or copied into project artifacts, and
@@ -111,12 +130,31 @@ no files were changed by the search. Whether a protected receipt line was printe
 the refresh receipt's `protected_payloads_read=false` applies only to its 01:12Z capture. Do not
 rely on that later search output or treat it as protected custody evidence.
 
+- A separate Codex control-center worktree was found under host-local worktree storage. Its branch
+  tip was absent from the queried remote branch heads and from the research checkout's object DB;
+  the exact queried remote result does not prove no other copy exists. A 19,421,684-byte Git bundle
+  containing its 131-commit reachable history and a 3,010,560-byte tar of its ignored `.local`
+  tree were written create-only to Kingston through the descriptor-bound storage writer at
+  `host-recovery/provisional-opaque/codex-worktree-20261014-a1/`. The tar
+  contains 32 files (2,941,740 source bytes) and six directories; all 32 per-file hashes are in
+  the private backup manifest. A fresh empty bare repository recovered the branch tip and all nine
+  commits absent from cached origin refs; all tar member hashes matched after rereading the backup
+  from Kingston. The immutable [`provisional Codex worktree custody receipt`](evidence/portability-dr-codex-worktree-custody-2026-10-14T0133Z.json)
+  pins the bundle, tar, private manifest, and completion marker hashes. This is opaque, provisional custody: the three log files may
+  have changed outside the per-file read windows, xattrs/ACLs are not preserved, and no application
+  state was interpreted. The 10,693 ignored-status records reconcile as 10,631 under `node_modules`,
+  ten under `dist`, 11 under `.ruff_cache`, nine other ignored records, and 32 `.local` files. The
+  first 10,661 records were excluded from this archive; their rebuildability/disposability is not
+  yet proven. This does not establish a
+  consistent source point or close the owner-wide recovery boundary.
+
 No providers, prospective collectors, owner services, champion, protected evaluation, or trading
 state were changed by the DR work. No provider request or collector was initiated by the DR work.
-No protected application or dataset reader was used. No owner/protected custody archive or complete
-restore witness exists. Recovery-set code currently binds only caller-declared roles and one opaque
-D43 root; it does not prove full owner-root closure, F01/reserved custody, service-definition
-closure, or semantic replay. Recovery-secret custody is not required for the accepted plaintext
+No protected application or dataset reader was used. No qualified owner-wide recovery set, classified
+F01/D43/reserved custody set, or complete restore witness exists. The provisional Codex bundle may
+contain protected-like objects whose role remains unclassified. Recovery-set code currently binds
+only caller-declared roles and one opaque D43 root; it does not prove full owner-root closure,
+F01/reserved custody, service-definition closure, or semantic replay. Recovery-secret custody is not required for the accepted plaintext
 custody scope; provider credentials require user reauthentication after restore. Source consistency
 and completeness remain unresolved and block `SAFE TO ERASE`.
 
@@ -267,8 +305,8 @@ as a new replication capability with hash verification and a full recovery rehea
 
 1. Inventory every owner/research/local-config/service root and bind each to a source point or an
    explicit reauthentication, rebuild, disposable, or unresolved disposition. Classify potentially
-   private environment entries. Preserve all 56 Brain/D43 definitions inert or prove which are
-   reproducible.
+   private environment entries and all excluded Codex worktree ignored records. Preserve all
+   56 Brain/D43 definitions inert or prove which are reproducible.
 2. Obtain a qualified, read-only source snapshot or another Sol-approved owner-wide consistent
    recovery point without changing production services. Bound snapshot lifetime and monitor free
    space; current live-copy alternatives cannot prove an atomic owner frontier.

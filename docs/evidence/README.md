@@ -45,6 +45,20 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - [`Portability and DR LaunchAgent paths`](portability-dr-launchagent-paths-2026-10-14T0124Z.json):
   aggregate declaration path roots, symlink references and log destination presence. It emits no
   paths and does not identify deployed bundles.
+- [`Portability and DR private config metadata`](portability-dr-private-config-metadata-2026-10-14T0127Z.json):
+  recursive metadata for `~/.config/brain-research`; it reads no values or contents and proves no
+  safe exclusion or activation authority.
+- [`Portability and DR private config custody`](portability-dr-private-config-custody-2026-10-14T0140Z.json):
+  opaque quarantine archive of the private config root, reread from Kingston with all member hashes
+  verified. Bytes were not parsed; this is not a consistent cross-file point or activation authority.
+- [`Portability and DR retired LaunchAgent set metadata`](portability-dr-retired-launchagent-set-metadata-2026-10-14T0136Z.json):
+  focused count of the retired plist set, with no file names or contents. The copies remain inert
+  and have not been compared with current definitions.
+- [`Portability and DR provisional Codex worktree custody`](portability-dr-codex-worktree-custody-2026-10-14T0133Z.json):
+  create-only Kingston custody of a local Git bundle and opaque ignored `.local` archive, reread
+  and independently verified through a fresh bare Git import and per-file hashes. The live `.local`
+  capture is provisional; excluded build/cache entries, source consistency, and owner-wide closure
+  remain unresolved.
 - [`Portability and DR owner Git remote check`](portability-dr-owner-git-remote-check-2026-10-14T0122Z.json):
   a read-only live owner remote query showing its main head differs from the cached tracking ref.
   The next receipt resolves ancestry using existing objects; deployed runtime identity remains

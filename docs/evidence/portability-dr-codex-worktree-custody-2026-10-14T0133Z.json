@@ -1,0 +1,55 @@
+{
+  "schema": "brain-portability-dr-provisional-opaque-custody-v1",
+  "captured_at_utc": "2026-10-14T01:33:00Z",
+  "status": "provisional_backup_verified",
+  "storage": {
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "relative_artifact_path": "host-recovery/provisional-opaque/codex-worktree-20261014-a1/",
+    "root_verified_after_capture": true,
+    "publication": "create_only_descriptor_bound",
+    "private_manifest_sha256": "668a31d0e0bdf70aca68062b861c0596561e93fd4da156f3f92b392acc6b704b",
+    "complete_marker_sha256": "cf93616ab785c9e40aab7eefd13d333492cd9de8fed92568960fc42025646948"
+  },
+  "git_history": {
+    "format": "git_bundle",
+    "branch_tip": "ce8505a6da99c5d5e1f118d1e55346f95981c328",
+    "reachable_commit_count": 131,
+    "commits_absent_from_cached_origin_refs": 9,
+    "bundle_bytes": 19421684,
+    "bundle_sha256": "a7bdab80b8a22316b18582d05b20e5f715366049bd114703430cfe2e1f1ee9af",
+    "fresh_empty_bare_import_recovered_tip_and_all_nine_commits": true,
+    "queried_remote_branch_head_match": false,
+    "remote_observation_limit": "one queried remote ref set; does not prove no other copy exists",
+    "payload_interpreted": false
+  },
+  "ignored_local_state": {
+    "format": "tar",
+    "file_count": 32,
+    "directory_count": 6,
+    "source_file_bytes": 2941740,
+    "archive_bytes": 3010560,
+    "archive_sha256": "1a09e1c11ec71d91a7d7b68104b708efebb26db910318c4178cf2da0c6111cc1",
+    "per_file_hashes_in_private_backup_manifest": true,
+    "reread_from_kingston_and_all_member_hashes_verified": true,
+    "capture_classification": "best_effort_live_copy_provisional",
+    "possible_mutable_log_files": 3,
+    "payload_interpreted": false,
+    "extended_attributes_and_acls_preserved": false
+  },
+  "excluded_ignored_entries": {
+    "git_status_ignored_records_total": 10693,
+    "node_modules": 10631,
+    "dist": 10,
+    "ruff_cache": 11,
+    "other_ignored": 9,
+    "disposability_proven": false
+  },
+  "limitations": [
+    "not an atomic or cross-root consistent recovery point",
+    "not owner-wide state closure and not SAFE TO ERASE evidence",
+    "Git object payloads and local files were retained opaque without semantic inspection",
+    "three local log files may have changed outside individual read windows",
+    "a clean status and zero cwd matches do not prove source inactivity"
+  ]
+}
