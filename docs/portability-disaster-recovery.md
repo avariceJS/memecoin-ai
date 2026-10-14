@@ -461,6 +461,30 @@ eventual custody receipt as “opaque backup bytes processed;
 protected semantic access/evaluation/training false,” rather than claiming that raw bytes were never
 read.
 
+## First-host code entry
+
+`recovery/ENTRY.txt` is a plain-text code-bootstrap card stored at
+`BrainData/host-recovery/ENTRY.txt` for use before a repository checkout exists. Its approved
+commit and SHA-256 are supplied in a trusted handoff outside Kingston; do not treat the card or a
+hash stored beside it as its own trust anchor. The card checks the mounted Kingston UUID and
+existing root marker read-only, then uses interactive Git authentication to fetch the exact pinned
+commit into a new temporary entry checkout. The checkout's card bytes and hash must match Kingston
+before the existing `brain_host_recovery.py bootstrap` helper is run.
+
+The helper makes a second exact-commit clone into a separate new destination, installs the locked
+development requirements, and runs smoke. Both checkouts must report the pinned `HEAD`, and the
+final helper result must say `complete` with `smoke=passed`. The temporary entry checkout remains
+until this result is recorded; only that exact run-owned directory may later be removed. This
+two-clone path avoids a pre-checkout executable and preserves the final checkout's normal Git
+remote. It costs an extra source clone but no additional dependency installation.
+
+This path produces **code bootstrap verified** only. It does not restore private or durable Brain
+state, qualify Kingston custody, activate services, send provider requests, prove a clean-host
+inert restore, or change erase readiness. Wrong/missing Kingston identity, auth failure, a changed
+card, a wrong commit, a preexisting destination, or an incomplete smoke result blocks the flow.
+The previously recorded clean-`HOME` auth failure remains a real prerequisite; this card does not
+copy old-host credentials. The Mac-loss recovery procedure below still governs data and runtime.
+
 ## Restore procedure
 
 1. On a clean compatible macOS host, install Git and a supported Python. Sign in to the Git account
