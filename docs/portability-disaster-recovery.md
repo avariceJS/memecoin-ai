@@ -113,6 +113,21 @@ Live checks on the current Mac:
   46 combined recovery-set/tree-v3/SQLite/frontier tests pass. See the
   [`frontier scaffold receipt`](evidence/portability-dr-frontier-scaffold-2026-10-14T0314Z.json).
   The factory-reset verdict remains NO-GO.
+- A K object/STOP fixture of the same format has now been written under the configured Kingston
+  root with the held descriptor-bound create-only writer, reread through a fresh storage writer,
+  and removed through the held descriptors after an exact-membership check. This tests the storage
+  binding for a synthetic 57-byte object only; no recovery set, real journal prefix, source cutoff, or restore
+  witness was exercised on Kingston. See the
+  [`Kingston synthetic K receipt`](evidence/portability-dr-kingston-synthetic-k-rehearsal-2026-10-14T0317Z.json).
+- An opt-in synthetic-only Kingston rehearsal then copied six fixture artifacts, built a v1
+  recovery set, restored all six into isolated same-Mac temporary targets, bound and verified the
+  restore witness, and published/read back the synthetic object/STOP/end-marker frontier envelope.
+  Exact member type/path/size/hash inventories were compared before nonce cleanup; only the normal
+  shared zero-byte `.index.lock` and `.publish.lock` coordination files remain (whether they
+  pre-existed was not established). Sol independently accepted this narrow pass. It proves neither
+  an immutable owner T cutoff, a real K journal prefix, xattr/ACL recovery, nor clean-host restore;
+  factory reset remains NO-GO. See the
+  [`synthetic Kingston restore receipt`](evidence/portability-dr-kingston-synthetic-restore-2026-10-14T0333Z.json).
 - A fresh clone of `7d8dc82` bootstrapped Python 3.13 and passed `make smoke`; both new recovery CLIs
   also passed direct `--help` invocation from that clone. The bootstrap reported no storage or
   service changes. This still ran on the existing Mac, did not isolate host caches, and restored no

@@ -1,0 +1,44 @@
+{
+  "schema": "brain-portability-dr-kingston-synthetic-k-rehearsal-v1",
+  "recorded_at": "2026-10-14T03:17:51Z",
+  "code_commit": "e2a0849d79050281102298d991837719f6567eaf",
+  "scenario": "synthetic_only",
+  "storage": {
+    "configured_root_used": true,
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "descriptor_bound_create_only_writer": true,
+    "fresh_descriptor_readback": true,
+    "free_space_guard": "configured writer guard remained active"
+  },
+  "fixture": {
+    "format_matches_pytest_K_fixture": true,
+    "fixture_bytes_are_identical_to_pytest_fixture": false,
+    "frontier_id": "dc8da33c686a6d94258c319dc3dca4d7",
+    "stream_id_scope": "synthetic nonce; no real stream identifier",
+    "corpus_object_bytes": 57,
+    "object_sha256": "c56a31e302f2e9eb3ee9a702adf185374a3306934da2e4a1667422c0a6e26734",
+    "manifest_sha256": "76d76ee1cf1a376fb1d0deffd35fca46f8991468cbe655fe30a4c6da43d32339",
+    "stop_state": "stopped",
+    "resumable": false,
+    "pending_count": 1,
+    "exact_membership_verified": true
+  },
+  "cleanup": {
+    "fixture_files_removed_through_bound_descriptor": true,
+    "fixture_directory_removed_through_parent_descriptor": true,
+    "created_empty_parent_removed_after_empty_check": true,
+    "root_identity_revalidated_after_cleanup": true
+  },
+  "activity": {
+    "provider_requests": 0,
+    "collector_started": false,
+    "production_payload_or_workload_state_read_or_changed": false,
+    "storage_binding_root_marker_and_free_space_metadata_read": true,
+    "protected_payload_read": false,
+    "full_recovery_set_or_restore_witness": false,
+    "source_cutoff_proven": false,
+    "factory_reset_ready": false
+  },
+  "result": "pass for descriptor-bound synthetic K object/STOP readback and cleanup only; real K frontier and DR remain unqualified"
+}

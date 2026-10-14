@@ -10,6 +10,16 @@ contain large exact payloads, so open only the named artifact needed for a speci
   synthetic post-capture fingerprint assertion and temporary-storage corpus/STOP fixture around
   the existing recovery set. Independent Sol review accepts only this scaffold scope; it does not
   prove a frozen source cutoff, real journal prefix, Kingston capture, or erase readiness.
+- [`Portability and DR Kingston synthetic K rehearsal`](portability-dr-kingston-synthetic-k-rehearsal-2026-10-14T0317Z.json):
+  a 57-byte synthetic object, STOP/pending marker, manifest, and completion marker were written
+  create-only through the configured Kingston descriptor, reopened and verified, then removed
+  through held descriptors. This qualifies only that synthetic storage path; there is no real K
+  journal proof, owner-state capture, full restore, or erase readiness.
+- [`Portability and DR Kingston synthetic restore`](portability-dr-kingston-synthetic-restore-2026-10-14T0333Z.json):
+  six synthetic recovery artifacts were copied to configured Kingston, composed into a v1 set and
+  frontier envelope, restored into same-Mac temporary quarantine, verified, and cleaned up. Sol
+  accepted this limited path; it does not prove a real owner cutoff, K journal prefix, clean-host
+  restore, or erase readiness. Standard shared coordination lock files remain.
 
 - [`Portability and DR software/storage rehearsal`](portability-dr-rehearsal-2026-10-13.json):
   clean remote clone at the accepted research commit, pinned development environment rebuild,
