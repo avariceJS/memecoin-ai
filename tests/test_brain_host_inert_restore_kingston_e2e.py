@@ -158,6 +158,8 @@ def test_physical_kingston_inert_restore_cli_flow(tmp_path: Path) -> None:
                 pytest.fail("random synthetic set ID collision")
             for relative in artifact_roots:
                 _copy_synthetic_tree(source, destination, relative, created_files, created_dirs)
+            spec["volume_uuid"] = expected_uuid
+            spec["root_id"] = expected_root_id
             spec["research_commit"] = head
 
             def bound_identity():
