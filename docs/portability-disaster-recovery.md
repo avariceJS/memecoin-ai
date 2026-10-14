@@ -143,6 +143,17 @@ Live checks on the current Mac:
   capture remain open. Sol accepts only this synthetic scope. The v1 recovery-set verifier hash is
   unchanged. See the
   [`held-view synthetic receipt`](evidence/portability-dr-source-view-held-view-2026-10-14T035534Z.json).
+- A negative-only restore assessor now combines the existing set/witness integrity checks with
+  independent pins, the exact clean research commit, fresh filtered launchd/cwd observations, and
+  a held Kingston mount/root binding. Missing evidence is `unknown`; mismatches fail. It always
+  returns `blocked`, with complete inertness, owner/protected custody, T, K, and application restore
+  still unknown. The read-only storage opener does not take a writer lock; verification may create
+  and remove short-lived system temporary SQLite scratch. Synthetic tests cover missing and
+  mismatched pins, absent restore roots, active labels, unavailable process observation, witness
+  drift, low capacity, and simulated final root-identity drift. Sol accepts this narrow assessor;
+  the simulated root drift is not a real rename-race rehearsal. It did not assess live Kingston
+  artifacts or restore targets and does not change the NO-GO verdict. See the
+  [`restore assessor receipt`](evidence/portability-dr-restore-assessment-v1-2026-10-14T0411Z.json).
 - A fresh clone of `7d8dc82` bootstrapped Python 3.13 and passed `make smoke`; both new recovery CLIs
   also passed direct `--help` invocation from that clone. The bootstrap reported no storage or
   service changes. This still ran on the existing Mac, did not isolate host caches, and restored no

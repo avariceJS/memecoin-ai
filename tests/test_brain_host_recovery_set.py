@@ -411,7 +411,9 @@ def test_sqlite_artifact_sidecars_are_rejected(tmp_path: Path) -> None:
         writer.close()
 
 
-def test_restore_witness_binds_quarantine_tree_bytes_and_topology(tmp_path: Path) -> None:
+def test_restore_witness_binds_quarantine_tree_bytes_and_topology(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import tools.brain_host_tree_custody as tree_v2
     import tools.brain_host_tree_custody_v3 as tree_v3
 
@@ -476,6 +478,190 @@ def test_restore_witness_binds_quarantine_tree_bytes_and_topology(tmp_path: Path
         assert verified["restore_witness_bound"] is True
         assert verified["restore_mapping_obligations_resolved"] is True
         assert verified["factory_reset_ready"] is False
+
+        from subprocess import CompletedProcess
+
+        from tools.brain_host_restore_assessment import ReadOnlyRecoveryReader, assess_restore_v1
+
+        clean_repo = tmp_path / "candidate-repo"
+        clean_repo.mkdir()
+
+        def clean_host_runner(args, **_kwargs):
+            if args[0] == "git":
+                assert "--no-optional-locks" in args
+                assert _kwargs["env"]["GIT_OPTIONAL_LOCKS"] == "0"
+            if args == ["git", "--version"]:
+                return CompletedProcess(args, 0, "git version synthetic\n", "")
+            if args[0] == "git" and args[-2:] == [
+                "rev-parse",
+                "HEAD",
+            ]:
+                return CompletedProcess(args, 0, RESEARCH_COMMIT + "\n", "")
+            if args[0] == "git" and args[-2:] == [
+                "status",
+                "--porcelain",
+            ]:
+                return CompletedProcess(args, 0, "", "")
+            if args[0] == "launchctl":
+                return CompletedProcess(args, 0, "", "")
+            if args[0] == "lsof":
+                return CompletedProcess(args, 0, "", "")
+            return CompletedProcess(args, 0, "", "")
+
+        def identity_with_capacity():
+            return UUID, ROOT_ID, 100 * 1024**3
+
+        def run_assessment(
+            *,
+            runner=clean_host_runner,
+            volume_uuid=UUID,
+            root_id=ROOT_ID,
+            index_pin=verified["index_sha256"],
+            witness_pin=None,
+            selected_targets=targets,
+            selected_witness_id="8" * 32,
+            storage_identity=identity_with_capacity,
+        ):
+            with ReadOnlyRecoveryReader(writer.root_fd) as read_only_reader:
+                assert not hasattr(read_only_reader, "create")
+                assert not hasattr(read_only_reader, "lock")
+                return assess_restore_v1(
+                    read_only_reader,
+                    repo=clean_repo,
+                    expected_commit=RESEARCH_COMMIT,
+                    expected_volume_uuid=volume_uuid,
+                    expected_root_id=root_id,
+                    expected_index_sha256=index_pin,
+                    expected_witness_sha256=witness_pin,
+                    set_id=spec["set_id"],
+                    witness_id=selected_witness_id,
+                    witness_targets=selected_targets,
+                    revalidate_identity=storage_identity,
+                    runner=runner,
+                    system="Darwin",
+                )
+
+        witness_raw = writer.read_bytes(
+            f"host-recovery/restore-witnesses-v1/{spec['set_id']}/{'8' * 32}/WITNESS.json",
+            max_bytes=16 * 1024 * 1024,
+        )
+        assessment = run_assessment(witness_pin=sha256(witness_raw))
+        assessment_gates = {gate["name"]: gate for gate in assessment["gates"]}
+        assert assessment["status"] == "blocked"
+        assert assessment["final_readiness"] is False
+        assert assessment["activation_authorized"] is False
+        assert assessment_gates["kingston_identity"]["state"] == "pass"
+        assert assessment_gates["storage_capacity"]["state"] == "pass"
+        assert assessment_gates["research_commit"]["state"] == "pass"
+        assert assessment_gates["accepted_set_pin"]["state"] == "pass"
+        assert assessment_gates["restore_witness"]["state"] == "pass"
+        assert assessment_gates["accepted_witness_pin"]["state"] == "pass"
+        assert assessment_gates["zero_loaded_brain_labels"]["state"] == "pass"
+        assert assessment_gates["zero_workspace_cwd_processes"]["state"] == "pass"
+        assert assessment_gates["complete_inertness"]["state"] == "unknown"
+        assert assessment_gates["complete_owner_and_protected_custody"]["state"] == "unknown"
+        assert assessment_gates["immutable_source_view_T"]["state"] == "unknown"
+        assert assessment_gates["durable_K_frontier"]["state"] == "unknown"
+        assert assessment_gates["kingston_bound_root_stable"]["state"] == "pass"
+
+        low_capacity = run_assessment(storage_identity=lambda: (UUID, ROOT_ID, 10 * 1024**3))
+        low_capacity_gates = {gate["name"]: gate for gate in low_capacity["gates"]}
+        assert low_capacity_gates["storage_capacity"]["state"] == "fail"
+        assert low_capacity["status"] == "blocked"
+
+        missing_pin = run_assessment(index_pin=None, witness_pin=None)
+        missing_gates = {gate["name"]: gate for gate in missing_pin["gates"]}
+        assert missing_gates["v1_set_integrity"]["state"] == "pass"
+        assert missing_gates["accepted_set_pin"]["state"] == "unknown"
+        assert missing_gates["accepted_witness_pin"]["state"] == "unknown"
+        assert missing_pin["status"] == "blocked"
+
+        mismatched_pins = run_assessment(
+            volume_uuid="0" * 36,
+            root_id="0" * 32,
+            index_pin="0" * 64,
+            witness_pin="0" * 64,
+        )
+        mismatched_gates = {gate["name"]: gate for gate in mismatched_pins["gates"]}
+        assert mismatched_gates["kingston_identity"]["state"] == "fail"
+        assert mismatched_gates["accepted_set_pin"]["state"] == "fail"
+        assert mismatched_gates["accepted_witness_pin"]["state"] == "fail"
+        assert mismatched_pins["status"] == "blocked"
+
+        no_restore_roots = run_assessment(
+            selected_targets=None,
+            selected_witness_id=None,
+        )
+        no_root_gates = {gate["name"]: gate for gate in no_restore_roots["gates"]}
+        assert no_root_gates["zero_workspace_cwd_processes"]["state"] == "unknown"
+        assert no_root_gates["restore_witness"]["state"] == "unknown"
+
+        def active_label_runner(args, **kwargs):
+            if args[0] == "launchctl":
+                return CompletedProcess(args, 0, "-\t0\tai.memecoin.brain.operator\n", "")
+            return clean_host_runner(args, **kwargs)
+
+        active_labels = run_assessment(runner=active_label_runner)
+        active_gates = {gate["name"]: gate for gate in active_labels["gates"]}
+        assert active_gates["zero_loaded_brain_labels"]["state"] == "fail"
+
+        def unknown_process_runner(args, **kwargs):
+            if args[0] == "lsof":
+                return CompletedProcess(args, 1, "", "unavailable")
+            return clean_host_runner(args, **kwargs)
+
+        unknown_processes = run_assessment(runner=unknown_process_runner)
+        unknown_gates = {gate["name"]: gate for gate in unknown_processes["gates"]}
+        assert unknown_gates["zero_workspace_cwd_processes"]["state"] == "unknown"
+
+        root_replaced = False
+
+        def root_replacement_runner(args, **kwargs):
+            nonlocal root_replaced
+            if args[0] == "git":
+                root_replaced = True
+            return clean_host_runner(args, **kwargs)
+
+        def root_replacement_identity():
+            if root_replaced:
+                return UUID, "0" * 32, 100 * 1024**3
+            return identity_with_capacity()
+
+        detached_root = run_assessment(
+            runner=root_replacement_runner,
+            storage_identity=root_replacement_identity,
+        )
+        detached_gates = {gate["name"]: gate for gate in detached_root["gates"]}
+        assert detached_gates["kingston_bound_root_stable"]["state"] == "fail"
+        assert detached_root["status"] == "blocked"
+
+        witness_path = (
+            f"host-recovery/restore-witnesses-v1/{spec['set_id']}/{'8' * 32}/WITNESS.json"
+        )
+        original_read_bytes = ReadOnlyRecoveryReader.read_bytes
+        witness_reads = 0
+
+        def replaced_witness_read(
+            reader: ReadOnlyRecoveryReader,
+            relative: str,
+            *,
+            max_bytes: int = 64 * 1024 * 1024,
+        ):
+            nonlocal witness_reads
+            raw = original_read_bytes(reader, relative, max_bytes=max_bytes)
+            if relative == witness_path:
+                witness_reads += 1
+                if witness_reads == 3:
+                    return raw + b"changed during assessment"
+            return raw
+
+        monkeypatch.setattr(ReadOnlyRecoveryReader, "read_bytes", replaced_witness_read)
+        changed_witness = run_assessment(witness_pin=sha256(witness_raw))
+        changed_gates = {gate["name"]: gate for gate in changed_witness["gates"]}
+        assert changed_gates["restore_witness"]["state"] == "fail"
+        assert changed_witness["status"] == "blocked"
+        monkeypatch.setattr(ReadOnlyRecoveryReader, "read_bytes", original_read_bytes)
+
         owner_marker = targets["owner_work"] / "RESTORE_COMPLETE.json"
         marker_value = json.loads(owner_marker.read_bytes())
         marker_value["schema"] = "brain-host-tree-custody-restore-v2"
