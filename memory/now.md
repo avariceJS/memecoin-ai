@@ -26,9 +26,10 @@ risks are accepted. F01/D43/reserved material remains protected and was not read
 - Read-only owner runtime status: 18 Brain/D43 LaunchAgent labels loaded, eight with PIDs; 64
   owner/research cwd-matched processes. No arguments or environments were read. DR changed no
   services, production behavior, provider state, protected evaluation, paper state, or trading.
-- Git: `research/active` and `origin/research/active` are at
-  `254ddc79e58eca4811c8d11d6869b6f30825469e`; worktree clean. `main` and cached `origin/main`
-  remain at `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; main did not move.
+- Git: observer implementation is commit `254ddc79e58eca4811c8d11d6869b6f30825469e`; this
+  handoff commit is the current pushed tip of `research/active` and `origin/research/active`, with a
+  clean worktree. `main` and cached `origin/main` remain at
+  `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; main did not move.
 - Remaining real gates: user-assisted Recovery boot/history boundary; qualified Data T; complete
   owner/protected custody and restore witness; real Kingston K frontier; authenticated compatible-host
   inert restore. Research `work/wallets` remains private, opaque, unresolved, and backup-required.
