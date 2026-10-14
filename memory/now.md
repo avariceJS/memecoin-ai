@@ -1,15 +1,15 @@
 # Current Project State
 
-**As of:** 2026-10-14 02:45Z. Portability/DR is **NO-GO for factory reset**. Current published DR
-work is on `research/active` through `e3645bd`; `main` remains the verified baseline. Do not erase
+**As of:** 2026-10-14 02:50Z. Portability/DR is **NO-GO for factory reset**. Current published DR
+work is on `research/active` through `8f739a4`; `main` remains the verified baseline. Do not erase
 the owner Mac.
 
 - Owner checkout was last verified clean at `a594474` on `main`; its cached `origin/main` is 15
   ahead, while live remote main `770699` is 507 commits ahead (verified in research object DB).
   Ancestry is clear; deployed runtime source remains unverified.
-  At 02:43Z, read-only status found 18 Brain labels loaded, nine with PIDs, and 72 cwd-matched
-  processes under owner/research roots. Three owner Python paper/operator processes were among
-  them. No arguments or environments were read. This is a time-bounded observation and does not
+  At 02:43Z, read-only status found 18 combined Brain/D43 labels loaded, nine with PIDs, and 72
+  cwd-matched processes under owner/research roots. Three owner Python paper/operator processes were
+  among them. No arguments or environments were read. This is a time-bounded observation and does not
   establish the source write frontier or earlier workload.
 - LaunchAgent metadata: 55 Brain + one D43 plist; all have `RunAtLoad` (54 true, two false), with
   five environment-key names across four definitions; values were not inspected or emitted. Four
@@ -82,6 +82,11 @@ the owner Mac.
   Kingston/plaintext scope. The 02:43Z status is time-bounded, not a source frontier; next material
   gate is admin-assisted qualified source view, measured snapshot headroom, complete custody, and
   isolated inert restore.
+- An allowlisted pass read the current owner operator `deployment.json` and its bundle `manifest.json`
+  only. The documented `{bundle,pin}` pin matches the manifest hash and both files match the private
+  recursive inventory; the running process image and seven other running Brain code identities remain
+  unresolved. At 02:50Z, 17 Brain labels were loaded/eight running and one D43 label was loaded with
+  no PID. See the canonical DR handoff and pointer receipt.
 - A metadata-only count of three research directories named `wallets` found 21 files and three
   subdirectories, matching the earlier census delta. Child names were enumerated transiently but not
   retained or emitted; payloads were not read. Contents and role remain unknown; this sensitive
