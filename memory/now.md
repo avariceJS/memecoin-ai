@@ -1,7 +1,7 @@
 # Current Project State
 
-**As of:** 2026-10-14 02:31Z. Portability/DR is **NO-GO for factory reset**. Current DR work is
-published on `research/active` through `ef0ebd5`; `main` remains the verified baseline. Do not erase
+**As of:** 2026-10-14 02:38Z. Portability/DR is **NO-GO for factory reset**. Current DR work is
+published on `research/active` through `5492592`; `main` remains the verified baseline. Do not erase
 the owner Mac.
 
 - Owner checkout was last verified clean at `a594474` on `main`; its cached `origin/main` is 15
@@ -75,6 +75,9 @@ the owner Mac.
   census deltas of 21 files and three directories are not directly comparable or evidence of
   deletion. Only private inventory revision `a3` is eligible; `a1` and `a2` were transparently
   invalidated. See the canonical DR handoff and recursive inventory receipt.
+- Selected LaunchAgent path fields now reconcile to that private map: all four private-config refs
+  match; 203 of 215 owner/work refs match and 12 absent log destinations are confirmed; no paths
+  point into research/work. This still does not establish which runtime source revision executed.
 - Next gate: classify private config, owner/research state, service roots, Codex ignored roles and
   external runtime dependencies; then establish a qualified consistent source point and protected
   opaque custody before a full inert isolated restore. Obtain independent Sol review before any

@@ -367,15 +367,25 @@ There are 55 Brain-named and one D43-named plist files in `~/Library/LaunchAgent
 are host-software services. At least 38 Brain/D43 definitions were not represented among the 18
 labels loaded at the 01:12Z probe. All 60 definitions remain host-specific custody; the 56 Brain/D43
 definitions need per-role authorization before any later install. Their plist byte streams were
-opened for selected-field projection, but environment values were not inspected or interpreted,
-retained, or emitted. Reissue credentials through user authentication. Never install the full
-directory wholesale.
+parsed to select declared fields; environment values were not enumerated into the projection or
+emitted. Reissue credentials through user authentication. Never install the full directory wholesale.
 Their declared arguments refer to owner, research, and private-config roots; 56 argument references
 pass through only three distinct symlink mappings. Output/error paths point either inside owner work
 or to `/dev`; six owner log path references per stream currently point to missing files. These are
 path-field references, not a count of unique dependencies. On a replacement host, rebuild any authorized
 service definitions against verified roots instead of recreating old symlink accidents. See the
 [`LaunchAgent path receipt`](evidence/portability-dr-launchagent-paths-2026-10-14T0124Z.json).
+
+A later metadata-only reconciliation of the 01:43Z quarantined 60-definition plist capture found 321
+absolute path references in the selected launchd fields. Four private-config references all match the
+private-config inventory. Of 215 owner/work references, 203 match the recursive inventory (105
+directory, 65 file, 33 symlink entries); the remaining 12 are the six missing stdout and six missing
+stderr log destinations already recorded in the earlier path receipt. None falls beneath the pruned
+sensitive directories. Six owner-checkout references and 51 research-checkout references are outside
+their respective `work/` roots; no lexical declared path references enter `research/work/`. This closes
+declared path topology for the inventoried work/config portions only; it does not identify the
+deployed code revision or prove runtime behavior.
+See the [`LaunchAgent work-path reconciliation receipt`](evidence/portability-dr-launchagent-work-path-reconciliation-2026-10-14T0238Z.json).
 
 The four additional host-software definitions are `com.valvesoftware.steamclean`, two Zoom services,
 and `homebrew.mxcl.postgresql@16`. They were already loaded without PIDs at the latest probe; three
