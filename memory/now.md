@@ -1,7 +1,7 @@
 # Current Project State
 
-**As of:** 2026-10-14 04:11Z. Portability/DR remains **NO-GO for factory reset**. Published work
-is on `research/active` through `eb2e902`; `main` remains at the verified baseline
+**As of:** 2026-10-14 04:38Z. Portability/DR remains **NO-GO for factory reset**. Published work
+is on `research/active` through `b80fbf6`; `main` remains at the verified baseline
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Do not erase the owner Mac.
 
 - Accepted recovery case is owner-Mac loss with healthy Kingston. Kingston is the sole
@@ -20,7 +20,9 @@ is on `research/active` through `eb2e902`; `main` remains at the verified baseli
   custody, or Kingston corpus dependencies.
 - Synthetic held-source and Kingston set/witness rehearsals are accepted only within their fixture
   scopes. The negative-only restore assessor at `eb2e902` always reports blocked; it does not assess
-  live Kingston recovery members or targets. Latest assessor receipt:
+  live Kingston recovery members or targets. The inert restore conductor at `b80fbf6` only restores
+  six pinned fixture roles into a synthetic quarantine, with source closure/T/K/host/erase false.
+  Its owner-root exclusions depend on caller-supplied paths. Latest assessor receipt:
   `docs/evidence/portability-dr-restore-assessment-v1-2026-10-14T0411Z.json`.
 - No prospective campaign or provider requests were started for DR. Continue from the canonical
   handoff in `docs/portability-disaster-recovery.md`; it records remaining gates and evidence.
