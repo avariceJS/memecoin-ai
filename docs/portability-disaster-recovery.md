@@ -27,6 +27,19 @@ Live checks on the current Mac:
   provider request or service change occurred. This sequential census is neither a common source
   point nor root-closure, custody, or erase evidence. Receipt:
   [`declared-root boundary census`](evidence/portability-dr-root-boundary-census-2026-10-14T1451Z.json).
+- The exact-commit bootstrap helper was hardened and rehearsed at
+  `8544c4d82ebc7dbf277cab5e68715e279f2b267b` from a disposable local bare Git fixture. It created a
+  clean final checkout, verified matching HEAD and an unchanged dependency-lock SHA, ran `pip
+  check` and smoke, and isolated Python venv/install/check/smoke stages under a temporary HOME with
+  pip config/cache and Python user-site disabled plus explicit `https://pypi.org/simple`.
+  Deliberately invalid host pip index/config/cache/Python-path values did not contaminate those
+  stages; unknown commit and preexisting destination cases failed closed. The helper deliberately
+  leaves Git clone/fetch and the initial Python-version probe in the caller environment so normal
+  user-controlled Git authentication can work. This was a same-Mac rehearsal with Python 3.13.6,
+  not a replacement-host test; private GitHub auth, artifact-hash reproducibility, and offline
+  dependency availability remain unproven. Package downloads from PyPI occurred; no Brain provider
+  requests, storage changes, or service changes occurred. This verifies code bootstrap only, not
+  Brain state recovery or erase readiness. Receipt: [`isolated bootstrap rehearsal`](evidence/portability-dr-isolated-bootstrap-rehearsal-2026-10-14T1836Z.json).
 - The earlier exact-code clean-clone/bootstrap rehearsal used
   `7d8dc82f94e5c9e2631bc38ae79f1229cccdeea1`, an ancestor of the published DR changes on
   `research/active`. The later Kingston operator-flow rehearsal used current commit
