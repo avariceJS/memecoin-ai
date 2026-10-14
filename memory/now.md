@@ -1,8 +1,8 @@
 # Current Project State
 
-**As of:** 2026-10-14 02:38Z. Portability/DR is **NO-GO for factory reset**. Current DR work is
-published on `research/active` through `5492592`; `main` remains the verified baseline. Do not erase
-the owner Mac.
+**As of:** 2026-10-14 02:41Z. Portability/DR is **NO-GO for factory reset**. Current published DR
+work is on `research/active` through `2262d3d`; this metadata-only horizon is pending commit.
+`main` remains the verified baseline. Do not erase the owner Mac.
 
 - Owner checkout was last verified clean at `a594474` on `main`; its cached `origin/main` is 15
   ahead, while live remote main `770699` is 507 commits ahead (verified in research object DB).
@@ -78,6 +78,11 @@ the owner Mac.
 - Selected LaunchAgent path fields now reconcile to that private map: all four private-config refs
   match; 203 of 215 owner/work refs match and 12 absent log destinations are confirmed; no paths
   point into research/work. This still does not establish which runtime source revision executed.
+- A metadata-only count of three research directories named `wallets` found 21 files and three
+  subdirectories, matching the earlier census delta. Child names were enumerated transiently but not
+  retained or emitted; payloads were not read. Contents and role remain unknown; this sensitive
+  state is not in recovery custody and blocks erase pending user classification or an authorized
+  custody design.
 - Next gate: classify private config, owner/research state, service roots, Codex ignored roles and
   external runtime dependencies; then establish a qualified consistent source point and protected
   opaque custody before a full inert isolated restore. Obtain independent Sol review before any

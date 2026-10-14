@@ -110,6 +110,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   maps selected fields from the 01:43Z quarantined LaunchAgent capture to the private recursive work and config inventories.
   All four private-config references match; 203 of 215 owner/work references match, with 12 missing
   output/error log destinations. It leaves source/runtime identity and activation closure open.
+- [`Portability and DR pruned-subtree metadata`](portability-dr-pruned-subtree-metadata-2026-10-14T0241Z.json):
+  counts descendants of three sensitive-name research directories using metadata only. Their 21
+  files and three subdirectories numerically account for the earlier census delta; contents, child
+  names, credential role, and recovery disposition remain unknown.
 - [`Portability and DR owner Git remote check`](portability-dr-owner-git-remote-check-2026-10-14T0122Z.json):
   a read-only live owner remote query showing its main head differs from the cached tracking ref.
   The next receipt resolves ancestry using existing objects; deployed runtime identity remains

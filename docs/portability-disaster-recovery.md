@@ -200,6 +200,16 @@ Live checks on the current Mac:
   therefore useful for path topology and candidate reconciliation, not a source snapshot or custody
   set. See the [`recursive work metadata receipt`](evidence/portability-dr-recursive-work-metadata-2026-10-14T0230Z.json).
 
+- The three research directories pruned by the sensitive-name rule are named `wallets`. A separate
+  one-second lstat/scandir-only pass counted 21 files and three subdirectories beneath them (69,375
+  apparent file bytes); child names were transiently enumerated to traverse entries but not retained
+  or emitted, and no payloads were read or copied. Those counts numerically
+  account for the earlier census deltas of 21 files and three directories. The scans were at
+  different times, so this does not prove historical membership continuity. Their contents and
+  role remain unknown, and these bytes are outside recovery custody pending private user
+  classification or separately authorized custody design. See the
+  [`pruned-subtree metadata receipt`](evidence/portability-dr-pruned-subtree-metadata-2026-10-14T0241Z.json).
+
 Scope caveat after that receipt: a later broad `git grep` covered tracked `docs/`, `src/`, `tools/`,
 and `tests/`, which includes `docs/evidence/`. Its output was truncated before matching files could
 be classified. No result was used for protected-data analysis or copied into project artifacts, and
