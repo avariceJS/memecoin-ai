@@ -87,7 +87,9 @@ Live checks on the current Mac:
   owns this bounded classification.
 - Kingston `BrainData` occupies about 19 GiB and remains on case-sensitive APFS with UUID
   `8f8f1081-9be4-4914-9111-75f1b90255bf`, root ID
-  `9428695af6d4f46c08e1a444cdc66de8`, and about 203 GiB free. The 50-GiB storage floor passes.
+  `9428695af6d4f46c08e1a444cdc66de8`. The 06:10Z read-only check found about 203 GiB (217 GB)
+  free; the
+  50-GiB storage floor passes.
   Kingston is the only reset-surviving physical copy.
 - A fresh read-only preflight at 04:56Z confirmed the same Kingston UUID/root with
   217,174,470,656 bytes free. Internal Data had 14,453,396 KiB free (13.78 GiB) at 97% used; no
@@ -474,10 +476,11 @@ instruct the operator to calculate and compare the Kingston card hash before exe
 from the card; its trusted first command is
 `shasum -a 256 /Volumes/Kingston/BrainData/host-recovery/ENTRY.txt`.
 
-The current pinned card is at commit `739e909a99870d64c16c649ebbca3a8c877978f0`, SHA-256
-`b03aafe1ed790a69709ba8d18837cc1d83dd4fca2b91f487dda7ecaaac007e1f`. Supply these values
+The current pinned card is at commit `edf2898ba4fb877ed8bee159fc9673754f7e12e4`, SHA-256
+`ac8859ee4fc499ffe55dc1824be11a55fd4475fee2dbe0cae749a7f6cbbb5b76`. Supply these values
 through an independent trusted handoff when recovering; a Kingston-local copy of these values is
-not an independent trust anchor.
+not an independent trust anchor. This session records the pins in Git and the chat handoff; it has
+not distributed a separate persistent handoff artifact outside Kingston.
 
 The helper makes a second exact-commit clone into a separate new destination, installs the locked
 development requirements, and runs smoke. Both checkouts must report the pinned `HEAD`, and the
@@ -495,8 +498,10 @@ copy old-host credentials. The Mac-loss recovery procedure below still governs d
 The local-fixture rehearsal passed both exact-HEAD checks, locked environment creation, smoke, and
 the wrong-commit, wrong-volume-pin, missing-authentication, and preexisting-target failure cases.
 Its success path used an ephemeral local bare remote on the current Mac, so authenticated GitHub
-bootstrap and physical clean-host deployment remain unproven. See the
-[`first-host entry rehearsal receipt`](evidence/portability-dr-first-host-entry-rehearsal-2026-10-14T0606Z.json).
+bootstrap and physical clean-host deployment remain unproven. The final rehearsal also recreated
+the host-only Kingston binding in temporary `HOME` and checked the existing root. It supersedes
+the earlier 06:06Z rehearsal iteration, before the trust-order correction. See the
+[`pin-first first-host entry rehearsal receipt`](evidence/portability-dr-first-host-entry-rehearsal-2026-10-14T0610Z.json).
 
 ## Restore procedure
 
@@ -764,8 +769,9 @@ as a new replication capability with hash verification and a full recovery rehea
 
 The next stateful gate is still to qualify a conservative Data free-space floor, bounded snapshot
 retention, and interactive admin procedure before any snapshot is created. The latest read-only
-preflight found about 13.8 GiB free at 97% Data use and no Data snapshot, so creating one is not
-currently qualified. The APFS T attestor contract is synthetic-tested, but a real Data T still
+06:10Z read-only preflight found about 12 GiB free at 98% Data use and no Data snapshot; an earlier
+check found 13.8 GiB at 97%. Creating a source snapshot is not currently qualified. The APFS T
+attestor contract is synthetic-tested, but a real Data T still
 requires a separately reviewed host plan and post-creation UUID/XID pin delivered outside the
 snapshot. A fresh read-only status check still sees 18 Brain/D43 launchd labels, eight with PIDs,
 and 72 processes in the configured owner/research roots; this work changed none of them. The three

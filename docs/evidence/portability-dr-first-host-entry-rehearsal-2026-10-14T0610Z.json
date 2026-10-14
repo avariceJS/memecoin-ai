@@ -1,0 +1,49 @@
+{
+  "schema": "brain-portability-dr-first-host-entry-rehearsal-v1",
+  "created_at_utc": "2026-10-14T06:10:12Z",
+  "scope": "pin-first synthetic local-Git first-host code bootstrap and storage-binding rehearsal",
+  "source": {
+    "repository_commit": "edf2898ba4fb877ed8bee159fc9673754f7e12e4",
+    "entry_card_sha256": "ac8859ee4fc499ffe55dc1824be11a55fd4475fee2dbe0cae749a7f6cbbb5b76",
+    "remote": "ephemeral local bare Git fixture containing the exact source commit",
+    "home": "new isolated temporary HOME",
+    "global_git_config": "disabled",
+    "system_git_config": "disabled",
+    "pre_instruction_card_hash_check": "passed against the rehearsal's source-recorded pin independent of Kingston; distribution of a persistent external handoff was not tested"
+  },
+  "kingston": {
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "entry_path": "BrainData/host-recovery/ENTRY.txt",
+    "entry_mode": "0600",
+    "entry_bytes": 5533,
+    "readback_sha256_matches_git": true,
+    "preflight": "diskutil UUID, mount point, APFS type/personality and existing root marker checks passed read-only"
+  },
+  "positive_result": {
+    "entry_checkout_head": "edf2898ba4fb877ed8bee159fc9673754f7e12e4",
+    "final_checkout_head": "edf2898ba4fb877ed8bee159fc9673754f7e12e4",
+    "final_worktree_clean": true,
+    "environment": "created from locked development requirements",
+    "smoke": "passed",
+    "services_changed": false,
+    "storage_changed_by_bootstrap_helper": false,
+    "host_binding": "created only under temporary HOME using bind-existing; subsequent check verified Kingston root and 50-GiB floor",
+    "market_data_provider_requests": 0,
+    "elapsed_wall_seconds": 21.0
+  },
+  "negative_results": {
+    "wrong_card_hash_pin": "blocked before card instructions",
+    "wrong_commit": "blocked at exact-commit fetch; no environment created",
+    "wrong_kingston_uuid_pin": "blocked by preflight comparison",
+    "missing_git_authentication": "private GitHub clone failed in a clean HOME with prompting disabled; no checkout accepted",
+    "preexisting_destination": "blocked by entry-card guard"
+  },
+  "limitations": [
+    "The successful source was an ephemeral local bare remote, not a clean-host authenticated GitHub fetch.",
+    "The clean HOME and fixture are on the existing Mac; this does not qualify a physically separate host.",
+    "A persistent external handoff carrying the commit and card-hash pins was not distributed or tested.",
+    "The Kingston binding rehearsal created only temporary host config; it restored no Brain data, owner runtime, protected custody, or Kingston corpus.",
+    "The rehearsal reports code bootstrap only and does not alter the factory-reset NO-GO verdict."
+  ]
+}
