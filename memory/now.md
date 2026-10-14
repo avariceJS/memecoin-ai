@@ -1,7 +1,7 @@
 # Current Project State
 
 **As of:** 2026-10-14 04:51Z. Portability/DR remains **NO-GO for factory reset**. Published work
-is on `research/active` through `89ff00f`; `main` remains at the verified baseline
+is on `research/active` through `0297b88`; `main` remains at the verified baseline
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Do not erase the owner Mac.
 
 - Accepted recovery case is owner-Mac loss with healthy Kingston. Kingston is the sole
