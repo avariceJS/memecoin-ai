@@ -242,6 +242,10 @@ class BootstrapRunner:
         self.environments.append(env)
         self.working_directories.append(cwd)
         if len(command) >= 3 and command[1] == "-c":
+            if "site.ENABLE_USER_SITE" in command[-1]:
+                return completed(
+                    command, code=1 if self.fail_stage == "verify_environment_isolation" else 0
+                )
             return completed(command, stdout=self.python_version)
         if command[-2:] == ["rev-parse", "--show-toplevel"]:
             return completed(command, code=1)
@@ -264,6 +268,8 @@ class BootstrapRunner:
             stage = "verify_dependencies"
         elif "pip" in command:
             stage = "install_locked_dependencies"
+        elif "site.ENABLE_USER_SITE" in command[-1]:
+            stage = "verify_environment_isolation"
         elif command[-1].endswith("smoke.py"):
             stage = "smoke"
         else:
@@ -296,6 +302,8 @@ def test_bootstrap_clones_exact_commit_and_runs_locked_setup_only_in_new_target(
     assert result["services_changed"] is False
     assert result["storage_changed"] is False
     assert result["bootstrap_isolation"] == {
+        "state": "applied",
+        "scope": "python_venv_install_checks_and_smoke",
         "temporary_home": True,
         "pip_configuration": "disabled",
         "pip_cache": "disabled",
@@ -333,11 +341,22 @@ def test_bootstrap_clones_exact_commit_and_runs_locked_setup_only_in_new_target(
         ".",
     ]
     assert runner.working_directories[install_index] == destination
+    dependency_check_index = next(
+        index
+        for index, command in enumerate(runner.calls)
+        if "pip" in command and "check" in command
+    )
+    isolation_probe_index = next(
+        index
+        for index, command in enumerate(runner.calls)
+        if "site.ENABLE_USER_SITE" in command[-1]
+    )
     smoke_index = next(
         index
         for index, command in enumerate(runner.calls)
         if command[-1].endswith("tools/smoke.py")
     )
+    assert dependency_check_index < isolation_probe_index < smoke_index
     assert runner.working_directories[smoke_index] == destination
     environment = runner.environments[smoke_index]
     assert environment is not None
@@ -415,5 +434,24 @@ def test_bootstrap_failure_stays_inert_and_preserves_partial_target(tmp_path: Pa
     )
     assert result["state"] == "failed"
     assert result["failed_stage"] == "smoke"
+    assert result["bootstrap_isolation"]["state"] == "applied"
     assert result["services_changed"] is False
     assert destination.is_dir()
+
+
+def test_bootstrap_clone_failure_does_not_claim_isolation_started(tmp_path: Path) -> None:
+    parent = tmp_path / "restores"
+    parent.mkdir()
+    runner = BootstrapRunner(tmp_path, fail_stage="clone")
+    result = recovery.bootstrap(
+        recovery.BootstrapOptions(
+            "https://example.invalid/repo.git", COMMIT, parent / "failed-clone", Path("python3")
+        ),
+        runner=runner,
+    )
+    assert result["state"] == "failed"
+    assert result["failed_stage"] == "clone"
+    assert result["bootstrap_isolation"] == {
+        "state": "not_started",
+        "scope": "python_venv_install_checks_and_smoke",
+    }

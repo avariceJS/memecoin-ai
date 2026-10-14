@@ -488,11 +488,8 @@ def bootstrap(options: BootstrapOptions, *, runner: Runner = run_command) -> dic
         "services_changed": False,
         "storage_changed": False,
         "bootstrap_isolation": {
-            "temporary_home": True,
-            "pip_configuration": "disabled",
-            "pip_cache": "disabled",
-            "python_user_site": "disabled",
-            "package_index": "https://pypi.org/simple",
+            "state": "not_started",
+            "scope": "python_venv_install_checks_and_smoke",
         },
     }
     steps: list[tuple[str, list[str], Path | None]] = [
@@ -530,6 +527,15 @@ def bootstrap(options: BootstrapOptions, *, runner: Runner = run_command) -> dic
     try:
         with tempfile.TemporaryDirectory(prefix="brain-host-bootstrap-") as isolated_home:
             bootstrap_env = _isolated_bootstrap_environment(Path(isolated_home))
+            result["bootstrap_isolation"] = {
+                "state": "applied",
+                "scope": "python_venv_install_checks_and_smoke",
+                "temporary_home": True,
+                "pip_configuration": "disabled",
+                "pip_cache": "disabled",
+                "python_user_site": "disabled",
+                "package_index": "https://pypi.org/simple",
+            }
             _bootstrap_command(
                 [str(python), "-m", "venv", str(destination / ".venv")],
                 runner=runner,
