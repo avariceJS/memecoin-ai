@@ -26,6 +26,10 @@ from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+# Support both `python -m tools.brain_host_tree_custody_v3` and direct CLI use.
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from memecoin_research_storage import StorageError
 from tools import brain_host_tree_custody as v2
 from tools.brain_senses_external_writer_v1 import DescriptorWriter, canonical_json, sha256

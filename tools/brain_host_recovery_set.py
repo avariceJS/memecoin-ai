@@ -23,6 +23,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+# Support both `python -m tools.brain_host_recovery_set` and direct CLI use.
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from memecoin_research_storage import StorageError
 from tools import brain_host_recovery_capture as static_v1
 from tools import brain_host_tree_custody as tree_v2

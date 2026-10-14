@@ -15,10 +15,11 @@ replica and a Kingston-loss rehearsal.
 
 Live checks on the current Mac:
 
-- `research/active` and `origin/research/active` are both at
-  `eaedeae61cd101882835095c2f54158ca07a2945`; the working tree contains uncommitted DR workflow
-  changes. `main` and `origin/main` remain at `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; do not
-  advance `main` until the capability is qualified.
+- Current `research/active` and `origin/research/active` are both at
+  `b90fd29517a7871ef1771c95ff5153adafab484d`, with a clean worktree. The immutable inventory
+  receipt records the prior source cutoff at `eaedeae61cd101882835095c2f54158ca07a2945`. `main`
+  and `origin/main` remain at `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; do not advance `main`
+  until the capability is qualified.
 - The owner checkout at `/Users/root1/Desktop/memecoin-ai` is clean at
   `a5944742b6b8ed0466c50bdeb72370ed3e3f2a31`. Read-only B01–B04 status reports all four scopes
   STOPped and expired. They retain 48, 48, 19, and 28 pending predictions respectively; these
@@ -42,9 +43,10 @@ Live checks on the current Mac:
   Copying live SQLite/WAL files individually is not an acceptable substitute. Any snapshot needs a
   short, monitored retention window and a conservative free-space abort floor.
 - Prior exact-current clone and uncached dependency bootstrap took about 82 seconds on this
-  macOS/Python 3.13 host. `make smoke` passed again on the current checkout. The new recovery-set,
+  macOS/Python 3.13 host. On the current commit, `make smoke` passes; the recovery-set,
   restore-witness, tree-custody-v3, bootstrap, SQLite-backup, and static-custody focused suite passes
-  90 tests; scoped Ruff/format and `git diff --check` pass. These are synthetic engineering checks.
+  90 tests; scoped Ruff/format and `git diff --check` pass. Repository-wide `make check` stops at
+  Ruff with 107 findings outside the DR scope. These are synthetic engineering checks.
   No actual owner, private-config, LaunchAgent, protected, or Kingston corpus recovery archive has
   been captured or restored. No full clean-room restore has been rehearsed.
 - `tools/brain_host_recovery.py` provides read-only host status and inert research-checkout bootstrap.
@@ -53,9 +55,6 @@ Live checks on the current Mac:
   false; the current set schema is an integrity index, not owner-root closure or erase approval.
 - These live inventory and qualification observations are recorded in the immutable
   [`read-only DR inventory receipt`](evidence/portability-dr-readonly-inventory-2026-10-14T0101Z.json).
-- Repository-wide `make check` currently stops at Ruff with 107 pre-existing findings outside the
-  DR scope.
-  Focused Ruff and format checks for the new synthetic rehearsal helper pass; `make smoke` passes.
 
 No providers, prospective collectors, owner services, champion, protected evaluation, or trading
 state were changed by the DR work. No provider request or collector was initiated by the DR work.
@@ -112,8 +111,10 @@ these artifacts as encrypted or as a second physical copy. The protected procedu
    create-only group with a commit marker last. Failed or interrupted output is unpublished and
    cannot count as custody.
 5. Qualify metadata and failure behavior using synthetic files before any protected stream. Retain
-   the source snapshot until acceptance. Remove or quarantine only generated scratch, never original
-   protected bytes or STOP/history.
+   the source snapshot through custody artifact verification and publication acceptance, then
+   release it promptly before a longer restore rehearsal. If the measured churn/headroom budget
+   cannot safely cover that short capture window, abort before capture. Remove or quarantine only
+   generated scratch, never original protected bytes or STOP/history.
 
 The reproducible 2026-10-14 synthetic rehearsal is
 [`tools/brain_dr_synthetic_archive_rehearsal.py`](../tools/brain_dr_synthetic_archive_rehearsal.py),
