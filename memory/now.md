@@ -1,8 +1,9 @@
 # Current Project State
 
-**As of:** 2026-10-14 02:56Z. Portability/DR is **NO-GO for factory reset**. Current published DR
-work is on `research/active` through `ed5c996`; `main` remains the verified baseline. Do not erase
-the owner Mac.
+**As of:** 2026-10-14 03:15Z. Portability/DR is **NO-GO for factory reset**. Published work remains
+on `research/active` through `c8957de`; `main` remains the verified baseline. Do not erase the
+owner Mac. A Sol-reviewed synthetic frontier scaffold is being prepared on top; it is not a real
+source cutoff, Kingston corpus proof, or full restore.
 
 - Owner checkout was last verified clean at `a594474` on `main`; its cached `origin/main` is 15
   ahead, while live remote main `770699` is 507 commits ahead (verified in research object DB).
@@ -98,10 +99,11 @@ the owner Mac.
   retained or emitted; payloads were not read. Contents and role remain unknown; this sensitive
   state is not in recovery custody and blocks erase pending user classification or an authorized
   custody design.
-- Next gate: classify private config, owner/research state, service roots, Codex ignored roles and
-  external runtime dependencies; then establish a qualified consistent source point and protected
-  opaque custody before a full inert isolated restore. Obtain independent Sol review before any
-  erase verdict.
+- Current engineering slice: synthetic envelope scaffold pins the existing recovery set/witness,
+  verifies a synthetic K object and STOP state, and keeps all fixture-root reads in pytest temp
+  space. Sol accepts only this narrow scope. The immutable receipt and canonical DR handoff record
+  its limitations. Next priority remains an admin-assisted source view with safe snapshot/headroom,
+  followed by resolved wallets, complete opaque custody and full inert restore.
 
 See `docs/portability-disaster-recovery.md` for the canonical recovery procedure and
 `docs/evidence/README.md` for the scoped immutable receipts. Brain architecture, source and Senses

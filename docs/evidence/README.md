@@ -6,6 +6,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- [`Portability and DR frontier scaffold`](portability-dr-frontier-scaffold-2026-10-14T0314Z.json):
+  synthetic post-capture fingerprint assertion and temporary-storage corpus/STOP fixture around
+  the existing recovery set. Independent Sol review accepts only this scaffold scope; it does not
+  prove a frozen source cutoff, real journal prefix, Kingston capture, or erase readiness.
+
 - [`Portability and DR software/storage rehearsal`](portability-dr-rehearsal-2026-10-13.json):
   clean remote clone at the accepted research commit, pinned development environment rebuild,
   synthetic smoke pass, and isolated UUID-bound Kingston root verification. This does not restore

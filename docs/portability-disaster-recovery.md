@@ -105,6 +105,14 @@ Live checks on the current Mac:
   restore-witness, tree-custody-v3, bootstrap, SQLite-backup, and static-custody focused suite passes
   90 tests; scoped Ruff/format and `git diff --check` pass. Repository-wide `make check` stops at
   Ruff with 107 findings outside the DR scope. These are synthetic engineering checks.
+- A synthetic frontier scaffold wraps the v1 set/witness with exact storage member pins, a
+  caller-supplied post-capture source fingerprint assertion, and a fixture corpus object plus
+  STOP/pending marker. Its archive and identity callback use pytest temporary storage. Sol accepts
+  this bounded scaffold only: it does not prove an immutable T cutoff, reconcile capture members
+  to that cutoff, establish a real K journal prefix, or exercise Kingston. Ten frontier tests and
+  46 combined recovery-set/tree-v3/SQLite/frontier tests pass. See the
+  [`frontier scaffold receipt`](evidence/portability-dr-frontier-scaffold-2026-10-14T0314Z.json).
+  The factory-reset verdict remains NO-GO.
 - A fresh clone of `7d8dc82` bootstrapped Python 3.13 and passed `make smoke`; both new recovery CLIs
   also passed direct `--help` invocation from that clone. The bootstrap reported no storage or
   service changes. This still ran on the existing Mac, did not isolate host caches, and restored no
