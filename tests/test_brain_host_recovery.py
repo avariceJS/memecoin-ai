@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import types
@@ -246,6 +247,7 @@ class BootstrapRunner:
             return completed(command, code=1)
         if command[:2] == ["git", "clone"]:
             Path(command[-1]).mkdir()
+            (Path(command[-1]) / "requirements-dev.lock").write_text("fixture==1\n")
             stage = "clone"
         elif "fetch" in command:
             stage = "fetch_exact_commit"
@@ -258,6 +260,8 @@ class BootstrapRunner:
             venv_python.parent.mkdir(parents=True)
             venv_python.touch()
             stage = "create_environment"
+        elif "pip" in command and "check" in command:
+            stage = "verify_dependencies"
         elif "pip" in command:
             stage = "install_locked_dependencies"
         elif command[-1].endswith("smoke.py"):
@@ -268,12 +272,17 @@ class BootstrapRunner:
 
 
 def test_bootstrap_clones_exact_commit_and_runs_locked_setup_only_in_new_target(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     parent = tmp_path / "restores"
     parent.mkdir()
     destination = parent / "clean-research"
     runner = BootstrapRunner(tmp_path)
+    monkeypatch.setenv("PIP_INDEX_URL", "https://host-cache.invalid/simple")
+    monkeypatch.setenv("PIP_CONFIG_FILE", str(tmp_path / "host-pip.conf"))
+    monkeypatch.setenv("PIP_CACHE_DIR", str(tmp_path / "host-pip-cache"))
+    monkeypatch.setenv("PYTHONPATH", str(tmp_path / "host-pythonpath"))
+    monkeypatch.setenv("PYTHONUSERBASE", str(tmp_path / "host-user-site"))
 
     result = recovery.bootstrap(
         recovery.BootstrapOptions(
@@ -286,6 +295,14 @@ def test_bootstrap_clones_exact_commit_and_runs_locked_setup_only_in_new_target(
     assert result["head"] == COMMIT
     assert result["services_changed"] is False
     assert result["storage_changed"] is False
+    assert result["bootstrap_isolation"] == {
+        "temporary_home": True,
+        "pip_configuration": "disabled",
+        "pip_cache": "disabled",
+        "python_user_site": "disabled",
+        "package_index": "https://pypi.org/simple",
+    }
+    assert len(result["dependency_lock_sha256"]) == 64
     clone_call = next(command for command in runner.calls if command[:2] == ["git", "clone"])
     assert clone_call == [
         "git",
@@ -307,6 +324,9 @@ def test_bootstrap_clones_exact_commit_and_runs_locked_setup_only_in_new_target(
         "pip",
         "install",
         "--disable-pip-version-check",
+        "--no-cache-dir",
+        "--index-url",
+        "https://pypi.org/simple",
         "-r",
         "requirements-dev.lock",
         "-e",
@@ -319,9 +339,25 @@ def test_bootstrap_clones_exact_commit_and_runs_locked_setup_only_in_new_target(
         if command[-1].endswith("tools/smoke.py")
     )
     assert runner.working_directories[smoke_index] == destination
-    assert runner.environments[smoke_index] is not None
-    assert "PYTHONPATH" not in runner.environments[smoke_index]
-    assert "PYTHONHOME" not in runner.environments[smoke_index]
+    environment = runner.environments[smoke_index]
+    assert environment is not None
+    assert set(environment) == {
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "PIP_CONFIG_FILE",
+        "PIP_NO_CACHE_DIR",
+        "PYTHONNOUSERSITE",
+    }
+    assert environment["PATH"] == os.defpath
+    assert environment["HOME"] != os.environ["HOME"]
+    assert environment["TMPDIR"].startswith(environment["HOME"])
+    assert environment["PIP_CONFIG_FILE"] == os.devnull
+    assert environment["PIP_NO_CACHE_DIR"] == "1"
+    assert environment["PYTHONNOUSERSITE"] == "1"
+    assert not any("host-cache.invalid" in str(value) for value in environment.values())
+    assert not any("host-pip-cache" in str(value) for value in environment.values())
+    assert not any("host-pythonpath" in str(value) for value in environment.values())
     assert not any("launchctl" in command[0] for command in runner.calls)
 
 

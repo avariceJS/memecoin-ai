@@ -12,6 +12,7 @@ it does not install or start services.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -19,6 +20,7 @@ import re
 import stat
 import subprocess
 import sys
+import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -435,6 +437,20 @@ def _bootstrap_command(
         raise BootstrapError(stage, result.returncode)
 
 
+def _isolated_bootstrap_environment(home: Path) -> dict[str, str]:
+    """Build a package-install environment without user Python or pip state."""
+    temporary = home / "tmp"
+    temporary.mkdir(mode=0o700)
+    return {
+        "PATH": os.defpath,
+        "HOME": str(home),
+        "TMPDIR": str(temporary),
+        "PIP_CONFIG_FILE": os.devnull,
+        "PIP_NO_CACHE_DIR": "1",
+        "PYTHONNOUSERSITE": "1",
+    }
+
+
 def bootstrap(options: BootstrapOptions, *, runner: Runner = run_command) -> dict[str, Any]:
     if not COMMIT_RE.fullmatch(options.commit):
         raise ValueError("exact_40_character_commit_required")
@@ -466,10 +482,18 @@ def bootstrap(options: BootstrapOptions, *, runner: Runner = run_command) -> dic
         "state": "in_progress",
         "destination": str(destination),
         "commit": options.commit,
+        "python_version": ".".join(version_match.groups()),
         "environment": "not_created",
         "smoke": "not_run",
         "services_changed": False,
         "storage_changed": False,
+        "bootstrap_isolation": {
+            "temporary_home": True,
+            "pip_configuration": "disabled",
+            "pip_cache": "disabled",
+            "python_user_site": "disabled",
+            "package_index": "https://pypi.org/simple",
+        },
     }
     steps: list[tuple[str, list[str], Path | None]] = [
         ("clone", ["git", "clone", "--no-checkout", "--", options.remote, str(destination)], None),
@@ -496,42 +520,79 @@ def bootstrap(options: BootstrapOptions, *, runner: Runner = run_command) -> dic
     if actual != options.commit:
         result.update({"state": "failed", "failed_stage": "verify_commit"})
         return result
-    bootstrap_env = dict(os.environ)
-    bootstrap_env.pop("PYTHONPATH", None)
-    bootstrap_env.pop("PYTHONHOME", None)
+    lock_path = destination / "requirements-dev.lock"
     try:
-        _bootstrap_command(
-            [str(python), "-m", "venv", str(destination / ".venv")],
-            runner=runner,
-            env=bootstrap_env,
-            stage="create_environment",
+        lock_digest = hashlib.sha256(lock_path.read_bytes()).hexdigest()
+    except OSError:
+        result.update({"state": "failed", "failed_stage": "read_dependency_lock"})
+        return result
+    result["dependency_lock_sha256"] = lock_digest
+    try:
+        with tempfile.TemporaryDirectory(prefix="brain-host-bootstrap-") as isolated_home:
+            bootstrap_env = _isolated_bootstrap_environment(Path(isolated_home))
+            _bootstrap_command(
+                [str(python), "-m", "venv", str(destination / ".venv")],
+                runner=runner,
+                env=bootstrap_env,
+                stage="create_environment",
+            )
+            result["environment"] = "created"
+            venv_python = destination / ".venv" / "bin" / "python"
+            _bootstrap_command(
+                [
+                    str(venv_python),
+                    "-m",
+                    "pip",
+                    "install",
+                    "--disable-pip-version-check",
+                    "--no-cache-dir",
+                    "--index-url",
+                    "https://pypi.org/simple",
+                    "-r",
+                    "requirements-dev.lock",
+                    "-e",
+                    ".",
+                ],
+                runner=runner,
+                cwd=destination,
+                env=bootstrap_env,
+                stage="install_locked_dependencies",
+            )
+            _bootstrap_command(
+                [str(venv_python), "-m", "pip", "check"],
+                runner=runner,
+                cwd=destination,
+                env=bootstrap_env,
+                stage="verify_dependencies",
+            )
+            _bootstrap_command(
+                [
+                    str(venv_python),
+                    "-c",
+                    "import site,sys; assert sys.prefix != sys.base_prefix; "
+                    "assert site.ENABLE_USER_SITE is False",
+                ],
+                runner=runner,
+                cwd=destination,
+                env=bootstrap_env,
+                stage="verify_environment_isolation",
+            )
+            _bootstrap_command(
+                [str(venv_python), str(destination / "tools" / "smoke.py")],
+                runner=runner,
+                cwd=destination,
+                env=bootstrap_env,
+                stage="smoke",
+            )
+        if hashlib.sha256(lock_path.read_bytes()).hexdigest() != lock_digest:
+            result.update({"state": "failed", "failed_stage": "verify_dependency_lock"})
+            return result
+        verified_head = _result(
+            ["git", "-C", str(destination), "rev-parse", "HEAD"], runner=runner
         )
-        result["environment"] = "created"
-        venv_python = destination / ".venv" / "bin" / "python"
-        _bootstrap_command(
-            [
-                str(venv_python),
-                "-m",
-                "pip",
-                "install",
-                "--disable-pip-version-check",
-                "-r",
-                "requirements-dev.lock",
-                "-e",
-                ".",
-            ],
-            runner=runner,
-            cwd=destination,
-            env=bootstrap_env,
-            stage="install_locked_dependencies",
-        )
-        _bootstrap_command(
-            [str(venv_python), str(destination / "tools" / "smoke.py")],
-            runner=runner,
-            cwd=destination,
-            env=bootstrap_env,
-            stage="smoke",
-        )
+        if verified_head != options.commit:
+            result.update({"state": "failed", "failed_stage": "verify_commit_after_bootstrap"})
+            return result
     except BootstrapError as exc:
         result.update({"state": "failed", "failed_stage": exc.stage, "exit_code": exc.returncode})
         return result
