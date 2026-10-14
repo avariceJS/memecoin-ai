@@ -1,16 +1,16 @@
 # Current Project State
 
-**As of:** 2026-10-14 02:41Z. Portability/DR is **NO-GO for factory reset**. Current published DR
-work is on `research/active` through `2262d3d`; this metadata-only horizon is pending commit.
-`main` remains the verified baseline. Do not erase the owner Mac.
+**As of:** 2026-10-14 02:43Z. Portability/DR is **NO-GO for factory reset**. Current published DR
+work is on `research/active` through `beac499`; `main` remains the verified baseline. Do not erase
+the owner Mac.
 
 - Owner checkout was last verified clean at `a594474` on `main`; its cached `origin/main` is 15
   ahead, while live remote main `770699` is 507 commits ahead (verified in research object DB).
   Ancestry is clear; deployed runtime source remains unverified.
-  Fresh read-only status: 18 Brain labels
-  loaded, eight with PIDs; `ai.memecoin.brain.b09r2.source` was loaded without a PID. There were 72
-  cwd-matched processes under owner/research roots. No arguments or environments were read. This
-  does not establish the source write frontier or earlier workload.
+  At 02:43Z, read-only status found 18 Brain labels loaded, nine with PIDs, and 72 cwd-matched
+  processes under owner/research roots. Three owner Python paper/operator processes were among
+  them. No arguments or environments were read. This is a time-bounded observation and does not
+  establish the source write frontier or earlier workload.
 - LaunchAgent metadata: 55 Brain + one D43 plist; all have `RunAtLoad` (54 true, two false), with
   five environment-key names across four definitions; values were not inspected or emitted. Four
   additional Steam, Zoom, and Homebrew PostgreSQL definitions are classified as host-software
