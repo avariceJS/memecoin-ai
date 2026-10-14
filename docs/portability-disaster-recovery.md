@@ -304,11 +304,12 @@ Live checks on the current Mac:
 - The three research directories pruned by the sensitive-name rule are named `wallets`. A separate
   one-second lstat/scandir-only pass counted 21 files and three subdirectories beneath them (69,375
   apparent file bytes); child names were transiently enumerated to traverse entries but not retained
-  or emitted, and no payloads were read or copied. Those counts numerically
-  account for the earlier census deltas of 21 files and three directories. The scans were at
-  different times, so this does not prove historical membership continuity. Their contents and
-  role remain unknown, and these bytes are outside recovery custody pending private user
-  classification or separately authorized custody design. See the
+  or emitted, and no payloads were read or copied. Those counts numerically account for the earlier
+  census deltas of 21 files and three directories. The scans were at different times, so this does
+  not prove historical membership continuity. Their contents and role remain unknown. The user
+  authorizes opaque custody only; v4 plans their metadata classification as private, unresolved,
+  backup-required state without opening payloads. No payload has been read or copied. Capture still
+  requires a qualified T and Kingston publication path. See the
   [`pruned-subtree metadata receipt`](evidence/portability-dr-pruned-subtree-metadata-2026-10-14T0241Z.json).
 
 Scope caveat after that receipt: a later broad `git grep` covered tracked `docs/`, `src/`, `tools/`,
@@ -589,6 +590,40 @@ Do not recreate retired Senses services, stale activations, or STOP-bound releas
 worker receives no owner services, credentials, or protected evaluation scheduler. These restore
 rules do not instruct stopping or changing services on the source Mac.
 
+## APFS snapshot T attestor contract
+
+A new `tools/brain_host_apfs_snapshot_attestor_v1.py` consumes an already-mounted snapshot; it never
+creates, mounts, or unmounts one. Its synthetic contract suite exercises a versioned host plan bound
+by a separately supplied SHA-256 pin, a separately selected snapshot UUID/XID, the pinned Data
+volume UUID/group/device, exact APFS snapshot mount source (`SnapshotName@/dev/<Data device>`),
+read-only `fstatfs`, `diskutil` plist identity, and three disjoint held no-follow directory roots.
+The Darwin adapter invokes `/usr/sbin/diskutil` with a controlled environment. It holds the mount
+parent, requires a root-owned parent without group/other write, reopens the mount leaf around OS path
+queries, and revalidates the snapshot and roots before borrowed descriptor use and after each borrow.
+An injected OS backend always reports synthetic; 17 focused tests pass. The actual Darwin API shape
+was checked read-only against the current System snapshot and live Data volume: System snapshot UUID/XID
+matched and was read-only; Data had zero snapshots. The System snapshot was used only as API-shape
+evidence and is not owner T. The 18 focused attestor tests pass.
+
+A digest comparison proves that the supplied plan matches the separately supplied pin; it does not
+prove who approved that pin. Human approval and trusted pin delivery remain external. Snapshot UUID
+and XID must be selected and reviewed after snapshot creation before the digest is pinned. Path-based
+`diskutil` observations cannot be atomic with held descriptors; the rechecks mitigate replacement
+races but do not protect against a local root adversary, which remains outside the accepted home-host
+threat model. The result proves mounted snapshot identity and three root handles only. Root
+completeness, application consistency, owner/protected closure, capture, Kingston K, restore, and
+erase readiness remain false or unproven. No owner Data snapshot exists, and there is no real T.
+Sol independently reviewed the implementation contract and required the pin, exact UUID/XID
+selection, exact source-name binding, absolute `diskutil` path, and post-query descriptor checks.
+The second independent review found no remaining blocker for this bounded identity contract; it did
+not qualify plan approval or an actual Data T. Optional plist creation time is normalized as UTC.
+
+The v4 private custody planner and synthetic-only artifact exerciser also exist in the current
+uncommitted worktree. They classify one exact three-root group as private, opaque, unresolved, and
+backup-required; the exerciser writes only synthetic fixture bytes into a disposable temporary
+directory and verifies the regular-file artifact roster through fresh descriptors. It cannot prove
+source completeness, mint `COMPLETE` or T, or publish durable custody.
+
 ## Portability boundary and remaining risk
 
 The currently tested host bootstrap is macOS-specific. Kingston qualification uses `diskutil`, APFS,
@@ -609,22 +644,26 @@ as a new replication capability with hash verification and a full recovery rehea
 
 ## Remaining gates before `SAFE TO ERASE`
 
-The next meaningful step is a human-assisted source window: establish a Sol-reviewed Data headroom
-floor and bounded snapshot retention, then provide interactive admin access for a read-only source
-view. Before capture, the three `work/wallets` subtrees need an authorized disposition: preserve as
-opaque unresolved state without semantic reading, or provide a source-of-truth classification. No
-role will be inferred from directory names. The existing recovery procedure keeps services inert;
-this checkpoint does not authorize starting them.
+The next meaningful step is to qualify a conservative Data free-space floor, bounded snapshot
+retention, and interactive admin procedure before any snapshot is created. The latest read-only
+check found 14 GiB free at 97% Data use and no Data snapshot, so creating one is not currently
+qualified. The APFS T attestor contract is synthetic-tested, but a real Data T still requires a
+separately reviewed host plan and post-creation UUID/XID pin delivered outside the snapshot. The
+three `work/wallets` subtrees are authorized for opaque, private, unresolved custody only; preserve
+them without semantic reading and do not infer a role from their names. No payload has yet been read
+or copied. The existing recovery procedure keeps services inert; this checkpoint does not authorize
+starting them.
 
 1. Inventory every owner/research/local-config/service root and bind each to a source point or an
    explicit reauthentication, rebuild, disposable, or unresolved disposition. Classify potentially
-   private environment entries and all excluded Codex worktree ignored records. Resolve the three
-   research `work/wallets` directories under an authorized classification; do not infer their role
-   from their names. Preserve all
-   56 Brain/D43 definitions inert or prove which are reproducible.
-2. Obtain a qualified, read-only source snapshot or another Sol-approved owner-wide consistent
-   recovery point without changing production services. Bound snapshot lifetime and monitor free
-   space; current live-copy alternatives cannot prove an atomic owner frontier.
+   private environment entries and all excluded Codex worktree ignored records. Keep the three
+   research `work/wallets` roots opaque, private, unresolved, and backup-required. Preserve all 56
+   Brain/D43 definitions inert or prove which are reproducible.
+2. Qualify a conservative free-space floor, bounded retention, and interactive admin procedure.
+   Obtain a Sol-reviewed Data source snapshot or another owner-wide consistent read-only recovery
+   point without changing production services. Bind the exact approved Data volume and three roots;
+   select and independently pin the resulting snapshot UUID/XID. Current live-copy alternatives
+   cannot prove an atomic owner frontier.
 3. Complete opaque custody of every identified F01/D43/reserved root and its lineage; verify hashes
    without semantic access. Current metadata-only path inventory does not prove F01/reserved are
    absent or covered.

@@ -1,44 +1,33 @@
 # Current Project State
 
-**As of:** 2026-10-14 04:56Z. Portability/DR remains **NO-GO for factory reset**. Published work
-is on `research/active` through `a248d20`; `main` remains at the verified baseline
-`770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Do not erase the owner Mac.
+**As of:** 2026-10-14 05:29Z. Portability/DR remains **NO-GO for factory reset**. Work is on
+`research/active` at `e346e99919cc3acd9d34ec46c59db2701b874805`; `main` remains the verified
+baseline. The Mac must not be erased.
 
 - Accepted recovery case is owner-Mac loss with healthy Kingston. Kingston is the sole
-  reset-surviving physical copy; single-copy/plaintext risk is accepted. At 04:56Z its verified root
-  had about 202.3 GiB free. Internal Data had 13.78 GiB free at 97% used, no APFS snapshots or
-  Time Machine destination, and no noninteractive admin path. No safe snapshot headroom/churn budget
-  or qualified owner-wide source cutoff exists.
-- Three research `work/wallets` directories contain 21 files and three subdirectories by metadata
-  count. Their role and contents remain unknown; payloads are outside custody pending an authorized
-  disposition. Do not open or classify them by name; opaque custody requires an explicit handling
-  decision. Owner/protected custody closure and complete inert restore remain unproven.
-  F01/D43/reserved status stays protected.
-- Earlier read-only status observed 18 Brain/D43 labels loaded (nine with PIDs) and 72 cwd-matched
-  processes. This is time-bounded; deployed runtime identity and source write frontier remain
-  unresolved. DR has not activated or changed services.
-- A clean-home Git clone previously stopped at user-controlled authentication. A fresh clone and
-  software smoke do not restore ignored state, owner runtime, private configuration, protected
-  custody, or Kingston corpus dependencies.
-- Synthetic held-source and Kingston set/witness rehearsals are accepted only within their fixture
-  scopes. The negative-only restore assessor at `eb2e902` always reports blocked; it does not assess
-  live Kingston recovery members or targets. The inert restore conductor at `b80fbf6` only restores
-  six pinned fixture roles into a synthetic quarantine, with source closure/T/K/host/erase false.
-  Its owner-root exclusions depend on caller-supplied paths. Latest assessor receipt:
-  `docs/evidence/portability-dr-restore-assessment-v1-2026-10-14T0411Z.json`.
-- The conductor-to-assessor operator flow passed on Kingston with six synthetic roles, isolated
-  temporary HOME, a separate-device quarantine, and witness readback. Known run nonce paths were
-  removed and no set/witness ID remained in filtered 32-hex ID lists; shared parent effects were not
-  classified. Set/witness pin pass was internal to the synthetic run, without external trusted
-  recovery authority; pytest-managed local temporary state removal was not asserted. Assessor
-  remained blocked with T/K/owner-protected closure unknown. No provider requests, service changes,
-  or persistent set/witness ID. Receipt:
-  `docs/evidence/portability-dr-kingston-inert-restore-flow-2026-10-14T0450Z.json`.
-- Sol independently reviewed the bounded flow and confirms **NO-GO**. No further non-invasive or
-  synthetic run materially closes readiness gates. Required next inputs are an admin-assisted
-  owner-wide source view, authorized disposition of unknown wallet/protected state, and user Git
-  authentication for a clean compatible-host restore. See `docs/portability-disaster-recovery.md`.
-- No prospective campaign or provider requests were started for DR. Continue from the canonical
-  handoff in `docs/portability-disaster-recovery.md`; it records remaining gates and evidence.
+  reset-surviving physical copy; single-copy and plaintext risk remain accepted. Last verified
+  Kingston capacity was recorded at 04:56Z. Internal Data is currently about 14 GiB free at 97%
+  used, has no APFS snapshots, and this session has no interactive admin path. No snapshot attempt
+  has been made; safe retention/headroom and a real source frontier remain unqualified.
+- Research `work/wallets` remains semantically unknown. User-authorized disposition is private,
+  opaque, unresolved, backup-required custody only. No wallet payload has been read or copied.
+  F01/D43/reserved status remains protected; no protected payload reader was used.
+- Uncommitted DR work adds the v4 metadata-only opaque custody planner, synthetic-only temporary
+  artifact exercise, and `brain_host_apfs_snapshot_attestor_v1.py`. The attestor consumes only an
+  already mounted read-only Data snapshot; it never creates or mounts one. It requires a separately
+  pinned host plan with selected UUID/XID, checks exact listed snapshot source name and held
+  mount/root identities, and exposes borrowed root descriptors with pre/post validation. Its
+  injected backend is synthetic-only. External approval authority is not cryptographically proven.
+- Darwin API-shape check used the current System snapshot and live Data only: System UUID/XID and
+  read-only mount matched; Data snapshot count was zero. This is not owner T. APFS path-based
+  `diskutil` checks are revalidated around held descriptors but are not atomic against local root.
+- The 63 focused attestor/v4 tests pass, as do scoped Ruff/format, strict mypy for the attestor, and
+  `git diff --check`. Hypothesis was installed only under `/tmp` to run the pinned property tests.
+  Sol accepted the bounded identity contract; current work is uncommitted and needs its logical
+  commit/push. Plan authority still depends on a separate human-approved pin.
+- No providers, prospective collectors, production behavior, services, champion, protected
+  evaluation, or trading state were changed. Next independent horizon is source/restore closure and
+  an operator-facing recovery flow after the real T procedure is qualified. See
+  `docs/portability-disaster-recovery.md`.
 
-See `docs/INDEX.md` for canonical ownership of Brain, source, evaluation, runtime, and DR status.
+See `docs/INDEX.md` for canonical documentation ownership.
