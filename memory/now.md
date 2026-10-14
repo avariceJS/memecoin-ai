@@ -49,7 +49,7 @@ Kingston is the sole reset-surviving physical copy; its single-copy and plaintex
   retain it as an assumption. This is not rehearsed or accepted. Receipt:
   `docs/evidence/portability-dr-recovery-locked-preflight-2026-10-14T0653Z.json`.
 - Fresh read-only owner runtime query: 18 Brain/D43 launchd labels loaded, eight with PIDs; no
-  service changes. Data is FileVault-enabled, unlocked/mounted under the live OS, 13,371,388 KiB
+  service changes. Data is FileVault-enabled, unlocked/mounted under the live OS, 13,371,820 KiB
   free (97% used), with no APFS snapshots. Kingston is mounted read/write at its pinned UUID with
   211,803,256 KiB free (~202 GiB). Do not create a source snapshot at current Data headroom.
 - Current Git: `research/active` and `origin/research/active` at
