@@ -469,7 +469,15 @@ commit and SHA-256 are supplied in a trusted handoff outside Kingston; do not tr
 hash stored beside it as its own trust anchor. The card checks the mounted Kingston UUID and
 existing root marker read-only, then uses interactive Git authentication to fetch the exact pinned
 commit into a new temporary entry checkout. The checkout's card bytes and hash must match Kingston
-before the existing `brain_host_recovery.py bootstrap` helper is run.
+before the existing `brain_host_recovery.py bootstrap` helper is run. The independent handoff must
+instruct the operator to calculate and compare the Kingston card hash before executing any command
+from the card; its trusted first command is
+`shasum -a 256 /Volumes/Kingston/BrainData/host-recovery/ENTRY.txt`.
+
+The current pinned card is at commit `739e909a99870d64c16c649ebbca3a8c877978f0`, SHA-256
+`b03aafe1ed790a69709ba8d18837cc1d83dd4fca2b91f487dda7ecaaac007e1f`. Supply these values
+through an independent trusted handoff when recovering; a Kingston-local copy of these values is
+not an independent trust anchor.
 
 The helper makes a second exact-commit clone into a separate new destination, installs the locked
 development requirements, and runs smoke. Both checkouts must report the pinned `HEAD`, and the
@@ -484,6 +492,11 @@ inert restore, or change erase readiness. Wrong/missing Kingston identity, auth 
 card, a wrong commit, a preexisting destination, or an incomplete smoke result blocks the flow.
 The previously recorded clean-`HOME` auth failure remains a real prerequisite; this card does not
 copy old-host credentials. The Mac-loss recovery procedure below still governs data and runtime.
+The local-fixture rehearsal passed both exact-HEAD checks, locked environment creation, smoke, and
+the wrong-commit, wrong-volume-pin, missing-authentication, and preexisting-target failure cases.
+Its success path used an ephemeral local bare remote on the current Mac, so authenticated GitHub
+bootstrap and physical clean-host deployment remain unproven. See the
+[`first-host entry rehearsal receipt`](evidence/portability-dr-first-host-entry-rehearsal-2026-10-14T0606Z.json).
 
 ## Restore procedure
 
@@ -495,8 +508,21 @@ copy old-host credentials. The Mac-loss recovery procedure below still governs d
    Optional ML dependencies remain separate and task-specific.
 3. Attach Kingston; recreate a mode-0600 host-only binding using the actual mount path. Verify
    volume UUID, case-sensitive APFS, ownership, mount identity, 50-GiB free-space floor, and
-   `BrainData` root marker using
-   `.venv/bin/python tools/research_storage.py check --config <private-binding> --min-free-bytes 53687091200 --require-root`.
+   `BrainData` root marker. On a fresh host with no private binding, create the mode-0600 binding
+   with the existing root identity pins:
+
+   ```sh
+   .venv/bin/python tools/research_storage.py bind-existing \
+     --config "$HOME/.config/brain-research/storage-v1.json" \
+     --mount /Volumes/Kingston --data-root BrainData \
+     --expected-volume-uuid 8f8f1081-9be4-4914-9111-75f1b90255bf \
+     --expected-root-id 9428695af6d4f46c08e1a444cdc66de8 \
+     --min-free-bytes 53687091200
+   .venv/bin/python tools/research_storage.py check \
+     --config "$HOME/.config/brain-research/storage-v1.json" \
+     --min-free-bytes 53687091200 --require-root
+   ```
+
    Do not run `create-root` against an existing corpus.
 4. Restore the accepted local-state group into a new isolated incoming location. Verify artifact
    and private manifest hashes, archive completeness, and metadata for every member. Apply source

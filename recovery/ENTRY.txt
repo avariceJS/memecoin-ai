@@ -11,7 +11,15 @@ Trust pins
 ==========
 Use ENTRY_COMMIT and ENTRY_SHA256 from a trusted handoff kept outside Kingston. Do not take
 either pin only from this card. The handoff must identify the exact Git commit and the SHA-256
-of this file at that commit. ENTRY_COMMIT is also the BOOTSTRAP_COMMIT for this procedure.
+of this file at that commit. Before following any instructions in this card, the trusted handoff
+must also tell you to run its independently supplied verification command and compare the output
+to ENTRY_SHA256. For this pinned card the command is:
+
+   shasum -a 256 /Volumes/Kingston/BrainData/host-recovery/ENTRY.txt
+
+Continue only if that preflight hash matches. Then use the card's checks below and repeat the hash
+and byte comparisons against the exact checked-out source. ENTRY_COMMIT is also the BOOTSTRAP_COMMIT
+for this procedure.
 
 Requirements
 ============
