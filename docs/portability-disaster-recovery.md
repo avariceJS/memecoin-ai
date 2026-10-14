@@ -89,6 +89,10 @@ Live checks on the current Mac:
   `8f8f1081-9be4-4914-9111-75f1b90255bf`, root ID
   `9428695af6d4f46c08e1a444cdc66de8`, and about 203 GiB free. The 50-GiB storage floor passes.
   Kingston is the only reset-surviving physical copy.
+- A fresh read-only preflight at 04:56Z confirmed the same Kingston UUID/root with
+  217,174,470,656 bytes free. Internal Data had 14,453,396 KiB free (13.78 GiB) at 97% used; no
+  APFS snapshots or Time Machine destination were present. The session has no noninteractive admin
+  path and no safe snapshot retention/churn budget is qualified, so no snapshot was attempted.
 - The 01:18Z storage refresh reports 13,234,572 KiB free on internal Data and 212,382,340 KiB on
   Kingston. It found no Data APFS snapshots or configured Time Machine destinations. These are
   point-in-time capacity/facility checks, not a qualified recovery boundary; see the
@@ -604,6 +608,13 @@ accepted only for recovery from owner-Mac loss. A future independent large SSD/N
 as a new replication capability with hash verification and a full recovery rehearsal.
 
 ## Remaining gates before `SAFE TO ERASE`
+
+The next meaningful step is a human-assisted source window: establish a Sol-reviewed Data headroom
+floor and bounded snapshot retention, then provide interactive admin access for a read-only source
+view. Before capture, the three `work/wallets` subtrees need an authorized disposition: preserve as
+opaque unresolved state without semantic reading, or provide a source-of-truth classification. No
+role will be inferred from directory names. The existing recovery procedure keeps services inert;
+this checkpoint does not authorize starting them.
 
 1. Inventory every owner/research/local-config/service root and bind each to a source point or an
    explicit reauthentication, rebuild, disposable, or unresolved disposition. Classify potentially

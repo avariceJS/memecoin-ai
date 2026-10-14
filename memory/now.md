@@ -1,17 +1,19 @@
 # Current Project State
 
-**As of:** 2026-10-14 04:51Z. Portability/DR remains **NO-GO for factory reset**. Published work
-is on `research/active` through `0297b88`; `main` remains at the verified baseline
+**As of:** 2026-10-14 04:56Z. Portability/DR remains **NO-GO for factory reset**. Published work
+is on `research/active` through `a248d20`; `main` remains at the verified baseline
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Do not erase the owner Mac.
 
 - Accepted recovery case is owner-Mac loss with healthy Kingston. Kingston is the sole
-  reset-surviving physical copy; single-copy/plaintext risk is accepted. Its last checked free space
-  was about 203 GiB. Internal Data had about 12.6 GiB free, no APFS snapshots or Time Machine
-  destination, and no noninteractive admin path. No qualified owner-wide source cutoff exists.
+  reset-surviving physical copy; single-copy/plaintext risk is accepted. At 04:56Z its verified root
+  had about 202.3 GiB free. Internal Data had 13.78 GiB free at 97% used, no APFS snapshots or
+  Time Machine destination, and no noninteractive admin path. No safe snapshot headroom/churn budget
+  or qualified owner-wide source cutoff exists.
 - Three research `work/wallets` directories contain 21 files and three subdirectories by metadata
-  count. Their role and contents remain unknown; payloads are outside custody and must not be
-  opened, copied, or classified by name. Owner/protected custody closure and complete inert restore
-  remain unproven. F01/D43/reserved status stays protected.
+  count. Their role and contents remain unknown; payloads are outside custody pending an authorized
+  disposition. Do not open or classify them by name; opaque custody requires an explicit handling
+  decision. Owner/protected custody closure and complete inert restore remain unproven.
+  F01/D43/reserved status stays protected.
 - Earlier read-only status observed 18 Brain/D43 labels loaded (nine with PIDs) and 72 cwd-matched
   processes. This is time-bounded; deployed runtime identity and source write frontier remain
   unresolved. DR has not activated or changed services.
@@ -34,8 +36,8 @@ is on `research/active` through `0297b88`; `main` remains at the verified baseli
   `docs/evidence/portability-dr-kingston-inert-restore-flow-2026-10-14T0450Z.json`.
 - Sol independently reviewed the bounded flow and confirms **NO-GO**. No further non-invasive or
   synthetic run materially closes readiness gates. Required next inputs are an admin-assisted
-  owner-wide source view, custody/classification decisions, and user Git authentication for a clean
-  compatible-host restore. See `docs/portability-disaster-recovery.md`.
+  owner-wide source view, authorized disposition of unknown wallet/protected state, and user Git
+  authentication for a clean compatible-host restore. See `docs/portability-disaster-recovery.md`.
 - No prospective campaign or provider requests were started for DR. Continue from the canonical
   handoff in `docs/portability-disaster-recovery.md`; it records remaining gates and evidence.
 
