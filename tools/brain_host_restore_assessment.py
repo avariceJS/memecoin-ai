@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 import platform
+import stat
 import sys
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
@@ -218,14 +219,39 @@ def _readonly_repository(repo: Path, runner: host_recovery.Runner) -> dict[str, 
     root = requested.resolve(strict=False)
     env = dict(os.environ)
     env["GIT_OPTIONAL_LOCKS"] = "0"
+    env["GIT_CONFIG_NOSYSTEM"] = "1"
+    env["GIT_CONFIG_GLOBAL"] = os.devnull
+    env["GIT_TERMINAL_PROMPT"] = "0"
     try:
         head = runner(
-            ["git", "--no-optional-locks", "-C", str(root), "rev-parse", "HEAD"],
+            [
+                "git",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.hooksPath=/dev/null",
+                "--no-optional-locks",
+                "-C",
+                str(root),
+                "rev-parse",
+                "HEAD",
+            ],
             timeout=15,
             env=env,
         )
         dirty = runner(
-            ["git", "--no-optional-locks", "-C", str(root), "status", "--porcelain"],
+            [
+                "git",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.hooksPath=/dev/null",
+                "--no-optional-locks",
+                "-C",
+                str(root),
+                "status",
+                "--porcelain",
+            ],
             timeout=15,
             env=env,
         )
@@ -669,11 +695,135 @@ def _print(payload: dict[str, Any], output_format: str) -> None:
         print(json.dumps(payload, indent=2, sort_keys=True))
 
 
+HANDOFF_SCHEMA = "brain-host-restore-assessor-handoff-v1"
+HANDOFF_FIELDS = {
+    "schema",
+    "status",
+    "set_id",
+    "expected_commit",
+    "expected_volume_uuid",
+    "expected_root_id",
+    "expected_index_sha256",
+    "witness_id",
+    "expected_witness_sha256",
+    "witness_targets",
+    "repo",
+    "activation_authorized",
+    "safe_to_erase",
+}
+
+
+def _load_restore_handoff(path: Path) -> dict[str, Any]:
+    """Load a conductor result or its handoff bundle with strict shape checks."""
+
+    def unique_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("handoff_duplicate_key")
+            result[key] = value
+        return result
+
+    fd = -1
+    try:
+        fd = os.open(path.expanduser(), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        before = os.fstat(fd)
+        if not stat.S_ISREG(before.st_mode):
+            raise ValueError("handoff_not_regular_file")
+        if before.st_size > 1024 * 1024:
+            raise ValueError("handoff_too_large")
+        blocks = bytearray()
+        while len(blocks) <= 1024 * 1024:
+            block = os.read(fd, min(65536, 1024 * 1024 + 1 - len(blocks)))
+            if not block:
+                break
+            blocks.extend(block)
+        after = os.fstat(fd)
+        before_sig = (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        after_sig = (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        if before_sig != after_sig or len(blocks) != after.st_size:
+            raise ValueError("handoff_changed_during_read")
+        if len(blocks) > 1024 * 1024:
+            raise ValueError("handoff_too_large")
+        raw = bytes(blocks)
+        value = json.loads(raw, object_pairs_hook=unique_pairs)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("handoff_invalid_json") from exc
+    finally:
+        if fd >= 0:
+            os.close(fd)
+    if not isinstance(value, dict):
+        raise ValueError("handoff_invalid_contract")
+    if "assessor_handoff" in value:
+        if value.get("schema") != "brain-host-inert-restore-v1":
+            raise ValueError("handoff_parent_schema_invalid")
+        evidence_pin = value.get("evidence_sha256")
+        unsigned = dict(value)
+        unsigned.pop("evidence_sha256", None)
+        if not isinstance(evidence_pin, str) or _digest(canonical_json(unsigned)) != evidence_pin:
+            raise ValueError("handoff_parent_integrity_mismatch")
+        value = value["assessor_handoff"]
+    if not isinstance(value, dict):
+        raise ValueError("handoff_invalid_contract")
+    if set(value) != HANDOFF_FIELDS or value.get("schema") != HANDOFF_SCHEMA:
+        raise ValueError("handoff_invalid_contract")
+    if (
+        value.get("status") != "blocked"
+        or value.get("activation_authorized") is not False
+        or value.get("safe_to_erase") is not False
+    ):
+        raise ValueError("handoff_authority_fields_invalid")
+    required_strings = (
+        "set_id",
+        "expected_commit",
+        "expected_volume_uuid",
+        "expected_root_id",
+        "expected_index_sha256",
+        "witness_id",
+        "expected_witness_sha256",
+        "repo",
+    )
+    if any(not isinstance(value.get(key), str) or not value[key] for key in required_strings):
+        raise ValueError("handoff_pin_invalid")
+    repo = Path(value["repo"])
+    if not repo.is_absolute() or ".." in repo.parts:
+        raise ValueError("handoff_repo_path_invalid")
+    normalized_repo = Path(os.path.abspath(repo))
+    try:
+        if repo.resolve(strict=False) != normalized_repo:
+            raise ValueError("handoff_repo_path_symlinked")
+    except OSError as exc:
+        raise ValueError("handoff_repo_path_invalid") from exc
+    targets = value.get("witness_targets")
+    if not isinstance(targets, dict) or set(targets) != REQUIRED_TARGETS:
+        raise ValueError("handoff_targets_invalid")
+    if any(
+        not isinstance(target, str) or not Path(target).is_absolute() for target in targets.values()
+    ):
+        raise ValueError("handoff_targets_invalid")
+    return value
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", type=Path, required=True)
+    parser.add_argument(
+        "--handoff", type=Path, help="conductor result JSON or assessor handoff JSON"
+    )
+    parser.add_argument("--repo", type=Path)
     parser.add_argument("--storage-config", type=Path, required=True)
-    parser.add_argument("--set-id", required=True)
+    parser.add_argument("--set-id")
     parser.add_argument("--expected-commit")
     parser.add_argument("--expected-volume-uuid")
     parser.add_argument("--expected-root-id")
@@ -688,6 +838,48 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--sqlite-target", type=Path)
     parser.add_argument("--format", choices=("text", "json"), default="text")
     args = parser.parse_args(argv)
+    if args.handoff is not None:
+        if any(
+            value is not None
+            for value in (
+                args.repo,
+                args.set_id,
+                args.expected_commit,
+                args.expected_volume_uuid,
+                args.expected_root_id,
+                args.expected_index_sha256,
+                args.expected_witness_sha256,
+                args.witness_id,
+                args.owner_target,
+                args.research_target,
+                args.private_config_target,
+                args.launchagent_target,
+                args.protected_target,
+                args.sqlite_target,
+            )
+        ):
+            parser.error("--handoff cannot be combined with explicit restore pins or targets")
+        try:
+            handoff = _load_restore_handoff(args.handoff)
+        except ValueError as exc:
+            parser.error(str(exc))
+        args.repo = Path(handoff["repo"])
+        args.set_id = handoff["set_id"]
+        args.expected_commit = handoff["expected_commit"]
+        args.expected_volume_uuid = handoff["expected_volume_uuid"]
+        args.expected_root_id = handoff["expected_root_id"]
+        args.expected_index_sha256 = handoff["expected_index_sha256"]
+        args.expected_witness_sha256 = handoff["expected_witness_sha256"]
+        args.witness_id = handoff["witness_id"]
+        handoff_targets = handoff["witness_targets"]
+        args.owner_target = Path(handoff_targets["owner_work"])
+        args.research_target = Path(handoff_targets["research_work"])
+        args.private_config_target = Path(handoff_targets["private_config"])
+        args.launchagent_target = Path(handoff_targets["launchagent_definitions"])
+        args.protected_target = Path(handoff_targets["protected_d43"])
+        args.sqlite_target = Path(handoff_targets["sqlite_backup"])
+    elif args.repo is None or args.set_id is None:
+        parser.error("--repo and --set-id are required unless --handoff is provided")
     targets_args = {
         "owner_work": args.owner_target,
         "research_work": args.research_target,

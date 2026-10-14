@@ -173,8 +173,9 @@ Live checks on the current Mac:
   keeps T/K, source closure, host closure, activation, and erase readiness false. Sol accepted this
   implementation scope after an independent code review. Its exclusions for owner checkout,
   private config, LaunchAgents, and any additional source roots depend on correct caller-supplied
-  paths; this does not prove owner-wide closure. The assessor handoff is a parameter bundle for a
-  manual invocation of `tools/brain_host_restore_assessment.py`, not an assessor input file.
+  paths; this does not prove owner-wide closure. The conductor result can now be passed directly
+  to the negative-only restore assessor with `--handoff` after the assessor-side integrity and
+  field checks.
   Synthetic tests exercise actual captured absolute-v3 and protected-v2 symlinks and reject them
   before quarantine creation. See the
   [`inert restore conductor receipt`](evidence/portability-dr-inert-restore-v1-2026-10-14T0438Z.json).
@@ -466,15 +467,17 @@ parent on a device separate from Kingston, the exact research repository root, a
 checkout plus any other source roots that must be excluded. The command checks all six roles before
 creating `brain-restore-<nonce>`, writes only inside that new quarantine, and prints one JSON result.
 Save that output as the local restore record; the command does not publish a public receipt or
-persist the result elsewhere. The CLI help lists the required pins and paths.
-
-The JSON contains `assessor_handoff` values. To run the negative-only assessor, map them manually:
-`repo` to `--repo`; `set_id` to `--set-id`; `expected_commit` to `--expected-commit`;
-`expected_volume_uuid`, `expected_root_id`, and `expected_index_sha256` to their corresponding
-options; `witness_id` to `--witness-id`; `expected_witness_sha256` to `--expected-witness-sha256`;
-and each entry of `witness_targets` to the role-specific target option. The assessor remains
-negative-only and reports blocked while source closure and durable T/K boundaries are unresolved.
-The conductor's successful result is not `Brain restored` and is never erase approval.
+persist the result elsewhere. Pass the saved full result directly to the read-only assessor:
+`.venv/bin/python tools/brain_host_restore_assessment.py --storage-config <private-binding> --handoff <restore-result.json> --format json`.
+The assessor checks the conductor result digest, exact handoff fields, false activation/erase
+authority, and absolute target paths before mapping pins and targets into the existing assessment.
+That digest detects accidental modification; it does not authenticate the result or independently
+accept its pins. Treat every handoff-supplied pin as untrusted until it is compared with a separate
+trusted recovery receipt. The assessor remains negative-only and reports blocked while source
+closure and durable T/K boundaries are unresolved. The conductor's successful result is not
+`Brain restored` and is never erase approval. The assessor also accepts the standalone
+`assessor_handoff` object when one is provided separately; that form has strict schema and authority
+checks but no enclosing conductor digest.
 
 ## Service restore posture
 
