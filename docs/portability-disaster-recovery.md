@@ -128,6 +128,21 @@ Live checks on the current Mac:
   an immutable owner T cutoff, a real K journal prefix, xattr/ACL recovery, nor clean-host restore;
   factory reset remains NO-GO. See the
   [`synthetic Kingston restore receipt`](evidence/portability-dr-kingston-synthetic-restore-2026-10-14T0333Z.json).
+- A synthetic held-directory reader now re-verifies all six recovery-set artifact pins and compares
+  four v3 fixture roots through open directory/file descriptors against verified pages: exact
+  membership, file bytes, topology, and recorded stat/xattr-name fields. It skips excluded D43
+  descendants. A separate metadata-only pass compares the synthetic SQLite DB/WAL/SHM/journal
+  family through held descriptors to its backup receipt; fixture setup separately runs online backup
+  against its disposable source DB. Artifact inventory commitments/counts are derived, and member
+  capture intervals must fit the declared capture window; the fixture's unresolved descendant
+  remains explicit. The focused suite passes 53 tests, including source-drift and parent-replacement
+  rejection plus a Hypothesis event-order property. Synthetic root device/inode bindings are
+  checked, while snapshot identity, policy/tool hashes, and event times remain fixture declarations.
+  This is not APFS
+  snapshot attestation; protected-root binding, full owner closure, and a real snapshot-family
+  capture remain open. Sol accepts only this synthetic scope. The v1 recovery-set verifier hash is
+  unchanged. See the
+  [`held-view synthetic receipt`](evidence/portability-dr-source-view-held-view-2026-10-14T035534Z.json).
 - A fresh clone of `7d8dc82` bootstrapped Python 3.13 and passed `make smoke`; both new recovery CLIs
   also passed direct `--help` invocation from that clone. The bootstrap reported no storage or
   service changes. This still ran on the existing Mac, did not isolate host caches, and restored no

@@ -6,6 +6,13 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- [`Portability and DR held-view synthetic source check`](portability-dr-source-view-held-view-2026-10-14T035534Z.json):
+  four synthetic v3 tree roots are reopened via held descriptors and byte/topology/stat checked
+  against verified capture pages; excluded D43 descendants are not traversed. A separate metadata
+  pass matches the synthetic SQLite DB/WAL/SHM/journal family to its backup receipt. Fixture setup
+  separately runs SQLite online backup against its disposable DB. An injected parent-replacement
+  case is rejected. This is not APFS snapshot attestation or erase readiness. It supersedes earlier
+  source-view receipts for this horizon.
 - [`Portability and DR frontier scaffold`](portability-dr-frontier-scaffold-2026-10-14T0314Z.json):
   synthetic post-capture fingerprint assertion and temporary-storage corpus/STOP fixture around
   the existing recovery set. Independent Sol review accepts only this scaffold scope; it does not

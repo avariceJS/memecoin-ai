@@ -1,6 +1,6 @@
 # Current Project State
 
-**As of:** 2026-10-14 03:33Z. Portability/DR is **NO-GO for factory reset**. Published work is on
+**As of:** 2026-10-14 03:55Z. Portability/DR is **NO-GO for factory reset**. Published work is on
 `research/active` through `e2a0849`; `main` remains the verified baseline. Do not erase the owner
 Mac. Sol accepted the synthetic frontier scaffold and the opt-in Kingston-bound synthetic
 six-member set/K/envelope/same-Mac restore-witness rehearsal. These do not prove a real source
@@ -100,10 +100,17 @@ cutoff, K journal prefix, clean-host restore, or actual Brain recovery.
   retained or emitted; payloads were not read. Contents and role remain unknown; this sensitive
   state is not in recovery custody and blocks erase pending user classification or an authorized
   custody design.
-- Current engineering slice and immutable receipts are in the canonical DR handoff. The full
-  synthetic run removed its nonce artifacts; standard shared coordination locks remain. Next
-  priority remains an admin-assisted source view with safe snapshot/headroom, followed by resolved
-  wallets, complete opaque custody and a full inert restore.
+- A synthetic held-directory reader now matches four v3 fixture roots to verified pages via file
+  descriptors, including exact membership, bytes and stat/topology; excluded D43 descendants are not
+  traversed. A separate metadata-only pass matches the synthetic SQLite DB/WAL/SHM/journal family
+  to its backup receipt, revalidates the owner-relative parent chain, and requires the same synthetic
+  root identity as the tree check; a parent-replacement negative case is rejected. Fixture setup
+  separately reads its disposable DB for online backup. It does not attest APFS. Sol accepts this
+  synthetic scope only; NO-GO remains. See the canonical handoff and current receipt.
+- The prior synthetic Kingston run removed its nonce artifacts; standard shared coordination locks
+  remain. Next horizon is a read-only held-source adapter deriving roots and SQLite source-family
+  inventory from an immutable T view; no such adapter exists yet. Admin access, safe snapshot
+  headroom, wallets classification, and full owner/protected custody gates remain open.
 
 See `docs/portability-disaster-recovery.md` for the canonical recovery procedure and
 `docs/evidence/README.md` for the scoped immutable receipts. Brain architecture, source and Senses
