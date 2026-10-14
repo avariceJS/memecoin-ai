@@ -1,8 +1,8 @@
 # Current Project State
 
-**As of:** 2026-10-14 02:21Z. Portability/DR is **NO-GO for factory reset**. Current DR work is
-being published on `research/active`; `main` remains the verified baseline. Do not erase the owner
-Mac.
+**As of:** 2026-10-14 02:31Z. Portability/DR is **NO-GO for factory reset**. Current DR work is
+published on `research/active` through `ef0ebd5`; `main` remains the verified baseline. Do not erase
+the owner Mac.
 
 - Owner checkout was last verified clean at `a594474` on `main`; its cached `origin/main` is 15
   ahead, while live remote main `770699` is 507 commits ahead (verified in research object DB).
@@ -66,8 +66,15 @@ Mac.
 - A private Kingston root/dependency map now records 657 selected entries and value-filtered paths
   for all 60 LaunchAgents. The four extra definitions are Steam/Zoom/Homebrew host services, not
   Brain services. Extended attributes are present on many recorded entries and remain unclassified;
-  work-tree closure and a consistent source boundary are still missing. See the canonical DR handoff
-  and root/dependency receipt.
+  recursive work path topology is now mapped, but semantic role/custody and a consistent source
+  boundary are still missing. See the canonical DR handoff and root/dependency receipt.
+- A private recursive metadata-only inventory now covers 320,989 owner and 411,217 research `work/`
+  entries under sensitive-subtree pruning and reconciles all 166 owner/research protected-name
+  candidates against the earlier path list. It reads no payload bytes and does not establish
+  consistency or custody. Three sensitive-name research directories were pruned; the earlier
+  census deltas of 21 files and three directories are not directly comparable or evidence of
+  deletion. Only private inventory revision `a3` is eligible; `a1` and `a2` were transparently
+  invalidated. See the canonical DR handoff and recursive inventory receipt.
 - Next gate: classify private config, owner/research state, service roots, Codex ignored roles and
   external runtime dependencies; then establish a qualified consistent source point and protected
   opaque custody before a full inert isolated restore. Obtain independent Sol review before any

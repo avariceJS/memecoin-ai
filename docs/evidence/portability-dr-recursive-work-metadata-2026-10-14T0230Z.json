@@ -1,0 +1,114 @@
+{
+  "schema": "brain-portability-dr-recursive-work-metadata-receipt-v1",
+  "captured_at_utc": {
+    "start": "2026-10-14T02:29:55.683226Z",
+    "end": "2026-10-14T02:30:37.815578Z"
+  },
+  "source_commit": "ef0ebd51c3f65b906397489fb78367b31fdc0f6e",
+  "scope": {
+    "owner_work_recursive_metadata_only": true,
+    "research_work_recursive_metadata_only": true,
+    "regular_file_payload_bytes_read_or_hashed": false,
+    "protected_semantic_access": false,
+    "sensitive_file_contents_read": false,
+    "symlinks_followed": false,
+    "provider_requests": 0,
+    "services_changed": false,
+    "consistent_source_point_proven": false,
+    "recursive_metadata_stability_proven": false
+  },
+  "private_kingston_artifact": {
+    "relative_path": "host-recovery/private-recursive-work-inventory-20261014-a3",
+    "manifest_sha256": "a42344ad84dc434bda66f878dba809b56ba5daffbe3f59a4aa16bf69222ecd45",
+    "complete_sha256": "dbbeba8345bd40064143c5cf8f55a89aa6404b410bde424e0c37167eaa8e682f",
+    "directory_mode_octal": "0700",
+    "file_modes_octal": ["0600"],
+    "publication": "descriptor-bound create-only; COMPLETE marker published last",
+    "fresh_descriptor_bound_readback_verified": true,
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "roots": {
+      "owner_work": {
+        "records_including_root": 320989,
+        "entry_counts": {"directory": 35394, "file": 285577, "symlink": 18},
+        "sensitive_metadata_only_exclusions": 7,
+        "sensitive_exclusions_by_kind": {"file": 7},
+        "sensitive_excluded_directory_descendants_unknown": false,
+        "acl_presence_counts": {"false": 320964, "unknown": 25},
+        "xattr_name_counts": {
+          "com.apple.FinderInfo": 53,
+          "com.apple.macl": 981,
+          "com.apple.provenance": 120326
+        },
+        "gzip_bytes": 10340210,
+        "gzip_sha256": "3297002bb2cd8845bfdd83d459117f7d43b05fb5af0da4d29638bc61bd904ad7",
+        "root_directory_signature_unchanged": true
+      },
+      "research_work": {
+        "records_including_root": 411217,
+        "entry_counts": {"directory": 80857, "file": 330252, "symlink": 108},
+        "sensitive_metadata_only_exclusions": 9,
+        "sensitive_exclusions_by_kind": {"directory": 3, "file": 6},
+        "sensitive_excluded_directory_descendants_unknown": true,
+        "acl_presence_counts": {"false": 411100, "unknown": 117},
+        "xattr_name_counts": {
+          "com.apple.FinderInfo": 2,
+          "com.apple.metadata:com_apple_backup_excludeItem": 1,
+          "com.apple.provenance": 78487
+        },
+        "gzip_bytes": 11311484,
+        "gzip_sha256": "75bed2f6af62828866dc84d99d52ec86cca5d7cbd18d0a04188479068daaa0b6",
+        "root_directory_signature_unchanged": true
+      }
+    },
+    "protected_candidate_reconciliation": {
+      "prior_candidates_total": 178,
+      "owner_work_candidates_present_and_lstat_matched": 67,
+      "research_work_candidates_present_and_lstat_matched": 99,
+      "kingston_candidates_in_this_inventory": 0,
+      "kingston_candidates_in_separate_prior_inventory": 12
+    }
+  },
+  "invalidated_private_attempts": [
+    {
+      "relative_path": "host-recovery/private-recursive-work-inventory-20261014-a1",
+      "invalidation_marker_sha256": "ec31d5e1f26fa71c829171a0ee7ad82ab72c8d1206c04f708f37bb78d56ef550",
+      "reason": "Initial encoder added an extra blank line after each canonical JSON record."
+    },
+    {
+      "relative_path": "host-recovery/private-recursive-work-inventory-20261014-a2",
+      "invalidation_marker_sha256": "1167c14a40f8e94cbc033aed3f913861edd3ae5d096b26bc1fee48bba95893c6",
+      "reason": "Root-directory signature field could be read as recursive metadata stability; only the root directory signature was compared."
+    }
+  ],
+  "prior_census_reconciliation": {
+    "earlier_research_work_regular_file_count": 330273,
+    "earlier_research_work_directory_count_including_root": 80860,
+    "current_recursive_inventory_regular_file_count": 330252,
+    "current_recursive_inventory_directory_count_including_root": 80857,
+    "regular_file_count_delta": -21,
+    "directory_count_delta": -3,
+    "comparison_scopes_differ": true,
+    "difference_attribution": "Unknown; this inventory prunes three sensitive-name directories and does not count their descendants. The deltas are not evidence of deletion or stable membership."
+  },
+  "qualification": {
+    "recursive_path_topology_recorded_under_sensitive_subtree_pruning_rule": true,
+    "descendants_below_sensitive_excluded_directories_known": false,
+    "protected_candidate_path_coverage_reconciled_for_owner_and_research": true,
+    "deployment_activation_pointer_closure_complete": false,
+    "source_consistency_proven": false,
+    "owner_state_byte_custody_complete": false,
+    "protected_custody_closed": false,
+    "full_brain_restore_rehearsed": false,
+    "safe_to_erase": false,
+    "limitations": [
+      "This is a live metadata inventory, not a snapshot, custody archive, or recovery frontier.",
+      "The root directory signature was unchanged, but individual entries were not re-inventoried after the scan; recursive metadata stability is unknown.",
+      "The earlier research census counted 21 more regular files and three more directories than this scan. Three sensitive-name directories were pruned, so the scan scopes differ; the deltas are not evidence of deletion or stable membership.",
+      "Sensitive .env/key/PEM members and credential/keychain subtrees have lstat-only records; three sensitive-name directories were not descended, so their descendants are unknown and xattrs/ACLs were not inspected.",
+      "ACL state is unknown for entries where it could not be safely determined, including symlinks and sensitive exclusions.",
+      "Extended-attribute values are not recorded; existing custody archives do not preserve xattrs or ACLs.",
+      "The 12 Kingston protected-name candidates remain covered only by the earlier Kingston metadata inventory."
+    ]
+  }
+}

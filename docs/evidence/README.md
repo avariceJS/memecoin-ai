@@ -98,6 +98,14 @@ contain large exact payloads, so open only the named artifact needed for a speci
   value-filtered LaunchAgent path categories. It classifies four host-software services, finds
   xattrs on recorded entries, and leaves recursive state closure, xattr semantics, and a consistent
   source point unresolved.
+- [`Portability and DR recursive work metadata`](portability-dr-recursive-work-metadata-2026-10-14T0230Z.json):
+  privately stores recursive metadata-only path maps under the stated sensitive-subtree pruning
+  rule for owner/research `work/`, reconciles all
+  166 owner/research protected-name candidates with the earlier private candidate inventory, and
+  records unresolved prior census deltas of 21 files and three directories; three sensitive-name
+  directories were pruned, so the scans do not have identical scope. It reads no payload bytes and
+  does not establish source consistency, byte custody, or restore readiness. Private attempts `a1` and `a2`
+  are invalidated; only `a3` is eligible as this metadata inventory.
 - [`Portability and DR owner Git remote check`](portability-dr-owner-git-remote-check-2026-10-14T0122Z.json):
   a read-only live owner remote query showing its main head differs from the cached tracking ref.
   The next receipt resolves ancestry using existing objects; deployed runtime identity remains

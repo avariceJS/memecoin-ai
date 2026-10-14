@@ -39,7 +39,7 @@ Live checks on the current Mac:
   28 pending predictions respectively; these
   remain pending and are not to be resumed. This status does not audit owner operator/paper state.
   The owner operator and several owner paper/UI processes remain running.
-- A metadata-only census counted 330,273 regular files and 108 symlinks in research `work/`, and
+- An earlier metadata-only census counted 330,273 regular files and 108 symlinks in research `work/`, and
   285,577 regular files and 18 symlinks in owner `work/` (about 28.6 GB combined). It read no file
   bytes and found no unreadable entries. These are large mixed state trees, not classified recovery
   sets. Across consecutive full scans, owner `work/` kept the same entry counts but its apparent
@@ -178,11 +178,27 @@ Live checks on the current Mac:
 
 - The private root/dependency map stores metadata for the immediate owner/research `work/` children,
   all 88 entries in private Brain config, and all 60 LaunchAgents; raw paths stay on Kingston. The
-  recursive work census remains 285,577 owner and 330,273 research files. Among 657 recorded entries,
+  contemporaneous census counted 285,577 owner and 330,273 research files. Among 657 recorded entries,
   604 have extended attributes (mostly `com.apple.provenance`); ACL markers were absent. Values were
-  not read, and current custody archives do not preserve xattrs/ACLs. Root-only mapping is not a
-  recursive owner-state closure. Broad activation/deployment basenames also match generated files,
-  so exact nonprotected pointer closure remains open.
+  not read, and current custody archives do not preserve xattrs/ACLs. This root-only map is not a
+  recursive owner-state closure; the subsequent metadata inventory below adds recursive paths but
+  not semantic ownership. Broad activation/deployment basenames also match generated files, so exact
+  nonprotected pointer closure remains open.
+
+- A later recursive metadata-only inventory records 320,989 owner and 411,217 research entries
+  encountered under the two `work/` roots, including root directories, under a sensitive-subtree
+  pruning rule. It records lstat fields, xattr names,
+  symlink target text without following links, and ACL presence where determinable. It did not read or
+  hash regular-file payload bytes. Seven owner and nine research sensitive-name entries are lstat-only
+  exclusions; their directories were not descended. All 67 owner and 99 research protected-name
+  candidates from the separate private inventory are present with matching recorded lstat fields;
+  the 12 Kingston candidates remain in that separate inventory. The earlier research census counted
+  21 more regular files and three more directories. This scan pruned three sensitive-name directories
+  and does not count their descendants; the scopes differ and the deltas do not prove deletion. The
+  root directory signatures
+  stayed unchanged, but recursive metadata was not checked again after scanning. The private map is
+  therefore useful for path topology and candidate reconciliation, not a source snapshot or custody
+  set. See the [`recursive work metadata receipt`](evidence/portability-dr-recursive-work-metadata-2026-10-14T0230Z.json).
 
 Scope caveat after that receipt: a later broad `git grep` covered tracked `docs/`, `src/`, `tools/`,
 and `tests/`, which includes `docs/evidence/`. Its output was truncated before matching files could
@@ -347,12 +363,13 @@ monitor. By 01:17Z, eight of 18 had PIDs and `b09r2.source` was loaded without o
 source state, not a proposed startup set. No Senses capture/watchdog label was listed. Neither probe
 proves the source workload or write frontier.
 
-There are 55 Brain-named and one D43-named plist files in `~/Library/LaunchAgents`; at least 38
-definitions were not represented among the 18 labels loaded at the 01:12Z probe. Their definitions
-remain host-local.
-Four definitions contain environment entries with unclassified values. Preserve safe declarations
-as inert custody or prove them reproducible from canonical source; classify or omit potentially
-private values and reauthenticate credentials. Never install the full directory wholesale.
+There are 55 Brain-named and one D43-named plist files in `~/Library/LaunchAgents`; the other four
+are host-software services. At least 38 Brain/D43 definitions were not represented among the 18
+labels loaded at the 01:12Z probe. All 60 definitions remain host-specific custody; the 56 Brain/D43
+definitions need per-role authorization before any later install. Their plist byte streams were
+opened for selected-field projection, but environment values were not inspected or interpreted,
+retained, or emitted. Reissue credentials through user authentication. Never install the full
+directory wholesale.
 Their declared arguments refer to owner, research, and private-config roots; 56 argument references
 pass through only three distinct symlink mappings. Output/error paths point either inside owner work
 or to `/dev`; six owner log path references per stream currently point to missing files. These are
