@@ -30,6 +30,28 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - [`Portability and DR read-only refresh`](portability-dr-readonly-refresh-2026-10-14T0112Z.json):
   updated Data headroom and loaded-service status, plus an exact-component metadata-only path scan.
   It locates the owner D43 directory but does not prove F01/reserved absence or protected closure.
+- [`Portability and DR metadata follow-up`](portability-dr-metadata-followup-2026-10-14T0117Z.json):
+  aggregate basename-prefix counts and fresh read-only service/process status. Matching names are
+  custody candidates only; no role or closure is inferred.
+- [`Portability and DR storage/owner refresh`](portability-dr-storage-owner-refresh-2026-10-14T0118Z.json):
+  current free-space and snapshot status plus the clean owner checkout's branch/remote relation.
+  It does not identify deployed runtime source or establish a consistent recovery point.
+- [`Portability and DR candidate entry types`](portability-dr-candidate-entry-types-2026-10-14T0119Z.json):
+  aggregate file/directory/suffix metadata for prefix-matched candidates. It records no paths or
+  contents and proves neither role nor custody closure.
+- [`Portability and DR LaunchAgent metadata`](portability-dr-launchagent-metadata-2026-10-14T0120Z.json):
+  aggregate service-definition counts and path-root categories. Four definitions contain environment
+  entries; their values are unclassified and are not in the receipt.
+- [`Portability and DR LaunchAgent paths`](portability-dr-launchagent-paths-2026-10-14T0124Z.json):
+  aggregate declaration path roots, symlink references and log destination presence. It emits no
+  paths and does not identify deployed bundles.
+- [`Portability and DR owner Git remote check`](portability-dr-owner-git-remote-check-2026-10-14T0122Z.json):
+  a read-only live owner remote query showing its main head differs from the cached tracking ref.
+  The next receipt resolves ancestry using existing objects; deployed runtime identity remains
+  unverified.
+- [`Portability and DR owner Git ancestry`](portability-dr-owner-git-ancestry-2026-10-14T0123Z.json):
+  verifies the stale tracking ref's ancestry from existing Git objects. It does not identify deployed
+  owner runtime bytes or state.
 
 - [`Gecko v6 first natural bucket`](gecko-v6-first-natural-bucket-2026-10-13T1315Z.json): independently replayed first prospective bucket with four confirmed response bodies (3,042 bytes), one permanently spent ambiguous request, and one missed slot. All 12 parsed bars were out of window, yielding zero eligible new opens. Controlled LaunchAgent restart preserved the attempt/source prefix without replay; v6 was unloaded pending a distinct forward-only successor.
 - [`Gecko v3 failed-watchdog canary observation`](gecko-capture-only-v3-canary-observation-2026-10-13T0406Z.json): six actual forward-only GeckoTerminal requests all have durable confirmations and pass timing/replay checks; zero returned bars are eligible. The v1 watchdog failed closed on its plan-schema lookup. The v2 full-census replay recognizes that immutable receipt as a zero-attempt diagnostic root, restores the historical a078 projection, and independently accounts for 52 attempts across 40 roots. The capture is not a market-source qualification; actual charge remains unknown/unverified.

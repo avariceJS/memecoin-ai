@@ -20,24 +20,43 @@ Live checks on the current Mac:
   records the prior source cutoff at `eaedeae61cd101882835095c2f54158ca07a2945`. `main` and
   `origin/main` remain at `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; do not advance `main` until
   the capability is qualified.
-- The owner checkout at `/Users/root1/Desktop/memecoin-ai` is clean at
-  `a5944742b6b8ed0466c50bdeb72370ed3e3f2a31`. Read-only B01–B04 status reports all four scopes
-  STOPped and expired. They retain 48, 48, 19, and 28 pending predictions respectively; these
+- The owner checkout at `/Users/root1/Desktop/memecoin-ai` was clean at
+  `a5944742b6b8ed0466c50bdeb72370ed3e3f2a31` on branch `main`. Its cached `origin/main` is
+  `6feba83525c0d21392432c53becd79e8901650ea`, 15 commits ahead; a read-only live query now returns
+  `770699d3ef8558518ae750b6d5d6cab41c2e82c8`, matching research `origin/main`. That object is not
+  present in the owner clone. Existing objects in the research checkout establish owner `HEAD` as
+  507 commits behind live `main`, and cached `origin/main` as 492 commits behind it. This resolves
+  stale tracking-ref ancestry but not which bundle, activation pointer, or state owner services use.
+  See the [`owner Git remote check`](evidence/portability-dr-owner-git-remote-check-2026-10-14T0122Z.json)
+  and [`ancestry receipt`](evidence/portability-dr-owner-git-ancestry-2026-10-14T0123Z.json).
+  Read-only B01–B04 status reports all four scopes STOPped and expired. They retain 48, 48, 19, and
+  28 pending predictions respectively; these
   remain pending and are not to be resumed. This status does not audit owner operator/paper state.
   The owner operator and several owner paper/UI processes remain running.
 - Internal `work/` trees occupy about 16 GiB in research and 11 GiB in owner. Their top levels have
   234 and 275 mixed entries respectively, so they still need a complete recovery classification.
   `~/.config/brain-research` occupies about 348 KiB and currently has 14 entries. The owner
   `.env.local` is mode 0600 (470 bytes); its contents were not read. Credentials are reissued by the
-  user after restore. `~/Library/LaunchAgents` contains 55 Brain plist files while `launchctl list`
-  reports 18 loaded labels, nine with PIDs. `ai.memecoin.brain.b09r2.source` is currently running;
-  this is observed source state and was not changed or activated by DR work. The loaded service list
-  is not the full host-definition inventory; preserve definitions inert or prove them reproducible
-  before erase.
+  user after restore. `~/Library/LaunchAgents` contains 55 Brain plist files plus one D43 plist.
+  At 01:12Z, 18 labels were loaded and nine had PIDs, including `ai.memecoin.brain.b09r2.source`; by
+  01:17Z, 18 remained
+  loaded and eight had PIDs, with that source label loaded but without a PID. At the later probe,
+  72 processes had cwd metadata under owner/research roots. No process arguments or environments
+  were read. These time-bounded observations do not establish whether the source label performed
+  earlier work or whether other services wrote state. DR work did not change or activate services.
+  The loaded service list is not the full host-definition inventory. Metadata-only inspection found
+  all 56 definitions have `RunAtLoad`; four contain five environment entries whose values have not
+  been classified. Do not copy those entries blindly: treat them as potentially private, preserve
+  only safe inert definitions, and restore credentials by user reauthentication. See the
+  [`LaunchAgent metadata receipt`](evidence/portability-dr-launchagent-metadata-2026-10-14T0120Z.json).
 - Kingston `BrainData` occupies about 19 GiB and remains on case-sensitive APFS with UUID
   `8f8f1081-9be4-4914-9111-75f1b90255bf`, root ID
   `9428695af6d4f46c08e1a444cdc66de8`, and about 203 GiB free. The 50-GiB storage floor passes.
   Kingston is the only reset-surviving physical copy.
+- The 01:18Z storage refresh reports 13,234,572 KiB free on internal Data and 212,382,340 KiB on
+  Kingston. It found no Data APFS snapshots or configured Time Machine destinations. These are
+  point-in-time capacity/facility checks, not a qualified recovery boundary; see the
+  [`storage/owner refresh receipt`](evidence/portability-dr-storage-owner-refresh-2026-10-14T0118Z.json).
 - The read-only refresh receipt measured 12,960,665,600 bytes free before removal of two agent-created
   rehearsal clones. Removing those exact, verified disposable checkouts reclaimed 596,779,008 bytes;
   current `df` reports 13,239,692 KiB free (about 12.6 GiB). `diskutil apfs listSnapshots` finds no
@@ -71,6 +90,19 @@ Live checks on the current Mac:
   scan across owner/research work, private config, and Kingston. The scan located
   `owner/work/calendar-execution-01`; no exact F01, reserved, or holdout component name matched.
   This name-based scan does not prove those roots are absent or that protected custody is complete.
+
+- A 01:17Z metadata-only follow-up found basename-prefix candidates under owner work (37 D43 and
+  30 F01), research work (15 D43, 81 F01, and three reserved), and Kingston (four D43 and eight
+  reserved). Private config had no matching prefix. Paths and contents were not recorded or opened;
+  names alone do not establish protected role. These candidates expand the unclassified custody
+  inventory and must be resolved as opaque custody members or explicitly ruled out by an authorized
+  classification before erase. The fresh service/process status and limits are in the
+  [`metadata follow-up receipt`](evidence/portability-dr-metadata-followup-2026-10-14T0117Z.json).
+  Type-only counts show 59 regular files/eight directories in owner work, 68 regular files/31
+  directories in research work, and eight regular files/four directories on Kingston. Their
+  suffixes include JSON, logs, Markdown, Python, and Rust source. Nested entries can be related or
+  duplicated; extensions do not establish role. See the
+  [`candidate entry-type receipt`](evidence/portability-dr-candidate-entry-types-2026-10-14T0119Z.json).
 
 Scope caveat after that receipt: a later broad `git grep` covered tracked `docs/`, `src/`, `tools/`,
 and `tests/`, which includes `docs/evidence/`. Its output was truncated before matching files could
@@ -177,23 +209,32 @@ read.
 
 ## Service restore posture
 
-The latest read-only `launchctl list` inventory captured 18 loaded labels. Nine had a running PID:
+The 01:12Z read-only `launchctl list` inventory captured 18 loaded labels. Nine had a running PID:
 the owner `operator`, seven owner UI processes, and `ai.memecoin.brain.b09r2.source`. Nine were listed
 without a PID, including the D43 calendar, paper/audit/train labels, and the research storage-health
-monitor. This is observed source state, not a proposed startup set. No Senses capture/watchdog label
-was listed.
+monitor. By 01:17Z, eight of 18 had PIDs and `b09r2.source` was loaded without one. This is observed
+source state, not a proposed startup set. No Senses capture/watchdog label was listed. Neither probe
+proves the source workload or write frontier.
 
-There are 55 Brain-named plist files in `~/Library/LaunchAgents`; 37 are not represented among the
-18 currently loaded labels. Their definitions remain host-local. Preserve them as inert custody
-bytes or prove each one is reproducible from canonical source before erase; never install the full
-directory wholesale.
+There are 55 Brain-named and one D43-named plist files in `~/Library/LaunchAgents`; at least 38
+definitions were not represented among the 18 labels loaded at the 01:12Z probe. Their definitions
+remain host-local.
+Four definitions contain environment entries with unclassified values. Preserve safe declarations
+as inert custody or prove them reproducible from canonical source; classify or omit potentially
+private values and reauthenticate credentials. Never install the full directory wholesale.
+Their declared arguments refer to owner, research, and private-config roots; 56 argument references
+pass through only three distinct symlink mappings. Output/error paths point either inside owner work
+or to `/dev`; six owner log path references per stream currently point to missing files. These are
+path-field references, not a count of unique dependencies. On a replacement host, rebuild any authorized
+service definitions against verified roots instead of recreating old symlink accidents. See the
+[`LaunchAgent path receipt`](evidence/portability-dr-launchagent-paths-2026-10-14T0124Z.json).
 
 | Observed role and labels | Clean restore posture |
 |---|---|
 | Owner control: `ai.memecoin.brain.operator` (running) | Preserve its exact deployment definition and state. Keep unloaded; any later start requires separate owner release/recovery authorization and identity/STOP checks. |
 | Storage monitor: `ai.memecoin.brain.research-storage-health-v1` (listed, no PID) | Preserve the definition. Keep unloaded during restore; later activation is a candidate only after the new host binding, source, and plist are verified. It records storage health and has no acquisition authority. |
 | Protected evaluation: `ai.memecoin.d43.calendar01` (listed, no PID) | Preserve its definition and protected custody only. Do not install, load, or run evaluation as part of recovery. |
-| Legacy jobs/source/audit/train/paper: `b04`, `b09r2.audit`, `b09r2.source`, `b10r2.train`, `b12.paper`, `expansion.paper`, `b10r2.paper`, `b12r2.paper` (`b09r2.source` currently has a PID; others have none) | Preserve definitions and unique state in custody. Exclude from automatic install/start; each needs separate current justification and authorization. |
+| Legacy jobs/source/audit/train/paper: `b04`, `b09r2.audit`, `b09r2.source`, `b10r2.train`, `b12.paper`, `expansion.paper`, `b10r2.paper`, `b12r2.paper` (`b09r2.source` had a PID at 01:12Z and none at 01:17Z; others had none at the earlier probe) | Preserve definitions and unique state in custody. Exclude from automatic install/start; each needs separate current justification and authorization. |
 | Owner UI services: `b12.ui`, `b10.ui`, `expansion.ui`, `b12r2.ui`, `b10r2.ui`, `b12r1.ui`, `b10r1.ui` (all running) | Preserve definitions and exact runtime identity. Leave absent/unloaded on the restored host; a UI label does not prove read-only behavior or deployment authority. |
 
 The initial restored-host baseline is zero loaded Brain/Senses labels. Keep historical plist files in
@@ -225,8 +266,9 @@ as a new replication capability with hash verification and a full recovery rehea
 ## Remaining gates before `SAFE TO ERASE`
 
 1. Inventory every owner/research/local-config/service root and bind each to a source point or an
-   explicit reauthentication, rebuild, disposable, or unresolved disposition. Preserve all 55
-   Brain plist definitions inert or prove which are reproducible.
+   explicit reauthentication, rebuild, disposable, or unresolved disposition. Classify potentially
+   private environment entries. Preserve all 56 Brain/D43 definitions inert or prove which are
+   reproducible.
 2. Obtain a qualified, read-only source snapshot or another Sol-approved owner-wide consistent
    recovery point without changing production services. Bound snapshot lifetime and monitor free
    space; current live-copy alternatives cannot prove an atomic owner frontier.
