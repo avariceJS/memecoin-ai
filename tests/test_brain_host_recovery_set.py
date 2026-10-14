@@ -36,7 +36,11 @@ def _writer(path: Path) -> DescriptorWriter:
     return DescriptorWriter(os.open(path, os.O_RDONLY | os.O_DIRECTORY))
 
 
-def _policy(path: Path, exact: dict[str, dict[str, str]] | None = None) -> Path:
+def _policy(
+    path: Path,
+    exact: dict[str, dict[str, str]] | None = None,
+    symlinks: dict[str, dict[str, object]] | None = None,
+) -> Path:
     value = {
         "schema": POLICY_SCHEMA,
         "policy_id": "synthetic-set-policy",
@@ -44,15 +48,24 @@ def _policy(path: Path, exact: dict[str, dict[str, str]] | None = None) -> Path:
         "rule_set": "owner-work-sensitive-v1",
         "pem_candidate_dispositions": {},
         "exact_path_exclusions": exact or {},
-        "symlink_target_dispositions": {},
+        "symlink_target_dispositions": symlinks or {},
         "rebuild_inputs": [],
     }
     path.write_bytes(canonical_json(value))
     return path
 
 
-def _capture(writer: DescriptorWriter, path: Path, capture_id: str, role: str, exact=None):
-    policy_path = _policy(path.parent / f"{role}-{capture_id}.policy.json", exact)
+def _capture(
+    writer: DescriptorWriter,
+    path: Path,
+    capture_id: str,
+    role: str,
+    exact=None,
+    symlinks=None,
+):
+    policy_path = _policy(
+        path.parent / f"{role}-{capture_id}.policy.json", exact, symlinks=symlinks
+    )
     result = capture_tree(
         writer,
         TreeRoot(role, f"{role}-authority", f"point-{capture_id}", path, "non_protected"),
@@ -77,6 +90,8 @@ def _setup_set(
     *,
     sqlite_disposition: str = "substitute_online_backup",
     extra_owner_files: dict[str, bytes] | None = None,
+    owner_symlinks: dict[str, str] | None = None,
+    protected_symlink: bool = False,
 ):
     import tools.brain_host_sqlite_backup as backup_tool
     import tools.brain_host_tree_custody as tree_v2
@@ -101,6 +116,12 @@ def _setup_set(
         target = owner_root / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(payload)
+    for relative, target_text in (owner_symlinks or {}).items():
+        target = owner_root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        os.symlink(target_text, target)
+    if protected_symlink:
+        os.symlink("opaque.bin", d43 / "opaque-link")
 
     exact_exclusions = {
         "calendar-execution-01": {

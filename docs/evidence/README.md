@@ -162,6 +162,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - [`Portability and DR owner Git ancestry`](portability-dr-owner-git-ancestry-2026-10-14T0123Z.json):
   verifies the stale tracking ref's ancestry from existing Git objects. It does not identify deployed
   owner runtime bytes or state.
+- [`Portability and DR inert restore conductor`](portability-dr-inert-restore-v1-2026-10-14T0438Z.json):
+  source-hash-bound synthetic six-role restore implementation and Sol review. Actual absolute-v3
+  and protected-v2 symlink fixtures are rejected before quarantine creation. It does not qualify
+  live Kingston restore, source closure, T/K, clean-host recovery, or erase readiness.
 
 - [`Gecko v6 first natural bucket`](gecko-v6-first-natural-bucket-2026-10-13T1315Z.json): independently replayed first prospective bucket with four confirmed response bodies (3,042 bytes), one permanently spent ambiguous request, and one missed slot. All 12 parsed bars were out of window, yielding zero eligible new opens. Controlled LaunchAgent restart preserved the attempt/source prefix without replay; v6 was unloaded pending a distinct forward-only successor.
 - [`Gecko v3 failed-watchdog canary observation`](gecko-capture-only-v3-canary-observation-2026-10-13T0406Z.json): six actual forward-only GeckoTerminal requests all have durable confirmations and pass timing/replay checks; zero returned bars are eligible. The v1 watchdog failed closed on its plan-schema lookup. The v2 full-census replay recognizes that immutable receipt as a zero-attempt diagnostic root, restores the historical a078 projection, and independently accounts for 52 attempts across 40 roots. The capture is not a market-source qualification; actual charge remains unknown/unverified.

@@ -165,6 +165,20 @@ Live checks on the current Mac:
   read-only status, and cutoff remain unqualified. T, host closure, and erase readiness stay false.
   Sol accepts only this synthetic contract. See the
   [`source-view adapter receipt`](evidence/portability-dr-source-view-adapter-v1-2026-10-14T0421Z.json).
+- A single inert restore conductor now preflights the six pinned recovery roles, audits every v3
+  exclusion page, rejects protected-scope/unresolved custody, caller-forbidden target roots,
+  absolute v3 symlinks, and any protected-v2 symlink, then extracts into a fresh 0700 quarantine,
+  verifies the restored members, binds a witness, and verifies it again. Failures retain partial
+  quarantine without resume semantics. The output claims only byte-verified inert artifacts and
+  keeps T/K, source closure, host closure, activation, and erase readiness false. Sol accepted this
+  implementation scope after an independent code review. Its exclusions for owner checkout,
+  private config, LaunchAgents, and any additional source roots depend on correct caller-supplied
+  paths; this does not prove owner-wide closure. The assessor handoff is a parameter bundle for a
+  manual invocation of `tools/brain_host_restore_assessment.py`, not an assessor input file.
+  Synthetic tests exercise actual captured absolute-v3 and protected-v2 symlinks and reject them
+  before quarantine creation. See the
+  [`inert restore conductor receipt`](evidence/portability-dr-inert-restore-v1-2026-10-14T0438Z.json).
+  This remains a fixture-only implementation result, not a live Kingston or clean-host rehearsal.
 - A fresh clone of `7d8dc82` bootstrapped Python 3.13 and passed `make smoke`; both new recovery CLIs
   also passed direct `--help` invocation from that clone. The bootstrap reported no storage or
   service changes. This still ran on the existing Mac, did not isolate host caches, and restored no
@@ -443,6 +457,24 @@ read.
    Any missing prefix, failed replay, unclassified state, unresolved dependency, or identity mismatch
    blocks readiness. Provider reauthentication is a later user action and is not part of inert
    recovery.
+
+### Inert artifact restore conductor
+
+For a recovery set that already has an independently pinned set ID and `INDEX.json` SHA-256, use
+`tools/brain_host_inert_restore_v1.py` with the verified host-only storage binding, an empty target
+parent on a device separate from Kingston, the exact research repository root, and the owner
+checkout plus any other source roots that must be excluded. The command checks all six roles before
+creating `brain-restore-<nonce>`, writes only inside that new quarantine, and prints one JSON result.
+Save that output as the local restore record; the command does not publish a public receipt or
+persist the result elsewhere. The CLI help lists the required pins and paths.
+
+The JSON contains `assessor_handoff` values. To run the negative-only assessor, map them manually:
+`repo` to `--repo`; `set_id` to `--set-id`; `expected_commit` to `--expected-commit`;
+`expected_volume_uuid`, `expected_root_id`, and `expected_index_sha256` to their corresponding
+options; `witness_id` to `--witness-id`; `expected_witness_sha256` to `--expected-witness-sha256`;
+and each entry of `witness_targets` to the role-specific target option. The assessor remains
+negative-only and reports blocked while source closure and durable T/K boundaries are unresolved.
+The conductor's successful result is not `Brain restored` and is never erase approval.
 
 ## Service restore posture
 
