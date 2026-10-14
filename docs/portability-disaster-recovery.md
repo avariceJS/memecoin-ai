@@ -17,7 +17,7 @@ Live checks on the current Mac:
 
 - The latest exact-code restore rehearsal used `7d8dc82f94e5c9e2631bc38ae79f1229cccdeea1`, an
   ancestor of the current pushed `research/active` and `origin/research/active` commit
-  `79352d7b31f42d9dd264bc93045f84a936cfd669`. The immutable inventory receipt records the prior
+  `3048a1b0c610ec0e257c6313b622f8eac8dab93d`. The immutable inventory receipt records the prior
   source cutoff at `eaedeae61cd101882835095c2f54158ca07a2945`. `main` and `origin/main` remain at
   `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; do not advance `main` until the capability is
   qualified.
