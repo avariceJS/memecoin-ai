@@ -19,6 +19,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   assessor hard-blocks readiness and activation. It did not read live Kingston recovery members or
   restore targets and does not prove clean-host restore or erase readiness. Sol accepted this
   bounded scope; simulated identity drift is not a filesystem rename-race rehearsal.
+- [`Portability and DR synthetic consume-existing-view adapter`](portability-dr-source-view-adapter-v1-2026-10-14T0421Z.json):
+  held no-follow descriptors bind declared synthetic view/root topology and reconcile four v3 tree
+  roots against capture pages after capture. Protected-v2 and SQLite locators remain source-unbound;
+  exact credential exclusions are checked only when declared and credential-scope completeness
+  remains false. No APFS view or T frontier is qualified.
 - [`Portability and DR frontier scaffold`](portability-dr-frontier-scaffold-2026-10-14T0314Z.json):
   synthetic post-capture fingerprint assertion and temporary-storage corpus/STOP fixture around
   the existing recovery set. Independent Sol review accepts only this scaffold scope; it does not

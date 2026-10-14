@@ -79,8 +79,10 @@ def _fixture_source_inventory(source_roots: dict[str, Path]) -> list[dict]:
     return rows
 
 
-def _fixture(tmp_path: Path):
-    writer, set_spec, _, _ = recovery_set_fixtures._setup_set(tmp_path)
+def _fixture(tmp_path: Path, *, extra_owner_files: dict[str, bytes] | None = None):
+    writer, set_spec, _, _ = recovery_set_fixtures._setup_set(
+        tmp_path, extra_owner_files=extra_owner_files
+    )
     source_roots = {
         "owner_work": tmp_path / "owner-work",
         "research_work": tmp_path / "research-work",

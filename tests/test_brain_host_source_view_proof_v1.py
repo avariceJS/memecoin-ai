@@ -26,9 +26,9 @@ from tools.brain_host_source_view_proof_v1 import (
 from tools.brain_senses_external_writer_v1 import DescriptorWriter, sha256
 
 
-def _proof(tmp_path: Path):
+def _proof(tmp_path: Path, *, extra_owner_files: dict[str, bytes] | None = None):
     writer, _archive, spec, _targets, _fresh_reader, source_roots = frontier_fixtures._fixture(
-        tmp_path
+        tmp_path, extra_owner_files=extra_owner_files
     )
     verified = verify_set(
         writer,

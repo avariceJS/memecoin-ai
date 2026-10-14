@@ -154,6 +154,17 @@ Live checks on the current Mac:
   the simulated root drift is not a real rename-race rehearsal. It did not assess live Kingston
   artifacts or restore targets and does not change the NO-GO verdict. See the
   [`restore assessor receipt`](evidence/portability-dr-restore-assessment-v1-2026-10-14T0411Z.json).
+- A consume-existing-view adapter contract is now exercised on synthetic fixtures. It opens the
+  declared view and roots through held no-follow descriptors, checks same-device topology and
+  path/root identity before and after reconciliation, and binds only the four v3 tree roots to
+  prior capture pages. Protected-v2 and SQLite locators remain source-unbound; the SQLite family
+  has a separate metadata-only check through the owner root. Exact declared credential files must
+  be excluded with `reauth_reissue`; this does not establish exhaustive credential closure. The
+  existing capture reader reopens paths, so the result says post-capture reconciliation and
+  descriptor-sourced capture is false. No APFS snapshot is created or mounted; snapshot identity,
+  read-only status, and cutoff remain unqualified. T, host closure, and erase readiness stay false.
+  Sol accepts only this synthetic contract. See the
+  [`source-view adapter receipt`](evidence/portability-dr-source-view-adapter-v1-2026-10-14T0421Z.json).
 - A fresh clone of `7d8dc82` bootstrapped Python 3.13 and passed `make smoke`; both new recovery CLIs
   also passed direct `--help` invocation from that clone. The bootstrap reported no storage or
   service changes. This still ran on the existing Mac, did not isolate host caches, and restored no

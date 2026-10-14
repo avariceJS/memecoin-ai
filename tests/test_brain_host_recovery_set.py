@@ -72,7 +72,12 @@ def _capture(writer: DescriptorWriter, path: Path, capture_id: str, role: str, e
     }, result
 
 
-def _setup_set(tmp_path: Path, *, sqlite_disposition: str = "substitute_online_backup"):
+def _setup_set(
+    tmp_path: Path,
+    *,
+    sqlite_disposition: str = "substitute_online_backup",
+    extra_owner_files: dict[str, bytes] | None = None,
+):
     import tools.brain_host_sqlite_backup as backup_tool
     import tools.brain_host_tree_custody as tree_v2
 
@@ -92,6 +97,10 @@ def _setup_set(tmp_path: Path, *, sqlite_disposition: str = "substitute_online_b
         conn.commit()
     finally:
         conn.close()
+    for relative, payload in (extra_owner_files or {}).items():
+        target = owner_root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
 
     exact_exclusions = {
         "calendar-execution-01": {
