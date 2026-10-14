@@ -233,11 +233,13 @@ class BootstrapRunner:
         self.python_version = python_version
         self.calls: list[list[str]] = []
         self.environments: list[dict[str, str] | None] = []
+        self.working_directories: list[Path | None] = []
 
     def __call__(self, args, *, cwd=None, timeout=30, env=None):
         command = list(args)
         self.calls.append(command)
         self.environments.append(env)
+        self.working_directories.append(cwd)
         if len(command) >= 3 and command[1] == "-c":
             return completed(command, stdout=self.python_version)
         if command[-2:] == ["rev-parse", "--show-toplevel"]:
@@ -294,15 +296,32 @@ def test_bootstrap_clones_exact_commit_and_runs_locked_setup_only_in_new_target(
         str(destination),
     ]
     assert any("fetch" in command and COMMIT in command for command in runner.calls)
-    assert any(
-        any(part.endswith("requirements-dev.lock") for part in command) for command in runner.calls
+    install_index = next(
+        index
+        for index, command in enumerate(runner.calls)
+        if "pip" in command and "install" in command
     )
+    assert runner.calls[install_index] == [
+        str(destination / ".venv" / "bin" / "python"),
+        "-m",
+        "pip",
+        "install",
+        "--disable-pip-version-check",
+        "-r",
+        "requirements-dev.lock",
+        "-e",
+        ".",
+    ]
+    assert runner.working_directories[install_index] == destination
     smoke_index = next(
         index
         for index, command in enumerate(runner.calls)
         if command[-1].endswith("tools/smoke.py")
     )
-    assert runner.environments[smoke_index]["PYTHONPATH"] == str(destination / "src")
+    assert runner.working_directories[smoke_index] == destination
+    assert runner.environments[smoke_index] is not None
+    assert "PYTHONPATH" not in runner.environments[smoke_index]
+    assert "PYTHONHOME" not in runner.environments[smoke_index]
     assert not any("launchctl" in command[0] for command in runner.calls)
 
 

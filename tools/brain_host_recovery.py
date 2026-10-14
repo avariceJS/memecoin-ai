@@ -496,10 +496,14 @@ def bootstrap(options: BootstrapOptions, *, runner: Runner = run_command) -> dic
     if actual != options.commit:
         result.update({"state": "failed", "failed_stage": "verify_commit"})
         return result
+    bootstrap_env = dict(os.environ)
+    bootstrap_env.pop("PYTHONPATH", None)
+    bootstrap_env.pop("PYTHONHOME", None)
     try:
         _bootstrap_command(
             [str(python), "-m", "venv", str(destination / ".venv")],
             runner=runner,
+            env=bootstrap_env,
             stage="create_environment",
         )
         result["environment"] = "created"
@@ -512,17 +516,20 @@ def bootstrap(options: BootstrapOptions, *, runner: Runner = run_command) -> dic
                 "install",
                 "--disable-pip-version-check",
                 "-r",
-                str(destination / "requirements-dev.lock"),
+                "requirements-dev.lock",
+                "-e",
+                ".",
             ],
             runner=runner,
+            cwd=destination,
+            env=bootstrap_env,
             stage="install_locked_dependencies",
         )
-        smoke_env = dict(os.environ)
-        smoke_env["PYTHONPATH"] = str(destination / "src")
         _bootstrap_command(
             [str(venv_python), str(destination / "tools" / "smoke.py")],
             runner=runner,
-            env=smoke_env,
+            cwd=destination,
+            env=bootstrap_env,
             stage="smoke",
         )
     except BootstrapError as exc:
