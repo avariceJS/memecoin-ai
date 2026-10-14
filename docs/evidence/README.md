@@ -114,6 +114,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   counts descendants of three sensitive-name research directories using metadata only. Their 21
   files and three subdirectories numerically account for the earlier census delta; contents, child
   names, credential role, and recovery disposition remain unknown.
+- [`Portability and DR owner deployment pointer`](portability-dr-owner-deployment-pointer-2026-10-14T0250Z.json):
+  verifies one documented nonprotected owner operator `deployment.json` pin against its bundle
+  manifest hash. It does not prove the running process image, bind an owner Git revision, or close
+  the seven other running Brain roles.
 - [`Portability and DR owner Git remote check`](portability-dr-owner-git-remote-check-2026-10-14T0122Z.json):
   a read-only live owner remote query showing its main head differs from the cached tracking ref.
   The next receipt resolves ancestry using existing objects; deployed runtime identity remains

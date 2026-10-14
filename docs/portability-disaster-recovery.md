@@ -39,10 +39,10 @@ Live checks on the current Mac:
   28 pending predictions respectively; these
   remain pending and are not to be resumed. This status does not audit owner operator/paper state.
   The owner operator and several owner paper/UI processes remain running.
-  A 02:43Z read-only probe found 18 Brain labels loaded, nine with PIDs, and 72 cwd-matched
-  owner/research processes, including three owner Python paper/operator processes. It read no
-  arguments or environments and made no changes; this point-in-time observation does not establish
-  a write frontier or consistent source view.
+  A 02:43Z read-only probe found 18 combined Brain/D43 labels loaded, nine with PIDs, and 72
+  cwd-matched owner/research processes, including three owner Python paper/operator processes. It
+  read no arguments or environments and made no changes; this point-in-time observation does not
+  establish a write frontier or consistent source view.
 - An earlier metadata-only census counted 330,273 regular files and 108 symlinks in research `work/`, and
   285,577 regular files and 18 symlinks in owner `work/` (about 28.6 GB combined). It read no file
   bytes and found no unreadable entries. These are large mixed state trees, not classified recovery
@@ -284,8 +284,9 @@ claim correction: current receipts prove provisional local-group custody and nar
 restores, not an owner-wide consistent cutoff, complete owner/protected custody, or a full inert
 Brain restore. The next material horizon requires interactive admin authentication for a qualified
 source view, a monitored snapshot headroom budget, then complete custody and isolated restore.
-Research checkout authentication remains a clean-host user step; an optional exact-commit local
-source bundle could provide an auth-free code-only fallback, but would not close Brain-state recovery.
+Research checkout authentication remains a clean-host user step. Sol review deferred an optional
+exact-commit local source bundle: remote user reauthentication is accepted, while the bundle adds
+little recovery value and would duplicate reachable history into plaintext Kingston custody.
 
 ## State ownership and restore rules
 
@@ -409,6 +410,20 @@ their respective `work/` roots; no lexical declared path references enter `resea
 declared path topology for the inventoried work/config portions only; it does not identify the
 deployed code revision or prove runtime behavior.
 See the [`LaunchAgent work-path reconciliation receipt`](evidence/portability-dr-launchagent-work-path-reconciliation-2026-10-14T0238Z.json).
+
+A 02:50Z allowlisted pointer pass found the current `ai.memecoin.brain.operator` plist declares the
+owner `brain-b13/operator04` root. The owner code at its clean but 507-commits-behind `a594474`
+checkout defines `deployment.json` as exactly `{bundle, pin}`. The 153-byte pointer is a regular
+file whose lstat metadata matches the private recursive inventory; its `pin` matches the SHA-256 of
+the selected bundle's `manifest.json` (16,876 bytes), also matching that inventory. Neither path
+intersects the 178-entry protected-candidate inventory, and no path component was a symlink. Only
+the pointer and manifest were read; bundle payloads were not. This pins one declared operator
+bundle manifest, but does not bind it to an owner Git revision or prove the running process loaded
+it. At the same point, 17 Brain labels were loaded and eight had PIDs; the operator was one, leaving
+seven other running Brain code identities unresolved. One D43 label was loaded without a PID. This
+does not establish an owner-wide source frontier. Private locators and hashes are in the
+[`owner deployment-pointer receipt`](evidence/portability-dr-owner-deployment-pointer-2026-10-14T0250Z.json)
+and its Kingston-only manifest.
 
 The four additional host-software definitions are `com.valvesoftware.steamclean`, two Zoom services,
 and `homebrew.mxcl.postgresql@16`. They were already loaded without PIDs at the latest probe; three
