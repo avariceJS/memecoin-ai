@@ -82,6 +82,16 @@ contain large exact payloads, so open only the named artifact needed for a speci
   stores 178 basename-prefix candidate paths and lstat metadata in a private Kingston manifest,
   reread and hash-verified through a fresh descriptor-bound verifier. This proves neither protected
   role nor byte custody or a consistent source point.
+- [`Portability and DR private MCP tool custody`](portability-dr-private-mcp-tool-custody-2026-10-14T0200Z.json):
+  privately stores and isolated-restores an unversioned Helius wrapper and Codex/Cursor MCP configs.
+  Its three-member manifest has no `.env`-named files and excludes the owner and research `.env.local`.
+  Future archives must exclude credential files of this form. Config values remain potentially
+  sensitive because heuristic screening does not rule out embedded credentials; host paths require
+  rebinding before any separately authorized use.
+- [`Portability and DR clean-home Git authentication boundary`](portability-dr-clean-home-git-auth-boundary-2026-10-14T0208Z.json):
+  an isolated bootstrap stopped before checkout because the private remote requires user-controlled
+  Git authentication. No checkout or environment was created and no persistent Kingston or
+  production storage changed; authenticated bootstrap remains open.
 - [`Portability and DR owner Git remote check`](portability-dr-owner-git-remote-check-2026-10-14T0122Z.json):
   a read-only live owner remote query showing its main head differs from the cached tracking ref.
   The next receipt resolves ancestry using existing objects; deployed runtime identity remains

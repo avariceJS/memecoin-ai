@@ -20,6 +20,12 @@ Live checks on the current Mac:
   records the prior source cutoff at `eaedeae61cd101882835095c2f54158ca07a2945`. `main` and
   `origin/main` remain at `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; do not advance `main` until
   the capability is qualified.
+- A clean-`HOME`, empty-environment bootstrap probe at the current published DR commit stopped at
+  `git clone`: the private remote requires user-controlled GitHub authentication. The isolated
+  attempt created no checkout or environment and changed no persistent Kingston or production state;
+  its temporary home was removed. Replacement-host login is therefore an explicit restore prerequisite; no auth database or
+  credential was copied. A full authenticated isolated bootstrap remains unproven. See the
+  [`clean-home Git authentication receipt`](evidence/portability-dr-clean-home-git-auth-boundary-2026-10-14T0208Z.json).
 - The owner checkout at `/Users/root1/Desktop/memecoin-ai` was clean at
   `a5944742b6b8ed0466c50bdeb72370ed3e3f2a31` on branch `main`. Its cached `origin/main` is
   `6feba83525c0d21392432c53becd79e8901650ea`, 15 commits ahead; a read-only live query now returns
@@ -47,8 +53,9 @@ Live checks on the current Mac:
   [`host metadata census`](evidence/portability-dr-host-metadata-census-2026-10-14T0153Z.json).
   Both trees still need complete recovery classification.
   `~/.config/brain-research` occupies about 348 KiB and currently has 14 entries. The owner
-  `.env.local` is mode 0600 (470 bytes); its contents were not read or hashed and it is designated
-  for exclusion from future recovery archives. Its disposition is user credential reissue.
+  The owner `.env.local` is mode 0600 (470 bytes); its contents were not read or hashed. The
+  owner and research checkout `.env.local` were excluded from the three-member MCP custody capture;
+  every future recovery archive must exclude `.env.local` credential files for user reissue.
   `~/Library/LaunchAgents` contains
   55 Brain plist files plus one D43 plist.
   At 01:12Z, 18 labels were loaded and nine had PIDs, including `ai.memecoin.brain.b09r2.source`; by
@@ -193,6 +200,21 @@ rely on that later search output or treat it as protected custody evidence.
   executed. This is only a local-group restore witness, not a Brain-wide clean-room restore; see the
   [`opaque restore witness receipt`](evidence/portability-dr-opaque-restore-witness-2026-10-14T0141Z.json).
 
+- Host-tool follow-up found an unversioned owner-only Helius MCP wrapper and small Codex/Cursor MCP
+  configuration files. The wrapper reads a private `.env.local`, pins `helius-mcp@2.2.0`, and embeds
+  an absolute path to the research checkout's `.env.local`. A targeted value-free credential scan of
+  the wrapper and parsed config fields found no recognized credential patterns. Codex high-entropy
+  values were heuristically path/URL-like; embedded secrets are not ruled out. All three files were copied into a private Kingston static-custody capture
+  and hash-verified by a fresh verifier, then restored into an isolated quarantine and byte-checked.
+  They remain inert: none was installed or executed. The capture manifest contains no `.env`-named
+  member; owner and research `.env.local`, Codex/Cursor auth/session stores, and MCP-specific app
+  caches were excluded from this capture. Future recovery archives must exclude `.env.local`
+  credential files and auth/session stores; classify other cache/build roots separately before
+  treating them as disposable.
+  Configuration values remain private and potentially sensitive pending full review. On a replacement host, reauthenticate and rebind the wrapper/config paths
+  to verified roots before any separate authorization to use MCP. This aid does not qualify Brain
+  restore. See the [`private MCP tool custody receipt`](evidence/portability-dr-private-mcp-tool-custody-2026-10-14T0200Z.json).
+
 No providers, prospective collectors, owner services, champion, protected evaluation, or trading
 state were changed by the DR work. No provider request or collector was initiated by the DR work.
 No protected application or dataset reader was used. No qualified owner-wide recovery set, classified
@@ -211,9 +233,10 @@ and completeness remain unresolved and block `SAFE TO ERASE`.
 | Owner code and deployed runtime identity | Owner Git remote plus exact runtime bundles, deployment pointers, and state under owner `work/` | Restore an inert copy; never infer the deployed bundle from repository `HEAD` or recreate active services automatically. |
 | Large research captures, datasets, journals, immutable evidence, and recovery records | Kingston `BrainData` plus each object's manifest, lineage, STOP, and recovery records | Verify UUID, root marker, artifact hashes, and semantic replay before admission. This is canonical storage, not a second backup. |
 | Unique local owner/research state | Local owner/research `work/`, `~/.config/brain-research`, and Brain LaunchAgent definitions until a verified Kingston custody set is published | Capture from one read-only APFS source view where available. Use SQLite online backups for declared non-protected databases. Preserve unknown and unfinished state; never copy a live database/WAL family file-by-file. |
-| Private provider configuration | User reauthentication/reissuance; current `.env.local` is not needed for inert restore | Exclude the exact owner `.env.local` path from every recovery archive. Record metadata only; do not open or hash its bytes. Keep local values mode 0600 and never place them in Git, public receipts, logs, plists, or process arguments. |
+| Private provider configuration | User reauthentication/reissuance; current `.env.local` files are not needed for inert restore | Exclude every `.env.local` credential file from recovery archives. Record metadata only where needed; do not open or hash secret bytes. Keep local values mode 0600 and never place them in Git, public receipts, logs, plists, or process arguments. |
 | Protected F01, D43, and reserved holdout | Existing protected source roots and their frozen declarations/manifests/lineage | Preserve exact bytes, classification, and lineage as opaque custody. Verify byte/custody metadata only; no protected application readers, replay, training, evaluation, admission, or relabeling. |
 | Host bindings | Per-host private config, including Kingston UUID/root binding | Recreate from the attached volume and verify explicitly. Paths are locators, not artifact identity. |
+| Owner developer-tool integration | Private Kingston quarantine of the Helius wrapper and Codex/Cursor MCP config | Restore only to quarantine first; treat configuration values as potentially sensitive, rebind host paths, and reauthenticate before separate MCP use authorization. This capture excludes `.env.local`, Codex/Cursor auth/session stores, and MCP-specific app caches; classify other cache/build roots separately. This state is not required for inert Brain restore. |
 | Runtime and recovery authority | Versioned source, immutable journals/STOPs, activation records, and service definitions | Restore inert. Expired anchors, STOPs, spent reservations, ambiguity, gaps, and failures remain facts; none grants restart permission. |
 | Environments and caches | Checked-in pins for dependencies; caches are disposable only after unique evidence is ruled out | Rebuild environments; do not treat old virtualenvs or Homebrew state as the source of truth. |
 | Credentials for developer tools and host login | Account/password-manager recovery and user-controlled reauthentication | Reauthorize after reset. Do not copy Keychain wholesale as a substitute for documented secret custody. |
@@ -265,7 +288,9 @@ read.
 
 ## Restore procedure
 
-1. On a clean compatible macOS host, install Git and a supported Python. Clone the exact accepted
+1. On a clean compatible macOS host, install Git and a supported Python. Sign in to the Git account
+   that can read the private remote through its normal user-controlled authentication flow; never
+   copy the old host's Keychain, tokens, or session stores. Clone the exact accepted
    research commit from `origin/research/active`; confirm the commit and a clean worktree.
 2. Rebuild the base development environment from `requirements-dev.lock` and run `make smoke`.
    Optional ML dependencies remain separate and task-specific.

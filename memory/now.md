@@ -1,9 +1,8 @@
 # Current Project State
 
-**As of:** 2026-10-14 01:55Z. Portability/DR is **NO-GO for factory reset**. All DR work through
-the LaunchAgent and ignored-state witnesses is published on `research/active`; the host census and
-private candidate-path inventory are the current uncommitted scope. `main` remains the verified
-baseline. Do not erase the owner Mac.
+**As of:** 2026-10-14 02:08Z. Portability/DR is **NO-GO for factory reset**. Current DR work is
+being published on `research/active`; `main` remains the verified baseline. Do not erase the owner
+Mac.
 
 - Owner checkout was last verified clean at `a594474` on `main`; its cached `origin/main` is 15
   ahead, while live remote main `770699` is 507 commits ahead (verified in research object DB).
@@ -55,6 +54,16 @@ baseline. Do not erase the owner Mac.
 - A private metadata-only inventory of 178 F01/D43/reserved-prefix candidates is now on Kingston and
   was reread/hash-verified through a fresh descriptor-bound verifier. Candidate paths remain private;
   roles and payload custody are unproven. See the canonical handoff and public aggregate receipt.
+- A private Kingston capture of the Helius wrapper and Codex/Cursor MCP configuration was hash-verified
+  and restored in isolated quarantine. The wrapper hardcodes the research checkout `.env.local`;
+  owner and research `.env.local` files were excluded from this capture and credentials must be
+  reissued. MCP auth/session state was not opened. Configuration values remain private/potentially
+  sensitive; captured tooling remains inert pending review, host-path rebinding, and separate use
+  authorization.
+- An empty-environment clean-home bootstrap stopped before checkout because the private Git remote
+  requires account authentication. No credential or auth store was copied; the temporary home was
+  removed. User login is an explicit clean-host restore step; a fully authenticated bootstrap remains
+  unproven. See the canonical DR procedure and auth-boundary receipt.
 - Next gate: classify private config, owner/research state, service roots, Codex ignored roles and
   external runtime dependencies; then establish a qualified consistent source point and protected
   opaque custody before a full inert isolated restore. Obtain independent Sol review before any
