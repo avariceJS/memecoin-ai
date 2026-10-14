@@ -52,9 +52,10 @@ Kingston is the sole reset-surviving physical copy; its single-copy and plaintex
   service changes. Data is FileVault-enabled, unlocked/mounted under the live OS, 13,371,388 KiB
   free (97% used), with no APFS snapshots. Kingston is mounted read/write at its pinned UUID with
   211,803,256 KiB free (~202 GiB). Do not create a source snapshot at current Data headroom.
-- Current Git: `research/active` and `origin/research/active` at `7146d02f13ca9b405767fc5ce6833124b68df014`;
-  `main` and cached `origin/main` remain at `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. The new
-  evidence correction scope is being finalized; no main movement is authorized.
+- Current Git: `research/active` and `origin/research/active` at
+  `d15c1e825d088d3c2fe75b7e297e13de8dae160b`; the two documentation/evidence commits for this
+  horizon are pushed and the worktree is clean. `main` and cached `origin/main` remain at
+  `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; main has not moved.
 - Remaining stateful gates include a qualified source view/history boundary, complete owner/protected
   custody, a real Kingston durable frontier, and compatible-host inert restore.
   `research/work/wallets` remains private, opaque, unresolved, and backup-required. F01/D43/reserved
