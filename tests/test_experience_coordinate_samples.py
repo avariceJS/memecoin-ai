@@ -1313,6 +1313,108 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
     report_before = (score_output / "report.json").read_bytes()
     protocol_copy_before = (score_output / "protocol.json").read_bytes()
     manifest_before = (score_output / "manifest.json").read_bytes()
+    predictions_path = score_output / "predictions.jsonl"
+    predictions_before = predictions_path.read_bytes()
+
+    def reseal_predictions(rows):
+        predictions_path.write_bytes(
+            b"".join(
+                json.dumps(row, separators=(",", ":"), allow_nan=True).encode() + b"\n"
+                for row in rows
+            )
+        )
+        inventory = {
+            path.name: file_hash(path)
+            for path in sorted(score_output.iterdir())
+            if path.name != "manifest.json"
+        }
+        atomic_json(score_output / "manifest.json", inventory, replace=True)
+
+    def prediction_rows():
+        return [json.loads(line) for line in predictions_before.splitlines()]
+
+    def duplicate_prediction_identity(rows):
+        rows[1]["id"] = rows[0]["id"]
+
+    def drift_prediction_metadata(rows):
+        rows[0]["decision_ns"] += 1
+
+    def drift_prediction_mask(rows):
+        rows[0]["target_mask"][0] = not rows[0]["target_mask"][0]
+
+    def nonfinite_prediction(rows):
+        rows[0]["prediction"][0][0] = float("nan")
+
+    def infinite_prediction(rows):
+        rows[0]["prediction"][0][0] = float("inf")
+
+    def wrong_prediction_shape(rows):
+        rows[0]["prediction"][0] = []
+
+    def unordered_prediction_quantiles(rows):
+        rows[0]["prediction"][0] = [3.0, 2.0, 1.0]
+
+    def oversized_prediction_line(rows):
+        rows[0]["unbounded_padding"] = "x" * (2 * 1024 * 1024)
+
+    transcript_corruptions = (
+        duplicate_prediction_identity,
+        drift_prediction_metadata,
+        drift_prediction_mask,
+        nonfinite_prediction,
+        infinite_prediction,
+        wrong_prediction_shape,
+        unordered_prediction_quantiles,
+        oversized_prediction_line,
+    )
+    for corrupt in transcript_corruptions:
+        rows = prediction_rows()
+        corrupt(rows)
+        reseal_predictions(rows)
+        rejected_bytes = {
+            name: (score_output / name).read_bytes()
+            for name in ("predictions.jsonl", "report.json", "protocol.json", "manifest.json")
+        }
+        with pytest.raises(ValueError, match="experience_coordinate_evaluation_transcript"):
+            evaluation.score(
+                protocol_root,
+                registration["protocol"],
+                eval_store,
+                eval_snapshot,
+                artifact,
+                score_output,
+                batch=4,
+            )
+        assert rejected_bytes == {
+            name: (score_output / name).read_bytes()
+            for name in ("predictions.jsonl", "report.json", "protocol.json", "manifest.json")
+        }
+        predictions_path.write_bytes(predictions_before)
+        (score_output / "manifest.json").write_bytes(manifest_before)
+
+    for change_count in ("truncate", "append", "append_oversized"):
+        rows = prediction_rows()
+        if change_count == "truncate":
+            rows.pop()
+        else:
+            extra = dict(rows[0])
+            if change_count == "append_oversized":
+                extra["unbounded_padding"] = "x" * (2 * 1024 * 1024)
+            rows.append(extra)
+        reseal_predictions(rows)
+        with pytest.raises(ValueError, match="experience_coordinate_evaluation_transcript"):
+            evaluation.score(
+                protocol_root,
+                registration["protocol"],
+                eval_store,
+                eval_snapshot,
+                artifact,
+                score_output,
+                batch=4,
+            )
+        predictions_path.write_bytes(predictions_before)
+        (score_output / "manifest.json").write_bytes(manifest_before)
+
     import platform
 
     with monkeypatch.context() as patch:

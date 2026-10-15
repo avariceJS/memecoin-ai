@@ -392,7 +392,12 @@ counts/lists agree with the pinned protocol. This validates internal consistency
 recompute metric values or authenticate storage against an external authority. Pre-change v3 score
 directories lack the environment field and remain immutable legacy outputs; rescore to a new
 destination. The binding records the numerical environment, not bitwise equivalence across machines
-or library builds.
+or library builds. V3 reuse also streams the saved prediction transcript against the deterministic
+eligible test-row sequence, checking identity and availability metadata, target masks, exact row
+count, prediction dimensions, finite values and ordered quantiles. Reads have a per-row byte cap
+derived from expected metadata and prediction dimensions. This detects transcript-to-snapshot
+inconsistencies without rerunning the model or metrics; it does not authenticate the transcript
+against an external authority.
 
 `retrospective` is a fixed-candidate historical research comparison. The separate
 `preregistered_forward_replay` scope requires future registration and a `point_in_time` producer;

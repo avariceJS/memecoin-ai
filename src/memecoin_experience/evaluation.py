@@ -252,6 +252,84 @@ def _validate_coordinate_report(protocol, protocol_copy, report, binding):
             raise ValueError(error)
 
 
+def _validate_coordinate_predictions(path, snapshot, plan, batch, target_count, quantiles):
+    """Match a sealed prediction transcript to the deterministic eligible snapshot stream."""
+    from .learning import batches
+
+    error = "experience_coordinate_evaluation_transcript"
+
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(error)
+            result[key] = value
+        return result
+
+    def finite_number(value):
+        if type(value) not in {int, float}:
+            return False
+        try:
+            return math.isfinite(value)
+        except OverflowError:
+            return False
+
+    try:
+        with safe_path(path).open("rb") as stream:
+            for _, _, masks, metadata, _ in batches(
+                snapshot, plan, "test", batch, with_metadata=True
+            ):
+                for row, mask in zip(metadata, masks, strict=True):
+                    expected = dict(
+                        id=row["id"],
+                        entity=row["pool"],
+                        origin=row["origin"],
+                        decision_ns=row["decision_ns"],
+                        input_available_ns=row["input_available_ns"],
+                        target_status=row["target_status"],
+                        target_available_ns=row["target_available_ns"],
+                        target_mask=[bool(value) for value in mask],
+                    )
+                    max_line_bytes = (
+                        len(canonical(expected)) + target_count * len(quantiles) * 64 + 2048
+                    )
+                    line = stream.readline(max_line_bytes + 1)
+                    if len(line) > max_line_bytes or not line.endswith(b"\n"):
+                        raise ValueError(error)
+                    try:
+                        record = json.loads(line, object_pairs_hook=unique_object)
+                    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                        raise ValueError(error) from exc
+                    if (
+                        not isinstance(record, dict)
+                        or set(record) != {*expected, "prediction"}
+                        or any(
+                            canonical(record[key]) != canonical(value)
+                            for key, value in expected.items()
+                        )
+                    ):
+                        raise ValueError(error)
+                    prediction = record["prediction"]
+                    if (
+                        not isinstance(prediction, list)
+                        or len(prediction) != target_count
+                        or any(
+                            not isinstance(values, list)
+                            or len(values) != len(quantiles)
+                            or any(not finite_number(value) for value in values)
+                            or any(
+                                values[index - 1] > values[index] for index in range(1, len(values))
+                            )
+                            for values in prediction
+                        )
+                    ):
+                        raise ValueError(error)
+            if stream.read(1):
+                raise ValueError(error)
+    except OSError as exc:
+        raise ValueError(error) from exc
+
+
 def register_coordinate(
     root,
     artifact,
@@ -411,6 +489,15 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
             if not isinstance(result, dict) or result.get("binding") != binding:
                 raise ValueError("experience_coordinate_evaluation_binding")
             _validate_coordinate_report(protocol, protocol_copy, result, binding)
+            if protocol["metrics"] == COORDINATE_METRICS_V3:
+                _validate_coordinate_predictions(
+                    output / "predictions.jsonl",
+                    snapshot,
+                    plan,
+                    batch,
+                    len(target_names(snapshot.schema)),
+                    protocol["quantiles"],
+                )
             return result
 
         target_names_v3 = target_names(snapshot.schema)
