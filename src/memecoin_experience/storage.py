@@ -454,7 +454,16 @@ class Snapshot:
         path = object_path(self.store, entry["pin"])
         verify_files(path, entry["pin"])
         description = json.loads((path / "partition.json").read_text())
-        if description["contract"] != self.schema or description["count"] != entry["count"]:
+        if (
+            not isinstance(description, dict)
+            or set(description) != {"contract", "count", "first", "last"}
+            or description["contract"] != self.schema
+            or type(description["count"]) is not int
+            or type(entry.get("count")) is not int
+            or description["count"] != entry["count"]
+            or not isinstance(description["first"], str)
+            or not isinstance(description["last"], str)
+        ):
             raise ValueError("experience_partition_contract")
         with (path / "rows.jsonl").open() as stream:
             rows = [json.loads(line) for line in stream]
@@ -467,6 +476,24 @@ class Snapshot:
             or (path / "y.f64").stat().st_size != n * len(target_names(self.schema)) * 8
         ):
             raise ValueError("experience_column_size")
+        if description["first"] != rows[0].get("id") or description["last"] != rows[-1].get("id"):
+            raise ValueError("experience_partition_extent")
+        statuses = entry.get("statuses")
+        if not isinstance(statuses, dict) or any(
+            not isinstance(name, str) or type(count) is not int or count < 1
+            for name, count in statuses.items()
+        ):
+            raise ValueError("experience_partition_statuses")
+        observed_statuses = Counter()
+        for row in rows:
+            row_statuses = row.get("target_status")
+            if not isinstance(row_statuses, list) or any(
+                not isinstance(status, str) or not status for status in row_statuses
+            ):
+                raise ValueError("experience_partition_statuses")
+            observed_statuses.update(row_statuses)
+        if dict(observed_statuses) != statuses:
+            raise ValueError("experience_partition_statuses")
         if self.schema["schema"] == "brain-experience-v3":
             from .coordinate_samples import validate_temporal_metadata
 

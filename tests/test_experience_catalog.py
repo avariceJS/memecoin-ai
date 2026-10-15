@@ -1,3 +1,4 @@
+import json
 import shutil
 
 import pytest
@@ -6,7 +7,14 @@ from test_experience_schema import custom_samples
 
 from memecoin_experience import catalog
 from memecoin_experience.composition import compose
-from memecoin_experience.storage import Snapshot, build, object_path
+from memecoin_experience.storage import (
+    Snapshot,
+    atomic_json,
+    build,
+    digest,
+    object_path,
+    seal_files,
+)
 from memecoin_experience.transfer import replicate
 
 
@@ -73,6 +81,42 @@ def test_legacy_flat_object_location_remains_readable(tmp_path):
     shutil.move(modern, legacy)
     assert object_path(tmp_path, pin) == legacy
     Snapshot(tmp_path, result["snapshot"]).partition(0)
+
+
+@pytest.mark.parametrize("field", ["first", "last", "statuses"])
+def test_partition_summary_must_match_authenticated_rows(tmp_path, field):
+    store = tmp_path / field
+    result = create(store, n=60, chunk=10)
+    manifest = json.loads((store / "snapshots" / f"{result['snapshot']}.json").read_text())
+    entry = manifest["partitions"][0]
+
+    if field == "statuses":
+        status = next(iter(entry["statuses"]))
+        entry["statuses"][status] += 1
+    else:
+        staged = tmp_path / f"staged-{field}"
+        shutil.copytree(object_path(store, entry["pin"]), staged)
+        description_path = staged / "partition.json"
+        description = json.loads(description_path.read_text())
+        description[field] = "forged-row-id"
+        description_path.write_text(json.dumps(description, sort_keys=True, separators=(",", ":")))
+        (staged / "manifest.json").unlink()
+        partition_pin = seal_files(staged)
+        partition_path = object_path(store, partition_pin)
+        partition_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(staged, partition_path)
+        entry["pin"] = partition_pin
+
+    forged_snapshot_pin = digest(manifest)
+    atomic_json(store / "snapshots" / f"{forged_snapshot_pin}.json", manifest)
+    forged = Snapshot(store, forged_snapshot_pin)
+    expected_error = (
+        "experience_partition_extent" if field != "statuses" else "experience_partition_statuses"
+    )
+    with pytest.raises(ValueError, match=expected_error):
+        forged.partition(0)
+    with pytest.raises(ValueError, match=expected_error):
+        compose(store, [forged_snapshot_pin])
 
 
 def test_training_uses_paged_metadata_and_exact_resume(tmp_path, monkeypatch):

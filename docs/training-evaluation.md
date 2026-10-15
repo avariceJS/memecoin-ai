@@ -1121,8 +1121,14 @@ dense f64 partition storage and existing training contracts remain compatible. C
 compose, replication, batching, and evaluation paths are available for v3. V3 partition readback
 rechecks decision, input/dependency and exact/lower-bound receipt clocks against the pinned snapshot
 cutoff before rows reach training or scoring; re-pinning a late-receipt partition does not bypass
-this check. A composed snapshot uses its declared cutoff, currently the maximum parent cutoff; this
-does not prove that each reused partition was available by its original parent's cutoff. Training
+this check. On every v1-v3 partition read, row IDs and target-status counts are reconciled with the
+sealed partition extent and catalog summary. Composition reads each member partition before using
+its catalog status counts, so a re-pinned false summary cannot change aggregate denominators. This
+establishes consistency inside the content-addressed snapshot, not source authenticity. A composed
+snapshot uses its declared cutoff, currently the maximum parent cutoff; this
+does not prove that each reused partition was available by its original parent's cutoff. Composition
+now hashes and reads every source partition, so this integrity pass scales with source payload size;
+it is not a metadata-only operation on large corpora. Training
 reports a versioned conservative exclusive-end frontier for every native domain from all train, validation,
 test and dependency extents, merged with a proven parent frontier. The primary-domain value remains
 available as `seen_end_coordinate`. Registered native-coordinate evaluation requires every test

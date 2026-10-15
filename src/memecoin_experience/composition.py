@@ -58,13 +58,13 @@ def compose(store, pins):
 
             for snapshot in snapshots:
                 for i, entry in enumerate(snapshot.parts):
+                    _, rows = snapshot.partition(i)
                     if db.execute("select 1 from ranges where pin=?", (entry["pin"],)).fetchone():
                         continue
                     extent = entry.get("bounds")
                     if extent is None:
                         if coordinate:
                             raise ValueError("experience_coordinate_composition_bounds_required")
-                        _, rows = snapshot.partition(i)
                         extent = bounds(rows)
                     # Bounds are authenticated by the snapshot, checked against payload on read.
                     db.execute(
