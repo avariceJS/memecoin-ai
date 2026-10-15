@@ -518,7 +518,7 @@ def test_cli_trains_larger_context_and_width(tmp_path, monkeypatch, capsys):
     assert (output / "artifact/manifest.json").exists()
 
 
-def test_incomplete_epoch_never_publishes(tmp_path):
+def test_inconsistent_checkpoint_cursor_never_publishes(tmp_path):
     store, pin, snapshot = dataset(tmp_path)
     output = tmp_path / "run"
     train(store, pin, output, plan=PLAN, config=CONFIG, stop_after=1)
@@ -526,7 +526,7 @@ def test_incomplete_epoch_never_publishes(tmp_path):
     state = torch.load(checkpoint, weights_only=True)
     state["cursor"] = (len(snapshot.parts), 0)
     torch.save(state, checkpoint)
-    with pytest.raises(ValueError, match="incomplete_epoch"):
+    with pytest.raises(ValueError, match="experience_checkpoint_progress"):
         train(store, pin, output, plan=PLAN, config=CONFIG)
     assert not (output / "artifact").exists()
 

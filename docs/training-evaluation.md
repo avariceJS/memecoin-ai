@@ -1083,7 +1083,8 @@ versus 0.47196 for the train-only unconditional empirical quantiles and 0 for th
 oracle; these descriptive values do not override the failed denominator gate. The frozen fixture was
 not repaired or rerun after exposure. This does not qualify conditional learnability and says nothing
 about market prediction. See the [preregistration](evidence/brain-controlled-signal-learnability-prereg-2026-10-15.json)
-and [result receipt](evidence/brain-controlled-signal-learnability-result-2026-10-15.json).
+and [result receipt](evidence/brain-controlled-signal-learnability-result-2026-10-15.json). The
+default test suite now audits these pinned receipts read-only and does not repeat the exposed fit.
 
 ### Training role-isolation sampler audit (2026-10-15)
 
