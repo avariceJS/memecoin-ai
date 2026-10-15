@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 import os
 import shutil
 import sqlite3
@@ -29,6 +30,226 @@ from .storage import (
 COORDINATE_METRICS_V1 = "native_coordinate_macro_pinball_coverage_v1"
 COORDINATE_METRICS_V2 = "native_coordinate_macro_pinball_coverage_train_baseline_v2"
 COORDINATE_METRICS_V3 = "native_coordinate_macro_pinball_coverage_train_baseline_pool_coverage_v3"
+
+
+def _validate_coordinate_report(protocol, protocol_copy, report, binding):
+    """Validate sealed output meaning before returning or reusing its report."""
+    error = "experience_coordinate_evaluation_output"
+    metrics_version = protocol.get("metrics")
+    target_names_v3 = target_names(protocol["schema"])
+    expected_report_fields = {
+        "status",
+        "binding",
+        "scope",
+        "coordinate_domain_pin",
+        "test_intervals",
+        "population",
+        "denominators",
+        "metrics",
+        "availability",
+        "uncertainty",
+        "execution",
+        "production_eligible",
+    }
+    baseline_enabled = metrics_version in {COORDINATE_METRICS_V2, COORDINATE_METRICS_V3}
+    if metrics_version == COORDINATE_METRICS_V3:
+        expected_report_fields.add("pool_coverage")
+    if (
+        protocol_copy != protocol
+        or not isinstance(report, dict)
+        or set(report) != expected_report_fields
+        or report.get("status") != "completed"
+        or report.get("binding") != binding
+        or report.get("scope") != protocol["scope"]
+        or report.get("coordinate_domain_pin") != protocol["coordinate_domain_pin"]
+        or report.get("test_intervals") != protocol["split_plan"]["roles"]["test"]["intervals"]
+        or report.get("availability") != "coordinate_replay; no slot_to_utc_conversion"
+        or report.get("uncertainty")
+        != "not_estimated; adjacent native-coordinate origins may depend"
+        or report.get("execution") != "not_evaluated"
+        or report.get("production_eligible") is not False
+    ):
+        raise ValueError(error)
+
+    population = report.get("population")
+    denominators = report.get("denominators")
+    metric_rows = report.get("metrics")
+    population_fields = {
+        "snapshot_rows",
+        "outside_test_intervals",
+        "test_assigned_origins",
+        "test_purged_origins",
+        "test_exact_usable_origins",
+        "test_exact_usable_cells",
+        "test_pending_target_cells",
+        "test_lower_bound_target_cells",
+        "test",
+        "test_scored_origins",
+    }
+    required_population_fields = population_fields - {
+        "outside_test_intervals",
+        "test_purged_origins",
+        "test_pending_target_cells",
+        "test_lower_bound_target_cells",
+    }
+    if (
+        not isinstance(population, dict)
+        or not required_population_fields.issubset(population)
+        or not set(population).issubset(population_fields)
+        or any(type(value) is not int or value < 0 for value in population.values())
+        or not isinstance(denominators, dict)
+        or any(not isinstance(key, str) for key in denominators)
+        or any(type(value) is not int or value < 0 for value in denominators.values())
+        or not isinstance(metric_rows, list)
+        or len(metric_rows) != len(target_names_v3)
+    ):
+        raise ValueError(error)
+    if (
+        population["snapshot_rows"]
+        != population.get("outside_test_intervals", 0) + population["test_assigned_origins"]
+        or population["test_scored_origins"] != population["test_exact_usable_origins"]
+        or population["test"] != population["test_scored_origins"]
+        or population.get("test_purged_origins", 0) > population["test_assigned_origins"]
+    ):
+        raise ValueError(error)
+
+    sum_exact_cells = 0
+    sum_pending_cells = 0
+    sum_lower_bound_cells = 0
+    for target, metric in zip(target_names_v3, metric_rows, strict=True):
+        expected_metric_fields = {"target", "n", "pinball", "coverage"}
+        if baseline_enabled:
+            expected_metric_fields.add("train_baseline")
+        exact_key = f"test/{target}/exact_usable"
+        scored_key = f"test/{target}/scored_exact_usable"
+        prefix = f"test/{target}/"
+        if (
+            not isinstance(metric, dict)
+            or set(metric) != expected_metric_fields
+            or metric.get("target") != target
+            or type(metric.get("n")) is not int
+            or metric["n"] < 0
+            or metric["n"] != denominators.get(exact_key, 0)
+            or metric["n"] != denominators.get(scored_key, 0)
+        ):
+            raise ValueError(error)
+        exact_count = denominators.get(f"{prefix}exact", 0)
+        pending_count = denominators.get(f"{prefix}pending", 0)
+        lower_bound_count = denominators.get(f"{prefix}lower_bound", 0)
+        masked_count = denominators.get(f"{prefix}masked", 0)
+        status_total = exact_count + pending_count + lower_bound_count + masked_count
+        if (
+            status_total != population["test_assigned_origins"]
+            or metric["n"] > exact_count
+            or denominators.get(f"{prefix}eligible_lower_bound", 0) > lower_bound_count
+        ):
+            raise ValueError(error)
+        sum_exact_cells += metric["n"]
+        sum_pending_cells += pending_count
+        sum_lower_bound_cells += lower_bound_count
+        for name in ("pinball", "coverage"):
+            value = metric[name]
+            if metric["n"] == 0:
+                if value is not None:
+                    raise ValueError(error)
+            elif (
+                type(value) not in {int, float}
+                or not math.isfinite(value)
+                or name == "coverage"
+                and not 0 <= value <= 1
+                or name == "pinball"
+                and value < 0
+            ):
+                raise ValueError(error)
+        if baseline_enabled:
+            baseline = metric["train_baseline"]
+            if (
+                not isinstance(baseline, dict)
+                or set(baseline) != {"n", "pinball", "coverage", "unavailable_reason"}
+                or type(baseline["n"]) is not int
+                or baseline["n"] not in {0, metric["n"]}
+            ):
+                raise ValueError(error)
+            if baseline["n"] == 0:
+                if (
+                    baseline["pinball"] is not None
+                    or baseline["coverage"] is not None
+                    or baseline["unavailable_reason"]
+                    not in ("no_exact_train_baseline", "no_exact_evaluation_cells")
+                    or metric["n"] > 0
+                    and baseline["unavailable_reason"] != "no_exact_train_baseline"
+                ):
+                    raise ValueError(error)
+            elif (
+                baseline["unavailable_reason"] is not None
+                or type(baseline["pinball"]) not in {int, float}
+                or not math.isfinite(baseline["pinball"])
+                or baseline["pinball"] < 0
+                or type(baseline["coverage"]) not in {int, float}
+                or not math.isfinite(baseline["coverage"])
+                or not 0 <= baseline["coverage"] <= 1
+            ):
+                raise ValueError(error)
+    if (
+        population["test_exact_usable_cells"] != sum_exact_cells
+        or population.get("test_pending_target_cells", 0) != sum_pending_cells
+        or population.get("test_lower_bound_target_cells", 0) != sum_lower_bound_cells
+    ):
+        raise ValueError(error)
+
+    if metrics_version == COORDINATE_METRICS_V3:
+        coverage = report["pool_coverage"]
+        registered = protocol["pools"]
+        if (
+            not isinstance(coverage, dict)
+            or set(coverage)
+            != {
+                "registered",
+                "present_in_snapshot",
+                "test_assigned",
+                "exact_scored",
+                "missing_registered",
+                "missing_pool_ids",
+                "present_without_exact_scored",
+            }
+            or type(coverage["registered"]) is not int
+            or coverage["registered"] != len(registered)
+            or any(
+                type(coverage[key]) is not int or coverage[key] < 0
+                for key in (
+                    "present_in_snapshot",
+                    "test_assigned",
+                    "exact_scored",
+                    "missing_registered",
+                )
+            )
+            or not isinstance(coverage["missing_pool_ids"], list)
+            or not isinstance(coverage["present_without_exact_scored"], list)
+            or any(
+                not isinstance(pool, str)
+                for pool in coverage["missing_pool_ids"] + coverage["present_without_exact_scored"]
+            )
+            or coverage["missing_pool_ids"] != sorted(set(coverage["missing_pool_ids"]))
+            or coverage["present_without_exact_scored"]
+            != sorted(set(coverage["present_without_exact_scored"]))
+        ):
+            raise ValueError(error)
+        missing = set(coverage["missing_pool_ids"])
+        without_exact = set(coverage["present_without_exact_scored"])
+        registered_set = set(registered)
+        present = registered_set - missing
+        if (
+            not missing.issubset(registered_set)
+            or not without_exact.issubset(present)
+            or coverage["missing_registered"] != len(missing)
+            or coverage["present_in_snapshot"] != len(present)
+            or coverage["exact_scored"] != len(present - without_exact)
+            or not coverage["exact_scored"]
+            <= coverage["test_assigned"]
+            <= coverage["present_in_snapshot"]
+            or (coverage["exact_scored"] > 0) != (population["test_exact_usable_origins"] > 0)
+        ):
+            raise ValueError(error)
 
 
 def register_coordinate(
@@ -186,8 +407,10 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
         if output.exists():
             verify_files(output)
             result = json.loads((output / "report.json").read_text())
-            if result["binding"] != binding:
+            protocol_copy = json.loads((output / "protocol.json").read_text())
+            if not isinstance(result, dict) or result.get("binding") != binding:
                 raise ValueError("experience_coordinate_evaluation_binding")
+            _validate_coordinate_report(protocol, protocol_copy, result, binding)
             return result
 
         target_names_v3 = target_names(snapshot.schema)
@@ -413,6 +636,7 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
                     missing_pool_ids=sorted(pools - snapshot_pools),
                     present_without_exact_scored=sorted(snapshot_pools - exact_scored_pools),
                 )
+            _validate_coordinate_report(protocol, protocol, report, binding)
             atomic_json(stage / "protocol.json", protocol)
             atomic_json(stage / "report.json", report)
             seal_files(stage)

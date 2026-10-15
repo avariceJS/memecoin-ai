@@ -385,9 +385,13 @@ baseline metrics. The coverage list is bounded by the preregistered pool set bec
 snapshot pools are rejected. The metric identifier must be considered when comparing old and new
 immutable score receipts.
 V3 score bindings include Python, NumPy and PyTorch versions plus the explicit CPU device before
-existing-output reuse. Pre-change v3 score directories lack this field and remain immutable legacy
-outputs; rescore to a new destination. The binding records the numerical environment, not bitwise
-equivalence across machines or library builds.
+existing-output reuse. Reuse also checks that the sealed protocol copy is the registered protocol,
+the report remains completed and production-ineligible, and metric denominators and V3 pool-coverage
+counts/lists agree with the pinned protocol. This validates internal consistency; it does not
+recompute metric values or authenticate storage against an external authority. Pre-change v3 score
+directories lack the environment field and remain immutable legacy outputs; rescore to a new
+destination. The binding records the numerical environment, not bitwise equivalence across machines
+or library builds.
 
 `retrospective` is a fixed-candidate historical research comparison. The separate
 `preregistered_forward_replay` scope requires future registration and a `point_in_time` producer;

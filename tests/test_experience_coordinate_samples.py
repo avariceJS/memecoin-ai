@@ -1020,13 +1020,37 @@ def test_v3_replication_batch_fit_resume_and_registered_evaluation(tmp_path, mon
 
 
 def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, monkeypatch):
+    import json
+
     pytest.importorskip("numpy")
     pytest.importorskip("torch")
 
     from memecoin_experience import coordinate_frontier, evaluation, predict
 
     schema = _schema("point_in_time")
+    schema["targets"].append(
+        dict(name="next_slot_count/detail", unit="events", kind="observed_process_count@1slots")
+    )
     primary = schema["coordinate_domain_pin"]
+
+    def append_pending_target(row):
+        coordinate = row["origin"]["coordinate"]
+        row["targets"].append(None)
+        row["target_status"].append("pending")
+        row["target_windows"].append(
+            dict(
+                domain_pin=primary,
+                start_coordinate=coordinate + 1,
+                end_coordinate_exclusive=coordinate + 2,
+                maturity_coordinate_exclusive=coordinate + 2,
+                completion_status="unknown",
+                completion_evidence=[],
+                support_reasons=["synthetic_pending"],
+            )
+        )
+        row["target_available_ns"].append(None)
+        row["target_details"].append({})
+        return row
 
     def make_plan(test_cutoff, test_intervals=((30, 40),)):
         return coordinate_samples.make_split_plan(
@@ -1056,7 +1080,7 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
     class SyntheticPredictor:
         def __init__(self, artifact, pin):
             self.spec = dict(schema=schema, quantiles=[0.1, 0.5, 0.9])
-            self.stats = {"baseline": [[1.0, 2.0, 3.0] if pin == "a" * 64 else None]}
+            self.stats = {"baseline": [[1.0, 2.0, 3.0] if pin == "a" * 64 else None, None]}
             self.report = dict(
                 binding=dict(plan=train_plan),
                 seen_coordinate_frontier=frontier,
@@ -1066,7 +1090,7 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
         def predict(self, frames):
             import numpy as np
 
-            return np.zeros((len(frames), 1, 3))
+            return np.zeros((len(frames), len(schema["targets"]), 3))
 
     monkeypatch.setattr(predict, "Predictor", SyntheticPredictor)
     artifact = tmp_path / "synthetic-artifact"
@@ -1088,6 +1112,7 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
     pending_pool_row = _row(39, status="pending", decision=1639, availability=1739)
     pending_pool_row["pool"] = "solana/program/pending-only"
     eval_rows.append(pending_pool_row)
+    eval_rows = [append_pending_target(row) for row in eval_rows]
     eval_rows.sort(
         key=lambda row: (
             row["pool"],
@@ -1144,7 +1169,7 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
     assert scored["status"] == "completed"
     assert scored["population"]["test_scored_origins"] == 8
     assert scored["population"]["test_purged_origins"] == 2
-    assert scored["population"]["test_pending_target_cells"] == 2
+    assert scored["population"]["test_pending_target_cells"] == 14
     assert scored["pool_coverage"] == dict(
         registered=3,
         present_in_snapshot=2,
@@ -1169,8 +1194,21 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
         coverage=pytest.approx(3 / 8),
         unavailable_reason=None,
     )
+    sparse_metric = scored["metrics"][1]
+    assert sparse_metric == dict(
+        target="next_slot_count/detail",
+        n=0,
+        pinball=None,
+        coverage=None,
+        train_baseline=dict(
+            n=0,
+            pinball=None,
+            coverage=None,
+            unavailable_reason="no_exact_train_baseline",
+        ),
+    )
 
-    from memecoin_experience.storage import atomic_json, digest
+    from memecoin_experience.storage import atomic_json, digest, file_hash
 
     v1_protocol = dict(registration)
     v1_protocol.pop("protocol")
@@ -1220,6 +1258,15 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
     )
     assert v2_scored["metrics"][0] == metric
     assert "pool_coverage" not in v2_scored
+    assert v2_scored == evaluation.score(
+        v2_root,
+        v2_pin,
+        eval_store,
+        eval_snapshot,
+        artifact,
+        tmp_path / "v2-score",
+        batch=4,
+    )
 
     no_baseline = evaluation.register_coordinate(
         protocol_root,
@@ -1264,6 +1311,7 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
         == scored
     )
     report_before = (score_output / "report.json").read_bytes()
+    protocol_copy_before = (score_output / "protocol.json").read_bytes()
     manifest_before = (score_output / "manifest.json").read_bytes()
     import platform
 
@@ -1281,6 +1329,104 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
             )
     assert (score_output / "report.json").read_bytes() == report_before
     assert (score_output / "manifest.json").read_bytes() == manifest_before
+
+    def set_production_eligible(report_copy, protocol_copy):
+        report_copy["production_eligible"] = True
+
+    def change_protocol_copy(report_copy, protocol_copy):
+        protocol_copy["candidate"] = "f" * 64
+
+    def change_metric_n(report_copy, protocol_copy):
+        report_copy["metrics"][0]["n"] += 1
+
+    def erase_missing_pool_id(report_copy, protocol_copy):
+        report_copy["pool_coverage"]["missing_pool_ids"] = []
+
+    def change_missing_count(report_copy, protocol_copy):
+        report_copy["pool_coverage"]["missing_registered"] += 1
+
+    for corrupt in (
+        set_production_eligible,
+        change_protocol_copy,
+        change_metric_n,
+        erase_missing_pool_id,
+        change_missing_count,
+    ):
+        report_copy = json.loads(report_before)
+        protocol_copy = json.loads(protocol_copy_before)
+        corrupt(report_copy, protocol_copy)
+        atomic_json(score_output / "report.json", report_copy, replace=True)
+        atomic_json(score_output / "protocol.json", protocol_copy, replace=True)
+        inventory = {
+            path.name: file_hash(path)
+            for path in sorted(score_output.iterdir())
+            if path.name != "manifest.json"
+        }
+        atomic_json(score_output / "manifest.json", inventory, replace=True)
+        rejected_bytes = {
+            name: (score_output / name).read_bytes()
+            for name in ("report.json", "protocol.json", "manifest.json")
+        }
+        with pytest.raises(ValueError, match="experience_coordinate_evaluation_output"):
+            evaluation.score(
+                protocol_root,
+                registration["protocol"],
+                eval_store,
+                eval_snapshot,
+                artifact,
+                score_output,
+                batch=4,
+            )
+        assert rejected_bytes == {
+            name: (score_output / name).read_bytes()
+            for name in ("report.json", "protocol.json", "manifest.json")
+        }
+        (score_output / "report.json").write_bytes(report_before)
+        (score_output / "protocol.json").write_bytes(protocol_copy_before)
+        (score_output / "manifest.json").write_bytes(manifest_before)
+
+    clean_rows = []
+    for coordinate in range(31, 39):
+        row = _row(coordinate, decision=1600 + coordinate, availability=1700 + coordinate)
+        clean_rows.append(append_pending_target(row))
+    clean_store = tmp_path / "clean-eval-store"
+    clean_snapshot = build(
+        clean_store,
+        clean_rows,
+        sources=[dict(kind="synthetic-clean", pin="3" * 64)],
+        cutoff=2000,
+        schema=schema,
+        role="research_evaluation",
+    )["snapshot"]
+    clean_registration = evaluation.register_coordinate(
+        protocol_root,
+        artifact,
+        artifact_pin,
+        split_plan=eval_plan,
+        pools=["solana/program/pumpswap"],
+        scope="preregistered_forward_replay",
+    )
+    clean_score_output = tmp_path / "clean-score"
+    clean_scored = evaluation.score(
+        protocol_root,
+        clean_registration["protocol"],
+        clean_store,
+        clean_snapshot,
+        artifact,
+        clean_score_output,
+        batch=4,
+    )
+    assert "test_purged_origins" not in clean_scored["population"]
+    assert clean_scored["metrics"][1]["n"] == 0
+    assert clean_scored == evaluation.score(
+        protocol_root,
+        clean_registration["protocol"],
+        clean_store,
+        clean_snapshot,
+        artifact,
+        clean_score_output,
+        batch=4,
+    )
 
     protocol = dict(registration)
     protocol.pop("protocol")
@@ -1310,6 +1456,7 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
         )
         if kind == "purged":
             row["input_dependencies"][0]["start_coordinate"] = 29
+        row = append_pending_target(row)
         bad_snapshot = build(
             eval_store,
             [row],
