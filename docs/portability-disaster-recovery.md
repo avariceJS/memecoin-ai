@@ -6,7 +6,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-15 23:10 UTC.** The accepted recovery scope is loss or erasure of the
+**NO-GO for factory reset as of 2026-10-15 23:29 UTC.** The accepted recovery scope is loss or erasure of the
 owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
 reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -116,6 +116,25 @@ Live checks on the current Mac:
   exercise replacement-host authentication/dependencies, owner-runtime reconstruction, SQLite
   application consistency, Data T/K frontiers, owner/protected closure, or erase readiness. See the
   [`clean-clone B09 restore rehearsal receipt`](evidence/portability-dr-clean-clone-b09-restore-e2e-2026-10-15T2255Z.json).
+- A distinct `ai.memecoin.brain.b09r1.source` LaunchAgent was found loaded but idle. Its durable
+  STOP marker is checked by the bound runtime before child/tick execution, the journal chain
+  verifies through 6,065 terminal events (3,032 reservations and 3,032 outcomes, zero unresolved),
+  and no latest-two recovery candidate exists. Following Sol review, only this exact label was
+  disabled and unloaded; it remained absent with no PID for 11 seconds before and after bootout,
+  with STOP and the journal tail unchanged. The original plist remains on the host. Separate
+  descriptor-bound v3 captures preserve the complete-under-policy state root (31,797 entries,
+  629,332,887 bytes) and deployed runtime bundle (162 entries, 1,476,176 bytes), with zero
+  exclusions or unresolved custody. Each was extracted into a separate mode-0700 quarantine on the
+  same Data volume; restore witnesses matched capture manifests and represented bytes/metadata. No
+  SQLite API was opened, runtime code executed, or service installed. This proves only two
+  interval-stable root captures and same-host inert extracts, not an atomic pair, T/K frontier, or
+  application consistency. The deployed bundle pin and manifest are internally consistent, but
+  its 140 Python files do not match any of 933 reachable Git commits; nine deployed blob IDs are
+  unreachable from Git refs. Preserve the bundle as opaque unique local executable state without
+  trusted-source or restart claims. V3 omits xattr values (`FinderInfo` 1, `macl` 412,
+  `provenance` 143 on state; `provenance` 162 on bundle). Exact paths and source identities are in a
+  private Kingston relation record. This does not qualify clean-host recovery or erase readiness.
+  See the [`B09r1 state and bundle inert restore receipt`](evidence/portability-dr-b09r1-state-bundle-inert-restore-2026-10-15T2329Z.json).
 - At 23:10:13Z, the private-config prior archive and manifest pins were reverified on Kingston. A
   live metadata pass found the same 75-file roster, with 74 files matching prior size/mode/mtime and
   one unique metadata-delta candidate; only that candidate was opened no-follow and hashed. Its
