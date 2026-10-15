@@ -1,4 +1,6 @@
+import io
 import json
+import os
 import platform
 import shutil
 from pathlib import Path
@@ -241,8 +243,214 @@ def test_predictor_inference_entry_binding_and_legacy_state(tmp_path, monkeypatc
             AssertionError("model constructed before entry pin check")
         ),
     )
+    monkeypatch.setattr(
+        prediction_module.torch,
+        "load",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("weights deserialized before entry pin check")
+        ),
+    )
     with pytest.raises(ValueError, match="experience_prediction_entry_binding"):
         Predictor(wrong_artifact, wrong_pin)
+
+
+@pytest.mark.parametrize(
+    "problem", ["added", "missing", "symlink", "manifest-symlink", "fifo", "checksum"]
+)
+def test_predictor_requires_exact_regular_manifest_members(tmp_path, problem):
+    artifact, pin, _ = sealed_tiny_artifact(tmp_path / f"artifact-{problem}")
+    report = artifact / "report.json"
+    if problem == "added":
+        (artifact / "unexpected.json").write_text("{}")
+        error = "experience_inventory"
+    elif problem == "missing":
+        report.unlink()
+        error = "experience_inventory"
+    elif problem == "symlink":
+        target = tmp_path / "external-report.json"
+        target.write_bytes(report.read_bytes())
+        report.unlink()
+        report.symlink_to(target)
+        error = "experience_symlink"
+    elif problem == "manifest-symlink":
+        manifest = artifact / "manifest.json"
+        target = tmp_path / "external-manifest.json"
+        target.write_bytes(manifest.read_bytes())
+        manifest.unlink()
+        manifest.symlink_to(target)
+        error = "experience_symlink"
+    elif problem == "fifo":
+        report.unlink()
+        os.mkfifo(report)
+        error = "experience_artifact_member_type"
+    else:
+        report.write_text("{}")
+        error = "experience_checksum"
+
+    with pytest.raises(ValueError, match=error):
+        Predictor(artifact, pin)
+
+
+@pytest.mark.parametrize("member", ["report.json", "weights.pt"])
+def test_predictor_rejects_replacement_before_member_open(tmp_path, monkeypatch, member):
+    from memecoin_experience import predict as prediction_module
+
+    artifact, pin, _ = sealed_tiny_artifact(tmp_path / "artifact")
+    alternate, _, _ = sealed_tiny_artifact(tmp_path / "alternate")
+    target = artifact / member
+    original_bytes = target.read_bytes()
+    if member == "report.json":
+        altered_report = json.loads((alternate / member).read_bytes())
+        altered_report["production_eligible"] = True
+        replacement = json.dumps(altered_report).encode()
+    else:
+        replacement = (alternate / member).read_bytes()
+    original_open = prediction_module._open_regular_member
+    injected = False
+
+    def replace_before_open(directory_fd, name):
+        nonlocal injected
+        if name == member and not injected:
+            injected = True
+            staged = target.with_name(target.name + ".replacement")
+            staged.write_bytes(replacement)
+            os.replace(staged, target)
+        return original_open(directory_fd, name)
+
+    monkeypatch.setattr(prediction_module, "_open_regular_member", replace_before_open)
+    try:
+        with pytest.raises(ValueError, match="experience_checksum"):
+            Predictor(artifact, pin)
+    finally:
+        target.write_bytes(original_bytes)
+    assert injected
+
+
+@pytest.mark.parametrize("member", ["report.json", "weights.pt"])
+def test_predictor_consumes_pinned_bytes_when_path_replaced_after_open(
+    tmp_path, monkeypatch, member
+):
+    from memecoin_experience import predict as prediction_module
+
+    artifact, pin, _ = sealed_tiny_artifact(tmp_path / "artifact")
+    alternate, _, _ = sealed_tiny_artifact(tmp_path / "alternate")
+    target = artifact / member
+    original_bytes = target.read_bytes()
+    if member == "report.json":
+        altered_report = json.loads((alternate / member).read_bytes())
+        altered_report["production_eligible"] = True
+        replacement = json.dumps(altered_report).encode()
+    else:
+        replacement = (alternate / member).read_bytes()
+    original_open = prediction_module._open_regular_member
+    injected = False
+
+    def replace_after_open(directory_fd, name):
+        nonlocal injected
+        descriptor = original_open(directory_fd, name)
+        if name == member and not injected:
+            injected = True
+            staged = target.with_name(target.name + ".replacement")
+            staged.write_bytes(replacement)
+            os.replace(staged, target)
+        return descriptor
+
+    monkeypatch.setattr(prediction_module, "_open_regular_member", replace_after_open)
+    try:
+        predictor = Predictor(artifact, pin)
+        if member == "report.json":
+            assert predictor.report["production_eligible"] is False
+        else:
+            expected = torch.load(io.BytesIO(original_bytes), map_location="cpu", weights_only=True)
+            for key, value in predictor.model.state_dict().items():
+                assert torch.equal(value.cpu(), expected[key])
+    finally:
+        target.write_bytes(original_bytes)
+    assert injected
+
+
+def bind_synthetic_diversity(artifact):
+    from memecoin_population.diversity import OBJECTIVE
+
+    spec = json.loads((artifact / "model.json").read_text())
+    report = json.loads((artifact / "report.json").read_text())
+    audit = dict(
+        binding=dict(snapshot="synthetic-snapshot", split={"synthetic": True}),
+        representation=digest(spec["schema"]),
+        training_allowed=True,
+    )
+    atomic_json(artifact / "diversity.json", audit)
+    diversity_manifest = {"report.json": file_hash(artifact / "diversity.json")}
+    atomic_json(artifact / "diversity-manifest.json", diversity_manifest)
+    report["binding"].update(
+        snapshot="synthetic-snapshot",
+        plan={"synthetic": True},
+        diversity=digest(diversity_manifest),
+    )
+    report["steps"] = 0
+    report["rows_seen"] = 0
+    report["exposure"] = dict(
+        binding=dict(
+            audit=digest(diversity_manifest),
+            objective=OBJECTIVE,
+            steps=0,
+            rows_seen=0,
+        )
+    )
+    atomic_json(artifact / "report.json", report, replace=True)
+    (artifact / "manifest.json").unlink()
+    return seal_files(artifact)
+
+
+def test_predictor_verifies_optional_diversity_members_from_captured_bytes(tmp_path, monkeypatch):
+    from memecoin_experience import predict as prediction_module
+
+    artifact, _, _ = sealed_tiny_artifact(tmp_path / "artifact")
+    pin = bind_synthetic_diversity(artifact)
+    assert Predictor(artifact, pin).report["binding"]["diversity"]
+
+    target = artifact / "diversity.json"
+    original_bytes = target.read_bytes()
+    replacement = json.dumps({"training_allowed": False}).encode()
+    original_open = prediction_module._open_regular_member
+    after_open_injected = False
+
+    def replace_after_open(directory_fd, name):
+        nonlocal after_open_injected
+        descriptor = original_open(directory_fd, name)
+        if name == target.name and not after_open_injected:
+            after_open_injected = True
+            staged = target.with_name(target.name + ".replacement")
+            staged.write_bytes(replacement)
+            os.replace(staged, target)
+        return descriptor
+
+    monkeypatch.setattr(prediction_module, "_open_regular_member", replace_after_open)
+    try:
+        assert Predictor(artifact, pin).report["binding"]["diversity"]
+    finally:
+        target.write_bytes(original_bytes)
+    assert after_open_injected
+
+    monkeypatch.setattr(prediction_module, "_open_regular_member", original_open)
+    injected = False
+
+    def replace_before_open(directory_fd, name):
+        nonlocal injected
+        if name == target.name and not injected:
+            injected = True
+            staged = target.with_name(target.name + ".replacement")
+            staged.write_bytes(replacement)
+            os.replace(staged, target)
+        return original_open(directory_fd, name)
+
+    monkeypatch.setattr(prediction_module, "_open_regular_member", replace_before_open)
+    try:
+        with pytest.raises(ValueError, match="experience_checksum"):
+            Predictor(artifact, pin)
+    finally:
+        target.write_bytes(original_bytes)
+    assert injected
 
 
 def test_completed_training_reuse_rejects_changed_inference_entry_pin(tmp_path, monkeypatch):

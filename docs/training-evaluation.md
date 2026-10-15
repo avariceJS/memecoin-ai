@@ -212,6 +212,14 @@ ineligibility, model/statistics bindings, and finite model state, then matches t
 statistics to the current job binding. Synthetic re-pinned status, eligibility, model, statistics,
 and weight corruptions fail before return or generation publication. This is internal artifact
 consistency, not external authenticity or a model-quality check.
+`Predictor` holds a no-follow artifact-directory descriptor, checks the exact manifest roster, and
+hashes every regular member in bounded chunks. It copies consumed model, statistics, report,
+optional diversity, and weight members into spooled streams, then parses or loads those same captured
+bytes. Each stream keeps up to 8 MiB in memory before spilling to temporary disk; disk use is bounded
+by the captured members' sizes and is removed after load. Replacing a pathname after verification
+cannot substitute what inference loads. Symlinks, non-regular files, inventory drift, and hash
+mismatches fail closed. This establishes byte coherence with the caller-supplied manifest pin; it
+does not authenticate that pin or prove that a file was not modified during a single stream read.
 At artifact load and before resume, persisted statistics are checked against the schema: feature
 means are finite and correctly sized, scales are finite and positive, baselines are null or three
 finite nondecreasing quantiles, and target transforms use supported identifiers. Missing legacy
