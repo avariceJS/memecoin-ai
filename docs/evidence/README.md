@@ -16,6 +16,14 @@ contain large exact payloads, so open only the named artifact needed for a speci
   checks. It fixes one GRU recipe, two train-only baselines, exact-label gates, and resource limits before
   fitting. The 05:40Z attempt stopped before fit due to a missing scratch directory; see its
   [pre-fit failure record](brain-lagged-context-retrieval-preparation-failure-2026-10-15T0540Z.json).
+- [Lagged-context controller failure](brain-lagged-context-retrieval-controller-failure-2026-10-15T0610Z.json):
+  preserves the completed 640-step candidate and records a post-publication `KeyError`; no evaluation
+  protocol, source, or labels existed at failure. It records the outer command wall-time bound and leaves
+  peak scratch use unverified. The candidate may be evaluated once through a separately pinned evaluation-only continuation.
+- [Lagged-context evaluation-only continuation preregistration](brain-lagged-context-evaluation-continuation-prereg-2026-10-15T0610Z.json):
+  binds the already completed 640-step, 80-epoch candidate and original thresholds to a new scorer.
+  It performs no fitting; evaluation source creation is gated until after candidate registration. Peak scratch
+  usage remains an unverified resource gate.
 - [Superseded lagged-context preparation attempt](brain-lagged-context-retrieval-prereg-2026-10-15T0520Z.json):
   source construction and structural census completed, but the harness stopped while serializing its local
   prepared-state file before any fit. It is retained as an immutable failed preparation record; the later
