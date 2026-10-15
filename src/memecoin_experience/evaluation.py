@@ -28,6 +28,7 @@ from .storage import (
 
 COORDINATE_METRICS_V1 = "native_coordinate_macro_pinball_coverage_v1"
 COORDINATE_METRICS_V2 = "native_coordinate_macro_pinball_coverage_train_baseline_v2"
+COORDINATE_METRICS_V3 = "native_coordinate_macro_pinball_coverage_train_baseline_pool_coverage_v3"
 
 
 def register_coordinate(
@@ -86,7 +87,7 @@ def register_coordinate(
         pools=pools,
         scope=scope,
         registered_ns=now_ns,
-        metrics=COORDINATE_METRICS_V2,
+        metrics=COORDINATE_METRICS_V3,
         quantiles=model.spec["quantiles"],
         data_role="research_evaluation",
         production_eligible=False,
@@ -115,7 +116,8 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
         or protocol.get("production_eligible") is not False
         or protocol.get("scope") not in {"retrospective", "preregistered_forward_replay"}
         or protocol.get("data_role") != "research_evaluation"
-        or protocol.get("metrics") not in {COORDINATE_METRICS_V1, COORDINATE_METRICS_V2}
+        or protocol.get("metrics")
+        not in {COORDINATE_METRICS_V1, COORDINATE_METRICS_V2, COORDINATE_METRICS_V3}
         or type(protocol.get("registered_ns")) is not int
         or protocol["registered_ns"] < 0
         or not isinstance(protocol.get("pools"), list)
@@ -193,13 +195,19 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
         denominators = Counter()
         census_scored_digest = hashlib.sha256()
         pools = set(protocol["pools"])
+        snapshot_pools = set()
+        test_assigned_pools = set()
+        exact_scored_pools = set()
         for index in range(len(snapshot.parts)):
             _, rows = snapshot.partition(index)
             population["snapshot_rows"] += len(rows)
             for row in rows:
                 if row["pool"] not in pools:
                     raise ValueError("experience_coordinate_evaluation_enrollment")
+                snapshot_pools.add(row["pool"])
                 assignment = eligibility(row, snapshot.schema, plan, "test")
+                if assignment["assigned_role"] == "test":
+                    test_assigned_pools.add(row["pool"])
                 if (
                     protocol["scope"] == "preregistered_forward_replay"
                     and assignment["assigned_role"] == "test"
@@ -214,6 +222,7 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
                     population["test_purged_origins"] += 1
                 exact = assignment["exact_mask"]
                 if any(exact):
+                    exact_scored_pools.add(row["pool"])
                     population["test_exact_usable_origins"] += 1
                     identity = canonical(
                         dict(
@@ -240,7 +249,10 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
                     population["test_lower_bound_target_cells"] += int(status == "lower_bound")
         stage = Path(tempfile.mkdtemp(prefix=".coordinate-evaluation-", dir=output.parent))
         try:
-            baseline_enabled = protocol["metrics"] == COORDINATE_METRICS_V2
+            baseline_enabled = protocol["metrics"] in {
+                COORDINATE_METRICS_V2,
+                COORDINATE_METRICS_V3,
+            }
             baseline_quantiles = None
             if baseline_enabled:
                 raw_baseline = model.stats.get("baseline")
@@ -391,6 +403,16 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
                 execution="not_evaluated",
                 production_eligible=False,
             )
+            if protocol["metrics"] == COORDINATE_METRICS_V3:
+                report["pool_coverage"] = dict(
+                    registered=len(pools),
+                    present_in_snapshot=len(snapshot_pools),
+                    test_assigned=len(test_assigned_pools),
+                    exact_scored=len(exact_scored_pools),
+                    missing_registered=len(pools - snapshot_pools),
+                    missing_pool_ids=sorted(pools - snapshot_pools),
+                    present_without_exact_scored=sorted(snapshot_pools - exact_scored_pools),
+                )
             atomic_json(stage / "protocol.json", protocol)
             atomic_json(stage / "report.json", report)
             seal_files(stage)

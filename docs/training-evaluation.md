@@ -362,21 +362,28 @@ snapshot membership, not an implicit latest-data-only policy.
 metrics, scope and local registration time before evaluation payload is read. `score` requires a
 `research_evaluation` snapshot, the same representation, a closed registered interval and no
 candidate/ancestor-seen interval. Training refuses that snapshot role. Superset populations are
-rejected rather than silently changing enrollment. Missing enrolled pools stay in the denominator;
-record counts, usable records, label statuses, purged/outside counts and per-pool/day scores are
-reported separately. Overlapping rows are not independent episodes; uncertainty is explicitly
-unestimated. The empirical baseline comes from training, and no execution/trading result is inferred.
+rejected rather than silently changing enrollment. Legacy population reports keep missing enrolled
+pools in their declared population denominator; record counts, usable records, label statuses,
+purged/outside counts and per-pool/day scores are reported separately. Overlapping rows are not
+independent episodes; uncertainty is explicitly unestimated. The empirical baseline comes from
+training, and no execution/trading result is inferred.
 Legacy protocol readback also requires the registered metric identifier, `production_eligible=false`
 and a plain nonnegative integer receipt time before opening the evaluation snapshot. These checks
 bind protocol fields, not an external timestamp or proof that the protocol was originally emitted by
 `register`. Newly registered native-coordinate protocols use
-`native_coordinate_macro_pinball_coverage_train_baseline_v2`: the pinned artifact's train-frozen
-empirical quantiles are scored on the same exact-eligible target cells as the model, with matching
-per-target `n` when that comparator exists. If training had no exact labels for a target, baseline
+`native_coordinate_macro_pinball_coverage_train_baseline_pool_coverage_v3`: the pinned artifact's
+train-frozen empirical quantiles are scored on the same exact-eligible target cells as the model,
+with matching per-target `n` when that comparator exists. If training had no exact labels for a target, baseline
 `n` is zero, pinball and coverage stay null, and the report says `no_exact_train_baseline`;
 evaluation labels never fill or replace that baseline. Existing
-v1 metric protocols remain scoreable and retain their original report shape. The metric identifier
-must be considered when comparing old and new immutable score receipts.
+v1 and v2 metric protocols remain scoreable and retain their original report shapes; v2 is
+baseline-only. V3 reports also include `pool_coverage`: registered, snapshot-present, test-assigned
+and exact-scored counts; missing
+registered pool IDs; and snapshot-present pools without exact-scored origins (including pools whose
+test rows are pending or purged). Missing or unusable pools add no invented exact cells to model or
+baseline metrics. The coverage list is bounded by the preregistered pool set because unregistered
+snapshot pools are rejected. The metric identifier must be considered when comparing old and new
+immutable score receipts.
 V3 score bindings include Python, NumPy and PyTorch versions plus the explicit CPU device before
 existing-output reuse. Pre-change v3 score directories lack this field and remain immutable legacy
 outputs; rescore to a new destination. The binding records the numerical environment, not bitwise

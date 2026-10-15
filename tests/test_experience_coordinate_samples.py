@@ -1077,15 +1077,31 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
     purged = _row(30, decision=1630, availability=1730, value=10)
     purged["input_dependencies"][0]["start_coordinate"] = 29
     eval_rows = [purged]
+    pending_pool_purged = _row(30, decision=1630, availability=1730, value=10)
+    pending_pool_purged["pool"] = "solana/program/pending-only"
+    pending_pool_purged["input_dependencies"][0]["start_coordinate"] = 29
+    eval_rows.append(pending_pool_purged)
     eval_rows.extend(
         _row(c, decision=1600 + c, availability=1700 + c, value=c - 30) for c in range(31, 39)
     )
     eval_rows.append(_row(39, status="pending", decision=1639, availability=1739))
+    pending_pool_row = _row(39, status="pending", decision=1639, availability=1739)
+    pending_pool_row["pool"] = "solana/program/pending-only"
+    eval_rows.append(pending_pool_row)
+    eval_rows.sort(
+        key=lambda row: (
+            row["pool"],
+            row["origin"]["coordinate"],
+            tuple(row["origin"]["position"]),
+            row["id"],
+        )
+    )
     eval_snapshot = build(
         eval_store,
         eval_rows,
         sources=[dict(kind="synthetic", pin="2" * 64)],
         cutoff=2000,
+        chunk=1,
         schema=schema,
         role="research_evaluation",
     )["snapshot"]
@@ -1106,10 +1122,15 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
         artifact,
         artifact_pin,
         split_plan=eval_plan,
-        pools=["solana/program/pumpswap"],
+        pools=[
+            "solana/program/pumpswap",
+            "solana/program/pending-only",
+            "solana/program/missing",
+        ],
         scope="preregistered_forward_replay",
     )
     assert registration["registered_ns"] == 1500
+    assert registration["metrics"] == evaluation.COORDINATE_METRICS_V3
     score_output = tmp_path / "future-score"
     scored = evaluation.score(
         protocol_root,
@@ -1122,8 +1143,17 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
     )
     assert scored["status"] == "completed"
     assert scored["population"]["test_scored_origins"] == 8
-    assert scored["population"]["test_purged_origins"] == 1
-    assert scored["population"]["test_pending_target_cells"] == 1
+    assert scored["population"]["test_purged_origins"] == 2
+    assert scored["population"]["test_pending_target_cells"] == 2
+    assert scored["pool_coverage"] == dict(
+        registered=3,
+        present_in_snapshot=2,
+        test_assigned=2,
+        exact_scored=1,
+        missing_registered=1,
+        missing_pool_ids=["solana/program/missing"],
+        present_without_exact_scored=["solana/program/pending-only"],
+    )
     metric = scored["metrics"][0]
     assert metric["n"] == 8 and metric["pinball"] > 0 and metric["coverage"] == 0
     import numpy as np
@@ -1161,6 +1191,7 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
     assert v1_scored["metrics"][0] == {
         key: metric[key] for key in ("target", "n", "pinball", "coverage")
     }
+    assert "pool_coverage" not in v1_scored
     assert v1_scored == evaluation.score(
         v1_root,
         v1_pin,
@@ -1171,12 +1202,35 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
         batch=4,
     )
 
+    v2_protocol = dict(registration)
+    v2_protocol.pop("protocol")
+    v2_protocol["metrics"] = evaluation.COORDINATE_METRICS_V2
+    v2_pin = digest(v2_protocol)
+    v2_root = tmp_path / "v2-protocols"
+    v2_root.mkdir()
+    atomic_json(v2_root / f"{v2_pin}.json", v2_protocol)
+    v2_scored = evaluation.score(
+        v2_root,
+        v2_pin,
+        eval_store,
+        eval_snapshot,
+        artifact,
+        tmp_path / "v2-score",
+        batch=4,
+    )
+    assert v2_scored["metrics"][0] == metric
+    assert "pool_coverage" not in v2_scored
+
     no_baseline = evaluation.register_coordinate(
         protocol_root,
         artifact,
         "b" * 64,
         split_plan=eval_plan,
-        pools=["solana/program/pumpswap"],
+        pools=[
+            "solana/program/pumpswap",
+            "solana/program/pending-only",
+            "solana/program/missing",
+        ],
         scope="preregistered_forward_replay",
     )
     no_baseline_scored = evaluation.score(
