@@ -506,8 +506,7 @@ def test_two_process_sensing_episode_is_reconciled_asof_and_replayable(tmp_path)
     asof_history = next(r for r in rows if r["pool"].endswith("/C") and r["decision_ns"] == 225)
     history_row = rows.index(asof_history)
     history_frames = [
-        matrix[history_row][i : i + width]
-        for i in range(0, len(matrix[history_row]), width)
+        matrix[history_row][i : i + width] for i in range(0, len(matrix[history_row]), width)
     ]
     history_feature = next(
         i
