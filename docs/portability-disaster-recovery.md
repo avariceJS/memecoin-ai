@@ -6,7 +6,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-14.** The accepted recovery scope is loss or erasure of the
+**NO-GO for factory reset as of 2026-10-15.** The accepted recovery scope is loss or erasure of the
 owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
 reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -739,6 +739,35 @@ available mount events with gaps accounted for, all Data UUID/group/device/mount
 before unlock, and a second unmounted check after `unlockVolume -nomount`. If the log history cannot
 establish prior events, state the remaining assumption; do not claim independent proof or qualify T.
 
+### Recovery boot evidence reviewed 2026-10-15
+
+The final Recovery boot was completed, and the user has returned to normal macOS. Its command set is
+hash-bound in the
+[`Recovery boot analysis receipt`](evidence/portability-dr-recovery-boot-analysis-2026-10-15T1942Z.json).
+The first and last `diskutil info` checks identify the pinned Data UUID as `disk3s5`, with FileVault
+enabled, locked, and not mounted. The saved `/usr/bin/log show` output starts 3.658 seconds after
+the recorded kernel boot time. It shows a successful APFS probe for `disk3s5`, one automatic mount
+attempt, and an explicit failure 19 milliseconds later (`0x0000004D`). Treat that value as an
+uninterpreted failure: it does not state why the attempt failed or whether a hypothetical earlier
+mount was read-only or writable. No successful Data-volume mount appears in the saved log or mount
+listings. The separate `/System/Volumes/Data?owner=0` discovery appears alongside the Recovery
+mount-table's `tmpfs` at `/System/Volumes/Data`; it is not evidence that `/dev/disk3s5` mounted.
+
+The final text transcript contains no `listSnapshots` command or output, so the Recovery snapshot
+inventory remains unknown. Photographs in the snapshot folder are from the preceding failed attempt
+and are excluded from this boot's evidence. The final text shows `/usr/bin/log show` working.
+
+This boot establishes the point-in-time locked/unmounted state and the logged failed automatic mount
+attempt. It does not establish that no earlier mount occurred: pre-Terminal authentication and Data
+access choices were not recorded, and the first saved log event follows kernel boot by 3.658 seconds.
+The current live macOS read-only follow-up at 20:31Z found the same Data UUID mounted as expected,
+one Data role member, and zero Data snapshots; this does not repair the Recovery history gap or
+qualify a historical source view. Sol's independent decision is to avoid another Recovery boot
+solely to repeat this preflight. Keep prior writable-mount history as an explicit human-attested
+residual assumption; no Data T is qualified and erase remains NO-GO. A new Recovery boot is useful
+only as part of a separately planned source-view rehearsal; repeating point checks cannot retroactively
+close this boot's log gap.
+
 `tools/brain_host_recovery_preflight_v1.py` now implements the bounded first-action observation.
 Invocation requires independently pinned Data UUID, volume-group UUID, container UUID, and device
 identifier; all four must match before the point-in-time check can pass. It checks APFS
@@ -982,14 +1011,18 @@ as a new replication capability with hash verification and a full recovery rehea
 
 ## Remaining gates before `SAFE TO ERASE`
 
-The next source-view gate is a **user-dependent** Recovery compatibility and mount-history rehearsal,
-initially without unlocking or mounting Data and without capturing owner files. Start with clean
-shutdown, record every Recovery authentication choice, and make the first Terminal action check the
-pinned Data UUID, FileVault, lock, and mount state before Disk Utility or source access. Inspect the
-earliest available boot-session mount logs for gaps and enumerate all Data aliases/snapshots. The
-Locked/no-mount check is necessary but cannot alone exclude an earlier unlock/mount/relock. If
-independent boot history cannot be established, record the remaining assumption rather than claiming
-a proven no-prior-writable boundary. Metadata-only owner/local-root closure can proceed independently.
+The Recovery compatibility/point-check probe has been completed once; do not request another boot
+merely to repeat it. A **user-dependent** Recovery boot remains necessary only when a concrete
+source-view rehearsal is ready. For that combined gate, record clean shutdown and every
+authentication/recovery-key/UI choice, then make the first Terminal action check the pinned Data UUID,
+FileVault, lock, and mount state before Disk Utility or source access. Capture boot time, earliest
+available disk arbitration/APFS logs, the complete APFS volume/group listing, kernel mounts, and one
+`listSnapshots` attempt; repeat the identity and mount checks at the end. An inaccessible snapshot
+listing or incomplete log is `unknown`. Stop on changed identity, unlocked or mounted Data, any
+unmapped alias, or any earlier successful or uncertain Data mount. If the earliest history cannot be
+established, retain the explicit human-attested assumption; do not claim proven no-prior-writable
+mount. This gate alone still does not authorize unlock/mount or qualify T. Metadata-only
+owner/local-root closure can proceed independently.
 Only after these boundaries are designed should a real offline Data-view adapter be implemented. If
 the offline route is infeasible, qualify a conservative Data free-space floor,
 bounded snapshot retention, and interactive admin
