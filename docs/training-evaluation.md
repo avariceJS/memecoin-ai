@@ -887,6 +887,16 @@ remains a future contract. `prepare` resolves lineage for v2 count schemas even 
 masked objective; censored batching resolves it before iteration. The resolved cutoff is cached for
 the lifetime of a `Snapshot`, assuming its backing store is immutable during use.
 
+Replicating a composed v2 count snapshot validates this lineage before publishing its top-level
+manifest, copies each ancestor manifest and paged catalog object, and copies the descendant's
+verified partition payload union once. A restored replica therefore resolves the same conservative
+cutoff and censored batch membership. Missing or corrupt source ancestry fails before that snapshot
+is published at the destination. Before successful return, replication reopens the destination and
+checks that it resolves the same cutoff. Publication is not a transaction across all files: a
+destination-side readback failure after the top manifest is published can leave that manifest in
+place. Synthetic direct and nested paged-composition checks cover idempotence and batch identity.
+This preserves declared local lineage; it does not authenticate external source truth.
+
 For quantile `q`, the censored-cell term is `q * max(L - prediction, 0)`. This is a per-quantile
 lower-envelope surrogate for compatible completions, not a proper score, survival likelihood,
 consistent estimator of full count quantiles, or upper bound on forecast error. Predictions above a

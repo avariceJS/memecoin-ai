@@ -772,6 +772,117 @@ def test_composition_does_not_widen_legacy_censor_cutoff(tmp_path, monkeypatch):
         broken_lineage.censor_cutoff_ns()
 
 
+def test_paged_censored_composition_replication_copies_verified_lineage(tmp_path, monkeypatch):
+    import shutil
+
+    import memecoin_experience.catalog as experience_catalog
+    import memecoin_experience.storage as storage
+    from memecoin_experience.composition import compose
+    from memecoin_experience.storage import object_path
+    from memecoin_experience.transfer import replicate
+
+    monkeypatch.setattr(experience_catalog, "PAGE_SIZE", 2)
+    store = tmp_path / "paged-censored-store"
+    schema = dict(
+        schema="brain-experience-v2",
+        layout="dense-sequence-f64-v1",
+        context=1,
+        features=[dict(name="signal", unit="indicator", modality="synthetic")],
+        targets=[dict(name="count", unit="events", kind="observed_process_count@1000000000ns")],
+        representation=dict(name="paged-censor-replication", version="1", code_sha="f" * 64),
+        availability="historical_replay",
+    )
+
+    def build_series(name, times, cutoff_s, available_s, *, legacy_invalid=False):
+        rows = []
+        for index, (decision_s, lower_available_s) in enumerate(
+            zip(times, available_s, strict=True)
+        ):
+            decision = decision_s * NS
+            rows.append(
+                dict(
+                    id=f"{name}:{index}",
+                    pool=f"synthetic/{name}",
+                    decision_ns=decision,
+                    input_start_ns=decision - 1,
+                    input_available_ns=decision,
+                    input_dependencies=[
+                        dict(artifact_sha="b" * 64, event_ns=decision - 1, available_ns=decision)
+                    ],
+                    values=[[1.0]],
+                    targets=[None],
+                    target_status=["censored"],
+                    target_available_ns=[None],
+                    target_maturity_ns=[50 * NS],
+                    target_captures=[[]],
+                    target_details=[
+                        dict(lower_bound=2, lower_bound_available_ns=lower_available_s * NS)
+                    ],
+                )
+            )
+        args = dict(
+            sources=[dict(kind="synthetic-paged-count", pin=name[0] * 64)],
+            cutoff=cutoff_s * NS,
+            schema=schema,
+            chunk=1,
+        )
+        if legacy_invalid:
+            with monkeypatch.context() as patch:
+                patch.setattr(storage, "checked_samples", lambda samples, *_: iter(samples))
+                return build(store, rows, **args)
+        return build(store, rows, **args)
+
+    old = build_series("oldset", [1, 2, 3], 100, [150, 80, 90], legacy_invalid=True)
+    later = build_series("laterset", [4, 5, 6], 200, [70, 80, 90])
+    direct = compose(store, [old["snapshot"], later["snapshot"]])
+    direct_snapshot = Snapshot(store, direct["snapshot"])
+    assert "partition_pages" in Snapshot(store, old["snapshot"]).manifest
+    assert direct_snapshot.censor_cutoff_ns() == 100 * NS
+
+    newest = build_series("newset", [7, 8, 9], 300, [70, 80, 90])
+    nested = compose(store, [direct["snapshot"], newest["snapshot"]])
+    nested_snapshot = Snapshot(store, nested["snapshot"])
+    split = dict(train_start_s=0, train_end_s=500, validation_end_s=600, test_end_s=700)
+
+    def eligible_ids(snapshot):
+        return [
+            row_id
+            for batch in batches(snapshot, split, "train", 8, with_censoring=True)
+            for row_id in batch[5]
+        ]
+
+    direct_ids = eligible_ids(direct_snapshot)
+    nested_ids = eligible_ids(nested_snapshot)
+    assert len(direct_ids) == 5
+    assert len(nested_ids) == 8
+
+    for result in (direct, nested):
+        target = tmp_path / f"replica-{result['snapshot'][:8]}"
+        assert replicate(store, target, result["snapshot"])["copied"] > 0
+        restored = Snapshot(target, result["snapshot"])
+        assert restored.censor_cutoff_ns() == 100 * NS
+        assert eligible_ids(restored) == (direct_ids if result is direct else nested_ids)
+        assert replicate(store, target, result["snapshot"])["copied"] == 0
+
+    missing_source = tmp_path / "missing-lineage-source"
+    shutil.copytree(store, missing_source)
+    (missing_source / "snapshots" / f"{old['snapshot']}.json").unlink()
+    missing_target = tmp_path / "missing-lineage-target"
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        replicate(missing_source, missing_target, nested["snapshot"])
+    assert not (missing_target / "snapshots" / f"{nested['snapshot']}.json").exists()
+
+    corrupt_source = tmp_path / "corrupt-lineage-source"
+    shutil.copytree(store, corrupt_source)
+    direct_source_snapshot = Snapshot(corrupt_source, direct["snapshot"])
+    page_pin = direct_source_snapshot.manifest["partition_pages"][0]["pin"]
+    (object_path(corrupt_source, page_pin) / "partition-page.json").write_text("corrupt")
+    corrupt_target = tmp_path / "corrupt-lineage-target"
+    with pytest.raises(ValueError, match="checksum"):
+        replicate(corrupt_source, corrupt_target, nested["snapshot"])
+    assert not (corrupt_target / "snapshots" / f"{nested['snapshot']}.json").exists()
+
+
 def test_namespaced_protected_evaluation_rejected_before_artifact_read(tmp_path):
     from memecoin_brain.source import EXCLUDED
     from memecoin_experience.storage import atomic_json, digest
