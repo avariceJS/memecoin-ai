@@ -206,6 +206,11 @@ ineligibility, model/statistics bindings, and finite model state, then matches t
 statistics to the current job binding. Synthetic re-pinned status, eligibility, model, statistics,
 and weight corruptions fail before return or generation publication. This is internal artifact
 consistency, not external authenticity or a model-quality check.
+At artifact load and before resume, persisted statistics are checked against the schema: feature
+means are finite and correctly sized, scales are finite and positive, baselines are null or three
+finite nondecreasing quantiles, and target transforms use supported identifiers. Missing legacy
+transform lists default to identity; null baselines and older minimal statistics remain valid. This
+does not prove that statistics were computed from the bound snapshot.
 
 ### Running an isolated job
 

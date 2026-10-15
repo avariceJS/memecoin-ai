@@ -576,6 +576,57 @@ def tensors(x, y, mask, stats, device):
     )
 
 
+def validate_statistics(stats, schema):
+    """Validate persisted scaler, empirical baseline, and target transform structure."""
+    error = "experience_statistics_contract"
+    if not isinstance(stats, dict):
+        raise ValueError(error)
+    feature_count = len(feature_names(schema))
+    target_count = len(target_names(schema))
+
+    def finite_number(value):
+        if type(value) not in {int, float}:
+            return False
+        try:
+            return math.isfinite(value)
+        except OverflowError:
+            return False
+
+    mean, scale, baseline = stats.get("mean"), stats.get("scale"), stats.get("baseline")
+    if (
+        not isinstance(mean, list)
+        or len(mean) != feature_count
+        or any(not finite_number(value) for value in mean)
+        or not isinstance(scale, list)
+        or len(scale) != feature_count
+        or any(not finite_number(value) or value <= 0 for value in scale)
+        or not isinstance(baseline, list)
+        or len(baseline) != target_count
+    ):
+        raise ValueError(error)
+    for values in baseline:
+        if values is None:
+            continue
+        if (
+            not isinstance(values, list)
+            or len(values) != len(QUANTILES)
+            or any(not finite_number(value) for value in values)
+            or any(values[index - 1] > values[index] for index in range(1, len(values)))
+        ):
+            raise ValueError(error)
+
+    transforms = stats.get("target_transforms", ["identity"] * target_count)
+    if (
+        not isinstance(transforms, list)
+        or len(transforms) != target_count
+        or any(
+            type(value) is not str or value not in {"identity", "log1p_nonnegative"}
+            for value in transforms
+        )
+    ):
+        raise ValueError(error)
+
+
 def transform_targets(values, transforms, mask=None):
     result = np.asarray(values, dtype=np.float64).copy()
     if len(transforms) != result.shape[1]:
@@ -1063,6 +1114,7 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
         if bound_path.exists():
             bound = json.loads(bound_path.read_text())
             stats = json.loads(stats_path.read_text())
+            validate_statistics(stats, snapshot.schema)
             if bound != dict(binding, statistics=digest(stats)):
                 raise ValueError("experience_statistics_binding")
         else:
@@ -1082,6 +1134,7 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
                     normalization="frozen_parent_normalizer",
                     normalizer_parent=parent["pin"],
                 )
+            validate_statistics(stats, snapshot.schema)
             atomic_json(stats_path, stats, replace=True)
         if (
             ancestor is not None

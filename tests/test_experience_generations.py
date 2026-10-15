@@ -151,6 +151,78 @@ def test_predictor_rejects_nonfinite_state_and_output(tmp_path, monkeypatch):
         output_predictor.predict(finite_input)
 
 
+def test_predictor_rejects_malformed_persisted_statistics_and_accepts_legacy(tmp_path):
+    original_artifact, _, schema = sealed_tiny_artifact(tmp_path / "statistics-artifact")
+    names = ("manifest.json", "model.json", "report.json", "statistics.json", "weights.pt")
+    original = {name: (original_artifact / name).read_bytes() for name in names}
+
+    def wrong_mean_dimension(stats):
+        stats["mean"].pop()
+
+    def nonfinite_mean(stats):
+        stats["mean"][0] = float("nan")
+
+    def zero_scale(stats):
+        stats["scale"][0] = 0
+
+    def infinite_scale(stats):
+        stats["scale"][0] = float("inf")
+
+    def wrong_baseline_dimension(stats):
+        stats["baseline"].pop()
+
+    def wrong_baseline_shape(stats):
+        stats["baseline"][0] = [1.0, 2.0]
+
+    def nonfinite_baseline(stats):
+        stats["baseline"][0] = [float("nan"), 0.0, 1.0]
+
+    def unordered_baseline(stats):
+        stats["baseline"][0] = [3.0, 2.0, 1.0]
+
+    def wrong_transform_dimension(stats):
+        stats["target_transforms"].pop()
+
+    def unsupported_transform(stats):
+        stats["target_transforms"][0] = "log10"
+
+    for corrupt in (
+        wrong_mean_dimension,
+        nonfinite_mean,
+        zero_scale,
+        infinite_scale,
+        wrong_baseline_dimension,
+        wrong_baseline_shape,
+        nonfinite_baseline,
+        unordered_baseline,
+        wrong_transform_dimension,
+        unsupported_transform,
+    ):
+        for name, contents in original.items():
+            (original_artifact / name).write_bytes(contents)
+        changed = json.loads(original["statistics.json"])
+        corrupt(changed)
+        (original_artifact / "statistics.json").write_text(json.dumps(changed, allow_nan=True))
+        (original_artifact / "manifest.json").unlink()
+        pin = seal_files(original_artifact)
+        with pytest.raises(ValueError, match="experience_statistics_contract"):
+            Predictor(original_artifact, pin)
+
+    for name, contents in original.items():
+        (original_artifact / name).write_bytes(contents)
+    legacy = json.loads(original["statistics.json"])
+    legacy.pop("target_transforms")
+    legacy["baseline"] = [None] * len(schema["targets"])
+    atomic_json(original_artifact / "statistics.json", legacy, replace=True)
+    report = json.loads(original["report.json"])
+    report["statistics"] = legacy
+    report["binding"]["statistics"] = digest(legacy)
+    atomic_json(original_artifact / "report.json", report, replace=True)
+    (original_artifact / "manifest.json").unlink()
+    pin = seal_files(original_artifact)
+    assert Predictor(original_artifact, pin).stats == legacy
+
+
 def test_generation_resume_parent_and_lineage(tmp_path):
     store, pin = dataset(tmp_path)
     root = tmp_path / "generations"

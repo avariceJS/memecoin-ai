@@ -73,6 +73,65 @@ def test_stats_train_only_and_quantiles(tmp_path):
     assert stats["population"]["purged"] > 0
 
 
+def test_statistics_contract_and_legacy_optional_transform(tmp_path):
+    from memecoin_experience.learning import validate_statistics
+
+    _, _, snapshot = dataset(tmp_path)
+    stats = prepare(snapshot, PLAN, tmp_path, 17)
+
+    def wrong_mean_dimension(value):
+        value["mean"].pop()
+
+    def nonfinite_mean(value):
+        value["mean"][0] = float("nan")
+
+    def zero_scale(value):
+        value["scale"][0] = 0
+
+    def infinite_scale(value):
+        value["scale"][0] = float("inf")
+
+    def wrong_baseline_dimension(value):
+        value["baseline"].pop()
+
+    def wrong_baseline_quantiles(value):
+        value["baseline"][0] = [1.0, 2.0]
+
+    def nonfinite_baseline(value):
+        value["baseline"][0][0] = float("inf")
+
+    def unordered_baseline(value):
+        value["baseline"][0] = [3.0, 2.0, 1.0]
+
+    def wrong_transform_dimension(value):
+        value["target_transforms"].pop()
+
+    def unsupported_transform(value):
+        value["target_transforms"][0] = "log10"
+
+    for corrupt in (
+        wrong_mean_dimension,
+        nonfinite_mean,
+        zero_scale,
+        infinite_scale,
+        wrong_baseline_dimension,
+        wrong_baseline_quantiles,
+        nonfinite_baseline,
+        unordered_baseline,
+        wrong_transform_dimension,
+        unsupported_transform,
+    ):
+        changed = json.loads(json.dumps(stats))
+        corrupt(changed)
+        with pytest.raises(ValueError, match="experience_statistics_contract"):
+            validate_statistics(changed, snapshot.schema)
+
+    legacy = json.loads(json.dumps(stats))
+    legacy.pop("target_transforms")
+    legacy["baseline"][0] = None
+    validate_statistics(legacy, snapshot.schema)
+
+
 def test_partial_loss_and_horizon_heads():
     p = torch.zeros((3, 2, 3), requires_grad=True)
     y = torch.ones((3, 2))
@@ -428,6 +487,30 @@ def test_statistics_are_bound_before_first_checkpoint(tmp_path, monkeypatch):
     (output / "statistics.json").write_text(json.dumps(stats))
     with pytest.raises(ValueError, match="statistics_binding"):
         train(store, pin, output, plan=PLAN, config=CONFIG)
+    assert not (output / "artifact").exists()
+
+
+def test_invalid_bound_statistics_reject_resume_before_optimizer_restore(tmp_path, monkeypatch):
+    store, pin, _ = dataset(tmp_path)
+    output = tmp_path / "run"
+    train(store, pin, output, plan=PLAN, config=CONFIG, stop_after=1)
+    checkpoint = output / "checkpoint.pt"
+    checkpoint_hash = file_hash(checkpoint)
+    stats = json.loads((output / "statistics.json").read_text())
+    stats["scale"][0] = 0
+    binding = json.loads((output / "binding.json").read_text())
+    binding["statistics"] = digest(stats)
+    atomic_json(output / "statistics.json", stats, replace=True)
+    atomic_json(output / "binding.json", binding, replace=True)
+
+    def optimizer_restore_must_not_run(*args, **kwargs):
+        raise AssertionError("optimizer restored before statistics validation")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(torch.optim.AdamW, "load_state_dict", optimizer_restore_must_not_run)
+        with pytest.raises(ValueError, match="experience_statistics_contract"):
+            train(store, pin, output, plan=PLAN, config=CONFIG)
+    assert file_hash(checkpoint) == checkpoint_hash
     assert not (output / "artifact").exists()
 
 

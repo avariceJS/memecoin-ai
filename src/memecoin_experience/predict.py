@@ -5,7 +5,7 @@ import json
 import numpy as np
 import torch
 
-from .learning import inverse_predictions
+from .learning import inverse_predictions, validate_statistics
 from .models import construct, input_tensor
 from .schema import feature_names
 from .storage import digest, file_hash, safe_path, verify_files
@@ -21,6 +21,7 @@ class Predictor:
         self.spec = json.loads((artifact / "model.json").read_text())
         self.stats = json.loads((artifact / "statistics.json").read_text())
         self.report = json.loads((artifact / "report.json").read_text())
+        validate_statistics(self.stats, self.spec["schema"])
         if (
             self.report["status"] != "completed"
             or self.report["production_eligible"] is not False
