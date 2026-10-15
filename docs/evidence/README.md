@@ -24,6 +24,18 @@ contain large exact payloads, so open only the named artifact needed for a speci
   binds the already completed 640-step, 80-epoch candidate and original thresholds to a new scorer.
   It performs no fitting; evaluation source creation is gated until after candidate registration. Peak scratch
   usage remains an unverified resource gate.
+- [Lagged-context post-score reconciliation](brain-lagged-context-postscore-reconciliation-v3-2026-10-15T0610Z.json):
+  read-only arithmetic over the sole sealed evaluation transcript. The frozen synthetic predictive
+  thresholds were met (raw summed q-pinball 0.0097413; 0.00696 of both train-only baselines), and
+  all 128 exact evaluation rows passed roster, clock, context, and maturity checks. The transcript
+  was already exposed by the registered score, so this is not a second evaluation or prospective
+  result. Overall assay qualification is incomplete because peak scratch use was not measured.
+  Two failed metric-controller attempts are preserved in
+  [failure receipts](brain-lagged-context-postscore-addendum-controller-failure-2026-10-15T0610Z.json)
+  and [v2 failure receipt](brain-lagged-context-postscore-addendum-controller-failure-v2-2026-10-15T0610Z.json).
+  The final derivation and exact inputs are bound by the
+  [v3 addendum preregistration](brain-lagged-context-postscore-reconciliation-v3-prereg-2026-10-15T0610Z.json);
+  its executed code hash is retained at commit `e9765c0`.
 - [Superseded lagged-context preparation attempt](brain-lagged-context-retrieval-prereg-2026-10-15T0520Z.json):
   source construction and structural census completed, but the harness stopped while serializing its local
   prepared-state file before any fit. It is retained as an immutable failed preparation record; the later

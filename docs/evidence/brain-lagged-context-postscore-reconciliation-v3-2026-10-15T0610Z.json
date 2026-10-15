@@ -1,0 +1,77 @@
+{
+  "addendum_preregistration_sha256": "acc47b342ac742b6b02443efc679b5787b66f13467a6db0438060c68594da40e",
+  "candidate_artifact_manifest_sha256": "e671026a94934867ba64eca1652fa1ee9a09a679bf7b0b840b1112185e874517",
+  "candidate_report_sha256": "a4476740bdcd46b6e8dad440fb46bd3d26fbb21b14df743bcd577cad239e21b6",
+  "claim_limit": "Pass establishes historical-frame retrieval for this frozen synthetic episode only; no market, calibration, transfer, general temporal-learning, or architecture-superiority claim.",
+  "continuation_preregistration_sha256": "d31f9eb826ed0696d2a126611559e093ce62bd9923ae9a73c0ee2095c2c63c11",
+  "denominators": {
+    "evaluation_exact_target_rows": 128,
+    "evaluation_pools": 128,
+    "evaluation_score_target_observed": 128,
+    "evaluation_score_target_usable": 128,
+    "input_available_by_decision_rows": 128,
+    "input_within_context_rows": 128,
+    "target_matured_after_decision_rows": 128,
+    "training_exact_target_rows": 256
+  },
+  "derivation_code_sha256": "af36445f956a03fe92896d3e33d2497ee802b2ad474ad4aada2b64890bbd35de",
+  "evaluation_score_repeated": false,
+  "evaluation_semantics": "Post-exposure arithmetic over bytes from the sole completed registered evaluation. Eval labels and predictions were already exposed by evaluation.score; this is not a second preregistered evaluation, new holdout, or prospective result.",
+  "evaluation_snapshot": "c0656a2e3dc41737fe4e27f49ace459b7a473445c3210eb5a3ebc7ad048e50e1",
+  "evaluation_source_pin": "779a7c86af7564e9597dc7a493b8c87051a5052e270761c3a9875bdf22bf17bd",
+  "evaluation_source_rebuilt": false,
+  "experiment_id": "2026-10-15T0610Z",
+  "fit_repeated": false,
+  "metrics": {
+    "frozen_assay_model_raw_count_macro_pinball_sum_q_per_row": 0.009741322370246053,
+    "latest_frame_bit_conditional_train_only_loss": 1.4,
+    "latest_frame_bit_conditional_train_only_quantiles": {
+      "0": [
+        0.0,
+        2.0,
+        4.0
+      ],
+      "1": [
+        0.0,
+        2.0,
+        4.0
+      ]
+    },
+    "model_loss_divided_by_three_minus_official_absolute_difference": 1.734723475976807e-18,
+    "official_scorer_mean_q_pinball": 0.003247107456748686,
+    "ratio_to_latest_frame_conditional": 0.006958087407318609,
+    "ratio_to_unconditional": 0.006958087407318609,
+    "unconditional_train_only_loss": 1.4,
+    "unconditional_train_only_quantiles": [
+      0.0,
+      2.0,
+      4.0
+    ]
+  },
+  "original_preregistration_sha256": "bcc4dd190b599d48f10e2c5023db9a58d44e899bbb3d84c64aa85a7d6129d46d",
+  "overall_assay_qualification": "incomplete_due_to_unverified_resource_gate",
+  "peak_scratch_gate": "unverified; no peak measurement was captured during the original fit/evaluation process",
+  "predictor_reinvoked": false,
+  "prior_addendum_attempt": "The first read-only implementation stopped immediately on a snapshot row-key schema mismatch before arithmetic or result publication; see the immutable failure receipt.",
+  "protocol_pin": "3d60c65a9690ade604e99ab6557b65676ab6a1f4557c3ab2c02c2913d76869bf",
+  "sealed_score": {
+    "files": {
+      "predictions.jsonl": "426f3a8912b67f22916e04260a439b7bb9d7ee858ebfdfe7f91a1379efc4764a",
+      "protocol.json": "3d60c65a9690ade604e99ab6557b65676ab6a1f4557c3ab2c02c2913d76869bf",
+      "report.json": "7c674353795020522a1b73cd345b912b72f77b4b3993d66c03efb4d7af1ff785",
+      "strata.jsonl": "300b0e59c5ea1d88b2ac7c2dc13ba80f2558be05782ac55436b4fd57977090c5"
+    },
+    "manifest_sha256": "192be87b40ffcfd6e0dcf6b5419e1b210a3c8b8dd8c28589f07a069afd52faee",
+    "report_sha256": "7c674353795020522a1b73cd345b912b72f77b4b3993d66c03efb4d7af1ff785",
+    "transcript_sha256": "426f3a8912b67f22916e04260a439b7bb9d7ee858ebfdfe7f91a1379efc4764a"
+  },
+  "status": "predictive_thresholds_met_resource_gate_unverified",
+  "target": "target/events_1000000000ns",
+  "thresholds": {
+    "evaluation_rows_exact": 128,
+    "max_loss_ratio_to_each_baseline": 0.25,
+    "max_raw_count_pinball": 0.25
+  },
+  "training_snapshot": "2b7ed5736bcd6d5f6c4ca1e3df42b14f621fe05782ee1733a836aa11e23a5678",
+  "version": "brain-lagged-context-postscore-readonly-metric-addendum-v1"
+}

@@ -1247,3 +1247,18 @@ engineering flow only: they do not show market predictive quality or learning ga
 protected or production data was used. Reproduce with
 [`test_scheduled_sensing_fits_resumes_and_scores_separate_synthetic_cohort`](../tests/test_experience_sensing.py)
 and inspect the unique [qualification receipt](evidence/brain-scheduled-sensing-neural-qualification-2026-10-15.json).
+
+A separate frozen lagged-context retrieval assay fit one width-16 CPU GRU for 640 steps on 256
+balanced synthetic four-bit histories. Its one retrospective registered evaluation used 128
+disjoint synthetic entities with exact one-second count labels and passed both frozen predictive
+thresholds: raw-count summed q10/q50/q90 pinball was 0.0097413 (0.0032471 per quantile, matching
+the sealed scorer), or 0.00696 of each train-only empirical baseline. All 128 evaluation rows had
+inputs available by decision time, context inside the declared 40-second bound, and matured exact
+targets. The result is arithmetic over the already exposed, sealed prediction transcript; it is
+not a second evaluation. Overall assay qualification remains incomplete because peak scratch use
+was not measured. This establishes only retrieval of the frozen synthetic lag rule on this cohort;
+it does not establish market skill, general temporal learning, transfer, or a model improvement for
+Brain. Two read-only result-controller attempts failed before publishing metrics and are preserved;
+the final reconciliation reused the sole sealed score without refitting, invoking prediction again,
+registering another protocol, or rebuilding the cohort. See the [assay preregistration and result
+receipts](evidence/README.md#brain-and-operator).

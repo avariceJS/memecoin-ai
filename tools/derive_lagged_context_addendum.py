@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT))
 
-from memecoin_experience.storage import Snapshot, digest, file_hash, verify_files  # noqa: E402
+from memecoin_experience.storage import Snapshot, file_hash, verify_files  # noqa: E402
 from tools import lagged_context_retrieval as assay  # noqa: E402
 
 RUN_ID = "2026-10-15T0610Z"
@@ -74,11 +74,12 @@ def main() -> Path:
         raise ValueError("sealed_score_tree_changed")
     protocol = json.loads((SCORE / "protocol.json").read_text())
     report = json.loads((SCORE / "report.json").read_text())
+    candidate_pin = prereg["candidate_artifact_manifest_sha256"]
     if (
         file_hash(SCORE / "protocol.json") != prereg["protocol_pin"]
         or report.get("binding", {}).get("protocol") != prereg["protocol_pin"]
         or report.get("binding", {}).get("snapshot") != prereg["evaluation_snapshot"]
-        or report.get("binding", {}).get("candidate") != prereg["candidate_artifact_manifest_sha256"]
+        or report.get("binding", {}).get("candidate") != candidate_pin
         or report.get("status") != "completed"
         or report.get("production_eligible") is not False
         or protocol.get("scope") != "retrospective"
@@ -92,9 +93,7 @@ def main() -> Path:
         raise ValueError("registered_target_metric_cardinality")
 
     prepared = json.loads((WORK / "prepared.json").read_text())
-    eval_snapshot = Snapshot(
-        WORK / "evaluation-build/snapshot", prereg["evaluation_snapshot"]
-    )
+    eval_snapshot = Snapshot(WORK / "evaluation-build/snapshot", prereg["evaluation_snapshot"])
     train_snapshot = Snapshot(prepared["training"]["store"], prereg["training_snapshot"])
     eval_rows, eval_labels = read_snapshot_rows(eval_snapshot)
     train_rows, train_labels = read_snapshot_rows(train_snapshot)
@@ -177,9 +176,7 @@ def main() -> Path:
     # averages over quantiles, so its matching value is exactly one third here.
     model_loss = assay._pinball(actual_values, model_quantiles)
     unconditional_loss = assay._pinball(actual_values, [unconditional] * len(actual_values))
-    conditional_loss = assay._pinball(
-        actual_values, [conditional[bit] for bit in latest_bits]
-    )
+    conditional_loss = assay._pinball(actual_values, [conditional[bit] for bit in latest_bits])
     official_loss = float(target_metric[0]["pinball"])
     crosscheck_difference = abs(model_loss / 3.0 - official_loss)
     if crosscheck_difference > FLOAT_TOLERANCE:
@@ -253,15 +250,22 @@ def main() -> Path:
                 str(bit): values for bit, values in conditional.items()
             },
             "latest_frame_bit_conditional_train_only_loss": conditional_loss,
-            "ratio_to_unconditional": model_loss / unconditional_loss if unconditional_loss else None,
-            "ratio_to_latest_frame_conditional": model_loss / conditional_loss if conditional_loss else None,
+            "ratio_to_unconditional": (
+                model_loss / unconditional_loss if unconditional_loss else None
+            ),
+            "ratio_to_latest_frame_conditional": (
+                model_loss / conditional_loss if conditional_loss else None
+            ),
         },
         "thresholds": thresholds,
         "fit_repeated": False,
         "evaluation_score_repeated": False,
         "predictor_reinvoked": False,
         "evaluation_source_rebuilt": False,
-        "peak_scratch_gate": "unverified; no peak measurement was captured during the original fit/evaluation process",
+        "peak_scratch_gate": (
+            "unverified; no peak measurement was captured during the original "
+            "fit/evaluation process"
+        ),
         "overall_assay_qualification": "incomplete_due_to_unverified_resource_gate",
         "claim_limit": continuation["claim_limit"],
     }
