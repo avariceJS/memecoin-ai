@@ -70,7 +70,7 @@ def register_coordinate(
     require_test_after(coordinate_frontier, plan)
     if scope == "preregistered_forward_replay" and (
         schema["availability"] != "point_in_time"
-        or plan["roles"]["test"]["knowledge_cutoff_ns"] >= now_ns
+        or plan["roles"]["test"]["knowledge_cutoff_ns"] <= now_ns
     ):
         raise ValueError("experience_coordinate_evaluation_not_prospective")
     protocol = dict(
@@ -188,6 +188,12 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
                 if row["pool"] not in pools:
                     raise ValueError("experience_coordinate_evaluation_enrollment")
                 assignment = eligibility(row, snapshot.schema, plan, "test")
+                if (
+                    protocol["scope"] == "preregistered_forward_replay"
+                    and assignment["assigned_role"] == "test"
+                    and row["decision_ns"] <= protocol["registered_ns"]
+                ):
+                    raise ValueError("experience_coordinate_evaluation_not_future")
                 if assignment["assigned_role"] != "test":
                     population["outside_test_intervals"] += 1
                     continue

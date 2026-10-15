@@ -918,6 +918,154 @@ def test_v3_replication_batch_fit_resume_and_registered_evaluation(tmp_path, mon
     assert not substituted_output.exists()
 
 
+def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, monkeypatch):
+    pytest.importorskip("numpy")
+    pytest.importorskip("torch")
+
+    from memecoin_experience import coordinate_frontier, evaluation, predict
+
+    schema = _schema("point_in_time")
+    primary = schema["coordinate_domain_pin"]
+
+    def make_plan(test_cutoff, test_intervals=((30, 40),)):
+        return coordinate_samples.make_split_plan(
+            primary,
+            {
+                "train": {
+                    "intervals": [[0, 10]],
+                    "dependency_intervals": {},
+                    "knowledge_cutoff_ns": 1000,
+                },
+                "validation": {
+                    "intervals": [[10, 20]],
+                    "dependency_intervals": {},
+                    "knowledge_cutoff_ns": 1400,
+                },
+                "test": {
+                    "intervals": [list(interval) for interval in test_intervals],
+                    "dependency_intervals": {},
+                    "knowledge_cutoff_ns": test_cutoff,
+                },
+            },
+        )
+
+    train_plan = make_plan(1400, test_intervals=((20, 30),))
+    frontier = coordinate_frontier.from_plan(train_plan)
+
+    class SyntheticPredictor:
+        def __init__(self, artifact, pin):
+            self.spec = dict(schema=schema, quantiles=[0.1, 0.5, 0.9])
+            self.report = dict(
+                binding=dict(plan=train_plan),
+                seen_coordinate_frontier=frontier,
+                seen_end_coordinate=frontier["exclusive_ends"][primary],
+            )
+
+        def predict(self, frames):
+            import numpy as np
+
+            return np.zeros((len(frames), 1, 3))
+
+    monkeypatch.setattr(predict, "Predictor", SyntheticPredictor)
+    artifact = tmp_path / "synthetic-artifact"
+    artifact_pin = "a" * 64
+
+    eval_plan = make_plan(2000)
+    eval_store = tmp_path / "eval-store"
+    eval_rows = [_row(c, decision=1600 + c, availability=1700 + c) for c in range(31, 39)]
+    eval_snapshot = build(
+        eval_store,
+        eval_rows,
+        sources=[dict(kind="synthetic", pin="2" * 64)],
+        cutoff=2000,
+        schema=schema,
+        role="research_evaluation",
+    )["snapshot"]
+    monkeypatch.setattr(evaluation.time, "time_ns", lambda: 1500)
+    protocol_root = tmp_path / "protocols"
+    for cutoff in (1499, 1500):
+        with pytest.raises(ValueError, match="experience_coordinate_evaluation_not_prospective"):
+            evaluation.register_coordinate(
+                protocol_root,
+                artifact,
+                artifact_pin,
+                split_plan=make_plan(cutoff),
+                pools=["solana/program/pumpswap"],
+                scope="preregistered_forward_replay",
+            )
+    registration = evaluation.register_coordinate(
+        protocol_root,
+        artifact,
+        artifact_pin,
+        split_plan=eval_plan,
+        pools=["solana/program/pumpswap"],
+        scope="preregistered_forward_replay",
+    )
+    assert registration["registered_ns"] == 1500
+    scored = evaluation.score(
+        protocol_root,
+        registration["protocol"],
+        eval_store,
+        eval_snapshot,
+        artifact,
+        tmp_path / "future-score",
+        batch=4,
+    )
+    assert scored["status"] == "completed"
+    assert scored["population"]["test_scored_origins"] == 8
+
+    from memecoin_experience.storage import atomic_json, digest
+
+    protocol = dict(registration)
+    protocol.pop("protocol")
+    protocol["registered_ns"] = 1700
+    late_pin = digest(protocol)
+    late_root = tmp_path / "late-protocol"
+    late_root.mkdir()
+    atomic_json(late_root / f"{late_pin}.json", protocol)
+    late_output = tmp_path / "late-registration-score"
+    with pytest.raises(ValueError, match="experience_coordinate_evaluation_not_future"):
+        evaluation.score(
+            late_root,
+            late_pin,
+            eval_store,
+            eval_snapshot,
+            artifact,
+            late_output,
+            batch=4,
+        )
+    assert not late_output.exists()
+
+    for kind in ("pending", "purged"):
+        row = (
+            _row(31, status="pending", decision=1499)
+            if kind == "pending"
+            else _row(31, decision=1499)
+        )
+        if kind == "purged":
+            row["input_dependencies"][0]["start_coordinate"] = 29
+        bad_snapshot = build(
+            eval_store,
+            [row],
+            sources=[dict(kind="synthetic", pin=("3" if kind == "pending" else "4") * 64)],
+            cutoff=2000,
+            schema=schema,
+            role="research_evaluation",
+        )["snapshot"]
+        bad_output = tmp_path / f"pre-registration-{kind}"
+        with pytest.raises(ValueError, match="experience_coordinate_evaluation_not_future"):
+            evaluation.score(
+                protocol_root,
+                registration["protocol"],
+                eval_store,
+                bad_snapshot,
+                artifact,
+                bad_output,
+                batch=4,
+            )
+        assert not bad_output.exists()
+
+
 @pytest.mark.parametrize(
     "tamper",
     ["epoch_jump", "forged_rows_seen", "forged_cursor", "missing_history", "missing_best"],

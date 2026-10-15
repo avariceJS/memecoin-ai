@@ -373,8 +373,10 @@ bind protocol fields, not an external timestamp or proof that the protocol was o
 
 `retrospective` is a fixed-candidate historical research comparison. The separate
 `preregistered_forward_replay` scope requires future registration and a `point_in_time` producer;
-it is not live forecast-publication or trade-fill evidence. The current OHLCV orchestration uses
-only retrospective scope. Registration time is a local receipt, not an external timestamp attestation.
+its test-role knowledge cutoff must be later than registration, and every test-assigned origin
+decision must be strictly after registration, including pending or purged rows. It is not live
+forecast-publication or trade-fill evidence. The current OHLCV orchestration uses only retrospective
+scope. Registration time is a local receipt, not an external timestamp attestation.
 Registration uses the observed local clock; callers cannot supply an earlier registration time.
 This is a reproducible local research record, not an externally attested timestamp service.
 All evaluation artifacts are production-ineligible. Protected holdouts and existing promotion gates
