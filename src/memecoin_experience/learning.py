@@ -464,7 +464,7 @@ def prepare(
                 if (
                     objective == "partial_count_lower_bound_pinball_v1"
                     and is_count
-                    and population["train_partial_count_usable"]
+                    and denominators[f"train/{h}/informative_lower_bound"] > 0
                 ):
                     baseline.append(None)
                     continue

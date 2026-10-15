@@ -72,6 +72,113 @@ def test_partial_count_selection_matches_quantile_weighted_training_loss(monkeyp
     assert second["partial_count_bounds"][0]["mean_lower_bound_violation"] == pytest.approx(1.0)
 
 
+def test_partial_count_objective_requires_support_for_each_target(tmp_path):
+    schema = {
+        "schema": "brain-experience-v2",
+        "layout": "dense-sequence-f64-v1",
+        "context": 1,
+        "features": [{"name": "signal", "unit": "indicator", "modality": "synthetic"}],
+        "targets": [
+            {"name": name, "unit": "events", "kind": "observed_process_count@1000000000ns"}
+            for name in ("count_a", "count_b")
+        ],
+        "representation": dict(name="per-target-objective-support", version="1", code_sha="f" * 64),
+        "availability": "historical_replay",
+    }
+
+    def publish(name, train_b):
+        rows = []
+        for role, seconds in (("train", 10), ("validation", 110), ("test", 210)):
+            decision = seconds * NS
+            statuses = ["censored", train_b] if role == "train" else ["observed", "pending"]
+            values = [None, None]
+            available = [None, None]
+            captures = [[], []]
+            details = [{}, {}]
+            if statuses[0] == "censored":
+                details[0] = dict(lower_bound=2, lower_bound_available_ns=decision + 1)
+            else:
+                values[0], available[0], captures[0] = 2, decision + 1, ["a" * 64]
+            if statuses[1] == "censored":
+                details[1] = dict(lower_bound=3, lower_bound_available_ns=decision + 1)
+            elif statuses[1] == "observed":
+                values[1], available[1], captures[1] = 3, decision + 1, ["b" * 64]
+            rows.append(
+                dict(
+                    id=f"synthetic:{role}",
+                    pool="synthetic/per-target-support",
+                    decision_ns=decision,
+                    input_start_ns=decision - 1,
+                    input_available_ns=decision,
+                    input_dependencies=[
+                        dict(artifact_sha="c" * 64, event_ns=decision - 1, available_ns=decision)
+                    ],
+                    values=[[float(seconds)]],
+                    targets=values,
+                    target_status=statuses,
+                    target_available_ns=available,
+                    target_maturity_ns=[decision + 1, decision + 1],
+                    target_captures=captures,
+                    target_details=details,
+                )
+            )
+        store = tmp_path / f"store-{name}"
+        result = build(
+            store,
+            rows,
+            sources=[dict(kind="synthetic", pin="d" * 64)],
+            cutoff=300 * NS,
+            schema=schema,
+        )
+        return store, result["snapshot"]
+
+    split = dict(train_start_s=0, train_end_s=100, validation_end_s=200, test_end_s=300)
+
+    empty_store, empty_pin = publish("empty-b", "pending")
+    empty_output = tmp_path / "stats-empty-b"
+    empty_output.mkdir()
+    with pytest.raises(ValueError, match="experience_empty_training_horizon"):
+        learning.prepare(
+            Snapshot(empty_store, empty_pin),
+            split,
+            empty_output,
+            4,
+            objective="partial_count_lower_bound_pinball_v1",
+        )
+
+    bounds_store, bounds_pin = publish("bound-b", "censored")
+    bounds_output = tmp_path / "stats-bound-b"
+    bounds_output.mkdir()
+    bounded = learning.prepare(
+        Snapshot(bounds_store, bounds_pin),
+        split,
+        bounds_output,
+        4,
+        objective="partial_count_lower_bound_pinball_v1",
+    )
+    assert bounded["baseline"] == [None, None]
+    assert bounded["denominators"]["train/0/informative_lower_bound"] == 1
+    assert bounded["denominators"]["train/1/informative_lower_bound"] == 1
+
+    exact_store, exact_pin = publish("exact-b", "observed")
+    exact_output = tmp_path / "stats-exact-b"
+    exact_output.mkdir()
+    exact = learning.prepare(
+        Snapshot(exact_store, exact_pin),
+        split,
+        exact_output,
+        4,
+        objective="partial_count_lower_bound_pinball_v1",
+    )
+    assert exact["baseline"][0] is None
+    assert exact["baseline"][1] is not None
+
+    default_output = tmp_path / "stats-default"
+    default_output.mkdir()
+    with pytest.raises(ValueError, match="experience_empty_training_horizon"):
+        learning.prepare(Snapshot(bounds_store, bounds_pin), split, default_output, 4)
+
+
 def test_partial_count_batch_keeps_censored_count_separate_from_exact_mask(tmp_path):
     rows = facts()
     rows[-1]["status"] = "unknown"
