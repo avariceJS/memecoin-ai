@@ -5,10 +5,11 @@ import json
 import numpy as np
 import torch
 
-from .learning import inverse_predictions, validate_statistics
+from .learning import validate_statistics
 from .models import construct, input_tensor
 from .schema import feature_names
 from .storage import digest, file_hash, safe_path, verify_files
+from .target_transforms import implementation_pin, inverse_predictions
 
 
 class Predictor:
@@ -22,6 +23,13 @@ class Predictor:
         self.stats = json.loads((artifact / "statistics.json").read_text())
         self.report = json.loads((artifact / "report.json").read_text())
         validate_statistics(self.stats, self.spec["schema"])
+        report_binding = self.report.get("binding", {})
+        self.inference_transform_bound = "inference_transform" in report_binding
+        if (
+            self.inference_transform_bound
+            and report_binding["inference_transform"] != implementation_pin()
+        ):
+            raise ValueError("experience_prediction_transform_binding")
         if (
             self.report["status"] != "completed"
             or self.report["production_eligible"] is not False

@@ -45,8 +45,9 @@ def dataset(tmp_path, *, evaluation_only=False, start=0):
     return store, report["snapshot"]
 
 
-def sealed_tiny_artifact(path, *, target_transform="identity"):
+def sealed_tiny_artifact(path, *, target_transform="identity", transform_binding="legacy"):
     from memecoin_experience.models import construct, model_spec
+    from memecoin_experience.target_transforms import implementation_pin
 
     schema, _ = custom_samples()
     spec = model_spec(schema, width=4)
@@ -56,10 +57,15 @@ def sealed_tiny_artifact(path, *, target_transform="identity"):
         baseline=[None] * len(schema["targets"]),
         target_transforms=[target_transform] * len(schema["targets"]),
     )
+    binding = dict(model=spec, statistics=digest(stats))
+    if transform_binding != "legacy":
+        binding["inference_transform"] = (
+            implementation_pin() if transform_binding == "current" else transform_binding
+        )
     report = dict(
         status="completed",
         production_eligible=False,
-        binding=dict(model=spec, statistics=digest(stats)),
+        binding=binding,
         statistics=stats,
     )
     path.mkdir(parents=True)
@@ -69,6 +75,50 @@ def sealed_tiny_artifact(path, *, target_transform="identity"):
     atomic_json(path / "report.json", report)
     pin = seal_files(path)
     return path, pin, schema
+
+
+def test_target_transform_golden_values_and_artifact_binding(tmp_path, monkeypatch):
+    from memecoin_experience import predict as prediction_module
+    from memecoin_experience.target_transforms import (
+        implementation_pin,
+        inverse_predictions,
+        transform_targets,
+    )
+
+    values = np.array([[0.0, 0.0], [7.0, np.log1p(9.0)]])
+    assert np.array_equal(
+        transform_targets(values, ["identity", "log1p_nonnegative"]),
+        np.array([[0.0, 0.0], [7.0, np.log1p(np.log1p(9.0))]]),
+    )
+    encoded = np.array([[[0.0, 7.0, 701.0]], [[0.0, np.log1p(9.0), -3.0]]])
+    restored = inverse_predictions(encoded, {"target_transforms": ["log1p_nonnegative"]})
+    assert restored[0, 0, 0] == 0.0
+    assert restored[0, 0, 1] == pytest.approx(np.expm1(7.0))
+    assert np.isfinite(restored).all()
+    assert restored[0, 0, 2] == pytest.approx(np.expm1(700.0))
+    identity = inverse_predictions(encoded, {"target_transforms": ["identity"]})
+    assert np.array_equal(identity, encoded)
+
+    artifact, pin, _ = sealed_tiny_artifact(
+        tmp_path / "bound-artifact", transform_binding="current"
+    )
+    predictor = Predictor(artifact, pin)
+    assert predictor.inference_transform_bound is True
+    assert predictor.report["binding"]["inference_transform"] == implementation_pin()
+
+    legacy_artifact, legacy_pin, _ = sealed_tiny_artifact(tmp_path / "legacy-artifact")
+    assert Predictor(legacy_artifact, legacy_pin).inference_transform_bound is False
+
+    wrong_artifact, wrong_pin, _ = sealed_tiny_artifact(
+        tmp_path / "wrong-artifact", transform_binding="0" * 64
+    )
+    monkeypatch.setattr(
+        prediction_module,
+        "construct",
+        lambda spec: (_ for _ in ()).throw(AssertionError("model constructed before pin check")),
+    )
+    with pytest.raises(ValueError, match="experience_prediction_transform_binding"):
+        Predictor(wrong_artifact, wrong_pin)
 
 
 @pytest.mark.parametrize("kind", ["gru-quantiles-v1", "temporal-mlp-quantiles-v1"])

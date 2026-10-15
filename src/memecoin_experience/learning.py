@@ -30,6 +30,7 @@ from .storage import (
     seal_files,
     sync_dir,
 )
+from .target_transforms import implementation_pin, inverse_predictions, transform_targets
 
 Network = GRU  # Backward-compatible research import; dimensions come from artifact specs.
 
@@ -699,34 +700,6 @@ def _restore_cpu_training_process_state(state):
     torch.backends.cuda.matmul.allow_tf32 = state["allow_tf32"]
 
 
-def transform_targets(values, transforms, mask=None):
-    result = np.asarray(values, dtype=np.float64).copy()
-    if len(transforms) != result.shape[1]:
-        raise ValueError("experience_target_transform_shape")
-    for h, transform in enumerate(transforms):
-        if transform == "log1p_nonnegative":
-            valid = np.ones(len(result), dtype=bool) if mask is None else mask[:, h]
-            if np.any(result[valid, h] < 0):
-                raise ValueError("experience_negative_count_target")
-            result[:, h] = np.log1p(np.maximum(result[:, h], 0))
-        elif transform != "identity":
-            raise ValueError("experience_target_transform")
-    return result
-
-
-def inverse_predictions(prediction, stats):
-    result = np.asarray(prediction).copy()
-    transforms = stats.get("target_transforms", ["identity"] * result.shape[1])
-    if len(transforms) != result.shape[1]:
-        raise ValueError("experience_target_transform_shape")
-    for h, transform in enumerate(transforms):
-        if transform == "log1p_nonnegative":
-            result[:, h, :] = np.expm1(np.clip(result[:, h, :], 0, 700))
-        elif transform != "identity":
-            raise ValueError("experience_target_transform")
-    return result
-
-
 def loss(prediction, target, mask, *, lower_bound=None, censored=None):
     error = target[:, :, None] - prediction
     q = prediction.new_tensor(QUANTILES)
@@ -1153,6 +1126,7 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
             coordinate_frontier = merge(coordinate_frontier, inherited)
     binding = dict(
         model=spec,
+        inference_transform=implementation_pin(),
         parent=parent["pin"] if parent else None,
         initialization="parent_weights_frozen_normalizer_fresh_optimizer"
         if parent

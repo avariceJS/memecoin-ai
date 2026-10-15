@@ -217,6 +217,11 @@ means are finite and correctly sized, scales are finite and positive, baselines 
 finite nondecreasing quantiles, and target transforms use supported identifiers. Missing legacy
 transform lists default to identity; null baselines and older minimal statistics remain valid. This
 does not prove that statistics were computed from the bound snapshot.
+New training bindings also pin the exact `target_transforms.py` source digest used for target
+encoding and prediction inversion. Standalone `Predictor` checks this digest before model
+construction. Sealed legacy artifacts without the field remain readable and expose
+`inference_transform_bound=False`; their inverse-transform implementation is therefore explicitly
+unbound. This guards transform-code drift, not numerical identity across library versions.
 Before a completed report is published, reused, or read through the generation registry, its epoch,
 step and row counters must reconcile with the recipe and train denominator. Validation history must
 have one ordered finite selection score per epoch. This detects inconsistent report progress and
