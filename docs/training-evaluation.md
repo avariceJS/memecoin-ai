@@ -208,7 +208,9 @@ Use bounded, already qualified training admission units. A build-plan JSON has e
 Use a receipt cutoff and split dates appropriate for the pinned data. The train-plan JSON has
 `split` (integer `train_start_s`, `train_end_s`, `validation_end_s`, `test_end_s`, strictly ordered)
 and `config` (optional `width`, `batch`, `epochs`, `seed`, `device`, `lr`, `checkpoint_every`,
-`cpu_threads`; default CPU thread count is one).
+`cpu_threads`, `sampler`; default CPU thread count is one and sampler is `content_pin_v1`). Set
+sampler to `role_isolated_partition_v1` to derive seeded order from stable partition ordinals
+instead of content pins. This remains opt-in pending broader research qualification.
 Every role and both evaluation horizons must retain usable labels, otherwise the job fails.
 
 ```sh
@@ -947,6 +949,11 @@ records decisions only and has no dispatch path.
 
 Measured synthetic schedule profile: 1,025 sorted origins, 512 rows/page, three sealed pages;
 0.041 s and 278,257 bytes peak traced Python allocation in one local run (Python 3.13.6, arm64).
+This measures only schedule publication at this fixture size; it is not a throughput or capacity
+claim. Observation indexes support multiple nonoverlapping enrollment intervals and reject events
+or support that cross an interval boundary; a focused sparse test proves target history does not
+cross a re-enrollment gap. No real market-event source was qualified by this synthetic episode,
+and no learning or execution result was measured.
 
 ### Frozen controlled-signal fit (2026-10-15)
 
@@ -967,17 +974,19 @@ and [result receipt](evidence/brain-controlled-signal-learnability-result-2026-1
 The legacy research sampler seeds each partition's row permutation from its content pin. A frozen
 synthetic paired audit changed only test values and labels inside four mixed-role partitions while
 keeping train/validation rows, IDs, partition geometry, recipe and train-only statistics fixed. The
-training ID order and final CPU weights changed. This confirms that descriptive held-out payload can
-influence training order when storage partitions mix roles. It does not demonstrate a market-data
-effect or model-quality change. A versioned opt-in role-isolated sampler is the next engineering
-step; the legacy sampler remains for compatibility. See the
-[preregistration](evidence/brain-training-role-isolation-prereg-2026-10-15.json) and
-[legacy audit result](evidence/brain-training-role-isolation-legacy-result-2026-10-15.json).
-This measures only schedule publication at this fixture size; it is not a throughput or capacity
-claim. Observation indexes support multiple nonoverlapping enrollment intervals and reject events
-or support that cross an interval boundary; a focused sparse test proves target history does not
-cross a re-enrollment gap. No real market-event source was qualified by this synthetic episode,
-and no learning or execution result was measured.
+training ID order and final CPU weights changed. This confirms that payload reserved for descriptive
+test can influence training order when storage partitions mix roles. It does not demonstrate a
+market-data effect or model-quality change. The opt-in `role_isolated_partition_v1` sampler now derives seeded
+partition and row permutations from stable ordinals instead of mixed-role content pins. On the same
+paired fixture it kept train order, train-only statistics and final weights identical, and exact
+CPU interruption/resume reproduced the uninterrupted weights. This guarantee requires unchanged
+train-role membership, row ordering/IDs and partition geometry; validation data remains allowed to
+select the best checkpoint. The default remains `content_pin_v1` for compatibility. The package-wide
+code identity changed, so unfinished checkpoints created before this sampler change fail their
+code-binding check; published artifacts were not modified. See the
+[legacy audit](evidence/brain-training-role-isolation-legacy-result-2026-10-15.json),
+[opt-in sampler result](evidence/brain-training-role-isolation-result-2026-10-15.json), and
+[preregistration](evidence/brain-training-role-isolation-prereg-2026-10-15.json).
 
 ### Positive values qualification (2026-10-09)
 

@@ -7,6 +7,7 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
+from memecoin_experience import catalog  # noqa: E402
 from memecoin_experience.learning import batches, train  # noqa: E402
 from memecoin_experience.storage import Snapshot, build, file_hash  # noqa: E402
 
@@ -155,4 +156,44 @@ def test_legacy_training_order_depends_on_test_payload(tmp_path):
     )
     (tmp_path / "legacy-result.json").write_text(
         json.dumps(receipt, sort_keys=True, indent=2) + "\n"
+    )
+
+
+def test_role_isolated_sampler_ignores_test_payload_and_resumes(tmp_path):
+    base_store, base_pin = _build(tmp_path, "baseline", perturb_test=False)
+    changed_store, changed_pin = _build(tmp_path, "changed-test", perturb_test=True)
+    base, changed = Snapshot(base_store, base_pin), Snapshot(changed_store, changed_pin)
+    assert [(p["count"], p["bounds"]) for p in base.parts] == [
+        (p["count"], p["bounds"]) for p in changed.parts
+    ]
+    base_order = _train_order(base_store, base_pin, sampler="role_isolated_partition_v1")
+    changed_order = _train_order(changed_store, changed_pin, sampler="role_isolated_partition_v1")
+    assert base_order == changed_order
+
+    config = dict(CONFIG, sampler="role_isolated_partition_v1")
+    expected = train(base_store, base_pin, tmp_path / "stable-fit", plan=PLAN, config=config)
+    changed_report = train(
+        changed_store, changed_pin, tmp_path / "changed-stable-fit", plan=PLAN, config=config
+    )
+    assert expected["statistics"] == changed_report["statistics"]
+    assert _equal_weights(
+        _weights(tmp_path / "stable-fit"), _weights(tmp_path / "changed-stable-fit")
+    )
+
+    resumed_path = tmp_path / "resumed-fit"
+    interrupted = train(base_store, base_pin, resumed_path, plan=PLAN, config=config, stop_after=2)
+    assert interrupted["status"] == "interrupted"
+    resumed = train(base_store, base_pin, resumed_path, plan=PLAN, config=config)
+    assert resumed == expected
+    assert _equal_weights(_weights(tmp_path / "stable-fit"), _weights(resumed_path))
+
+
+def test_role_isolated_sampler_keeps_paged_order_independent_of_payload(tmp_path, monkeypatch):
+    monkeypatch.setattr(catalog, "PAGE_SIZE", 2)
+    base_store, base_pin = _build(tmp_path, "baseline", perturb_test=False)
+    changed_store, changed_pin = _build(tmp_path, "changed-test", perturb_test=True)
+    base, changed = Snapshot(base_store, base_pin), Snapshot(changed_store, changed_pin)
+    assert "partition_pages" in base.manifest and "partition_pages" in changed.manifest
+    assert _train_order(base_store, base_pin, sampler="role_isolated_partition_v1") == _train_order(
+        changed_store, changed_pin, sampler="role_isolated_partition_v1"
     )

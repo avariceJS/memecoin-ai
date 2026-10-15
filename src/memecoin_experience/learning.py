@@ -47,6 +47,7 @@ def recipe(config):
         model_kind="gru-quantiles-v1",
         normalization="legacy_variance_floor_v1",
         objective="masked_pinball_v1",
+        sampler="content_pin_v1",
     )
     if set(config) - set(defaults):
         raise ValueError("experience_training_config")
@@ -79,11 +80,15 @@ def recipe(config):
         "partial_count_lower_bound_pinball_v1",
     }:
         raise ValueError("experience_training_config")
+    if c["sampler"] not in {"content_pin_v1", "role_isolated_partition_v1"}:
+        raise ValueError("experience_training_config")
     return c
 
 
-def partition_indices(snapshot, seed, epoch, start=0):
+def partition_indices(snapshot, seed, epoch, start=0, *, sampler="content_pin_v1"):
     """Page/partition permutation: bounded metadata and sequential catalog-page consumption."""
+    if sampler not in {"content_pin_v1", "role_isolated_partition_v1"}:
+        raise ValueError("experience_training_sampler")
     if "partition_pages" not in snapshot.manifest:
         order = list(range(len(snapshot.parts)))
         if seed is not None:
@@ -103,7 +108,12 @@ def partition_indices(snapshot, seed, epoch, start=0):
         begin = snapshot.parts.ends[page_index - 1] if page_index else 0
         indices = list(range(begin, begin + count))
         if seed is not None:
-            random.Random(f"{seed}:{epoch}:{pages[page_index]['pin']}:partitions").shuffle(indices)
+            identity = (
+                pages[page_index]["pin"]
+                if sampler == "content_pin_v1"
+                else f"role_isolated_partition_v1:page:{page_index}"
+            )
+            random.Random(f"{seed}:{epoch}:{identity}:partitions").shuffle(indices)
         for local in range(max(0, start - position), count):
             yield position + local, indices[local]
         position += count
@@ -188,6 +198,7 @@ def batches(
     cursor=(0, 0),
     with_metadata=False,
     with_censoring=False,
+    sampler="content_pin_v1",
 ):
     """Permutation of partitions then rows: exactly once per role per epoch, bounded payload."""
     xs, ys, ms, ids = [], [], [], []
@@ -208,6 +219,8 @@ def batches(
 
     if role not in {"train", "validation", "test"}:
         raise ValueError("experience_batch_role")
+    if sampler not in {"content_pin_v1", "role_isolated_partition_v1"}:
+        raise ValueError("experience_training_sampler")
     if snapshot.schema.get("schema") == "brain-experience-v3":
         from .coordinate_samples import domain_registry, role_intervals
 
@@ -226,7 +239,7 @@ def batches(
         intervals = [tuple(v * 10**9 for v in old_intervals[role])]
     if snapshot.schema.get("schema") != "brain-experience-v3":
         start_ns, end_ns = intervals[0]
-    for position, index in partition_indices(snapshot, seed, epoch, cursor[0]):
+    for position, index in partition_indices(snapshot, seed, epoch, cursor[0], sampler=sampler):
         extent = snapshot.parts[index].get("bounds")
         if extent and snapshot.schema.get("schema") == "brain-experience-v3":
             if extent["coordinate_domain_pin"] != plan["coordinate_domain_pin"]:
@@ -256,7 +269,12 @@ def batches(
             continue
         indices = list(range(len(chosen)))
         if seed is not None:
-            random.Random(f"{seed}:{epoch}:{snapshot.parts[index]['pin']}").shuffle(indices)
+            identity = (
+                snapshot.parts[index]["pin"]
+                if sampler == "content_pin_v1"
+                else f"role_isolated_partition_v1:partition:{index}"
+            )
+            random.Random(f"{seed}:{epoch}:{identity}").shuffle(indices)
         # mmap only selected role's slices, after metadata establishes role membership.
         x = np.memmap(
             path / "x.f64",
@@ -861,6 +879,7 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
                 cursor=state["cursor"],
                 with_metadata=journal is not None,
                 with_censoring=config["objective"] == "partial_count_lower_bound_pinball_v1",
+                sampler=config["sampler"],
             ):
                 if config["objective"] == "partial_count_lower_bound_pinball_v1":
                     x, y, mask, lower, censored, ids, cursor = packed
