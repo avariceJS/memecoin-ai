@@ -35,6 +35,26 @@ Live checks on the current Mac:
   21:32Z check. These short-window changes do not establish a write frontier or source quiescence,
   so the owner census/source cutoff remains blocked. Receipt:
   [`live runtime refresh`](evidence/portability-dr-live-runtime-refresh-2026-10-15T2132Z.json).
+- A bounded allowlisted projection at 22:27Z revalidated Kingston UUID/root and pinned the v6
+  Gecko capture activation, its exact repository plist, source manifest, epoch, and opaque journal
+  counters. The existing activation still says `capture_authorized=true`; its 60-second scheduled
+  label was loaded. The journal had 21 events: five intents, four dispatches, five outcomes, five
+  confirmations, one missed slot, and zero unresolved intents. Both 15-second canary watchdogs had
+  terminal receipts (`passed` and `failed_closed`). A pinned source-manifest self-hash was valid,
+  but one of its 15 source files no longer matched the activation source commit:
+  `src/memecoin_research_storage/__init__.py`. The current tick implementation verifies this set
+  before work and therefore fails closed; no tick or request was invoked by the DR probe. The
+  projection is recorded in the
+  [`Senses pre-quiescence receipt`](evidence/portability-dr-senses-prequiescence-2026-10-15T2227Z.json).
+- After confirming terminal journal/watchdog state and no active callback PIDs, the exact v6 label
+  and its two terminal canary watchdog labels were disabled and unloaded. No callback was killed;
+  the Kingston journal hash stayed unchanged. All three remained absent and disabled across 25
+  checks over 75 seconds, longer than the v6 60-second schedule; legacy v3/v4 capture labels
+  remained unloaded. Their prior enable/load state and exact plist hashes are in the pre-quiescence
+  receipt; re-enabling is a separate owner-authorized action. No other label was changed. This
+  closes only this Senses timer/write loop, not the owner-wide source frontier: paper/UI processes
+  and the loaded D43 scheduler remain outside the quiescence claim. See the
+  [`Senses quiescence receipt`](evidence/portability-dr-senses-quiescence-2026-10-15T2230Z.json).
 - The census CLI supports relocated hosts through an explicit mode-0600
   `brain-host-root-roster-v2` JSON input. Required logical roles must be declared as present or
   absent with an explicit disposition and reason; present roots carry absolute local paths, kinds,
