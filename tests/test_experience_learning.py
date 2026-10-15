@@ -372,12 +372,48 @@ def test_completed_training_artifact_reuse_revalidates_bound_contents(tmp_path):
             raise AssertionError("trained artifact has no floating-point weights")
         torch.save(weights, artifact / "weights.pt")
 
+    def wrong_report_epochs():
+        changed = json.loads(original["report.json"])
+        changed["epochs"] -= 1
+        atomic_json(artifact / "report.json", changed, replace=True)
+
+    def wrong_report_steps():
+        changed = json.loads(original["report.json"])
+        changed["steps"] += 1
+        atomic_json(artifact / "report.json", changed, replace=True)
+
+    def wrong_report_rows_seen():
+        changed = json.loads(original["report.json"])
+        changed["rows_seen"] += 1
+        atomic_json(artifact / "report.json", changed, replace=True)
+
+    def short_report_history():
+        changed = json.loads(original["report.json"])
+        changed["history"].pop()
+        atomic_json(artifact / "report.json", changed, replace=True)
+
+    def wrong_report_history_epoch():
+        changed = json.loads(original["report.json"])
+        changed["history"][0]["epoch"] = 8
+        atomic_json(artifact / "report.json", changed, replace=True)
+
+    def nonfinite_report_score():
+        changed = json.loads(original["report.json"])
+        changed["history"][0]["validation"]["selection_score"] = float("nan")
+        (artifact / "report.json").write_text(json.dumps(changed, allow_nan=True))
+
     for corrupt in (
         change_report_status,
         make_production_eligible,
         mismatch_model,
         mismatch_bound_statistics,
         nonfinite_weights,
+        wrong_report_epochs,
+        wrong_report_steps,
+        wrong_report_rows_seen,
+        short_report_history,
+        wrong_report_history_epoch,
+        nonfinite_report_score,
     ):
         for name, contents in original.items():
             (artifact / name).write_bytes(contents)

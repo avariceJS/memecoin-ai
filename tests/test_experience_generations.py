@@ -430,7 +430,7 @@ def test_invalid_completed_artifact_cannot_publish_generation_on_retry(tmp_path)
     artifact = root / "jobs" / identity / "training/artifact"
     report_path = artifact / "report.json"
     report = json.loads(report_path.read_text())
-    report["production_eligible"] = True
+    report["rows_seen"] += 1
     atomic_json(report_path, report, replace=True)
     (artifact / "manifest.json").unlink()
     seal_files(artifact)
@@ -440,6 +440,56 @@ def test_invalid_completed_artifact_cannot_publish_generation_on_retry(tmp_path)
     assert not generation_record.exists()
     status = json.loads((root / "jobs" / identity / "status.json").read_text())
     assert status["status"] == "failed"
+
+
+def test_generation_read_rejects_resealed_impossible_report_progress(tmp_path):
+    store, pin = dataset(tmp_path)
+    root = tmp_path / "registry"
+    done = generations.run(
+        root, name="V1", owner="research", store=store, snapshot=pin, split=PLAN, config=CONFIG
+    )
+    identity = done["generation"]
+    record_path = root / "generations" / f"{identity}.json"
+    record = json.loads(record_path.read_text())
+    artifact = root / "jobs" / identity / "training/artifact"
+    report_path = artifact / "report.json"
+    report = json.loads(report_path.read_text())
+    report["rows_seen"] += 1
+    atomic_json(report_path, report, replace=True)
+    (artifact / "manifest.json").unlink()
+    record["artifact"] = seal_files(artifact)
+    record["rows_seen"] = report["rows_seen"]
+    atomic_json(record_path, record, replace=True)
+
+    with pytest.raises(ValueError, match="experience_report_progress"):
+        generations.get(root, identity)
+
+
+def test_generation_read_accepts_legacy_train_usable_progress_denominator(tmp_path):
+    store, pin = dataset(tmp_path)
+    root = tmp_path / "registry"
+    done = generations.run(
+        root, name="V1", owner="research", store=store, snapshot=pin, split=PLAN, config=CONFIG
+    )
+    identity = done["generation"]
+    record_path = root / "generations" / f"{identity}.json"
+    record = json.loads(record_path.read_text())
+    artifact = root / "jobs" / identity / "training/artifact"
+    stats_path = artifact / "statistics.json"
+    report_path = artifact / "report.json"
+    stats = json.loads(stats_path.read_text())
+    report = json.loads(report_path.read_text())
+    population = stats["population"]
+    population["train_usable"] = population.pop("train_objective_usable")
+    report["statistics"] = stats
+    report["binding"]["statistics"] = digest(stats)
+    atomic_json(stats_path, stats, replace=True)
+    atomic_json(report_path, report, replace=True)
+    (artifact / "manifest.json").unlink()
+    record["artifact"] = seal_files(artifact)
+    atomic_json(record_path, record, replace=True)
+
+    assert generations.get(root, identity)[0]["rows_seen"] == report["rows_seen"]
 
 
 @pytest.mark.parametrize(

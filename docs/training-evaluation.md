@@ -213,6 +213,12 @@ means are finite and correctly sized, scales are finite and positive, baselines 
 finite nondecreasing quantiles, and target transforms use supported identifiers. Missing legacy
 transform lists default to identity; null baselines and older minimal statistics remain valid. This
 does not prove that statistics were computed from the bound snapshot.
+Before a completed report is published, reused, or read through the generation registry, its epoch,
+step and row counters must reconcile with the recipe and train denominator. Validation history must
+have one ordered finite selection score per epoch. This detects inconsistent report progress and
+prevents generations from recording a self-consistent but impossible row count; it does not replay
+the optimizer or recompute validation scores. Legacy masked-objective statistics with
+`train_usable` remain readable when the newer `train_objective_usable` count is absent.
 
 ### Running an isolated job
 

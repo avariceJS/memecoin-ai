@@ -627,6 +627,59 @@ def validate_statistics(stats, schema):
         raise ValueError(error)
 
 
+def validate_completed_report(report, stats, config):
+    """Reconcile a completed report's counters and validation history to its recipe."""
+    error = "experience_report_progress"
+    if not isinstance(report, dict) or not isinstance(stats, dict):
+        raise ValueError(error)
+    population_stats = stats.get("population")
+    if not isinstance(population_stats, dict):
+        raise ValueError(error)
+    population = population_stats.get("train_objective_usable")
+    if population is None and config.get("objective", "masked_pinball_v1") == "masked_pinball_v1":
+        # Older masked-objective reports used this denominator name.
+        population = population_stats.get("train_usable")
+    epochs, steps, rows_seen = (
+        report.get("epochs"),
+        report.get("steps"),
+        report.get("rows_seen"),
+    )
+    history = report.get("history")
+    if (
+        type(population) is not int
+        or population <= 0
+        or type(epochs) is not int
+        or epochs != config["epochs"]
+        or type(steps) is not int
+        or steps != epochs * ((population + config["batch"] - 1) // config["batch"])
+        or type(rows_seen) is not int
+        or rows_seen != epochs * population
+        or not isinstance(history, list)
+        or len(history) != epochs
+    ):
+        raise ValueError(error)
+
+    scores = []
+    for index, entry in enumerate(history):
+        if (
+            not isinstance(entry, dict)
+            or type(entry.get("epoch")) is not int
+            or entry["epoch"] != index
+            or not isinstance(entry.get("validation"), dict)
+        ):
+            raise ValueError(error)
+        score = entry["validation"].get("selection_score")
+        if type(score) not in (int, float) or not math.isfinite(score):
+            raise ValueError(error)
+        scores.append(score)
+    if "best_score" in report:
+        best_score = report["best_score"]
+        if type(best_score) not in (int, float) or not math.isfinite(best_score):
+            raise ValueError(error)
+        if not scores or best_score != min(scores):
+            raise ValueError(error)
+
+
 def transform_targets(values, transforms, mask=None):
     result = np.asarray(values, dtype=np.float64).copy()
     if len(transforms) != result.shape[1]:
@@ -1159,6 +1212,7 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
             report = loaded.report
             if report.get("binding") != binding or report.get("statistics") != stats:
                 raise ValueError("experience_artifact_binding")
+            validate_completed_report(report, stats, config)
             return report
         journal = None
         if audit is not None:
@@ -1326,6 +1380,7 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
             report["exposure"] = journal.finish(
                 state["steps"], state["rows_seen"], output / "exposure-report"
             )
+        validate_completed_report(report, stats, config)
         staging = Path(tempfile.mkdtemp(prefix=".artifact-", dir=output))
         if audit is not None:
             atomic_json(staging / "diversity.json", audit)

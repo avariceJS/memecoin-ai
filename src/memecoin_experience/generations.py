@@ -127,6 +127,9 @@ def get(root, identity):
     model = Predictor(artifact, record["artifact"])
     declaration = record["declaration"]
     binding = model.report["binding"]
+    from .learning import validate_completed_report
+
+    validate_completed_report(model.report, model.stats, binding["config"])
     if (
         record["model"] != model.spec
         or record["ancestors"] != model.report["ancestors"]
