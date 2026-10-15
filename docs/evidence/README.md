@@ -10,6 +10,14 @@ contain large exact payloads, so open only the named artifact needed for a speci
   synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume
   weights, separate registered research-evaluation cohort, and finite inference. Plumbing evidence;
   no market-quality or learning-gain claim.
+- [Lagged-context retrieval preregistration](brain-lagged-context-retrieval-prereg-2026-10-15T0540Z.json):
+  one frozen synthetic CPU assay with disjoint train, validation, internal-test, and research-evaluation
+  rosters. The train-side sensing census passes balanced-history, exact-support, clock, and empty-decision-frame
+  checks. The model fit and registered separate-cohort score had not run when this was frozen.
+- [Superseded lagged-context preparation attempt](brain-lagged-context-retrieval-prereg-2026-10-15T0520Z.json):
+  source construction and structural census completed, but the harness stopped while serializing its local
+  prepared-state file before any fit. It is retained as an immutable failed preparation record; the later
+  preregistration above pins the corrected harness.
 - [Controlled-signal learnability preregistration](brain-controlled-signal-learnability-prereg-2026-10-15.json):
   frozen synthetic signal, entity/time separation, one CPU recipe, registered-evaluation exact-label
   denominator, baseline/oracle comparison, and pass thresholds. The one run failed its 64-row exact
