@@ -875,7 +875,9 @@ selection uses the same quantile-weighted bound term as training and
 reports `partial_identification_objective_space_v2_quantile_weighted`; prior v1 selection scores
 used unweighted bound violations and are not comparable. Raw `partial_count_bounds` diagnostics stay
 in original count space with unweighted quantile violations. Existing artifacts and their selected
-checkpoints are immutable and are not rewritten under the corrected metric.
+checkpoints are immutable and are not rewritten under the corrected metric. The `objective_usable`
+population count follows the selected recipe in train, validation and test; `partial_count_usable`
+remains a separate descriptive count of eligible lower-bound rows.
 
 Synthetic engineering qualification shows censored-only count targets can pass through immutable
 snapshot, objective fit, stop/resume, evaluation and standalone inference without manufacturing an

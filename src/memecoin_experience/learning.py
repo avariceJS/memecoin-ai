@@ -371,7 +371,10 @@ def prepare(
                 cutoff_ns=censor_cutoff_ns,
             )
             population[role + "_partial_count_usable"] += int(any(lower_mask))
-            population[role + "_objective_usable"] += int(any(mask) or any(lower_mask))
+            objective_usable = any(mask) or (
+                objective == "partial_count_lower_bound_pinball_v1" and any(lower_mask)
+            )
+            population[role + "_objective_usable"] += int(objective_usable)
             for h, valid, status in zip(horizons, mask, row["target_status"], strict=True):
                 denominators[f"{role}/{h}/{status}"] += 1
                 denominators[f"{role}/{h}/usable"] += int(valid)
@@ -514,11 +517,6 @@ def prepare(
                 selected_usable=selected,
             )
         )
-    population["train_objective_usable"] = (
-        population["train_objective_usable"]
-        if objective == "partial_count_lower_bound_pinball_v1"
-        else population["train_usable"]
-    )
     transforms = [
         "log1p_nonnegative"
         if objective == "partial_count_lower_bound_pinball_v1"

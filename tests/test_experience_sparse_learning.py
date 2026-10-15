@@ -339,6 +339,103 @@ def test_validation_support_excludes_admission_rejected_count_bound(tmp_path):
         )
 
 
+def test_objective_usable_denominators_match_batches_for_each_role(tmp_path):
+    from memecoin_experience.admission import create
+
+    schema = {
+        "schema": "brain-experience-v2",
+        "layout": "dense-sequence-f64-v1",
+        "context": 1,
+        "features": [
+            dict(name="log_volume_usd", unit="log1p_USD", modality="ohlcv"),
+            dict(name="zero_volume", unit="indicator", modality="ohlcv"),
+        ],
+        "targets": [dict(name="count", unit="events", kind="observed_process_count@1000000000ns")],
+        "representation": dict(
+            name="objective-usable-denominators", version="1", code_sha="f" * 64
+        ),
+        "availability": "historical_replay",
+    }
+    rows = []
+    for start, role in ((5, "train"), (100, "validation"), (200, "test")):
+        for suffix, seconds, volume, status in (
+            ("purged", start, 100, "observed"),
+            ("exact", start + 10, 100, "observed"),
+            ("bound", start + 11, 100, "censored"),
+            ("rejected", start + 12, 1, "censored"),
+        ):
+            decision = seconds * NS
+            rows.append(
+                dict(
+                    id=f"{role}:{suffix}",
+                    pool="synthetic/objective-denominator",
+                    decision_ns=decision,
+                    input_start_ns=decision - 1 if suffix != "purged" else decision - NS,
+                    input_available_ns=decision,
+                    input_dependencies=[
+                        dict(
+                            artifact_sha="a" * 64,
+                            event_ns=decision - 1 if suffix != "purged" else decision - NS,
+                            available_ns=decision,
+                        )
+                    ],
+                    values=[[float(np.log1p(volume)), 0.0]],
+                    targets=[2 if status == "observed" else None],
+                    target_status=[status],
+                    target_available_ns=[decision + 1 if status == "observed" else None],
+                    target_maturity_ns=[decision + 1],
+                    target_captures=[["b" * 64] if status == "observed" else []],
+                    target_details=[
+                        dict(lower_bound=1, lower_bound_available_ns=decision + 1)
+                        if status == "censored"
+                        else {}
+                    ],
+                )
+            )
+    rows.sort(key=lambda row: (row["pool"], row["decision_ns"], row["id"]))
+    store = tmp_path / "objective-denominator-store"
+    built = build(
+        store,
+        rows,
+        sources=[dict(kind="synthetic", pin="c" * 64)],
+        cutoff=300 * NS,
+        schema=schema,
+    )
+    view = create(
+        store,
+        built["snapshot"],
+        dict(
+            name="causal_activity_v1", min_positive_volume_fraction=0.25, min_context_volume_usd=100
+        ),
+    )
+    snapshot = Snapshot(store, view["snapshot"])
+    plan = dict(train_start_s=5, train_end_s=100, validation_end_s=200, test_end_s=300)
+
+    for objective, expected_per_role in (
+        ("masked_pinball_v1", 1),
+        ("partial_count_lower_bound_pinball_v1", 2),
+    ):
+        output = tmp_path / f"stats-{objective}"
+        output.mkdir()
+        stats = learning.prepare(
+            snapshot,
+            plan,
+            output,
+            8,
+            objective=objective,
+        )
+        with_censoring = objective == "partial_count_lower_bound_pinball_v1"
+        for role in ("train", "validation", "test"):
+            packed = list(batches(snapshot, plan, role, 8, with_censoring=with_censoring))
+            id_index = 5 if with_censoring else 3
+            emitted = [row_id for batch in packed for row_id in batch[id_index]]
+            assert len(emitted) == expected_per_role
+            assert stats["population"][role + "_objective_usable"] == len(emitted)
+            assert stats["population"][role + "_partial_count_usable"] == 1
+            if role == "validation":
+                assert stats["validation_objective_support"][0]["selected_usable"] == len(emitted)
+
+
 def test_partial_count_batch_keeps_censored_count_separate_from_exact_mask(tmp_path):
     rows = facts()
     rows[-1]["status"] = "unknown"
