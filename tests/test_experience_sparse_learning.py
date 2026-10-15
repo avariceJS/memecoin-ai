@@ -86,11 +86,22 @@ def test_partial_count_objective_requires_support_for_each_target(tmp_path):
         "availability": "historical_replay",
     }
 
-    def publish(name, train_b):
+    def publish(
+        name,
+        train_b,
+        *,
+        train_a="censored",
+        validation_b="observed",
+        late_validation_bound=False,
+    ):
         rows = []
         for role, seconds in (("train", 10), ("validation", 110), ("test", 210)):
             decision = seconds * NS
-            statuses = ["censored", train_b] if role == "train" else ["observed", "pending"]
+            statuses = (
+                [train_a, train_b]
+                if role == "train"
+                else ["observed", validation_b if role == "validation" else "pending"]
+            )
             values = [None, None]
             available = [None, None]
             captures = [[], []]
@@ -100,7 +111,12 @@ def test_partial_count_objective_requires_support_for_each_target(tmp_path):
             else:
                 values[0], available[0], captures[0] = 2, decision + 1, ["a" * 64]
             if statuses[1] == "censored":
-                details[1] = dict(lower_bound=3, lower_bound_available_ns=decision + 1)
+                details[1] = dict(
+                    lower_bound=3,
+                    lower_bound_available_ns=300 * NS + 1
+                    if late_validation_bound
+                    else decision + 1,
+                )
             elif statuses[1] == "observed":
                 values[1], available[1], captures[1] = 3, decision + 1, ["b" * 64]
             rows.append(
@@ -173,10 +189,154 @@ def test_partial_count_objective_requires_support_for_each_target(tmp_path):
     assert exact["baseline"][0] is None
     assert exact["baseline"][1] is not None
 
+    missing_validation_store, missing_validation_pin = publish(
+        "validation-empty-b", "observed", validation_b="pending"
+    )
+    missing_validation_output = tmp_path / "stats-validation-empty-b"
+    missing_validation_output.mkdir()
+    with pytest.raises(ValueError, match="experience_empty_validation_horizon"):
+        learning.prepare(
+            Snapshot(missing_validation_store, missing_validation_pin),
+            split,
+            missing_validation_output,
+            4,
+            objective="partial_count_lower_bound_pinball_v1",
+        )
+
+    bound_validation_store, bound_validation_pin = publish(
+        "validation-bound-b",
+        "observed",
+        train_a="observed",
+        validation_b="censored",
+    )
+    bound_validation_output = tmp_path / "stats-validation-bound-b"
+    bound_validation_output.mkdir()
+    bound_validation = learning.prepare(
+        Snapshot(bound_validation_store, bound_validation_pin),
+        split,
+        bound_validation_output,
+        4,
+        objective="partial_count_lower_bound_pinball_v1",
+    )
+    assert bound_validation["validation_objective_support"][1] == dict(
+        target="count_b",
+        exact_usable=0,
+        informative_lower_bound=1,
+        selected_usable=1,
+    )
+    default_bound_output = tmp_path / "stats-default-validation-bound-b"
+    default_bound_output.mkdir()
+    with pytest.raises(ValueError, match="experience_empty_validation_horizon"):
+        learning.prepare(
+            Snapshot(bound_validation_store, bound_validation_pin),
+            split,
+            default_bound_output,
+            4,
+        )
+
+    import memecoin_experience.storage as storage
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(storage, "checked_samples", lambda rows, *_: iter(rows))
+        late_bound_store, late_bound_pin = publish(
+            "validation-late-bound-b",
+            "observed",
+            train_a="observed",
+            validation_b="censored",
+            late_validation_bound=True,
+        )
+    late_bound_output = tmp_path / "stats-validation-late-bound-b"
+    late_bound_output.mkdir()
+    with pytest.raises(ValueError, match="experience_empty_validation_horizon"):
+        learning.prepare(
+            Snapshot(late_bound_store, late_bound_pin),
+            split,
+            late_bound_output,
+            4,
+            objective="partial_count_lower_bound_pinball_v1",
+        )
+
     default_output = tmp_path / "stats-default"
     default_output.mkdir()
     with pytest.raises(ValueError, match="experience_empty_training_horizon"):
         learning.prepare(Snapshot(bounds_store, bounds_pin), split, default_output, 4)
+
+
+def test_validation_support_excludes_admission_rejected_count_bound(tmp_path):
+    from memecoin_experience.admission import create
+
+    schema = {
+        "schema": "brain-experience-v2",
+        "layout": "dense-sequence-f64-v1",
+        "context": 1,
+        "features": [
+            dict(name="log_volume_usd", unit="log1p_USD", modality="ohlcv"),
+            dict(name="zero_volume", unit="indicator", modality="ohlcv"),
+        ],
+        "targets": [
+            dict(name=name, unit="events", kind="observed_process_count@1000000000ns")
+            for name in ("count_a", "count_b")
+        ],
+        "representation": dict(name="admission-validation-support", version="1", code_sha="e" * 64),
+        "availability": "historical_replay",
+    }
+
+    def row(name, seconds, volume, statuses, targets, *, bound_b=False):
+        decision = seconds * NS
+        return dict(
+            id=name,
+            pool="synthetic/admission-validation-support",
+            decision_ns=decision,
+            input_start_ns=decision - 1,
+            input_available_ns=decision,
+            input_dependencies=[
+                dict(artifact_sha="a" * 64, event_ns=decision - 1, available_ns=decision)
+            ],
+            values=[[float(np.log1p(volume)), 0.0]],
+            targets=targets,
+            target_status=statuses,
+            target_available_ns=[
+                decision + 1 if status == "observed" else None for status in statuses
+            ],
+            target_maturity_ns=[decision + 1, decision + 1],
+            target_captures=[["b" * 64] if status == "observed" else [] for status in statuses],
+            target_details=[
+                {},
+                dict(lower_bound=2, lower_bound_available_ns=decision + 1) if bound_b else {},
+            ],
+        )
+
+    rows = [
+        row("train", 10, 100, ["observed", "observed"], [2, 3]),
+        row("validation-eligible", 110, 100, ["observed", "pending"], [2, None]),
+        row("validation-rejected", 111, 1, ["pending", "censored"], [None, None], bound_b=True),
+        row("test", 210, 100, ["observed", "pending"], [2, None]),
+    ]
+    store = tmp_path / "admission-validation-store"
+    built = build(
+        store,
+        rows,
+        sources=[dict(kind="synthetic", pin="d" * 64)],
+        cutoff=300 * NS,
+        schema=schema,
+    )
+    admitted = create(
+        store,
+        built["snapshot"],
+        dict(
+            name="causal_activity_v1", min_positive_volume_fraction=0.25, min_context_volume_usd=100
+        ),
+    )
+    output = tmp_path / "admission-validation-stats"
+    output.mkdir()
+    with pytest.raises(ValueError, match="experience_empty_validation_horizon"):
+        learning.prepare(
+            Snapshot(store, admitted["snapshot"]),
+            dict(train_start_s=0, train_end_s=100, validation_end_s=200, test_end_s=300),
+            output,
+            4,
+            objective="partial_count_lower_bound_pinball_v1",
+        )
 
 
 def test_partial_count_batch_keeps_censored_count_separate_from_exact_mask(tmp_path):

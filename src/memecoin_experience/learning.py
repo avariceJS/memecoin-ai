@@ -493,6 +493,27 @@ def prepare(
         for r in ("train", "validation", "test")
     ):
         raise ValueError("experience_empty_role")
+    validation_objective_support = []
+    targets = snapshot.schema.get("targets", [{}] * len(horizons))
+    for h, target in enumerate(targets):
+        exact = denominators[f"validation/{horizons[h]}/usable"]
+        lower = (
+            denominators[f"validation/{h}/informative_lower_bound"]
+            if objective == "partial_count_lower_bound_pinball_v1"
+            and target.get("kind", "").startswith("observed_process_count@")
+            else 0
+        )
+        selected = exact + lower
+        if selected == 0:
+            raise ValueError("experience_empty_validation_horizon")
+        validation_objective_support.append(
+            dict(
+                target=horizons[h],
+                exact_usable=exact,
+                informative_lower_bound=lower,
+                selected_usable=selected,
+            )
+        )
     population["train_objective_usable"] = (
         population["train_objective_usable"]
         if objective == "partial_count_lower_bound_pinball_v1"
@@ -518,6 +539,7 @@ def prepare(
         target_transforms=transforms,
         population=dict(population),
         denominators=dict(denominators),
+        validation_objective_support=validation_objective_support,
         normalization=(
             (
                 "train_objective_eligible_decision_frames_population_variance"

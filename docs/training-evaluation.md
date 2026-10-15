@@ -867,7 +867,11 @@ The count head uses `log1p` while fitting and maps ordered predictions back to n
 units for reports/inference. Exact empirical baselines and observed-subset evaluation remain separate;
 when a target has no exact train labels its baseline is `null` only if that same target has eligible
 positive training bounds; an unsupported head fails before fitting. Exact pinball is reported with
-`n=0`. Validation checkpoint selection uses the same quantile-weighted bound term as training and
+`n=0`. Before fitting, every target also needs validation support from exact labels, or from eligible
+positive bounds for the opt-in count objective; otherwise checkpoint selection would silently omit
+that head. The statistics record the per-target exact, bound, and selected validation support.
+Test-set targets with `n=0` remain descriptive and are not a selection gate. Validation checkpoint
+selection uses the same quantile-weighted bound term as training and
 reports `partial_identification_objective_space_v2_quantile_weighted`; prior v1 selection scores
 used unweighted bound violations and are not comparable. Raw `partial_count_bounds` diagnostics stay
 in original count space with unweighted quantile violations. Existing artifacts and their selected
