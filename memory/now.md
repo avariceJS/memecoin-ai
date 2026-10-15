@@ -1,6 +1,6 @@
 # Current state
 
-As of 2026-10-15 05:07 UTC. Portability / Disaster Recovery remains **NO-GO for erase**: a clean-host Brain-state restore has not been rehearsed. No Recovery reboot or erase occurred. Production, champion, protected evaluation, real trading, provider traffic, prospective collectors, and owner services were not changed.
+As of 2026-10-15 05:09 UTC. Portability / Disaster Recovery remains **NO-GO for erase**: a clean-host Brain-state restore has not been rehearsed. No Recovery reboot or erase occurred. Production, champion, protected evaluation, real trading, provider traffic, prospective collectors, and owner services were not changed.
 
 ## Git and neural work
 
@@ -22,5 +22,5 @@ As of 2026-10-15 05:07 UTC. Portability / Disaster Recovery remains **NO-GO for 
 
 - Last read-only Kingston check (2026-10-15 03:24 UTC): `/Volumes/Kingston`, case-sensitive APFS, owners enabled, UUID `8F8F1081-9BE4-4914-9111-75F1B90255BF`, 216,587,902,976 bytes (~201.7 GiB) free. It remains the sole reset-surviving physical copy; single-device loss is accepted residual risk.
 - Last owner runtime status check (2026-10-14 18:41 UTC): macOS 15.5/arm64, Python 3.13.6, Git 2.39.5; 18 launchd labels, 8 with PIDs, 74 workspace process matches. No runtime changes in the neural scopes.
-- Neural work leaves host/runtime unchanged. Current `research/active` tip before the final docs/result receipt commit is `e9765c0aacdc5c0d69ff1b2a672870e0d99fb76c`, pushed; `main` remains `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Kingston free-space figure above remains the last measured value, not rechecked in this neural horizon.
+- Neural work leaves host/runtime unchanged. Current `research/active` tip is `d06b4df74ce67a5182f9b12f8318412320b03f38`, pushed; `main` remains `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Kingston free-space figure above remains the last measured value, not rechecked in this neural horizon.
 - DR/bootstrap evidence through `b6b7234b22d83c7915c0b09537deba3abc851b78`; same-Mac isolated code bootstrap rehearsal passed at `8544c4d82ebc7dbf277cab5e68715e279f2b267b`. Neither proves clean-Mac Brain restore. Host-root custody census remains incomplete (`scan_complete=false`); authenticated clean-host inert restore remains open. Before erase, follow the Recovery sequence and stop if Data is unlocked or mounted. Canonical DR details live in the indexed portability documentation and evidence receipt `docs/evidence/portability-dr-isolated-bootstrap-rehearsal-2026-10-14T1836Z.json`.
