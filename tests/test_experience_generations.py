@@ -1,5 +1,7 @@
 import json
+import platform
 import shutil
+from pathlib import Path
 
 import pytest
 
@@ -45,8 +47,15 @@ def dataset(tmp_path, *, evaluation_only=False, start=0):
     return store, report["snapshot"]
 
 
-def sealed_tiny_artifact(path, *, target_transform="identity", transform_binding="legacy"):
+def sealed_tiny_artifact(
+    path,
+    *,
+    target_transform="identity",
+    transform_binding="legacy",
+    entry_binding="legacy",
+):
     from memecoin_experience.models import construct, model_spec
+    from memecoin_experience.predict import inference_entry_sha
     from memecoin_experience.target_transforms import implementation_pin
 
     schema, _ = custom_samples()
@@ -62,6 +71,10 @@ def sealed_tiny_artifact(path, *, target_transform="identity", transform_binding
         binding["inference_transform"] = (
             implementation_pin() if transform_binding == "current" else transform_binding
         )
+    if entry_binding != "legacy":
+        binding["inference_entry_sha"] = (
+            inference_entry_sha() if entry_binding == "current" else entry_binding
+        )
     report = dict(
         status="completed",
         production_eligible=False,
@@ -75,6 +88,74 @@ def sealed_tiny_artifact(path, *, target_transform="identity", transform_binding
     atomic_json(path / "report.json", report)
     pin = seal_files(path)
     return path, pin, schema
+
+
+def sealed_completed_job(store, pin, output):
+    from memecoin_experience.models import construct, model_spec
+    from memecoin_experience.records import split_plan
+    from memecoin_experience.storage import code_identity
+    from memecoin_experience.target_transforms import implementation_pin
+
+    snapshot = Snapshot(store, pin)
+    config = learning.recipe(CONFIG)
+    plan = split_plan(PLAN)
+    spec = model_spec(snapshot.schema, config["width"], config["model_kind"])
+    binding = dict(
+        model=spec,
+        inference_entry_sha=file_hash(Path(learning.__file__).with_name("predict.py")),
+        inference_transform=implementation_pin(),
+        parent=None,
+        initialization="seeded_fresh",
+        snapshot=pin,
+        plan=plan,
+        config=config,
+        code=code_identity(),
+        environment=dict(
+            torch=str(torch.__version__),
+            numpy=np.__version__,
+            python=platform.python_version(),
+            machine=platform.machine(),
+            device=config["device"],
+            cuda=torch.version.cuda,
+        ),
+    )
+    output.mkdir(parents=True)
+    atomic_json(output / "recipe.json", binding)
+    stats = learning.prepare(
+        snapshot,
+        plan,
+        output,
+        config["batch"],
+        config["normalization"],
+        config["objective"],
+    )
+    atomic_json(output / "statistics.json", stats)
+    binding = dict(binding, statistics=digest(stats))
+    atomic_json(output / "binding.json", binding)
+
+    population = stats["population"]["train_objective_usable"]
+    steps = config["epochs"] * ((population + config["batch"] - 1) // config["batch"])
+    report = dict(
+        status="completed",
+        binding=binding,
+        statistics=stats,
+        steps=steps,
+        rows_seen=config["epochs"] * population,
+        epochs=config["epochs"],
+        history=[
+            dict(epoch=epoch, validation=dict(selection_score=0.0))
+            for epoch in range(config["epochs"])
+        ],
+        production_eligible=False,
+    )
+    artifact = output / "artifact"
+    artifact.mkdir()
+    torch.save(construct(spec).state_dict(), artifact / "weights.pt")
+    atomic_json(artifact / "model.json", spec)
+    atomic_json(artifact / "statistics.json", stats)
+    atomic_json(artifact / "report.json", report)
+    seal_files(artifact)
+    return artifact
 
 
 def test_target_transform_golden_values_and_artifact_binding(tmp_path, monkeypatch):
@@ -134,6 +215,60 @@ def test_target_transform_golden_values_and_artifact_binding(tmp_path, monkeypat
     )
     with pytest.raises(ValueError, match="experience_prediction_transform_binding"):
         Predictor(wrong_artifact, wrong_pin)
+
+
+def test_predictor_inference_entry_binding_and_legacy_state(tmp_path, monkeypatch):
+    from memecoin_experience import predict as prediction_module
+    from memecoin_experience.predict import inference_entry_sha
+
+    artifact, pin, _ = sealed_tiny_artifact(
+        tmp_path / "bound-entry-artifact", entry_binding="current"
+    )
+    predictor = Predictor(artifact, pin)
+    assert predictor.inference_entry_bound is True
+    assert predictor.report["binding"]["inference_entry_sha"] == inference_entry_sha()
+
+    legacy_artifact, legacy_pin, _ = sealed_tiny_artifact(tmp_path / "legacy-entry-artifact")
+    assert Predictor(legacy_artifact, legacy_pin).inference_entry_bound is False
+
+    wrong_artifact, wrong_pin, _ = sealed_tiny_artifact(
+        tmp_path / "wrong-entry-artifact", entry_binding="0" * 64
+    )
+    monkeypatch.setattr(
+        prediction_module,
+        "construct",
+        lambda spec: (_ for _ in ()).throw(
+            AssertionError("model constructed before entry pin check")
+        ),
+    )
+    with pytest.raises(ValueError, match="experience_prediction_entry_binding"):
+        Predictor(wrong_artifact, wrong_pin)
+
+
+def test_completed_training_reuse_rejects_changed_inference_entry_pin(tmp_path, monkeypatch):
+    from memecoin_experience import predict as prediction_module
+
+    store, pin = dataset(tmp_path)
+    output = tmp_path / "fit"
+    artifact = sealed_completed_job(store, pin, output)
+    assert train(store, pin, output, plan=PLAN, config=CONFIG)["status"] == "completed"
+    before = {path.name: path.read_bytes() for path in artifact.iterdir() if path.is_file()}
+    entry_source = Path(prediction_module.__file__)
+    source_before = entry_source.read_bytes()
+    monkeypatch.setattr(prediction_module, "inference_entry_sha", lambda: "0" * 64)
+    monkeypatch.setattr(
+        prediction_module,
+        "construct",
+        lambda spec: (_ for _ in ()).throw(
+            AssertionError("model constructed before entry pin check")
+        ),
+    )
+
+    with pytest.raises(ValueError, match="experience_prediction_entry_binding"):
+        train(store, pin, output, plan=PLAN, config=CONFIG)
+
+    assert before == {path.name: path.read_bytes() for path in artifact.iterdir() if path.is_file()}
+    assert entry_source.read_bytes() == source_before
 
 
 @pytest.mark.parametrize("kind", ["gru-quantiles-v1", "temporal-mlp-quantiles-v1"])

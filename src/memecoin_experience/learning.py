@@ -1126,6 +1126,7 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
             coordinate_frontier = merge(coordinate_frontier, inherited)
     binding = dict(
         model=spec,
+        inference_entry_sha=file_hash(Path(__file__).with_name("predict.py")),
         inference_transform=implementation_pin(),
         parent=parent["pin"] if parent else None,
         initialization="parent_weights_frozen_normalizer_fresh_optimizer"

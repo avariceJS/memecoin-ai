@@ -1,6 +1,7 @@
 """Research inference from a pinned, standalone artifact; no trainer/store/runtime required."""
 
 import json
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -24,6 +25,12 @@ class Predictor:
         self.report = json.loads((artifact / "report.json").read_text())
         validate_statistics(self.stats, self.spec["schema"])
         report_binding = self.report.get("binding", {})
+        self.inference_entry_bound = "inference_entry_sha" in report_binding
+        if (
+            self.inference_entry_bound
+            and report_binding["inference_entry_sha"] != inference_entry_sha()
+        ):
+            raise ValueError("experience_prediction_entry_binding")
         self.inference_transform_bound = "inference_transform" in report_binding
         if (
             self.inference_transform_bound
@@ -85,3 +92,8 @@ class Predictor:
         if not np.isfinite(prediction).all():
             raise ValueError("experience_prediction_nonfinite_output")
         return prediction
+
+
+def inference_entry_sha():
+    """Return the current standalone prediction entrypoint source digest."""
+    return file_hash(Path(__file__))

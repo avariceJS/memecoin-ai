@@ -222,6 +222,11 @@ encoding and prediction inversion. Standalone `Predictor` checks this digest bef
 construction. Sealed legacy artifacts without the field remain readable and expose
 `inference_transform_bound=False`; their inverse-transform implementation is therefore explicitly
 unbound. This guards transform-code drift, not numerical identity across library versions.
+New training bindings also pin the source bytes of `predict.py` as `inference_entry_sha`.
+Standalone `Predictor` checks this before model construction; legacy artifacts without the field
+remain loadable and expose `inference_entry_bound=False`. This covers inference-entry source drift,
+and completed-job reuse rejects a changed entry digest before returning an artifact. This covers
+source drift, not cross-version Torch/NumPy numerical equivalence or external authenticity.
 The opt-in `audit_statistics_derivation()` utility accepts the expected snapshot and split, verifies
 them against a sealed research artifact, and recomputes train-only statistics in automatically
 removed scratch before comparing their canonical digest. It accepts complete current recipes for
