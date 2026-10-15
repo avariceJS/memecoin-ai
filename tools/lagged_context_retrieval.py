@@ -702,6 +702,7 @@ def execute(root: Path, run_id: str) -> Path:
     if code_now != prereg["code"]:
         raise ValueError("experience_code_changed_after_preregistration")
     snapshot = Snapshot(prepared["training"]["store"], prepared["training"]["snapshot"])
+    (work / "training-job").mkdir(parents=True, exist_ok=True)
     split_audit = learning.prepare(
         snapshot, SPLIT, work / "training-job", RECIPE["batch"], objective=RECIPE["objective"]
     )
