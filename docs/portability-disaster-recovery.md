@@ -27,6 +27,14 @@ Live checks on the current Mac:
   provider request or service change occurred. This sequential census is neither a common source
   point nor root-closure, custody, or erase evidence. Receipt:
   [`declared-root boundary census`](evidence/portability-dr-root-boundary-census-2026-10-14T1451Z.json).
+- Read-only owner runtime refresh (2026-10-15 21:32:34 UTC) found 35 Brain/D43 labels loaded, 12
+  with PIDs, and 12 cwd-matched workspace processes (nine owner, three research, including the
+  status probe). Both Gecko canary watchdogs had PIDs; storage was not inspected. No arguments or
+  environments were read and no services changed. A preceding same-session point check returned 15
+  labels with PIDs and showed `gecko-capture-only-v6` running; this label was absent from the saved
+  21:32Z check. These short-window changes do not establish a write frontier or source quiescence,
+  so the owner census/source cutoff remains blocked. Receipt:
+  [`live runtime refresh`](evidence/portability-dr-live-runtime-refresh-2026-10-15T2132Z.json).
 - The census CLI supports relocated hosts through an explicit mode-0600
   `brain-host-root-roster-v2` JSON input. Required logical roles must be declared as present or
   absent with an explicit disposition and reason; present roots carry absolute local paths, kinds,
