@@ -1,0 +1,71 @@
+{
+  "schema": "portability-dr-b09-source-quiescence-v1",
+  "captured_at_utc": "2026-10-15T22:35:52Z",
+  "scope": "one legacy Brain-owned launchd source label",
+  "service_label": "ai.memecoin.brain.b09r2.source",
+  "deployment_binding": {
+    "deployed_checkout_head": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+    "deployed_head_is_ancestor_of_research_active": true,
+    "plist_sha256": "6392f266b6ea99f87a30538cae02a4ed6e7ba698bd954f3e2995a79c445a9136",
+    "deployment_manifest_sha256": "c09cf3f38eef8bd627f5c1765810460f196c91a2d90f57476ff5655654148507",
+    "deployment_manifest_and_inventory_valid": true,
+    "launched_runtime_matches_pinned_bundle_runtime": true,
+    "source_root_class": "owner-work",
+    "source_root_entry_count": 7474,
+    "source_root_device": 16777230,
+    "source_root_inode": 38900697
+  },
+  "pre_action": {
+    "loaded": true,
+    "enabled": true,
+    "pid_present": false,
+    "start_interval_seconds": 5,
+    "run_at_load": true,
+    "stop_marker_sha256": "bc75d9bd6d2f6e2c2d1c0eab324e5eb2dfb0590825ed666be79a96ce162f1b79",
+    "stop_reason_class": "source_worker_failure",
+    "config_sha256": "41aa16ece742e94cf2890d660797986c59449c8a0ee7b2ea3c71bd59db05bf4b",
+    "activation_expired": true,
+    "journal_chain_valid": true,
+    "journal_event_count": 3605,
+    "journal_tail_kind": "reserved",
+    "journal_tail_sha256": "7cc486c0079a77f5493eace62f63f3d5416f50be397dc269f2f53c302a4f1f33",
+    "reserved_count": 1807,
+    "outcome_count": 1797,
+    "unresolved_reservation_count": 10,
+    "unresolved_capture_key_sha256s": [
+      "3e4fda74f071fd5d5fb9cfde55a99624531a834f4e66a9ec1e53eaa76a049b67",
+      "a516356158923a8a0176ebf73a20d89bbc6ce77a4d1e569171f8ff3a494deb41",
+      "9a76fe2500a416795dd09a37be028693ab55de280a5494c47149a68b2e7dc1dc",
+      "95108145cc90eb32440fec0e48097849645f1c6bb47d83d35687830c7831f0ba",
+      "0b8e29d901ddf107bdfe74f7706f32efb389e8a0ec400d63b5fabda0f434d266",
+      "13413102c050b984b8624056666f9bc69ffd844c8598bcaa15f72638517045fc",
+      "458f84b5bb0a8071f4e1404fa422f6367dce905233a2d269d7c5075cebf61cdf",
+      "de0182fdcf7913a6311c5d4052439bde63f3c1bee10cfe9380b7217932f836ca",
+      "eacb22962c06b05aac24e121bdc8d1a84ebe9e979ff2e211765d3f8f5a98d31c",
+      "836fe3d0318f321bdc1f5ca989cb5b0fa4f0a4df4b312b4aea542456b4f80106"
+    ]
+  },
+  "action": {
+    "launchd_disable_succeeded": true,
+    "post_disable_pid_check_present": false,
+    "launchd_bootout_succeeded": true,
+    "processes_killed": 0,
+    "source_payload_modified": false,
+    "stop_marker_cleared": false,
+    "unresolved_reservations_replayed_or_reconciled": false
+  },
+  "post_action_observation": {
+    "duration_seconds": 15,
+    "samples": 15,
+    "loaded_in_all_samples": false,
+    "pid_present_in_all_samples": false,
+    "launchd_disabled": true,
+    "journal_event_count_unchanged": true,
+    "journal_tail_sha256_unchanged": true
+  },
+  "review": {
+    "sol_qualified_exact_label_stop": true,
+    "unresolved_reservations_disposition": "preserve as possibly spent history; do not replay, retry, synthesize outcomes, or clear STOP",
+    "scope_limit": "closes only this launch surface; does not establish an owner-wide cutoff, source snapshot, complete custody, clean-host restore, or erase readiness"
+  }
+}

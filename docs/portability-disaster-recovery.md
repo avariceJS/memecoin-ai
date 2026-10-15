@@ -55,6 +55,29 @@ Live checks on the current Mac:
   closes only this Senses timer/write loop, not the owner-wide source frontier: paper/UI processes
   and the loaded D43 scheduler remain outside the quiescence claim. See the
   [`Senses quiescence receipt`](evidence/portability-dr-senses-quiescence-2026-10-15T2230Z.json).
+- At 22:35Z, the legacy `ai.memecoin.brain.b09r2.source` launcher was bound to its exact deployed
+  runtime: the 154-file deployment bundle and manifest verified, and the imported runtime tree
+  matched that bundle. The deployed checkout was `a5944742b6b8ed0466c50bdeb72370ed3e3f2a31`, an
+  ancestor of current `research/active`. The source activation was expired and its STOP marker
+  recorded `source_worker_failure`; no callback PID was present. Its hash-valid journal had 3,605
+  events, including ten reservations without outcomes. Following Sol review, only this exact
+  five-second launchd label was disabled and unloaded; no process was killed, no reservation was
+  replayed, and the source root was retained. It remained unloaded for 15 seconds with no journal
+  change. This prevents automatic re-entry into that fail-closed source worker while preserving
+  unresolved attempts as possibly spent history. The root remains host-local and its complete
+  Kingston custody is not established. This closes one launch surface only; operator/UI and D43
+  remain untouched, and there is no owner-wide cutoff or erase qualification. See the
+  [`B09 source quiescence receipt`](evidence/portability-dr-b09-source-quiescence-2026-10-15T2235Z.json).
+- A subsequent real v2 root-boundary census completed endpoint-stable metadata traversal for all
+  eight declared-present roots (819,063 entries) and published a 317,360,545-byte private manifest
+  plus completion marker to the pinned Kingston root; descriptor-bound readback matched both
+  receipt hashes. The ninth required role, the previously declared temporary verifier worktree,
+  was absent and explicitly retained as unresolved; it was not recreated. Three research `wallets`
+  subtrees and owner Codex `.local` remain opaque and backup-required, and two credential-named
+  entries remain excluded for reissue. This v2 run supersedes the prior incomplete v1 only as the
+  latest traversal evidence for its corresponding present-root scope. It is sequential live
+  metadata, not an atomic source point, root closure, complete custody, or erase evidence. Receipt:
+  [`v2 root-boundary census`](evidence/portability-dr-root-boundary-census-v2-2026-10-15T2239Z.json).
 - The census CLI supports relocated hosts through an explicit mode-0600
   `brain-host-root-roster-v2` JSON input. Required logical roles must be declared as present or
   absent with an explicit disposition and reason; present roots carry absolute local paths, kinds,

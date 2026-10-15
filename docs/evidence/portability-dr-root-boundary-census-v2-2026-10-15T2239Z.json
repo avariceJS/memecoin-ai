@@ -1,0 +1,69 @@
+{
+  "schema": "portability-dr-root-boundary-census-v2-receipt",
+  "observed_at_utc": "2026-10-15T22:39:08.406743Z",
+  "scanner": {
+    "path": "tools/brain_host_root_boundary_census_v1.py",
+    "repository_head": "f75b1791a353ec90ef65abca5fd828c84322fd1d",
+    "scanner_sha256": "75d700f702bb922b82fbbfe0304bde9094af9351c5894177b8eec8a18dd06dc1"
+  },
+  "source": {
+    "volume_uuid": "430740ca-42e7-4e6c-a07a-e4e7370152cc",
+    "mount_point": "/System/Volumes/Data",
+    "identity_pinned": true,
+    "common_source_point_proven": false
+  },
+  "destination": {
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "manifest_relative_path": "host-recovery/private-root-boundary-census-v1/census-20261015T223908Z-310383957a14b2bc.jsonl",
+    "manifest_bytes": 317360545,
+    "manifest_sha256": "10a09aafb28c173b4ef3c2f515120689b38e5c0c1fe39ec39ef6d7e7dda2f5a3",
+    "completion_marker_relative_path": "host-recovery/private-root-boundary-census-v1/census-20261015T223908Z-310383957a14b2bc.complete.json",
+    "completion_marker_sha256": "6fce69bcce8906317a7c999af34a88ae21fe04fee798e785333d77af53e7b974",
+    "publication_and_descriptor_bound_readback_verified": true
+  },
+  "roster": {
+    "schema": "brain-host-root-roster-v2",
+    "sha256": "6341827023cb7c7cb62dec7963b9e9447e32012cffac1b3e633bda589bf9d9c9",
+    "required_roles": 9,
+    "present_roles": 8,
+    "unresolved_absent_roles": ["research_verifier_worktree"],
+    "absent_role_reason": "Previously declared path absent at this live census; contents and recoverability remain unknown.",
+    "credential_named_entries_excluded_for_reissue": 2,
+    "opaque_backup_required_exclusions": {
+      "research_wallets_subtrees": 3,
+      "owner_codex_local_subtrees": 1
+    }
+  },
+  "traversal": {
+    "scan_complete_for_declared_present_roles": true,
+    "root_closure_proven": false,
+    "source_consistency_proven": false,
+    "safe_to_erase": false,
+    "git_bindings": 3,
+    "external_git_metadata_roots": 0,
+    "aggregate_counts": {
+      "entries": 819063,
+      "regular_files": 687922,
+      "directories": 130989,
+      "symlinks_with_targets_unresolved": 152,
+      "unresolved_backup_required_exclusions": 4
+    },
+    "all_eight_present_roots_complete_and_endpoint_stable": true
+  },
+  "non_actions": {
+    "application_or_credential_payload_read": false,
+    "protected_payload_read": false,
+    "symlink_target_text_read": false,
+    "xattr_values_read": false,
+    "provider_requests": 0,
+    "services_changed_by_census": false,
+    "source_snapshot_or_cutoff_created": false
+  },
+  "limitations": [
+    "The earlier v1 census was incomplete at one owner checkout directory; this v2 run completed traversal of all currently declared-present roots but is still sequential live metadata, not a common source point.",
+    "The previously declared temporary verifier worktree is now absent and remains unresolved; it was not recreated or deleted.",
+    "Three research wallets subtrees and owner Codex .local remain opaque, private, unresolved, and backup-required.",
+    "This does not prove root closure, complete Brain or protected custody, owner-wide quiescence, restore readiness, or erase safety."
+  ]
+}
