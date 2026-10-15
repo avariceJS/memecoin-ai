@@ -406,6 +406,19 @@ Live checks on the current Mac:
   [`LaunchAgent custody receipt`](evidence/portability-dr-launchagent-custody-2026-10-14T0143Z.json)
   and [`root/dependency map`](evidence/portability-dr-root-dependency-map-2026-10-14T0221Z.json).
 
+- At 23:01Z, a receipt-pinned no-follow hash reconciliation compared the existing 60-member Kingston
+  archive with 61 current regular LaunchAgent files. All 55 Brain definitions, the one protected
+  D43 definition, and four previously captured host definitions match by name and bytes; there are
+  no changed or missing members. One new entry is outside the Brain/D43 namespace; its label matches
+  its private basename. Its environment-variable key and count were inspected, but no values were
+  read. Keep that non-Brain/unclassified entry private and unresolved, outside Brain custody. The
+  private per-file roster is on the pinned
+  Kingston root; its digest-only public record is the
+  [`LaunchAgent reconciliation receipt`](evidence/portability-dr-launchagent-reconciliation-2026-10-15T2301Z.json).
+  This closes only the observed Brain/D43 definition byte-custody gap at per-file observation time.
+  It does not preserve xattrs/ACLs, prove a cross-file source point, bind loaded services to disk or
+  running code, or change NO-GO restore/erase readiness.
+
 - The private root/dependency map stores metadata for the immediate owner/research `work/` children,
   all 88 entries in private Brain config, and all 60 LaunchAgents; raw paths stay on Kingston. The
   contemporaneous census counted 285,577 owner and 330,273 research files. Among 657 recorded entries,
@@ -1149,8 +1162,9 @@ starting them.
    state, and bind each to a source point or an
    explicit reauthentication, rebuild, disposable, or unresolved disposition. Classify potentially
    private environment entries and all excluded Codex worktree ignored records. Keep the three
-   research `work/wallets` roots opaque, private, unresolved, and backup-required. Preserve all 56
-   Brain/D43 definitions inert or prove which are reproducible.
+   research `work/wallets` roots opaque, private, unresolved, and backup-required. The current
+   byte-custody check matches all 56 Brain/D43 definitions to the Kingston archive; keep them inert
+   until each service role is separately authorized and bound to verified runtime state.
 2. Rehearse the conditional offline read-only Data view, including first-action Locked-state gate,
    pre-Terminal authentication log, boot-session mount history/gaps, all Data aliases, and explicit
    read-only held-view checks. If prior mount history cannot be established, retain that assumption

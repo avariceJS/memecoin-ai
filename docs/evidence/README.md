@@ -174,6 +174,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   were beyond the prior 56 Brain/D43 metadata count at capture; a later value-filtered root/dependency
   map classifies their labels and path categories. No quarantined definition was loaded by this DR
   work.
+- [`Portability and DR LaunchAgent reconciliation`](portability-dr-launchagent-reconciliation-2026-10-15T2301Z.json):
+  receipt-pinned comparison of the 60-member opaque archive against 61 stable current entries. All
+  55 Brain and one D43 definitions match; one added non-Brain/unclassified entry remains private
+  and unresolved. Exact names and hashes are held in Kingston-only metadata. This is version custody,
+  not a common source cutoff or runtime identity proof.
 - [`Portability and DR host metadata census`](portability-dr-host-metadata-census-2026-10-14T0153Z.json):
   counts owner/research work files and symlinks, private config and LaunchAgent metadata, records
   host tool versions and `.env.local` metadata-only reissue disposition, and observes metadata churn
