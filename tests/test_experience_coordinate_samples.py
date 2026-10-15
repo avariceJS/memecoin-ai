@@ -412,11 +412,11 @@ def test_registry_requires_monotonic_cutoffs_and_missing_domain_extents_fail():
         coordinate_samples.validate_split_plan(plan)
 
 
-def test_v3_replication_batch_fit_resume_and_registered_evaluation(tmp_path):
+def test_v3_replication_batch_fit_resume_and_registered_evaluation(tmp_path, monkeypatch):
     pytest.importorskip("numpy")
     pytest.importorskip("torch")
 
-    from memecoin_experience import evaluation
+    from memecoin_experience import evaluation, learning
     from memecoin_experience.learning import batches, train
     from memecoin_experience.storage import file_hash
 
@@ -527,3 +527,86 @@ def test_v3_replication_batch_fit_resume_and_registered_evaluation(tmp_path):
     assert scored["status"] == "completed"
     assert scored["metrics"][0]["n"] == 8
     assert scored["availability"] == "coordinate_replay; no slot_to_utc_conversion"
+    assert scored["population"]["test"] == 8
+    assert scored["population"]["test_exact_usable_origins"] == 8
+    assert scored["population"]["test_scored_origins"] == 8
+
+    purged = _row(30)
+    purged["input_dependencies"][0]["start_coordinate"] = 29
+    enriched_rows = [_row(c) for c in range(31, 39)]
+    enriched_rows[1]["id"] = enriched_rows[0]["id"]
+    enriched_snapshot = build(
+        eval_store,
+        [purged, *enriched_rows, _row(39, status="pending")],
+        sources=[dict(kind="synthetic", pin="f" * 64)],
+        cutoff=1000,
+        schema=schema,
+        role="research_evaluation",
+        chunk=3,
+    )["snapshot"]
+    enriched = evaluation.score(
+        tmp_path / "protocols",
+        registration["protocol"],
+        eval_store,
+        enriched_snapshot,
+        artifact,
+        tmp_path / "score-enriched",
+        batch=4,
+    )
+    assert enriched["metrics"] == scored["metrics"]
+    assert enriched["population"]["test_assigned_origins"] == 10
+    assert enriched["population"]["test_exact_usable_origins"] == 8
+    assert enriched["population"]["test_exact_usable_cells"] == 8
+    assert enriched["population"]["test_pending_target_cells"] == 1
+    assert enriched["population"]["test_purged_origins"] == 1
+    assert enriched["population"]["test_scored_origins"] == 8
+    assert enriched["denominators"]["test/next_slot_count/pending"] == 1
+    assert enriched["denominators"]["test/next_slot_count/exact_usable"] == 8
+    assert enriched["denominators"]["test/next_slot_count/scored_exact_usable"] == 8
+
+    rogue = _row(39, status="pending")
+    rogue["pool"] = "solana/program/rogue"
+    rogue_snapshot = build(
+        eval_store,
+        [*[_row(c) for c in range(31, 39)], rogue],
+        sources=[dict(kind="synthetic", pin="9" * 64)],
+        cutoff=1000,
+        schema=schema,
+        role="research_evaluation",
+        chunk=3,
+    )["snapshot"]
+    rogue_output = tmp_path / "score-rogue"
+    with pytest.raises(ValueError, match="experience_coordinate_evaluation_enrollment"):
+        evaluation.score(
+            tmp_path / "protocols",
+            registration["protocol"],
+            eval_store,
+            rogue_snapshot,
+            artifact,
+            rogue_output,
+            batch=4,
+        )
+    assert not rogue_output.exists()
+
+    original_batches = learning.batches
+
+    def substituted_batches(*args, **kwargs):
+        for x, y, mask, metadata, censoring in original_batches(*args, **kwargs):
+            changed_metadata = [dict(row) for row in metadata]
+            changed_metadata[0]["origin"] = dict(changed_metadata[0]["origin"])
+            changed_metadata[0]["origin"]["coordinate"] += 1
+            yield x, y, mask, changed_metadata, censoring
+
+    monkeypatch.setattr(learning, "batches", substituted_batches)
+    substituted_output = tmp_path / "score-substituted"
+    with pytest.raises(ValueError, match="experience_coordinate_evaluation_census"):
+        evaluation.score(
+            tmp_path / "protocols",
+            registration["protocol"],
+            eval_store,
+            enriched_snapshot,
+            artifact,
+            substituted_output,
+            batch=4,
+        )
+    assert not substituted_output.exists()

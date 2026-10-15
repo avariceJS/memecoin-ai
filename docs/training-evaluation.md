@@ -1074,7 +1074,12 @@ extents per declared domain and a monotone UTC cutoff. No implicit coordinate co
 cross-domain alignment is permitted. Actual point-in-time schemas require an actual `decision_ns`;
 historical replay may keep it null and is not an online forecast. v1/v2 schemas, exact-label masks,
 dense f64 partition storage and existing training contracts remain compatible. Coordinate-aware
-compose, replication, batching, and evaluation paths are available for v3.
+compose, replication, batching, and evaluation paths are available for v3. Registered native
+coordinate evaluation verifies enrollment across every snapshot row before scoring, including pending
+and purged origins. Reports expose assigned, outside-test, purged, pending, lower-bound, exact-usable
+and scored-origin counts plus per-target status/eligibility denominators; legacy `population.test`
+continues to mean scored origins. The scorer reconciles emitted identities and exact cell counts to
+the census without changing pinball or coverage.
 
 The existing opt-in `partial_count_lower_bound_pinball_v1` objective now admits validated positive
 bounds from v3 under the same coordinate purging and UTC availability gates. Exact labels remain in

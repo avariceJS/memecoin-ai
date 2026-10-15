@@ -1,5 +1,6 @@
 """Registered research evaluation: candidate/enrollment fixed before reading evaluation payload."""
 
+import hashlib
 import json
 import os
 import shutil
@@ -95,7 +96,7 @@ def register_coordinate(
 def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact, output, batch):
     import numpy as np
 
-    from .coordinate_samples import domain_registry
+    from .coordinate_samples import domain_registry, eligibility
     from .learning import batches
     from .predict import Predictor
 
@@ -169,22 +170,73 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
             if result["binding"] != binding:
                 raise ValueError("experience_coordinate_evaluation_binding")
             return result
+
+        target_names_v3 = target_names(snapshot.schema)
+        population = Counter()
+        denominators = Counter()
+        census_scored_digest = hashlib.sha256()
+        pools = set(protocol["pools"])
+        for index in range(len(snapshot.parts)):
+            _, rows = snapshot.partition(index)
+            population["snapshot_rows"] += len(rows)
+            for row in rows:
+                if row["pool"] not in pools:
+                    raise ValueError("experience_coordinate_evaluation_enrollment")
+                assignment = eligibility(row, snapshot.schema, plan, "test")
+                if assignment["assigned_role"] != "test":
+                    population["outside_test_intervals"] += 1
+                    continue
+                population["test_assigned_origins"] += 1
+                if assignment["reason"] == "input_extent_crosses_role_boundary":
+                    population["test_purged_origins"] += 1
+                exact = assignment["exact_mask"]
+                if any(exact):
+                    population["test_exact_usable_origins"] += 1
+                    identity = canonical(
+                        dict(
+                            pool=row["pool"],
+                            id=row["id"],
+                            origin=row["origin"],
+                            exact_mask=[bool(value) for value in exact],
+                        )
+                    )
+                    census_scored_digest.update(len(identity).to_bytes(8, "big"))
+                    census_scored_digest.update(identity)
+                for name, status, exact_valid, lower_valid in zip(
+                    target_names_v3,
+                    row["target_status"],
+                    exact,
+                    assignment["lower_bound_mask"],
+                    strict=True,
+                ):
+                    denominators[f"test/{name}/{status}"] += 1
+                    denominators[f"test/{name}/exact_usable"] += int(exact_valid)
+                    denominators[f"test/{name}/eligible_lower_bound"] += int(lower_valid)
+                    population["test_exact_usable_cells"] += int(exact_valid)
+                    population["test_pending_target_cells"] += int(status == "pending")
+                    population["test_lower_bound_target_cells"] += int(status == "lower_bound")
         stage = Path(tempfile.mkdtemp(prefix=".coordinate-evaluation-", dir=output.parent))
         try:
-            target_names_v3 = target_names(snapshot.schema)
             totals = np.zeros((len(target_names_v3), 3), dtype=np.float64)
-            population = Counter()
-            pools = set(protocol["pools"])
+            scored_digest = hashlib.sha256()
             with (stage / "predictions.jsonl").open("wb") as stream:
                 for x, y, mask, metadata, _ in batches(
                     snapshot, plan, "test", batch, with_metadata=True
                 ):
-                    for row in metadata:
-                        if row["pool"] not in pools:
-                            raise ValueError("experience_coordinate_evaluation_enrollment")
                     prediction = model.predict(x)
                     population["test"] += len(metadata)
+                    population["test_scored_origins"] += len(metadata)
                     for row, pred, truth, valid in zip(metadata, prediction, y, mask, strict=True):
+                        identity = canonical(
+                            dict(
+                                pool=row["pool"],
+                                id=row["id"],
+                                origin=row["origin"],
+                                exact_mask=[bool(value) for value in valid],
+                            )
+                        )
+                        scored_digest.update(len(identity).to_bytes(8, "big"))
+                        scored_digest.update(identity)
                         stream.write(
                             canonical(
                                 dict(
@@ -204,6 +256,7 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
                         for h, selected in enumerate(valid):
                             if not selected:
                                 continue
+                            denominators[f"test/{target_names_v3[h]}/scored_exact_usable"] += 1
                             error = truth[h] - pred[h]
                             quantiles = np.asarray(protocol["quantiles"])
                             totals[h] += [
@@ -213,6 +266,15 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
                             ]
                 stream.flush()
                 os.fsync(stream.fileno())
+            if (
+                population["test_scored_origins"] != population["test_exact_usable_origins"]
+                or scored_digest.digest() != census_scored_digest.digest()
+                or any(
+                    totals[h, 0] != denominators[f"test/{name}/exact_usable"]
+                    for h, name in enumerate(target_names_v3)
+                )
+            ):
+                raise ValueError("experience_coordinate_evaluation_census")
             if not np.any(totals[:, 0]):
                 raise ValueError("experience_coordinate_empty_evaluation")
             report = dict(
@@ -222,6 +284,7 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
                 coordinate_domain_pin=protocol["coordinate_domain_pin"],
                 test_intervals=plan["roles"]["test"]["intervals"],
                 population=dict(population),
+                denominators=dict(denominators),
                 metrics=[
                     dict(
                         target=name,
