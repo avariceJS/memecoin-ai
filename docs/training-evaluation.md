@@ -953,6 +953,10 @@ For quantile `q`, the censored-cell term is `q * max(L - prediction, 0)`. This i
 lower-envelope surrogate for compatible completions, not a proper score, survival likelihood,
 consistent estimator of full count quantiles, or upper bound on forecast error. Predictions above a
 bound are unresolved; arbitrarily high predictions can achieve zero loss on all-censored labels.
+Training and validation reject non-finite model outputs before applying this surrogate or inverse
+target transforms, then check the converted raw-count values for overflow. Otherwise positive
+infinity could appear as zero bound violation, or a finite but extreme log-count output could
+overflow its inverse transform.
 The count head uses `log1p` while fitting and maps ordered predictions back to nonnegative event-count
 units for reports/inference. Exact empirical baselines and observed-subset evaluation remain separate;
 when a target has no exact train labels its baseline is `null` only if that same target has eligible

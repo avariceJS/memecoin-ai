@@ -730,6 +730,12 @@ def loss(prediction, target, mask, *, lower_bound=None, censored=None):
     return (sums[active] / counts[active]).mean()
 
 
+def _require_finite_prediction(prediction):
+    if not isinstance(prediction, torch.Tensor) or not torch.isfinite(prediction).all().item():
+        raise ValueError("experience_nonfinite_prediction")
+    return prediction
+
+
 def evaluate(model, snapshot, plan, role, stats, config):
     horizons = target_names(snapshot.schema)
     transforms = stats.get("target_transforms", ["identity"] * len(horizons))
@@ -753,10 +759,13 @@ def evaluate(model, snapshot, plan, role, stats, config):
                 lower = np.zeros_like(y)
                 censored = np.zeros_like(mask)
             tx, _, _ = tensors(x, y, mask, stats, config["device"])
-            transformed_prediction = model(tx).cpu().numpy()
+            transformed_prediction = _require_finite_prediction(model(tx)).cpu().numpy()
             transformed_target = transform_targets(np.where(mask, y, 0), transforms, mask)
+            model_prediction = inverse_predictions(transformed_prediction, stats)
+            if not np.isfinite(model_prediction).all():
+                raise ValueError("experience_nonfinite_prediction")
             predictions = {
-                "model": inverse_predictions(transformed_prediction, stats),
+                "model": model_prediction,
                 "empirical": np.broadcast_to(
                     np.array([v if v is not None else [0.0, 0.0, 0.0] for v in stats["baseline"]]),
                     (*y.shape, 3),
@@ -1304,7 +1313,7 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
                 tc = torch.as_tensor(censored, dtype=torch.bool, device=config["device"])
                 optimizer.zero_grad()
                 value = loss(
-                    model(tx),
+                    _require_finite_prediction(model(tx)),
                     ty,
                     tm,
                     lower_bound=tl

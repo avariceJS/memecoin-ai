@@ -200,6 +200,37 @@ def test_nonfinite_input_not_reclassified_as_missing():
     assert torch.isfinite(tx).all() and torch.isfinite(ty).all()
 
 
+def test_training_rejects_nonfinite_forward_before_optimizer_step(tmp_path, monkeypatch):
+    from memecoin_experience import learning
+
+    store, pin, snapshot = dataset(tmp_path)
+    target_count = len(learning.target_names(snapshot.schema))
+
+    class NonfiniteModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.bias = torch.nn.Parameter(torch.zeros(()))
+
+        def forward(self, value):
+            return self.bias + torch.full(
+                (len(value), target_count, 3),
+                float("inf"),
+                device=value.device,
+            )
+
+    monkeypatch.setattr(learning, "construct", lambda spec: NonfiniteModel())
+    optimizer_steps = []
+    monkeypatch.setattr(
+        torch.optim.AdamW, "step", lambda *args, **kwargs: optimizer_steps.append(1)
+    )
+    output = tmp_path / "nonfinite-forward"
+    with pytest.raises(ValueError, match="experience_nonfinite_prediction"):
+        train(store, pin, output, plan=PLAN, config=CONFIG)
+    assert not optimizer_steps
+    assert not (output / "checkpoint.pt").exists()
+    assert not (output / "artifact").exists()
+
+
 def test_exact_cpu_resume_immutable_result_and_binding(tmp_path):
     store, pin, _ = dataset(tmp_path)
     first, resumed = tmp_path / "first", tmp_path / "resumed"

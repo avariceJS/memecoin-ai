@@ -72,6 +72,48 @@ def test_partial_count_selection_matches_quantile_weighted_training_loss(monkeyp
     assert second["partial_count_bounds"][0]["mean_lower_bound_violation"] == pytest.approx(1.0)
 
 
+def test_evaluation_rejects_nonfinite_censored_prediction_before_inverse_transform(monkeypatch):
+    schema = {
+        "schema": "brain-experience-v2",
+        "targets": [{"name": "count", "kind": "observed_process_count@1000000000ns"}],
+    }
+    snapshot = type("SnapshotStub", (), {"schema": schema})()
+    packed = (
+        np.zeros((1, 1, 1)),
+        np.zeros((1, 1)),
+        np.zeros((1, 1), dtype=bool),
+        np.full((1, 1), 2.0),
+        np.ones((1, 1), dtype=bool),
+        ["censored"],
+        (1, 0),
+    )
+    monkeypatch.setattr(learning, "batches", lambda *args, **kwargs: iter([packed]))
+    stats = dict(mean=[0.0], scale=[1.0], target_transforms=["log1p_nonnegative"], baseline=[None])
+    config = dict(objective="partial_count_lower_bound_pinball_v1", batch=1, device="cpu")
+
+    class Candidate:
+        def __init__(self, prediction):
+            self.prediction = prediction
+
+        def eval(self):
+            return self
+
+        def __call__(self, x):
+            return torch.full((len(x), 1, 3), self.prediction)
+
+    for prediction in (float("inf"), float("-inf"), float("nan")):
+        with pytest.raises(ValueError, match="experience_nonfinite_prediction"):
+            learning.evaluate(Candidate(prediction), snapshot, {}, "validation", stats, config)
+
+    with np.errstate(over="ignore"):
+        with pytest.raises(ValueError, match="experience_nonfinite_prediction"):
+            learning.evaluate(Candidate(100.0), snapshot, {}, "validation", stats, config)
+
+    result = learning.evaluate(Candidate(0.0), snapshot, {}, "validation", stats, config)
+    assert result["model"][0]["n"] == 0
+    assert np.isfinite(result["selection_score"]) and result["selection_score"] > 0
+
+
 def test_partial_count_objective_requires_support_for_each_target(tmp_path):
     schema = {
         "schema": "brain-experience-v2",
