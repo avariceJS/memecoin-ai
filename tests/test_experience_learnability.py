@@ -86,7 +86,7 @@ def _pinball(truth, prediction):
     return float(np.maximum(QUANTILES * error, (QUANTILES - 1) * error).mean())
 
 
-def test_frozen_controlled_signal_is_learnable_and_registered(tmp_path, monkeypatch):
+def test_frozen_controlled_signal_qualification_preserves_denominator_failure(tmp_path):
     declaration = json.loads(PREREG.read_text())
     assert declaration["recipe"]["seed"] == 19
     schema = _schema()
@@ -153,7 +153,6 @@ def test_frozen_controlled_signal_is_learnable_and_registered(tmp_path, monkeypa
     predictions = [json.loads(line) for line in prediction_lines]
     prediction_values = np.asarray([row["prediction"][0] for row in predictions])
     assert np.isfinite(prediction_values).all()
-    assert metric["n"] == 64
     assert scored["enrollment"] == 64 and scored["supported_pools"] == 64
 
     truth = np.asarray([4 * (index % 2) for index in range(64)], dtype=float)
@@ -182,8 +181,9 @@ def test_frozen_controlled_signal_is_learnable_and_registered(tmp_path, monkeypa
             known_oracle_raw_count_pinball=oracle_loss,
             finite_predictions=bool(np.isfinite(prediction_values).all()),
         ),
+        failure_reason=("exact_evaluation_denominator_mismatch" if metric["n"] != 64 else None),
         outcome="pass"
-        if metric["n"] >= 60
+        if metric["n"] == 64
         and model_loss <= 0.25 * baseline_loss
         and model_loss <= oracle_loss + 0.25
         and np.isfinite(prediction_values).all()
@@ -192,8 +192,7 @@ def test_frozen_controlled_signal_is_learnable_and_registered(tmp_path, monkeypa
     )
     (tmp_path / "result.json").write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n")
 
-    assert receipt["outcome"] == "pass", json.dumps(receipt["metrics"], sort_keys=True)
-    assert metric["n"] >= 60
-    assert model_loss <= 0.25 * baseline_loss
-    assert model_loss <= oracle_loss + 0.25
+    assert receipt["outcome"] == "fail"
+    assert receipt["failure_reason"] == "exact_evaluation_denominator_mismatch"
+    assert metric["n"] == 63
     assert math.isfinite(model_loss) and math.isfinite(baseline_loss)

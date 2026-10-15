@@ -947,6 +947,20 @@ records decisions only and has no dispatch path.
 
 Measured synthetic schedule profile: 1,025 sorted origins, 512 rows/page, three sealed pages;
 0.041 s and 278,257 bytes peak traced Python allocation in one local run (Python 3.13.6, arm64).
+
+### Frozen controlled-signal fit (2026-10-15)
+
+One CPU GRU fit used a preregistered deterministic binary feature → count mapping, 88 exact train
+labels plus eight positive censored lower bounds, 32 validation and 32 temporal-test labels, and a
+separate registered evaluation cohort. The fit completed and produced finite predictions. Registered
+evaluation enrolled 64 synthetic entities but only 63 exact labels were eligible: the first input
+dependency began one second before the registered window and was correctly purged. The exact-64
+acceptance gate therefore failed. On the 63 eligible rows, raw-count macro pinball was 0.00272
+versus 0.47196 for the train-only unconditional empirical quantiles and 0 for the known deterministic
+oracle; these descriptive values do not override the failed denominator gate. The frozen fixture was
+not repaired or rerun after exposure. This does not qualify conditional learnability and says nothing
+about market prediction. See the [preregistration](evidence/brain-controlled-signal-learnability-prereg-2026-10-15.json)
+and [result receipt](evidence/brain-controlled-signal-learnability-result-2026-10-15.json).
 This measures only schedule publication at this fixture size; it is not a throughput or capacity
 claim. Observation indexes support multiple nonoverlapping enrollment intervals and reject events
 or support that cross an interval boundary; a focused sparse test proves target history does not
