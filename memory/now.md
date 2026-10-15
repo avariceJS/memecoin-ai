@@ -1,13 +1,13 @@
 # Current state
 
-As of 2026-10-15 03:50 UTC. Portability / Disaster Recovery remains **NO-GO for erase**: a clean-host Brain-state restore has not been rehearsed. No Recovery reboot or erase occurred. Production, champion, protected evaluation, real trading, provider traffic, prospective collectors, and owner services were not changed.
+As of 2026-10-15 03:58 UTC. Portability / Disaster Recovery remains **NO-GO for erase**: a clean-host Brain-state restore has not been rehearsed. No Recovery reboot or erase occurred. Production, champion, protected evaluation, real trading, provider traffic, prospective collectors, and owner services were not changed.
 
 ## Git and neural work
 
-- `research/active` HEAD `fd0453416c168dd8515a00388df8f721a6a0c6ce`, pushed to `origin/research/active`; worktree clean after this handoff. `main` and `origin/main` remain `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Do not advance `main` without a separately accepted verified milestone.
-- Commit `fd04534` validates reused V3 coordinate-score prediction transcripts against the deterministic eligible snapshot sequence: exact metadata/masks/count, prediction dimensions, finite ordered quantiles, and bounded per-line reads. V1/V2 reuse is unchanged. This is transcript/snapshot consistency, not model or metric recomputation or external authenticity. Sol accepted.
-- Focused prospective V3 replay test: 1 passed. Full `tests/test_experience*.py`: 313 passed, 2 known unrelated failures (learnability fixture expects 64 supported pools, gets 63; incomplete-epoch case expects `incomplete_epoch`, gets `experience_checkpoint_progress`), 1 CUDA skip. Touched-file Ruff, format, and diff checks pass. No quality or market-performance claim.
-- Next neural horizon: request a bounded correctness/reproducibility choice from Sol at `fd04534`; avoid blind overnight training without a registered objective, qualified data, metric, and stop criterion.
+- `research/active` HEAD `741d6a7508767836dc141cbb86e7de93034c9fd0`, pushed to `origin/research/active`; this memory update is the only uncommitted change. `main` and `origin/main` remain `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Do not advance `main` without a separately accepted verified milestone.
+- Commits `fd04534` and `741d6a7` add bounded V3 prediction transcript readback on coordinate-score reuse, then fail-closed AdamW checkpoint readback before resume. Transcript rows pair against deterministic eligibility and validate metadata/masks/count, shape and finite ordered quantiles. Resume checks recipe-bound optimizer options and parameter order, exact per-parameter step counts, and finite moment shape/dtype; empty pre-step state remains valid. V1/V2 score reuse is unchanged. Sol accepted both scopes. These are integrity/reproducibility checks, not model or metric recomputation, external authenticity, or model-quality evidence.
+- Focused transcript test: 1 passed. Focused optimizer tamper, empty pre-step, and exact CPU resume tests: 3 passed. Full `tests/test_experience*.py`: 315 passed, 2 known unrelated failures (learnability fixture expects 64 supported pools, gets 63; incomplete-epoch case expects `incomplete_epoch`, gets `experience_checkpoint_progress`), 1 CUDA skip. Touched-file Ruff, format, and diff checks pass. Avoid blind overnight training without a registered objective, qualified data, metric, and stop criterion.
+- Next neural horizon: ask Sol to select from `741d6a7`; recent work covered eval transcript integrity and optimizer-resume integrity. Keep work synthetic/CPU unless an already-authorized, properly qualified dataset-specific task is identified.
 
 ## Host, storage, and recovery
 
