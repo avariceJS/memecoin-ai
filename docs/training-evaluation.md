@@ -685,6 +685,13 @@ Optional fixed entity selection applies before a declared decision timestamp, al
 training with identical later validation/test populations. Compose raw snapshots before admission;
 composing or stacking admitted views fails explicitly. Replication includes mask objects.
 
+The opt-in censored-count objective applies the v2 admission mask to positive lower bounds as well
+as exact labels. Rejected rows remain in custody and denominators but contribute neither optimizer
+mass nor validation selection mass; admitted bounds remain separate from exact labels, and rejected
+v2 censored-count rows receive a distinct `input_admission_rejected` denominator bucket. A synthetic
+regression covers train/validation/test batching and `prepare` denominators. This closes an input
+eligibility bypass and makes no model-quality claim.
+
 Evaluation of an admitted view requires the same input policy in its preregistration; entity
 selection is prohibited for evaluation views. Always report structural and input-qualified support
 separately. This is admission, not resampling or equal market weighting.

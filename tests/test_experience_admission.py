@@ -113,6 +113,126 @@ def test_stable_features_extreme_positive_prices():
     assert all(math.isfinite(v) for s in samples for v in s["targets"] if v is not None)
 
 
+def test_admission_rejection_masks_censored_count_objective(tmp_path):
+    pytest.importorskip("torch")
+    import hashlib
+
+    from memecoin_experience.learning import batches, prepare
+    from memecoin_experience.schema import membership
+
+    schema = dict(
+        schema="brain-experience-v2",
+        layout="dense-sequence-f64-v1",
+        context=1,
+        features=[
+            dict(name="log_volume_usd", unit="log1p_USD", modality="ohlcv"),
+            dict(name="zero_volume", unit="indicator", modality="ohlcv"),
+        ],
+        targets=[
+            dict(
+                name="observed_count",
+                unit="events",
+                kind="observed_process_count@1000000000ns",
+            )
+        ],
+        representation=dict(
+            name="admission-censored-objective",
+            version="1",
+            code_sha=hashlib.sha256(b"admission-censored-objective-v1").hexdigest(),
+        ),
+        availability="point_in_time",
+    )
+    rows = []
+    for role, decisions in (
+        ("train", (1, 2, 3, 4)),
+        ("validation", (101, 102, 103, 104)),
+        ("test", (201, 202, 203, 204)),
+    ):
+        for offset, decision_s in enumerate(decisions):
+            decision_ns = decision_s * 10**9
+            censored = offset < 2
+            rejected = offset in (1, 2)
+            rows.append(
+                dict(
+                    id=f"{role}:{offset}",
+                    pool="synthetic/admission-censored",
+                    decision_ns=decision_ns,
+                    input_start_ns=decision_ns - 1,
+                    input_available_ns=decision_ns,
+                    input_dependencies=[
+                        dict(
+                            artifact_sha="a" * 64,
+                            event_ns=decision_ns - 1,
+                            available_ns=decision_ns,
+                        )
+                    ],
+                    values=[[math.log1p(1), 0.0] if rejected else [math.log1p(100), 0.0]],
+                    targets=[None if censored else 9.0],
+                    target_status=["censored" if censored else "observed"],
+                    target_available_ns=[None if censored else decision_ns + 10**9],
+                    target_maturity_ns=[decision_ns + 10**9],
+                    target_captures=[[] if censored else ["b" * 64]],
+                    target_details=[
+                        dict(lower_bound=2, lower_bound_available_ns=decision_ns + 10**9)
+                        if censored
+                        else {}
+                    ],
+                )
+            )
+    store = tmp_path / "censored-admission-store"
+    built = build(
+        store,
+        sorted(rows, key=lambda row: (row["pool"], row["decision_ns"], row["id"])),
+        sources=[dict(kind="synthetic-admission-censored", pin="c" * 64)],
+        schema=schema,
+        cutoff=300 * 10**9,
+        role="train",
+    )
+    view = create(store, built["snapshot"], POLICY)
+    snapshot = Snapshot(store, view["snapshot"])
+    plan = dict(train_start_s=0, train_end_s=100, validation_end_s=200, test_end_s=300)
+
+    train_rows = [row for i in range(len(snapshot.parts)) for row in snapshot.partition(i)[1]]
+    rejected_censored = next(row for row in train_rows if row["id"] == "train:1")
+    rejected_exact = next(row for row in train_rows if row["id"] == "train:2")
+    assert rejected_censored["_admission"] == "insufficient_volume"
+    assert rejected_exact["_admission"] == "insufficient_volume"
+    assert membership(rejected_exact, plan, schema) == ("train", [False])
+
+    observed = {}
+    for role in ("train", "validation", "test"):
+        packed = list(
+            batches(
+                snapshot,
+                plan,
+                role,
+                8,
+                with_censoring=True,
+            )
+        )
+        observed[role] = [row_id for batch in packed for row_id in batch[5]]
+        assert observed[role] == [f"{role}:0", f"{role}:3"]
+        assert sum(int(batch[2].sum()) for batch in packed) == 1
+        assert sum(int(batch[4].sum()) for batch in packed) == 1
+
+    prepare_path = tmp_path / "prepare"
+    prepare_path.mkdir()
+    stats = prepare(
+        snapshot,
+        plan,
+        prepare_path,
+        8,
+        objective="partial_count_lower_bound_pinball_v1",
+    )
+    assert stats["population"]["train"] == 4
+    assert stats["population"]["train_usable"] == 1
+    assert stats["population"]["train_partial_count_usable"] == 1
+    assert stats["population"]["train_objective_usable"] == 2
+    assert stats["denominators"]["train/0/informative_lower_bound"] == 1
+    assert stats["denominators"]["train/0/input_admission_rejected"] == 1
+    assert stats["denominators"].get("train/0/lower_bound_unavailable_or_invalid", 0) == 0
+
+
 def test_constant_feature_normalization_and_masked_training(tmp_path):
     pytest.importorskip("torch")
     from memecoin_experience.learning import prepare

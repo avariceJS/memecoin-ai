@@ -123,6 +123,11 @@ def _censor_bounds(row, schema, role, plan):
     """Return identified positive lower bounds for right-censored process counts."""
     bounds = [0.0] * len(target_names(schema))
     mask = [False] * len(bounds)
+    if (
+        schema.get("schema") == "brain-experience-v2"
+        and row.get("_admission", "eligible") != "eligible"
+    ):
+        return bounds, mask
     if role not in {"train", "validation", "test"} or schema.get("schema") not in {
         "brain-experience-v2",
         "brain-experience-v3",
@@ -365,13 +370,17 @@ def prepare(
                         else "censored"
                     ):
                         lower = detail.get("lower_bound")
-                        bucket = (
-                            "informative_lower_bound"
-                            if lower is not None and lower > 0 and lower_mask[h]
-                            else "zero_lower_bound"
-                            if lower == 0
-                            else "lower_bound_unavailable_or_invalid"
-                        )
+                        if (
+                            snapshot.schema["schema"] == "brain-experience-v2"
+                            and row.get("_admission", "eligible") != "eligible"
+                        ):
+                            bucket = "input_admission_rejected"
+                        elif lower is not None and lower > 0 and lower_mask[h]:
+                            bucket = "informative_lower_bound"
+                        elif lower == 0:
+                            bucket = "zero_lower_bound"
+                        else:
+                            bucket = "lower_bound_unavailable_or_invalid"
                         denominators[f"{role}/{h}/{bucket}"] += 1
     fd, name = tempfile.mkstemp(prefix=".baseline-", suffix=".sqlite", dir=output)
     os.close(fd)
