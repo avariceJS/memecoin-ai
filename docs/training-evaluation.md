@@ -873,12 +873,13 @@ parent manifests for censored-bound eligibility. At each composition node the re
 child partition pins exactly equal the deduplicated union of declared parent catalogs; conflicting
 duplicate-pin metadata, missing members or extra members fail closed. A disk-backed SQLite index
 bounds memory, while temporary disk use scales with catalog size. This proves manifest/catalog
-lineage, not provider truth or mutable backing-store integrity. Bounds absent from all legacy parent
-catalogs are checked against payload only when that partition is read. The minimum can conservatively
-omit valid later-parent bounds; exact per-partition cutoff lineage remains a future contract. `prepare`
-resolves lineage for v2 count schemas even with the default masked objective; censored batching
-resolves it before iteration. The resolved cutoff is cached for the lifetime of a `Snapshot`,
-assuming its backing store is immutable during use.
+lineage, not provider truth or mutable backing-store integrity; an externally re-pinned root that
+erases every composition indicator cannot be distinguished without external provenance. Bounds
+absent from all legacy parent catalogs are checked against payload only when that partition is read.
+The minimum can conservatively omit valid later-parent bounds; exact per-partition cutoff lineage
+remains a future contract. `prepare` resolves lineage for v2 count schemas even with the default
+masked objective; censored batching resolves it before iteration. The resolved cutoff is cached for
+the lifetime of a `Snapshot`, assuming its backing store is immutable during use.
 
 For quantile `q`, the censored-cell term is `q * max(L - prediction, 0)`. This is a per-quantile
 lower-envelope surrogate for compatible completions, not a proper score, survival likelihood,

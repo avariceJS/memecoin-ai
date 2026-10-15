@@ -705,6 +705,29 @@ def test_composition_does_not_widen_legacy_censor_cutoff(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="experience_composition_lineage"):
         list(batches(Snapshot(store, omitted_pin), split, "train", 8, with_censoring=True))
 
+    missing_marker = json.loads((store / "snapshots" / f"{direct['snapshot']}.json").read_text())
+    missing_marker.pop("composition")
+    missing_marker_pin = publish_manifest(missing_marker)
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        list(batches(Snapshot(store, missing_marker_pin), split, "train", 8, with_censoring=True))
+
+    missing_all_markers = json.loads(
+        (store / "snapshots" / f"{direct['snapshot']}.json").read_text()
+    )
+    missing_all_markers.pop("composition")
+    missing_all_markers.pop("composition_counts")
+    missing_all_markers_pin = publish_manifest(missing_all_markers)
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        list(
+            batches(
+                Snapshot(store, missing_all_markers_pin),
+                split,
+                "train",
+                8,
+                with_censoring=True,
+            )
+        )
+
     # Keeping both parents while dropping one of their partition pins is also invalid.
     missing_member = json.loads((store / "snapshots" / f"{direct['snapshot']}.json").read_text())
     old_part_pin = Snapshot(store, old["snapshot"]).parts[0]["pin"]

@@ -390,8 +390,16 @@ class Snapshot:
             if type(cutoff) is not int or cutoff < 0:
                 raise ValueError("experience_composition_lineage")
             cutoffs = [cutoff]
-            if "composition" in snapshot.manifest:
-                sources = binding.get("sources")
+            sources = binding.get("sources")
+            declares_snapshot_sources = isinstance(sources, list) and any(
+                isinstance(source, dict) and source.get("kind") == "snapshot" for source in sources
+            )
+            has_composition_marker = "composition" in snapshot.manifest
+            if not has_composition_marker and (
+                declares_snapshot_sources or "composition_counts" in snapshot.manifest
+            ):
+                raise ValueError("experience_composition_lineage")
+            if has_composition_marker:
                 if (
                     not isinstance(sources, list)
                     or not sources
