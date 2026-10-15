@@ -222,6 +222,20 @@ encoding and prediction inversion. Standalone `Predictor` checks this digest bef
 construction. Sealed legacy artifacts without the field remain readable and expose
 `inference_transform_bound=False`; their inverse-transform implementation is therefore explicitly
 unbound. This guards transform-code drift, not numerical identity across library versions.
+The opt-in `audit_statistics_derivation()` utility accepts the expected snapshot and split, verifies
+them against a sealed research artifact, and recomputes train-only statistics in automatically
+removed scratch before comparing their canonical digest. It currently accepts complete current
+recipe bindings for seeded-fresh normalizers; warm-start artifacts with parent normalizers and
+legacy/incomplete recipe bindings return an explicit unsupported error. It also requires the
+artifact's model schema to equal the pinned snapshot schema. Its compact result reports
+matched/mismatch and the artifact, snapshot, split, statistics, and current derivation-code pins.
+A match does not attest the historical optimizer path or externally authenticate a coherently
+resealed artifact. The default system temp parent is resolved and checked; a supplied scratch parent
+must already exist and cannot be inside the artifact or source store.
+It does not fit, score, alter either input, or establish optimizer use or model quality. A match
+means derivation equality under the current code and numerical environment;
+synthetic tests cover a coherent statistics/report reseal, mismatched pins, unsupported parent
+normalizers, and scratch containment/cleanup.
 Before a completed report is published, reused, or read through the generation registry, its epoch,
 step and row counters must reconcile with the recipe and train denominator. Validation history must
 have one ordered finite selection score per epoch. This detects inconsistent report progress and
