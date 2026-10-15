@@ -415,6 +415,10 @@ def score(
     if (
         digest(protocol) != protocol_pin
         or protocol.get("version") != "brain-research-evaluation-v1"
+        or protocol.get("production_eligible") is not False
+        or protocol.get("metrics") != "macro_horizon_pinball_coverage_and_per_pool_day_v1"
+        or type(protocol.get("registered_ns")) is not int
+        or protocol["registered_ns"] < 0
         or any(
             not isinstance(p, str) or p.rsplit("/", 1)[-1] in EXCLUDED
             for p in protocol.get("pools", [])

@@ -366,6 +366,10 @@ rejected rather than silently changing enrollment. Missing enrolled pools stay i
 record counts, usable records, label statuses, purged/outside counts and per-pool/day scores are
 reported separately. Overlapping rows are not independent episodes; uncertainty is explicitly
 unestimated. The empirical baseline comes from training, and no execution/trading result is inferred.
+Legacy protocol readback also requires the registered metric identifier, `production_eligible=false`
+and a plain nonnegative integer receipt time before opening the evaluation snapshot. These checks
+bind protocol fields, not an external timestamp or proof that the protocol was originally emitted by
+`register`.
 
 `retrospective` is a fixed-candidate historical research comparison. The separate
 `preregistered_forward_replay` scope requires future registration and a `point_in_time` producer;

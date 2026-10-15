@@ -801,6 +801,60 @@ def test_namespaced_protected_evaluation_rejected_before_artifact_read(tmp_path)
         )
 
 
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "production_true",
+        "production_missing",
+        "metric_changed",
+        "metric_missing",
+        "registered_bool",
+        "registered_negative",
+        "registered_missing",
+    ],
+)
+def test_legacy_evaluation_protocol_fields_fail_before_snapshot(tmp_path, mutation):
+    from memecoin_experience.storage import atomic_json, digest
+
+    protocol = dict(
+        version="brain-research-evaluation-v1",
+        candidate="a" * 64,
+        pools=["synthetic/pool"],
+        scope="retrospective",
+        registered_ns=5,
+        metrics="macro_horizon_pinball_coverage_and_per_pool_day_v1",
+        data_role="research_evaluation",
+        production_eligible=False,
+    )
+    if mutation == "production_true":
+        protocol["production_eligible"] = True
+    elif mutation == "production_missing":
+        protocol.pop("production_eligible")
+    elif mutation == "metric_changed":
+        protocol["metrics"] = "other_metric"
+    elif mutation == "metric_missing":
+        protocol.pop("metrics")
+    elif mutation == "registered_bool":
+        protocol["registered_ns"] = True
+    elif mutation == "registered_negative":
+        protocol["registered_ns"] = -1
+    else:
+        protocol.pop("registered_ns")
+    protocol_pin = digest(protocol)
+    protocol_root = tmp_path / "protocols"
+    protocol_root.mkdir()
+    atomic_json(protocol_root / f"{protocol_pin}.json", protocol)
+    with pytest.raises(ValueError, match="experience_evaluation_protocol_pin"):
+        evaluation.score(
+            protocol_root,
+            protocol_pin,
+            tmp_path / "absent-store",
+            "b" * 64,
+            tmp_path / "absent-artifact",
+            tmp_path / "output",
+        )
+
+
 def data(store, *, eval_only=False, support_status="complete"):
     rows = []
     members = []
