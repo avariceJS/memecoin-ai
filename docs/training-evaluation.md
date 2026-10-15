@@ -866,8 +866,11 @@ bound are unresolved; arbitrarily high predictions can achieve zero loss on all-
 The count head uses `log1p` while fitting and maps ordered predictions back to nonnegative event-count
 units for reports/inference. Exact empirical baselines and observed-subset evaluation remain separate;
 when a target has no exact train labels its baseline is `null`, and exact pinball is reported with
-`n=0`. Validation checkpoint selection uses the registered transformed objective when only bound
-cells are available. Bound violations are reported separately from exact pinball/coverage.
+`n=0`. Validation checkpoint selection uses the same quantile-weighted bound term as training and
+reports `partial_identification_objective_space_v2_quantile_weighted`; prior v1 selection scores
+used unweighted bound violations and are not comparable. Raw `partial_count_bounds` diagnostics stay
+in original count space with unweighted quantile violations. Existing artifacts and their selected
+checkpoints are immutable and are not rewritten under the corrected metric.
 
 Synthetic engineering qualification shows censored-only count targets can pass through immutable
 snapshot, objective fit, stop/resume, evaluation and standalone inference without manufacturing an

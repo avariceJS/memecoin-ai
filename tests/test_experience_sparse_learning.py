@@ -11,11 +11,65 @@ torch = pytest.importorskip("torch")
 
 from test_experience_sparse import NS, contract, facts, materialized, plan, source  # noqa: E402
 
-from memecoin_experience import evaluation, generations, observations, sparse  # noqa: E402
+from memecoin_experience import (  # noqa: E402
+    evaluation,
+    generations,
+    learning,
+    observations,
+    sparse,
+)
 from memecoin_experience.learning import _censor_bounds, batches, train  # noqa: E402
 from memecoin_experience.predict import Predictor  # noqa: E402
 from memecoin_experience.storage import Snapshot, build, file_hash  # noqa: E402
 from memecoin_population import catalog, diversity  # noqa: E402
+
+
+def test_partial_count_selection_matches_quantile_weighted_training_loss(monkeypatch):
+    schema = {
+        "schema": "brain-experience-v2",
+        "targets": [{"name": "count", "kind": "observed_process_count@1000000000ns"}],
+    }
+    snapshot = type("SnapshotStub", (), {"schema": schema})()
+    packed = (
+        np.array([[[0.0]], [[1.0]]]),
+        np.array([[0.0], [0.0]]),
+        np.array([[False], [True]]),
+        np.array([[4.0], [0.0]]),
+        np.array([[True], [False]]),
+        ["censored", "exact"],
+        (1, 0),
+    )
+    monkeypatch.setattr(learning, "batches", lambda *args, **kwargs: iter([packed]))
+
+    class Candidate:
+        def __init__(self, bound_prediction):
+            self.bound_prediction = torch.tensor(bound_prediction, dtype=torch.float32)
+
+        def eval(self):
+            return self
+
+        def __call__(self, x):
+            result = torch.zeros((2, 1, 3), dtype=torch.float32)
+            result[0, 0] = self.bound_prediction
+            return result
+
+    stats = dict(mean=[0.0], scale=[1.0], target_transforms=["identity"], baseline=[[0, 0, 0]])
+    config = dict(objective="partial_count_lower_bound_pinball_v1", batch=2, device="cpu")
+    first = learning.evaluate(Candidate([0.0, 4.0, 4.0]), snapshot, {}, "validation", stats, config)
+    second = learning.evaluate(
+        Candidate([3.0, 3.0, 3.0]), snapshot, {}, "validation", stats, config
+    )
+
+    # One exact cell with zero loss and one bound cell share the per-horizon denominator.
+    assert first["selection_score"] == pytest.approx((0.1 * 4 / 3) / 2)
+    assert second["selection_score"] == pytest.approx(0.5 / 2)
+    assert first["selection_score"] < second["selection_score"]
+    assert first["selection_metric"] == (
+        "partial_identification_objective_space_v2_quantile_weighted"
+    )
+    # Diagnostics remain in raw count space and unweighted across quantiles.
+    assert first["partial_count_bounds"][0]["mean_lower_bound_violation"] == pytest.approx(4 / 3)
+    assert second["partial_count_bounds"][0]["mean_lower_bound_violation"] == pytest.approx(1.0)
 
 
 def test_partial_count_batch_keeps_censored_count_separate_from_exact_mask(tmp_path):

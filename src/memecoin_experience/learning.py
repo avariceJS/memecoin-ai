@@ -666,7 +666,9 @@ def evaluate(model, snapshot, plan, role, stats, config):
                     transformed_violation = np.maximum(
                         transformed_lower[:, None] - transformed_prediction[selected, h], 0
                     )
-                    selection_sums[h] += transformed_violation.mean(axis=1).sum()
+                    selection_sums[h] += (
+                        (transformed_violation * np.array(QUANTILES)).mean(axis=1).sum()
+                    )
                     selection_counts[h] += len(transformed_lower)
                     bound_totals[h] += [
                         len(lower_h),
@@ -705,7 +707,7 @@ def evaluate(model, snapshot, plan, role, stats, config):
         raise ValueError("experience_empty_evaluation_horizon")
     result["selection_score"] = float(sum(supported) / len(supported))
     result["selection_metric"] = (
-        "partial_identification_objective_space_v1"
+        "partial_identification_objective_space_v2_quantile_weighted"
         if config["objective"] == "partial_count_lower_bound_pinball_v1"
         else "observed_pinball_v1"
     )
