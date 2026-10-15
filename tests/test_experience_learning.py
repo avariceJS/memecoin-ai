@@ -295,6 +295,37 @@ def test_checkpoint_optimizer_state_must_match_recipe_and_parameters(tmp_path, m
         assert not (output / "artifact").exists()
 
 
+def test_checkpoint_model_and_best_weights_must_be_finite(tmp_path, monkeypatch):
+    store, pin, _ = dataset(tmp_path)
+    for name, field, replacement in (
+        ("model", "model", float("nan")),
+        ("best", "best", float("inf")),
+    ):
+        output = tmp_path / f"nonfinite-checkpoint-{name}"
+        train(store, pin, output, plan=PLAN, config=CONFIG, stop_after=5)
+        checkpoint = output / "checkpoint.pt"
+        saved = torch.load(checkpoint, map_location="cpu", weights_only=True)
+        assert saved[field] is not None
+        for tensor in saved[field].values():
+            if torch.is_floating_point(tensor):
+                tensor.reshape(-1)[0] = replacement
+                break
+        else:
+            raise AssertionError(f"checkpoint {field} has no floating-point tensors")
+        torch.save(saved, checkpoint)
+        checkpoint_pin = file_hash(checkpoint)
+
+        def state_restore_must_not_run(*args, **kwargs):
+            raise AssertionError("checkpoint state restored before finite-value validation")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(torch.nn.Module, "load_state_dict", state_restore_must_not_run)
+            with pytest.raises(ValueError, match="experience_checkpoint_progress"):
+                train(store, pin, output, plan=PLAN, config=CONFIG)
+        assert file_hash(checkpoint) == checkpoint_pin
+        assert not (output / "artifact").exists()
+
+
 def test_completed_training_artifact_reuse_revalidates_bound_contents(tmp_path):
     store, pin, _ = dataset(tmp_path)
     output = tmp_path / "completed-job"

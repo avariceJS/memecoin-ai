@@ -191,14 +191,16 @@ Resume validates progress types/ranges, epoch/history/best-score consistency, an
 training batch stream to reconcile the saved cursor, step count and rows seen. Before restoring
 state, it also requires AdamW parameter groups/options and parameter order to match a fresh optimizer
 from the bound recipe, and validates per-parameter step counters and finite moment tensors against
-model shapes/dtypes. Empty optimizer state remains valid before the first step. These checks detect
-inconsistent progress and optimizer state; they do not authenticate checkpoint bytes or prove that
-claimed optimizer updates were executed.
+model shapes/dtypes. Checkpoint model and best weights must match the model state shape/dtype and
+contain only finite floating tensors. Empty optimizer state and a null best state remain valid before
+the first validation epoch. These checks detect inconsistent progress and optimizer state; they do
+not authenticate checkpoint bytes or prove that claimed optimizer updates were executed.
 CPU synthetic tests establish bitwise resumed-weight equality, including a failure after an
 optimizer mutation, and reject synthetic optimizer-state mutations before optimizer restore
-or artifact publication. They do not establish cross-device bitwise reproducibility. Resume requires
-the same binding; a different dataset/configuration needs a new job directory. Cross-generation
-warm starts and replay policies remain future work.
+or artifact publication. Synthetic non-finite model/best weights are rejected before state restore.
+They do not establish cross-device bitwise reproducibility. Resume requires the same binding; a
+different dataset/configuration needs a new job directory. Cross-generation warm starts and replay
+policies remain future work.
 
 When a completed training job is reused, `train()` validates its sealed artifact through the same
 standalone `Predictor` contract before returning it. This rechecks completion and production

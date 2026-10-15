@@ -986,6 +986,10 @@ def _validate_checkpoint_progress(saved, snapshot, plan, stats, config, model, o
                 not isinstance(value[key], torch.Tensor)
                 or value[key].shape != expected_state[key].shape
                 or value[key].dtype != expected_state[key].dtype
+                or (
+                    torch.is_floating_point(value[key])
+                    and not torch.isfinite(value[key]).all().item()
+                )
                 for key in expected_state
             )
         ):
