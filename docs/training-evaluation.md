@@ -930,6 +930,11 @@ require one qualified observation exactly at both the scheduled origin and futur
 available at its allowed time; stale-origin substitution is rejected. Target maturity remains the
 full requested horizon. A schedule page is explicitly treated as available at its decision time.
 
+A 2026-10-15 regression review found the last retained history event could be placed in the
+reserved final frame. The corrected offset places all at-most `context - 1` history events before
+the schedule-origin frame; the regression test checks that an available history event remains in
+the preceding frames while event/presence channels in the final frame stay empty.
+
 The synthetic end-to-end test binds two process streams to separate receipts, retains quiet origins,
 checks a zero count, a positive partial lower bound that remains censored with a masked target,
 event-window boundaries, and replay identity after source replication. A repeated-enrollment entity

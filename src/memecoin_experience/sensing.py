@@ -700,7 +700,7 @@ def materialize_episode(
                         )
                     ]
                     events.reverse()
-                    offset = plan["context"] - len(events)
+                    offset = plan["context"] - 1 - len(events)
                     for j, event in enumerate(events):
                         t = offset + j
                         for k, value in enumerate(event["values"]):

@@ -503,6 +503,27 @@ def test_two_process_sensing_episode_is_reconciled_asof_and_replayable(tmp_path)
     assert target_values[later_row][count_index] == 2.0, later[
         "target_details"
     ]  # (decision, maturity] includes 96 and 100, excludes 95
+    asof_history = next(r for r in rows if r["pool"].endswith("/C") and r["decision_ns"] == 225)
+    history_row = rows.index(asof_history)
+    history_frames = [
+        matrix[history_row][i : i + width]
+        for i in range(0, len(matrix[history_row]), width)
+    ]
+    history_feature = next(
+        i
+        for i, feature in enumerate(snapshot.schema["features"])
+        if feature["name"] == "trades/count"
+    )
+    event_present_feature = next(
+        i
+        for i, feature in enumerate(snapshot.schema["features"])
+        if feature["name"] == "trades/event_present"
+    )
+    assert any(
+        not math.isnan(frame[history_feature]) for frame in history_frames[:-1]
+    )  # decision-time history stays before the scheduled-origin frame
+    assert math.isnan(history_frames[-1][history_feature])
+    assert math.isnan(history_frames[-1][event_present_feature])
     ready = next(r for r in rows if r["pool"].endswith("/A") and r["decision_ns"] == 101)
     assert (
         ready["input_start_ns"] == 101
