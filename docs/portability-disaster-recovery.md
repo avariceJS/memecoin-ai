@@ -6,7 +6,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-15 22:55 UTC.** The accepted recovery scope is loss or erasure of the
+**NO-GO for factory reset as of 2026-10-15 23:10 UTC.** The accepted recovery scope is loss or erasure of the
 owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
 reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -116,6 +116,17 @@ Live checks on the current Mac:
   exercise replacement-host authentication/dependencies, owner-runtime reconstruction, SQLite
   application consistency, Data T/K frontiers, owner/protected closure, or erase readiness. See the
   [`clean-clone B09 restore rehearsal receipt`](evidence/portability-dr-clean-clone-b09-restore-e2e-2026-10-15T2255Z.json).
+- At 23:10:13Z, the private-config prior archive and manifest pins were reverified on Kingston. A
+  live metadata pass found the same 75-file roster, with 74 files matching prior size/mode/mtime and
+  one unique metadata-delta candidate; only that candidate was opened no-follow and hashed. Its
+  stable 0600, single-link file differed from the prior manifest and was copied as one 304-byte
+  create-only private delta with a separate manifest and COMPLETE marker. Fresh descriptor-bound
+  readback verified both marker bindings on the pinned Kingston root. An earlier live content-hash
+  comparison had found 74 same-name/same-byte files and one difference, but its candidate identity
+  was not linked to this capture by persisted per-file signatures. Treat this as provisional opaque
+  custody for one observed file; the possible private value remains unclassified and quarantined.
+  No config-generation or restore overlay was formed, and SAFE TO ERASE remains **NO-GO**. Receipt:
+  [`private config single-file delta`](evidence/portability-dr-private-config-single-file-delta-2026-10-15T2310Z.json).
 - The census CLI supports relocated hosts through an explicit mode-0600
   `brain-host-root-roster-v2` JSON input. Required logical roles must be declared as present or
   absent with an explicit disposition and reason; present roots carry absolute local paths, kinds,

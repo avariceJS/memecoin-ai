@@ -152,6 +152,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - [`Portability and DR private config custody`](portability-dr-private-config-custody-2026-10-14T0140Z.json):
   opaque quarantine archive of the private config root, reread from Kingston with all member hashes
   verified. Bytes were not parsed; this is not a consistent cross-file point or activation authority.
+- [`Portability and DR private config single-file delta`](portability-dr-private-config-single-file-delta-2026-10-15T2310Z.json):
+  preserves one stable observed 304-byte delta in a separate private Kingston generation with a
+  fresh descriptor-bound readback. The earlier whole-root byte comparison is not linked to the
+  candidate by persisted per-file identity signatures; this is provisional custody only, with no
+  config-generation, secret-use, restore, or erase claim.
 - [`Portability and DR retired LaunchAgent set metadata`](portability-dr-retired-launchagent-set-metadata-2026-10-14T0136Z.json):
   focused count of the retired plist set, with no file names or contents. The copies remain inert
   and have not been compared with current definitions.
