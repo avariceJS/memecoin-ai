@@ -688,6 +688,61 @@ def test_composition_does_not_widen_legacy_censor_cutoff(tmp_path, monkeypatch):
     )
     assert [row_id for batch in nested_batches for row_id in batch[5]] == ["later:1", "newest:1"]
 
+    from memecoin_experience.storage import atomic_json, digest
+
+    def publish_manifest(manifest):
+        pin = digest(manifest)
+        atomic_json(store / "snapshots" / f"{pin}.json", manifest)
+        return pin
+
+    split = dict(train_start_s=0, train_end_s=500, validation_end_s=600, test_end_s=700)
+
+    # Re-pinning a child after removing the old parent must not let its retained partition
+    # inherit only the later parent's cutoff.
+    omitted_source = json.loads((store / "snapshots" / f"{direct['snapshot']}.json").read_text())
+    omitted_source["binding"]["sources"] = [dict(kind="snapshot", pin=later["snapshot"])]
+    omitted_pin = publish_manifest(omitted_source)
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        list(batches(Snapshot(store, omitted_pin), split, "train", 8, with_censoring=True))
+
+    # Keeping both parents while dropping one of their partition pins is also invalid.
+    missing_member = json.loads((store / "snapshots" / f"{direct['snapshot']}.json").read_text())
+    old_part_pin = Snapshot(store, old["snapshot"]).parts[0]["pin"]
+    retained = next(entry for entry in missing_member["partitions"] if entry["pin"] != old_part_pin)
+    missing_member["partitions"] = [retained]
+    missing_member["decisions"] = retained["count"]
+    missing_member["target_statuses"] = retained["statuses"]
+    missing_member["composition_counts"]["unique_partitions"] = 1
+    missing_pin = publish_manifest(missing_member)
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        list(batches(Snapshot(store, missing_pin), split, "train", 8, with_censoring=True))
+
+    extra_member = json.loads((store / "snapshots" / f"{direct['snapshot']}.json").read_text())
+    extra = Snapshot(store, newest["snapshot"]).parts[0]
+    extra_member["partitions"].append(extra)
+    extra_member["decisions"] += extra["count"]
+    extra_statuses = dict(extra_member["target_statuses"])
+    for status, count in extra["statuses"].items():
+        extra_statuses[status] = extra_statuses.get(status, 0) + count
+    extra_member["target_statuses"] = extra_statuses
+    extra_member["composition_counts"]["unique_partitions"] += 1
+    extra_pin = publish_manifest(extra_member)
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        list(batches(Snapshot(store, extra_pin), split, "train", 8, with_censoring=True))
+
+    # Distinct parents that repeat one pin must agree on that pin's catalog metadata.
+    conflict_parent = json.loads((store / "snapshots" / f"{old['snapshot']}.json").read_text())
+    conflict_parent["partitions"][0]["statuses"] = {"censored": 999}
+    conflict_pin = publish_manifest(conflict_parent)
+    conflicting_child = json.loads((store / "snapshots" / f"{direct['snapshot']}.json").read_text())
+    conflicting_child["binding"]["sources"] = [
+        dict(kind="snapshot", pin=pin)
+        for pin in sorted({old["snapshot"], later["snapshot"], conflict_pin})
+    ]
+    conflicting_pin = publish_manifest(conflicting_child)
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        list(batches(Snapshot(store, conflicting_pin), split, "train", 8, with_censoring=True))
+
     (store / "snapshots" / f"{old['snapshot']}.json").unlink()
     broken_lineage = Snapshot(store, nested["snapshot"])
     with pytest.raises(ValueError, match="experience_composition_lineage"):

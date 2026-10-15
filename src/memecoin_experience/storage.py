@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shutil
+import sqlite3
 import struct
 import tempfile
 from collections import Counter
@@ -319,7 +320,66 @@ class Snapshot:
         if self._censor_cutoff_cache is not None:
             return self._censor_cutoff_cache
 
-        def resolve(snapshot, active, memo):
+        def catalog_metadata(entry):
+            if (
+                not isinstance(entry, dict)
+                or not isinstance(entry.get("pin"), str)
+                or not PIN.fullmatch(entry["pin"])
+                or type(entry.get("count")) is not int
+                or entry["count"] < 1
+            ):
+                raise ValueError("experience_composition_lineage")
+            return canonical({key: value for key, value in entry.items() if key != "bounds"})
+
+        def index_membership(db, child, sources):
+            db.execute("delete from expected_partitions")
+            db.execute("delete from child_partitions")
+            for source in sources:
+                parent = Snapshot(child.store, source["pin"])
+                for entry in parent.parts:
+                    pin = entry.get("pin") if isinstance(entry, dict) else None
+                    core = catalog_metadata(entry)
+                    bounds_json = canonical(entry["bounds"]) if "bounds" in entry else None
+                    existing = db.execute(
+                        "select metadata,bounds from expected_partitions where pin=?", (pin,)
+                    ).fetchone()
+                    if existing is None:
+                        db.execute(
+                            "insert into expected_partitions values(?,?,?)",
+                            (pin, core, bounds_json),
+                        )
+                    elif existing[0] != core or (
+                        existing[1] is not None
+                        and bounds_json is not None
+                        and existing[1] != bounds_json
+                    ):
+                        raise ValueError("experience_composition_lineage")
+                    elif existing[1] is None and bounds_json is not None:
+                        db.execute(
+                            "update expected_partitions set bounds=? where pin=?",
+                            (bounds_json, pin),
+                        )
+            for entry in child.parts:
+                pin = entry.get("pin") if isinstance(entry, dict) else None
+                core = catalog_metadata(entry)
+                bounds_json = canonical(entry["bounds"]) if "bounds" in entry else None
+                if db.execute("select 1 from child_partitions where pin=?", (pin,)).fetchone():
+                    raise ValueError("experience_composition_lineage")
+                db.execute("insert into child_partitions values(?,?,?)", (pin, core, bounds_json))
+            if (
+                db.execute(
+                    "select 1 from expected_partitions e left join child_partitions c using(pin) "
+                    "where c.pin is null or c.metadata != e.metadata "
+                    "or (e.bounds is not null and c.bounds is not e.bounds) limit 1"
+                ).fetchone()
+                or db.execute(
+                    "select 1 from child_partitions c left join expected_partitions e using(pin) "
+                    "where e.pin is null limit 1"
+                ).fetchone()
+            ):
+                raise ValueError("experience_composition_lineage")
+
+        def resolve(snapshot, active, memo, db):
             if snapshot.pin in active:
                 raise ValueError("experience_composition_lineage")
             if snapshot.pin in memo:
@@ -358,12 +418,27 @@ class Snapshot:
                         or parent.manifest["binding"].get("role", "train") != role
                     ):
                         raise ValueError("experience_composition_lineage")
-                    cutoffs.append(resolve(parent, active, memo))
+                    cutoffs.append(resolve(parent, active, memo, db))
+                index_membership(db, snapshot, sources)
             active.remove(snapshot.pin)
             memo[snapshot.pin] = min(cutoffs)
             return memo[snapshot.pin]
 
-        self._censor_cutoff_cache = resolve(self, set(), {})
+        with tempfile.TemporaryDirectory(prefix="experience-lineage-") as temporary:
+            db = sqlite3.connect(Path(temporary) / "membership.sqlite")
+            try:
+                db.execute("pragma cache_size=-8192")
+                db.execute(
+                    "create table expected_partitions(pin text primary key, metadata blob, "
+                    "bounds blob)"
+                )
+                db.execute(
+                    "create table child_partitions(pin text primary key, metadata blob, "
+                    "bounds blob)"
+                )
+                self._censor_cutoff_cache = resolve(self, set(), {}, db)
+            finally:
+                db.close()
         return self._censor_cutoff_cache
 
     def partition(self, index):
