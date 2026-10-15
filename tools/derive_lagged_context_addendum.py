@@ -20,8 +20,8 @@ RUN_ID = "2026-10-15T0610Z"
 WORK = ROOT / "work/lagged-context" / RUN_ID
 SCORE = WORK / "evaluation-score"
 EVIDENCE = ROOT / "docs/evidence"
-PREREG = EVIDENCE / f"brain-lagged-context-postscore-addendum-prereg-{RUN_ID}.json"
-RESULT = EVIDENCE / f"brain-lagged-context-postscore-addendum-{RUN_ID}.json"
+PREREG = EVIDENCE / f"brain-lagged-context-postscore-reconciliation-v2-prereg-{RUN_ID}.json"
+RESULT = EVIDENCE / f"brain-lagged-context-postscore-reconciliation-v2-{RUN_ID}.json"
 TARGET = "target/events_1000000000ns"
 QUANTILES = (0.1, 0.5, 0.9)
 FLOAT_TOLERANCE = 1e-12
@@ -113,7 +113,7 @@ def main() -> Path:
 
     expected = {}
     for row in eval_eligible:
-        key = (row["entity"], row["id"], row["decision_ns"], row["input_available_ns"])
+        key = (row["pool"], row["id"], row["decision_ns"], row["input_available_ns"])
         if key in expected:
             raise ValueError("duplicate_eval_snapshot_key")
         expected[key] = row
@@ -191,6 +191,10 @@ def main() -> Path:
             "Post-exposure arithmetic over bytes from the sole completed registered evaluation. "
             "Eval labels and predictions were already exposed by evaluation.score; this is not "
             "a second preregistered evaluation, new holdout, or prospective result."
+        ),
+        "prior_addendum_attempt": (
+            "The first read-only implementation stopped immediately on a snapshot row-key schema "
+            "mismatch before arithmetic or result publication; see the immutable failure receipt."
         ),
         "original_preregistration_sha256": sha(original_path),
         "continuation_preregistration_sha256": sha(continuation_path),
