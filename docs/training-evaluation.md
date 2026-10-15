@@ -242,7 +242,13 @@ system temp parent is resolved and checked; a supplied scratch parent must alrea
 be inside the child artifact, parent artifact, or source store. It does not fit, score, alter either
 input, or establish model quality. Equality is under current code and numerical environment;
 synthetic tests cover coherent reseals, mismatched pins/schema, parent overlay/mutations and scratch
-containment/cleanup.
+containment/cleanup. `audit_statistics_lineage()` accepts an explicit child-to-root list of one to
+three descriptors (artifact/path pin, source store, snapshot pin, and split plan), checks every
+descriptor and parent-pin edge before creating scratch, then applies the one-hop audit to every
+artifact. The terminal node must be seeded-fresh; omitted ancestors are rejected and ancestry is
+never discovered from storage. A chain matches only when all node audits match. This checks
+statistics provenance across the supplied bounded lineage, but still does not attest model-weight
+or optimizer lineage.
 Before a completed report is published, reused, or read through the generation registry, its epoch,
 step and row counters must reconcile with the recipe and train denominator. Validation history must
 have one ordered finite selection score per epoch. This detects inconsistent report progress and

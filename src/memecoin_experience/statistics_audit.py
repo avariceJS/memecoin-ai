@@ -6,7 +6,133 @@ from pathlib import Path
 from .learning import prepare, recipe
 from .predict import Predictor
 from .records import split_plan
-from .storage import Snapshot, code_identity, digest, safe_path
+from .storage import PIN, Snapshot, code_identity, digest, safe_path
+
+
+def audit_statistics_lineage(nodes, *, scratch_parent=None):
+    """Audit an explicit child-to-root statistics lineage of at most three artifacts.
+
+    Each descriptor has exactly ``artifact``, ``artifact_pin``, ``store``,
+    ``snapshot_pin``, and ``plan``. The final artifact must be seeded-fresh;
+    every preceding artifact must name the next descriptor's pin as its parent.
+    No ancestry is discovered implicitly.
+    """
+    if not isinstance(nodes, (list, tuple)) or not 1 <= len(nodes) <= 3:
+        raise ValueError("experience_statistics_lineage_node_count")
+    required = {"artifact", "artifact_pin", "store", "snapshot_pin", "plan"}
+    prepared = []
+    artifact_paths = set()
+    artifact_pins = set()
+
+    # Validate every supplied node and all chain edges before any derivation scratch is made.
+    for descriptor in nodes:
+        if not isinstance(descriptor, dict) or set(descriptor) != required:
+            raise ValueError("experience_statistics_lineage_descriptor")
+        artifact = safe_path(descriptor["artifact"])
+        store = safe_path(descriptor["store"])
+        artifact_key = artifact.resolve()
+        pin = descriptor["artifact_pin"]
+        if not isinstance(pin, str) or not PIN.fullmatch(pin):
+            raise ValueError("experience_statistics_lineage_artifact_pin")
+        if artifact_key in artifact_paths or pin in artifact_pins:
+            raise ValueError("experience_statistics_lineage_duplicate")
+        artifact_paths.add(artifact_key)
+        artifact_pins.add(pin)
+
+        predictor = Predictor(artifact, pin)
+        binding = predictor.report.get("binding", {})
+        if binding.get("snapshot") != descriptor["snapshot_pin"]:
+            raise ValueError("experience_statistics_audit_snapshot_binding")
+        expected_plan = split_plan(descriptor["plan"])
+        if binding.get("plan") != expected_plan:
+            raise ValueError("experience_statistics_audit_plan_binding")
+        snapshot = Snapshot(store, descriptor["snapshot_pin"])
+        if snapshot.manifest["binding"].get("role", "train") != "train":
+            raise ValueError("experience_statistics_audit_reserved_snapshot")
+        if predictor.spec.get("schema") != snapshot.schema:
+            raise ValueError("experience_statistics_audit_model_schema_binding")
+        config = binding.get("config")
+        try:
+            valid_recipe = isinstance(config, dict) and recipe(config) == config
+        except (TypeError, ValueError):
+            valid_recipe = False
+        if not valid_recipe:
+            raise ValueError("experience_statistics_audit_unsupported_legacy_recipe")
+        prepared.append(
+            dict(
+                artifact=artifact,
+                artifact_pin=pin,
+                store=store,
+                snapshot_pin=descriptor["snapshot_pin"],
+                plan=expected_plan,
+                predictor=predictor,
+            )
+        )
+
+    for index in range(len(prepared) - 1):
+        child, parent = prepared[index], prepared[index + 1]
+        child_predictor, parent_predictor = child["predictor"], parent["predictor"]
+        if (
+            child_predictor.report["binding"].get("initialization")
+            != "parent_weights_frozen_normalizer_fresh_optimizer"
+        ):
+            raise ValueError("experience_statistics_lineage_initialization")
+        if child_predictor.report["binding"].get("parent") != parent["artifact_pin"]:
+            raise ValueError("experience_statistics_lineage_parent_adjacency")
+        if child_predictor.spec != parent_predictor.spec:
+            raise ValueError("experience_statistics_audit_parent_model_binding")
+        if _target_transforms(child_predictor) != _target_transforms(parent_predictor):
+            raise ValueError("experience_statistics_audit_parent_transform_binding")
+        if (
+            child_predictor.stats.get("normalization") != "frozen_parent_normalizer"
+            or child_predictor.stats.get("normalizer_parent") != parent["artifact_pin"]
+        ):
+            raise ValueError("experience_statistics_audit_parent_normalizer_binding")
+    if prepared[-1]["predictor"].report["binding"].get("parent") is not None:
+        raise ValueError("experience_statistics_lineage_omitted_parent")
+    if prepared[-1]["predictor"].report["binding"].get("initialization") != "seeded_fresh":
+        raise ValueError("experience_statistics_lineage_terminal_initialization")
+    if (
+        prepared[-1]["predictor"].stats.get("normalization") == "frozen_parent_normalizer"
+        or "normalizer_parent" in prepared[-1]["predictor"].stats
+    ):
+        raise ValueError("experience_statistics_audit_parent_normalizer_binding")
+
+    raw_parent = tempfile.gettempdir() if scratch_parent is None else scratch_parent
+    if scratch_parent is None:
+        raw_parent = Path(raw_parent).resolve()
+    scratch = safe_path(raw_parent)
+    scratch_resolved = scratch.resolve()
+    if not scratch.is_dir():
+        raise ValueError("experience_statistics_audit_scratch_parent")
+    protected_roots = [node[key] for node in prepared for key in ("artifact", "store")]
+    if any(
+        scratch_resolved == root.resolve() or root.resolve() in scratch_resolved.parents
+        for root in protected_roots
+    ):
+        raise ValueError("experience_statistics_audit_scratch_overlaps_input")
+
+    results = []
+    for index, node in enumerate(prepared):
+        parent = prepared[index + 1] if index + 1 < len(prepared) else None
+        result = audit_statistics_derivation(
+            node["artifact"],
+            node["artifact_pin"],
+            node["store"],
+            node["snapshot_pin"],
+            node["plan"],
+            parent_artifact=parent["artifact"] if parent else None,
+            parent_pin=parent["artifact_pin"] if parent else None,
+            scratch_parent=scratch,
+        )
+        results.append(result)
+    matches = all(result["matches"] for result in results)
+    return dict(
+        status="matched_lineage" if matches else "mismatch",
+        matches=matches,
+        nodes=results,
+        derivation_code_pin=digest(code_identity()),
+    )
 
 
 def audit_statistics_derivation(
