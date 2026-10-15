@@ -1032,3 +1032,28 @@ fractional-count rejection and separation of pending maturity from incomplete su
 or learning gain was claimed. Fresh independent comparisons remain infeasible until a prospective
 or otherwise valid independent source supplies enough mature, eligible examples; historical event
 times are not backdated into decision times.
+
+### Scheduled sensing v2 neural path (2026-10-15)
+
+Scheduled sensing episodes now use representation v2. Its representation identity binds the
+sensing implementation, plan, availability mode, ordered stream feature schemas and process
+contract pins. Population, role, receipt and schedule pins remain in source/snapshot provenance,
+but do not make compatible train and separate evaluation cohorts appear to have different model
+inputs. Stream order is canonical by stream name. The evaluator still requires exact schema
+equality. New materialization requires point-in-time availability; existing v1 snapshot artifacts
+are not rewritten or reinterpreted.
+
+Sensing history and support queries are clamped to the active enrollment interval. A regression
+fixture proves that a re-entered entity cannot inherit prior-interval event values or support
+dependencies, an event at the new interval start can enter after its receipt time, and a target
+window crossing the enrollment end remains censored.
+
+One fixed CPU synthetic run exercised exact-zero labels and positive partial count bounds through
+fit, interrupted checkpoint recovery, fresh-fit weight equality, standalone inference and registered
+evaluation on a distinct research-evaluation role/cohort with identical representation v2. The
+evaluation retained all 13 scheduled rows, counted 10 exact usable labels, and kept three censored
+labels; the lower-bound training path admitted one positive bound. These synthetic scores establish
+engineering flow only: they do not show market predictive quality or learning gain. No provider,
+protected or production data was used. Reproduce with
+[`test_scheduled_sensing_fits_resumes_and_scores_separate_synthetic_cohort`](../tests/test_experience_sensing.py)
+and inspect the unique [qualification receipt](evidence/brain-scheduled-sensing-neural-qualification-2026-10-15.json).

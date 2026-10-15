@@ -6,6 +6,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- [Scheduled sensing neural engineering qualification](brain-scheduled-sensing-neural-qualification-2026-10-15.json):
+  synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume
+  weights, separate registered research-evaluation cohort, and finite inference. Plumbing evidence;
+  no market-quality or learning-gain claim.
 - [`Portability and DR host-pip-isolated bootstrap rehearsal`](portability-dr-isolated-bootstrap-rehearsal-2026-10-14T1836Z.json): exact commit `8544c4d` bootstrapped from a disposable local bare fixture with Python setup isolated from poisoned host pip/Python settings; pip check, smoke, and negative commit/destination cases passed. Isolation covers venv/install/check/smoke only; Git clone/fetch uses caller authentication state. Same-host code bootstrap only, not Brain state recovery, clean-Mac proof, or erase readiness.
 - [`Portability and DR pin-first entry rehearsal`](portability-dr-first-host-entry-rehearsal-2026-10-14T0610Z.json): after checking the Kingston card hash against a source-recorded pin before following its instructions, a clean temporary `HOME` used a local bare Git fixture to verify exact entry/final commits, locked environment setup, smoke, and temporary host-only Kingston binding. Wrong-card-hash, wrong-commit, wrong-volume-pin, missing-auth, and preexisting-target cases blocked. No separate persistent external handoff was distributed. This fixture is on the existing Mac; it is code bootstrap evidence only, not authenticated clean-host GitHub access, Brain state restore, or erase readiness.
 - [`Portability and DR initial entry rehearsal iteration`](portability-dr-first-host-entry-rehearsal-2026-10-14T0606Z.json): superseded by the pin-first receipt above after Sol identified that the card hash needed to be checked before following any card instructions.

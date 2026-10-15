@@ -11,7 +11,7 @@ from memecoin_population.catalog import records as population_records
 
 from . import observations, qualification, sparse
 from .schema import validate as validate_experience_schema
-from .storage import PIN, atomic_json, build, canonical, digest, safe_path
+from .storage import PIN, atomic_json, build, canonical, digest, file_hash, safe_path
 
 NS = 10**9
 PAGE_SIZE = 512
@@ -448,6 +448,11 @@ def _load_source(store, pin):
     return wrapper
 
 
+def _ordered_receipt_refs(wrapper):
+    """Keep sensing feature/target order semantic, not dependent on receipt hash order."""
+    return sorted(wrapper["receipt_refs"], key=lambda ref: ref["stream"])
+
+
 def _episode_schema(source, wrapper, plan):
     required = {"context", "max_history_ns", "horizons_ns", "price_targets"}
     if (
@@ -463,10 +468,22 @@ def _episode_schema(source, wrapper, plan):
         or not isinstance(plan["price_targets"], list)
     ):
         raise ValueError("sensing_episode_plan")
+    if source.schema["availability"] != "point_in_time":
+        raise ValueError("sensing_source_requires_point_in_time")
     features, targets = [], []
-    for ref in wrapper["receipt_refs"]:
+    refs = _ordered_receipt_refs(wrapper)
+    stream_contracts = []
+    for ref in refs:
         stream = ref["stream"]
         stream_schema = source.schema["streams"][stream]
+        stream_contracts.append(
+            dict(
+                name=stream,
+                process_contract_pin=ref["process_contract_pin"],
+                process=stream_schema["process"],
+                features=stream_schema["features"],
+            )
+        )
         for field in stream_schema["features"]:
             features.append(dict(field, name=f"{stream}/{field['name']}"))
         features.extend(
@@ -535,10 +552,18 @@ def _episode_schema(source, wrapper, plan):
             targets=targets,
             representation=dict(
                 name="brain-sensing-episode",
-                version="1",
-                code_sha=digest(dict(wrapper=wrapper, plan=plan)),
+                version="2",
+                code_sha=digest(
+                    dict(
+                        implementation_sha=file_hash(Path(__file__)),
+                        plan=plan,
+                        observation_version=source.schema["version"],
+                        availability=source.schema["availability"],
+                        streams=stream_contracts,
+                    )
+                ),
             ),
-            availability="point_in_time",
+            availability=source.schema["availability"],
         )
     )
 
@@ -584,7 +609,7 @@ def materialize_episode(
     index = tempfile.TemporaryDirectory(prefix="sensing-index-")
     db = source.index(Path(index.name) / "index.sqlite")
     counts = {"schedule_origins": 0, "quiet_origins": 0}
-    stream_names = [ref["stream"] for ref in wrapper["receipt_refs"]]
+    stream_names = [ref["stream"] for ref in _ordered_receipt_refs(wrapper)]
     try:
 
         def rows():
@@ -598,6 +623,7 @@ def materialize_episode(
                 ).fetchone()
                 if member is None or not member[0] <= decision < member[1] or member[2] > decision:
                     raise ValueError("sensing_schedule_origin_outside_available_population")
+                history_start = max(member[0], max(0, decision - plan["max_history_ns"]))
                 input_deps = {(schedule_page_pin, decision, decision)}
                 support_context = []
                 support_by_stream = {}
@@ -612,7 +638,7 @@ def materialize_episode(
                             (
                                 entity,
                                 stream,
-                                max(0, decision - plan["max_history_ns"]),
+                                history_start,
                                 decision,
                                 decision,
                                 max(0, plan["context"] - 1),
@@ -626,7 +652,7 @@ def materialize_episode(
                         db,
                         entity,
                         stream,
-                        max(0, decision - plan["max_history_ns"]),
+                        history_start,
                         decision + 1,
                         decision,
                     )
@@ -637,7 +663,7 @@ def materialize_episode(
                             entity,
                             stream,
                             decision + 1,
-                            max(0, decision - plan["max_history_ns"]),
+                            history_start,
                             decision,
                         ),
                     ).fetchall()
@@ -666,7 +692,7 @@ def materialize_episode(
                             (
                                 entity,
                                 stream,
-                                max(0, decision - plan["max_history_ns"]),
+                                history_start,
                                 decision,
                                 decision,
                                 max(0, plan["context"] - 1),
@@ -738,7 +764,7 @@ def materialize_episode(
                     [],
                     [],
                 )
-                for ref in wrapper["receipt_refs"]:
+                for ref in _ordered_receipt_refs(wrapper):
                     stream = ref["stream"]
                     for horizon in plan["horizons_ns"]:
                         maturity = decision + horizon

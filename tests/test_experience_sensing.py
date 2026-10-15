@@ -6,7 +6,8 @@ import tracemalloc
 
 import pytest
 
-from memecoin_experience import observations, qualification, sensing, storage
+from memecoin_experience import evaluation, learning, observations, qualification, sensing, storage
+from memecoin_experience.predict import Predictor
 from memecoin_population import catalog
 
 CAPS = ["complete_support", "observation_support", "population_coverage"]
@@ -97,7 +98,7 @@ def _verified_member(
     return member
 
 
-def _receipt(store, pop_pin, process, process_pin, scope_pin, members):
+def _receipt(store, pop_pin, process, process_pin, scope_pin, members, *, role="train"):
     source_pin = qualification.synthetic_source_pin(process_pin, scope_pin)
     decoder_pin = qualification.SYNTHETIC_DECODER_PIN
     code_pin = qualification._verifier_code_pin("synthetic_closed_fixture_v1")
@@ -112,7 +113,7 @@ def _receipt(store, pop_pin, process, process_pin, scope_pin, members):
         qualification_code_pin=code_pin,
         population_pin=pop_pin,
         scope_pin=scope_pin,
-        role="train",
+        role=role,
         accounting_unit="candidate_process_records",
         available_ns=max(m["available_ns"] for m in members),
         counts=counts,
@@ -139,39 +140,52 @@ def _destination(process, process_pin):
     )
 
 
-def _build_fixture(tmp_path):
-    entity_a, entity_b, entity_c = "chain/market/A", "chain/market/B", "chain/market/C"
+def _build_fixture(tmp_path, *, role="train", prefix="", scale=1, shift=0):
+    def tick(value):
+        return shift + value * scale
+
+    def entity(name):
+        return f"chain/market/{prefix}{name}"
+
+    entity_a, entity_b, entity_c = entity("A"), entity("B"), entity("C")
     population_store = tmp_path / "population"
     population_pin = catalog.publish(
         population_store,
         "population",
         [
-            dict(entity=e, start_ns=0, end_ns=200, known_ns=20, attributes={}, evidence=["a" * 64])
+            dict(
+                entity=e,
+                start_ns=tick(0),
+                end_ns=tick(300),
+                known_ns=tick(20),
+                attributes={},
+                evidence=["a" * 64],
+            )
             for e in (entity_a, entity_b)
         ]
         + [
             dict(
                 entity=entity_c,
-                start_ns=start,
-                end_ns=end,
-                known_ns=start,
+                start_ns=tick(start),
+                end_ns=tick(end),
+                known_ns=tick(start),
                 attributes={},
                 evidence=["a" * 64],
             )
-            for start, end in ((0, 50), (70, 200))
+            for start, end in ((0, 50), (70, 200), (210, 300), (310, 400), (510, 600))
         ]
         + [
             dict(
-                entity="chain/market/D",
-                start_ns=0,
-                end_ns=200,
-                known_ns=0,
+                entity=entity("D"),
+                start_ns=tick(0),
+                end_ns=tick(200),
+                known_ns=tick(0),
                 attributes={},
                 evidence=["a" * 64],
             )
         ],
-        cutoff_ns=200,
-        definition=dict(role="train", selection="synthetic sensing episode"),
+        cutoff_ns=tick(700),
+        definition=dict(role=role, selection="synthetic sensing episode"),
     )
     receipt_store = tmp_path / "qualification"
     processes, pins, receipt_pins, qualified_members = [], [], [], []
@@ -186,19 +200,37 @@ def _build_fixture(tmp_path):
         process, process_pin = _process(receipt_store, name, stream, field, unit)
         members = [
             _verified_member(
-                receipt_store, process, process_pin, entity_a, field, fixture_values[stream]
+                receipt_store,
+                process,
+                process_pin,
+                entity_a,
+                field,
+                [(tick(at), value) for at, value in fixture_values[stream]],
+                start=tick(0),
+                end=tick(300),
+                available=tick(300),
             ),
-            _verified_member(receipt_store, process, process_pin, entity_b, field, [(2, 1.0)]),
+            _verified_member(
+                receipt_store,
+                process,
+                process_pin,
+                entity_b,
+                field,
+                [(tick(2), 1.0)],
+                start=tick(0),
+                end=tick(300),
+                available=tick(300),
+            ),
             _verified_member(
                 receipt_store,
                 process,
                 process_pin,
                 entity_c,
                 field,
-                [(2, 1.0), (12, 2.0)],
-                start=0,
-                end=50,
-                available=50,
+                [(tick(2), 1.0), (tick(12), 2.0), (tick(45), 45.0)],
+                start=tick(0),
+                end=tick(50),
+                available=tick(50),
             ),
             _verified_member(
                 receipt_store,
@@ -206,23 +238,58 @@ def _build_fixture(tmp_path):
                 process_pin,
                 entity_c,
                 field,
-                [(72, 1.0), (82, 2.0), (84, 3.0)],
-                start=70,
-                end=200,
-                available=200,
+                [(tick(72), 1.0), (tick(82), 2.0), (tick(84), 3.0), (tick(175), 17.0)],
+                start=tick(70),
+                end=tick(200),
+                available=tick(200),
             ),
             _verified_member(
                 receipt_store,
                 process,
                 process_pin,
-                "chain/market/D",
+                entity_c,
                 field,
-                [(2, 1.0), (12, 2.0), (31, 3.0)],
-                start=0,
-                end=200,
-                available=200,
-                fixture_available=60,
-                closed_through=60,
+                [(tick(210), 21.0)],
+                start=tick(210),
+                end=tick(300),
+                available=tick(300),
+                fixture_available=tick(220),
+                closed_through=tick(220),
+            ),
+            _verified_member(
+                receipt_store,
+                process,
+                process_pin,
+                entity_c,
+                field,
+                [(tick(320), 32.0), (tick(352), 35.0), (tick(360), 36.0)],
+                start=tick(310),
+                end=tick(400),
+                available=tick(400),
+            ),
+            _verified_member(
+                receipt_store,
+                process,
+                process_pin,
+                entity_c,
+                field,
+                [(tick(520), 52.0), (tick(552), 55.0), (tick(560), 56.0)],
+                start=tick(510),
+                end=tick(600),
+                available=tick(600),
+            ),
+            _verified_member(
+                receipt_store,
+                process,
+                process_pin,
+                entity("D"),
+                field,
+                [(tick(2), 1.0), (tick(12), 2.0), (tick(31), 3.0)],
+                start=tick(0),
+                end=tick(200),
+                available=tick(200),
+                fixture_available=tick(60),
+                closed_through=tick(60),
             ),
         ]
         scope_pin = qualification.publish_scope(
@@ -230,12 +297,12 @@ def _build_fixture(tmp_path):
             members,
             population_store=population_store,
             population_pin=population_pin,
-            role="train",
+            role=role,
             process=process,
             process_pin=process_pin,
         )
         receipt_pin = _receipt(
-            receipt_store, population_pin, process, process_pin, scope_pin, members
+            receipt_store, population_pin, process, process_pin, scope_pin, members, role=role
         )
         processes.append(process)
         pins.append(process_pin)
@@ -321,11 +388,11 @@ def _build_fixture(tmp_path):
         sorted(rows, key=observations.key),
         schema=dict(
             version="market-observations-v1",
-            role="train",
+            role=role,
             availability="point_in_time",
             streams=streams,
         ),
-        cutoff=200,
+        cutoff=tick(700),
         sources=[dict(kind="synthetic", pin="b" * 64)],
     )
     sensing_store = tmp_path / "sensing"
@@ -336,7 +403,7 @@ def _build_fixture(tmp_path):
         qualification_store=receipt_store,
         population_store=population_store,
         population_pin=population_pin,
-        role="train",
+        role=role,
         receipt_pins=receipt_pins,
     )
     return locals()
@@ -355,6 +422,8 @@ def test_two_process_sensing_episode_is_reconciled_asof_and_replayable(tmp_path)
                 dict(entity="chain/market/B", decision_ns=20),
                 dict(entity="chain/market/C", decision_ns=20),
                 dict(entity="chain/market/C", decision_ns=80),
+                dict(entity="chain/market/C", decision_ns=195),
+                dict(entity="chain/market/C", decision_ns=225),
                 dict(entity="chain/market/D", decision_ns=10),
             ]
         ),
@@ -394,7 +463,7 @@ def test_two_process_sensing_episode_is_reconciled_asof_and_replayable(tmp_path)
             raw[i : i + snapshot.schema["context"] * width]
             for i in range(0, len(raw), snapshot.schema["context"] * width)
         )
-    assert len(rows) == 7
+    assert len(rows) == 9
     quiet = next(r for r in rows if r["pool"].endswith("/A") and r["decision_ns"] == 20)
     quiet_row = rows.index(quiet)
     assert all(
@@ -436,13 +505,35 @@ def test_two_process_sensing_episode_is_reconciled_asof_and_replayable(tmp_path)
     ]  # (decision, maturity] includes 96 and 100, excludes 95
     ready = next(r for r in rows if r["pool"].endswith("/A") and r["decision_ns"] == 101)
     assert (
-        ready["input_start_ns"] == 0
-    )  # support interval dependency is purged from its valid-time start
-    assert first["accounting"] == {"schedule_origins": 7, "quiet_origins": 6}
+        ready["input_start_ns"] == 101
+    )  # complete support is not available until the source cutoff
+    assert first["accounting"] == {"schedule_origins": 9, "quiet_origins": 8}
     reentered = next(r for r in rows if r["pool"].endswith("/C") and r["decision_ns"] == 80)
     assert reentered["target_status"][count_index] == "observed"
     reentered_row = rows.index(reentered)
     assert target_values[reentered_row][count_index] == 2.0
+    trades_index = next(
+        i
+        for i, feature in enumerate(snapshot.schema["features"])
+        if feature["name"] == "trades/count"
+    )
+    reentered_frames = [
+        matrix[reentered_row][i : i + width] for i in range(0, len(matrix[reentered_row]), width)
+    ]
+    assert 45.0 not in [frame[trades_index] for frame in reentered_frames]
+    assert reentered["input_start_ns"] == 80
+    boundary = next(r for r in rows if r["pool"].endswith("/C") and r["decision_ns"] == 195)
+    assert boundary["target_status"][count_index] == "censored"
+    later_reentry = next(r for r in rows if r["pool"].endswith("/C") and r["decision_ns"] == 225)
+    later_reentry_row = rows.index(later_reentry)
+    later_frames = [
+        matrix[later_reentry_row][i : i + width]
+        for i in range(0, len(matrix[later_reentry_row]), width)
+    ]
+    later_values = [frame[trades_index] for frame in later_frames]
+    assert 21.0 in later_values
+    assert 17.0 not in later_values
+    assert later_reentry["input_start_ns"] == 210
     partial = next(r for r in rows if r["pool"].endswith("/D"))
     assert partial["target_status"][count_index] == "censored"
     assert math.isnan(target_values[rows.index(partial)][count_index])
@@ -491,7 +582,7 @@ def test_sensing_rejects_event_not_reconciled_to_fixture_pin(tmp_path):
         tmp_path / "bad-observations",
         sorted(rows, key=observations.key),
         schema=original.schema,
-        cutoff=200,
+        cutoff=700,
         sources=[dict(kind="synthetic", pin="c" * 64)],
     )
     with pytest.raises(ValueError, match="sensing_source_fixture_reconciliation"):
@@ -545,6 +636,202 @@ def test_sensing_rechecks_schedule_population_availability_on_use(tmp_path):
             output=tmp_path / "must-not-build",
             plan=dict(context=3, max_history_ns=50, horizons_ns=[5], price_targets=[]),
         )
+
+
+def test_episode_schema_identity_is_cohort_independent_but_contract_bound(tmp_path):
+    f = _build_fixture(tmp_path)
+    source = observations.Source(f["observation_store"], f["observation_pin"], role="train")
+    plan = dict(
+        context=3,
+        max_history_ns=50,
+        horizons_ns=[5],
+        price_targets=[
+            dict(stream="prices", feature="price", horizon_ns=5, name="prices/return_5ns")
+        ],
+    )
+    wrapper = sensing._load_source(f["sensing_store"], f["wrapper"]["source_pin"])
+    schema = sensing._episode_schema(source, wrapper, plan)
+    assert schema["representation"]["version"] == "2"
+
+    separate_cohort = dict(wrapper)
+    separate_cohort.update(
+        observation_source_pin="d" * 64,
+        population_pin="e" * 64,
+        role="research_evaluation",
+        fixture_source_pin="f" * 64,
+    )
+    separate_cohort["receipt_refs"] = list(reversed(wrapper["receipt_refs"]))
+    assert sensing._episode_schema(source, separate_cohort, plan) == schema
+
+    changed_contract = dict(separate_cohort)
+    changed_contract["receipt_refs"] = [
+        dict(ref, process_contract_pin="a" * 64) for ref in separate_cohort["receipt_refs"]
+    ]
+    assert sensing._episode_schema(source, changed_contract, plan) != schema
+    changed_plan = dict(plan, max_history_ns=51)
+    assert sensing._episode_schema(source, separate_cohort, changed_plan) != schema
+
+
+def _materialize_fixture(f, output, *, scale, shift):
+    def tick(value):
+        return shift + value * scale
+
+    prefix = f["prefix"]
+    schedule_rows = [
+        ("A", 20),
+        ("A", 95),
+        ("A", 150),
+        ("A", 225),
+        ("B", 20),
+        ("C", 20),
+        ("C", 80),
+        ("C", 150),
+        ("C", 195),
+        ("C", 225),
+        ("C", 350),
+        ("C", 550),
+        ("D", 10),
+    ]
+    origins = [
+        dict(entity=f"chain/market/{prefix}{name}", decision_ns=tick(decision))
+        for name, decision in schedule_rows
+    ]
+    schedule_store = output / "schedule"
+    schedule_pin = sensing.publish_schedule(
+        schedule_store,
+        sorted(origins, key=lambda row: (row["entity"], row["decision_ns"])),
+        population_store=f["population_store"],
+        population_pin=f["population_pin"],
+        role=f["role"],
+    )
+    plan = dict(context=3, max_history_ns=50 * scale, horizons_ns=[5 * scale], price_targets=[])
+    result = sensing.materialize_episode(
+        f["observation_store"],
+        f["wrapper"]["source_pin"],
+        sensing_store=f["sensing_store"],
+        schedule_store=schedule_store,
+        schedule_pin=schedule_pin,
+        qualification_store=f["receipt_store"],
+        population_store=f["population_store"],
+        output=output / "snapshot",
+        plan=plan,
+        role=f["role"],
+    )
+    return result, plan
+
+
+def test_scheduled_sensing_fits_resumes_and_scores_separate_synthetic_cohort(tmp_path):
+    import numpy as np
+
+    from memecoin_experience.learning import batches
+
+    scale = 10**9
+    train = _build_fixture(tmp_path / "train", scale=scale)
+    train_result, _ = _materialize_fixture(train, tmp_path / "train-run", scale=scale, shift=0)
+    snapshot = storage.Snapshot(tmp_path / "train-run/snapshot", train_result["snapshot"])
+    trade_target = next(
+        i
+        for i, target in enumerate(snapshot.schema["targets"])
+        if target["name"] == "trades/events_5000000000ns"
+    )
+    exact_zero = None
+    exact_zero_value = None
+    for index in range(len(snapshot.parts)):
+        part_path, part_rows = snapshot.partition(index)
+        for row_index, row in enumerate(part_rows):
+            if row["pool"].endswith("/A") and row["decision_ns"] == 20 * scale:
+                raw_y = struct.unpack(
+                    f"<{len(part_rows) * len(snapshot.schema['targets'])}d",
+                    (part_path / "y.f64").read_bytes(),
+                )
+                exact_zero = row
+                exact_zero_value = raw_y[row_index * len(snapshot.schema["targets"]) + trade_target]
+                break
+        if exact_zero is not None:
+            break
+    assert exact_zero["target_status"][trade_target] == "observed"
+    assert exact_zero_value == 0.0
+
+    split = dict(train_start_s=1, train_end_s=350, validation_end_s=500, test_end_s=700)
+    config = dict(
+        width=8,
+        batch=4,
+        epochs=1,
+        seed=19,
+        cpu_threads=1,
+        checkpoint_every=1,
+        objective="partial_count_lower_bound_pinball_v1",
+    )
+    interrupted_path = tmp_path / "interrupted"
+    interrupted = learning.train(
+        tmp_path / "train-run/snapshot",
+        train_result["snapshot"],
+        interrupted_path,
+        plan=split,
+        config=config,
+        stop_after=1,
+    )
+    assert interrupted["status"] == "interrupted"
+    resumed = learning.train(
+        tmp_path / "train-run/snapshot",
+        train_result["snapshot"],
+        interrupted_path,
+        plan=split,
+        config=config,
+    )
+    fresh = learning.train(
+        tmp_path / "train-run/snapshot",
+        train_result["snapshot"],
+        tmp_path / "fresh",
+        plan=split,
+        config=config,
+    )
+    import torch
+
+    resumed_weights = torch.load(interrupted_path / "artifact/weights.pt", weights_only=True)
+    fresh_weights = torch.load(tmp_path / "fresh/artifact/weights.pt", weights_only=True)
+    assert all(torch.equal(resumed_weights[key], fresh_weights[key]) for key in fresh_weights)
+    assert fresh["production_eligible"] is False
+    stats = resumed["statistics"]
+    assert stats["population"]["train_usable"] > 0
+    assert stats["population"]["validation_usable"] > 0
+    assert stats["population"]["test_usable"] > 0
+    assert stats["population"]["train_partial_count_usable"] > 0
+    assert resumed["production_eligible"] is False
+
+    eval_shift = 1000 * scale
+    evaluation_fixture = _build_fixture(
+        tmp_path / "evaluation",
+        role="research_evaluation",
+        prefix="eval-",
+        scale=scale,
+        shift=eval_shift,
+    )
+    evaluation_result, _ = _materialize_fixture(
+        evaluation_fixture, tmp_path / "evaluation-run", scale=scale, shift=eval_shift
+    )
+    evaluation_snapshot = storage.Snapshot(
+        tmp_path / "evaluation-run/snapshot", evaluation_result["snapshot"]
+    )
+    assert evaluation_snapshot.schema == snapshot.schema
+    artifact = interrupted_path / "artifact"
+    artifact_pin = storage.file_hash(artifact / "manifest.json")
+    pools = [f"chain/market/eval-{name}" for name in "ABCD"]
+    registered = evaluation.register(
+        tmp_path / "protocols", artifact, artifact_pin, start_s=1000, end_s=1700, pools=pools
+    )
+    scored = evaluation.score(
+        tmp_path / "protocols",
+        registered["protocol"],
+        tmp_path / "evaluation-run/snapshot",
+        evaluation_result["snapshot"],
+        artifact,
+        tmp_path / "evaluation-report",
+    )
+    assert scored["supported_pools"] == 3  # D remains censored, not counted as exact support.
+    assert scored["production_eligible"] is False
+    test_batch = next(batches(snapshot, split, "test", 8, with_censoring=True))[0]
+    assert np.isfinite(Predictor(artifact, artifact_pin).predict(test_batch)).all()
 
 
 def test_schedule_pages_stream_1025_rows_and_record_resource_profile(tmp_path):
