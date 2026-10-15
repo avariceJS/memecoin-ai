@@ -20,8 +20,8 @@ RUN_ID = "2026-10-15T0610Z"
 WORK = ROOT / "work/lagged-context" / RUN_ID
 SCORE = WORK / "evaluation-score"
 EVIDENCE = ROOT / "docs/evidence"
-PREREG = EVIDENCE / f"brain-lagged-context-postscore-reconciliation-v2-prereg-{RUN_ID}.json"
-RESULT = EVIDENCE / f"brain-lagged-context-postscore-reconciliation-v2-{RUN_ID}.json"
+PREREG = EVIDENCE / f"brain-lagged-context-postscore-reconciliation-v3-prereg-{RUN_ID}.json"
+RESULT = EVIDENCE / f"brain-lagged-context-postscore-reconciliation-v3-{RUN_ID}.json"
 TARGET = "target/events_1000000000ns"
 QUANTILES = (0.1, 0.5, 0.9)
 FLOAT_TOLERANCE = 1e-12
@@ -81,8 +81,12 @@ def main() -> Path:
         or report.get("binding", {}).get("candidate") != prereg["candidate_artifact_manifest_sha256"]
         or report.get("status") != "completed"
         or report.get("production_eligible") is not False
+        or protocol.get("scope") != "retrospective"
     ):
         raise ValueError("registered_score_binding")
+    expected_roster = sorted(row["entity"] for row in assay.roster("research_evaluation"))
+    if protocol.get("pools") != expected_roster:
+        raise ValueError("registered_evaluation_roster")
     target_metric = [item for item in report["metrics"] if item["target"] == TARGET]
     if len(target_metric) != 1:
         raise ValueError("registered_target_metric_cardinality")
@@ -110,6 +114,14 @@ def main() -> Path:
     ]
     if len(eval_eligible) != 128 or len(train_eligible) != 256:
         raise ValueError("exact_role_denominator")
+    if any(
+        row["input_available_ns"] > row["decision_ns"]
+        or row["input_start_ns"] < row["decision_ns"] - assay.PLAN["max_history_ns"]
+        or row["target_maturity_ns"][target_index] <= row["decision_ns"]
+        or row["target_available_ns"][target_index] < row["target_maturity_ns"][target_index]
+        for row in eval_eligible
+    ):
+        raise ValueError("evaluation_clock_or_support_boundary")
 
     expected = {}
     for row in eval_eligible:
@@ -215,7 +227,18 @@ def main() -> Path:
         "denominators": {
             "evaluation_exact_target_rows": exact_rows,
             "training_exact_target_rows": len(train_eligible),
-            "evaluation_pools": len({row["entity"] for row in eval_eligible}),
+            "evaluation_pools": len({row["pool"] for row in eval_eligible}),
+            "input_available_by_decision_rows": sum(
+                row["input_available_ns"] <= row["decision_ns"] for row in eval_eligible
+            ),
+            "input_within_context_rows": sum(
+                row["input_start_ns"] >= row["decision_ns"] - assay.PLAN["max_history_ns"]
+                for row in eval_eligible
+            ),
+            "target_matured_after_decision_rows": sum(
+                row["target_maturity_ns"][target_index] > row["decision_ns"]
+                for row in eval_eligible
+            ),
             "evaluation_score_target_observed": target_metric[0]["n"],
             "evaluation_score_target_usable": report["denominators"][f"{TARGET}/usable"],
         },

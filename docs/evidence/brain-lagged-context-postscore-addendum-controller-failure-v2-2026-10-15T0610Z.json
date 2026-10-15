@@ -1,0 +1,14 @@
+{
+  "attempt": "corrected read-only transcript reconciliation v2",
+  "disposition": "Preserve the run failure. V3 corrects the pool key in the receipt and adds roster/clock/support checks before one final receipt publication. This does not repeat model prediction or evaluation.score.",
+  "error": "KeyError: entity; snapshot rows identify pool as pool",
+  "evaluation_score_repeated": false,
+  "experiment_id": "2026-10-15T0610Z",
+  "fit_repeated": false,
+  "metrics_persisted": false,
+  "prior_addendum_preregistration": "brain-lagged-context-postscore-reconciliation-v2-prereg-2026-10-15T0610Z.json",
+  "prior_addendum_preregistration_sha256": "815a05eca244c5baab4ac9ec5c833395a464d694b59ac5c1ad477ec8feec0ad9",
+  "sealed_score_modified": false,
+  "status": "metrics_computed_in_memory_but_receipt_publication_failed",
+  "version": "brain-lagged-context-postscore-addendum-controller-failure-v1"
+}
