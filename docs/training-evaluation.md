@@ -180,6 +180,10 @@ generalization. No trading/execution or uncertainty claim follows from these met
 
 CPU and single CUDA-device recipes share the reader/model path. CUDA is implemented but has
 not been exercised on this Mac. Distributed training and throughput tuning are not implemented.
+CPU `train()` scopes and restores the CPU RNG, thread count, deterministic-algorithm setting, and
+backend flags after success, interruption or exception; CPU seeding does not reseed device RNGs.
+These Torch settings are process-global, so this does not make concurrent training calls thread-safe
+or isolate CUDA jobs.
 An immutable `recipe.json` establishes job ownership before preprocessing. The final `binding.json`
 also pins the computed statistics before the first optimizer step. Interrupted, uncommitted
 statistics are recomputed; committed statistics with a changed digest fail closed. Checkpoints

@@ -231,6 +231,53 @@ def test_training_rejects_nonfinite_forward_before_optimizer_step(tmp_path, monk
     assert not (output / "artifact").exists()
 
 
+def test_cpu_training_restores_torch_process_state_on_all_exits(tmp_path, monkeypatch):
+    from memecoin_experience import learning
+
+    store, pin, _ = dataset(tmp_path)
+
+    def capture():
+        return dict(
+            rng=torch.get_rng_state().clone(),
+            threads=torch.get_num_threads(),
+            deterministic=torch.are_deterministic_algorithms_enabled(),
+            warn_only=torch.is_deterministic_algorithms_warn_only_enabled(),
+            cudnn_benchmark=torch.backends.cudnn.benchmark,
+            allow_tf32=torch.backends.cuda.matmul.allow_tf32,
+        )
+
+    def assert_restored(expected):
+        actual = capture()
+        assert torch.equal(actual.pop("rng"), expected["rng"])
+        assert actual == {key: value for key, value in expected.items() if key != "rng"}
+
+    original = capture()
+    try:
+        torch.random.default_generator.manual_seed(20261015)
+        torch.set_num_threads(2)
+        torch.use_deterministic_algorithms(False, warn_only=True)
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cuda.matmul.allow_tf32 = True
+        expected = capture()
+
+        train(store, pin, tmp_path / "complete", plan=PLAN, config=CONFIG)
+        assert_restored(expected)
+
+        train(store, pin, tmp_path / "interrupted", plan=PLAN, config=CONFIG, stop_after=1)
+        assert_restored(expected)
+
+        def fail_construction(spec):
+            raise RuntimeError("synthetic model construction failure")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(learning, "construct", fail_construction)
+            with pytest.raises(RuntimeError, match="synthetic model construction failure"):
+                train(store, pin, tmp_path / "failed", plan=PLAN, config=CONFIG)
+        assert_restored(expected)
+    finally:
+        learning._restore_cpu_training_process_state(original)
+
+
 def test_exact_cpu_resume_immutable_result_and_binding(tmp_path):
     store, pin, _ = dataset(tmp_path)
     first, resumed = tmp_path / "first", tmp_path / "resumed"

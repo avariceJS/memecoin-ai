@@ -680,6 +680,25 @@ def validate_completed_report(report, stats, config):
             raise ValueError(error)
 
 
+def _capture_cpu_training_process_state():
+    return dict(
+        rng=torch.get_rng_state().clone(),
+        threads=torch.get_num_threads(),
+        deterministic=torch.are_deterministic_algorithms_enabled(),
+        warn_only=torch.is_deterministic_algorithms_warn_only_enabled(),
+        cudnn_benchmark=torch.backends.cudnn.benchmark,
+        allow_tf32=torch.backends.cuda.matmul.allow_tf32,
+    )
+
+
+def _restore_cpu_training_process_state(state):
+    torch.set_rng_state(state["rng"])
+    torch.set_num_threads(state["threads"])
+    torch.use_deterministic_algorithms(state["deterministic"], warn_only=state["warn_only"])
+    torch.backends.cudnn.benchmark = state["cudnn_benchmark"]
+    torch.backends.cuda.matmul.allow_tf32 = state["allow_tf32"]
+
+
 def transform_targets(values, transforms, mask=None):
     result = np.asarray(values, dtype=np.float64).copy()
     if len(transforms) != result.shape[1]:
@@ -1228,8 +1247,15 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
             from memecoin_population.exposure import Journal
 
             journal = resources.enter_context(Journal(diversity, output, audit))
+        if config["device"] == "cpu":
+            cpu_process_state = _capture_cpu_training_process_state()
+            resources.callback(_restore_cpu_training_process_state, cpu_process_state)
         torch.set_num_threads(config["cpu_threads"])
-        torch.manual_seed(config["seed"])
+        if config["device"] == "cpu":
+            # A CPU research fit must not reseed global CUDA/MPS generators.
+            torch.random.default_generator.manual_seed(config["seed"])
+        else:
+            torch.manual_seed(config["seed"])
         torch.use_deterministic_algorithms(True)
         torch.backends.cudnn.benchmark = False
         torch.backends.cuda.matmul.allow_tf32 = False
