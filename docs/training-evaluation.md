@@ -1127,8 +1127,10 @@ its catalog status counts, so a re-pinned false summary cannot change aggregate 
 establishes consistency inside the content-addressed snapshot, not source authenticity. A composed
 snapshot uses its declared cutoff, currently the maximum parent cutoff; this
 does not prove that each reused partition was available by its original parent's cutoff. Composition
-now hashes and reads every source partition, so this integrity pass scales with source payload size;
-it is not a metadata-only operation on large corpora. Training
+hashes and reads each unique source partition once; v3 repeats that check when the same pin appears
+under a different parent cutoff. Reuse requires matching catalog metadata and resolved bounds. The
+integrity pass scales with unique payload size and is not metadata-only on large corpora. This does
+not change the composed cutoff semantics. Training
 reports a versioned conservative exclusive-end frontier for every native domain from all train, validation,
 test and dependency extents, merged with a proven parent frontier. The primary-domain value remains
 available as `seen_end_coordinate`. Registered native-coordinate evaluation requires every test

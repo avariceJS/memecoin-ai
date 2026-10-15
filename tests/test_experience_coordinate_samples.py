@@ -389,6 +389,55 @@ def test_native_coordinate_composition_is_disjoint_and_domain_aware(tmp_path):
         compose(source, [first["snapshot"], other_snapshot["snapshot"]])
 
 
+def test_composition_rechecks_shared_v3_partition_at_each_parent_cutoff(tmp_path, monkeypatch):
+    import json
+
+    from memecoin_experience.storage import atomic_json, digest
+
+    schema = _schema()
+    built = build(
+        tmp_path,
+        [_row(1, availability=150)],
+        sources=[dict(kind="synthetic", pin="e" * 64)],
+        cutoff=200,
+        schema=schema,
+    )
+    original = json.loads((tmp_path / "snapshots" / f"{built['snapshot']}.json").read_text())
+
+    candidates = {}
+    for cutoff in (200, 100):
+        candidates[cutoff] = []
+        for marker in range(1000):
+            manifest = copy.deepcopy(original)
+            manifest["binding"]["cutoff_ns"] = cutoff
+            manifest["compose_test_order"] = marker
+            candidates[cutoff].append((digest(manifest), manifest))
+    high_pin, high_manifest = next(
+        candidate
+        for candidate in candidates[200]
+        if any(candidate[0] < pin for pin, _ in candidates[100])
+    )
+    low_pin, low_manifest = next(
+        candidate for candidate in candidates[100] if high_pin < candidate[0]
+    )
+    atomic_json(tmp_path / "snapshots" / f"{high_pin}.json", high_manifest)
+    atomic_json(tmp_path / "snapshots" / f"{low_pin}.json", low_manifest)
+
+    original_partition = Snapshot.partition
+    reads = []
+
+    def tracked_partition(snapshot, index):
+        reads.append((snapshot.parts[index]["pin"], snapshot.manifest["binding"]["cutoff_ns"]))
+        return original_partition(snapshot, index)
+
+    monkeypatch.setattr(Snapshot, "partition", tracked_partition)
+    with pytest.raises(ValueError, match="target_window_0"):
+        compose(tmp_path, [high_pin, low_pin])
+    shared_pin = Snapshot(tmp_path, high_pin).parts[0]["pin"]
+    assert shared_pin == Snapshot(tmp_path, low_pin).parts[0]["pin"]
+    assert reads == [(shared_pin, 200), (shared_pin, 100)]
+
+
 def test_registry_accepts_multiple_domains_without_implicit_alignment():
     slot = coordinate_samples.SLOT_DOMAIN
     block_height = {

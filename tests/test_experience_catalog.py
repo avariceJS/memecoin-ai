@@ -72,6 +72,70 @@ def test_paged_composition_preserves_payloads_and_source_accounting(tmp_path, mo
     assert sum(len(snapshot.partition(i)[1]) for i in range(len(snapshot.parts))) == 60
 
 
+@pytest.mark.parametrize("forged_field", ["statuses", "bounds"])
+def test_nested_composition_reuses_verified_shared_partitions(tmp_path, monkeypatch, forged_field):
+    from collections import Counter
+
+    from test_experience import bars
+
+    monkeypatch.setattr(catalog, "PAGE_SIZE", 1024)
+    store = tmp_path / "nested-store"
+
+    def make(start):
+        return build(
+            store,
+            bars(40, start=start),
+            sources=[dict(synthetic=True, start=start)],
+            cutoff=10**18,
+            chunk=10,
+        )
+
+    first, second, third = make(0), make(30000), make(60000)
+    left = compose(store, [first["snapshot"], second["snapshot"]])
+    right = compose(store, [first["snapshot"], third["snapshot"]])
+    unique_pins = {
+        entry["pin"]
+        for result in (first, second, third)
+        for entry in Snapshot(store, result["snapshot"]).parts
+    }
+    original_partition = Snapshot.partition
+    calls = []
+
+    def tracked_partition(snapshot, index):
+        calls.append(
+            (
+                snapshot.parts[index]["pin"],
+                snapshot.manifest["binding"].get("cutoff_ns"),
+            )
+        )
+        return original_partition(snapshot, index)
+
+    monkeypatch.setattr(Snapshot, "partition", tracked_partition)
+    nested = compose(store, [left["snapshot"], right["snapshot"]])
+    assert {pin for pin, _ in calls} == unique_pins
+    assert len(calls) == len(unique_pins)
+    expected_statuses = Counter()
+    for result in (first, second, third):
+        expected_statuses.update(result["target_statuses"])
+    assert nested["target_statuses"] == dict(expected_statuses)
+
+    forged = json.loads((store / "snapshots" / f"{left['snapshot']}.json").read_text())
+    if forged_field == "statuses":
+        forged["partitions"][0]["statuses"] = {"pending": 999}
+    else:
+        forged["partitions"][0]["bounds"]["first_ns"] += 1
+    for index in range(10000):
+        forged["compose_test_order"] = index
+        forged_pin = digest(forged)
+        if forged_pin > left["snapshot"]:
+            break
+    else:
+        raise AssertionError("could not order forged snapshot after valid parent")
+    atomic_json(store / "snapshots" / f"{forged_pin}.json", forged)
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        compose(store, [left["snapshot"], forged_pin])
+
+
 def test_legacy_flat_object_location_remains_readable(tmp_path):
     result = create(tmp_path, n=30)
     pin = result["partitions"][0]["pin"]

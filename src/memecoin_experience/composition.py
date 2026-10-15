@@ -5,7 +5,7 @@ import tempfile
 from collections import Counter
 from pathlib import Path
 
-from .storage import Snapshot, atomic_json, code_identity, digest, lock, safe_path
+from .storage import PIN, Snapshot, atomic_json, canonical, code_identity, digest, lock, safe_path
 
 
 def bounds(rows, schema=None):
@@ -51,16 +51,54 @@ def compose(store, pins):
         try:
             db.execute("pragma cache_size=-8192")
             db.execute(
-                "create table ranges(pin text primary key, entity text, domain text, "
-                "start integer, end integer, part text)"
+                "create table ranges(pin text primary key, metadata blob, bounds blob, "
+                "entity text, domain text, start integer, end integer, part text)"
             )
+            db.execute("create table verified(pin text, cutoff integer, primary key(pin, cutoff))")
             import json
 
             for snapshot in snapshots:
                 for i, entry in enumerate(snapshot.parts):
-                    _, rows = snapshot.partition(i)
-                    if db.execute("select 1 from ranges where pin=?", (entry["pin"],)).fetchone():
+                    binding = snapshot.manifest["binding"]
+                    chunk = binding.get("chunk")
+                    count = entry.get("count") if isinstance(entry, dict) else None
+                    pin = entry.get("pin") if isinstance(entry, dict) else None
+                    if (
+                        type(chunk) is not int
+                        or chunk < 1
+                        or type(count) is not int
+                        or not 1 <= count <= chunk
+                        or not isinstance(pin, str)
+                        or not PIN.fullmatch(pin)
+                    ):
+                        raise ValueError("experience_composition_lineage")
+                    cutoff = binding.get("cutoff_ns") if coordinate else -1
+                    if coordinate and (type(cutoff) is not int or cutoff < 0):
+                        raise ValueError("experience_coordinate_sample_contract")
+                    cache_key = (pin, cutoff)
+                    metadata = canonical(
+                        {key: value for key, value in entry.items() if key != "bounds"}
+                    )
+                    known = db.execute(
+                        "select metadata,bounds from ranges where pin=?", (pin,)
+                    ).fetchone()
+                    if known is not None:
+                        if (
+                            known[0] != metadata
+                            or "bounds" in entry
+                            and canonical(entry["bounds"]) != known[1]
+                            or coordinate
+                            and "bounds" not in entry
+                        ):
+                            raise ValueError("experience_composition_lineage")
+                        if not db.execute(
+                            "select 1 from verified where pin=? and cutoff=?", cache_key
+                        ).fetchone():
+                            snapshot.partition(i)
+                            db.execute("insert into verified values(?,?)", cache_key)
                         continue
+
+                    _, rows = snapshot.partition(i)
                     extent = entry.get("bounds")
                     if extent is None:
                         if coordinate:
@@ -68,9 +106,11 @@ def compose(store, pins):
                         extent = bounds(rows)
                     # Bounds are authenticated by the snapshot, checked against payload on read.
                     db.execute(
-                        "insert into ranges values(?,?,?,?,?,?)",
+                        "insert into ranges values(?,?,?,?,?,?,?,?)",
                         (
-                            entry["pin"],
+                            pin,
+                            metadata,
+                            canonical(extent),
                             extent["entity"],
                             extent.get("coordinate_domain_pin"),
                             extent["first_coordinate"] if coordinate else extent["first_ns"],
@@ -78,6 +118,7 @@ def compose(store, pins):
                             json.dumps(dict(entry, bounds=extent)),
                         ),
                     )
+                    db.execute("insert into verified values(?,?)", cache_key)
             db.commit()
             from .catalog import Writer
 
