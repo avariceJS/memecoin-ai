@@ -1,0 +1,46 @@
+{
+  "version": "brain-training-role-isolation-legacy-result-v1",
+  "created_at_utc": "2026-10-15T01:03:24Z",
+  "preregistration": {
+    "path": "brain-training-role-isolation-prereg-2026-10-15.json",
+    "sha256": "0fda22d1c4aa0455c9e8818b26704e271c4b904db27a243f05fbc7f97163060d"
+  },
+  "execution": {
+    "pre_run_commit": "b40b731d674aea2479f42bf63da93e469ee3a1a8",
+    "pre_run_test_harness_sha256": "c42db84250f87b137928e67e38d01b884b4cc476635294e3ffba93a229cdf5ec",
+    "synthetic_only": true,
+    "model_scoring_used_for_decisions": false
+  },
+  "fixture": {
+    "entities": 4,
+    "rows": 40,
+    "train": 24,
+    "validation": 8,
+    "test": 8,
+    "partitions": 4,
+    "rows_per_partition": 10,
+    "each_partition_mixes_all_roles": true,
+    "train_and_validation_payloads_unchanged": true,
+    "only_test_values_and_labels_perturbed": true,
+    "partition_geometry_unchanged": true
+  },
+  "snapshots": [
+    "44ea45c53a12c1170035a672eb97f36264157b26a187293564b9712009a0fcac",
+    "0c47c49b470142f3e6bea12180d07829f5991635485e2cf7d3ffac157717f174"
+  ],
+  "legacy_sampler": {
+    "baseline_train_order_sha256": "e2bb1b9d0097f9de842e99b71720ef6f4d529a74f6b839751d611ea362aa8b2f",
+    "perturbed_train_order_sha256": "206f13fec5c3397bb54fa5cdbf230008d41d222c0ab60f2adae65b86f7044fd2",
+    "training_statistics_sha256_both": "415bb20d6f15bb6edc7e68cbba80358ccaf3154ba6952128b6cf3999971ba0f0",
+    "baseline_weights_sha256": "fad02bfbfa8e6a5b0891157f61cecabe7058a08f84d59cce4a3abe149c51f5b5",
+    "perturbed_weights_sha256": "57f34108e274b14bc65d59044c3bb517bd98863317f63a351f9db7c85550b212",
+    "training_order_changed": true,
+    "final_weights_changed": true
+  },
+  "outcome": "confirmed: content hashes of mixed-role partitions let changed test payload alter legacy training order and learned weights, despite identical train-only statistics and partition geometry",
+  "limitations": [
+    "This establishes sampler dependence in the synthetic fixture only.",
+    "It does not establish model quality, market impact, or any production consequence.",
+    "The compatibility sampler is retained; a role-isolated opt-in variant remains to be qualified."
+  ]
+}

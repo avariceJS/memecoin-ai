@@ -961,6 +961,18 @@ oracle; these descriptive values do not override the failed denominator gate. Th
 not repaired or rerun after exposure. This does not qualify conditional learnability and says nothing
 about market prediction. See the [preregistration](evidence/brain-controlled-signal-learnability-prereg-2026-10-15.json)
 and [result receipt](evidence/brain-controlled-signal-learnability-result-2026-10-15.json).
+
+### Training role-isolation sampler audit (2026-10-15)
+
+The legacy research sampler seeds each partition's row permutation from its content pin. A frozen
+synthetic paired audit changed only test values and labels inside four mixed-role partitions while
+keeping train/validation rows, IDs, partition geometry, recipe and train-only statistics fixed. The
+training ID order and final CPU weights changed. This confirms that descriptive held-out payload can
+influence training order when storage partitions mix roles. It does not demonstrate a market-data
+effect or model-quality change. A versioned opt-in role-isolated sampler is the next engineering
+step; the legacy sampler remains for compatibility. See the
+[preregistration](evidence/brain-training-role-isolation-prereg-2026-10-15.json) and
+[legacy audit result](evidence/brain-training-role-isolation-legacy-result-2026-10-15.json).
 This measures only schedule publication at this fixture size; it is not a throughput or capacity
 claim. Observation indexes support multiple nonoverlapping enrollment intervals and reject events
 or support that cross an interval boundary; a focused sparse test proves target history does not
