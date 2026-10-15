@@ -96,7 +96,10 @@ def register_coordinate(
 
 
 def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact, output, batch):
+    import platform
+
     import numpy as np
+    import torch
 
     from .coordinate_samples import domain_registry, eligibility
     from .learning import batches
@@ -160,6 +163,12 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
     output = safe_path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     binding = dict(
+        environment=dict(
+            torch=str(torch.__version__),
+            numpy=np.__version__,
+            python=platform.python_version(),
+            device="cpu",
+        ),
         protocol=protocol_pin,
         snapshot=snapshot_pin,
         candidate=protocol["candidate"],

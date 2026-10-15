@@ -1054,17 +1054,51 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
         scope="preregistered_forward_replay",
     )
     assert registration["registered_ns"] == 1500
+    score_output = tmp_path / "future-score"
     scored = evaluation.score(
         protocol_root,
         registration["protocol"],
         eval_store,
         eval_snapshot,
         artifact,
-        tmp_path / "future-score",
+        score_output,
         batch=4,
     )
     assert scored["status"] == "completed"
     assert scored["population"]["test_scored_origins"] == 8
+    environment = scored["binding"]["environment"]
+    assert set(environment) == {"python", "numpy", "torch", "device"}
+    assert environment["device"] == "cpu"
+    assert (
+        evaluation.score(
+            protocol_root,
+            registration["protocol"],
+            eval_store,
+            eval_snapshot,
+            artifact,
+            score_output,
+            batch=4,
+        )
+        == scored
+    )
+    report_before = (score_output / "report.json").read_bytes()
+    manifest_before = (score_output / "manifest.json").read_bytes()
+    import platform
+
+    with monkeypatch.context() as patch:
+        patch.setattr(platform, "python_version", lambda: "simulated-version-change")
+        with pytest.raises(ValueError, match="experience_coordinate_evaluation_binding"):
+            evaluation.score(
+                protocol_root,
+                registration["protocol"],
+                eval_store,
+                eval_snapshot,
+                artifact,
+                score_output,
+                batch=4,
+            )
+    assert (score_output / "report.json").read_bytes() == report_before
+    assert (score_output / "manifest.json").read_bytes() == manifest_before
 
     from memecoin_experience.storage import atomic_json, digest
 

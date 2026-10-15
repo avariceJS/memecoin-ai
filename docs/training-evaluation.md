@@ -370,6 +370,10 @@ Legacy protocol readback also requires the registered metric identifier, `produc
 and a plain nonnegative integer receipt time before opening the evaluation snapshot. These checks
 bind protocol fields, not an external timestamp or proof that the protocol was originally emitted by
 `register`.
+V3 score bindings include Python, NumPy and PyTorch versions plus the explicit CPU device before
+existing-output reuse. Pre-change v3 score directories lack this field and remain immutable legacy
+outputs; rescore to a new destination. The binding records the numerical environment, not bitwise
+equivalence across machines or library builds.
 
 `retrospective` is a fixed-candidate historical research comparison. The separate
 `preregistered_forward_replay` scope requires future registration and a `point_in_time` producer;
