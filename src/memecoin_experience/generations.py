@@ -141,6 +141,15 @@ def get(root, identity):
         or binding.get("diversity") != declaration.get("diversity")
         or record["rows_seen"] != model.report["rows_seen"]
         or record["seen_end_s"] != model.report["seen_end_s"]
+        or record.get("production_eligible") is not False
+        or ("seen_end_coordinate" in record) != ("seen_end_coordinate" in model.report)
+        or (
+            "seen_end_coordinate" in model.report
+            and (
+                type(record["seen_end_coordinate"]) is not type(model.report["seen_end_coordinate"])
+                or record["seen_end_coordinate"] != model.report["seen_end_coordinate"]
+            )
+        )
     ):
         raise ValueError("experience_generation_binding")
     return record, artifact

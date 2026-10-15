@@ -337,6 +337,9 @@ not OS authentication. Local locks prevent a second job writer. Attempts/outcome
 only completed sealed artifacts get immutable generation records. Repeating a completed generation
 verifies/returns it without entering the optimizer. A changed dataset, recipe, code or parent needs
 a new generation name; rollback selects an older immutable artifact, never rewrites a champion.
+Lookup checks that generation metadata remains consistent with the pinned artifact report, including
+the production-ineligible flag and optional native-coordinate frontier. This checks those fields against
+the artifact; it does not authenticate the whole local generation record.
 
 `parent` is optional `{ "path": ".../artifact", "pin": "manifest SHA" }`. Warm start requires the
 same model and representation spec, loads weights strictly, freezes parent mean/scale, computes

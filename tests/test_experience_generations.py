@@ -252,7 +252,11 @@ def test_completed_generation_never_reenters_optimizer(tmp_path, monkeypatch):
     assert list((root / "jobs" / first["generation"] / "attempts").iterdir()) == attempts
 
 
-def test_generation_metadata_binds_actual_model_report(tmp_path):
+@pytest.mark.parametrize(
+    "tamper",
+    ["rows_seen", "production_true", "production_missing", "coordinate_added"],
+)
+def test_generation_metadata_binds_actual_model_report(tmp_path, tamper):
     store, pin = dataset(tmp_path)
     root = tmp_path / "registry"
     done = generations.run(
@@ -260,7 +264,77 @@ def test_generation_metadata_binds_actual_model_report(tmp_path):
     )
     path = root / "generations" / (done["generation"] + ".json")
     record = json.loads(path.read_text())
-    record["rows_seen"] += 1
+    assert generations.get(root, done["generation"])[0]["production_eligible"] is False
+    if tamper == "rows_seen":
+        record["rows_seen"] += 1
+    elif tamper == "production_true":
+        record["production_eligible"] = True
+    elif tamper == "production_missing":
+        record.pop("production_eligible")
+    elif tamper == "coordinate_added":
+        record["seen_end_coordinate"] = 1
+    path.write_text(json.dumps(record))
+    with pytest.raises(ValueError, match="generation_binding"):
+        generations.get(root, done["generation"])
+
+
+@pytest.mark.parametrize("tamper", ["coordinate_changed", "coordinate_removed", "coordinate_type"])
+def test_coordinate_generation_frontier_matches_pinned_report(tmp_path, tamper):
+    from test_experience_coordinate_samples import _row, _schema
+
+    from memecoin_experience import coordinate_samples
+
+    schema = _schema()
+    coordinate_rows = [_row(c) for c in range(1, 29)]
+    split = coordinate_samples.make_split_plan(
+        schema["coordinate_domain_pin"],
+        {
+            "train": {
+                "intervals": [[0, 10]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 1000,
+            },
+            "validation": {
+                "intervals": [[10, 20]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 1000,
+            },
+            "test": {
+                "intervals": [[20, 30]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 1000,
+            },
+        },
+    )
+    store = tmp_path / "store"
+    built = build(
+        store,
+        coordinate_rows,
+        sources=[dict(synthetic=True)],
+        cutoff=1000,
+        schema=schema,
+    )
+    config = dict(width=4, epochs=1, batch=4, seed=7, device="cpu")
+    root = tmp_path / "registry"
+    done = generations.run(
+        root,
+        name="coordinate-v1",
+        owner="test",
+        store=store,
+        snapshot=built["snapshot"],
+        split=split,
+        config=config,
+    )
+    record, _ = generations.get(root, done["generation"])
+    assert record["seen_end_coordinate"] == 30
+    path = root / "generations" / (done["generation"] + ".json")
+    record = json.loads(path.read_text())
+    if tamper == "coordinate_changed":
+        record["seen_end_coordinate"] += 1
+    elif tamper == "coordinate_removed":
+        record.pop("seen_end_coordinate")
+    else:
+        record["seen_end_coordinate"] = float(record["seen_end_coordinate"])
     path.write_text(json.dumps(record))
     with pytest.raises(ValueError, match="generation_binding"):
         generations.get(root, done["generation"])
