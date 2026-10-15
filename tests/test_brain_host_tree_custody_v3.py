@@ -174,6 +174,114 @@ def test_explicit_public_pem_is_bound_and_policy_pin_is_enforced(tmp_path: Path)
         writer.close()
 
 
+def test_darwin_hidden_file_and_directory_flags_round_trip(tmp_path: Path) -> None:
+    import sys
+
+    if sys.platform != "darwin" or not hasattr(os, "chflags"):
+        pytest.skip("Darwin UF_HIDDEN round-trip requires os.chflags")
+
+    hidden = 0x00008000
+    source = tmp_path / "source"
+    source.mkdir()
+    hidden_dir = source / "hidden-dir"
+    hidden_dir.mkdir()
+    hidden_file = source / "hidden-file"
+    hidden_file.write_bytes(b"hidden regular file")
+    nested_file = hidden_dir / "nested-file"
+    nested_file.write_bytes(b"file under hidden directory")
+    os.chflags(hidden_dir, hidden)
+    os.chflags(hidden_file, hidden)
+    source_flags = {
+        "directory": os.lstat(hidden_dir).st_flags,
+        "file": os.lstat(hidden_file).st_flags,
+    }
+    assert source_flags == {"directory": hidden, "file": hidden}
+
+    policy_path = _policy(tmp_path / "policy.json")
+    writer = _writer(tmp_path / "archive")
+    try:
+        captured = capture_tree(writer, _root(source), policy_path, capture_id="7" * 32)
+        verified = verify_tree(writer, "7" * 32)
+        assert captured["complete"] and verified["complete"]
+        assert verified["included_entry_count"] == 4
+        assert verified["excluded_entry_count"] == 0
+
+        restored = tmp_path / "restored"
+        extract_tree(writer, "7" * 32, restored)
+        target = restored / "sample-root"
+        assert (target / "hidden-file").read_bytes() == b"hidden regular file"
+        assert (target / "hidden-dir" / "nested-file").read_bytes() == (
+            b"file under hidden directory"
+        )
+        assert os.lstat(target / "hidden-dir").st_flags == hidden
+        assert os.lstat(target / "hidden-file").st_flags == hidden
+        assert (restored / "RESTORE_COMPLETE.json").is_file()
+        assert os.lstat(hidden_dir).st_flags == source_flags["directory"]
+        assert os.lstat(hidden_file).st_flags == source_flags["file"]
+        assert (
+            hashlib.sha256(hidden_file.read_bytes()).hexdigest()
+            == hashlib.sha256(b"hidden regular file").hexdigest()
+        )
+    finally:
+        writer.close()
+
+
+def test_non_darwin_restore_rejects_source_flags_before_quarantine(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import sys
+
+    import tools.brain_host_tree_custody_v3 as custody_v3
+
+    if sys.platform != "darwin" or not hasattr(os, "chflags"):
+        pytest.skip("source-flag fixture requires Darwin")
+    source = tmp_path / "source"
+    source.mkdir()
+    hidden_file = source / "hidden-file"
+    hidden_file.write_bytes(b"flagged")
+    os.chflags(hidden_file, 0x00008000)
+    policy_path = _policy(tmp_path / "policy.json")
+    writer = _writer(tmp_path / "archive")
+    try:
+        capture_tree(writer, _root(source), policy_path, capture_id="8" * 32)
+        monkeypatch.setattr(custody_v3.sys, "platform", "linux")
+        with pytest.raises(TreeCustodyV3Error, match="restore_source_flags_unmapped"):
+            extract_tree(writer, "8" * 32, tmp_path / "restore-rejected")
+        assert not (tmp_path / "restore-rejected").exists()
+    finally:
+        writer.close()
+
+
+def test_flag_application_failure_never_publishes_restore_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import sys
+
+    import tools.brain_host_tree_custody as custody_v2
+
+    if sys.platform != "darwin" or not hasattr(os, "chflags"):
+        pytest.skip("source-flag fixture requires Darwin")
+    source = tmp_path / "source"
+    source.mkdir()
+    hidden_file = source / "hidden-file"
+    hidden_file.write_bytes(b"flagged")
+    os.chflags(hidden_file, 0x00008000)
+    policy_path = _policy(tmp_path / "policy.json")
+    writer = _writer(tmp_path / "archive")
+
+    def fail_flag_application(fd: int, flags: int) -> None:
+        raise OSError("synthetic fchflags failure")
+
+    try:
+        capture_tree(writer, _root(source), policy_path, capture_id="9" * 32)
+        monkeypatch.setattr(custody_v2, "_apply_fd_flags", fail_flag_application)
+        with pytest.raises(OSError, match="synthetic fchflags failure"):
+            extract_tree(writer, "9" * 32, tmp_path / "restore-incomplete")
+        assert not (tmp_path / "restore-incomplete" / "RESTORE_COMPLETE.json").exists()
+    finally:
+        writer.close()
+
+
 def test_exclusion_page_corruption_rejected(tmp_path: Path) -> None:
     source = tmp_path / "source"
     source.mkdir()

@@ -6,7 +6,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-15.** The accepted recovery scope is loss or erasure of the
+**NO-GO for factory reset as of 2026-10-15 22:51 UTC.** The accepted recovery scope is loss or erasure of the
 owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
 reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -78,6 +78,27 @@ Live checks on the current Mac:
   latest traversal evidence for its corresponding present-root scope. It is sequential live
   metadata, not an atomic source point, root closure, complete custody, or erase evidence. Receipt:
   [`v2 root-boundary census`](evidence/portability-dr-root-boundary-census-v2-2026-10-15T2239Z.json).
+- The B09 source root was then rechecked against its pinned device/inode and the v2 census. Its
+  metadata-only subtree scan found 20,177 entries with no protected path component, symlink,
+  multiply linked regular file, or v3 automatic/policy exclusion. After confirming the exact B09
+  writer remained disabled/unloaded with no open descriptors, v3 captured all 751,986,935
+  regular-file bytes to the pinned Kingston root. Fresh descriptor-bound archive verification
+  matched the manifest and completion marker; all 20,177 entries were included with no unresolved
+  exclusions or external custody requirements. This is complete opaque file-content custody only
+  for the declared B09 source root, not a Data snapshot or application-consistent SQLite backup.
+  See the [`B09 root custody and inert restore receipt`](evidence/portability-dr-b09-root-custody-inert-restore-2026-10-15T2251Z.json).
+- The v3 manifest records source flag `UF_HIDDEN` and omits values for macOS `FinderInfo`, `macl`,
+  and `provenance` attributes (1, 125, and 138 entries respectively). Sol accepted a bounded
+  Darwin-only v3 restore gate for the already validated supported flags; file and directory flags
+  are applied through the existing descriptor-bound path and checked during restore readback.
+  Synthetic hidden-file/directory round-trip, non-Darwin refusal, and injected flag-application
+  failure checks pass. The pinned capture was extracted to a fresh owner-private 0700 quarantine on
+  the current Data volume; its restore witness matches the capture and policy, represented bytes,
+  modes, mtimes, flags, and topology passed readback, and the B09 label remained unloaded and
+  disabled. This is a same-host inert extract of one root. It does not prove clean-host recovery,
+  exact filesystem metadata fidelity, SQLite application consistency, owner-wide cutoff, Kingston
+  frontier, or erase readiness. Raw STOP and ten unresolved reservations were preserved without
+  replay or interpretation.
 - The census CLI supports relocated hosts through an explicit mode-0600
   `brain-host-root-roster-v2` JSON input. Required logical roles must be declared as present or
   absent with an explicit disposition and reason; present roots carry absolute local paths, kinds,
@@ -827,8 +848,11 @@ listings. The separate `/System/Volumes/Data?owner=0` discovery appears alongsid
 mount-table's `tmpfs` at `/System/Volumes/Data`; it is not evidence that `/dev/disk3s5` mounted.
 
 The final text transcript contains no `listSnapshots` command or output, so the Recovery snapshot
-inventory remains unknown. Photographs in the snapshot folder are from the preceding failed attempt
-and are excluded from this boot's evidence. The final text shows `/usr/bin/log show` working.
+inventory remains unknown. The user clarified that the four photographs document one Recovery
+command session interrupted after a command-entry error; the Mac was rebooted and the full command
+set was entered again. `docs/snapshot/Вывод Терминала.txt` contains the output from that rerun and is
+the transcript bound by this receipt. The photographs are not four independent boots or an
+independent copy of that transcript. The final text shows `/usr/bin/log show` working.
 
 This boot establishes the point-in-time locked/unmounted state and the logged failed automatic mount
 attempt. It does not establish that no earlier mount occurred: pre-Terminal authentication and Data

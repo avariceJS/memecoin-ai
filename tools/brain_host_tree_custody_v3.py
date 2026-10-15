@@ -1899,7 +1899,10 @@ def extract_tree(
         raise TreeCustodyV3Error("restore_owner_mapping_invalid")
     if manifest["scope"] == "protected_opaque":
         raise TreeCustodyV3Error("protected_restore_requires_separate_authority")
-    if manifest.get("source_flags_or", 0):
+    source_flags_or = manifest.get("source_flags_or", 0)
+    if source_flags_or and (
+        sys.platform != "darwin" or source_flags_or & ~v2.SUPPORTED_SOURCE_FLAGS
+    ):
         raise TreeCustodyV3Error("restore_source_flags_unmapped")
 
     def entries():
