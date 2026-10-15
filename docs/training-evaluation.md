@@ -224,18 +224,20 @@ construction. Sealed legacy artifacts without the field remain readable and expo
 unbound. This guards transform-code drift, not numerical identity across library versions.
 The opt-in `audit_statistics_derivation()` utility accepts the expected snapshot and split, verifies
 them against a sealed research artifact, and recomputes train-only statistics in automatically
-removed scratch before comparing their canonical digest. It currently accepts complete current
-recipe bindings for seeded-fresh normalizers; warm-start artifacts with parent normalizers and
-legacy/incomplete recipe bindings return an explicit unsupported error. It also requires the
-artifact's model schema to equal the pinned snapshot schema. Its compact result reports
-matched/mismatch and the artifact, snapshot, split, statistics, and current derivation-code pins.
-A match does not attest the historical optimizer path or externally authenticate a coherently
-resealed artifact. The default system temp parent is resolved and checked; a supplied scratch parent
-must already exist and cannot be inside the artifact or source store.
-It does not fit, score, alter either input, or establish optimizer use or model quality. A match
-means derivation equality under the current code and numerical environment;
-synthetic tests cover a coherent statistics/report reseal, mismatched pins, unsupported parent
-normalizers, and scratch containment/cleanup.
+removed scratch before comparing their canonical digest. It accepts complete current recipes for
+seeded-fresh statistics and one-hop parent-normalizer overlays. Warm-start audits require an
+explicit sealed parent artifact path/pin, and match its model spec and target transforms to the
+child before overlaying only the frozen mean/scale and parent-normalizer lineage fields. It also
+requires the child model schema to equal the pinned snapshot schema. Legacy/incomplete recipe
+bindings return an explicit unsupported error. Results report `matched`, `matched_parent_overlay`,
+or `mismatch`, with artifact, parent, snapshot, split, statistics and current derivation-code pins.
+A match does not attest historical weight initialization or optimizer execution, recursively derive
+the parent's statistics, or externally authenticate a coherently resealed artifact. The default
+system temp parent is resolved and checked; a supplied scratch parent must already exist and cannot
+be inside the child artifact, parent artifact, or source store. It does not fit, score, alter either
+input, or establish model quality. Equality is under current code and numerical environment;
+synthetic tests cover coherent reseals, mismatched pins/schema, parent overlay/mutations and scratch
+containment/cleanup.
 Before a completed report is published, reused, or read through the generation registry, its epoch,
 step and row counters must reconcile with the recipe and train denominator. Validation history must
 have one ordered finite selection score per epoch. This detects inconsistent report progress and
