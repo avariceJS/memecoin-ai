@@ -865,11 +865,14 @@ def test_streamed_census_publishes_private_jsonl_and_exact_completion_pair(
         manifest = data_root / summary["private_manifest_locator"]
         lines = [json.loads(line) for line in manifest.read_text().splitlines()]
         assert lines[0]["record_type"] == "header"
+        assert lines[0]["input_roster_sha256"] == roster.roster_sha256
+        assert base64.b64decode(lines[0]["input_roster_bytes_b64"]) == b"synthetic roster bytes"
         assert sum(line.get("record_type") == "entry" for line in lines) >= 10
         assert any(line.get("record_type") == "root_summary" for line in lines)
         marker = data_root / summary["private_manifest_complete_marker_locator"]
         completion = json.loads(marker.read_text())
         assert completion["manifest_sha256"] == summary["private_manifest_sha256"]
+        assert completion["input_roster_sha256"] == roster.roster_sha256
         assert completion["scan_complete"] is True
     finally:
         os.close(mount_fd)
