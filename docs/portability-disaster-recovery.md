@@ -6,7 +6,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-15 22:51 UTC.** The accepted recovery scope is loss or erasure of the
+**NO-GO for factory reset as of 2026-10-15 22:55 UTC.** The accepted recovery scope is loss or erasure of the
 owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
 reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -99,6 +99,16 @@ Live checks on the current Mac:
   exact filesystem metadata fidelity, SQLite application consistency, owner-wide cutoff, Kingston
   frontier, or erase readiness. Raw STOP and ten unresolved reservations were preserved without
   replay or interpretation.
+- The exact published DR commit was then fetched into a fresh clean checkout. Exact-commit bootstrap
+  completed and smoke passed. From that clone, the pinned Kingston B09 capture and policy were
+  verified and extracted into a separate owner-private 0700 quarantine on Data. The restore witness
+  matched its capture and policy; the B09 label remained disabled/unloaded, and no service,
+  provider, runtime, or SQLite activation occurred. Sol accepted this as a **same-host inert
+  restore rehearsal** for code bootstrap plus one declared Kingston-backed data root. The host,
+  user, Python toolchain, and attached volumes are still those of the owner Mac; this does not
+  exercise replacement-host authentication/dependencies, owner-runtime reconstruction, SQLite
+  application consistency, Data T/K frontiers, owner/protected closure, or erase readiness. See the
+  [`clean-clone B09 restore rehearsal receipt`](evidence/portability-dr-clean-clone-b09-restore-e2e-2026-10-15T2255Z.json).
 - The census CLI supports relocated hosts through an explicit mode-0600
   `brain-host-root-roster-v2` JSON input. Required logical roles must be declared as present or
   absent with an explicit disposition and reason; present roots carry absolute local paths, kinds,

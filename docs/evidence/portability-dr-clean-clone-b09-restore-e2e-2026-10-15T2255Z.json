@@ -1,0 +1,76 @@
+{
+  "schema": "portability-dr-clean-clone-b09-restore-e2e-v1",
+  "observed_at_utc": "2026-10-15T22:55:20Z",
+  "scope": "same-host inert restore rehearsal from exact published code and the pinned Kingston B09 capture",
+  "code_bootstrap": {
+    "source": "https://github.com/avariceJS/memecoin-ai.git",
+    "requested_commit": "e607165b452d3ed932cf653d1fbe3700d07ce954",
+    "observed_commit": "e607165b452d3ed932cf653d1fbe3700d07ce954",
+    "clone_worktree_clean": true,
+    "bootstrap_state": "complete",
+    "smoke": "passed",
+    "read_only_host_status": {
+      "host_state": "present",
+      "research_repository_state": "present",
+      "service_changes": false,
+      "provider_requests": 0,
+      "secret_values_read": false,
+      "protected_payloads_read": false
+    }
+  },
+  "data_restore": {
+    "code_checkout_commit": "e607165b452d3ed932cf653d1fbe3700d07ce954",
+    "restore_tool": "tools/brain_host_tree_custody_v3.py",
+    "capture_id": "b37a49975b2473d0d7fabb5e15ae6e5b",
+    "kingston_volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "kingston_root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "capture_manifest_sha256": "41a2cf1015ce9b41af72d5fc1efb25dbc8778da4a2b1dd2e13204e8511ad2377",
+    "capture_complete_marker_sha256": "988db8b7c5dec09a7c4e595675b4dde196da8a408694533c46f31a8fcf79abfa",
+    "policy_sha256": "c72783861adafaca223ec11f5c77185295b8fe13e601728e7a232b308f6f724e",
+    "restore_complete_marker_sha256": "fb27fb062a512f6709bfc25c9639711247e1920079b95b4f6c02efb416c3b5c3",
+    "restore_witness_matches_capture_and_policy": true,
+    "target_class": "separate owner-private 0700 quarantine beneath /private/tmp on the current Data volume",
+    "target_uid": 501,
+    "target_gid": 20,
+    "included_entry_count": 20177,
+    "included_source_bytes": 751986935,
+    "excluded_entry_count": 0,
+    "external_root_bindings_verified_count": 0,
+    "restored_root_mode_mtime_and_flags_match_manifest": true,
+    "source_flags_or": 32768,
+    "source_flag_interpretation": "UF_HIDDEN applied and read back on Darwin",
+    "omitted_metadata_counts": {
+      "com.apple.FinderInfo": 1,
+      "com.apple.macl": 125,
+      "com.apple.provenance": 138
+    }
+  },
+  "inertness": {
+    "services_installed_or_loaded_by_restore": false,
+    "b09_source_label_remained_disabled_and_unloaded": true,
+    "restored_runtime_executed_or_imported": false,
+    "sqlite_opened_or_attached": false,
+    "provider_requests": 0,
+    "activation_authorized_or_attempted": false
+  },
+  "review_and_limits": {
+    "sol_accepted_same_host_clean_clone_and_kingston_restore_claim": true,
+    "same_host_operating_system_user_python_toolchain_and_attached_volumes_reused": true,
+    "clean_compatible_host_authentication_or_dependency_absence_tested": false,
+    "owner_runtime_or_host_configuration_restored": false,
+    "sqlite_application_consistency_proven": false,
+    "data_snapshot_or_common_cutoff_proven": false,
+    "owner_or_protected_root_closure_proven": false,
+    "kingston_frontier_proven": false,
+    "restart_authority_granted": false,
+    "safe_to_erase": false,
+    "ten_unresolved_b09_reservations_replayed_or_reconciled": false
+  },
+  "non_actions": {
+    "production_or_champion_changed": false,
+    "protected_evaluation_semantics_changed": false,
+    "real_trading": false,
+    "new_senses_collection": false,
+    "kingston_capture_archive_modified": false
+  }
+}
