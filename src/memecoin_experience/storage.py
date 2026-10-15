@@ -295,6 +295,7 @@ class Snapshot:
         if not isinstance(pin, str) or not PIN.fullmatch(pin):
             raise ValueError("experience_snapshot_pin")
         self.store, self.pin = safe_path(store), pin
+        self._censor_cutoff_cache = None
         self.manifest = json.loads(
             safe_path(self.store / "snapshots" / (pin + ".json")).read_text()
         )
@@ -312,6 +313,58 @@ class Snapshot:
             from .catalog import Parts
 
             self.parts = Parts(self.store, self.manifest)
+
+    def censor_cutoff_ns(self):
+        """Conservative cutoff inherited through immutable composition ancestry."""
+        if self._censor_cutoff_cache is not None:
+            return self._censor_cutoff_cache
+
+        def resolve(snapshot, active, memo):
+            if snapshot.pin in active:
+                raise ValueError("experience_composition_lineage")
+            if snapshot.pin in memo:
+                return memo[snapshot.pin]
+            active.add(snapshot.pin)
+            binding = snapshot.manifest.get("binding", {})
+            cutoff = binding.get("cutoff_ns")
+            if type(cutoff) is not int or cutoff < 0:
+                raise ValueError("experience_composition_lineage")
+            cutoffs = [cutoff]
+            if "composition" in snapshot.manifest:
+                sources = binding.get("sources")
+                if (
+                    not isinstance(sources, list)
+                    or not sources
+                    or any(
+                        not isinstance(source, dict)
+                        or set(source) != {"kind", "pin"}
+                        or source["kind"] != "snapshot"
+                        or not isinstance(source["pin"], str)
+                        or not PIN.fullmatch(source["pin"])
+                        for source in sources
+                    )
+                    or [source["pin"] for source in sources]
+                    != sorted({source["pin"] for source in sources})
+                ):
+                    raise ValueError("experience_composition_lineage")
+                role = binding.get("role", "train")
+                for source in sources:
+                    try:
+                        parent = Snapshot(snapshot.store, source["pin"])
+                    except (OSError, TypeError, ValueError, KeyError) as exc:
+                        raise ValueError("experience_composition_lineage") from exc
+                    if (
+                        parent.schema != snapshot.schema
+                        or parent.manifest["binding"].get("role", "train") != role
+                    ):
+                        raise ValueError("experience_composition_lineage")
+                    cutoffs.append(resolve(parent, active, memo))
+            active.remove(snapshot.pin)
+            memo[snapshot.pin] = min(cutoffs)
+            return memo[snapshot.pin]
+
+        self._censor_cutoff_cache = resolve(self, set(), {})
+        return self._censor_cutoff_cache
 
     def partition(self, index):
         entry = self.parts[index]

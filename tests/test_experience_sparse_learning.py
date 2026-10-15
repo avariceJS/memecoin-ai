@@ -14,7 +14,7 @@ from test_experience_sparse import NS, contract, facts, materialized, plan, sour
 from memecoin_experience import evaluation, generations, observations, sparse  # noqa: E402
 from memecoin_experience.learning import _censor_bounds, batches, train  # noqa: E402
 from memecoin_experience.predict import Predictor  # noqa: E402
-from memecoin_experience.storage import Snapshot, file_hash  # noqa: E402
+from memecoin_experience.storage import Snapshot, build, file_hash  # noqa: E402
 from memecoin_population import catalog, diversity  # noqa: E402
 
 
@@ -52,6 +52,228 @@ def test_late_point_in_time_censor_bound_is_not_train_supervision(tmp_path):
     schema = sparse.schema(source(tmp_path / "schema", rows, availability="point_in_time"), plan())
     split = dict(train_start_s=0, train_end_s=50, validation_end_s=60, test_end_s=70)
     assert not any(_censor_bounds(samples[1], schema, "train", split)[1])
+
+
+def test_historical_censor_bound_must_be_available_by_snapshot_cutoff(tmp_path, monkeypatch):
+    import memecoin_experience.storage as storage
+
+    cutoff = 100 * NS
+    schema = dict(
+        schema="brain-experience-v2",
+        layout="dense-sequence-f64-v1",
+        context=1,
+        features=[dict(name="signal", unit="indicator", modality="synthetic")],
+        targets=[
+            dict(
+                name="count",
+                unit="events",
+                kind="observed_process_count@1000000000ns",
+            )
+        ],
+        representation=dict(
+            name="historical-censor-cutoff",
+            version="1",
+            code_sha="c" * 64,
+        ),
+        availability="historical_replay",
+    )
+
+    def sample(bound_available, *, maturity_ns=2 * NS):
+        decision = NS
+        return dict(
+            id="synthetic:1",
+            pool="synthetic/historical-censor",
+            decision_ns=decision,
+            input_start_ns=decision - 1,
+            input_available_ns=decision,
+            input_dependencies=[
+                dict(artifact_sha="a" * 64, event_ns=decision - 1, available_ns=decision)
+            ],
+            values=[[1.0]],
+            targets=[None],
+            target_status=["censored"],
+            target_available_ns=[None],
+            target_maturity_ns=[maturity_ns],
+            target_captures=[[]],
+            target_details=[dict(lower_bound=2, lower_bound_available_ns=bound_available)],
+        )
+
+    sources = [dict(kind="synthetic-historical-count", pin="d" * 64)]
+    split = dict(train_start_s=0, train_end_s=100, validation_end_s=200, test_end_s=300)
+    at_cutoff = build(
+        tmp_path / "at-cutoff",
+        [sample(cutoff)],
+        sources=sources,
+        cutoff=cutoff,
+        schema=schema,
+    )
+    snapshot = Snapshot(tmp_path / "at-cutoff", at_cutoff["snapshot"])
+    packed = list(batches(snapshot, split, "train", 8, with_censoring=True))
+    assert len(packed) == 1
+    assert packed[0][4].tolist() == [[True]]
+
+    with pytest.raises(ValueError, match="experience_censor_bound_availability"):
+        build(
+            tmp_path / "after-cutoff",
+            [sample(cutoff + 1)],
+            sources=sources,
+            cutoff=cutoff,
+            schema=schema,
+        )
+
+    # Simulate an immutable v2 snapshot published before the cutoff gate existed. It remains
+    # readable, but consumption must not turn its late bound into optimizer or validation mass.
+    with monkeypatch.context() as patch:
+        patch.setattr(storage, "checked_samples", lambda rows, *_: iter(rows))
+        legacy = build(
+            tmp_path / "legacy-after-cutoff",
+            [sample(cutoff + 1)],
+            sources=sources,
+            cutoff=cutoff,
+            schema=schema,
+        )
+    old_snapshot = Snapshot(tmp_path / "legacy-after-cutoff", legacy["snapshot"])
+    assert list(batches(old_snapshot, split, "train", 8, with_censoring=True)) == []
+
+    point_in_time_schema = dict(schema, availability="point_in_time")
+    point_in_time_split = dict(
+        train_start_s=0, train_end_s=200, validation_end_s=300, test_end_s=400
+    )
+    with monkeypatch.context() as patch:
+        patch.setattr(storage, "checked_samples", lambda rows, *_: iter(rows))
+        legacy_pit = build(
+            tmp_path / "legacy-pit-after-cutoff",
+            [sample(cutoff + 1)],
+            sources=sources,
+            cutoff=cutoff,
+            schema=point_in_time_schema,
+        )
+    old_pit_snapshot = Snapshot(tmp_path / "legacy-pit-after-cutoff", legacy_pit["snapshot"])
+    assert (
+        list(batches(old_pit_snapshot, point_in_time_split, "train", 8, with_censoring=True)) == []
+    )
+
+    immature = sample(cutoff, maturity_ns=cutoff + 1)
+    with pytest.raises(ValueError, match="experience_censor_target_maturity"):
+        build(
+            tmp_path / "maturity-after-cutoff",
+            [immature],
+            sources=sources,
+            cutoff=cutoff,
+            schema=schema,
+        )
+    with monkeypatch.context() as patch:
+        patch.setattr(storage, "checked_samples", lambda rows, *_: iter(rows))
+        legacy_immature = build(
+            tmp_path / "legacy-maturity-after-cutoff",
+            [immature],
+            sources=sources,
+            cutoff=cutoff,
+            schema=schema,
+        )
+    old_immature_snapshot = Snapshot(
+        tmp_path / "legacy-maturity-after-cutoff", legacy_immature["snapshot"]
+    )
+    assert list(batches(old_immature_snapshot, split, "train", 8, with_censoring=True)) == []
+
+
+def test_composition_does_not_widen_legacy_censor_cutoff(tmp_path, monkeypatch):
+    import memecoin_experience.storage as storage
+    from memecoin_experience.composition import compose
+
+    store = tmp_path / "composed-censor-store"
+    schema = dict(
+        schema="brain-experience-v2",
+        layout="dense-sequence-f64-v1",
+        context=1,
+        features=[dict(name="signal", unit="indicator", modality="synthetic")],
+        targets=[
+            dict(
+                name="count",
+                unit="events",
+                kind="observed_process_count@1000000000ns",
+            )
+        ],
+        representation=dict(
+            name="composition-censor-cutoff",
+            version="1",
+            code_sha="e" * 64,
+        ),
+        availability="historical_replay",
+    )
+
+    def build_row(name, decision_s, cutoff_s, available_s, maturity_s):
+        decision = decision_s * NS
+        return build(
+            store,
+            [
+                dict(
+                    id=f"{name}:1",
+                    pool=f"synthetic/{name}",
+                    decision_ns=decision,
+                    input_start_ns=decision - 1,
+                    input_available_ns=decision,
+                    input_dependencies=[
+                        dict(
+                            artifact_sha="a" * 64,
+                            event_ns=decision - 1,
+                            available_ns=decision,
+                        )
+                    ],
+                    values=[[1.0]],
+                    targets=[None],
+                    target_status=["censored"],
+                    target_available_ns=[None],
+                    target_maturity_ns=[maturity_s * NS],
+                    target_captures=[[]],
+                    target_details=[dict(lower_bound=2, lower_bound_available_ns=available_s * NS)],
+                )
+            ],
+            sources=[dict(kind="synthetic-composition-count", pin=name[0] * 64)],
+            cutoff=cutoff_s * NS,
+            schema=schema,
+        )
+
+    # Reproduce a parent that was legally published before lower-bound cutoff validation existed.
+    with monkeypatch.context() as patch:
+        patch.setattr(storage, "checked_samples", lambda rows, *_: iter(rows))
+        old = build_row("old", 1, 100, 150, 50)
+    later = build_row("later", 2, 200, 80, 50)
+    direct = compose(store, [old["snapshot"], later["snapshot"]])
+    direct_snapshot = Snapshot(store, direct["snapshot"])
+    assert direct_snapshot.manifest["binding"]["cutoff_ns"] == 200 * NS
+    assert direct_snapshot.censor_cutoff_ns() == 100 * NS
+    direct_batches = list(
+        batches(
+            direct_snapshot,
+            dict(train_start_s=0, train_end_s=500, validation_end_s=600, test_end_s=700),
+            "train",
+            8,
+            with_censoring=True,
+        )
+    )
+    assert [row_id for batch in direct_batches for row_id in batch[5]] == ["later:1"]
+
+    newest = build_row("newest", 3, 300, 90, 60)
+    nested = compose(store, [direct["snapshot"], newest["snapshot"]])
+    nested_snapshot = Snapshot(store, nested["snapshot"])
+    assert nested_snapshot.manifest["binding"]["cutoff_ns"] == 300 * NS
+    assert nested_snapshot.censor_cutoff_ns() == 100 * NS
+    nested_batches = list(
+        batches(
+            nested_snapshot,
+            dict(train_start_s=0, train_end_s=500, validation_end_s=600, test_end_s=700),
+            "train",
+            8,
+            with_censoring=True,
+        )
+    )
+    assert [row_id for batch in nested_batches for row_id in batch[5]] == ["later:1", "newest:1"]
+
+    (store / "snapshots" / f"{old['snapshot']}.json").unlink()
+    broken_lineage = Snapshot(store, nested["snapshot"])
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        broken_lineage.censor_cutoff_ns()
 
 
 def test_namespaced_protected_evaluation_rejected_before_artifact_read(tmp_path):

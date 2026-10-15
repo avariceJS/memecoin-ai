@@ -148,6 +148,38 @@ def test_unknown_domain_and_invalid_zero_lower_bound_fail_closed():
         list(checked_samples([row], schema, 1000))
 
 
+def test_composed_v3_learning_does_not_require_parent_manifests(tmp_path):
+    from memecoin_experience.learning import batches
+
+    schema = _schema()
+    store = tmp_path / "composed-coordinate-store"
+    first = build(
+        store,
+        [_row(1, status="lower_bound", value=2)],
+        sources=[dict(kind="synthetic", pin="a" * 64)],
+        cutoff=1000,
+        schema=schema,
+    )
+    second = build(
+        store,
+        [_row(2)],
+        sources=[dict(kind="synthetic", pin="b" * 64)],
+        cutoff=1000,
+        schema=schema,
+    )
+    composed = compose(store, [first["snapshot"], second["snapshot"]])
+    (store / "snapshots" / f"{first['snapshot']}.json").unlink()
+    (store / "snapshots" / f"{second['snapshot']}.json").unlink()
+
+    snapshot = Snapshot(store, composed["snapshot"])
+    rows = [
+        row_id
+        for batch in batches(snapshot, _plan(), "train", 4, with_censoring=True)
+        for row_id in batch[5]
+    ]
+    assert rows == ["program:1", "program:2"]
+
+
 def test_count_targets_and_bounds_reject_fractional_counts():
     schema = _schema()
     exact = _row(1, value=1.5)

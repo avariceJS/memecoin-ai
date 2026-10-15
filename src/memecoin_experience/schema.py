@@ -197,14 +197,33 @@ def checked_samples(rows, schema, cutoff):
             or max(d["available_ns"] for d in dependencies) != available
         ):
             raise ValueError("experience_dependency_bounds")
-        for value, status, at, maturity, pins in zip(
+        details = row.get("target_details")
+        if details is None:
+            details = [{} for _ in range(n)]
+        if not isinstance(details, list) or len(details) != n:
+            raise ValueError("experience_target_details")
+        for target, value, status, at, maturity, pins, detail in zip(
+            schema["targets"],
             row["targets"],
             row["target_status"],
             row["target_available_ns"],
             row["target_maturity_ns"],
             row["target_captures"],
+            details,
             strict=True,
         ):
+            if target["kind"].startswith("observed_process_count@") and status == "censored":
+                if not isinstance(detail, dict):
+                    raise ValueError("experience_censor_detail")
+                lower = detail.get("lower_bound")
+                available = detail.get("lower_bound_available_ns")
+                if lower is not None and (type(lower) is not int or lower < 0):
+                    raise ValueError("experience_censor_lower_bound")
+                if lower:
+                    if type(maturity) is not int or not decision <= maturity <= cutoff:
+                        raise ValueError("experience_censor_target_maturity")
+                    if type(available) is not int or not decision <= available <= cutoff:
+                        raise ValueError("experience_censor_bound_availability")
             if type(maturity) is not int or maturity < decision:
                 raise ValueError("experience_target_maturity")
             if status == "observed":

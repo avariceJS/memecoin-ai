@@ -847,8 +847,17 @@ targets. Existing `masked_pinball_v1`, v1/v2 representations, five-item batch AP
 mask are unchanged by default. A count with complete named-process support, including zero, receives
 ordinary pinball loss. An incomplete interval keeps `target=None`; a positive count of qualified
 observed events supplies only the inequality `Y >= L`. A zero bound, pending target, missing bound
-availability or unavailable point-in-time bound supplies no loss. Bound availability must precede
-the role cutoff for point-in-time data, and target maturity and input purging remain enforced.
+availability or unavailable point-in-time bound supplies no loss. Positive v2 bound availability
+and target maturity must be at or before the pinned snapshot cutoff; point-in-time data also
+requires bound availability before the role cutoff. Historical v2 snapshots remain readable, but
+training excludes bounds whose receipt or target maturity exceeds their snapshot cutoff. Input
+purging remains enforced. Composed snapshots use the minimum cutoff over hash-verified transitive
+parent manifests for censored-bound eligibility. This prevents a later parent from reviving a bound
+that exceeded an earlier parent's cutoff, but can conservatively omit valid later-parent bounds;
+exact per-partition cutoff lineage remains a future contract. The lineage check covers manifests
+listed by the current `compose` contract; it does not prove that an externally constructed
+composition's source list accounts for every reused partition. The resolved cutoff is cached for
+the lifetime of a `Snapshot`, assuming its backing store is immutable during use.
 
 For quantile `q`, the censored-cell term is `q * max(L - prediction, 0)`. This is a per-quantile
 lower-envelope surrogate for compatible completions, not a proper score, survival likelihood,

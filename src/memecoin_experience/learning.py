@@ -119,7 +119,7 @@ def partition_indices(snapshot, seed, epoch, start=0, *, sampler="content_pin_v1
         position += count
 
 
-def _censor_bounds(row, schema, role, plan):
+def _censor_bounds(row, schema, role, plan, cutoff_ns=None):
     """Return identified positive lower bounds for right-censored process counts."""
     bounds = [0.0] * len(target_names(schema))
     mask = [False] * len(bounds)
@@ -171,6 +171,8 @@ def _censor_bounds(row, schema, role, plan):
             if lower is not None and (type(lower) is not int or lower < 0):
                 raise ValueError("experience_censor_lower_bound")
             at = detail.get("lower_bound_available_ns")
+            if lower and (type(maturity) is not int or maturity < row["decision_ns"]):
+                raise ValueError("experience_censor_target_maturity")
             if lower and (type(at) is not int or at < row["decision_ns"]):
                 raise ValueError("experience_censor_bound_availability")
         if (
@@ -182,6 +184,9 @@ def _censor_bounds(row, schema, role, plan):
             and math.isfinite(detail["lower_bound"])
             and detail["lower_bound"] > 0
             and type(detail.get("lower_bound_available_ns")) is int
+            and cutoff_ns is not None
+            and maturity <= cutoff_ns
+            and detail["lower_bound_available_ns"] <= cutoff_ns
             and (
                 schema["availability"] == "historical_replay"
                 or detail["lower_bound_available_ns"] < role_end * 10**9
@@ -190,6 +195,16 @@ def _censor_bounds(row, schema, role, plan):
             bounds[i] = float(detail["lower_bound"])
             mask[i] = True
     return bounds, mask
+
+
+def _snapshot_censor_cutoff(snapshot):
+    """Resolve composition lineage only for the v2 count-bound contract."""
+    if snapshot.schema.get("schema") != "brain-experience-v2" or not any(
+        target["kind"].startswith("observed_process_count@")
+        for target in snapshot.schema.get("targets", [])
+    ):
+        return None
+    return snapshot.censor_cutoff_ns()
 
 
 def batches(
@@ -209,6 +224,7 @@ def batches(
     xs, ys, ms, ids = [], [], [], []
 
     lower_bounds, censor_masks = [], []
+    censor_cutoff_ns = _snapshot_censor_cutoff(snapshot) if with_censoring else None
 
     def packed(next_cursor):
         core = (np.concatenate(xs), np.concatenate(ys), np.concatenate(ms))
@@ -262,7 +278,13 @@ def batches(
         for i, row in enumerate(rows):
             row_role, mask = membership(row, plan, snapshot.schema)
             if with_censoring:
-                lower, lower_mask = _censor_bounds(row, snapshot.schema, role, plan)
+                lower, lower_mask = _censor_bounds(
+                    row,
+                    snapshot.schema,
+                    role,
+                    plan,
+                    cutoff_ns=censor_cutoff_ns,
+                )
             else:
                 lower, lower_mask = [0.0] * len(mask), [False] * len(mask)
             if row_role == role and (any(mask) or (with_censoring and any(lower_mask))):
@@ -334,13 +356,20 @@ def prepare(
     means, m2 = np.zeros(len(names)), np.zeros(len(names))
     population = Counter()
     denominators = Counter()
+    censor_cutoff_ns = _snapshot_censor_cutoff(snapshot)
     for i in range(len(snapshot.parts)):
         _, rows = snapshot.partition(i)
         for row in rows:
             role, mask = membership(row, plan, snapshot.schema)
             population[role] += 1
             population[role + "_usable"] += int(any(mask))
-            lower, lower_mask = _censor_bounds(row, snapshot.schema, role, plan)
+            lower, lower_mask = _censor_bounds(
+                row,
+                snapshot.schema,
+                role,
+                plan,
+                cutoff_ns=censor_cutoff_ns,
+            )
             population[role + "_partial_count_usable"] += int(any(lower_mask))
             population[role + "_objective_usable"] += int(any(mask) or any(lower_mask))
             for h, valid, status in zip(horizons, mask, row["target_status"], strict=True):

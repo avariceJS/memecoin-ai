@@ -15,7 +15,9 @@ Domain-specific behavior belongs in the architecture, data, training/evaluation,
 - An observation later than the decision cannot enter features, scaler fitting, or label selection.
 - Sparse point-in-time origins use arrival/availability as decision time and retain event time
   separately. Historical replay uses event-time decisions and explicitly permits later receipts
-  up to its fit cutoff; it must never be reported as online-causal experience.
+  up to its fit cutoff; positive censored-count bounds and their target maturity must also be within
+  the pinned snapshot cutoff. Composed snapshots inherit the conservative minimum of verified parent
+  cutoffs for this check. Historical replay must never be reported as online-causal experience.
 - An explicit sensing schedule is independent of source arrivals. Its page pin is treated as known
   at the scheduled decision; every observation/support dependency retains its own valid time and
   availability and must be available by that decision. Reserve the scheduled-origin frame from
