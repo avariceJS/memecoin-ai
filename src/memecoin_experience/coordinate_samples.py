@@ -225,6 +225,83 @@ def role_dependency_intervals(plan, role, domain_pin):
     return plan["roles"][role]["dependency_intervals"][domain_pin]
 
 
+def validate_temporal_metadata(row, schema, cutoff_ns):
+    """Recheck UTC receipt clocks for publication and every later metadata read."""
+    if type(cutoff_ns) is not int or cutoff_ns < 0:
+        raise ValueError("experience_coordinate_sample_contract")
+    required = {
+        "decision_ns",
+        "input_available_ns",
+        "input_dependencies",
+        "target_status",
+        "target_available_ns",
+        "target_details",
+    }
+    if not isinstance(row, dict) or not required <= set(row):
+        raise ValueError("experience_coordinate_sample_fields")
+
+    decision = row["decision_ns"]
+    if decision is not None and (type(decision) is not int or decision < 0):
+        raise ValueError("experience_coordinate_decision")
+    if schema["availability"] == "point_in_time" and decision is None:
+        raise ValueError("experience_coordinate_pit_decision_required")
+    input_available = row["input_available_ns"]
+    if type(input_available) is not int or not 0 <= input_available <= cutoff_ns:
+        raise ValueError("experience_coordinate_input_availability")
+    if decision is not None and decision > cutoff_ns:
+        raise ValueError("experience_coordinate_decision_cutoff")
+    if schema["availability"] == "point_in_time" and input_available > decision:
+        raise ValueError("experience_coordinate_future_input")
+
+    dependencies = row["input_dependencies"]
+    if not isinstance(dependencies, list) or not dependencies:
+        raise ValueError("experience_coordinate_dependencies")
+    dependency_times = []
+    for dependency in dependencies:
+        if not isinstance(dependency, dict):
+            raise ValueError("experience_coordinate_dependency")
+        available = dependency.get("available_ns")
+        if (
+            type(available) is not int
+            or not 0 <= available <= input_available
+            or available > cutoff_ns
+            or schema["availability"] == "point_in_time"
+            and available > decision
+        ):
+            raise ValueError("experience_coordinate_dependency")
+        dependency_times.append(available)
+    if max(dependency_times) != input_available:
+        raise ValueError("experience_coordinate_dependency_availability")
+
+    statuses = row["target_status"]
+    available_times = row["target_available_ns"]
+    details = row["target_details"]
+    count = len(schema["targets"])
+    if any(
+        not isinstance(values, list) or len(values) != count
+        for values in (statuses, available_times, details)
+    ):
+        raise ValueError("experience_coordinate_targets")
+    for index, (status, available, detail) in enumerate(
+        zip(statuses, available_times, details, strict=True)
+    ):
+        if available is not None and (
+            type(available) is not int or not 0 <= available <= cutoff_ns
+        ):
+            raise ValueError(f"experience_coordinate_target_window_{index}")
+        if status == "exact" and available is None:
+            raise ValueError("experience_coordinate_exact_target")
+        if status == "lower_bound":
+            lower_at = detail.get("lower_bound_available_ns") if isinstance(detail, dict) else None
+            if available is not None or type(lower_at) is not int or not 0 <= lower_at <= cutoff_ns:
+                raise ValueError("experience_coordinate_lower_bound")
+        elif status in {"masked", "pending"} and available is not None:
+            raise ValueError("experience_coordinate_masked_target")
+        elif status not in {"exact", "masked", "pending"}:
+            raise ValueError("experience_coordinate_target_status")
+    return row
+
+
 def validate_sample(row, schema, cutoff_ns):
     validate_domain(schema["coordinate_domain"], schema["coordinate_domain_pin"])
     registry = domain_registry(schema)
@@ -247,6 +324,7 @@ def validate_sample(row, schema, cutoff_ns):
     }
     if not isinstance(row, dict) or not required <= set(row):
         raise ValueError("experience_coordinate_sample_fields")
+    validate_temporal_metadata(row, schema, cutoff_ns)
     origin = row["origin"]
     if (
         not isinstance(row["pool"], str)
@@ -262,26 +340,8 @@ def validate_sample(row, schema, cutoff_ns):
         or any(type(i) is not int or i < 0 for i in origin["position"])
     ):
         raise ValueError("experience_coordinate_origin")
-    decision = row["decision_ns"]
-    if decision is not None and (type(decision) is not int or decision < 0):
-        raise ValueError("experience_coordinate_decision")
-    if schema["availability"] == "point_in_time" and decision is None:
-        raise ValueError("experience_coordinate_pit_decision_required")
-    if (
-        type(row["input_available_ns"]) is not int
-        or not 0 <= row["input_available_ns"] <= cutoff_ns
-    ):
-        raise ValueError("experience_coordinate_input_availability")
-    if decision is not None and decision > cutoff_ns:
-        raise ValueError("experience_coordinate_decision_cutoff")
-    if schema["availability"] == "point_in_time" and row["input_available_ns"] > decision:
-        raise ValueError("experience_coordinate_future_input")
-
     dependencies = row["input_dependencies"]
-    if not isinstance(dependencies, list) or not dependencies:
-        raise ValueError("experience_coordinate_dependencies")
     domain_pin = schema["coordinate_domain_pin"]
-    dependency_times = []
     for dep in dependencies:
         if (
             not isinstance(dep, dict)
@@ -302,16 +362,8 @@ def validate_sample(row, schema, cutoff_ns):
             or dep["end_coordinate_exclusive"] <= dep["start_coordinate"]
             or dep["domain_pin"] == domain_pin
             and dep["end_coordinate_exclusive"] > origin["coordinate"] + 1
-            or type(dep["available_ns"]) is not int
-            or not 0 <= dep["available_ns"] <= row["input_available_ns"]
-            or dep["available_ns"] > cutoff_ns
-            or schema["availability"] == "point_in_time"
-            and dep["available_ns"] > decision
         ):
             raise ValueError("experience_coordinate_dependency")
-        dependency_times.append(dep["available_ns"])
-    if max(dependency_times) != row["input_available_ns"]:
-        raise ValueError("experience_coordinate_dependency_availability")
     if (
         len(row["values"]) != schema["context"]
         or any(len(frame) != len(schema["features"]) for frame in row["values"])
@@ -377,8 +429,6 @@ def validate_sample(row, schema, cutoff_ns):
             or not isinstance(window["support_reasons"], list)
             or any(not isinstance(reason, str) for reason in window["support_reasons"])
             or not isinstance(detail, dict)
-            or available is not None
-            and (type(available) is not int or not 0 <= available <= cutoff_ns)
         ):
             raise ValueError(f"experience_coordinate_target_window_{i}")
         if status == "exact":
@@ -387,23 +437,18 @@ def validate_sample(row, schema, cutoff_ns):
                 or not math.isfinite(value)
                 or target_is_count(schema["targets"][i])
                 and (type(value) is not int or value < 0)
-                or available is None
                 or window["completion_status"] != "complete"
                 or not window["completion_evidence"]
             ):
                 raise ValueError("experience_coordinate_exact_target")
         elif status == "lower_bound":
             lower = detail.get("lower_bound")
-            lower_at = detail.get("lower_bound_available_ns")
             if (
                 not target_is_count(schema["targets"][i])
                 or type(lower) is not int
                 or lower <= 0
                 or value is not None
                 or available is not None
-                or type(lower_at) is not int
-                or lower_at < 0
-                or lower_at > cutoff_ns
                 or window["completion_status"] != "incomplete"
             ):
                 raise ValueError("experience_coordinate_lower_bound")

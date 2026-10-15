@@ -17,9 +17,12 @@ Domain-specific behavior belongs in the architecture, data, training/evaluation,
   publication and the role knowledge cutoff at training/evaluation, never as input features.
 - Sparse point-in-time origins use arrival/availability as decision time and retain event time
   separately. Historical replay uses event-time decisions and explicitly permits later receipts
-  up to its fit cutoff; positive censored-count bounds and their target maturity must also be within
-  the pinned snapshot cutoff. Composed snapshots inherit the conservative minimum of verified parent
-  cutoffs for this check. Historical replay must never be reported as online-causal experience.
+  up to its fit cutoff; positive v2 censored-count bounds and target maturity must also be within
+  the pinned snapshot cutoff. V2 composed count snapshots use the conservative minimum of verified
+  parent cutoffs for this check. V3 partition readers recheck decision, input/dependency, and target
+  receipt clocks against the pinned snapshot cutoff before consuming persisted rows; on v3
+  compositions, this is the declared composite cutoff and does not attest each partition against
+  its original parent cutoff. Historical replay must never be reported as online-causal experience.
 - An explicit sensing schedule is independent of source arrivals. Its page pin is treated as known
   at the scheduled decision; every observation/support dependency retains its own valid time and
   availability and must be available by that decision. Reserve the scheduled-origin frame from

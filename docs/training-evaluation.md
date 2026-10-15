@@ -1114,8 +1114,12 @@ inputs must be available by that decision, while future exact/lower-bound target
 later if they are within the snapshot cutoff and role knowledge cutoff. Historical replay may keep
 `decision_ns` null and is not an online forecast. v1/v2 schemas, exact-label masks,
 dense f64 partition storage and existing training contracts remain compatible. Coordinate-aware
-compose, replication, batching, and evaluation paths are available for v3. Training reports a
-versioned conservative exclusive-end frontier for every native domain from all train, validation,
+compose, replication, batching, and evaluation paths are available for v3. V3 partition readback
+rechecks decision, input/dependency and exact/lower-bound receipt clocks against the pinned snapshot
+cutoff before rows reach training or scoring; re-pinning a late-receipt partition does not bypass
+this check. A composed snapshot uses its declared cutoff, currently the maximum parent cutoff; this
+does not prove that each reused partition was available by its original parent's cutoff. Training
+reports a versioned conservative exclusive-end frontier for every native domain from all train, validation,
 test and dependency extents, merged with a proven parent frontier. The primary-domain value remains
 available as `seen_end_coordinate`. Registered native-coordinate evaluation requires every test
 primary/dependency interval to start at or after its domain frontier; empty-domain history is unknown

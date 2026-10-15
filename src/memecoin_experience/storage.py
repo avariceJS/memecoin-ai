@@ -467,6 +467,12 @@ class Snapshot:
             or (path / "y.f64").stat().st_size != n * len(target_names(self.schema)) * 8
         ):
             raise ValueError("experience_column_size")
+        if self.schema["schema"] == "brain-experience-v3":
+            from .coordinate_samples import validate_temporal_metadata
+
+            cutoff_ns = self.manifest.get("binding", {}).get("cutoff_ns")
+            for row in rows:
+                validate_temporal_metadata(row, self.schema, cutoff_ns)
         if "bounds" in entry:
             from .composition import bounds
 

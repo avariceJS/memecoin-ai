@@ -221,6 +221,56 @@ def test_pending_window_is_not_collapsed_into_incomplete_support():
         list(checked_samples([pending], schema, 1000))
 
 
+def test_v3_partition_readback_rechecks_receipt_cutoffs(tmp_path):
+    import json
+    import shutil
+
+    from memecoin_experience.storage import atomic_json, canonical, digest, object_path, seal_files
+
+    schema = _schema()
+    for status in ("exact", "lower_bound", "pending"):
+        store = tmp_path / f"valid-{status}"
+        row = _row(1, status=status, value=2 if status == "lower_bound" else 0, availability=100)
+        result = build(
+            store,
+            [row],
+            sources=[dict(kind="synthetic", pin="d" * 64)],
+            cutoff=100,
+            schema=schema,
+        )
+        snapshot = Snapshot(store, result["snapshot"])
+        assert snapshot.partition(0)[1][0]["target_status"] == [status]
+
+        staged = tmp_path / f"re-pinned-{status}"
+        shutil.copytree(object_path(store, snapshot.parts[0]["pin"]), staged)
+        metadata_path = staged / "rows.jsonl"
+        metadata = json.loads(metadata_path.read_text())
+        if status == "exact":
+            metadata["target_available_ns"][0] = 101
+            error = "target_window_0"
+        elif status == "lower_bound":
+            metadata["target_details"][0]["lower_bound_available_ns"] = 101
+            error = "lower_bound"
+        else:
+            metadata["target_available_ns"][0] = 100
+            error = "masked_target"
+        metadata_path.write_bytes(canonical(metadata) + b"\n")
+        (staged / "manifest.json").unlink()
+        forged_partition_pin = seal_files(staged)
+        forged_partition = object_path(store, forged_partition_pin)
+        forged_partition.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(staged, forged_partition)
+
+        forged_manifest = json.loads(
+            (store / "snapshots" / f"{result['snapshot']}.json").read_text()
+        )
+        forged_manifest["partitions"][0]["pin"] = forged_partition_pin
+        forged_snapshot_pin = digest(forged_manifest)
+        atomic_json(store / "snapshots" / f"{forged_snapshot_pin}.json", forged_manifest)
+        with pytest.raises(ValueError, match=error):
+            Snapshot(store, forged_snapshot_pin).partition(0)
+
+
 def test_exact_zero_is_eligible_but_incomplete_zero_has_no_target():
     schema = _schema()
     exact_zero = _row(1, status="exact", value=0)
@@ -288,6 +338,8 @@ def test_native_coordinate_composition_is_disjoint_and_domain_aware(tmp_path):
         == "disjoint_entity_native_coordinate_intervals; identical_objects_deduplicated"
     )
     assert joined["composition_counts"]["unique_partitions"] == 4
+    joined_snapshot = Snapshot(source, joined["snapshot"])
+    assert sum(len(joined_snapshot.partition(i)[1]) for i in range(len(joined_snapshot.parts))) == 8
 
     overlapping = build(
         source,
