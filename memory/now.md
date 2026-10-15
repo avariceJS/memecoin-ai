@@ -1,33 +1,25 @@
-# Current Project State
+# Current state
 
-**As of:** 2026-10-14 18:43Z. Portability/DR remains **NO-GO for factory reset**. The user is
-home with Kingston attached and may perform the Recovery rehearsal later; no reboot/reset occurred.
-Production, champion, protected evaluation, trading, owner services, provider traffic, and prospective
-collectors were not changed in this session.
+As of 2026-10-15 01:15 UTC. Portability / Disaster Recovery remains **NO-GO** for erase: no clean-host recovery rehearsal has been completed. Do not erase or reboot this Mac in this work horizon. No production behavior, champion, protected evaluation, real trading, provider traffic, prospective collector, or owner service was changed.
 
-- `research/active` is the working branch. Code and rehearsal evidence are pushed through
-  `b6b7234b22d83c7915c0b09537deba3abc851b78`; this note is the final handoff update. Read
-  `git rev-parse HEAD` for the note commit. `main` and `origin/main` remain at
-  `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; do not move `main`.
-- Exact-commit bootstrap now isolates Python venv/install/check/smoke from host pip config/cache and
-  Python user-site state. Same-Mac local-bare rehearsal at `8544c4d82ebc7dbf277cab5e68715e279f2b267b`
-  passed clean checkout, exact HEAD, unchanged lock SHA, `pip check`, smoke, and poisoned-host-Python
-  checks; unknown commit and existing destination failed closed. Git clone/fetch and the initial
-  Python-version probe intentionally use caller environment for authentication/tool selection.
-  Receipt: `docs/evidence/portability-dr-isolated-bootstrap-rehearsal-2026-10-14T1836Z.json`.
-  This is code-bootstrap evidence only, not Brain-state restore, clean-Mac proof, or erase readiness.
-- Latest read-only host status at 18:41Z: macOS 15.5 / arm64, Python 3.13.6, Git 2.39.5; 18
-  launchd labels loaded, eight with PIDs, and 74 processes matched configured workspace roots.
-  Only labels and process metadata were read (no arguments/environments); this is a point-in-time
-  observation, not inactivity or write-frontier evidence.
-- Kingston root is currently verified at `/Volumes/Kingston/BrainData`, volume UUID
-  `8f8f1081-9be4-4914-9111-75f1b90255bf`, root ID `9428695af6d4f46c08e1a444cdc66de8`, with
-  216,590,835,712 bytes available (~201.7 GiB). It remains the only reset-surviving physical copy.
-- The 14:51Z host root census remains incomplete (`scan_complete=false`) due owner-checkout metadata
-  drift; do not infer source consistency or custody closure from it. Recovery mount history / real
-  Data T, complete owner and protected custody, K lineage, and authenticated clean-host inert state
-  restore remain open. Preserve NO-GO and leave all current services untouched.
-- **Next decision horizon:** user-led macOS Recovery first-action Locked/no-mount check and mount-history
-  rehearsal; stop if Data is unlocked or already mounted. Then obtain Sol-reviewed real Data-view/T
-  design and continue only from a demonstrable durable boundary. No factory reset until separately
-  qualified restore readiness is established.
+## Git
+
+- Active branch: `research/active`; neural engineering work through `0deb6e290ac2a79fd7de6982d879b1228055d66e` was pushed to `origin/research/active`.
+- `main` and `origin/main` remain at `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; do not advance main without a verified capability milestone and acceptance.
+- DR/bootstrap work remains pushed through `b6b7234b22d83c7915c0b09537deba3abc851b78`. Exact-commit bootstrap isolated venv/install/check/smoke from host pip config/cache and Python user-site state. Same-Mac local-bare rehearsal at `8544c4d82ebc7dbf277cab5e68715e279f2b267b` passed clean checkout, exact HEAD, unchanged lock SHA, `pip check`, smoke, and poisoned-host-Python checks; unknown commit and existing destination failed closed. Receipt: `docs/evidence/portability-dr-isolated-bootstrap-rehearsal-2026-10-14T1836Z.json`. This is code-bootstrap evidence only, not Brain-state restore, clean-Mac proof, or erase readiness.
+- DR next decision horizon remains user-led macOS Recovery first-action Locked/no-mount check and mount-history rehearsal; stop if Data is unlocked or already mounted. Then obtain Sol-reviewed real Data-view/T design and continue from a demonstrable durable boundary. No erase until separately qualified restore readiness.
+
+## Neural engineering findings
+
+- Scheduled sensing event placement was corrected to keep the final frame for scheduled-origin state; focused sensing tests passed (7).
+- A preregistered controlled synthetic learnability fit enrolled 64 rows but purged one due to temporal dependency overlap, leaving 63. The exact-denominator gate failed. The frozen fixture was not rerun; its result is a denominator failure, not a learnability qualification or market claim. See `docs/training-evaluation.md` and its dated evidence receipts.
+- A preregistered sampler role-isolation audit confirmed legacy `content_pin_v1` sample order/weights can change when only held-out payload changes in a mixed-role partition. Added opt-in `role_isolated_partition_v1`, preserving legacy default and versioned resume identity. Sol independently accepted this bounded implementation. Invariance applies only when role membership, row IDs/order and partition geometry stay fixed; validation checkpoint selection remains separate and can still depend on validation outcomes.
+- Focused suites passed: 39 passed, 1 optional CUDA skip; latest role-isolation tests: 3 passed. No score-based model quality claim was made. Do not refit or tune against the exposed learnability fixture.
+- Next neural horizon: select a separate, non-market correctness/engineering target; do not presume another training run is useful.
+
+## Host and storage snapshot
+
+- Kingston was mounted at `/Volumes/Kingston`, case-sensitive APFS, UUID `8F8F1081-9BE4-4914-9111-75F1B90255BF`; last measured free space was 216,589,246,464 bytes (~201.7 GiB). `/Volumes/Kingston/BrainData` was owned by `root1`, mode `drwx------`, root inode 400.
+- Owner runtime status was last read-only checked on 2026-10-14 18:41 UTC: macOS 15.5/arm64, Python 3.13.6, Git 2.39.5; 18 launchd labels, 8 with PIDs, 74 workspace process matches (metadata only). Not refreshed during the latest neural work; no runtime changes were made.
+- Kingston remains the sole reset-surviving physical copy. Recovery/erase status stays NO-GO pending the user-led Recovery and clean-host rehearsal steps.
+- The 2026-10-14 14:51Z host-root census is incomplete (`scan_complete=false`) after owner-checkout metadata drift; do not infer custody closure. Real Data-view/T, complete owner/protected custody, K lineage, and authenticated clean-host inert-state restore remain open.
