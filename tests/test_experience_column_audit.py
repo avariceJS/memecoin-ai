@@ -10,10 +10,12 @@ pytest.importorskip("numpy")
 from test_experience_coordinate_samples import _row, _schema  # noqa: E402
 from test_experience_schema import custom_samples  # noqa: E402
 
+from memecoin_experience.catalog import Writer  # noqa: E402
 from memecoin_experience.storage import (  # noqa: E402
     Snapshot,
     atomic_json,
     audit_partition_columns,
+    audit_snapshot_columns,
     build,
     digest,
     object_path,
@@ -21,7 +23,7 @@ from memecoin_experience.storage import (  # noqa: E402
 )
 
 
-def synthetic_snapshot(tmp_path, version):
+def synthetic_snapshot(tmp_path, version, *, chunk=16):
     if version == "v2":
         schema, rows = custom_samples(2)
         rows = copy.deepcopy(rows)
@@ -47,15 +49,15 @@ def synthetic_snapshot(tmp_path, version):
         rows,
         sources=[dict(kind="synthetic", pin="a" * 64)],
         cutoff=cutoff,
-        chunk=16,
+        chunk=chunk,
         schema=schema,
     )
     return store, result["snapshot"], masked_row
 
 
-def reseal_binary_mutation(store, snapshot_pin, mutation, masked_row):
+def reseal_binary_mutation(store, snapshot_pin, mutation, masked_row, *, partition_index=0):
     snapshot = Snapshot(store, snapshot_pin)
-    path, _ = snapshot.partition(0)
+    path, _ = snapshot.partition(partition_index)
     x_path, y_path = path / "x.f64", path / "y.f64"
     x_bytes, y_bytes = bytearray(x_path.read_bytes()), bytearray(y_path.read_bytes())
     if mutation == "input-infinity":
@@ -72,7 +74,7 @@ def reseal_binary_mutation(store, snapshot_pin, mutation, masked_row):
     new_path.parent.mkdir(parents=True, exist_ok=True)
     path.rename(new_path)
     manifest = copy.deepcopy(snapshot.manifest)
-    manifest["partitions"][0]["pin"] = new_partition_pin
+    manifest["partitions"][partition_index]["pin"] = new_partition_pin
     new_snapshot_pin = digest(manifest)
     atomic_json(store / "snapshots" / f"{new_snapshot_pin}.json", manifest)
     return Snapshot(store, new_snapshot_pin)
@@ -194,3 +196,91 @@ def test_partition_column_audit_rejects_single_row_above_memory_cap():
     snapshot.manifest = {"binding": {"role": "train"}}
     with pytest.raises(ValueError, match="experience_column_audit_row_size"):
         audit_partition_columns(snapshot, 0, row_chunk=1)
+
+
+def test_snapshot_column_audit_covers_and_aggregates_every_partition(tmp_path):
+    store, pin, _ = synthetic_snapshot(tmp_path, "v2", chunk=1)
+    snapshot = Snapshot(store, pin)
+    assert len(snapshot.parts) == 2
+    before = {
+        entry["pin"]: {
+            path.name: path.read_bytes()
+            for path in object_path(store, entry["pin"]).iterdir()
+            if path.is_file()
+        }
+        for entry in snapshot.parts
+    }
+
+    result = audit_snapshot_columns(snapshot, row_chunk=1)
+
+    assert result["status"] == "matched"
+    assert result["expected_partitions"] == result["audited_partitions"] == 2
+    assert result["expected_rows"] == result["rows"] == snapshot.manifest["decisions"]
+    assert result["row_count_matches"] is True
+    assert result["target_status_counts"] == {"observed": 1, "pending": 1}
+    assert result["failed_partitions"] == 0
+    assert result["first_failing_index"] is None
+    assert before == {
+        entry["pin"]: {
+            path.name: path.read_bytes()
+            for path in object_path(store, entry["pin"]).iterdir()
+            if path.is_file()
+        }
+        for entry in snapshot.parts
+    }
+
+
+def test_snapshot_column_audit_detects_failure_only_in_last_partition(tmp_path):
+    store, pin, _ = synthetic_snapshot(tmp_path, "v2", chunk=1)
+    snapshot = Snapshot(store, pin)
+    assert len(snapshot.parts) == 2
+    last_index = len(snapshot.parts) - 1
+    assert audit_partition_columns(snapshot, 0)["matches"] is True
+    corrupted = reseal_binary_mutation(
+        store,
+        pin,
+        "input-infinity",
+        masked_row=1,
+        partition_index=last_index,
+    )
+
+    result = audit_snapshot_columns(corrupted, row_chunk=1)
+
+    assert result["status"] == "mismatch"
+    assert result["matches"] is False
+    assert result["audited_partitions"] == result["expected_partitions"] == 2
+    assert result["failed_partitions"] == 1
+    assert result["first_failing_index"] == last_index
+    assert result["failures"]["input_infinities"] == 1
+
+
+def test_snapshot_column_audit_streams_paged_partition_catalog(tmp_path):
+    store, pin, _ = synthetic_snapshot(tmp_path, "v2", chunk=1)
+    flat = Snapshot(store, pin)
+    writer = Writer(store)
+    for entry in flat.parts:
+        writer.append(entry)
+    writer.flush()
+    catalog = writer.finish()
+    manifest = copy.deepcopy(flat.manifest)
+    manifest.pop("partitions")
+    manifest.update(catalog)
+    manifest_pin = digest(manifest)
+    atomic_json(store / "snapshots" / f"{manifest_pin}.json", manifest)
+    paged = Snapshot(store, manifest_pin)
+
+    assert type(paged.parts).__name__ == "Parts"
+    result = audit_snapshot_columns(paged, row_chunk=1)
+
+    assert result["status"] == "matched"
+    assert result["audited_partitions"] == 2
+    assert result["rows"] == manifest["decisions"]
+
+
+def test_snapshot_column_audit_requires_train_role_before_partitions():
+    snapshot = Snapshot.__new__(Snapshot)
+    snapshot.schema = {"schema": "brain-experience-v2"}
+    snapshot.manifest = {"binding": {"role": "research_evaluation"}}
+
+    with pytest.raises(ValueError, match="experience_column_audit_reserved_snapshot"):
+        audit_snapshot_columns(snapshot)

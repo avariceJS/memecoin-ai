@@ -599,3 +599,64 @@ def audit_partition_columns(snapshot, index, *, row_chunk=256):
         target_status_counts=dict(sorted(status_counts.items())),
         failures=failures,
     )
+
+
+def audit_snapshot_columns(snapshot, *, row_chunk=256):
+    """Audit every train partition with bounded aggregate memory and reconcile coverage."""
+    if not isinstance(snapshot, Snapshot):
+        raise ValueError("experience_column_audit_snapshot")
+    if snapshot.schema.get("schema") not in {"brain-experience-v2", "brain-experience-v3"}:
+        raise ValueError("experience_column_audit_schema")
+    if snapshot.manifest.get("binding", {}).get("role") != "train":
+        raise ValueError("experience_column_audit_reserved_snapshot")
+    if type(row_chunk) is not int or not 1 <= row_chunk <= 4096:
+        raise ValueError("experience_column_audit_chunk")
+
+    expected_partitions = len(snapshot.parts)
+    expected_rows = snapshot.manifest.get("decisions")
+    rows = input_cells = target_cells = exact_cells = masked_cells = 0
+    status_counts = Counter()
+    failures = Counter()
+    audited_partitions = failed_partitions = 0
+    first_failing_index = None
+
+    for index in range(expected_partitions):
+        result = audit_partition_columns(snapshot, index, row_chunk=row_chunk)
+        audited_partitions += 1
+        rows += result["rows"]
+        input_cells += result["input_cells"]
+        target_cells += result["target_cells"]
+        exact_cells += result["exact_target_cells"]
+        masked_cells += result["masked_target_cells"]
+        status_counts.update(result["target_status_counts"])
+        failures.update(result["failures"])
+        if not result["matches"]:
+            failed_partitions += 1
+            if first_failing_index is None:
+                first_failing_index = index
+
+    coverage_matches = audited_partitions == expected_partitions
+    row_count_matches = type(expected_rows) is int and expected_rows > 0 and rows == expected_rows
+    matches = coverage_matches and row_count_matches and failed_partitions == 0
+    return dict(
+        status="matched" if matches else "mismatch",
+        matches=matches,
+        snapshot_pin=snapshot.pin,
+        expected_partitions=expected_partitions,
+        audited_partitions=audited_partitions,
+        expected_rows=expected_rows,
+        rows=rows,
+        row_count_matches=row_count_matches,
+        input_cells=input_cells,
+        target_cells=target_cells,
+        exact_target_cells=exact_cells,
+        masked_target_cells=masked_cells,
+        target_status_counts=dict(sorted(status_counts.items())),
+        failed_partitions=failed_partitions,
+        first_failing_index=first_failing_index,
+        failures=dict(
+            input_infinities=failures["input_infinities"],
+            exact_target_nonfinite=failures["exact_target_nonfinite"],
+            masked_target_non_nan=failures["masked_target_non_nan"],
+        ),
+    )

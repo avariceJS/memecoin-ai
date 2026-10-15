@@ -266,6 +266,11 @@ train snapshot role before reading a partition. This is separate from ordinary p
 and training. The check assumes a quiescent snapshot: partition verification occurs before the
 audit reopens the binary columns, so it is not resistant to concurrent mutation. It cannot detect
 replacement of one finite exact target with another or prove source truth.
+`audit_snapshot_columns(snapshot)` streams every v2/v3 training partition through this check,
+aggregates fixed-size status/failure counters, and matches only when full partition coverage and
+the manifest decision total reconcile. It reports the first failing partition without retaining
+per-partition results. This remains an opt-in static audit of a quiescent snapshot; ordinary
+loading, training, and inference are unchanged.
 Before a completed report is published, reused, or read through the generation registry, its epoch,
 step and row counters must reconcile with the recipe and train denominator. Validation history must
 have one ordered finite selection score per epoch. This detects inconsistent report progress and
