@@ -344,9 +344,15 @@ the artifact; it does not authenticate the whole local generation record.
 `parent` is optional `{ "path": ".../artifact", "pin": "manifest SHA" }`. Warm start requires the
 same model and representation spec, loads weights strictly, freezes parent mean/scale, computes
 current-corpus baseline/denominators and creates a fresh optimizer. It is distinct from exact-job
-resume. Ancestor artifact pins and the latest interval seen in any train/validation/descriptive-test
-report propagate to children. No tensor surgery, silent normalization drift or cross-generation
-optimizer reuse occurs. Frozen normalization can become statistically unsuitable as markets drift;
+resume. Ancestor artifact pins and versioned per-domain coordinate frontiers propagate to children
+from the verified pinned parent report;
+the compatibility scalar is the primary domain endpoint. Registration and scoring require every
+evaluation primary/dependency test interval to start at or after the corresponding frontier. Legacy
+standalone v3 artifacts derive frontiers from their pinned split plan; legacy warm-start lineage
+without a complete ancestor frontier fails closed. Parent frontiers are read from pinned artifact
+reports; the report checks its own plan extent but does not cryptographically attest recursive lineage.
+No tensor surgery, silent normalization drift or cross-generation optimizer reuse occurs. Frozen
+normalization can become statistically unsuitable as markets drift;
 qualification must compare a fresh fit as well as continuation. Corpus/replay policy is the pinned
 snapshot membership, not an implicit latest-data-only policy.
 
@@ -1085,10 +1091,16 @@ extents per declared domain and a monotone UTC cutoff. No implicit coordinate co
 cross-domain alignment is permitted. Actual point-in-time schemas require an actual `decision_ns`;
 historical replay may keep it null and is not an online forecast. v1/v2 schemas, exact-label masks,
 dense f64 partition storage and existing training contracts remain compatible. Coordinate-aware
-compose, replication, batching, and evaluation paths are available for v3. Registered native
-coordinate evaluation verifies enrollment across every snapshot row before scoring, including pending
-and purged origins. Reports expose assigned, outside-test, purged, pending, lower-bound, exact-usable
-and scored-origin counts plus per-target status/eligibility denominators; legacy `population.test`
+compose, replication, batching, and evaluation paths are available for v3. Training reports a
+versioned conservative exclusive-end frontier for every native domain from all train, validation,
+test and dependency extents, merged with a proven parent frontier. The primary-domain value remains
+available as `seen_end_coordinate`. Registered native-coordinate evaluation requires every test
+primary/dependency interval to start at or after its domain frontier; empty-domain history is unknown
+and blocks intervals in that domain. Legacy standalone v3 artifacts derive a frontier from the
+pinned plan, while legacy warm-start lineage without a complete parent frontier fails closed.
+Evaluation verifies enrollment across every snapshot row before scoring, including pending and
+purged origins. Reports expose assigned, outside-test, purged, pending, lower-bound, exact-usable and
+scored-origin counts plus per-target status/eligibility denominators; legacy `population.test`
 continues to mean scored origins. The scorer reconciles emitted identities and exact cell counts to
 the census without changing pinball or coverage.
 

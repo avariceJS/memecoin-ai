@@ -278,7 +278,16 @@ def test_generation_metadata_binds_actual_model_report(tmp_path, tamper):
         generations.get(root, done["generation"])
 
 
-@pytest.mark.parametrize("tamper", ["coordinate_changed", "coordinate_removed", "coordinate_type"])
+@pytest.mark.parametrize(
+    "tamper",
+    [
+        "coordinate_changed",
+        "coordinate_removed",
+        "coordinate_type",
+        "frontier_changed",
+        "frontier_removed",
+    ],
+)
 def test_coordinate_generation_frontier_matches_pinned_report(tmp_path, tamper):
     from test_experience_coordinate_samples import _row, _schema
 
@@ -327,14 +336,21 @@ def test_coordinate_generation_frontier_matches_pinned_report(tmp_path, tamper):
     )
     record, _ = generations.get(root, done["generation"])
     assert record["seen_end_coordinate"] == 30
+    assert (
+        record["seen_coordinate_frontier"]["exclusive_ends"][schema["coordinate_domain_pin"]] == 30
+    )
     path = root / "generations" / (done["generation"] + ".json")
     record = json.loads(path.read_text())
     if tamper == "coordinate_changed":
         record["seen_end_coordinate"] += 1
     elif tamper == "coordinate_removed":
         record.pop("seen_end_coordinate")
-    else:
+    elif tamper == "coordinate_type":
         record["seen_end_coordinate"] = float(record["seen_end_coordinate"])
+    elif tamper == "frontier_changed":
+        record["seen_coordinate_frontier"]["exclusive_ends"][schema["coordinate_domain_pin"]] += 1
+    else:
+        record.pop("seen_coordinate_frontier")
     path.write_text(json.dumps(record))
     with pytest.raises(ValueError, match="generation_binding"):
         generations.get(root, done["generation"])

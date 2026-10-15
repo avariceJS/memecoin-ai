@@ -103,6 +103,8 @@ def run(
             )
             if "seen_end_coordinate" in report:
                 generation["seen_end_coordinate"] = report["seen_end_coordinate"]
+            if "seen_coordinate_frontier" in report:
+                generation["seen_coordinate_frontier"] = report["seen_coordinate_frontier"]
             atomic_json(root / "generations" / (identity + ".json"), generation)
             outcome.update(generation=identity, artifact=generation["artifact"])
         atomic_json(attempts / f"{attempt:08d}-outcome.json", outcome)
@@ -149,6 +151,12 @@ def get(root, identity):
                 type(record["seen_end_coordinate"]) is not type(model.report["seen_end_coordinate"])
                 or record["seen_end_coordinate"] != model.report["seen_end_coordinate"]
             )
+        )
+        or ("seen_coordinate_frontier" in record) != ("seen_coordinate_frontier" in model.report)
+        or (
+            "seen_coordinate_frontier" in model.report
+            and digest(record["seen_coordinate_frontier"])
+            != digest(model.report["seen_coordinate_frontier"])
         )
     ):
         raise ValueError("experience_generation_binding")

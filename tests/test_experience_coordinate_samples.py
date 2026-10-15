@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from memecoin_experience import coordinate_samples
+from memecoin_experience import coordinate_frontier, coordinate_samples
 from memecoin_experience.composition import compose
 from memecoin_experience.records import split_plan
 from memecoin_experience.schema import checked_samples, membership
@@ -412,6 +412,224 @@ def test_registry_requires_monotonic_cutoffs_and_missing_domain_extents_fail():
         coordinate_samples.validate_split_plan(plan)
 
 
+def test_coordinate_frontier_covers_all_roles_domains_and_parent_lineage():
+    schema = _schema()
+    primary = schema["coordinate_domain_pin"]
+    out_of_order = coordinate_samples.make_split_plan(
+        primary,
+        {
+            "train": {
+                "intervals": [[50, 60]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 10,
+            },
+            "validation": {
+                "intervals": [[10, 20]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 20,
+            },
+            "test": {
+                "intervals": [[30, 40]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 30,
+            },
+        },
+    )
+    frontier = coordinate_frontier.from_plan(out_of_order)
+    assert frontier["exclusive_ends"][primary] == 60
+    valid_forward = coordinate_samples.make_split_plan(
+        primary,
+        {
+            "train": {
+                "intervals": [[0, 10]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 10,
+            },
+            "validation": {
+                "intervals": [[10, 20]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 20,
+            },
+            "test": {
+                "intervals": [[60, 70]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 30,
+            },
+        },
+    )
+    coordinate_frontier.require_test_after(frontier, valid_forward)
+    too_early = copy.deepcopy(valid_forward)
+    too_early["roles"]["test"]["intervals"] = [[59, 70]]
+    with pytest.raises(ValueError, match="experience_coordinate_evaluation_seen_interval"):
+        coordinate_frontier.require_test_after(frontier, too_early)
+
+    block_height = dict(
+        version="typed-coordinate-domain-v1",
+        name="solana_block_height",
+        network="solana-mainnet",
+        kind="block_height",
+        unit="block",
+    )
+    secondary = coordinate_samples.digest(block_height)
+    multi = coordinate_samples.make_split_plan(
+        primary,
+        {
+            "train": {
+                "intervals": [[0, 4]],
+                "dependency_intervals": {secondary: [[100, 200]]},
+                "knowledge_cutoff_ns": 10,
+            },
+            "validation": {
+                "intervals": [[4, 8]],
+                "dependency_intervals": {secondary: [[200, 300]]},
+                "knowledge_cutoff_ns": 20,
+            },
+            "test": {
+                "intervals": [[8, 12]],
+                "dependency_intervals": {secondary: [[300, 400]]},
+                "knowledge_cutoff_ns": 30,
+            },
+        },
+        coordinate_domain_pins=[primary, secondary],
+    )
+    multi_schema = coordinate_samples.schema(
+        context=1,
+        features=[dict(name="prior_count", unit="events", modality="process")],
+        targets=[dict(name="next_count", unit="events", kind="observed_process_count@1slots")],
+        availability="historical_replay",
+        coordinate_domains=[coordinate_samples.SLOT_DOMAIN, block_height],
+    )
+    multi_frontier = coordinate_frontier.from_plan(multi)
+    assert multi_frontier["exclusive_ends"][secondary] == 400
+    overlap = coordinate_samples.make_split_plan(
+        primary,
+        {
+            "train": {
+                "intervals": [[0, 4]],
+                "dependency_intervals": {secondary: [[0, 10]]},
+                "knowledge_cutoff_ns": 10,
+            },
+            "validation": {
+                "intervals": [[4, 8]],
+                "dependency_intervals": {secondary: [[10, 20]]},
+                "knowledge_cutoff_ns": 20,
+            },
+            "test": {
+                "intervals": [[12, 16]],
+                "dependency_intervals": {secondary: [[399, 450]]},
+                "knowledge_cutoff_ns": 30,
+            },
+        },
+        coordinate_domain_pins=[primary, secondary],
+    )
+    coordinate_frontier.validate(
+        multi_frontier, [row["pin"] for row in multi_schema["coordinate_domains"]]
+    )
+    with pytest.raises(ValueError, match="experience_coordinate_evaluation_seen_interval"):
+        coordinate_frontier.require_test_after(multi_frontier, overlap)
+
+    inherited = coordinate_frontier.merge(frontier, coordinate_frontier.from_plan(valid_forward))
+    assert inherited["exclusive_ends"][primary] == 70
+    legacy_report = dict(
+        binding=dict(parent=None, initialization="seeded_fresh", plan=out_of_order),
+        ancestors=[],
+        seen_end_coordinate=40,
+    )
+    assert coordinate_frontier.from_report(legacy_report, schema) == frontier
+    underreported = copy.deepcopy(legacy_report)
+    underreported["seen_coordinate_frontier"] = copy.deepcopy(frontier)
+    underreported["seen_coordinate_frontier"]["exclusive_ends"][primary] = 40
+    underreported["seen_end_coordinate"] = 40
+    with pytest.raises(ValueError, match="experience_coordinate_frontier_understated"):
+        coordinate_frontier.from_report(underreported, schema)
+    missing_ancestors = copy.deepcopy(legacy_report)
+    del missing_ancestors["ancestors"]
+    with pytest.raises(ValueError, match="experience_coordinate_frontier_unproven_legacy_lineage"):
+        coordinate_frontier.from_report(missing_ancestors, schema)
+    missing_parent = copy.deepcopy(legacy_report)
+    del missing_parent["binding"]["parent"]
+    with pytest.raises(ValueError, match="experience_coordinate_frontier_unproven_legacy_lineage"):
+        coordinate_frontier.from_report(missing_parent, schema)
+
+    underreported_secondary = copy.deepcopy(multi_frontier)
+    underreported_secondary["exclusive_ends"][secondary] = 399
+    secondary_report = dict(
+        binding=dict(parent=None, initialization="seeded_fresh", plan=multi),
+        ancestors=[],
+        seen_coordinate_frontier=underreported_secondary,
+        seen_end_coordinate=12,
+    )
+    with pytest.raises(ValueError, match="experience_coordinate_frontier_understated"):
+        coordinate_frontier.from_report(secondary_report, multi_schema)
+    legacy_child = dict(
+        binding=dict(
+            parent="f" * 64,
+            initialization="parent_weights_frozen_normalizer_fresh_optimizer",
+            plan=out_of_order,
+        ),
+        seen_end_coordinate=40,
+    )
+    with pytest.raises(ValueError, match="experience_coordinate_frontier_unproven_legacy_lineage"):
+        coordinate_frontier.from_report(legacy_child, schema)
+    incomplete = copy.deepcopy(frontier)
+    incomplete["exclusive_ends"] = {}
+    incomplete_report = dict(
+        binding=dict(parent=None, initialization="seeded_fresh", plan=out_of_order),
+        ancestors=[],
+        seen_coordinate_frontier=incomplete,
+        seen_end_coordinate=60,
+    )
+    with pytest.raises(ValueError, match="experience_coordinate_frontier"):
+        coordinate_frontier.from_report(incomplete_report, schema)
+
+    empty_secondary = coordinate_samples.make_split_plan(
+        primary,
+        {
+            "train": {
+                "intervals": [[0, 4]],
+                "dependency_intervals": {secondary: []},
+                "knowledge_cutoff_ns": 10,
+            },
+            "validation": {
+                "intervals": [[4, 8]],
+                "dependency_intervals": {secondary: []},
+                "knowledge_cutoff_ns": 20,
+            },
+            "test": {
+                "intervals": [[8, 12]],
+                "dependency_intervals": {secondary: []},
+                "knowledge_cutoff_ns": 30,
+            },
+        },
+        coordinate_domain_pins=[primary, secondary],
+    )
+    empty_frontier = coordinate_frontier.from_plan(empty_secondary)
+    assert empty_frontier["exclusive_ends"][secondary] is None
+    unknown_domain_test = coordinate_samples.make_split_plan(
+        primary,
+        {
+            "train": {
+                "intervals": [[0, 4]],
+                "dependency_intervals": {secondary: []},
+                "knowledge_cutoff_ns": 10,
+            },
+            "validation": {
+                "intervals": [[4, 8]],
+                "dependency_intervals": {secondary: []},
+                "knowledge_cutoff_ns": 20,
+            },
+            "test": {
+                "intervals": [[12, 16]],
+                "dependency_intervals": {secondary: [[0, 10]]},
+                "knowledge_cutoff_ns": 30,
+            },
+        },
+        coordinate_domain_pins=[primary, secondary],
+    )
+    with pytest.raises(ValueError, match="experience_coordinate_evaluation_seen_interval"):
+        coordinate_frontier.require_test_after(empty_frontier, unknown_domain_test)
+
+
 def test_v3_replication_batch_fit_resume_and_registered_evaluation(tmp_path, monkeypatch):
     pytest.importorskip("numpy")
     pytest.importorskip("torch")
@@ -508,6 +726,50 @@ def test_v3_replication_batch_fit_resume_and_registered_evaluation(tmp_path, mon
     )["snapshot"]
     artifact = tmp_path / "fit-full/artifact"
     artifact_pin = file_hash(artifact / "manifest.json")
+    child_plan = coordinate_samples.make_split_plan(
+        schema["coordinate_domain_pin"],
+        {
+            "train": {
+                "intervals": [[0, 9]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 1000,
+            },
+            "validation": {
+                "intervals": [[10, 19]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 1000,
+            },
+            "test": {
+                "intervals": [[20, 29]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 1000,
+            },
+        },
+    )
+    child_report = train(
+        replica,
+        train_snapshot,
+        tmp_path / "fit-child-frontier",
+        plan=child_plan,
+        config=config,
+        parent={"path": str(artifact), "pin": artifact_pin},
+    )
+    assert child_report["seen_end_coordinate"] == 30
+    assert (
+        child_report["seen_coordinate_frontier"]["exclusive_ends"][schema["coordinate_domain_pin"]]
+        == 30
+    )
+
+    unsafe_eval_plan = copy.deepcopy(eval_plan)
+    unsafe_eval_plan["roles"]["test"]["intervals"] = [[29, 40]]
+    with pytest.raises(ValueError, match="experience_coordinate_evaluation_seen_interval"):
+        evaluation.register_coordinate(
+            tmp_path / "protocols",
+            artifact,
+            artifact_pin,
+            split_plan=unsafe_eval_plan,
+            pools=["solana/program/pumpswap"],
+        )
     registration = evaluation.register_coordinate(
         tmp_path / "protocols",
         artifact,
@@ -530,6 +792,29 @@ def test_v3_replication_batch_fit_resume_and_registered_evaluation(tmp_path, mon
     assert scored["population"]["test"] == 8
     assert scored["population"]["test_exact_usable_origins"] == 8
     assert scored["population"]["test_scored_origins"] == 8
+
+    import json
+
+    from memecoin_experience.storage import atomic_json, digest
+
+    protocol_root = tmp_path / "protocols-score-frontier"
+    protocol_root.mkdir()
+    protocol = json.loads((tmp_path / "protocols" / f"{registration['protocol']}.json").read_text())
+    protocol["split_plan"]["roles"]["test"]["intervals"] = [[29, 40]]
+    protocol_pin = digest(protocol)
+    atomic_json(protocol_root / f"{protocol_pin}.json", protocol)
+    rejected_output = tmp_path / "score-frontier-rejected"
+    with pytest.raises(ValueError, match="experience_coordinate_evaluation_seen_interval"):
+        evaluation.score(
+            protocol_root,
+            protocol_pin,
+            eval_store,
+            eval_snapshot,
+            artifact,
+            rejected_output,
+            batch=4,
+        )
+    assert not rejected_output.exists()
 
     purged = _row(30)
     purged["input_dependencies"][0]["start_coordinate"] = 29

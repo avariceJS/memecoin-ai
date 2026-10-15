@@ -64,9 +64,10 @@ def register_coordinate(
         or sorted(domain_registry(schema)) != plan["coordinate_domain_pins"]
     ):
         raise ValueError("experience_coordinate_evaluation_domain")
-    seen_end = model.report.get("seen_end_coordinate")
-    if seen_end is None or any(start < seen_end for start, _ in plan["roles"]["test"]["intervals"]):
-        raise ValueError("experience_coordinate_evaluation_seen_interval")
+    from .coordinate_frontier import from_report, require_test_after
+
+    coordinate_frontier = from_report(model.report, schema)
+    require_test_after(coordinate_frontier, plan)
     if scope == "preregistered_forward_replay" and (
         schema["availability"] != "point_in_time"
         or plan["roles"]["test"]["knowledge_cutoff_ns"] >= now_ns
@@ -77,6 +78,7 @@ def register_coordinate(
         candidate=artifact_pin,
         schema=schema,
         coordinate_domain_pin=plan["coordinate_domain_pin"],
+        seen_coordinate_frontier=coordinate_frontier,
         split_plan=plan,
         pools=pools,
         scope=scope,
@@ -138,13 +140,16 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
     ):
         raise ValueError("experience_coordinate_evaluation_binding")
     model = Predictor(artifact, protocol["candidate"])
-    seen_end = model.report.get("seen_end_coordinate")
+    from .coordinate_frontier import from_report, require_test_after
+
+    coordinate_frontier = from_report(model.report, snapshot.schema)
+    require_test_after(coordinate_frontier, plan)
     if (
         model.spec["schema"] != snapshot.schema
         or model.spec["quantiles"] != protocol["quantiles"]
         or protocol["coordinate_domain_pin"] != snapshot.schema["coordinate_domain_pin"]
-        or seen_end is None
-        or any(start < seen_end for start, _ in plan["roles"]["test"]["intervals"])
+        or "seen_coordinate_frontier" in protocol
+        and protocol["seen_coordinate_frontier"] != coordinate_frontier
         or protocol["scope"] == "preregistered_forward_replay"
         and (
             snapshot.schema["availability"] != "point_in_time"

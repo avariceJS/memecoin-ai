@@ -919,6 +919,14 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
         ancestor = Predictor(parent["path"], parent["pin"])
         if ancestor.spec != spec:
             raise ValueError("experience_parent_contract")
+    coordinate_frontier = None
+    if snapshot.schema.get("schema") == "brain-experience-v3":
+        from .coordinate_frontier import from_plan, from_report, merge
+
+        coordinate_frontier = from_plan(plan)
+        if ancestor is not None:
+            inherited = from_report(ancestor.report, ancestor.spec["schema"])
+            coordinate_frontier = merge(coordinate_frontier, inherited)
     binding = dict(
         model=spec,
         parent=parent["pin"] if parent else None,
@@ -1162,9 +1170,10 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
             ),
         )
         if snapshot.schema.get("schema") == "brain-experience-v3":
-            report["seen_end_coordinate"] = max(
-                (end for start, end in plan["roles"]["test"]["intervals"]), default=None
-            )
+            report["seen_coordinate_frontier"] = coordinate_frontier
+            report["seen_end_coordinate"] = coordinate_frontier["exclusive_ends"][
+                plan["coordinate_domain_pin"]
+            ]
         if journal is not None:
             report["exposure"] = journal.finish(
                 state["steps"], state["rows_seen"], output / "exposure-report"
