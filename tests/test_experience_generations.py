@@ -85,11 +85,13 @@ def test_target_transform_golden_values_and_artifact_binding(tmp_path, monkeypat
         transform_targets,
     )
 
-    values = np.array([[0.0, 0.0], [7.0, np.log1p(9.0)]])
+    values = np.array([[0.0, 0.0], [7.0, 9.0]])
     assert np.array_equal(
         transform_targets(values, ["identity", "log1p_nonnegative"]),
-        np.array([[0.0, 0.0], [7.0, np.log1p(np.log1p(9.0))]]),
+        np.array([[0.0, 0.0], [7.0, np.log1p(9.0)]]),
     )
+    with pytest.raises(ValueError, match="experience_negative_count_target"):
+        transform_targets(np.array([[-1.0]]), ["log1p_nonnegative"])
     encoded = np.array([[[0.0, 7.0, 701.0]], [[0.0, np.log1p(9.0), -3.0]]])
     restored = inverse_predictions(encoded, {"target_transforms": ["log1p_nonnegative"]})
     assert restored[0, 0, 0] == 0.0
@@ -99,6 +101,15 @@ def test_target_transform_golden_values_and_artifact_binding(tmp_path, monkeypat
     identity = inverse_predictions(encoded, {"target_transforms": ["identity"]})
     assert np.array_equal(identity, encoded)
 
+    legacy_artifact, legacy_pin, _ = sealed_tiny_artifact(
+        tmp_path / "legacy-log1p-artifact", target_transform="log1p_nonnegative"
+    )
+    legacy_predictor = Predictor(legacy_artifact, legacy_pin)
+    assert legacy_predictor.inference_transform_bound is False
+    assert legacy_predictor.stats["target_transforms"] == ["log1p_nonnegative"] * len(
+        legacy_predictor.spec["schema"]["targets"]
+    )
+
     artifact, pin, _ = sealed_tiny_artifact(
         tmp_path / "bound-artifact", transform_binding="current"
     )
@@ -106,8 +117,12 @@ def test_target_transform_golden_values_and_artifact_binding(tmp_path, monkeypat
     assert predictor.inference_transform_bound is True
     assert predictor.report["binding"]["inference_transform"] == implementation_pin()
 
-    legacy_artifact, legacy_pin, _ = sealed_tiny_artifact(tmp_path / "legacy-artifact")
-    assert Predictor(legacy_artifact, legacy_pin).inference_transform_bound is False
+    legacy_identity_artifact, legacy_identity_pin, _ = sealed_tiny_artifact(
+        tmp_path / "legacy-artifact"
+    )
+    assert (
+        Predictor(legacy_identity_artifact, legacy_identity_pin).inference_transform_bound is False
+    )
 
     wrong_artifact, wrong_pin, _ = sealed_tiny_artifact(
         tmp_path / "wrong-artifact", transform_binding="0" * 64
