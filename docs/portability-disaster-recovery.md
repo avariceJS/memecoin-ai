@@ -78,6 +78,13 @@ Live checks on the current Mac:
   latest traversal evidence for its corresponding present-root scope. It is sequential live
   metadata, not an atomic source point, root closure, complete custody, or erase evidence. Receipt:
   [`v2 root-boundary census`](evidence/portability-dr-root-boundary-census-v2-2026-10-15T2239Z.json).
+- The absent verifier checkout's recorded detached commit and tree remain present in Git; the commit
+  is reachable from the live published `origin/research/active`, so tracked source can be recreated
+  from Git. Its one historical ignored path-class record is unavailable; the later correction says
+  the `__pycache__` name alone does not prove harmlessness or reproducibility. Keep the ninth census
+  role absent and unresolved; no directory recreation, worktree pruning, or accepted-loss scope
+  decision was made. See the
+  [`verifier worktree classification receipt`](evidence/portability-dr-verifier-worktree-classification-2026-10-15T2305Z.json).
 - The B09 source root was then rechecked against its pinned device/inode and the v2 census. Its
   metadata-only subtree scan found 20,177 entries with no protected path component, symlink,
   multiply linked regular file, or v3 automatic/policy exclusion. After confirming the exact B09
