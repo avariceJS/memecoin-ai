@@ -2,6 +2,7 @@
 
 import json
 
+import numpy as np
 import torch
 
 from .learning import inverse_predictions
@@ -51,6 +52,11 @@ class Predictor:
         self.model.load_state_dict(
             torch.load(artifact / "weights.pt", map_location="cpu", weights_only=True), strict=True
         )
+        if any(
+            not torch.isfinite(value).all()
+            for value in (*self.model.parameters(), *self.model.buffers())
+        ):
+            raise ValueError("experience_prediction_nonfinite_state")
         self.model.eval()
 
     def predict(self, frames):
@@ -63,4 +69,10 @@ class Predictor:
             features=len(feature_names(schema)),
         )
         with torch.no_grad():
-            return inverse_predictions(self.model(tensor).cpu().numpy(), self.stats)
+            raw_prediction = self.model(tensor)
+            if not torch.isfinite(raw_prediction).all():
+                raise ValueError("experience_prediction_nonfinite_raw_output")
+            prediction = inverse_predictions(raw_prediction.cpu().numpy(), self.stats)
+        if not np.isfinite(prediction).all():
+            raise ValueError("experience_prediction_nonfinite_output")
+        return prediction

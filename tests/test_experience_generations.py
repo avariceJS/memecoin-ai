@@ -12,7 +12,14 @@ from test_experience_schema import custom_samples  # noqa: E402
 from memecoin_experience import evaluation, generations, learning  # noqa: E402
 from memecoin_experience.learning import batches, train  # noqa: E402
 from memecoin_experience.predict import Predictor  # noqa: E402
-from memecoin_experience.storage import Snapshot, build, file_hash  # noqa: E402
+from memecoin_experience.storage import (  # noqa: E402
+    Snapshot,
+    atomic_json,
+    build,
+    digest,
+    file_hash,
+    seal_files,
+)
 from memecoin_experience.transfer import replicate  # noqa: E402
 
 
@@ -38,6 +45,32 @@ def dataset(tmp_path, *, evaluation_only=False, start=0):
     return store, report["snapshot"]
 
 
+def sealed_tiny_artifact(path, *, target_transform="identity"):
+    from memecoin_experience.models import construct, model_spec
+
+    schema, _ = custom_samples()
+    spec = model_spec(schema, width=4)
+    stats = dict(
+        mean=[0.0] * len(schema["features"]),
+        scale=[1.0] * len(schema["features"]),
+        baseline=[None] * len(schema["targets"]),
+        target_transforms=[target_transform] * len(schema["targets"]),
+    )
+    report = dict(
+        status="completed",
+        production_eligible=False,
+        binding=dict(model=spec, statistics=digest(stats)),
+        statistics=stats,
+    )
+    path.mkdir(parents=True)
+    torch.save(construct(spec).state_dict(), path / "weights.pt")
+    atomic_json(path / "model.json", spec)
+    atomic_json(path / "statistics.json", stats)
+    atomic_json(path / "report.json", report)
+    pin = seal_files(path)
+    return path, pin, schema
+
+
 @pytest.mark.parametrize("kind", ["gru-quantiles-v1", "temporal-mlp-quantiles-v1"])
 def test_portable_prediction_and_strict_model_input(tmp_path, kind):
     store, pin = dataset(tmp_path)
@@ -55,6 +88,67 @@ def test_portable_prediction_and_strict_model_input(tmp_path, kind):
         first.predict(x[:, :, :1])
     with pytest.raises(ValueError, match="model_input"):
         first.predict(x[:, :1, :])
+
+
+def test_predictor_rejects_nonfinite_state_and_output(tmp_path, monkeypatch):
+    from memecoin_experience import predict as prediction_module
+
+    artifact, pin, schema = sealed_tiny_artifact(tmp_path / "valid-artifact")
+    predictor = Predictor(artifact, pin)
+    missing = np.full((1, schema["context"], len(schema["features"])), np.nan)
+    prediction = predictor.predict(missing)
+    assert np.isfinite(prediction).all()
+    assert np.all(prediction[:, :, 0] <= prediction[:, :, 1])
+    assert np.all(prediction[:, :, 1] <= prediction[:, :, 2])
+
+    state = torch.load(artifact / "weights.pt", weights_only=True)
+    for tensor in state.values():
+        if torch.is_floating_point(tensor):
+            tensor.view(-1)[0] = torch.nan
+            break
+    else:
+        raise AssertionError("tiny model state has no floating-point tensor")
+    torch.save(state, artifact / "weights.pt")
+    inventory = {
+        path.name: file_hash(path)
+        for path in sorted(artifact.iterdir())
+        if path.name != "manifest.json"
+    }
+    atomic_json(artifact / "manifest.json", inventory, replace=True)
+    resealed_pin = file_hash(artifact / "manifest.json")
+    with pytest.raises(ValueError, match="experience_prediction_nonfinite_state"):
+        Predictor(artifact, resealed_pin)
+
+    output_artifact, output_pin, output_schema = sealed_tiny_artifact(
+        tmp_path / "output-artifact", target_transform="log1p_nonnegative"
+    )
+    output_predictor = Predictor(output_artifact, output_pin)
+    monkeypatch.setattr(
+        output_predictor.model,
+        "forward",
+        lambda tensor: torch.full(
+            (len(tensor), len(output_schema["targets"]), 3),
+            torch.inf,
+            device=tensor.device,
+        ),
+    )
+    finite_input = np.zeros((1, output_schema["context"], len(output_schema["features"])))
+    with pytest.raises(ValueError, match="experience_prediction_nonfinite_raw_output"):
+        output_predictor.predict(finite_input)
+    monkeypatch.setattr(
+        output_predictor.model,
+        "forward",
+        lambda tensor: torch.zeros(
+            (len(tensor), len(output_schema["targets"]), 3), device=tensor.device
+        ),
+    )
+    monkeypatch.setattr(
+        prediction_module,
+        "inverse_predictions",
+        lambda raw, stats: np.full_like(raw, np.inf),
+    )
+    with pytest.raises(ValueError, match="experience_prediction_nonfinite_output"):
+        output_predictor.predict(finite_input)
 
 
 def test_generation_resume_parent_and_lineage(tmp_path):

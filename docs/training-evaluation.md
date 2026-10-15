@@ -324,10 +324,11 @@ trainer/reader capability, retaining the immutable data/job/evaluation boundarie
 
 `artifact/model.json` pins the complete model/representation/encoding specification and model
 implementation SHA. `Predictor(artifact, manifest_pin)` verifies the artifact and statistics,
-strictly loads weights and validates input dimensions. It needs neither the training store nor
-operator runtime. The tensor encoder is shared with training. A model implementation change is
-not silently treated as compatible serving code. Older snapshots remain readable; old checkpoint
-resume still requires its original code/environment binding, not an automatic migration.
+strictly loads weights, rejects nonfinite model state and returned predictions, and validates input
+dimensions. Missing input values remain encoded through the shared training/inference tensor encoder.
+It needs neither the training store nor operator runtime. A model implementation change is not
+silently treated as compatible serving code. Older snapshots remain readable; old checkpoint resume
+still requires its original code/environment binding, not an automatic migration.
 
 ### Generation ownership and recovery
 
