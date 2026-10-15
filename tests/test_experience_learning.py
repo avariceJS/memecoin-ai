@@ -161,6 +161,83 @@ def test_exact_cpu_resume_immutable_result_and_binding(tmp_path):
         train(store, pin, first, plan=PLAN, config=CONFIG)
 
 
+def test_checkpoint_optimizer_state_must_match_recipe_and_parameters(tmp_path, monkeypatch):
+    store, pin, _ = dataset(tmp_path)
+
+    def change_lr(state):
+        state["optimizer"]["param_groups"][0]["lr"] *= 2
+
+    def change_weight_decay(state):
+        state["optimizer"]["param_groups"][0]["weight_decay"] *= 2
+
+    def change_betas(state):
+        state["optimizer"]["param_groups"][0]["betas"] = (0.8, 0.99)
+
+    def swap_parameter_mapping(state):
+        state["optimizer"]["param_groups"][0]["params"].reverse()
+
+    def remove_parameter_mapping(state):
+        state["optimizer"]["param_groups"][0]["params"].pop()
+
+    def remove_parameter_state(state):
+        state["optimizer"]["state"].pop(next(iter(state["optimizer"]["state"])))
+
+    def nonfinite_moment(state):
+        moment = next(iter(state["optimizer"]["state"].values()))["exp_avg"]
+        moment.reshape(-1)[0] = float("nan")
+
+    def stale_parameter_step(state):
+        step = next(iter(state["optimizer"]["state"].values()))["step"]
+        step.sub_(1)
+
+    def wrong_moment_dtype(state):
+        parameter_state = next(iter(state["optimizer"]["state"].values()))
+        parameter_state["exp_avg"] = parameter_state["exp_avg"].to(torch.float64)
+
+    def wrong_moment_shape(state):
+        parameter_state = next(iter(state["optimizer"]["state"].values()))
+        parameter_state["exp_avg_sq"] = parameter_state["exp_avg_sq"].reshape(-1)[:-1]
+
+    corruptions = (
+        change_lr,
+        change_weight_decay,
+        change_betas,
+        swap_parameter_mapping,
+        remove_parameter_mapping,
+        remove_parameter_state,
+        stale_parameter_step,
+        nonfinite_moment,
+        wrong_moment_dtype,
+        wrong_moment_shape,
+    )
+    for index, corrupt in enumerate(corruptions):
+        output = tmp_path / f"corrupt-optimizer-{index}"
+        train(store, pin, output, plan=PLAN, config=CONFIG, stop_after=2)
+        checkpoint = output / "checkpoint.pt"
+        saved = torch.load(checkpoint, map_location="cpu", weights_only=True)
+        corrupt(saved)
+        torch.save(saved, checkpoint)
+        changed_checkpoint_pin = file_hash(checkpoint)
+
+        def optimizer_restore_must_not_run(*args, **kwargs):
+            raise AssertionError("optimizer state restored before validation")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(torch.optim.AdamW, "load_state_dict", optimizer_restore_must_not_run)
+            with pytest.raises(ValueError, match="experience_checkpoint_optimizer"):
+                train(store, pin, output, plan=PLAN, config=CONFIG)
+        assert file_hash(checkpoint) == changed_checkpoint_pin
+        assert not (output / "artifact").exists()
+
+
+def test_empty_optimizer_checkpoint_state_is_valid_before_first_step():
+    from memecoin_experience import learning
+
+    model = torch.nn.Linear(2, 1)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=recipe(CONFIG)["lr"])
+    learning._validate_checkpoint_optimizer(optimizer.state_dict(), optimizer, 0)
+
+
 def test_crash_replays_uncheckpointed_steps(tmp_path, monkeypatch):
     store, pin, _ = dataset(tmp_path)
     config = dict(CONFIG, checkpoint_every=2)

@@ -763,7 +763,94 @@ def save_checkpoint(path, state):
         Path(name).unlink(missing_ok=True)
 
 
-def _validate_checkpoint_progress(saved, snapshot, plan, stats, config, model):
+def _checkpoint_value_matches(actual, expected):
+    if type(actual) is not type(expected):
+        return False
+    if isinstance(expected, dict):
+        return actual.keys() == expected.keys() and all(
+            _checkpoint_value_matches(actual[key], value) for key, value in expected.items()
+        )
+    if isinstance(expected, (list, tuple)):
+        return len(actual) == len(expected) and all(
+            _checkpoint_value_matches(left, right)
+            for left, right in zip(actual, expected, strict=True)
+        )
+    return actual == expected
+
+
+def _validate_checkpoint_optimizer(saved, optimizer, steps):
+    """Require resumable AdamW state to match the bound optimizer recipe and parameters."""
+    expected = optimizer.state_dict()
+    error = "experience_checkpoint_optimizer"
+    if (
+        not isinstance(saved, dict)
+        or set(saved) != {"state", "param_groups"}
+        or not isinstance(saved["state"], dict)
+        or not isinstance(saved["param_groups"], list)
+        or len(saved["param_groups"]) != len(expected["param_groups"])
+    ):
+        raise ValueError(error)
+
+    parameter_by_id = {}
+    for saved_group, expected_group, live_group in zip(
+        saved["param_groups"], expected["param_groups"], optimizer.param_groups, strict=True
+    ):
+        if not isinstance(saved_group, dict) or saved_group.keys() != expected_group.keys():
+            raise ValueError(error)
+        saved_ids = saved_group.get("params")
+        expected_ids = expected_group["params"]
+        if (
+            not isinstance(saved_ids, list)
+            or any(type(item) is not int for item in saved_ids)
+            or saved_ids != expected_ids
+            or len(live_group["params"]) != len(saved_ids)
+        ):
+            raise ValueError(error)
+        saved_options = {key: value for key, value in saved_group.items() if key != "params"}
+        expected_options = {key: value for key, value in expected_group.items() if key != "params"}
+        if not _checkpoint_value_matches(saved_options, expected_options):
+            raise ValueError(error)
+        for identifier, parameter in zip(saved_ids, live_group["params"], strict=True):
+            parameter_by_id[identifier] = parameter
+
+    state = saved["state"]
+    if any(
+        type(identifier) is not int or identifier not in parameter_by_id for identifier in state
+    ):
+        raise ValueError(error)
+    if steps == 0:
+        if state:
+            raise ValueError(error)
+        return
+    if set(state) != set(parameter_by_id):
+        raise ValueError(error)
+
+    for identifier, parameter in parameter_by_id.items():
+        parameter_state = state[identifier]
+        if not isinstance(parameter_state, dict) or set(parameter_state) != {
+            "step",
+            "exp_avg",
+            "exp_avg_sq",
+        }:
+            raise ValueError(error)
+        step = parameter_state["step"]
+        if not isinstance(step, torch.Tensor) or step.dtype != torch.float32 or step.ndim != 0:
+            raise ValueError(error)
+        step_value = step.item()
+        if not math.isfinite(step_value) or step_value != steps or step_value != int(step_value):
+            raise ValueError(error)
+        for name in ("exp_avg", "exp_avg_sq"):
+            moment = parameter_state[name]
+            if (
+                not isinstance(moment, torch.Tensor)
+                or moment.shape != parameter.shape
+                or moment.dtype != parameter.dtype
+                or not torch.isfinite(moment).all().item()
+            ):
+                raise ValueError(error)
+
+
+def _validate_checkpoint_progress(saved, snapshot, plan, stats, config, model, optimizer):
     """Reject internally inconsistent resume progress before restoring executable state."""
     required = {
         "binding",
@@ -800,7 +887,6 @@ def _validate_checkpoint_progress(saved, snapshot, plan, stats, config, model):
         or population <= 0
         or not isinstance(saved["history"], list)
         or len(saved["history"]) != epoch
-        or not isinstance(saved["optimizer"], dict)
         or not isinstance(saved["rng"], torch.Tensor)
         or saved["rng"].dtype != torch.uint8
         or saved["rng"].ndim != 1
@@ -834,6 +920,8 @@ def _validate_checkpoint_progress(saved, snapshot, plan, stats, config, model):
             or not isinstance(saved["best"], dict)
         ):
             raise ValueError("experience_checkpoint_progress")
+
+    _validate_checkpoint_optimizer(saved["optimizer"], optimizer, steps)
 
     expected_state = model.state_dict()
     for name in ("model", "best"):
@@ -1046,7 +1134,7 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
                 or saved.get("statistics") != state["statistics"]
             ):
                 raise ValueError("experience_checkpoint_binding")
-            _validate_checkpoint_progress(saved, snapshot, plan, stats, config, model)
+            _validate_checkpoint_progress(saved, snapshot, plan, stats, config, model, optimizer)
             if stop_after is not None and saved["steps"] >= stop_after:
                 raise ValueError("experience_stop_after_already_reached")
             state = saved

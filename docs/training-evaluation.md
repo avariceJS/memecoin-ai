@@ -188,11 +188,15 @@ Checkpoint state binds snapshot, code, recipe, environment, statistics, optimize
 best validation weights and the next partition/batch cursor. Atomic checkpoints default to every
 100 updates and each epoch; a crash replays only updates since the last complete checkpoint.
 Resume validates progress types/ranges, epoch/history/best-score consistency, and replays the seeded
-training batch stream to reconcile the saved cursor, step count and rows seen before restoring model
-or optimizer state. This detects inconsistent progress metadata; it does not authenticate checkpoint
-bytes or prove that claimed optimizer updates were executed.
+training batch stream to reconcile the saved cursor, step count and rows seen. Before restoring
+state, it also requires AdamW parameter groups/options and parameter order to match a fresh optimizer
+from the bound recipe, and validates per-parameter step counters and finite moment tensors against
+model shapes/dtypes. Empty optimizer state remains valid before the first step. These checks detect
+inconsistent progress and optimizer state; they do not authenticate checkpoint bytes or prove that
+claimed optimizer updates were executed.
 CPU synthetic tests establish bitwise resumed-weight equality, including a failure after an
-optimizer mutation. They do not establish cross-device bitwise reproducibility. Resume requires
+optimizer mutation, and reject synthetic optimizer-state mutations before optimizer restore
+or artifact publication. They do not establish cross-device bitwise reproducibility. Resume requires
 the same binding; a different dataset/configuration needs a new job directory. Cross-generation
 warm starts and replay policies remain future work.
 
