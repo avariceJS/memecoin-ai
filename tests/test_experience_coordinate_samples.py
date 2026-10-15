@@ -1056,6 +1056,7 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
     class SyntheticPredictor:
         def __init__(self, artifact, pin):
             self.spec = dict(schema=schema, quantiles=[0.1, 0.5, 0.9])
+            self.stats = {"baseline": [[1.0, 2.0, 3.0] if pin == "a" * 64 else None]}
             self.report = dict(
                 binding=dict(plan=train_plan),
                 seen_coordinate_frontier=frontier,
@@ -1073,7 +1074,13 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
 
     eval_plan = make_plan(2000)
     eval_store = tmp_path / "eval-store"
-    eval_rows = [_row(c, decision=1600 + c, availability=1700 + c) for c in range(31, 39)]
+    purged = _row(30, decision=1630, availability=1730, value=10)
+    purged["input_dependencies"][0]["start_coordinate"] = 29
+    eval_rows = [purged]
+    eval_rows.extend(
+        _row(c, decision=1600 + c, availability=1700 + c, value=c - 30) for c in range(31, 39)
+    )
+    eval_rows.append(_row(39, status="pending", decision=1639, availability=1739))
     eval_snapshot = build(
         eval_store,
         eval_rows,
@@ -1115,6 +1122,78 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
     )
     assert scored["status"] == "completed"
     assert scored["population"]["test_scored_origins"] == 8
+    assert scored["population"]["test_purged_origins"] == 1
+    assert scored["population"]["test_pending_target_cells"] == 1
+    metric = scored["metrics"][0]
+    assert metric["n"] == 8 and metric["pinball"] > 0 and metric["coverage"] == 0
+    import numpy as np
+
+    quantiles = np.asarray([0.1, 0.5, 0.9])
+    truths = np.arange(1.0, 9.0)
+    baseline_values = np.asarray([1.0, 2.0, 3.0])
+    errors = truths[:, None] - baseline_values
+    expected_pinball = np.maximum(quantiles * errors, (quantiles - 1) * errors).mean(axis=1).mean()
+    assert metric["train_baseline"] == dict(
+        n=8,
+        pinball=pytest.approx(expected_pinball),
+        coverage=pytest.approx(3 / 8),
+        unavailable_reason=None,
+    )
+
+    from memecoin_experience.storage import atomic_json, digest
+
+    v1_protocol = dict(registration)
+    v1_protocol.pop("protocol")
+    v1_protocol["metrics"] = evaluation.COORDINATE_METRICS_V1
+    v1_pin = digest(v1_protocol)
+    v1_root = tmp_path / "v1-protocols"
+    v1_root.mkdir()
+    atomic_json(v1_root / f"{v1_pin}.json", v1_protocol)
+    v1_scored = evaluation.score(
+        v1_root,
+        v1_pin,
+        eval_store,
+        eval_snapshot,
+        artifact,
+        tmp_path / "v1-score",
+        batch=4,
+    )
+    assert v1_scored["metrics"][0] == {
+        key: metric[key] for key in ("target", "n", "pinball", "coverage")
+    }
+    assert v1_scored == evaluation.score(
+        v1_root,
+        v1_pin,
+        eval_store,
+        eval_snapshot,
+        artifact,
+        tmp_path / "v1-score",
+        batch=4,
+    )
+
+    no_baseline = evaluation.register_coordinate(
+        protocol_root,
+        artifact,
+        "b" * 64,
+        split_plan=eval_plan,
+        pools=["solana/program/pumpswap"],
+        scope="preregistered_forward_replay",
+    )
+    no_baseline_scored = evaluation.score(
+        protocol_root,
+        no_baseline["protocol"],
+        eval_store,
+        eval_snapshot,
+        artifact,
+        tmp_path / "no-baseline-score",
+        batch=4,
+    )
+    assert no_baseline_scored["metrics"][0]["train_baseline"] == dict(
+        n=0,
+        pinball=None,
+        coverage=None,
+        unavailable_reason="no_exact_train_baseline",
+    )
     environment = scored["binding"]["environment"]
     assert set(environment) == {"python", "numpy", "torch", "device"}
     assert environment["device"] == "cpu"
@@ -1148,8 +1227,6 @@ def test_v3_preregistered_replay_requires_future_cutoff_and_decisions(tmp_path, 
             )
     assert (score_output / "report.json").read_bytes() == report_before
     assert (score_output / "manifest.json").read_bytes() == manifest_before
-
-    from memecoin_experience.storage import atomic_json, digest
 
     protocol = dict(registration)
     protocol.pop("protocol")

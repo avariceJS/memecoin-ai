@@ -26,6 +26,9 @@ from .storage import (
     verify_files,
 )
 
+COORDINATE_METRICS_V1 = "native_coordinate_macro_pinball_coverage_v1"
+COORDINATE_METRICS_V2 = "native_coordinate_macro_pinball_coverage_train_baseline_v2"
+
 
 def register_coordinate(
     root,
@@ -83,7 +86,7 @@ def register_coordinate(
         pools=pools,
         scope=scope,
         registered_ns=now_ns,
-        metrics="native_coordinate_macro_pinball_coverage_v1",
+        metrics=COORDINATE_METRICS_V2,
         quantiles=model.spec["quantiles"],
         data_role="research_evaluation",
         production_eligible=False,
@@ -112,7 +115,7 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
         or protocol.get("production_eligible") is not False
         or protocol.get("scope") not in {"retrospective", "preregistered_forward_replay"}
         or protocol.get("data_role") != "research_evaluation"
-        or protocol.get("metrics") != "native_coordinate_macro_pinball_coverage_v1"
+        or protocol.get("metrics") not in {COORDINATE_METRICS_V1, COORDINATE_METRICS_V2}
         or type(protocol.get("registered_ns")) is not int
         or protocol["registered_ns"] < 0
         or not isinstance(protocol.get("pools"), list)
@@ -237,7 +240,30 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
                     population["test_lower_bound_target_cells"] += int(status == "lower_bound")
         stage = Path(tempfile.mkdtemp(prefix=".coordinate-evaluation-", dir=output.parent))
         try:
+            baseline_enabled = protocol["metrics"] == COORDINATE_METRICS_V2
+            baseline_quantiles = None
+            if baseline_enabled:
+                raw_baseline = model.stats.get("baseline")
+                if not isinstance(raw_baseline, list) or len(raw_baseline) != len(target_names_v3):
+                    raise ValueError("experience_coordinate_evaluation_baseline")
+                baseline_quantiles = []
+                for values in raw_baseline:
+                    if values is None:
+                        baseline_quantiles.append(None)
+                        continue
+                    try:
+                        quantile_values = np.asarray(values, dtype=np.float64)
+                    except (TypeError, ValueError) as exc:
+                        raise ValueError("experience_coordinate_evaluation_baseline") from exc
+                    if (
+                        quantile_values.shape != (len(protocol["quantiles"]),)
+                        or not np.isfinite(quantile_values).all()
+                        or np.any(np.diff(quantile_values) < 0)
+                    ):
+                        raise ValueError("experience_coordinate_evaluation_baseline")
+                    baseline_quantiles.append(quantile_values)
             totals = np.zeros((len(target_names_v3), 3), dtype=np.float64)
+            baseline_totals = np.zeros_like(totals) if baseline_enabled else None
             scored_digest = hashlib.sha256()
             with (stage / "predictions.jsonl").open("wb") as stream:
                 for x, y, mask, metadata, _ in batches(
@@ -284,6 +310,20 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
                                 np.maximum(quantiles * error, (quantiles - 1) * error).mean(),
                                 int(pred[h, 0] <= truth[h] <= pred[h, -1]),
                             ]
+                            if baseline_enabled and baseline_quantiles[h] is not None:
+                                baseline_error = truth[h] - baseline_quantiles[h]
+                                baseline_totals[h] += [
+                                    1,
+                                    np.maximum(
+                                        quantiles * baseline_error,
+                                        (quantiles - 1) * baseline_error,
+                                    ).mean(),
+                                    int(
+                                        baseline_quantiles[h][0]
+                                        <= truth[h]
+                                        <= baseline_quantiles[h][-1]
+                                    ),
+                                ]
                 stream.flush()
                 os.fsync(stream.fileno())
             if (
@@ -297,6 +337,46 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
                 raise ValueError("experience_coordinate_evaluation_census")
             if not np.any(totals[:, 0]):
                 raise ValueError("experience_coordinate_empty_evaluation")
+            metric_rows = []
+            for index, (name, values) in enumerate(zip(target_names_v3, totals, strict=True)):
+                metric = dict(
+                    target=name,
+                    n=int(values[0]),
+                    pinball=float(values[1] / values[0]) if values[0] else None,
+                    coverage=float(values[2] / values[0]) if values[0] else None,
+                )
+                if baseline_enabled:
+                    baseline = baseline_quantiles[index]
+                    baseline_n = int(baseline_totals[index, 0])
+                    if baseline is None:
+                        if baseline_n != 0:
+                            raise ValueError("experience_coordinate_evaluation_baseline_census")
+                        metric["train_baseline"] = dict(
+                            n=0,
+                            pinball=None,
+                            coverage=None,
+                            unavailable_reason="no_exact_train_baseline",
+                        )
+                    else:
+                        if baseline_n != int(values[0]):
+                            raise ValueError("experience_coordinate_evaluation_baseline_census")
+                        metric["train_baseline"] = dict(
+                            n=baseline_n,
+                            pinball=(
+                                float(baseline_totals[index, 1] / baseline_n)
+                                if baseline_n
+                                else None
+                            ),
+                            coverage=(
+                                float(baseline_totals[index, 2] / baseline_n)
+                                if baseline_n
+                                else None
+                            ),
+                            unavailable_reason=(
+                                None if baseline_n else "no_exact_evaluation_cells"
+                            ),
+                        )
+                metric_rows.append(metric)
             report = dict(
                 status="completed",
                 binding=binding,
@@ -305,15 +385,7 @@ def _score_coordinate(protocol_root, protocol_pin, store, snapshot_pin, artifact
                 test_intervals=plan["roles"]["test"]["intervals"],
                 population=dict(population),
                 denominators=dict(denominators),
-                metrics=[
-                    dict(
-                        target=name,
-                        n=int(values[0]),
-                        pinball=float(values[1] / values[0]) if values[0] else None,
-                        coverage=float(values[2] / values[0]) if values[0] else None,
-                    )
-                    for name, values in zip(target_names_v3, totals, strict=True)
-                ],
+                metrics=metric_rows,
                 availability="coordinate_replay; no slot_to_utc_conversion",
                 uncertainty="not_estimated; adjacent native-coordinate origins may depend",
                 execution="not_evaluated",

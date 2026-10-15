@@ -369,7 +369,14 @@ unestimated. The empirical baseline comes from training, and no execution/tradin
 Legacy protocol readback also requires the registered metric identifier, `production_eligible=false`
 and a plain nonnegative integer receipt time before opening the evaluation snapshot. These checks
 bind protocol fields, not an external timestamp or proof that the protocol was originally emitted by
-`register`.
+`register`. Newly registered native-coordinate protocols use
+`native_coordinate_macro_pinball_coverage_train_baseline_v2`: the pinned artifact's train-frozen
+empirical quantiles are scored on the same exact-eligible target cells as the model, with matching
+per-target `n` when that comparator exists. If training had no exact labels for a target, baseline
+`n` is zero, pinball and coverage stay null, and the report says `no_exact_train_baseline`;
+evaluation labels never fill or replace that baseline. Existing
+v1 metric protocols remain scoreable and retain their original report shape. The metric identifier
+must be considered when comparing old and new immutable score receipts.
 V3 score bindings include Python, NumPy and PyTorch versions plus the explicit CPU device before
 existing-output reuse. Pre-change v3 score directories lack this field and remain immutable legacy
 outputs; rescore to a new destination. The binding records the numerical environment, not bitwise
