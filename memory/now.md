@@ -4,7 +4,7 @@ As of 2026-10-15 01:15 UTC. Portability / Disaster Recovery remains **NO-GO** fo
 
 ## Git
 
-- Active branch: `research/active`; neural engineering work through `0deb6e290ac2a79fd7de6982d879b1228055d66e` was pushed to `origin/research/active`.
+- Active branch: `research/active`; neural engineering work is pushed through `5a4908f` (censored-count admission gate; prior sampler/learnability work through `0deb6e2`).
 - `main` and `origin/main` remain at `770699d3ef8558518ae750b6d5d6cab41c2e82c8`; do not advance main without a verified capability milestone and acceptance.
 - DR/bootstrap work remains pushed through `b6b7234b22d83c7915c0b09537deba3abc851b78`. Exact-commit bootstrap isolated venv/install/check/smoke from host pip config/cache and Python user-site state. Same-Mac local-bare rehearsal at `8544c4d82ebc7dbf277cab5e68715e279f2b267b` passed clean checkout, exact HEAD, unchanged lock SHA, `pip check`, smoke, and poisoned-host-Python checks; unknown commit and existing destination failed closed. Receipt: `docs/evidence/portability-dr-isolated-bootstrap-rehearsal-2026-10-14T1836Z.json`. This is code-bootstrap evidence only, not Brain-state restore, clean-Mac proof, or erase readiness.
 - DR next decision horizon remains user-led macOS Recovery first-action Locked/no-mount check and mount-history rehearsal; stop if Data is unlocked or already mounted. Then obtain Sol-reviewed real Data-view/T design and continue from a demonstrable durable boundary. No erase until separately qualified restore readiness.
@@ -15,7 +15,8 @@ As of 2026-10-15 01:15 UTC. Portability / Disaster Recovery remains **NO-GO** fo
 - A preregistered controlled synthetic learnability fit enrolled 64 rows but purged one due to temporal dependency overlap, leaving 63. The exact-denominator gate failed. The frozen fixture was not rerun; its result is a denominator failure, not a learnability qualification or market claim. See `docs/training-evaluation.md` and its dated evidence receipts.
 - A preregistered sampler role-isolation audit confirmed legacy `content_pin_v1` sample order/weights can change when only held-out payload changes in a mixed-role partition. Added opt-in `role_isolated_partition_v1`, preserving legacy default and versioned resume identity. Sol independently accepted this bounded implementation. Invariance applies only when role membership, row IDs/order and partition geometry stay fixed; validation checkpoint selection remains separate and can still depend on validation outcomes.
 - Focused suites passed: 39 passed, 1 optional CUDA skip; latest role-isolation tests: 3 passed. No score-based model quality claim was made. Do not refit or tune against the exposed learnability fixture.
-- Next neural horizon: select a separate, non-market correctness/engineering target; do not presume another training run is useful.
+- Fixed v2 input-admission bypass for censored count lower bounds: rejected rows now receive no exact or lower-bound objective mask in train/validation/test; `prepare` records rejected censored rows separately. Sol accepted the implementation. New real admission-view synthetic regression plus adjacent learning/generation/pipeline/sensing suite: 50 passed, 1 optional CUDA skip; focused admission/sparse-censor suite: 13 passed; lint/format passed. No fit or market-quality claim.
+- Next neural horizon: pending independent Sol recommendation; continue on separate non-market correctness/engineering work, never rerun the exposed learnability fixture.
 
 ## Host and storage snapshot
 
