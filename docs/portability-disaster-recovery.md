@@ -27,6 +27,26 @@ Live checks on the current Mac:
   provider request or service change occurred. This sequential census is neither a common source
   point nor root-closure, custody, or erase evidence. Receipt:
   [`declared-root boundary census`](evidence/portability-dr-root-boundary-census-2026-10-14T1451Z.json).
+- The census CLI supports relocated hosts through an explicit mode-0600
+  `brain-host-root-roster-v2` JSON input. Required logical roles must be declared as present or
+  absent with an explicit disposition and reason; present roots carry absolute local paths, kinds,
+  optional metadata-only exclusions, and optional checkout-role keys for bounded Git admin/common
+  path derivation. It does not discover Desktop/tmp paths or Codex worktrees. Source volume UUID
+  and mount point are roster pins; Kingston UUID and root ID are independently roster-pinned and
+  checked against storage configuration. The v2 input uses `schema`, `version`,
+  `source_volume_uuid`, `source_mount_point`, `storage_volume_uuid`, `storage_root_id`,
+  `required_roles`, and `roles`; each role has `key` and `state`. Present roles use `path`,
+  `expected_kind`, optional `metadata_only_exclusions`, `opaque_expectations`, and
+  `git_checkout_key`, while absent roles require `disposition` and `reason`. The historical v1
+  profile remains available only through
+  `--legacy-profile`. The exact mode-0600 roster bytes and SHA-256 are held in the private manifest
+  and the completion marker binds the digest. Required-role validation checks only the roster's
+  internal consistency; it does not prove that an independently approved owner-host inventory is
+  complete. A complete scan requires at least one present root and means traversal completed for
+  declared present roots on the pinned source volume; it never proves root closure, a source cutoff,
+  restore readiness, or erase safety. Git metadata locators inside an explicit exclusion fail
+  closed instead of scanning around it. This interface change has only synthetic focused coverage
+  so far; no owner census was rerun and no live recovery qualification changed.
 - The exact-commit bootstrap helper was hardened and rehearsed at
   `8544c4d82ebc7dbf277cab5e68715e279f2b267b` from a disposable local bare Git fixture. It created a
   clean final checkout, verified matching HEAD and an unchanged dependency-lock SHA, ran `pip
@@ -575,8 +595,10 @@ the earlier 06:06Z rehearsal iteration, before the trust-order correction. See t
 For a recovery set that already has an independently pinned set ID and `INDEX.json` SHA-256, use
 `tools/brain_host_inert_restore_v1.py` with the verified host-only storage binding, an empty target
 parent on a device separate from Kingston, the exact research repository root, and the owner
-checkout plus any other source roots that must be excluded. The command checks all six roles before
-creating `brain-restore-<nonce>`, writes only inside that new quarantine, and prints one JSON result.
+checkout plus any other source roots that must be excluded, each supplied as a repeatable
+`--forbidden-root`. Include private config and LaunchAgents roots explicitly when they are source
+roots on the host. The command checks all six roles before creating `brain-restore-<nonce>`, writes
+only inside that new quarantine, and prints one JSON result.
 Save that output as the local restore record; the command does not publish a public receipt or
 persist the result elsewhere. Pass the saved full result directly to the read-only assessor:
 `.venv/bin/python tools/brain_host_restore_assessment.py --storage-config <private-binding> --handoff <restore-result.json> --format json`.

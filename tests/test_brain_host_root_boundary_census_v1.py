@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import base64
 import builtins
 import contextlib
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -13,15 +15,26 @@ from tools import brain_host_root_boundary_census_v1 as census
 
 
 def _fake_volume(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        census,
-        "_volume_identity",
-        lambda path, *, held_fd, is_directory: {
+    def synthetic_volume(
+        _path: Path,
+        *,
+        held_fd: int,
+        is_directory: bool,
+        expected_volume_uuid: str | None = None,
+        expected_mount_point: Path | None = None,
+    ) -> dict[str, str]:
+        del held_fd, is_directory, expected_volume_uuid, expected_mount_point
+        return {
             "volume_uuid": "11111111-1111-4111-8111-111111111111",
             "mount_point": "/synthetic",
             "filesystem_name": "Synthetic",
             "filesystem_type": "synthetic",
-        },
+        }
+
+    monkeypatch.setattr(
+        census,
+        "_volume_identity",
+        synthetic_volume,
     )
 
 
@@ -141,18 +154,24 @@ def test_inode_cleanup_leaves_name_owned_by_another_writer(tmp_path: Path) -> No
 
     parent_fd = os.open(tmp_path, census.NOFOLLOW_DIRECTORY)
     try:
-        assert census._unlink_if_owned_inode(
-            parent_fd,
-            "run.pending",
-            device=own.st_dev,
-            inode=own.st_ino,
-        ) is True
-        assert census._unlink_if_owned_inode(
-            parent_fd,
-            "run.jsonl",
-            device=own.st_dev,
-            inode=own.st_ino,
-        ) is False
+        assert (
+            census._unlink_if_owned_inode(
+                parent_fd,
+                "run.pending",
+                device=own.st_dev,
+                inode=own.st_ino,
+            )
+            is True
+        )
+        assert (
+            census._unlink_if_owned_inode(
+                parent_fd,
+                "run.jsonl",
+                device=own.st_dev,
+                inode=own.st_ino,
+            )
+            is False
+        )
     finally:
         os.close(parent_fd)
     assert final.read_bytes() == b"another run"
@@ -296,14 +315,27 @@ def test_directory_path_replacement_is_not_reported_stable(
     original = census._volume_identity
     calls = 0
 
-    def replace_on_end(path: Path, *, held_fd: int, is_directory: bool):
+    def replace_on_end(
+        path: Path,
+        *,
+        held_fd: int,
+        is_directory: bool,
+        expected_volume_uuid: str = census.EXPECTED_DATA_VOLUME_UUID,
+        expected_mount_point: Path = Path(census.EXPECTED_DATA_MOUNT_POINT),
+    ):
         nonlocal calls
         calls += 1
         if calls == 2:
             moved = tmp_path / "held-tree"
             path.rename(moved)
             path.mkdir()
-        return original(path, held_fd=held_fd, is_directory=is_directory)
+        return original(
+            path,
+            held_fd=held_fd,
+            is_directory=is_directory,
+            expected_volume_uuid=expected_volume_uuid,
+            expected_mount_point=expected_mount_point,
+        )
 
     monkeypatch.setattr(census, "_volume_identity", replace_on_end)
     result = census.census_root(census.RootSpec("tree", root))
@@ -322,10 +354,23 @@ def test_file_replacement_during_final_volume_probe_is_not_stable(
     original = census._volume_identity
     calls = 0
 
-    def replace_on_end(path: Path, *, held_fd: int, is_directory: bool):
+    def replace_on_end(
+        path: Path,
+        *,
+        held_fd: int,
+        is_directory: bool,
+        expected_volume_uuid: str = census.EXPECTED_DATA_VOLUME_UUID,
+        expected_mount_point: Path = Path(census.EXPECTED_DATA_MOUNT_POINT),
+    ):
         nonlocal calls
         calls += 1
-        result = original(path, held_fd=held_fd, is_directory=is_directory)
+        result = original(
+            path,
+            held_fd=held_fd,
+            is_directory=is_directory,
+            expected_volume_uuid=expected_volume_uuid,
+            expected_mount_point=expected_mount_point,
+        )
         if calls == 2:
             replacement = parent / "replacement"
             replacement.write_text("second")
@@ -375,9 +420,296 @@ def test_git_metadata_uses_only_pointer_and_commondir_control_files(
 
 def test_opaque_count_mismatch_is_not_complete() -> None:
     assert census._opaque_counts_match("research_checkout", {}) is False
-    assert census._opaque_counts_match("research_checkout", {
-        "skipped_opaque_wallets_unresolved_backup_required": 3
-    }) is True
+    assert (
+        census._opaque_counts_match(
+            "research_checkout", {"skipped_opaque_wallets_unresolved_backup_required": 3}
+        )
+        is True
+    )
+
+
+def test_explicit_roster_supports_relocated_paths_and_absent_roles(tmp_path: Path) -> None:
+    home = tmp_path / "moved-home"
+    repository = tmp_path / "checkouts" / "research"
+    repository.mkdir(parents=True)
+    (repository / ".git").mkdir()
+    home.mkdir()
+    roster_path = tmp_path / "roster.json"
+    roster_path.write_text(
+        json.dumps(
+            {
+                "schema": "brain-host-root-roster-v2",
+                "version": 2,
+                "source_volume_uuid": "11111111-1111-4111-8111-111111111111",
+                "source_mount_point": str(tmp_path),
+                "storage_volume_uuid": "22222222-2222-4222-8222-222222222222",
+                "storage_root_id": "fixture-root-id",
+                "required_roles": ["home", "research", "owner_checkout", "codex_a", "codex_b"],
+                "roles": [
+                    {"key": "home", "state": "present", "path": str(home)},
+                    {
+                        "key": "research",
+                        "state": "present",
+                        "path": str(repository),
+                        "git_checkout_key": "research_checkout",
+                    },
+                    {
+                        "key": "owner_checkout",
+                        "state": "absent",
+                        "disposition": "not_present_on_source",
+                        "reason": "old owner checkout excluded from this host restore roster",
+                    },
+                    {
+                        "key": "codex_a",
+                        "state": "absent",
+                        "disposition": "rebuild",
+                        "reason": "ephemeral worktree is reproducible",
+                    },
+                    {
+                        "key": "codex_b",
+                        "state": "absent",
+                        "disposition": "proven_disposable",
+                        "reason": "fixture roster role",
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    roster_path.chmod(0o600)
+
+    parsed = census.load_roster(roster_path)
+
+    assert parsed.version == 2
+    assert parsed.roots[0].path == home
+    assert parsed.roots[1].path == repository
+    assert parsed.storage_volume_uuid == "22222222-2222-4222-8222-222222222222"
+    assert [item["role_key"] for item in parsed.role_dispositions if item["state"] == "absent"] == [
+        "owner_checkout",
+        "codex_a",
+        "codex_b",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("edit", "reason"),
+    [
+        (lambda value: value["required_roles"].append("omitted"), "roster_required_role_omitted"),
+        (
+            lambda value: value["roles"].append(dict(value["roles"][0])),
+            "roster_role_duplicate_or_invalid",
+        ),
+        (
+            lambda value: value["roles"].append(
+                {"key": "alias", "state": "present", "path": value["roles"][0]["path"]}
+            ),
+            "roster_duplicate_path_conflict",
+        ),
+        (
+            lambda value: value["roles"][0].update(
+                metadata_only_exclusions=[{"path": "../escape", "reason": "opaque_wallets"}]
+            ),
+            "exclusion_invalid",
+        ),
+    ],
+)
+def test_explicit_roster_rejects_incomplete_or_conflicting_declarations(
+    tmp_path: Path, edit, reason: str
+) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    value = {
+        "schema": "brain-host-root-roster-v2",
+        "version": 2,
+        "source_volume_uuid": "11111111-1111-4111-8111-111111111111",
+        "source_mount_point": str(tmp_path),
+        "storage_volume_uuid": "22222222-2222-4222-8222-222222222222",
+        "storage_root_id": "fixture-root-id",
+        "required_roles": ["root"],
+        "roles": [{"key": "root", "state": "present", "path": str(root)}],
+    }
+    edit(value)
+    roster_path = tmp_path / "roster.json"
+    roster_path.write_text(json.dumps(value), encoding="utf-8")
+    roster_path.chmod(0o600)
+
+    with pytest.raises(census.CensusError, match=reason):
+        census.load_roster(roster_path)
+
+
+def test_absent_unresolved_role_never_counts_as_root_closure() -> None:
+    summary = census._aggregate([])
+    assert summary["root_closure_proven"] is False
+    assert summary["all_roots_on_pinned_data_volume"] is True
+    assert census._scan_complete([], all_on_pinned_volume=True) is False
+
+
+def test_explicit_roster_accepts_multiple_relocated_codex_worktrees(tmp_path: Path) -> None:
+    first = tmp_path / "relocated" / "codex-a"
+    second = tmp_path / "relocated" / "nested" / "codex-b"
+    first.mkdir(parents=True)
+    second.mkdir(parents=True)
+    roster_path = tmp_path / "roster.json"
+    roster_path.write_text(
+        json.dumps(
+            {
+                "schema": "brain-host-root-roster-v2",
+                "version": 2,
+                "source_volume_uuid": "11111111-1111-4111-8111-111111111111",
+                "source_mount_point": str(tmp_path),
+                "storage_volume_uuid": "22222222-2222-4222-8222-222222222222",
+                "storage_root_id": "fixture-root-id",
+                "required_roles": ["codex_a", "codex_b"],
+                "roles": [
+                    {"key": "codex_a", "state": "present", "path": str(first)},
+                    {"key": "codex_b", "state": "present", "path": str(second)},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    roster_path.chmod(0o600)
+
+    parsed = census.load_roster(roster_path)
+
+    assert [root.path for root in parsed.roots] == [first, second]
+    assert parsed.required_roles == ("codex_a", "codex_b")
+
+
+def test_explicit_exclusion_does_not_claim_git_metadata_coverage(tmp_path: Path) -> None:
+    checkout = tmp_path / "relocated" / "checkout"
+    git_admin = checkout / "private-area" / "git-admin"
+    git_admin.mkdir(parents=True)
+    (checkout / ".git").write_text("gitdir: private-area/git-admin\n", encoding="utf-8")
+    roster_path = tmp_path / "roster.json"
+    roster_path.write_text(
+        json.dumps(
+            {
+                "schema": "brain-host-root-roster-v2",
+                "version": 2,
+                "source_volume_uuid": "11111111-1111-4111-8111-111111111111",
+                "source_mount_point": str(tmp_path),
+                "storage_volume_uuid": "22222222-2222-4222-8222-222222222222",
+                "storage_root_id": "fixture-root-id",
+                "required_roles": ["checkout"],
+                "roles": [
+                    {
+                        "key": "checkout",
+                        "state": "present",
+                        "path": str(checkout),
+                        "git_checkout_key": "relocated_checkout",
+                        "metadata_only_exclusions": [
+                            {"path": "private-area", "reason": "opaque_wallets"}
+                        ],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    roster_path.chmod(0o600)
+
+    with pytest.raises(census.CensusError, match="git_admin_locator_inside_excluded_subtree"):
+        census.load_roster(roster_path)
+
+
+def test_checkout_git_pointer_cannot_scan_another_roots_exclusion(tmp_path: Path) -> None:
+    checkout = tmp_path / "checkout"
+    owner_root = tmp_path / "owner"
+    checkout.mkdir()
+    git_admin = owner_root / "private-area" / "git-admin"
+    git_admin.mkdir(parents=True)
+    (checkout / ".git").write_text(f"gitdir: {git_admin}\n", encoding="utf-8")
+    roster_path = tmp_path / "roster.json"
+    roster_path.write_text(
+        json.dumps(
+            {
+                "schema": "brain-host-root-roster-v2",
+                "version": 2,
+                "source_volume_uuid": "11111111-1111-4111-8111-111111111111",
+                "source_mount_point": str(tmp_path),
+                "storage_volume_uuid": "22222222-2222-4222-8222-222222222222",
+                "storage_root_id": "fixture-root-id",
+                "required_roles": ["checkout", "owner"],
+                "roles": [
+                    {
+                        "key": "checkout",
+                        "state": "present",
+                        "path": str(checkout),
+                        "git_checkout_key": "checkout_a",
+                    },
+                    {
+                        "key": "owner",
+                        "state": "present",
+                        "path": str(owner_root),
+                        "metadata_only_exclusions": [
+                            {"path": "private-area", "reason": "opaque_wallets"}
+                        ],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    roster_path.chmod(0o600)
+
+    with pytest.raises(census.CensusError, match="git_admin_locator_inside_excluded_subtree"):
+        census.load_roster(roster_path)
+
+
+def test_larger_covered_root_cannot_override_later_exclusion(tmp_path: Path) -> None:
+    broad_root = tmp_path / "covered"
+    checkout = tmp_path / "checkout"
+    git_admin = broad_root / "shared" / "private-area" / "git-admin"
+    git_admin.mkdir(parents=True)
+    checkout.mkdir()
+    (checkout / ".git").write_text(f"gitdir: {git_admin}\n", encoding="utf-8")
+    excluded_root = broad_root / "shared"
+    roster_path = tmp_path / "roster.json"
+    roster_path.write_text(
+        json.dumps(
+            {
+                "schema": "brain-host-root-roster-v2",
+                "version": 2,
+                "source_volume_uuid": "11111111-1111-4111-8111-111111111111",
+                "source_mount_point": str(tmp_path),
+                "storage_volume_uuid": "22222222-2222-4222-8222-222222222222",
+                "storage_root_id": "fixture-root-id",
+                "required_roles": ["broad", "checkout", "opaque"],
+                "roles": [
+                    {"key": "broad", "state": "present", "path": str(broad_root)},
+                    {
+                        "key": "checkout",
+                        "state": "present",
+                        "path": str(checkout),
+                        "git_checkout_key": "checkout_b",
+                    },
+                    {
+                        "key": "opaque",
+                        "state": "present",
+                        "path": str(excluded_root),
+                        "metadata_only_exclusions": [
+                            {"path": "private-area", "reason": "opaque_wallets"}
+                        ],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    roster_path.chmod(0o600)
+
+    with pytest.raises(census.CensusError, match="git_admin_locator_inside_excluded_subtree"):
+        census.load_roster(roster_path)
+
+
+def test_explicit_roster_rejects_duplicate_json_keys(tmp_path: Path) -> None:
+    roster_path = tmp_path / "roster.json"
+    roster_path.write_text('{"schema":"a","schema":"b"}', encoding="utf-8")
+    roster_path.chmod(0o600)
+
+    with pytest.raises(census.CensusError, match="roster_duplicate_json_key"):
+        census.load_roster(roster_path)
 
 
 def test_git_admin_metadata_inside_excluded_subtree_is_not_covered(tmp_path: Path) -> None:
@@ -455,16 +787,24 @@ def test_streamed_census_publishes_private_jsonl_and_exact_completion_pair(
 
     monkeypatch.setattr(census, "writer_guard", fake_guard)
     monkeypatch.setattr(census, "_verify_marker_in_root_fd", lambda *_args: None)
-    monkeypatch.setattr(
-        census,
-        "_volume_identity",
-        lambda path, *, held_fd, is_directory: {
-            "volume_uuid": census.EXPECTED_DATA_VOLUME_UUID,
-            "mount_point": census.EXPECTED_DATA_MOUNT_POINT,
+
+    def pinned_synthetic_volume(
+        _path: Path,
+        *,
+        held_fd: int,
+        is_directory: bool,
+        expected_volume_uuid: str | None = None,
+        expected_mount_point: Path | None = None,
+    ) -> dict[str, str]:
+        del held_fd, is_directory
+        return {
+            "volume_uuid": expected_volume_uuid or census.EXPECTED_DATA_VOLUME_UUID,
+            "mount_point": str(expected_mount_point or census.EXPECTED_DATA_MOUNT_POINT),
             "filesystem_name": "Synthetic",
             "filesystem_type": "synthetic",
-        },
-    )
+        }
+
+    monkeypatch.setattr(census, "_volume_identity", pinned_synthetic_volume)
     monkeypatch.setattr(census._UnlockedStorageBinding, "revalidate", lambda self: None)
 
     roots: list[census.RootSpec] = []
@@ -487,20 +827,40 @@ def test_streamed_census_publishes_private_jsonl_and_exact_completion_pair(
             (("apps/control-center/.local", "opaque_codex_local"),),
         )
     )
-    for index in range(7):
-        root = tmp_path / f"root-{index}"
-        root.mkdir()
-        (root / "payload.txt").write_text("metadata only")
-        roots.append(census.RootSpec(f"other-{index}", root))
+    roster = census.CensusRoster(
+        version=2,
+        source_volume_uuid="11111111-1111-4111-8111-111111111111",
+        source_mount_point=tmp_path,
+        required_roles=("research_checkout", "owner_codex_worktree"),
+        role_dispositions=(
+            {"role_key": "research_checkout", "state": "present"},
+            {"role_key": "owner_codex_worktree", "state": "present"},
+        ),
+        roots=tuple(roots),
+        git_bindings=(),
+        opaque_expectations={
+            "research_checkout": {"skipped_opaque_wallets_unresolved_backup_required": 3},
+            "owner_codex_worktree": {"skipped_opaque_codex_local_unresolved_backup_required": 1},
+        },
+        storage_volume_uuid=census.EXPECTED_KINGSTON_VOLUME_UUID,
+        storage_root_id=census.EXPECTED_KINGSTON_ROOT_ID,
+        roster_sha256=hashlib.sha256(b"synthetic roster bytes").hexdigest(),
+        roster_bytes_b64=base64.b64encode(b"synthetic roster bytes").decode("ascii"),
+    )
 
     try:
         summary = census.run_census(
             roots,
             storage_config=tmp_path / "storage.json",
             now=census.dt.datetime(2026, 10, 14, tzinfo=census.dt.UTC),
+            roster=roster,
         )
         assert summary["publication_complete"] is True
         assert summary["scan_complete"] is True
+        assert summary["root_count"] == 2
+        assert summary["roster_version"] == 2
+        assert summary["root_closure_proven"] is False
+        assert summary["input_roster_sha256"] == roster.roster_sha256
         assert summary["safe_to_erase"] is False
         manifest = data_root / summary["private_manifest_locator"]
         lines = [json.loads(line) for line in manifest.read_text().splitlines()]

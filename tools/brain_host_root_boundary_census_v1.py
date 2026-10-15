@@ -13,6 +13,7 @@ is not a source view, common cutoff, or custody capture.
 from __future__ import annotations
 
 import argparse
+import base64
 import datetime as dt
 import hashlib
 import json
@@ -116,6 +117,33 @@ class RootSpec:
     expected_kind: str = "directory"
 
 
+@dataclass(frozen=True)
+class CensusRoster:
+    """Caller-declared roots and pins for a relocatable metadata census."""
+
+    version: int
+    source_volume_uuid: str
+    source_mount_point: Path
+    required_roles: tuple[str, ...]
+    role_dispositions: tuple[dict[str, str], ...]
+    roots: tuple[RootSpec, ...]
+    git_bindings: tuple[dict[str, Any], ...]
+    opaque_expectations: dict[str, dict[str, int]]
+    storage_volume_uuid: str
+    storage_root_id: str
+    roster_sha256: str
+    roster_bytes_b64: str
+
+
+ABSENT_DISPOSITIONS = {
+    "reissue",
+    "rebuild",
+    "proven_disposable",
+    "not_present_on_source",
+    "unresolved",
+}
+
+
 def _stat_signature(st: os.stat_result) -> tuple[int, ...]:
     return (
         st.st_dev,
@@ -217,7 +245,14 @@ def _kind(st: os.stat_result) -> str:
     return "special"
 
 
-def _volume_identity(path: Path, *, held_fd: int, is_directory: bool) -> dict[str, Any]:
+def _volume_identity(
+    path: Path,
+    *,
+    held_fd: int,
+    is_directory: bool,
+    expected_volume_uuid: str = EXPECTED_DATA_VOLUME_UUID,
+    expected_mount_point: Path = Path(EXPECTED_DATA_MOUNT_POINT),
+) -> dict[str, Any]:
     """Bind diskutil volume metadata to a held filesystem object by device id."""
     del is_directory
     held = os.fstat(held_fd)
@@ -230,7 +265,7 @@ def _volume_identity(path: Path, *, held_fd: int, is_directory: bool) -> dict[st
         raise CensusError("volume_probe_path_not_held_object")
     try:
         result = subprocess.run(
-            ["/usr/sbin/diskutil", "info", "-plist", EXPECTED_DATA_MOUNT_POINT],
+            ["/usr/sbin/diskutil", "info", "-plist", str(expected_mount_point)],
             capture_output=True,
             check=True,
             timeout=15,
@@ -247,7 +282,7 @@ def _volume_identity(path: Path, *, held_fd: int, is_directory: bool) -> dict[st
     device_identifier = value.get("DeviceIdentifier")
     if not isinstance(volume_uuid, str) or not isinstance(mount_point, str):
         raise CensusError("source_volume_identity_incomplete")
-    if os.path.normpath(mount_point) != EXPECTED_DATA_MOUNT_POINT:
+    if os.path.normpath(mount_point) != os.path.normpath(str(expected_mount_point)):
         raise CensusError("source_mountpoint_mismatch")
     try:
         volume_uuid = str(uuid.UUID(volume_uuid))
@@ -267,7 +302,7 @@ def _volume_identity(path: Path, *, held_fd: int, is_directory: bool) -> dict[st
         device_stat.st_rdev != held.st_dev
     ):
         raise CensusError("source_device_node_mismatch")
-    if volume_uuid != EXPECTED_DATA_VOLUME_UUID:
+    if volume_uuid != expected_volume_uuid:
         raise CensusError("source_volume_uuid_mismatch")
     parent_fd = _root_open(path.parent)
     try:
@@ -281,7 +316,7 @@ def _volume_identity(path: Path, *, held_fd: int, is_directory: bool) -> dict[st
         "device_identifier": device_identifier,
         "held_device": held.st_dev,
         "held_inode": held.st_ino,
-        "mount_point": mount_point,
+        "mount_point": os.path.normpath(mount_point),
         "filesystem_name": filesystem_name or "unknown",
         "filesystem_type": filesystem_type or "unknown",
     }
@@ -311,7 +346,11 @@ def _validate_exclusions(root: RootSpec) -> dict[str, str]:
 
 
 def census_root(
-    root: RootSpec, *, record_sink: Callable[[dict[str, Any]], None] | None = None
+    root: RootSpec,
+    *,
+    record_sink: Callable[[dict[str, Any]], None] | None = None,
+    expected_volume_uuid: str = EXPECTED_DATA_VOLUME_UUID,
+    expected_mount_point: Path = Path(EXPECTED_DATA_MOUNT_POINT),
 ) -> dict[str, Any]:
     """Return one private root record and aggregate counts using held dirfds."""
     exclusions = _validate_exclusions(root)
@@ -321,11 +360,21 @@ def census_root(
             declared_stat = os.stat(root.path.name, dir_fd=parent_fd, follow_symlinks=False)
         except FileNotFoundError as exc:
             if root.expected_kind == "file":
-                return census_file_root(root, record_sink=record_sink)
+                return census_file_root(
+                    root,
+                    record_sink=record_sink,
+                    expected_volume_uuid=expected_volume_uuid,
+                    expected_mount_point=expected_mount_point,
+                )
             raise CensusError("declared_directory_missing") from exc
         if not stat.S_ISDIR(declared_stat.st_mode):
             if root.expected_kind == "file":
-                return census_file_root(root, record_sink=record_sink)
+                return census_file_root(
+                    root,
+                    record_sink=record_sink,
+                    expected_volume_uuid=expected_volume_uuid,
+                    expected_mount_point=expected_mount_point,
+                )
             raise CensusError("declared_directory_kind_mismatch")
         if root.expected_kind != "directory":
             raise CensusError("declared_file_kind_mismatch")
@@ -337,7 +386,13 @@ def census_root(
         os.close(root_fd)
         raise CensusError("root_identity_invalid")
     ancestors_before = _ancestor_manifest(root.path)
-    source_volume_before = _volume_identity(root.path, held_fd=root_fd, is_directory=True)
+    source_volume_before = _volume_identity(
+        root.path,
+        held_fd=root_fd,
+        is_directory=True,
+        expected_volume_uuid=expected_volume_uuid,
+        expected_mount_point=expected_mount_point,
+    )
     if (
         _stat_signature(declared_stat) != _stat_signature(root_before)
         or not ancestors_before
@@ -396,9 +451,7 @@ def census_root(
                     counts[kind] += 1
                     if name == ".env.local":
                         if kind in {"regular_file", "symlink"}:
-                            add_record(
-                                _entry_record(relative, st, kind, "excluded_reauth_reissue")
-                            )
+                            add_record(_entry_record(relative, st, kind, "excluded_reauth_reissue"))
                             counts["credential_name_excluded"] += 1
                         else:
                             add_record(
@@ -488,7 +541,13 @@ def census_root(
                 directory_drift.append(relative)
         root_after = os.fstat(root_fd)
         ancestors_after = _ancestor_manifest(root.path)
-        source_volume_after = _volume_identity(root.path, held_fd=root_fd, is_directory=True)
+        source_volume_after = _volume_identity(
+            root.path,
+            held_fd=root_fd,
+            is_directory=True,
+            expected_volume_uuid=expected_volume_uuid,
+            expected_mount_point=expected_mount_point,
+        )
         parent_fd = _root_open(root.path.parent)
         try:
             path_after = os.stat(root.path.name, dir_fd=parent_fd, follow_symlinks=False)
@@ -567,7 +626,11 @@ def census_root(
 
 
 def census_file_root(
-    root: RootSpec, *, record_sink: Callable[[dict[str, Any]], None] | None = None
+    root: RootSpec,
+    *,
+    record_sink: Callable[[dict[str, Any]], None] | None = None,
+    expected_volume_uuid: str = EXPECTED_DATA_VOLUME_UUID,
+    expected_mount_point: Path = Path(EXPECTED_DATA_MOUNT_POINT),
 ) -> dict[str, Any]:
     """Observe a single declared host-tool file and its no-follow ancestors."""
     if root.excluded_subtrees:
@@ -576,7 +639,13 @@ def census_file_root(
     parent_fd = _root_open(parent)
     parent_before = os.fstat(parent_fd)
     ancestors_before = _ancestor_manifest(parent)
-    source_volume_before = _volume_identity(parent, held_fd=parent_fd, is_directory=True)
+    source_volume_before = _volume_identity(
+        parent,
+        held_fd=parent_fd,
+        is_directory=True,
+        expected_volume_uuid=expected_volume_uuid,
+        expected_mount_point=expected_mount_point,
+    )
     if not ancestors_before or (ancestors_before[-1]["device"], ancestors_before[-1]["inode"]) != (
         parent_before.st_dev,
         parent_before.st_ino,
@@ -614,7 +683,13 @@ def census_file_root(
                 counts["symlink_targets_unresolved"] += 1
         parent_after = os.fstat(parent_fd)
         ancestors_after = _ancestor_manifest(parent)
-        source_volume_after = _volume_identity(parent, held_fd=parent_fd, is_directory=True)
+        source_volume_after = _volume_identity(
+            parent,
+            held_fd=parent_fd,
+            is_directory=True,
+            expected_volume_uuid=expected_volume_uuid,
+            expected_mount_point=expected_mount_point,
+        )
         try:
             file_after = os.stat(root.path.name, dir_fd=parent_fd, follow_symlinks=False)
             file_stable = counts["entries"] == 1 and _stat_signature(file_after) == _stat_signature(
@@ -832,18 +907,12 @@ def _commit_private_stream(
             os.close(file_fd)
 
 
-def _unlink_if_owned_inode(
-    parent_fd: int, name: str, *, device: int, inode: int
-) -> bool:
+def _unlink_if_owned_inode(parent_fd: int, name: str, *, device: int, inode: int) -> bool:
     try:
         current = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
     except FileNotFoundError:
         return True
-    if (
-        not stat.S_ISREG(current.st_mode)
-        or current.st_dev != device
-        or current.st_ino != inode
-    ):
+    if not stat.S_ISREG(current.st_mode) or current.st_dev != device or current.st_ino != inode:
         return False
     os.unlink(name, dir_fd=parent_fd)
     return True
@@ -1056,7 +1125,9 @@ def _read_small_private_bytes(guard: Any, relative: str, limit: int) -> bytes:
         os.close(current)
 
 
-def _aggregate(roots: Sequence[dict[str, Any]]) -> dict[str, Any]:
+def _aggregate(
+    roots: Sequence[dict[str, Any]], expected_volume_uuid: str = EXPECTED_DATA_VOLUME_UUID
+) -> dict[str, Any]:
     return {
         "schema": SCHEMA,
         "root_count": len(roots),
@@ -1069,8 +1140,8 @@ def _aggregate(roots: Sequence[dict[str, Any]]) -> dict[str, Any]:
             }
         ),
         "all_roots_on_pinned_data_volume": all(
-            root.get("source_volume_start", {}).get("volume_uuid") == EXPECTED_DATA_VOLUME_UUID
-            and root.get("source_volume_end", {}).get("volume_uuid") == EXPECTED_DATA_VOLUME_UUID
+            root.get("source_volume_start", {}).get("volume_uuid") == expected_volume_uuid
+            and root.get("source_volume_end", {}).get("volume_uuid") == expected_volume_uuid
             for root in roots
         ),
         "roots": [
@@ -1102,15 +1173,251 @@ def _aggregate(roots: Sequence[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _opaque_counts_match(root_key: str, observed: dict[str, int]) -> bool:
-    expected = {
+def _scan_complete(roots: Sequence[dict[str, Any]], *, all_on_pinned_volume: bool) -> bool:
+    return (
+        bool(roots)
+        and all_on_pinned_volume
+        and all(
+            root["complete_traversal"]
+            and root["root_stable_at_endpoints"]
+            and root.get("opaque_exclusion_counts_match_expected", False)
+            for root in roots
+        )
+    )
+
+
+def _opaque_counts_match(
+    root_key: str,
+    observed: dict[str, int],
+    expectations: dict[str, dict[str, int]] | None = None,
+) -> bool:
+    legacy_expected = {
         "research_checkout": {"skipped_opaque_wallets_unresolved_backup_required": 3},
-        "owner_codex_worktree": {
-            "skipped_opaque_codex_local_unresolved_backup_required": 1
-        },
-    }.get(root_key, {})
+        "owner_codex_worktree": {"skipped_opaque_codex_local_unresolved_backup_required": 1},
+    }
+    expected = (
+        expectations.get(root_key, {})
+        if expectations is not None
+        else legacy_expected.get(root_key, {})
+    )
     return all(observed.get(key, 0) == count for key, count in expected.items()) and all(
         key in expected for key in observed if key.startswith("skipped_")
+    )
+
+
+def load_roster(path: Path) -> CensusRoster:
+    """Load a private, explicit v2 roster; this never discovers host paths."""
+    try:
+        roster_fd = os.open(path, NOFOLLOW_FILE)
+        try:
+            roster_stat = os.fstat(roster_fd)
+            if (
+                not stat.S_ISREG(roster_stat.st_mode)
+                or roster_stat.st_uid != os.getuid()
+                or stat.S_IMODE(roster_stat.st_mode) != 0o600
+            ):
+                raise CensusError("roster_file_permissions_invalid")
+            chunks = bytearray()
+            while block := os.read(roster_fd, 64 * 1024):
+                chunks.extend(block)
+                if len(chunks) > 4 * 1024 * 1024:
+                    raise CensusError("roster_file_too_large")
+        finally:
+            os.close(roster_fd)
+
+        def reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+            result: dict[str, Any] = {}
+            for key, item in pairs:
+                if key in result:
+                    raise CensusError("roster_duplicate_json_key")
+                result[key] = item
+            return result
+
+        value = json.loads(chunks.decode("utf-8"), object_pairs_hook=reject_duplicate_keys)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise CensusError("roster_unreadable_or_invalid_json") from exc
+    if not isinstance(value, dict) or value.get("schema") != "brain-host-root-roster-v2":
+        raise CensusError("roster_schema_invalid")
+    if value.get("version") != 2:
+        raise CensusError("roster_version_invalid")
+    try:
+        source_uuid = str(uuid.UUID(value["source_volume_uuid"]))
+        storage_uuid = str(uuid.UUID(value["storage_volume_uuid"]))
+    except (KeyError, TypeError, ValueError) as exc:
+        raise CensusError("roster_volume_pin_invalid") from exc
+    source_mount = value.get("source_mount_point")
+    if not isinstance(source_mount, str) or not Path(source_mount).is_absolute():
+        raise CensusError("roster_source_mountpoint_invalid")
+    storage_root_id = value.get("storage_root_id")
+    if not isinstance(storage_root_id, str) or not storage_root_id:
+        raise CensusError("roster_storage_root_pin_invalid")
+    required = value.get("required_roles")
+    roles = value.get("roles")
+    if (
+        not isinstance(required, list)
+        or not required
+        or any(not isinstance(role, str) or not role for role in required)
+        or len(set(required)) != len(required)
+        or not isinstance(roles, list)
+    ):
+        raise CensusError("roster_required_roles_invalid")
+    roots: list[RootSpec] = []
+    dispositions: list[dict[str, str]] = []
+    git_bindings: list[dict[str, Any]] = []
+    expectations: dict[str, dict[str, int]] = {}
+    seen_roles: set[str] = set()
+    declared_roles: set[str] = set()
+    seen_paths: dict[str, str] = {}
+    declared_present_roots: list[RootSpec] = []
+    for role in roles:
+        if not isinstance(role, dict) or role.get("state") != "present":
+            continue
+        locator = role.get("path")
+        kind = role.get("expected_kind", "directory")
+        raw_exclusions = role.get("metadata_only_exclusions", [])
+        if (
+            not isinstance(locator, str)
+            or not Path(locator).is_absolute()
+            or not isinstance(kind, str)
+            or kind not in {"directory", "file"}
+            or not isinstance(raw_exclusions, list)
+        ):
+            continue
+        exclusions: list[tuple[str, str]] = []
+        for exclusion in raw_exclusions:
+            if not isinstance(exclusion, dict):
+                continue
+            exclusion_path = exclusion.get("path")
+            exclusion_reason = exclusion.get("reason")
+            if isinstance(exclusion_path, str) and isinstance(exclusion_reason, str):
+                exclusions.append((exclusion_path, exclusion_reason))
+        candidate = RootSpec(
+            str(role.get("key", "")),
+            Path(os.path.normpath(locator)),
+            tuple(exclusions),
+            kind,
+        )
+        _validate_exclusions(candidate)
+        declared_present_roots.append(candidate)
+    for role in roles:
+        if not isinstance(role, dict):
+            raise CensusError("roster_role_invalid")
+        key = role.get("key")
+        state = role.get("state")
+        if not isinstance(key, str) or not key or key in seen_roles:
+            raise CensusError("roster_role_duplicate_or_invalid")
+        seen_roles.add(key)
+        declared_roles.add(key)
+        if state == "absent":
+            disposition = role.get("disposition")
+            reason = role.get("reason")
+            if (
+                disposition not in ABSENT_DISPOSITIONS
+                or not isinstance(reason, str)
+                or not reason.strip()
+            ):
+                raise CensusError("roster_absent_role_unresolved")
+            dispositions.append(
+                {"role_key": key, "state": "absent", "disposition": disposition, "reason": reason}
+            )
+            continue
+        if state != "present":
+            raise CensusError("roster_role_state_invalid")
+        locator = role.get("path")
+        kind = role.get("expected_kind", "directory")
+        if (
+            not isinstance(locator, str)
+            or not Path(locator).is_absolute()
+            or kind not in {"directory", "file"}
+        ):
+            raise CensusError("roster_present_role_invalid")
+        normalized = os.path.normpath(locator)
+        previous = seen_paths.get(normalized)
+        if previous is not None:
+            raise CensusError("roster_duplicate_path_conflict")
+        seen_paths[normalized] = key
+        raw_exclusions = role.get("metadata_only_exclusions", [])
+        if not isinstance(raw_exclusions, list):
+            raise CensusError("roster_exclusions_invalid")
+        exclusions: list[tuple[str, str]] = []
+        for exclusion in raw_exclusions:
+            if not isinstance(exclusion, dict):
+                raise CensusError("roster_exclusion_invalid")
+            exclusion_path = exclusion.get("path")
+            exclusion_reason = exclusion.get("reason")
+            if not isinstance(exclusion_path, str) or not isinstance(exclusion_reason, str):
+                raise CensusError("roster_exclusion_invalid")
+            exclusions.append((exclusion_path, exclusion_reason))
+        spec = RootSpec(key, Path(normalized), tuple(exclusions), kind)
+        _validate_exclusions(spec)
+        roots.append(spec)
+        dispositions.append({"role_key": key, "state": "present"})
+        raw_expectations = role.get("opaque_expectations", {})
+        if not isinstance(raw_expectations, dict) or any(
+            not isinstance(name, str)
+            or not isinstance(count, int)
+            or isinstance(count, bool)
+            or count < 0
+            for name, count in raw_expectations.items()
+        ):
+            raise CensusError("roster_opaque_expectations_invalid")
+        expectations[key] = dict(raw_expectations)
+        checkout_key = role.get("git_checkout_key")
+        if checkout_key is not None:
+            if kind != "directory" or not isinstance(checkout_key, str) or not checkout_key:
+                raise CensusError("roster_git_checkout_role_invalid")
+            located = _git_metadata_paths(Path(normalized))
+            for git_kind in ("git-dir", "git-common-dir"):
+                locator_path = located[git_kind]
+                if any(
+                    _locator_in_explicit_exclusion(declared_root, locator_path)
+                    for declared_root in declared_present_roots
+                ):
+                    raise CensusError("git_admin_locator_inside_excluded_subtree")
+                covered_by = next(
+                    (
+                        root.key
+                        for root in roots
+                        if (locator_path == root.path or root.path in locator_path.parents)
+                        and _is_scanned_by_root(root, locator_path)
+                    ),
+                    None,
+                )
+                if covered_by is None:
+                    git_role = f"{key}_{git_kind.replace('-', '_')}"
+                    if git_role in seen_roles:
+                        raise CensusError("roster_git_role_conflict")
+                    seen_roles.add(git_role)
+                    roots.append(RootSpec(git_role, locator_path))
+                    dispositions.append({"role_key": git_role, "state": "derived_git_metadata"})
+                    covered_by = git_role
+                located[f"{git_kind}-covered-by"] = Path(covered_by)
+            git_bindings.append(
+                {
+                    "checkout_key": checkout_key,
+                    "git_dir_locator": str(located["git-dir"]),
+                    "git_dir_covered_by_root_key": str(located["git-dir-covered-by"]),
+                    "git_common_dir_locator": str(located["git-common-dir"]),
+                    "git_common_dir_covered_by_root_key": str(located["git-common-dir-covered-by"]),
+                    "git_admin_distinct_from_common": located["git-dir"]
+                    != located["git-common-dir"],
+                }
+            )
+    if not set(required).issubset(declared_roles):
+        raise CensusError("roster_required_role_omitted")
+    return CensusRoster(
+        version=2,
+        source_volume_uuid=source_uuid,
+        source_mount_point=Path(os.path.normpath(source_mount)),
+        required_roles=tuple(required),
+        role_dispositions=tuple(dispositions),
+        roots=tuple(roots),
+        git_bindings=tuple(git_bindings),
+        opaque_expectations=expectations,
+        storage_volume_uuid=storage_uuid,
+        storage_root_id=storage_root_id,
+        roster_sha256=hashlib.sha256(chunks).hexdigest(),
+        roster_bytes_b64=base64.b64encode(chunks).decode("ascii"),
     )
 
 
@@ -1193,14 +1500,14 @@ def _is_scanned_by_root(root: RootSpec, locator: Path) -> bool:
     components = relative.parts
     if ".env.local" in components:
         return False
-    if root.key == "research_checkout" and "wallets" in components:
-        return False
-    if root.key == "owner_codex_worktree" and components[:3] == (
-        "apps",
-        "control-center",
-        ".local",
-    ):
-        return False
+    for excluded_path, _reason in root.excluded_subtrees:
+        if excluded_path == "@basename:wallets":
+            if "wallets" in components:
+                return False
+            continue
+        excluded_components = tuple(excluded_path.split("/"))
+        if components[: len(excluded_components)] == excluded_components:
+            return False
     current_fd = _root_open(root.path)
     root_device = os.fstat(current_fd).st_dev
     try:
@@ -1226,6 +1533,24 @@ def _is_scanned_by_root(root: RootSpec, locator: Path) -> bool:
         return False
     finally:
         os.close(current_fd)
+
+
+def _locator_in_explicit_exclusion(root: RootSpec, locator: Path) -> bool:
+    try:
+        components = locator.relative_to(root.path).parts
+    except ValueError:
+        return False
+    if ".env.local" in components:
+        return True
+    for excluded_path, _reason in root.excluded_subtrees:
+        if excluded_path == "@basename:wallets":
+            if "wallets" in components:
+                return True
+            continue
+        excluded_components = tuple(excluded_path.split("/"))
+        if components[: len(excluded_components)] == excluded_components:
+            return True
+    return False
 
 
 def _read_small_control_file(parent_fd: int, name: str, limit: int = 4096) -> str | None:
@@ -1359,9 +1684,43 @@ def run_census(
     storage_config: Path,
     git_bindings: Sequence[dict[str, Any]] = (),
     now: dt.datetime | None = None,
+    roster: CensusRoster | None = None,
 ) -> dict[str, Any]:
-    if len(roots) < 9 or len({root.key for root in roots}) != len(roots):
-        raise CensusError("root_roster_incomplete_or_duplicate")
+    if len({root.key for root in roots}) != len(roots):
+        raise CensusError("root_roster_duplicate")
+    if roster is None:
+        if len(roots) < 9:
+            raise CensusError("root_roster_incomplete_or_duplicate")
+        source_volume_uuid = EXPECTED_DATA_VOLUME_UUID
+        source_mount_point = Path(EXPECTED_DATA_MOUNT_POINT)
+        expected_storage_uuid = EXPECTED_KINGSTON_VOLUME_UUID
+        expected_storage_root_id = EXPECTED_KINGSTON_ROOT_ID
+        opaque_expectations = None
+        role_dispositions: list[dict[str, str]] = []
+        roster_version = 1
+    else:
+        try:
+            roster_bytes = base64.b64decode(roster.roster_bytes_b64, validate=True)
+        except (ValueError, TypeError) as exc:
+            raise CensusError("root_roster_bytes_invalid") from exc
+        if (
+            roster.version != 2
+            or len(roster.roster_sha256) != 64
+            or hashlib.sha256(roster_bytes).hexdigest() != roster.roster_sha256
+        ):
+            raise CensusError("root_roster_digest_mismatch")
+        if not set(roster.required_roles).issubset(
+            {root.key for root in roots}
+            | {row["role_key"] for row in roster.role_dispositions if row["state"] == "absent"}
+        ):
+            raise CensusError("root_roster_required_role_omitted")
+        source_volume_uuid = roster.source_volume_uuid
+        source_mount_point = roster.source_mount_point
+        expected_storage_uuid = roster.storage_volume_uuid
+        expected_storage_root_id = roster.storage_root_id
+        opaque_expectations = roster.opaque_expectations
+        role_dispositions = list(roster.role_dispositions)
+        roster_version = roster.version
     captured_at = now or dt.datetime.now(dt.UTC)
     created_at_text = captured_at.isoformat().replace("+00:00", "Z")
     stamp = captured_at.strftime("%Y%m%dT%H%M%SZ")
@@ -1376,10 +1735,7 @@ def run_census(
     root_fd = -1
     parent_fd = -1
     with writer_guard(storage_config) as guard:
-        if (
-            guard.volume_uuid != EXPECTED_KINGSTON_VOLUME_UUID
-            or guard.root_id != EXPECTED_KINGSTON_ROOT_ID
-        ):
+        if guard.volume_uuid != expected_storage_uuid or guard.root_id != expected_storage_root_id:
             raise CensusError("kingston_binding_mismatch")
         root_fd, parent_fd, pending_name = _open_private_parent(guard, pending_relative)
         final_name = private_relative.rsplit("/", 1)[-1]
@@ -1448,7 +1804,17 @@ def run_census(
                 "schema": SCHEMA,
                 "format": "jsonl",
                 "created_at_utc": created_at_text,
-                "roster_version": 1,
+                "roster_version": roster_version,
+                "source_volume_uuid_pin": source_volume_uuid,
+                "source_mount_point_pin": str(source_mount_point),
+                "storage_volume_uuid_pin": expected_storage_uuid,
+                "storage_root_id_pin": expected_storage_root_id,
+                "input_roster_sha256": roster.roster_sha256 if roster else None,
+                "input_roster_bytes_b64": roster.roster_bytes_b64 if roster else None,
+                "required_roles": list(roster.required_roles)
+                if roster
+                else [root.key for root in roots],
+                "role_dispositions": role_dispositions,
                 "private_locator_manifest": True,
                 "source_cutoff_established": False,
                 "git_directory_bindings": list(git_bindings),
@@ -1466,10 +1832,15 @@ def run_census(
                     binding.revalidate_identity()
                 writer.write({"record_type": "entry", "root_key": root_key, "entry": entry})
 
-            root_record = census_root(root, record_sink=emit_entry)
+            root_record = census_root(
+                root,
+                record_sink=emit_entry,
+                expected_volume_uuid=source_volume_uuid,
+                expected_mount_point=source_mount_point,
+            )
             root_record.pop("entries", None)
             observed = root_record.pop("entry_disposition_counts", {})
-            matches = _opaque_counts_match(root.key, observed)
+            matches = _opaque_counts_match(root.key, observed, opaque_expectations)
             root_record["opaque_exclusion_counts_match_expected"] = matches
             if not matches:
                 root_record["counts"]["unresolved"] = root_record["counts"].get("unresolved", 0) + 1
@@ -1477,13 +1848,17 @@ def run_census(
             writer.write({"record_type": "root_summary", **root_record})
             census_roots.append(root_record)
             binding.revalidate()
-        summary = _aggregate(census_roots)
-        summary["scan_complete"] = summary["all_roots_on_pinned_data_volume"] and all(
-            root["complete_traversal"]
-            and root["root_stable_at_endpoints"]
-            and root.get("opaque_exclusion_counts_match_expected", False)
-            for root in census_roots
+        summary = _aggregate(census_roots, expected_volume_uuid=source_volume_uuid)
+        summary["scan_complete"] = _scan_complete(
+            census_roots,
+            all_on_pinned_volume=summary["all_roots_on_pinned_data_volume"],
         )
+        summary["declared_root_traversal_complete"] = summary["scan_complete"]
+        summary["scan_incomplete_reason"] = "no_present_roots" if not census_roots else None
+        summary["root_closure_proven"] = False
+        summary["absent_roles"] = [
+            row["role_key"] for row in role_dispositions if row["state"] == "absent"
+        ]
         binding.revalidate()
         transfer_fd = stream_fd
         stream_fd = -1
@@ -1533,6 +1908,7 @@ def run_census(
         "manifest_relative_path": private_relative,
         "manifest_sha256": digest,
         "manifest_bytes": manifest_bytes,
+        "input_roster_sha256": roster.roster_sha256 if roster else None,
         "root_count": len(census_roots),
         "git_binding_count": len(git_bindings),
         "scan_complete": summary["scan_complete"],
@@ -1541,10 +1917,7 @@ def run_census(
     }
     completion_raw = _canonical(completion)
     with writer_guard(storage_config) as guard:
-        if (
-            guard.volume_uuid != EXPECTED_KINGSTON_VOLUME_UUID
-            or guard.root_id != EXPECTED_KINGSTON_ROOT_ID
-        ):
+        if guard.volume_uuid != expected_storage_uuid or guard.root_id != expected_storage_root_id:
             raise CensusError("kingston_binding_mismatch")
         _publish_create_only(guard, complete_relative, completion_raw)
     completion_sha = _verify_published_pair(
@@ -1564,7 +1937,8 @@ def run_census(
     summary["private_manifest_complete_marker_sha256"] = completion_sha
     summary["publication_complete"] = True
     summary["private_manifest_bytes"] = manifest_bytes
-    summary["roster_version"] = 1
+    summary["roster_version"] = roster_version
+    summary["input_roster_sha256"] = roster.roster_sha256 if roster else None
     summary["git_binding_count"] = len(git_bindings)
     summary["git_external_metadata_root_count"] = sum(
         "_git_dir" in root["root_key"] or "_git_common_dir" in root["root_key"]
@@ -1579,20 +1953,37 @@ def run_census(
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--storage-config", type=Path)
+    parser.add_argument("--roster", type=Path, help="private JSON roster using schema v2")
     parser.add_argument(
-        "--storage-config",
-        type=Path,
-        default=Path.home() / ".config/brain-research/storage-v1.json",
+        "--legacy-profile",
+        action="store_true",
+        help="explicitly run the historical hardcoded owner-host v1 census profile",
     )
     parser.add_argument("--repository", type=Path, default=Path(__file__).resolve().parents[1])
     args = parser.parse_args(argv)
     try:
-        roots, git_bindings = default_roster(Path.home(), args.repository)
-        result = run_census(
-            roots,
-            storage_config=args.storage_config,
-            git_bindings=git_bindings,
-        )
+        if args.roster is not None and args.legacy_profile:
+            raise CensusError("roster_and_legacy_profile_are_mutually_exclusive")
+        if args.roster is None and not args.legacy_profile:
+            raise CensusError("explicit_roster_required")
+        if args.storage_config is None:
+            raise CensusError("storage_config_required")
+        if args.roster is not None:
+            roster = load_roster(args.roster)
+            result = run_census(
+                roster.roots,
+                storage_config=args.storage_config,
+                git_bindings=roster.git_bindings,
+                roster=roster,
+            )
+        else:
+            roots, git_bindings = default_roster(Path.home(), args.repository)
+            result = run_census(
+                roots,
+                storage_config=args.storage_config,
+                git_bindings=git_bindings,
+            )
         print(json.dumps(result, sort_keys=True))
         return 0 if result.get("scan_complete") else 2
     except (CensusError, StorageError, OSError, ValueError) as exc:

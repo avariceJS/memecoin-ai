@@ -200,8 +200,12 @@ def test_physical_kingston_inert_restore_cli_flow(tmp_path: Path) -> None:
         str(target_parent),
         "--repository-root",
         str(repo),
-        "--owner-checkout",
+        "--forbidden-root",
         str(owner_root),
+        "--forbidden-root",
+        str(clean_home / ".config/brain-research"),
+        "--forbidden-root",
+        str(clean_home / "Library/LaunchAgents"),
     ]
     restore = subprocess.run(
         restore_command,

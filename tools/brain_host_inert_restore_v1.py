@@ -622,13 +622,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--expected-index-sha256", required=True)
     parser.add_argument("--target-parent", type=Path, required=True)
     parser.add_argument("--repository-root", type=Path, required=True)
-    parser.add_argument("--owner-checkout", type=Path, required=True)
     parser.add_argument(
         "--forbidden-root",
         type=Path,
         action="append",
-        default=[],
-        help="additional source root that must not contain the restore target (repeatable)",
+        required=True,
+        help="declared source root that must not contain the restore target (repeatable)",
     )
     parser.add_argument("--witness-id")
     parser.add_argument("--target-uid", type=int)
@@ -652,12 +651,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 target_parent=args.target_parent,
                 repository_root=args.repository_root,
                 storage_root=guard.mount_path / guard.config.data_root,
-                forbidden_roots=[
-                    args.owner_checkout,
-                    Path.home() / ".config/brain-research",
-                    Path.home() / "Library/LaunchAgents",
-                    *args.forbidden_root,
-                ],
+                forbidden_roots=args.forbidden_root,
                 witness_id=args.witness_id,
                 target_uid=args.target_uid,
                 target_gid=args.target_gid,
