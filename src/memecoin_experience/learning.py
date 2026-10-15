@@ -24,11 +24,11 @@ from .storage import (
     atomic_json,
     code_identity,
     digest,
+    file_hash,
     lock,
     safe_path,
     seal_files,
     sync_dir,
-    verify_files,
 )
 
 Network = GRU  # Backward-compatible research import; dimensions come from artifact specs.
@@ -1095,9 +1095,12 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
         atomic_json(output / "binding.json", binding)
         artifact = output / "artifact"
         if artifact.exists():
-            verify_files(artifact)
-            report = json.loads((artifact / "report.json").read_text())
-            if report["binding"] != binding:
+            from .predict import Predictor
+
+            artifact_pin = file_hash(safe_path(artifact / "manifest.json"))
+            loaded = Predictor(artifact, artifact_pin)
+            report = loaded.report
+            if report.get("binding") != binding or report.get("statistics") != stats:
                 raise ValueError("experience_artifact_binding")
             return report
         journal = None

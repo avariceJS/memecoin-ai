@@ -346,6 +346,30 @@ def test_completed_generation_never_reenters_optimizer(tmp_path, monkeypatch):
     assert list((root / "jobs" / first["generation"] / "attempts").iterdir()) == attempts
 
 
+def test_invalid_completed_artifact_cannot_publish_generation_on_retry(tmp_path):
+    store, pin = dataset(tmp_path)
+    root = tmp_path / "registry"
+    args = dict(name="V1", owner="research", store=store, snapshot=pin, split=PLAN, config=CONFIG)
+    first = generations.run(root, **args)
+    identity = first["generation"]
+    generation_record = root / "generations" / f"{identity}.json"
+    generation_record.unlink()
+
+    artifact = root / "jobs" / identity / "training/artifact"
+    report_path = artifact / "report.json"
+    report = json.loads(report_path.read_text())
+    report["production_eligible"] = True
+    atomic_json(report_path, report, replace=True)
+    (artifact / "manifest.json").unlink()
+    seal_files(artifact)
+
+    with pytest.raises(ValueError):
+        generations.run(root, **args)
+    assert not generation_record.exists()
+    status = json.loads((root / "jobs" / identity / "status.json").read_text())
+    assert status["status"] == "failed"
+
+
 @pytest.mark.parametrize(
     "tamper",
     ["rows_seen", "production_true", "production_missing", "coordinate_added"],

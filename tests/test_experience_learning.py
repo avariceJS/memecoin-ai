@@ -16,7 +16,13 @@ from memecoin_experience.learning import (  # noqa: E402
     tensors,
     train,
 )
-from memecoin_experience.storage import Snapshot, file_hash  # noqa: E402
+from memecoin_experience.storage import (  # noqa: E402
+    Snapshot,
+    atomic_json,
+    digest,
+    file_hash,
+    seal_files,
+)
 
 PLAN = dict(train_start_s=0, train_end_s=30000, validation_end_s=60000, test_end_s=90000)
 CONFIG = dict(width=8, batch=32, epochs=2, seed=42, device="cpu")
@@ -228,6 +234,90 @@ def test_checkpoint_optimizer_state_must_match_recipe_and_parameters(tmp_path, m
                 train(store, pin, output, plan=PLAN, config=CONFIG)
         assert file_hash(checkpoint) == changed_checkpoint_pin
         assert not (output / "artifact").exists()
+
+
+def test_completed_training_artifact_reuse_revalidates_bound_contents(tmp_path):
+    store, pin, _ = dataset(tmp_path)
+    output = tmp_path / "completed-job"
+    report = train(store, pin, output, plan=PLAN, config=CONFIG)
+    artifact = output / "artifact"
+    names = ("manifest.json", "model.json", "report.json", "statistics.json", "weights.pt")
+    original = {name: (artifact / name).read_bytes() for name in names}
+
+    def reseal():
+        (artifact / "manifest.json").unlink()
+        seal_files(artifact)
+
+    def change_report_status():
+        changed = json.loads(original["report.json"])
+        changed["status"] = "failed"
+        atomic_json(artifact / "report.json", changed, replace=True)
+
+    def make_production_eligible():
+        changed = json.loads(original["report.json"])
+        changed["production_eligible"] = True
+        atomic_json(artifact / "report.json", changed, replace=True)
+
+    def mismatch_model():
+        changed = json.loads(original["model.json"])
+        changed["width"] += 1
+        atomic_json(artifact / "model.json", changed, replace=True)
+
+    def mismatch_bound_statistics():
+        statistics = json.loads(original["statistics.json"])
+        statistics["mean"][0] += 1
+        changed = json.loads(original["report.json"])
+        changed["statistics"] = statistics
+        changed["binding"]["statistics"] = digest(statistics)
+        atomic_json(artifact / "statistics.json", statistics, replace=True)
+        atomic_json(artifact / "report.json", changed, replace=True)
+
+    def nonfinite_weights():
+        weights = torch.load(artifact / "weights.pt", map_location="cpu", weights_only=True)
+        for tensor in weights.values():
+            if torch.is_floating_point(tensor):
+                tensor.reshape(-1)[0] = float("nan")
+                break
+        else:
+            raise AssertionError("trained artifact has no floating-point weights")
+        torch.save(weights, artifact / "weights.pt")
+
+    for corrupt in (
+        change_report_status,
+        make_production_eligible,
+        mismatch_model,
+        mismatch_bound_statistics,
+        nonfinite_weights,
+    ):
+        for name, contents in original.items():
+            (artifact / name).write_bytes(contents)
+        corrupt()
+        reseal()
+        changed = {name: (artifact / name).read_bytes() for name in names}
+        with pytest.raises(ValueError):
+            train(store, pin, output, plan=PLAN, config=CONFIG)
+        assert changed == {name: (artifact / name).read_bytes() for name in names}
+
+    for name, contents in original.items():
+        (artifact / name).write_bytes(contents)
+    assert train(store, pin, output, plan=PLAN, config=CONFIG) == report
+
+
+def test_completed_training_artifact_reuse_rejects_manifest_symlink(tmp_path):
+    store, pin, _ = dataset(tmp_path)
+    output = tmp_path / "completed-job"
+    train(store, pin, output, plan=PLAN, config=CONFIG)
+    manifest = output / "artifact/manifest.json"
+    original = manifest.read_bytes()
+    external = tmp_path / "external-manifest.json"
+    external.write_bytes(original)
+    manifest.unlink()
+    manifest.symlink_to(external)
+
+    with pytest.raises(ValueError, match="experience_symlink"):
+        train(store, pin, output, plan=PLAN, config=CONFIG)
+    assert manifest.is_symlink()
+    assert external.read_bytes() == original
 
 
 def test_empty_optimizer_checkpoint_state_is_valid_before_first_step():

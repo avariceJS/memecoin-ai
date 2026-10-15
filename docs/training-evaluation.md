@@ -200,6 +200,13 @@ or artifact publication. They do not establish cross-device bitwise reproducibil
 the same binding; a different dataset/configuration needs a new job directory. Cross-generation
 warm starts and replay policies remain future work.
 
+When a completed training job is reused, `train()` validates its sealed artifact through the same
+standalone `Predictor` contract before returning it. This rechecks completion and production
+ineligibility, model/statistics bindings, and finite model state, then matches the report and
+statistics to the current job binding. Synthetic re-pinned status, eligibility, model, statistics,
+and weight corruptions fail before return or generation publication. This is internal artifact
+consistency, not external authenticity or a model-quality check.
+
 ### Running an isolated job
 
 Use bounded, already qualified training admission units. A build-plan JSON has exactly these keys:
