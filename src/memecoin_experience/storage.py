@@ -509,3 +509,93 @@ class Snapshot:
 
         apply(self, entry, rows)
         return path, rows
+
+
+def audit_partition_columns(snapshot, index, *, row_chunk=256):
+    """Check v2/v3 binary cells against row-status metadata without training or scoring."""
+    import numpy as np
+
+    if not isinstance(snapshot, Snapshot):
+        raise ValueError("experience_column_audit_snapshot")
+    if type(row_chunk) is not int or not 1 <= row_chunk <= 4096:
+        raise ValueError("experience_column_audit_chunk")
+    if snapshot.schema.get("schema") not in {"brain-experience-v2", "brain-experience-v3"}:
+        raise ValueError("experience_column_audit_schema")
+    if snapshot.manifest.get("binding", {}).get("role") != "train":
+        raise ValueError("experience_column_audit_reserved_snapshot")
+
+    from .schema import feature_names, target_names
+
+    context = snapshot.schema["context"]
+    feature_count = len(feature_names(snapshot.schema))
+    target_count = len(target_names(snapshot.schema))
+    bytes_per_row = 8 * (context * feature_count + target_count)
+    if bytes_per_row > 16 * 1024 * 1024:
+        raise ValueError("experience_column_audit_row_size")
+    bounded_chunk = min(row_chunk, (16 * 1024 * 1024) // bytes_per_row)
+    path, rows = snapshot.partition(index)
+    row_count = len(rows)
+    exact_status = "observed" if snapshot.schema["schema"] == "brain-experience-v2" else "exact"
+    statuses = (
+        {"observed", "pending", "missing_future", "unsupported", "censored"}
+        if snapshot.schema["schema"] == "brain-experience-v2"
+        else {"exact", "lower_bound", "masked", "pending"}
+    )
+    status_counts = Counter()
+    exact_cells = 0
+    masked_cells = 0
+    input_infinities = 0
+    exact_nonfinite = 0
+    masked_non_nan = 0
+
+    for row in rows:
+        row_statuses = row.get("target_status")
+        if not isinstance(row_statuses, list) or len(row_statuses) != target_count:
+            raise ValueError("experience_column_audit_status_shape")
+        if any(status not in statuses for status in row_statuses):
+            raise ValueError("experience_column_audit_unknown_status")
+        status_counts.update(row_statuses)
+
+    with (path / "x.f64").open("rb") as x_stream, (path / "y.f64").open("rb") as y_stream:
+        for start in range(0, row_count, bounded_chunk):
+            stop = min(start + bounded_chunk, row_count)
+            count = stop - start
+            x = np.fromfile(x_stream, dtype="<f8", count=count * context * feature_count)
+            y = np.fromfile(y_stream, dtype="<f8", count=count * target_count)
+            if x.size != count * context * feature_count or y.size != count * target_count:
+                raise ValueError("experience_column_audit_truncated")
+            x = x.reshape(count, context, feature_count)
+            y = y.reshape(count, target_count)
+            exact = np.asarray(
+                [
+                    [status == exact_status for status in rows[row_index]["target_status"]]
+                    for row_index in range(start, stop)
+                ],
+                dtype=bool,
+            )
+            input_infinities += int(np.isinf(x).sum())
+            exact_cells += int(exact.sum())
+            masked_cells += int((~exact).sum())
+            exact_nonfinite += int((~np.isfinite(y[exact])).sum())
+            masked_non_nan += int((~np.isnan(y[~exact])).sum())
+
+    failures = dict(
+        input_infinities=input_infinities,
+        exact_target_nonfinite=exact_nonfinite,
+        masked_target_non_nan=masked_non_nan,
+    )
+    matches = not any(failures.values())
+    return dict(
+        status="matched" if matches else "mismatch",
+        matches=matches,
+        snapshot_pin=snapshot.pin,
+        partition_index=index,
+        partition_pin=snapshot.parts[index]["pin"],
+        rows=row_count,
+        input_cells=row_count * context * feature_count,
+        target_cells=row_count * target_count,
+        exact_target_cells=exact_cells,
+        masked_target_cells=masked_cells,
+        target_status_counts=dict(sorted(status_counts.items())),
+        failures=failures,
+    )

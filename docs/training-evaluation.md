@@ -257,6 +257,15 @@ artifact. The terminal node must be seeded-fresh; omitted ancestors are rejected
 never discovered from storage. A chain matches only when all node audits match. This checks
 statistics provenance across the supplied bounded lineage, but still does not attest model-weight
 or optimizer lineage.
+The opt-in audit_partition_columns(snapshot, index) checks v2/v3 binary partition cells against
+their row-status metadata in row chunks capped at 4096 rows and 16 MiB of binary cell data; it
+rejects a schema whose single row exceeds that byte cap. Input cells may be finite or NaN but
+cannot be infinite; observed/exact targets must be finite and every other supported target status
+must have a NaN cell. It reports cell/status denominators and mismatches, and requires an explicit
+train snapshot role before reading a partition. This is separate from ordinary partition loading
+and training. The check assumes a quiescent snapshot: partition verification occurs before the
+audit reopens the binary columns, so it is not resistant to concurrent mutation. It cannot detect
+replacement of one finite exact target with another or prove source truth.
 Before a completed report is published, reused, or read through the generation registry, its epoch,
 step and row counters must reconcile with the recipe and train denominator. Validation history must
 have one ordered finite selection score per epoch. This detects inconsistent report progress and
