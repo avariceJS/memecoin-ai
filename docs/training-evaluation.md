@@ -427,6 +427,16 @@ derived from expected metadata and prediction dimensions. This detects transcrip
 inconsistencies without rerunning the model or metrics; it does not authenticate the transcript
 against an external authority.
 
+Native-coordinate V1/V2 score reuse uses the same bounded test-row readback contract with the
+current coordinate writer's exact transcript schema: ID, entity, origin, decision time, input
+availability, target status/availability, mask, and prediction. It rejects missing, extra,
+reordered, duplicate-key, oversized, malformed, nonfinite, or unordered rows without invoking the
+model or recomputing metrics. The first coordinate writer already emitted a prediction transcript
+(`fd748de`); current reuse fails closed if it is absent. The evaluation source is part of
+`code_identity`, so an output bound to an older writer already fails the existing binding check;
+this change does not broaden that compatibility. Readback verifies snapshot pairing and prediction
+structure, not that altered finite ordered values equal the candidate's predictions.
+
 `retrospective` is a fixed-candidate historical research comparison. The separate
 `preregistered_forward_replay` scope requires future registration and a `point_in_time` producer;
 its test-role knowledge cutoff must be later than registration, and every test-assigned origin
