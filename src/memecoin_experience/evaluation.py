@@ -512,6 +512,9 @@ def score(
                 test_end_s=protocol["end_s"],
             )
             population, denominators = Counter(), Counter()
+            census_scored_digest = hashlib.sha256()
+            census_scored_origins = 0
+            exact_cells = Counter()
             support = {p: 0 for p in protocol["pools"]}
             usable_support = dict(support)
             for index in range(len(snapshot.parts)):
@@ -539,7 +542,23 @@ def score(
                         ):
                             denominators[f"{name}/{status}"] += 1
                             denominators[f"{name}/usable"] += int(valid)
+                            exact_cells[name] += int(valid)
+                        if any(mask):
+                            census_scored_origins += 1
+                            identity = canonical(
+                                dict(
+                                    pool=row["pool"],
+                                    id=row["id"],
+                                    decision_ns=row.get("decision_ns"),
+                                    origin_s=row.get("origin_s"),
+                                    exact_mask=[bool(value) for value in mask],
+                                )
+                            )
+                            census_scored_digest.update(len(identity).to_bytes(8, "big"))
+                            census_scored_digest.update(identity)
             totals = np.zeros((len(target_names(snapshot.schema)), 4))
+            scored_digest = hashlib.sha256()
+            scored_origins = 0
             with (stage / "predictions.jsonl").open("wb") as stream:
                 for x, y, mask, metadata, _ in batches(
                     snapshot, plan, "test", batch, with_metadata=True
@@ -553,6 +572,19 @@ def score(
                     q = np.array(protocol["quantiles"])
                     accum = {}
                     for i, row in enumerate(metadata):
+                        valid = mask[i]
+                        identity = canonical(
+                            dict(
+                                pool=row["pool"],
+                                id=row["id"],
+                                decision_ns=row.get("decision_ns"),
+                                origin_s=row.get("origin_s"),
+                                exact_mask=[bool(value) for value in valid],
+                            )
+                        )
+                        scored_digest.update(len(identity).to_bytes(8, "big"))
+                        scored_digest.update(identity)
+                        scored_origins += 1
                         decision = row.get("decision_ns", row.get("origin_s", 0) * 10**9)
                         stream.write(
                             canonical(
@@ -604,6 +636,15 @@ def score(
                     db.commit()
                 stream.flush()
                 os.fsync(stream.fileno())
+            if (
+                scored_origins != census_scored_origins
+                or scored_digest.digest() != census_scored_digest.digest()
+                or any(
+                    totals[index, 0] != exact_cells[name]
+                    for index, name in enumerate(target_names(snapshot.schema))
+                )
+            ):
+                raise ValueError("experience_evaluation_census")
             if not any(t[0] > 0 for t in totals):
                 raise ValueError("experience_empty_evaluation_horizon")
             with (stage / "strata.jsonl").open("wb") as stream:

@@ -9,7 +9,7 @@ torch = pytest.importorskip("torch")
 from test_experience_learning import CONFIG, PLAN  # noqa: E402
 from test_experience_schema import custom_samples  # noqa: E402
 
-from memecoin_experience import evaluation, generations  # noqa: E402
+from memecoin_experience import evaluation, generations, learning  # noqa: E402
 from memecoin_experience.learning import batches, train  # noqa: E402
 from memecoin_experience.predict import Predictor  # noqa: E402
 from memecoin_experience.storage import Snapshot, build, file_hash  # noqa: E402
@@ -147,6 +147,51 @@ def test_replication_and_registered_evaluation(tmp_path, monkeypatch):
         tmp_path / "score",
         batch=73,
     )
+
+    original_batches = learning.batches
+
+    def substituted_batches(*args, **kwargs):
+        for x, y, mask, metadata, cursor in original_batches(*args, **kwargs):
+            changed = [dict(row) for row in metadata]
+            changed[0]["decision_ns"] += 1
+            yield x, y, mask, changed, cursor
+
+    monkeypatch.setattr(learning, "batches", substituted_batches)
+    substituted_output = tmp_path / "score-substituted"
+    with pytest.raises(ValueError, match="experience_evaluation_census"):
+        evaluation.score(
+            protocols,
+            protocol["protocol"],
+            eval_store,
+            eval_pin,
+            artifact,
+            substituted_output,
+            batch=73,
+        )
+    assert not substituted_output.exists()
+
+    def dropped_batches(*args, **kwargs):
+        for index, (x, y, mask, metadata, cursor) in enumerate(original_batches(*args, **kwargs)):
+            if index == 0:
+                yield x[1:], y[1:], mask[1:], metadata[1:], cursor
+            else:
+                yield x, y, mask, metadata, cursor
+
+    monkeypatch.setattr(learning, "batches", dropped_batches)
+    dropped_output = tmp_path / "score-dropped"
+    with pytest.raises(ValueError, match="experience_evaluation_census"):
+        evaluation.score(
+            protocols,
+            protocol["protocol"],
+            eval_store,
+            eval_pin,
+            artifact,
+            dropped_output,
+            batch=73,
+        )
+    assert not dropped_output.exists()
+
+    monkeypatch.setattr(learning, "batches", original_batches)
     assert file_hash(artifact / "manifest.json") == artifact_pin
     assert report["production_eligible"] is False
     assert len((tmp_path / "score/predictions.jsonl").read_text().splitlines()) == 310

@@ -716,6 +716,10 @@ training mass and support alongside losses.
 
 Candidates and structural/input-qualified evaluation protocols are registered before opening the
 new evaluation-role source. Comparisons require identical snapshot and origin/mask identities.
+Both legacy v1/v2 and native-coordinate v3 scorers census the verified snapshot before scoring, then
+reconcile the ordered exact-usable origin/mask stream and per-target cell counts against emitted
+predictions before publishing a report. This catches pass-to-pass omissions or substitutions with
+constant-memory digests; it does not authenticate mutable storage during a run.
 Paired uncertainty resamples whole observed base mints, combining pools for the same mint, and reports
 micro and equal-mint descriptive differences. It is conditional on one trainer seed and the fixed
 historical cohort; it does not establish prospective performance, causal value of diversity alone,
