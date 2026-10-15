@@ -610,3 +610,144 @@ def test_v3_replication_batch_fit_resume_and_registered_evaluation(tmp_path, mon
             batch=4,
         )
     assert not substituted_output.exists()
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    ["epoch_jump", "forged_rows_seen", "forged_cursor", "missing_history", "missing_best"],
+)
+def test_v3_resume_rejects_inconsistent_checkpoint_progress(tmp_path, tamper):
+    torch = pytest.importorskip("torch")
+
+    from memecoin_experience.learning import train
+
+    schema = _schema()
+    plan = coordinate_samples.make_split_plan(
+        schema["coordinate_domain_pin"],
+        {
+            "train": {
+                "intervals": [[0, 10]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 1000,
+            },
+            "validation": {
+                "intervals": [[10, 20]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 1000,
+            },
+            "test": {
+                "intervals": [[20, 30]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 1000,
+            },
+        },
+    )
+    store = tmp_path / "store"
+    snapshot = build(
+        store,
+        [_row(c) for c in range(1, 29)],
+        sources=[dict(kind="synthetic", pin="a" * 64)],
+        cutoff=1000,
+        schema=schema,
+        chunk=4,
+    )["snapshot"]
+    config = dict(width=4, batch=4, epochs=2, seed=7, device="cpu", checkpoint_every=1)
+    base = tmp_path / "base"
+    if tamper in {"missing_history", "missing_best"}:
+        train(store, snapshot, base, plan=plan, config=config)
+        import shutil
+
+        shutil.rmtree(base / "artifact")
+    else:
+        train(store, snapshot, base, plan=plan, config=config, stop_after=1)
+
+    import shutil
+
+    job = tmp_path / "tampered"
+    shutil.copytree(base, job)
+    checkpoint = job / "checkpoint.pt"
+    saved = torch.load(checkpoint, map_location="cpu", weights_only=True)
+    if tamper == "epoch_jump":
+        saved["epoch"] = config["epochs"]
+    elif tamper == "forged_rows_seen":
+        saved["rows_seen"] += 1
+    elif tamper == "forged_cursor":
+        saved["cursor"] = (len(Snapshot(store, snapshot).parts) + 10, 0)
+    elif tamper == "missing_history":
+        saved["history"].pop()
+    elif tamper == "missing_best":
+        saved["best"] = None
+    torch.save(saved, checkpoint)
+
+    with pytest.raises(ValueError, match="experience_checkpoint_progress"):
+        train(store, snapshot, job, plan=plan, config=config)
+
+
+@pytest.mark.parametrize("boundary", ["last_batch", "epoch_checkpoint"])
+def test_v3_resume_accepts_training_boundary_checkpoints(tmp_path, monkeypatch, boundary):
+    torch = pytest.importorskip("torch")
+
+    from memecoin_experience import learning
+    from memecoin_experience.learning import train
+
+    schema = _schema()
+    plan = coordinate_samples.make_split_plan(
+        schema["coordinate_domain_pin"],
+        {
+            "train": {
+                "intervals": [[0, 10]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 1000,
+            },
+            "validation": {
+                "intervals": [[10, 20]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 1000,
+            },
+            "test": {
+                "intervals": [[20, 30]],
+                "dependency_intervals": {},
+                "knowledge_cutoff_ns": 1000,
+            },
+        },
+    )
+    store = tmp_path / "store"
+    snapshot = build(
+        store,
+        [_row(c) for c in range(1, 29)],
+        sources=[dict(kind="synthetic", pin="b" * 64)],
+        cutoff=1000,
+        schema=schema,
+        chunk=4,
+    )["snapshot"]
+    config = dict(width=4, batch=4, epochs=2, seed=7, device="cpu", checkpoint_every=1)
+    interrupted_path = tmp_path / "interrupted"
+    if boundary == "last_batch":
+        result = train(
+            store,
+            snapshot,
+            interrupted_path,
+            plan=plan,
+            config=config,
+            stop_after=3,
+        )
+        assert result["status"] == "interrupted"
+    else:
+        save = learning.save_checkpoint
+
+        def fail_after_epoch_checkpoint(path, state):
+            save(path, state)
+            if state["epoch"] == 1 and state["cursor"] == (0, 0):
+                raise RuntimeError("simulated_crash_after_epoch_checkpoint")
+
+        monkeypatch.setattr(learning, "save_checkpoint", fail_after_epoch_checkpoint)
+        with pytest.raises(RuntimeError, match="simulated_crash_after_epoch_checkpoint"):
+            train(store, snapshot, interrupted_path, plan=plan, config=config)
+        monkeypatch.setattr(learning, "save_checkpoint", save)
+
+    resumed = train(store, snapshot, interrupted_path, plan=plan, config=config)
+    fresh = train(store, snapshot, tmp_path / "fresh", plan=plan, config=config)
+    assert resumed == fresh
+    resumed_weights = torch.load(interrupted_path / "artifact/weights.pt", weights_only=True)
+    fresh_weights = torch.load(tmp_path / "fresh/artifact/weights.pt", weights_only=True)
+    assert all(torch.equal(resumed_weights[name], fresh_weights[name]) for name in fresh_weights)

@@ -763,6 +763,134 @@ def save_checkpoint(path, state):
         Path(name).unlink(missing_ok=True)
 
 
+def _validate_checkpoint_progress(saved, snapshot, plan, stats, config, model):
+    """Reject internally inconsistent resume progress before restoring executable state."""
+    required = {
+        "binding",
+        "statistics",
+        "epoch",
+        "cursor",
+        "steps",
+        "rows_seen",
+        "best_score",
+        "best",
+        "history",
+        "model",
+        "optimizer",
+        "rng",
+        "cuda_rng",
+    }
+    if not isinstance(saved, dict) or not required <= set(saved):
+        raise ValueError("experience_checkpoint_progress")
+
+    epoch, steps, rows_seen = saved["epoch"], saved["steps"], saved["rows_seen"]
+    cursor = saved["cursor"]
+    population = stats.get("population", {}).get("train_objective_usable")
+    if (
+        type(epoch) is not int
+        or not 0 <= epoch <= config["epochs"]
+        or type(steps) is not int
+        or steps < 0
+        or type(rows_seen) is not int
+        or rows_seen < 0
+        or not isinstance(cursor, (tuple, list))
+        or len(cursor) != 2
+        or any(type(item) is not int or item < 0 for item in cursor)
+        or type(population) is not int
+        or population <= 0
+        or not isinstance(saved["history"], list)
+        or len(saved["history"]) != epoch
+        or not isinstance(saved["optimizer"], dict)
+        or not isinstance(saved["rng"], torch.Tensor)
+        or saved["rng"].dtype != torch.uint8
+        or saved["rng"].ndim != 1
+        or not isinstance(saved["cuda_rng"], list)
+    ):
+        raise ValueError("experience_checkpoint_progress")
+
+    validation_scores = []
+    for index, entry in enumerate(saved["history"]):
+        if (
+            not isinstance(entry, dict)
+            or type(entry.get("epoch")) is not int
+            or entry["epoch"] != index
+            or not isinstance(entry.get("validation"), dict)
+        ):
+            raise ValueError("experience_checkpoint_progress")
+        score = entry["validation"].get("selection_score")
+        if type(score) not in (int, float) or not math.isfinite(score):
+            raise ValueError("experience_checkpoint_progress")
+        validation_scores.append(score)
+
+    if not validation_scores:
+        if saved["best_score"] is not None or saved["best"] is not None:
+            raise ValueError("experience_checkpoint_progress")
+    else:
+        best_score = saved["best_score"]
+        if (
+            type(best_score) not in (int, float)
+            or not math.isfinite(best_score)
+            or best_score != min(validation_scores)
+            or not isinstance(saved["best"], dict)
+        ):
+            raise ValueError("experience_checkpoint_progress")
+
+    expected_state = model.state_dict()
+    for name in ("model", "best"):
+        value = saved[name]
+        if name == "best" and value is None and not validation_scores:
+            continue
+        if (
+            not isinstance(value, dict)
+            or value.keys() != expected_state.keys()
+            or any(
+                not isinstance(value[key], torch.Tensor)
+                or value[key].shape != expected_state[key].shape
+                or value[key].dtype != expected_state[key].dtype
+                for key in expected_state
+            )
+        ):
+            raise ValueError("experience_checkpoint_progress")
+
+    rows_per_epoch = population
+    batches_per_epoch = math.ceil(rows_per_epoch / config["batch"])
+    current_rows = rows_seen - epoch * rows_per_epoch
+    if current_rows < 0 or current_rows > rows_per_epoch:
+        raise ValueError("experience_checkpoint_progress")
+    if epoch == config["epochs"]:
+        if current_rows != 0 or tuple(cursor) != (0, 0):
+            raise ValueError("experience_checkpoint_progress")
+        current_steps = 0
+    elif current_rows == 0:
+        if tuple(cursor) != (0, 0):
+            raise ValueError("experience_checkpoint_progress")
+        current_steps = 0
+    else:
+        seen_rows = seen_steps = 0
+        cursor_found = False
+        with_censoring = config["objective"] == "partial_count_lower_bound_pinball_v1"
+        for packed in batches(
+            snapshot,
+            plan,
+            "train",
+            config["batch"],
+            seed=config["seed"],
+            epoch=epoch,
+            with_censoring=with_censoring,
+            sampler=config["sampler"],
+        ):
+            seen_steps += 1
+            seen_rows += len(packed[-2])
+            if tuple(packed[-1]) == tuple(cursor):
+                cursor_found = True
+                break
+        if not cursor_found or seen_rows != current_rows or current_rows == 0:
+            raise ValueError("experience_checkpoint_progress")
+        current_steps = seen_steps
+    if steps != epoch * batches_per_epoch + current_steps:
+        raise ValueError("experience_checkpoint_progress")
+
+
 def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None, diversity=None):
     """Research-only job. stop_after is an absolute one-shot test interrupt; omit on resume."""
     output, plan, config = safe_path(output), split_plan(plan), recipe(config or {})
@@ -904,8 +1032,13 @@ def train(store, pin, output, *, plan, config=None, stop_after=None, parent=None
         )
         if checkpoint.exists():
             saved = torch.load(checkpoint, map_location="cpu", weights_only=True)
-            if saved["binding"] != state["binding"] or saved["statistics"] != state["statistics"]:
+            if (
+                not isinstance(saved, dict)
+                or saved.get("binding") != state["binding"]
+                or saved.get("statistics") != state["statistics"]
+            ):
                 raise ValueError("experience_checkpoint_binding")
+            _validate_checkpoint_progress(saved, snapshot, plan, stats, config, model)
             if stop_after is not None and saved["steps"] >= stop_after:
                 raise ValueError("experience_stop_after_already_reached")
             state = saved

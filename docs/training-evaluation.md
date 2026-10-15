@@ -187,6 +187,10 @@ use only safe built-in metadata types plus tensors, including validation history
 Checkpoint state binds snapshot, code, recipe, environment, statistics, optimizer, model, RNG,
 best validation weights and the next partition/batch cursor. Atomic checkpoints default to every
 100 updates and each epoch; a crash replays only updates since the last complete checkpoint.
+Resume validates progress types/ranges, epoch/history/best-score consistency, and replays the seeded
+training batch stream to reconcile the saved cursor, step count and rows seen before restoring model
+or optimizer state. This detects inconsistent progress metadata; it does not authenticate checkpoint
+bytes or prove that claimed optimizer updates were executed.
 CPU synthetic tests establish bitwise resumed-weight equality, including a failure after an
 optimizer mutation. They do not establish cross-device bitwise reproducibility. Resume requires
 the same binding; a different dataset/configuration needs a new job directory. Cross-generation
