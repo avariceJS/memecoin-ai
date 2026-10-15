@@ -1313,7 +1313,9 @@ need a new layout reader while retaining snapshot/object and role contracts.
 
 `historical_replay` means event-time splits on data known by the research cutoff, without a claim
 that it existed at historical decisions. `point_in_time` additionally enforces input availability
-by decision and label receipt within the role interval. The two validity domains are explicit.
+by decision. Future target receipts may occur after the origin decision but must be within the
+snapshot cutoff at publication and the role knowledge cutoff when consumed. The two validity
+domains are explicit.
 Unknown/missing/censored targets have masks, never invented zero values.
 
 `compose` combines snapshots with identical representation/role and disjoint entity/decision

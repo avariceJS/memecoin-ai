@@ -12,7 +12,9 @@ Domain-specific behavior belongs in the architecture, data, training/evaluation,
 - Block time is not receipt time. Backfilled history is not retroactively available to a past
   forecast.
 - Preserve observed, assumed (with a named assumption), and unknown as separate states.
-- An observation later than the decision cannot enter features, scaler fitting, or label selection.
+- An observation later than the decision cannot enter input features or scaler fitting. Future
+  target labels may arrive after the decision; admit them only by the pinned snapshot cutoff at
+  publication and the role knowledge cutoff at training/evaluation, never as input features.
 - Sparse point-in-time origins use arrival/availability as decision time and retain event time
   separately. Historical replay uses event-time decisions and explicitly permits later receipts
   up to its fit cutoff; positive censored-count bounds and their target maturity must also be within

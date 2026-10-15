@@ -381,12 +381,6 @@ def validate_sample(row, schema, cutoff_ns):
             and (type(available) is not int or not 0 <= available <= cutoff_ns)
         ):
             raise ValueError(f"experience_coordinate_target_window_{i}")
-        if (
-            schema["availability"] == "point_in_time"
-            and available is not None
-            and available > decision
-        ):
-            raise ValueError("experience_coordinate_future_target")
         if status == "exact":
             if (
                 type(value) not in (int, float)
@@ -411,8 +405,6 @@ def validate_sample(row, schema, cutoff_ns):
                 or lower_at < 0
                 or lower_at > cutoff_ns
                 or window["completion_status"] != "incomplete"
-                or schema["availability"] == "point_in_time"
-                and lower_at > decision
             ):
                 raise ValueError("experience_coordinate_lower_bound")
         elif status in {"masked", "pending"}:
@@ -512,7 +504,6 @@ def eligibility(sample, schema, split_plan, role):
             and window["completion_status"] == "complete"
             and available is not None
             and available <= cutoff
-            and (schema["availability"] != "point_in_time" or available <= decision)
             and sample.get("_admission", "eligible") == "eligible"
         )
         lower_at = detail.get("lower_bound_available_ns")
@@ -522,7 +513,6 @@ def eligibility(sample, schema, split_plan, role):
             and detail["lower_bound"] > 0
             and type(lower_at) is int
             and lower_at <= cutoff
-            and (schema["availability"] != "point_in_time" or lower_at <= decision)
             and sample.get("_admission", "eligible") == "eligible"
         )
     result.update(eligible=True, exact_mask=exact, lower_bound_mask=lower, reason="eligible")

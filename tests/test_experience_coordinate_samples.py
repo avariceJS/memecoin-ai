@@ -120,7 +120,7 @@ def test_domain_role_extent_and_independent_utc_cutoff_are_gated():
     assert membership(crossing, _plan(), schema) == ("purged", [False])
 
 
-def test_pit_requires_actual_decision_and_rejects_future_input_or_support():
+def test_pit_requires_actual_decision_and_rejects_future_input():
     schema = _schema("point_in_time")
     missing_decision = _row(1, decision=None)
     with pytest.raises(ValueError, match="pit_decision"):
@@ -130,10 +130,31 @@ def test_pit_requires_actual_decision_and_rejects_future_input_or_support():
     future["input_dependencies"][0]["available_ns"] = 90
     with pytest.raises(ValueError, match="future_input"):
         list(checked_samples([future], schema, 1000))
-    future = _row(1, decision=100)
-    future["target_available_ns"] = [101]
-    with pytest.raises(ValueError, match="future_target"):
-        list(checked_samples([future], schema, 1000))
+
+
+def test_pit_future_target_receipts_use_snapshot_and_role_cutoffs():
+    schema = _schema("point_in_time")
+    exact = _row(1, decision=100, availability=150)
+    assert list(checked_samples([exact], schema, 200)) == [exact]
+    assert coordinate_samples.eligibility(exact, schema, _plan(cutoff=200), "train")[
+        "exact_mask"
+    ] == [True]
+    assert coordinate_samples.eligibility(exact, schema, _plan(cutoff=140), "train")[
+        "exact_mask"
+    ] == [False]
+    with pytest.raises(ValueError, match="target_window"):
+        list(checked_samples([exact], schema, 140))
+
+    lower_bound = _row(1, status="lower_bound", value=2, availability=150, decision=100)
+    assert list(checked_samples([lower_bound], schema, 200)) == [lower_bound]
+    assert coordinate_samples.eligibility(lower_bound, schema, _plan(cutoff=200), "train")[
+        "lower_bound_mask"
+    ] == [True]
+    assert coordinate_samples.eligibility(lower_bound, schema, _plan(cutoff=140), "train")[
+        "lower_bound_mask"
+    ] == [False]
+    with pytest.raises(ValueError, match="lower_bound"):
+        list(checked_samples([lower_bound], schema, 140))
 
 
 def test_unknown_domain_and_invalid_zero_lower_bound_fail_closed():

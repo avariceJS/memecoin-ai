@@ -1098,7 +1098,9 @@ holdout.
 maturity while retaining UTC availability as a separate knowledge clock. Split plans specify role
 extents per declared domain and a monotone UTC cutoff. No implicit coordinate conversion or
 cross-domain alignment is permitted. Actual point-in-time schemas require an actual `decision_ns`;
-historical replay may keep it null and is not an online forecast. v1/v2 schemas, exact-label masks,
+inputs must be available by that decision, while future exact/lower-bound target receipts may arrive
+later if they are within the snapshot cutoff and role knowledge cutoff. Historical replay may keep
+`decision_ns` null and is not an online forecast. v1/v2 schemas, exact-label masks,
 dense f64 partition storage and existing training contracts remain compatible. Coordinate-aware
 compose, replication, batching, and evaluation paths are available for v3. Training reports a
 versioned conservative exclusive-end frontier for every native domain from all train, validation,
