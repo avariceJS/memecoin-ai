@@ -6,7 +6,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-16 00:07 UTC.** The accepted recovery scope is loss or erasure of the
+**NO-GO for factory reset as of 2026-10-16 00:54 UTC.** The accepted recovery scope is loss or erasure of the
 owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
 reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -24,6 +24,9 @@ The exact published commit was then fetched into a new clean checkout; isolated 
 dependency check, project smoke, and CLI help passed. This was still the current Mac and authentication
 context, with no Brain state restored. See the
 [`clean-clone bootstrap receipt`](evidence/portability-dr-clean-clone-held-data-cli-bootstrap-2026-10-16T0007Z.json).
+The post-bootstrap restore flow then passed a same-host blocked-path rehearsal: the exact commit,
+entry card and Kingston identity matched, and the operation stopped at the absent accepted set before
+quarantine or witness creation. This still is not a clean-host restore or erase qualification.
 
 Live checks on the current Mac:
 
@@ -670,12 +673,13 @@ The card bytes were last changed at commit `edf2898ba4fb877ed8bee159fc9673754f7e
 SHA-256 remains `ac8859ee4fc499ffe55dc1824be11a55fd4475fee2dbe0cae749a7f6cbbb5b76`. The card hash
 pins the entry instructions; it does not select the source commit. For each recovery, the external
 handoff must pin the intended accepted source commit and confirm that this card hash is expected at
-that commit. The current `research/active` checkout at `72bd405a773951cf70ce556700f3c96573f73dfb`
-was verified to contain the same card bytes. The latest exact-commit clean-checkout bootstrap
-rehearsal used `68253b84c5aefd8676b85b9415d2d242ada58d73`; it fetched that published commit, rebuilt
-the locked development environment, passed dependency check and smoke, and matched the checkout
-card hash to Kingston. It also exposed CLI help from the clean checkout. This remains a same-host
-code bootstrap, not a clean-compatible-host or Brain-state restore. The prior handoff pin to
+that commit. The restore-flow implementation commit `75f580b2741ed34dff47c7ec567a53388979c503`
+contains the same card bytes. A fresh shallow clone of that published branch tip rebuilt the locked
+development environment under a new isolated HOME, passed project smoke and the focused flow tests,
+and launched the flow CLI from a neutral working directory. The clone and Git authentication still
+used this Mac; this tests published-code retrieval and bootstrap, not clean-host credentials or Brain
+state restoration. The earlier exact-commit bootstrap at `68253b84c5aefd8676b85b9415d2d242ada58d73`
+also passed dependency check and smoke. The prior handoff pin to
 `edf2898...` authorizes only that older code commit. For recovery, supply the exact rehearsed source
 commit and card hash through a trusted channel outside Kingston; this session has not distributed a
 separate persistent handoff artifact outside Kingston. See the
@@ -795,9 +799,31 @@ qualify Recovery Data T or Kingston K, or authorize activation. The handoff's ex
 obtained independently of both its file and Kingston; self-generated set pins are not trusted
 acceptance evidence. The current Kingston inventory has no accepted six-role set, so only the
 blocked path is eligible for live rehearsal; it must stop at `set_missing` before quarantine or
-witness creation. See the
-[`post-bootstrap restore-flow receipt`](evidence/portability-dr-post-bootstrap-restore-flow-v1-2026-10-16.json)
-for exact implementation and bounded test evidence.
+witness creation. The direct script entrypoint now works from a neutral working directory. A
+same-host synthetic-handoff rehearsal reached exactly `set_missing`, retained only the private
+local request/inspection/blocked records, and confirmed the target remained empty with no set or
+witness at the pinned IDs. The handoff was self-generated and is not a trust anchor; this verifies
+operator-facing rejection behavior only. Sol accepted the implementation for this blocked path, not
+positive extraction. See the
+[`post-bootstrap restore-flow receipt`](evidence/portability-dr-post-bootstrap-restore-flow-v1-2026-10-16T0054Z.json).
+
+Operator order for a later accepted handoff:
+
+1. Obtain the canonical handoff file and its expected SHA-256 through a trusted channel outside
+   Kingston. Confirm that its execution commit, entry-card digest, six-role set ID/index digest,
+   owner/research commits, and eight source-root declarations match the separately accepted
+   recovery receipt. The rehearsal receipt's synthetic pins are never reusable.
+2. Create a new, private, persistent local run root with separate empty `target-parent` and
+   `runs` directories. Keep the root outside Kingston and every declared source root; the target
+   parent must be on a device separate from Kingston. Do not reuse a path containing old state.
+3. Run `tools/brain_host_restore_flow_v1.py inspect` with the handoff, external digest, exact
+   checkout, storage binding, and both local parent paths. It is read-only and returns exit 2 with
+   named blockers. Resolve each blocker; `set_missing`, a pin mismatch, or an unresolved source root
+   stops the procedure before extraction.
+4. Only with `inspect.status=ready_for_inert_restore` and no blockers, run the same arguments with
+   `restore-inert`. Preserve its create-only run directory and `ASSESSMENT.JSON`. A blocked or
+   partial result remains for review; never resume it or start services from it. Any later service
+   activation is a separate, explicit operation outside this flow.
 
 ## Service restore posture
 
