@@ -415,10 +415,50 @@ class BootstrapOptions:
 
 
 class BootstrapError(RuntimeError):
-    def __init__(self, stage: str, returncode: int | None = None):
+    def __init__(
+        self,
+        stage: str,
+        returncode: int | None = None,
+        failure_class: str | None = None,
+    ):
         super().__init__(stage)
         self.stage = stage
         self.returncode = returncode
+        self.failure_class = failure_class
+
+
+def _fetch_failure_class(result: subprocess.CompletedProcess[str]) -> str:
+    """Map recognizable Git fetch diagnostics to fixed, non-sensitive labels."""
+    output = f"{result.stdout}\n{result.stderr}".lower()
+    markers = {
+        "authentication_or_access": (
+            "authentication failed",
+            "could not read username",
+            "permission denied",
+            "repository not found",
+            "access denied",
+        ),
+        "commit_unavailable_or_wrong_pin": (
+            "couldn't find remote ref",
+            "could not find remote ref",
+            "not our ref",
+            "unadvertised object",
+            "no such ref was fetched",
+        ),
+        "network_unavailable": (
+            "could not resolve host",
+            "failed to resolve",
+            "failed to connect",
+            "connection timed out",
+            "connection reset",
+            "network is unreachable",
+            "operation timed out",
+        ),
+    }
+    for failure_class, phrases in markers.items():
+        if any(phrase in output for phrase in phrases):
+            return failure_class
+    return "fetch_failed"
 
 
 def _bootstrap_command(
@@ -432,9 +472,11 @@ def _bootstrap_command(
     try:
         result = runner(command, cwd=cwd, timeout=3600, env=env)
     except (OSError, subprocess.SubprocessError) as exc:
-        raise BootstrapError(stage) from exc
+        failure_class = "fetch_failed" if stage == "fetch_exact_commit" else None
+        raise BootstrapError(stage, failure_class=failure_class) from exc
     if result.returncode != 0:
-        raise BootstrapError(stage, result.returncode)
+        failure_class = _fetch_failure_class(result) if stage == "fetch_exact_commit" else None
+        raise BootstrapError(stage, result.returncode, failure_class)
 
 
 def _isolated_bootstrap_environment(home: Path) -> dict[str, str]:
@@ -512,6 +554,8 @@ def bootstrap(options: BootstrapOptions, *, runner: Runner = run_command) -> dic
             result.update(
                 {"state": "failed", "failed_stage": exc.stage, "exit_code": exc.returncode}
             )
+            if exc.failure_class is not None:
+                result["failure_class"] = exc.failure_class
             return result
     actual = _result(["git", "-C", str(destination), "rev-parse", "HEAD"], runner=runner)
     if actual != options.commit:
@@ -593,9 +637,7 @@ def bootstrap(options: BootstrapOptions, *, runner: Runner = run_command) -> dic
         if hashlib.sha256(lock_path.read_bytes()).hexdigest() != lock_digest:
             result.update({"state": "failed", "failed_stage": "verify_dependency_lock"})
             return result
-        verified_head = _result(
-            ["git", "-C", str(destination), "rev-parse", "HEAD"], runner=runner
-        )
+        verified_head = _result(["git", "-C", str(destination), "rev-parse", "HEAD"], runner=runner)
         if verified_head != options.commit:
             result.update({"state": "failed", "failed_stage": "verify_commit_after_bootstrap"})
             return result

@@ -14,8 +14,8 @@ from tools import brain_host_recovery as recovery
 COMMIT = "a" * 40
 
 
-def completed(args, *, code=0, stdout=""):
-    return subprocess.CompletedProcess(args, code, stdout, "")
+def completed(args, *, code=0, stdout="", stderr=""):
+    return subprocess.CompletedProcess(args, code, stdout, stderr)
 
 
 class StatusRunner:
@@ -228,10 +228,14 @@ class BootstrapRunner:
         *,
         fail_stage: str | None = None,
         python_version: str = "3.13.0",
+        failure_stdout: str = "",
+        failure_stderr: str = "",
     ) -> None:
         self.root = root
         self.fail_stage = fail_stage
         self.python_version = python_version
+        self.failure_stdout = failure_stdout
+        self.failure_stderr = failure_stderr
         self.calls: list[list[str]] = []
         self.environments: list[dict[str, str] | None] = []
         self.working_directories: list[Path | None] = []
@@ -274,7 +278,13 @@ class BootstrapRunner:
             stage = "smoke"
         else:
             return completed(command, code=1)
-        return completed(command, code=1 if self.fail_stage == stage else 0)
+        failed = self.fail_stage == stage
+        return completed(
+            command,
+            code=1 if failed else 0,
+            stdout=self.failure_stdout if failed else "",
+            stderr=self.failure_stderr if failed else "",
+        )
 
 
 def test_bootstrap_clones_exact_commit_and_runs_locked_setup_only_in_new_target(
@@ -455,3 +465,43 @@ def test_bootstrap_clone_failure_does_not_claim_isolation_started(tmp_path: Path
         "state": "not_started",
         "scope": "python_venv_install_checks_and_smoke",
     }
+
+
+@pytest.mark.parametrize(
+    ("diagnostic", "expected"),
+    [
+        ("fatal: couldn't find remote ref", "commit_unavailable_or_wrong_pin"),
+        ("fatal: Authentication failed", "authentication_or_access"),
+        ("fatal: Could not resolve host: git.example.invalid", "network_unavailable"),
+        ("unexpected private response", "fetch_failed"),
+    ],
+)
+def test_bootstrap_fetch_failure_class_is_safe_and_preserves_partial_target(
+    tmp_path: Path, diagnostic: str, expected: str
+) -> None:
+    parent = tmp_path / "restores"
+    parent.mkdir()
+    destination = parent / "partial-fetch"
+    sensitive = "https://user:secret-token@git.example.invalid/private.git"
+    runner = BootstrapRunner(
+        tmp_path,
+        fail_stage="fetch_exact_commit",
+        failure_stdout=f"diagnostic={diagnostic}; remote={sensitive}",
+        failure_stderr=f"credential=ghp_sensitive-token {diagnostic}",
+    )
+
+    result = recovery.bootstrap(
+        recovery.BootstrapOptions(sensitive, COMMIT, destination, Path("python3")),
+        runner=runner,
+    )
+
+    assert result["state"] == "failed"
+    assert result["failed_stage"] == "fetch_exact_commit"
+    assert result["exit_code"] == 1
+    assert result["failure_class"] == expected
+    assert destination.is_dir()
+    serialized = json.dumps(result)
+    assert sensitive not in serialized
+    assert "secret-token" not in serialized
+    assert "ghp_sensitive-token" not in serialized
+    assert "diagnostic=" not in serialized
