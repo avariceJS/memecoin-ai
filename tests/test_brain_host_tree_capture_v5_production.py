@@ -34,6 +34,7 @@ from tools.brain_host_tree_capture_v5_production import (
     _required_boundary_callback,
     _validate_pins,
     _validate_scratch_devices,
+    extract_production_candidate_inert_v5,
     production_capture_v5,
     verify_production_candidate_v5,
 )
@@ -135,6 +136,7 @@ def test_policy_roster_digest_binds_all_role_scopes_hashes_and_absences(
             present=role == "owner_checkout",
             unresolved_reason=(None if role == "owner_checkout" else f"absent:{role}"),
         )
+
     plan = SimpleNamespace(plan=SimpleNamespace(root_roster=roster))
     policy_value = {
         "schema": POLICY_SCHEMA,
@@ -201,6 +203,116 @@ def test_policy_roster_digest_binds_all_role_scopes_hashes_and_absences(
             plan_sha256=plan_sha,
             expected_policy_roster_sha256=digest,
         )
+
+
+def test_inert_production_rejects_source_target_destination_uuid_alias_before_open(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def forbidden(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("storage or candidate must not be opened before pin validation")
+
+    monkeypatch.setattr(storage, "read_only_guard", forbidden)
+    with pytest.raises(ProductionCaptureV5Error, match="production_extract_volume_uuid_alias"):
+        extract_production_candidate_inert_v5(
+            "a" * 32,
+            target_storage_config=Path("/does/not/exist-target.json"),
+            expected_target_volume_uuid="11111111-2222-3333-4444-555555555555",
+            expected_target_root_id="a" * 32,
+            destination_storage_config=Path("/does/not/exist-destination.json"),
+            expected_destination_volume_uuid="11111111-2222-3333-4444-555555555555",
+            expected_destination_root_id="b" * 32,
+            scratch=object(),  # type: ignore[arg-type]
+            expected_index_sha256="0" * 64,
+            expected_plan_sha256="1" * 64,
+            expected_source_data_volume_uuid="22222222-3333-4444-5555-666666666666",
+            source_plan_path=Path("/does/not/exist-plan.json"),
+        )
+
+
+def test_inert_production_binds_source_uuid_to_externally_pinned_plan(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    plan = SimpleNamespace(data_volume_uuid="22222222-3333-4444-5555-666666666666")
+    monkeypatch.setattr(
+        production_module,
+        "_load_plan",
+        lambda _path: plan,
+    )
+    monkeypatch.setattr(
+        production_module,
+        "approved_data_plan_sha256",
+        lambda _plan: "2" * 64,
+    )
+    source_plan_path = tmp_path / "pinned-plan.json"
+    source_plan_path.write_text("{}", encoding="utf-8")
+    with pytest.raises(
+        ProductionCaptureV5Error, match="production_extract_source_plan_pin_mismatch"
+    ):
+        extract_production_candidate_inert_v5(
+            "a" * 32,
+            target_storage_config=Path("/does/not/exist-target.json"),
+            expected_target_volume_uuid="11111111-2222-3333-4444-555555555555",
+            expected_target_root_id="a" * 32,
+            destination_storage_config=Path("/does/not/exist-destination.json"),
+            expected_destination_volume_uuid="33333333-4444-5555-6666-777777777777",
+            expected_destination_root_id="b" * 32,
+            scratch=object(),  # type: ignore[arg-type]
+            expected_index_sha256="0" * 64,
+            expected_plan_sha256="1" * 64,
+            expected_source_data_volume_uuid=plan.data_volume_uuid,
+            source_plan_path=source_plan_path,
+        )
+
+
+def test_extract_inert_cli_reports_unaccepted_partial_quarantine_state(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_scratch_open(cls: type[PinnedScratchV5], path: Path) -> PinnedScratchV5:
+        del cls, path
+        raise ProductionCaptureV5Error("secrettoken123")
+
+    monkeypatch.setattr(PinnedScratchV5, "open", classmethod(fail_scratch_open))
+    result = production_cli_main(
+        [
+            "extract-inert",
+            "a" * 32,
+            "--index-sha256",
+            "0" * 64,
+            "--plan-sha256",
+            "1" * 64,
+            "--source-data-volume-uuid",
+            "22222222-3333-4444-5555-666666666666",
+            "--source-plan",
+            str(tmp_path / "missing-plan.json"),
+            "--target-storage-config",
+            str(tmp_path / "missing-target.json"),
+            "--target-volume-uuid",
+            "11111111-2222-3333-4444-555555555555",
+            "--target-root-id",
+            "a" * 32,
+            "--destination-storage-config",
+            str(tmp_path / "missing-destination.json"),
+            "--destination-volume-uuid",
+            "33333333-4444-5555-6666-777777777777",
+            "--destination-root-id",
+            "b" * 32,
+            "--scratch-parent",
+            str(tmp_path / "missing-scratch"),
+        ]
+    )
+    assert result == 2
+    output = capsys.readouterr().out
+    payload = json.loads(output)
+    assert payload["ok"] is False
+    assert payload["quarantine_rehearsal_only"] is True
+    assert payload["unaccepted_partial_quarantine_may_remain"] is True
+    assert payload["start_or_restore_performed"] is False
+    assert payload["restore_verified"] is False
+    assert payload["T_qualified"] is False
+    assert payload["erase_ready"] is False
+    assert "secrettoken123" not in output
 
 
 def test_scratch_capability_pins_no_follow_path_and_rejects_source_alias(

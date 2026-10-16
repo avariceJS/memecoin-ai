@@ -774,6 +774,18 @@ from the clone. This remains same-Mac synthetic-code reproduction; it adds no re
 evidence. See the
 [`published v5 clean-clone receipt`](evidence/portability-dr-v5-published-clean-clone-synthetic-2026-10-16T0503Z.json).
 
+The v5 `extract-inert` path now verifies external index/plan/source identity pins against a
+read-only candidate and extracts payload bytes into a new mode-0700 quarantine on a separately
+bound writable APFS volume, using separately pinned scratch. It preserves hardlink topology, omits
+symlinks, applies no source metadata, never opens extracted databases or code, and performs no
+restore or start. Sol approved the bounded implementation after final review; 46 focused tests pass.
+The production CLI E2E is still pending: the only newly provisioned APFS image mounts with
+ownership disabled, while the internal Data path is a firmlink rejected by the repository's
+mountpoint guard. Do not relax these checks or use Kingston as the test destination. The exact
+environment blocker and next operator action are in the
+[`v5 inert extraction host blocker receipt`](evidence/portability-dr-v5-inert-extraction-host-blocker-2026-10-16T0651Z.json).
+This work qualifies no owner capture, Data T, Kingston K, full-host restore, activation, or erase.
+
 ## State ownership and restore rules
 
 | State | Canonical source of truth | Recovery rule |

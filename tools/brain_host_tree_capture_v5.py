@@ -2807,6 +2807,11 @@ def verify_candidate_v5(
             "synthetic_fixture_only": index["synthetic_fixture_only"],
             "index_sha256": index_digest,
             "member_count": checked,
+            "payload_bytes": int(index["payload_bytes"]),
+            "metadata_bytes": sum(int(ref["size_bytes"]) for ref in index["sidecar_pages"]),
+            "member_page_bytes": sum(int(ref["size_bytes"]) for ref in index["member_pages"]),
+            "entry_overhead_bytes": int(index["entry_count"]) * 4096,
+            "scratch_reserve_bytes": calculated_reserve,
             "xattr_acl_flags_restore_policy": "evidence_only_never_applied",
         }
     except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError) as exc:
@@ -3323,27 +3328,63 @@ def capture_candidate_v5(inventory: GlobalInventoryV5) -> dict[str, Any]:
         os.close(parent_fd)
 
 
-def _ensure_destination_directory(parent_fd: int, name: str) -> int:
+def _ensure_destination_directory(
+    parent_fd: int,
+    name: str,
+    relative: str,
+    created_directories: dict[str, tuple[int, int]],
+) -> int:
+    parent_stat = os.fstat(parent_fd)
+    created_here = False
     try:
         os.mkdir(name, mode=0o700, dir_fd=parent_fd)
-    except FileExistsError:
-        pass
+    except FileExistsError as exc:
+        expected_identity = created_directories.get(relative)
+        if expected_identity is None:
+            raise TreeCaptureV5Error("inert_destination_directory_collision") from exc
+    else:
+        created_here = True
     fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd)
-    st = os.fstat(fd)
-    if st.st_uid != os.getuid() or stat.S_IMODE(st.st_mode) != 0o700:
+    try:
+        st = os.fstat(fd)
+        path_stat = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        if (
+            st.st_uid != os.getuid()
+            or stat.S_IMODE(st.st_mode) != 0o700
+            or st.st_dev != parent_stat.st_dev
+            or (path_stat.st_dev, path_stat.st_ino) != (st.st_dev, st.st_ino)
+        ):
+            raise TreeCaptureV5Error("inert_destination_directory_invalid")
+        identity = (st.st_dev, st.st_ino)
+        if created_here:
+            created_directories[relative] = identity
+        elif identity != expected_identity:
+            raise TreeCaptureV5Error("inert_destination_directory_replaced")
+        if sys.platform == "darwin" and _acl_bytes(fd) is not None:
+            raise TreeCaptureV5Error("inert_destination_directory_acl_present")
+    except OSError as exc:
         os.close(fd)
-        raise TreeCaptureV5Error("inert_destination_directory_invalid")
+        raise TreeCaptureV5Error("inert_destination_directory_replaced") from exc
+    except BaseException:
+        os.close(fd)
+        raise
     return fd
 
 
-def _open_destination_parent(root_fd: int, relative: str) -> tuple[int, str]:
+def _open_destination_parent(
+    root_fd: int,
+    relative: str,
+    created_directories: dict[str, tuple[int, int]],
+) -> tuple[int, str]:
     parts = relative.split("/")
     if not parts or any(part in {"", ".", ".."} or "/" in part for part in parts):
         raise TreeCaptureV5Error("inert_destination_path_invalid")
     current = os.dup(root_fd)
+    prefix = ""
     try:
         for component in parts[:-1]:
-            child = _ensure_destination_directory(current, component)
+            prefix = f"{prefix}/{component}" if prefix else component
+            child = _ensure_destination_directory(current, component, prefix, created_directories)
             os.close(current)
             current = child
         return current, parts[-1]
@@ -3352,30 +3393,303 @@ def _open_destination_parent(root_fd: int, relative: str) -> tuple[int, str]:
         raise
 
 
+def _check_extraction_scratch(
+    db: sqlite3.Connection,
+    database_fd: int,
+    scratch_directory_fd: int,
+    reserve_bytes: int,
+    capacity_check: Callable[[int, int], None] | None,
+) -> None:
+    db.commit()
+    used = os.fstat(database_fd).st_size
+    database_stat = os.fstat(database_fd)
+    directory_stat = os.fstat(scratch_directory_fd)
+    try:
+        path_stat = os.stat("verify.sqlite", dir_fd=scratch_directory_fd, follow_symlinks=False)
+    except OSError as exc:
+        raise TreeCaptureV5Error("inert_extraction_scratch_database_replaced") from exc
+    if used > reserve_bytes or reserve_bytes > MAX_SCRATCH_BYTES:
+        raise TreeCaptureV5Error("inert_extraction_scratch_limit")
+    if (
+        not stat.S_ISDIR(directory_stat.st_mode)
+        or directory_stat.st_uid != os.getuid()
+        or stat.S_IMODE(directory_stat.st_mode) != 0o700
+        or database_stat.st_dev != directory_stat.st_dev
+        or database_stat.st_uid != os.getuid()
+        or stat.S_IMODE(database_stat.st_mode) != 0o600
+        or database_stat.st_nlink != 1
+        or (path_stat.st_dev, path_stat.st_ino) != (database_stat.st_dev, database_stat.st_ino)
+        or os.listdir(scratch_directory_fd) != ["verify.sqlite"]
+        or (sys.platform == "darwin" and _acl_bytes(scratch_directory_fd) is not None)
+    ):
+        raise TreeCaptureV5Error("inert_extraction_scratch_identity_invalid")
+    if capacity_check is not None:
+        capacity_check(used, reserve_bytes)
+
+
+def _insert_quarantine_readback(
+    extraction_fd: int,
+    db: sqlite3.Connection,
+    *,
+    destination_device: int,
+    candidate_fd: int,
+    base: str,
+    member_pages: list[dict[str, Any]],
+    database_fd: int,
+    scratch_directory_fd: int,
+    scratch_reserve_bytes: int,
+    scratch_capacity_check: Callable[[int, int], None] | None,
+) -> dict[str, int]:
+    """Reopen and compare exact inert member set, bytes, and hardlink topology."""
+    db.execute(
+        "CREATE TABLE quarantine_expected(path TEXT PRIMARY KEY,kind TEXT,group_id TEXT,"
+        "payload_sha256 TEXT,payload_bytes INTEGER)"
+    )
+    db.execute(
+        "CREATE TABLE quarantine_actual(path TEXT PRIMARY KEY,kind TEXT,dev INTEGER,ino INTEGER,"
+        "nlink INTEGER,payload_sha256 TEXT,payload_bytes INTEGER)"
+    )
+    db.execute("CREATE INDEX quarantine_expected_group ON quarantine_expected(group_id)")
+    members_seen = files_seen = directories_seen = omitted_links = 0
+    actual_seen = 0
+    for page_ref in member_pages:
+        raw = _candidate_read(candidate_fd, base, page_ref["path"], MAX_PAGE_BYTES)
+        if sha256(raw) != page_ref["sha256"]:
+            raise TreeCaptureV5Error("inert_member_page_hash_mismatch")
+        for line in raw.splitlines():
+            member = json.loads(line)
+            if member["state"] != "included":
+                continue
+            members_seen += 1
+            if member["kind"] == "symlink":
+                omitted_links += 1
+                continue
+            rel = f"{member['role']}/{member['path']}" if member["path"] else member["role"]
+            if member["kind"] not in {"directory", "file"}:
+                raise TreeCaptureV5Error("inert_member_kind_invalid")
+            db.execute(
+                "INSERT INTO quarantine_expected VALUES(?,?,?,?,?)",
+                (
+                    rel,
+                    member["kind"],
+                    member.get("group_id"),
+                    member.get("payload_sha256"),
+                    member.get("payload_bytes"),
+                ),
+            )
+            if member["kind"] == "file":
+                files_seen += 1
+            else:
+                directories_seen += 1
+            if members_seen % 128 == 0:
+                _check_extraction_scratch(
+                    db,
+                    database_fd,
+                    scratch_directory_fd,
+                    scratch_reserve_bytes,
+                    scratch_capacity_check,
+                )
+
+    def visit(directory_fd: int, prefix: str) -> None:
+        nonlocal actual_seen
+        # scandir streams directory entries; sorting a large sibling set would
+        # make readback memory proportional to an untrusted directory fanout.
+        with os.scandir(directory_fd) as entries:
+            for entry in entries:
+                name = entry.name
+                st = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+                relative = f"{prefix}/{name}" if prefix else name
+                if st.st_dev != destination_device or st.st_uid != os.getuid():
+                    raise TreeCaptureV5Error("inert_readback_member_identity_invalid")
+                if stat.S_ISDIR(st.st_mode):
+                    if stat.S_IMODE(st.st_mode) != 0o700:
+                        raise TreeCaptureV5Error("inert_readback_directory_mode_invalid")
+                    child_fd = os.open(
+                        name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=directory_fd
+                    )
+                    try:
+                        child_st = os.fstat(child_fd)
+                        path_st = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+                        if (child_st.st_dev, child_st.st_ino) != (path_st.st_dev, path_st.st_ino):
+                            raise TreeCaptureV5Error("inert_readback_directory_replaced")
+                        if sys.platform == "darwin" and _acl_bytes(child_fd) is not None:
+                            raise TreeCaptureV5Error("inert_readback_directory_acl_present")
+                        db.execute(
+                            "INSERT INTO quarantine_actual VALUES(?,?,?,?,?,?,?)",
+                            (relative, "directory", st.st_dev, st.st_ino, st.st_nlink, None, None),
+                        )
+                        actual_seen += 1
+                        if actual_seen % 128 == 0:
+                            _check_extraction_scratch(
+                                db,
+                                database_fd,
+                                scratch_directory_fd,
+                                scratch_reserve_bytes,
+                                scratch_capacity_check,
+                            )
+                        visit(child_fd, relative)
+                    finally:
+                        os.close(child_fd)
+                elif stat.S_ISREG(st.st_mode):
+                    fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory_fd)
+                    try:
+                        opened = os.fstat(fd)
+                        path_st = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+                        if (
+                            (opened.st_dev, opened.st_ino) != (path_st.st_dev, path_st.st_ino)
+                            or opened.st_size != st.st_size
+                            or stat.S_IMODE(opened.st_mode) != 0o600
+                            or opened.st_nlink < 1
+                        ):
+                            raise TreeCaptureV5Error("inert_readback_file_identity_invalid")
+                        if sys.platform == "darwin" and _acl_bytes(fd) is not None:
+                            raise TreeCaptureV5Error("inert_readback_file_acl_present")
+                        digest = hashlib.sha256()
+                        total = 0
+                        while chunk := os.read(fd, STREAM_CHUNK_BYTES):
+                            digest.update(chunk)
+                            total += len(chunk)
+                        if total != opened.st_size:
+                            raise TreeCaptureV5Error("inert_readback_file_size_changed")
+                        db.execute(
+                            "INSERT INTO quarantine_actual VALUES(?,?,?,?,?,?,?)",
+                            (
+                                relative,
+                                "file",
+                                opened.st_dev,
+                                opened.st_ino,
+                                opened.st_nlink,
+                                digest.hexdigest(),
+                                total,
+                            ),
+                        )
+                        actual_seen += 1
+                        if actual_seen % 128 == 0:
+                            _check_extraction_scratch(
+                                db,
+                                database_fd,
+                                scratch_directory_fd,
+                                scratch_reserve_bytes,
+                                scratch_capacity_check,
+                            )
+                    finally:
+                        os.close(fd)
+                else:
+                    raise TreeCaptureV5Error("inert_readback_unexpected_link_or_type")
+
+    visit(extraction_fd, "")
+    missing = db.execute(
+        "SELECT e.path FROM quarantine_expected e LEFT JOIN quarantine_actual a "
+        "ON a.path=e.path WHERE a.path IS NULL LIMIT 1"
+    ).fetchone()
+    unexpected = db.execute(
+        "SELECT a.path FROM quarantine_actual a LEFT JOIN quarantine_expected e "
+        "ON e.path=a.path WHERE e.path IS NULL LIMIT 1"
+    ).fetchone()
+    mismatch = db.execute(
+        "SELECT 1 FROM quarantine_expected e JOIN quarantine_actual a ON a.path=e.path "
+        "WHERE e.kind!=a.kind OR (e.kind='file' AND "
+        "(e.payload_sha256!=a.payload_sha256 OR e.payload_bytes!=a.payload_bytes)) LIMIT 1"
+    ).fetchone()
+    if missing is not None or unexpected is not None or mismatch is not None:
+        if missing is not None:
+            raise TreeCaptureV5Error("inert_readback_member_missing")
+        if unexpected is not None:
+            raise TreeCaptureV5Error("inert_readback_member_unexpected")
+        raise TreeCaptureV5Error("inert_readback_content_mismatch")
+    bad_hardlink = db.execute(
+        "SELECT 1 FROM quarantine_expected e "
+        "JOIN quarantine_actual a ON a.path=e.path "
+        "WHERE e.kind='file' AND e.group_id IS NOT NULL GROUP BY e.group_id "
+        "HAVING count(DISTINCT a.dev || ':' || a.ino)!=1 OR min(a.nlink)!=count(*) "
+        "OR max(a.nlink)!=count(*) LIMIT 1"
+    ).fetchone()
+    bad_singleton = db.execute(
+        "SELECT 1 FROM quarantine_expected e JOIN quarantine_actual a ON a.path=e.path "
+        "WHERE e.kind='file' AND e.group_id IS NULL AND a.nlink!=1 LIMIT 1"
+    ).fetchone()
+    if bad_hardlink is not None or bad_singleton is not None:
+        raise TreeCaptureV5Error("inert_readback_hardlink_topology_mismatch")
+    return {
+        "member_count": members_seen,
+        "file_count": files_seen,
+        "directory_count": directories_seen,
+        "symlink_omitted_count": omitted_links,
+    }
+
+
 def extract_candidate_inert_v5(
     writer: DescriptorWriter,
     candidate_id: str,
     *,
     quarantine_parent_fd: int,
     allow_unbound_synthetic: bool = False,
+    scratch_parent_fd: int | None = None,
+    expected_index_sha256: str | None = None,
+    expected_plan_sha256: str | None = None,
+    capacity_check: Callable[[int], None] | None = None,
+    scratch_capacity_check: Callable[[int, int], None] | None = None,
+    leave_partial_on_error: bool = False,
 ) -> dict[str, Any]:
-    """Extract candidate data into a separate-device inert quarantine only.
+    """Extract verified bytes into an inert quarantine rehearsal only.
 
-    This is test/review extraction, not a host restore. The caller supplies a
-    pinned, private directory FD on a device distinct from candidate storage.
+    This is not a host restore. The caller supplies pinned private scratch and
+    quarantine directory FDs on devices distinct from candidate storage. The
+    scratch SQLite database is only a bounded readback index; it never opens
+    any extracted application data as a database.
     """
+    if scratch_parent_fd is None or expected_index_sha256 is None or expected_plan_sha256 is None:
+        raise TreeCaptureV5Error("inert_extraction_external_pins_required")
     verification = verify_candidate_v5(
-        writer, candidate_id, allow_unbound_synthetic=allow_unbound_synthetic
+        writer,
+        candidate_id,
+        allow_unbound_synthetic=allow_unbound_synthetic,
+        scratch_parent_fd=scratch_parent_fd,
+        expected_index_sha256=expected_index_sha256,
+        expected_plan_sha256=expected_plan_sha256,
+        scratch_capacity_check=scratch_capacity_check,
     )
     candidate_device = os.fstat(writer.root_fd).st_dev
     parent_stat = os.fstat(quarantine_parent_fd)
+    quarantine_acl_error = None
+    if sys.platform == "darwin":
+        try:
+            if _acl_bytes(quarantine_parent_fd) is not None:
+                quarantine_acl_error = True
+        except Exception:
+            quarantine_acl_error = True
     if (
         not stat.S_ISDIR(parent_stat.st_mode)
         or parent_stat.st_uid != os.getuid()
         or stat.S_IMODE(parent_stat.st_mode) != 0o700
-        or parent_stat.st_dev == candidate_device
+        or (parent_stat.st_dev == candidate_device and not allow_unbound_synthetic)
+        or quarantine_acl_error
     ):
         raise TreeCaptureV5Error("inert_quarantine_parent_invalid")
+    scratch_stat = os.fstat(scratch_parent_fd)
+    if (
+        not stat.S_ISDIR(scratch_stat.st_mode)
+        or scratch_stat.st_uid != os.getuid()
+        or stat.S_IMODE(scratch_stat.st_mode) != 0o700
+        or (scratch_stat.st_dev == parent_stat.st_dev and not allow_unbound_synthetic)
+        or (not allow_unbound_synthetic and scratch_stat.st_dev == candidate_device)
+    ):
+        raise TreeCaptureV5Error("inert_extraction_scratch_invalid")
+    payload_remaining = int(verification.get("payload_bytes", 0))
+    metadata_bytes = int(verification.get("metadata_bytes", 0))
+    member_count = int(verification["member_count"])
+    entry_overhead = member_count * 4096
+    capacity_floor = 256 * 1024**2
+    readback_scratch_reserve = max(
+        16 * 1024**2,
+        member_count * 8192 + int(verification.get("member_page_bytes", 0)),
+    )
+    if readback_scratch_reserve > MAX_SCRATCH_BYTES:
+        raise TreeCaptureV5Error("inert_extraction_scratch_limit")
+    if capacity_check is not None:
+        capacity_check(capacity_floor + payload_remaining + metadata_bytes + entry_overhead)
+    if scratch_capacity_check is not None:
+        scratch_capacity_check(0, readback_scratch_reserve)
     base = f"{CANDIDATE_BASE}/{candidate_id}"
     source_root = os.dup(writer.root_fd)
     candidate_fd = -1
@@ -3398,6 +3712,8 @@ def extract_candidate_inert_v5(
     extraction_fd = -1
     extraction_created = False
     extraction_identity: tuple[int, int] | None = None
+    readback_scratch = None
+    readback_result: dict[str, int] | None = None
     try:
         candidate_fd = _open_output_directory(source_root, base)
         candidate_identity = _validate_candidate_directory(writer, candidate_fd)
@@ -3420,15 +3736,26 @@ def extract_candidate_inert_v5(
             raise TreeCaptureV5Error("candidate_index_changed_after_verify")
         index = json.loads(index_raw)
         member_pages = index["member_pages"]
+        readback_scratch = _open_candidate_verify_db(scratch_parent_fd)
+        _check_extraction_scratch(
+            readback_scratch[4],
+            readback_scratch[3],
+            readback_scratch[2],
+            readback_scratch_reserve,
+            scratch_capacity_check,
+        )
         extracted_entries = 0
         links_materialized = 0
         links_evidence_only = 0
+        entries_considered = 0
+        created_directories: dict[str, tuple[int, int]] = {}
         for page_ref in member_pages:
             raw = _candidate_read(candidate_fd, base, page_ref["path"], MAX_PAGE_BYTES)
             if sha256(raw) != page_ref["sha256"]:
                 raise TreeCaptureV5Error("inert_member_page_hash_mismatch")
             for line in raw.splitlines():
                 member = json.loads(line)
+                entries_considered += 1
                 if member["state"] != "included":
                     continue
                 role = member["role"]
@@ -3436,13 +3763,15 @@ def extract_candidate_inert_v5(
                 kind = member["kind"]
                 rel = f"{role}/{path}" if path else role
                 if kind == "directory":
-                    directory_fd, name = _open_destination_parent(extraction_fd, rel)
+                    directory_fd, name = _open_destination_parent(
+                        extraction_fd, rel, created_directories
+                    )
                     try:
                         os.mkdir(name, mode=0o700, dir_fd=directory_fd)
-                    except FileExistsError:
-                        st = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
-                        if not stat.S_ISDIR(st.st_mode):
-                            raise TreeCaptureV5Error("inert_destination_type_conflict") from None
+                        created = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+                        created_directories[rel] = (created.st_dev, created.st_ino)
+                    except FileExistsError as exc:
+                        raise TreeCaptureV5Error("inert_destination_directory_collision") from exc
                     finally:
                         os.close(directory_fd)
                 elif kind == "symlink":
@@ -3457,7 +3786,9 @@ def extract_candidate_inert_v5(
                         and member.get("path") == member.get("primary_path")
                     ):
                         continue
-                    directory_fd, name = _open_destination_parent(extraction_fd, rel)
+                    directory_fd, name = _open_destination_parent(
+                        extraction_fd, rel, created_directories
+                    )
                     fd = -1
                     digest = hashlib.sha256()
                     total = 0
@@ -3471,6 +3802,13 @@ def extract_candidate_inert_v5(
                         remaining = member["payload_bytes"]
                         page_no = 0
                         while remaining:
+                            if capacity_check is not None:
+                                capacity_check(
+                                    capacity_floor
+                                    + payload_remaining
+                                    + metadata_bytes
+                                    + max(0, member_count - entries_considered) * 4096
+                                )
                             rel_data = f"{base}/payload/{member['payload_id']}/{page_no:08d}.bin"
                             chunk = _candidate_read(
                                 candidate_fd, base, rel_data, STREAM_CHUNK_BYTES
@@ -3486,6 +3824,9 @@ def extract_candidate_inert_v5(
                             digest.update(chunk)
                             total += len(chunk)
                             remaining -= len(chunk)
+                            payload_remaining -= len(chunk)
+                            if payload_remaining < 0:
+                                raise TreeCaptureV5Error("inert_payload_reserve_underflow")
                             page_no += 1
                         if (
                             total != member["payload_bytes"]
@@ -3500,6 +3841,13 @@ def extract_candidate_inert_v5(
                 else:
                     raise TreeCaptureV5Error("inert_member_kind_invalid")
                 extracted_entries += 1
+                if capacity_check is not None:
+                    capacity_check(
+                        capacity_floor
+                        + payload_remaining
+                        + metadata_bytes
+                        + max(0, member_count - entries_considered) * 4096
+                    )
         # Recreate cross-root hardlink aliases inside this single quarantine tree.
         for page_ref in member_pages:
             raw = _candidate_read(candidate_fd, base, page_ref["path"], MAX_PAGE_BYTES)
@@ -3517,8 +3865,12 @@ def extract_candidate_inert_v5(
                     continue
                 source_rel = f"{member['primary_role']}/{member['primary_path']}"
                 target_rel = f"{member['role']}/{member['path']}"
-                source_parent, source_name = _open_destination_parent(extraction_fd, source_rel)
-                target_parent, target_name = _open_destination_parent(extraction_fd, target_rel)
+                source_parent, source_name = _open_destination_parent(
+                    extraction_fd, source_rel, created_directories
+                )
+                target_parent, target_name = _open_destination_parent(
+                    extraction_fd, target_rel, created_directories
+                )
                 try:
                     os.link(
                         source_name,
@@ -3531,7 +3883,40 @@ def extract_candidate_inert_v5(
                     os.close(source_parent)
                     os.close(target_parent)
                 extracted_entries += 1
+                links_materialized += 1
         os.fsync(extraction_fd)
+        # Reopen by the nonce name and require it to bind to the held child
+        # before publishing a successful rehearsal receipt.
+        reopened = _open_output_directory(destination_root, extraction_id)
+        try:
+            held = os.fstat(extraction_fd)
+            reopened_st = os.fstat(reopened)
+            path_st = os.stat(extraction_id, dir_fd=destination_root, follow_symlinks=False)
+            if (
+                (held.st_dev, held.st_ino) != extraction_identity
+                or (reopened_st.st_dev, reopened_st.st_ino) != extraction_identity
+                or (path_st.st_dev, path_st.st_ino) != extraction_identity
+            ):
+                raise TreeCaptureV5Error("inert_extraction_replaced_during_readback")
+            readback_result = _insert_quarantine_readback(
+                reopened,
+                readback_scratch[4],
+                destination_device=parent_stat.st_dev,
+                candidate_fd=candidate_fd,
+                base=base,
+                member_pages=member_pages,
+                database_fd=readback_scratch[3],
+                scratch_directory_fd=readback_scratch[2],
+                scratch_reserve_bytes=readback_scratch_reserve,
+                scratch_capacity_check=scratch_capacity_check,
+            )
+            if scratch_capacity_check is not None:
+                scratch_capacity_check(
+                    os.fstat(readback_scratch[3]).st_size,
+                    readback_scratch_reserve,
+                )
+        finally:
+            os.close(reopened)
         _recheck_candidate_binding(
             writer,
             candidate_id,
@@ -3539,6 +3924,18 @@ def extract_candidate_inert_v5(
             candidate_identity,
             allow_unbound_synthetic=allow_unbound_synthetic,
         )
+        assert readback_scratch is not None
+        scratch_to_close = readback_scratch
+        readback_scratch = None
+        _close_candidate_verify_db(*scratch_to_close)
+        held_after_readback = os.fstat(extraction_fd)
+        path_after_readback = os.stat(extraction_id, dir_fd=destination_root, follow_symlinks=False)
+        if (held_after_readback.st_dev, held_after_readback.st_ino) != extraction_identity or (
+            path_after_readback.st_dev,
+            path_after_readback.st_ino,
+        ) != extraction_identity:
+            raise TreeCaptureV5Error("inert_extraction_replaced_after_readback")
+        os.fsync(destination_root)
         os.close(extraction_fd)
         extraction_fd = -1
         return {
@@ -3546,7 +3943,9 @@ def extract_candidate_inert_v5(
             "candidate_id": candidate_id,
             "extraction_id": extraction_id,
             "entry_count": extracted_entries,
+            "members_read": entries_considered,
             "links_materialized": links_materialized,
+            "hardlinks_materialized": links_materialized,
             "links_evidence_only": links_evidence_only,
             "links_omitted": links_evidence_only,
             "unconfined_links_omitted": links_evidence_only,
@@ -3561,10 +3960,22 @@ def extract_candidate_inert_v5(
             "T_qualified": False,
             "erase_ready": False,
             "candidate_readback_sha256": verification["index_sha256"],
+            "quarantine_rehearsal_only": True,
+            "start_or_restore_performed": False,
+            "readback_verified": True,
+            "readback_member_count": readback_result["member_count"] if readback_result else 0,
+            "readback_file_count": readback_result["file_count"] if readback_result else 0,
+            "readback_directory_count": (
+                readback_result["directory_count"] if readback_result else 0
+            ),
+            "readback_omitted_symlink_count": (
+                readback_result["symlink_omitted_count"] if readback_result else 0
+            ),
+            "scratch_sqlite_role": "private_readback_index_only",
         }
     except BaseException:
         cleanup_error: BaseException | None = None
-        if extraction_created:
+        if extraction_created and not leave_partial_on_error:
             try:
                 _cleanup_empty_created_directory(
                     destination_root,
@@ -3577,6 +3988,13 @@ def extract_candidate_inert_v5(
         if extraction_fd >= 0:
             os.close(extraction_fd)
             extraction_fd = -1
+        if readback_scratch is not None:
+            scratch_to_close = readback_scratch
+            readback_scratch = None
+            try:
+                _close_candidate_verify_db(*scratch_to_close)
+            except BaseException as exc:
+                cleanup_error = cleanup_error or exc
         if cleanup_error is not None:
             raise TreeCaptureV5Error("inert_extraction_cleanup_incomplete") from cleanup_error
         raise

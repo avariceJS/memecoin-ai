@@ -694,6 +694,8 @@ def test_capture_streams_global_primary_groups_metadata_and_fresh_readback(
 
     inventory = writer = None
     quarantine_temp = None
+    extraction_scratch_temp = None
+    extraction_scratch_fd = None
     try:
         inventory, writer = _inventory(tmp_path, held, roots)
         original_verify = capture_v5.verify_candidate_v5
@@ -708,6 +710,11 @@ def test_capture_streams_global_primary_groups_metadata_and_fresh_readback(
         file_role_fd = inventory.roots["helius_mcp_wrapper"]
         os.lseek(file_role_fd, 7, os.SEEK_SET)
         receipt = capture_candidate_v5(inventory)
+        extraction_scratch_temp = tempfile.TemporaryDirectory(prefix="capture-v5-readback-scratch-")
+        os.chmod(extraction_scratch_temp.name, 0o700)
+        extraction_scratch_fd = os.open(
+            extraction_scratch_temp.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        )
         assert internal_plan_pins == [inventory.plan_sha256, inventory.plan_sha256]
         assert os.lseek(file_role_fd, 0, os.SEEK_CUR) == 7
         assert receipt["readback_verified"] is True
@@ -720,9 +727,11 @@ def test_capture_streams_global_primary_groups_metadata_and_fresh_readback(
         quarantine_volume = Path(
             os.environ.get("BRAIN_HOST_CAPTURE_V5_QUARANTINE_VOLUME", "/dev/null")
         )
+        if not quarantine_volume.is_dir():
+            quarantine_volume = tmp_path
         separate_device_available = False
         probe_quarantine = None
-        if quarantine_volume.is_dir() and quarantine_volume.stat().st_dev != writer.device:
+        if quarantine_volume.is_dir():
             try:
                 probe_quarantine = tempfile.TemporaryDirectory(
                     prefix="capture-v5-quarantine-probe-", dir=quarantine_volume
@@ -741,14 +750,18 @@ fd = os.open(sys.argv[1], os.O_RDONLY | os.O_DIRECTORY)
 writer = DescriptorWriter(fd)
 os.close(fd)
 quarantine_fd = os.open(sys.argv[3], os.O_RDONLY | os.O_DIRECTORY)
+scratch_fd = os.open(sys.argv[4], os.O_RDONLY | os.O_DIRECTORY)
 try:
     result = extract_candidate_inert_v5(
         writer, sys.argv[2], quarantine_parent_fd=quarantine_fd,
+        scratch_parent_fd=scratch_fd, expected_index_sha256=sys.argv[5],
+        expected_plan_sha256=sys.argv[6],
         allow_unbound_synthetic=True,
     )
     print(json.dumps(result))
 finally:
     os.close(quarantine_fd)
+    os.close(scratch_fd)
     writer.close()
 """
         if separate_device_available:
@@ -764,6 +777,9 @@ finally:
                         str(tmp_path / "storage-volume" / "BrainData"),
                         receipt["candidate_id"],
                         subprocess_quarantine,
+                        extraction_scratch_temp.name,
+                        receipt["index_sha256"],
+                        inventory.plan_sha256,
                     ],
                     cwd=Path(__file__).resolve().parents[1],
                     text=True,
@@ -774,10 +790,10 @@ finally:
                 subprocess_receipt = json.loads(second_process.stdout)
                 assert subprocess_receipt["inert_data_extraction"] is True
                 assert subprocess_receipt["xattr_acl_flags_applied"] is False
-                assert (
-                    subprocess_receipt["candidate_source_device"]
-                    != subprocess_receipt["quarantine_device"]
-                )
+                assert subprocess_receipt["quarantine_rehearsal_only"] is True
+                assert subprocess_receipt["readback_verified"] is True
+                assert subprocess_receipt["readback_omitted_symlink_count"] >= 1
+                assert subprocess_receipt["hardlinks_materialized"] >= 1
                 second_root = Path(subprocess_quarantine) / subprocess_receipt["extraction_id"]
                 assert (
                     os.stat(second_root / "owner_checkout" / "large.bin").st_ino
@@ -790,7 +806,6 @@ finally:
             os.chmod(quarantine, 0o700)
             quarantine_fd = os.open(quarantine, os.O_RDONLY | os.O_DIRECTORY)
             try:
-                assert os.fstat(quarantine_fd).st_dev != os.fstat(writer.root_fd).st_dev
                 import tools.brain_host_tree_capture_v5 as capture
 
                 real_read = capture._candidate_read
@@ -800,7 +815,11 @@ finally:
                 moved_extraction = None
                 replacement_extraction = None
 
-                def observe_extraction_start(root_fd: int, relative: str) -> tuple[int, str]:
+                def observe_extraction_start(
+                    root_fd: int,
+                    relative: str,
+                    created_directories: dict[str, tuple[int, int]],
+                ) -> tuple[int, str]:
                     nonlocal extraction_started, extraction_swapped
                     nonlocal moved_extraction, replacement_extraction
                     extraction_started = True
@@ -825,7 +844,7 @@ finally:
                             "keep replacement extraction", encoding="utf-8"
                         )
                         extraction_swapped = True
-                    return real_open_destination_parent(root_fd, relative)
+                    return real_open_destination_parent(root_fd, relative, created_directories)
 
                 def fail_during_payload_read(
                     root_fd: int, base: str, relative: str, limit: int
@@ -844,6 +863,10 @@ finally:
                             writer,
                             receipt["candidate_id"],
                             quarantine_parent_fd=quarantine_fd,
+                            allow_unbound_synthetic=True,
+                            scratch_parent_fd=extraction_scratch_fd,
+                            expected_index_sha256=receipt["index_sha256"],
+                            expected_plan_sha256=inventory.plan_sha256,
                         )
                 assert extraction_started
                 assert extraction_swapped
@@ -858,6 +881,10 @@ finally:
                     writer,
                     receipt["candidate_id"],
                     quarantine_parent_fd=quarantine_fd,
+                    allow_unbound_synthetic=True,
+                    scratch_parent_fd=extraction_scratch_fd,
+                    expected_index_sha256=receipt["index_sha256"],
+                    expected_plan_sha256=inventory.plan_sha256,
                 )
             finally:
                 os.close(quarantine_fd)
@@ -898,6 +925,10 @@ finally:
                             writer,
                             receipt["candidate_id"],
                             quarantine_parent_fd=same_device_fd,
+                            allow_unbound_synthetic=True,
+                            scratch_parent_fd=extraction_scratch_fd,
+                            expected_index_sha256=receipt["index_sha256"],
+                            expected_plan_sha256=inventory.plan_sha256,
                         )
                 finally:
                     os.close(same_device_fd)
@@ -959,6 +990,10 @@ finally:
         with pytest.raises(TreeCaptureV5Error, match="candidate_final_witness_invalid"):
             verify_candidate_v5(writer, receipt["candidate_id"])
     finally:
+        if extraction_scratch_fd is not None:
+            os.close(extraction_scratch_fd)
+        if extraction_scratch_temp is not None:
+            extraction_scratch_temp.cleanup()
         if quarantine_temp is not None:
             quarantine_temp.cleanup()
         if inventory is not None:
@@ -1116,13 +1151,16 @@ def test_inert_cleanup_leaves_unexpected_injected_member(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     volume = Path(os.environ.get("BRAIN_HOST_CAPTURE_V5_QUARANTINE_VOLUME", "/dev/null"))
-    if not volume.is_dir() or volume.stat().st_dev == tmp_path.stat().st_dev:
-        pytest.skip("separate-device synthetic quarantine target is unavailable")
+    if not volume.is_dir():
+        volume = tmp_path
 
     held, roots = _held_fixture(tmp_path)
     (roots["owner_checkout"] / "payload.bin").write_bytes(b"synthetic payload")
     inventory, writer = _inventory(tmp_path, held, roots)
     receipt = capture_candidate_v5(inventory)
+    scratch_temp = tempfile.TemporaryDirectory(prefix="capture-v5-injected-scratch-")
+    os.chmod(scratch_temp.name, 0o700)
+    scratch_fd = os.open(scratch_temp.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     quarantine_temp = tempfile.TemporaryDirectory(prefix="capture-v5-injected-", dir=volume)
     quarantine_fd = os.open(quarantine_temp.name, os.O_RDONLY | os.O_DIRECTORY)
     injected = False
@@ -1130,7 +1168,11 @@ def test_inert_cleanup_leaves_unexpected_injected_member(
 
     original_open_parent = capture._open_destination_parent
 
-    def inject_and_fail(root_fd: int, relative: str) -> tuple[int, str]:
+    def inject_and_fail(
+        root_fd: int,
+        relative: str,
+        created_directories: dict[str, tuple[int, int]],
+    ) -> tuple[int, str]:
         nonlocal injected
         if not injected:
             marker_fd = os.open(
@@ -1145,21 +1187,117 @@ def test_inert_cleanup_leaves_unexpected_injected_member(
                 os.close(marker_fd)
             injected = True
             raise OSError("synthetic extraction failure after injected member")
-        return original_open_parent(root_fd, relative)
+        return original_open_parent(root_fd, relative, created_directories)
 
     monkeypatch.setattr(capture, "_open_destination_parent", inject_and_fail)
     try:
         with pytest.raises(TreeCaptureV5Error, match="inert_extraction_cleanup_incomplete"):
             extract_candidate_inert_v5(
-                writer, receipt["candidate_id"], quarantine_parent_fd=quarantine_fd
+                writer,
+                receipt["candidate_id"],
+                quarantine_parent_fd=quarantine_fd,
+                allow_unbound_synthetic=True,
+                scratch_parent_fd=scratch_fd,
+                expected_index_sha256=receipt["index_sha256"],
+                expected_plan_sha256=inventory.plan_sha256,
             )
         assert injected
         extractions = list(Path(quarantine_temp.name).iterdir())
         assert len(extractions) == 1
         assert (extractions[0] / "unexpected-injected-member").read_bytes() == b"preserve"
     finally:
+        os.close(scratch_fd)
+        scratch_temp.cleanup()
         os.close(quarantine_fd)
         quarantine_temp.cleanup()
+        inventory.close()
+        writer.close()
+        os.close(writer._test_mount_fd)
+        held.close()
+
+
+def test_inert_quarantine_nonce_collision_preserves_preexisting_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    held, roots = _held_fixture(tmp_path)
+    (roots["owner_checkout"] / "payload.bin").write_bytes(b"synthetic payload")
+    inventory, writer = _inventory(tmp_path, held, roots)
+    receipt = capture_candidate_v5(inventory)
+    scratch_temp = tempfile.TemporaryDirectory(prefix="capture-v5-collision-scratch-")
+    os.chmod(scratch_temp.name, 0o700)
+    scratch_fd = os.open(scratch_temp.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    quarantine_temp = tempfile.TemporaryDirectory(prefix="capture-v5-collision-target-")
+    os.chmod(quarantine_temp.name, 0o700)
+    quarantine_fd = os.open(quarantine_temp.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    collision_name = "f" * 32
+    collision = Path(quarantine_temp.name) / collision_name
+    collision.mkdir(mode=0o700)
+    marker = collision / "keep.txt"
+    marker.write_text("preserve", encoding="utf-8")
+    marker.chmod(0o600)
+    monkeypatch.setattr(
+        "tools.brain_host_tree_capture_v5.secrets.token_hex", lambda _n: collision_name
+    )
+    try:
+        with pytest.raises(FileExistsError):
+            extract_candidate_inert_v5(
+                writer,
+                receipt["candidate_id"],
+                quarantine_parent_fd=quarantine_fd,
+                allow_unbound_synthetic=True,
+                scratch_parent_fd=scratch_fd,
+                expected_index_sha256=receipt["index_sha256"],
+                expected_plan_sha256=inventory.plan_sha256,
+            )
+        assert marker.read_text(encoding="utf-8") == "preserve"
+    finally:
+        os.close(quarantine_fd)
+        os.close(scratch_fd)
+        quarantine_temp.cleanup()
+        scratch_temp.cleanup()
+        inventory.close()
+        writer.close()
+        os.close(writer._test_mount_fd)
+        held.close()
+
+
+def test_inert_quarantine_capacity_failure_precedes_child_creation(tmp_path: Path) -> None:
+    held, roots = _held_fixture(tmp_path)
+    (roots["owner_checkout"] / "payload.bin").write_bytes(b"synthetic payload")
+    inventory, writer = _inventory(tmp_path, held, roots)
+    receipt = capture_candidate_v5(inventory)
+    scratch_temp = tempfile.TemporaryDirectory(prefix="capture-v5-capacity-scratch-")
+    quarantine_temp = tempfile.TemporaryDirectory(prefix="capture-v5-capacity-target-")
+    os.chmod(scratch_temp.name, 0o700)
+    os.chmod(quarantine_temp.name, 0o700)
+    scratch_fd = os.open(scratch_temp.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    quarantine_fd = os.open(quarantine_temp.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    requests: list[int] = []
+
+    def no_capacity(required_bytes: int) -> None:
+        requests.append(required_bytes)
+        raise TreeCaptureV5Error("synthetic_capacity_below_reserve")
+
+    try:
+        with pytest.raises(TreeCaptureV5Error, match="synthetic_capacity_below_reserve"):
+            extract_candidate_inert_v5(
+                writer,
+                receipt["candidate_id"],
+                quarantine_parent_fd=quarantine_fd,
+                allow_unbound_synthetic=True,
+                scratch_parent_fd=scratch_fd,
+                expected_index_sha256=receipt["index_sha256"],
+                expected_plan_sha256=inventory.plan_sha256,
+                capacity_check=no_capacity,
+            )
+        assert requests and requests[0] >= 256 * 1024**2
+        assert os.listdir(quarantine_fd) == []
+    finally:
+        os.close(quarantine_fd)
+        os.close(scratch_fd)
+        quarantine_temp.cleanup()
+        scratch_temp.cleanup()
         inventory.close()
         writer.close()
         os.close(writer._test_mount_fd)

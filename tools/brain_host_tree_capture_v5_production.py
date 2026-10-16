@@ -109,6 +109,8 @@ _VERIFY_PUBLIC_ERRORS = frozenset(
 PRODUCTION_FREE_SPACE_FLOOR_BYTES = 8 * 1024**3
 VERIFY_SCRATCH_DB_RESERVE_BYTES = capture.MAX_SCRATCH_BYTES
 VERIFY_SCRATCH_FREE_FLOOR_BYTES = 256 * 1024**2
+INERT_QUARANTINE_FREE_FLOOR_BYTES = 256 * 1024**2
+INERT_QUARANTINE_SCRATCH_FLOOR_BYTES = 256 * 1024**2
 _UUID = re.compile(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\Z")
 _ROOT_ID = re.compile(r"[0-9a-f]{32}\Z")
 
@@ -1127,6 +1129,245 @@ def independent_target_verify(
     return verify_production_candidate_v5(writer, candidate_id, source_view=None, **kwargs)
 
 
+def extract_production_candidate_inert_v5(
+    candidate_id: str,
+    *,
+    target_storage_config: Path,
+    expected_target_volume_uuid: str,
+    expected_target_root_id: str,
+    destination_storage_config: Path,
+    expected_destination_volume_uuid: str,
+    expected_destination_root_id: str,
+    scratch: PinnedScratchV5,
+    expected_index_sha256: str,
+    expected_plan_sha256: str,
+    expected_source_data_volume_uuid: str,
+    source_plan_path: Path,
+) -> dict[str, Any]:
+    """Run a pinned inert quarantine rehearsal; this never restores or starts data."""
+    target_uuid, target_root_id = _validate_pins(
+        expected_target_volume_uuid, expected_target_root_id
+    )
+    destination_uuid, destination_root_id = _validate_pins(
+        expected_destination_volume_uuid, expected_destination_root_id
+    )
+    if (
+        not _valid_sha256(expected_index_sha256)
+        or not _valid_sha256(expected_plan_sha256)
+        or not isinstance(expected_source_data_volume_uuid, str)
+        or not _UUID.fullmatch(expected_source_data_volume_uuid.lower())
+    ):
+        raise ProductionCaptureV5Error("production_extract_external_pin_invalid")
+    source_uuid = expected_source_data_volume_uuid.lower()
+    if len(candidate_id) != 32 or any(ch not in "0123456789abcdef" for ch in candidate_id):
+        raise ProductionCaptureV5Error("production_verify_cli_pin_invalid")
+    if len({target_uuid, destination_uuid, source_uuid}) != 3:
+        raise ProductionCaptureV5Error("production_extract_volume_uuid_alias")
+    try:
+        source_plan = _load_plan(_canonical_config_path(source_plan_path))
+    except Exception as exc:
+        raise ProductionCaptureV5Error("production_extract_source_plan_invalid") from exc
+    if (
+        approved_data_plan_sha256(source_plan) != expected_plan_sha256
+        or source_plan.data_volume_uuid.lower() != source_uuid
+    ):
+        raise ProductionCaptureV5Error("production_extract_source_plan_pin_mismatch")
+    if not isinstance(scratch, PinnedScratchV5) or scratch.fd < 0:
+        raise ProductionCaptureV5Error("production_verify_scratch_capability_invalid")
+
+    target_path = _canonical_config_path(target_storage_config)
+    destination_path = _canonical_config_path(destination_storage_config)
+    try:
+        target_config = StorageConfig.load(target_path)
+        destination_config = StorageConfig.load(destination_path)
+    except Exception as exc:
+        raise ProductionCaptureV5Error("production_extract_storage_config_invalid") from exc
+    if (
+        target_config.root_id != target_root_id
+        or str(target_config.volume_uuid).lower() != target_uuid
+        or destination_config.root_id != destination_root_id
+        or str(destination_config.volume_uuid).lower() != destination_uuid
+    ):
+        raise ProductionCaptureV5Error("production_extract_storage_config_pin_mismatch")
+
+    with storage.read_only_guard(target_path) as target_guard:
+        _assert_guard_pins(target_guard, target_config, target_uuid, target_root_id)
+        reader = DescriptorWriter.read_only_from_storage_guard(target_guard)
+        try:
+            if not isinstance(reader.storage_guard, ReadOnlyStorageGuard) or not reader._read_only:
+                raise ProductionCaptureV5Error(
+                    "production_verify_read_only_candidate_guard_required"
+                )
+            target_guard.revalidate()
+            reader.assert_storage_binding(target_guard)
+            target_device = reader.device
+            os.fstat(reader.root_fd)
+            if sys.platform == "darwin" and capture._acl_bytes(reader.root_fd) is not None:
+                raise ProductionCaptureV5Error("production_extract_target_acl_present")
+            if os.fstatvfs(target_guard.mount_fd).f_flag & getattr(os, "ST_RDONLY", 1) == 0:
+                raise ProductionCaptureV5Error("production_extract_target_not_read_only")
+            if scratch.filesystem_identity[0] not in {"apfs", "hfs"}:
+                raise ProductionCaptureV5Error("production_extract_scratch_filesystem_invalid")
+            if scratch.volume_uuid in {None, target_uuid, destination_uuid, source_uuid}:
+                raise ProductionCaptureV5Error("production_extract_scratch_volume_alias")
+            if scratch.filesystem_identity[0] in {"apfs", "hfs"} and scratch.volume_uuid is None:
+                raise ProductionCaptureV5Error("production_extract_scratch_volume_unpinned")
+
+            with storage.writer_guard(
+                destination_path,
+                min_free_bytes=INERT_QUARANTINE_FREE_FLOOR_BYTES,
+            ) as destination_guard:
+                _assert_guard_pins(
+                    destination_guard,
+                    destination_config,
+                    destination_uuid,
+                    destination_root_id,
+                )
+                destination_writer = DescriptorWriter.from_storage_guard(destination_guard)
+                try:
+                    destination_writer.assert_storage_binding(destination_guard)
+                    destination_root = os.fstat(destination_writer.root_fd)
+                    if (
+                        destination_writer.device == target_device
+                        or destination_writer.device == os.fstat(scratch.fd).st_dev
+                        or destination_uuid in {target_uuid, source_uuid}
+                        or destination_root.st_uid != os.getuid()
+                        or stat.S_IMODE(destination_root.st_mode) != 0o700
+                        or not stat.S_ISDIR(destination_root.st_mode)
+                    ):
+                        raise ProductionCaptureV5Error(
+                            "production_extract_destination_identity_invalid"
+                        )
+                    if (
+                        sys.platform == "darwin"
+                        and capture._acl_bytes(destination_writer.root_fd) is not None
+                    ):
+                        raise ProductionCaptureV5Error("production_extract_destination_acl_present")
+                    # If the externally pinned Data volume is mounted in this
+                    # session, resolve its current device from kernel mount
+                    # entries and diskutil, then reject any destination alias.
+                    for mount in DarwinDataOS().mount_entries():
+                        if mount.get("fs_type") not in {"apfs", "hfs"}:
+                            continue
+                        mountpoint = mount.get("mountpoint")
+                        if not isinstance(mountpoint, str) or not Path(mountpoint).is_absolute():
+                            raise ProductionCaptureV5Error(
+                                "production_extract_mount_identity_invalid"
+                            )
+                        info = DarwinDataOS().disk_info(mountpoint)
+                        mounted_uuid = str(
+                            info.get("VolumeUUID", info.get("APFSVolumeUUID", ""))
+                        ).lower()
+                        if mounted_uuid == source_uuid:
+                            source_mount_fd = -1
+                            try:
+                                source_mount_fd, _ = _open_absolute_directory_nofollow(
+                                    Path(mountpoint)
+                                )
+                                source_mount_stat = os.fstat(source_mount_fd)
+                                current_mount_stat = os.stat(mountpoint, follow_symlinks=False)
+                            except Exception as exc:
+                                raise ProductionCaptureV5Error(
+                                    "production_extract_source_mount_unresolved"
+                                ) from exc
+                            finally:
+                                if source_mount_fd >= 0:
+                                    os.close(source_mount_fd)
+                            if (source_mount_stat.st_dev, source_mount_stat.st_ino) != (
+                                current_mount_stat.st_dev,
+                                current_mount_stat.st_ino,
+                            ) or source_mount_stat.st_dev in {
+                                target_device,
+                                destination_writer.device,
+                            }:
+                                raise ProductionCaptureV5Error(
+                                    "production_extract_source_storage_device_alias"
+                                )
+
+                    scratch.validate(
+                        source_device=None,
+                        target_device=target_device,
+                        required_free_bytes=INERT_QUARANTINE_SCRATCH_FLOOR_BYTES,
+                    )
+                    if os.fstat(scratch.fd).st_dev == destination_writer.device:
+                        raise ProductionCaptureV5Error("production_extract_scratch_device_alias")
+
+                    # Prove the destination reserve floor before the first
+                    # candidate INDEX read; the verified size model is checked
+                    # again by the core before creating the quarantine child.
+                    def capacity_check(required_bytes: int) -> None:
+                        if type(required_bytes) is not int or required_bytes < 0:
+                            raise ProductionCaptureV5Error(
+                                "production_extract_capacity_request_invalid"
+                            )
+                        result = destination_guard.revalidate_identity(
+                            min_free_bytes=required_bytes
+                        )
+                        destination_writer.assert_storage_binding(destination_guard)
+                        if result.available_bytes < required_bytes:
+                            raise ProductionCaptureV5Error(
+                                "production_extract_capacity_below_reserve"
+                            )
+
+                    capacity_check(INERT_QUARANTINE_FREE_FLOOR_BYTES)
+
+                    def scratch_check(used: int, reserve: int) -> None:
+                        if (
+                            type(used) is not int
+                            or type(reserve) is not int
+                            or not 0 <= used <= reserve <= capture.MAX_SCRATCH_BYTES
+                        ):
+                            raise ProductionCaptureV5Error(
+                                "production_extract_scratch_usage_invalid"
+                            )
+                        scratch.validate(
+                            source_device=None,
+                            target_device=target_device,
+                            required_free_bytes=INERT_QUARANTINE_SCRATCH_FLOOR_BYTES
+                            + max(0, reserve - used),
+                        )
+
+                    result = capture.extract_candidate_inert_v5(
+                        reader,
+                        candidate_id,
+                        quarantine_parent_fd=destination_writer.root_fd,
+                        scratch_parent_fd=scratch.fd,
+                        expected_index_sha256=expected_index_sha256,
+                        expected_plan_sha256=expected_plan_sha256,
+                        capacity_check=capacity_check,
+                        scratch_capacity_check=scratch_check,
+                        leave_partial_on_error=True,
+                    )
+                    destination_guard.revalidate()
+                    destination_writer.assert_storage_binding(destination_guard)
+                    target_guard.revalidate()
+                    reader.assert_storage_binding(target_guard)
+                    scratch.validate(
+                        source_device=None,
+                        target_device=target_device,
+                        required_free_bytes=INERT_QUARANTINE_SCRATCH_FLOOR_BYTES,
+                    )
+                    result.update(
+                        {
+                            "production_storage_pins_checked": True,
+                            "candidate_volume_uuid": target_uuid,
+                            "quarantine_volume_uuid": destination_uuid,
+                            "source_data_volume_uuid": source_uuid,
+                            "source_status": "source_not_present_or_not_attested",
+                            "quarantine_rehearsal_only": True,
+                            "restore_verified": False,
+                            "T_qualified": False,
+                            "erase_ready": False,
+                            "sqlite_scratch_role": "private_readback_index_only",
+                        }
+                    )
+                    return result
+                finally:
+                    destination_writer.close()
+        finally:
+            reader.close()
+
+
 def _capture_from_pinned_spec(
     *,
     spec_path: Path,
@@ -1230,7 +1471,7 @@ def _capture_from_pinned_spec(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run pinned operator capture or read-only candidate verification."""
+    """Run capture, candidate verification, or inert quarantine rehearsal."""
     parser = _OperatorArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
     operator_capture = subparsers.add_parser(
@@ -1251,6 +1492,22 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument("--plan-sha256", required=True)
     verify.add_argument("--source-data-volume-uuid")
     verify.add_argument("--scratch-parent", required=True, type=Path)
+    extract = subparsers.add_parser(
+        "extract-inert",
+        help="copy candidate bytes into a pinned inert quarantine rehearsal",
+    )
+    extract.add_argument("candidate_id")
+    extract.add_argument("--index-sha256", required=True)
+    extract.add_argument("--plan-sha256", required=True)
+    extract.add_argument("--source-data-volume-uuid", required=True)
+    extract.add_argument("--source-plan", required=True, type=Path)
+    extract.add_argument("--target-storage-config", required=True, type=Path)
+    extract.add_argument("--target-volume-uuid", required=True)
+    extract.add_argument("--target-root-id", required=True)
+    extract.add_argument("--destination-storage-config", required=True, type=Path)
+    extract.add_argument("--destination-volume-uuid", required=True)
+    extract.add_argument("--destination-root-id", required=True)
+    extract.add_argument("--scratch-parent", required=True, type=Path)
     try:
         args = parser.parse_args(argv)
     except ProductionCaptureV5CLIError as exc:
@@ -1258,6 +1515,47 @@ def main(argv: list[str] | None = None) -> int:
             canonical_json(_capture_failure(str(exc), partial_candidate_possible=False))
         )
         return 2
+    if args.command == "extract-inert":
+        scratch = None
+        try:
+            scratch = PinnedScratchV5.open(args.scratch_parent)
+            result = extract_production_candidate_inert_v5(
+                args.candidate_id,
+                target_storage_config=args.target_storage_config,
+                expected_target_volume_uuid=args.target_volume_uuid,
+                expected_target_root_id=args.target_root_id,
+                destination_storage_config=args.destination_storage_config,
+                expected_destination_volume_uuid=args.destination_volume_uuid,
+                expected_destination_root_id=args.destination_root_id,
+                scratch=scratch,
+                expected_index_sha256=args.index_sha256,
+                expected_plan_sha256=args.plan_sha256,
+                expected_source_data_volume_uuid=args.source_data_volume_uuid,
+                source_plan_path=args.source_plan,
+            )
+            sys.stdout.buffer.write(canonical_json(result))
+            return 0
+        except Exception:
+            sys.stdout.buffer.write(
+                canonical_json(
+                    {
+                        "schema": "brain-host-tree-capture-v5-inert-quarantine-result",
+                        "ok": False,
+                        "error": "extract_inert_failed",
+                        "quarantine_rehearsal_only": True,
+                        "unaccepted_partial_quarantine_may_remain": True,
+                        "sqlite_scratch_role": "private_readback_index_only",
+                        "start_or_restore_performed": False,
+                        "restore_verified": False,
+                        "T_qualified": False,
+                        "erase_ready": False,
+                    }
+                )
+            )
+            return 2
+        finally:
+            if scratch is not None:
+                scratch.close()
     if args.command == "capture":
         try:
             result = _capture_from_pinned_spec(
