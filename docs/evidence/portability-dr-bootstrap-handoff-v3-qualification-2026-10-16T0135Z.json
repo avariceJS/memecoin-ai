@@ -1,0 +1,72 @@
+{
+  "schema": "portability-dr-bootstrap-handoff-v3-qualification-v1",
+  "observed_at_utc": "2026-10-16T01:35:47Z",
+  "locator": {
+    "remote": "https://github.com/avariceJS/memecoin-ai.git",
+    "tag_ref": "refs/tags/brain-dr-handoff-v3",
+    "tag_kind": "annotated",
+    "tag_object": "aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+    "peeled_commit_H": "27bca2509af2f5eb3756c99803e7c12acfd713c6",
+    "bootstrap_commit_C": "75f3e0405c1fca473eb95fae81fc21c20e289651",
+    "handoff_json_sha256": "f373bff90ac73f4759a83837bfb4124a7f673512a6f851b0158687f1189b08c3",
+    "operator_text_sha256": "338cbc0c132e14b9f30ba3afa66f5e488bf154c3e2d11b54db33869d2060c4c8",
+    "entry_card_sha256": "f40e8e160b38fffa6e0ba8e4aa81dc87523850e5dd4cca04b0a8add5e8677c37"
+  },
+  "exact_remote_operator_rehearsal": {
+    "shell": "zsh -f",
+    "repository": "new empty repository",
+    "authentication": "current Mac Git authentication context",
+    "pythonoptimize": "1",
+    "fetch_exact_tag": "passed",
+    "annotated_tag_type": "passed",
+    "peeled_target_commit_type": "passed",
+    "handoff_extraction": "passed using braced commit:path expression",
+    "strict_schema_and_authority_validation": "passed",
+    "handoff_sha256": "f373bff90ac73f4759a83837bfb4124a7f673512a6f851b0158687f1189b08c3"
+  },
+  "negative_qualification": {
+    "annotated_tag_to_tree": "blocked before handoff extraction; exit 2",
+    "lightweight_tag_to_commit": "blocked before handoff extraction; exit 2",
+    "optimized_interpreter_valid_payload": "passed with explicit non-assert checks",
+    "safe_to_erase_true": "rejected",
+    "unknown_top_level_key": "rejected",
+    "integer_zero_instead_of_false_boolean": "rejected",
+    "duplicate_json_key": "rejected"
+  },
+  "independent_review": {
+    "reviewer": "Sol High",
+    "decision": "GO for bootstrap-only annotated v3 locator after local and exact remote rehearsal",
+    "scope": "handoff trust boundary, versioned interface, object type, schema validation, and authority limits"
+  },
+  "remote_reference_check": {
+    "research_active": "27bca2509af2f5eb3756c99803e7c12acfd713c6",
+    "main": "770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+    "v1_tag_object_unchanged": "1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+    "v1_peel_unchanged": "605010638a9e5aeb241bc809a943b4169c90445a",
+    "v2_tag_object_unchanged": "6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+    "v2_peel_unchanged": "6017ac721430c9eb59ead9ae6ab5d414199c3159",
+    "v3_tag_object": "aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+    "v3_peel": "27bca2509af2f5eb3756c99803e7c12acfd713c6"
+  },
+  "authority": {
+    "accepted_set": false,
+    "data_T_qualified": false,
+    "kingston_K_frontier_qualified": false,
+    "brain_state_restored": false,
+    "activation_authorized": false,
+    "final_readiness": false,
+    "safe_to_erase": false
+  },
+  "trust_limits": [
+    "Authenticated origin/account is the accepted external trust domain for accidental Mac loss; this is not a cryptographic signature or defense against same-remote retargeting or account/remote compromise.",
+    "A replacement host must complete normal user-controlled Git reauthentication. The no-credential temporary HOME fetch did not complete in the earlier v2 rehearsal.",
+    "This qualifies only retrieval and validation of a bootstrap-only handoff, not clean-host authentication, Kingston data restore, Data T, K, owner/protected closure, service reconstruction, activation, or erase readiness.",
+    "Sol noted that the informational HANDOFF_SHA256 display uses a shasum-to-cut pipeline without pipefail; the digest display is not an acceptance gate. If the displayed digest is empty, rerun shasum directly before using it in a later restore-flow check."
+  ],
+  "side_effects": {
+    "kingston_written": false,
+    "runtime_services_changed": false,
+    "provider_requests": 0,
+    "protected_semantic_access": false
+  }
+}

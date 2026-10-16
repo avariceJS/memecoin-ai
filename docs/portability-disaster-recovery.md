@@ -6,7 +6,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-16 01:32 UTC.** The accepted recovery scope is loss or erasure of the
+**NO-GO for factory reset as of 2026-10-16 01:36 UTC.** The accepted recovery scope is loss or erasure of the
 owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
 reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -27,15 +27,18 @@ context, with no Brain state restored. See the
 The post-bootstrap restore flow then passed a same-host blocked-path rehearsal: the exact commit,
 entry card and Kingston identity matched, and the operation stopped at the absent accepted set before
 quarantine or witness creation. This still is not a clean-host restore or erase qualification.
-The published v2 bootstrap locator is preserved as immutable history but Sol retired its operator
-interface after finding missing peeled-object type validation, optimizable `assert` checks, and
-permissive JSON key handling. v1 remains retired for zsh expansion failure. Corrected handoff v3 is
-being qualified and must not be used until its create-once annotated tag is published and replayed.
-V2 evidence still pins tag object `6e83941ea3d3d7e8fe37483872cb52b3507ff938`, H
-`6017ac721430c9eb59ead9ae6ab5d414199c3159`, and JSON SHA
-`9641b31e5552f1c7f86038756928086e59b7cb915a8fb96e6be8716d5d5bcd08`; it used this Mac's auth
-context and grants bootstrap only. Review details are in the v2 review receipt; clean-host auth, set,
-T/K, state restore, and erase readiness remain unproven.
+Published v1 and v2 bootstrap tags are preserved as immutable history but retired for operator use.
+The v3 annotated locator is Sol-qualified for bootstrap-only use: tag object
+`aaafd81a4c396cec9d5ffdb50066911cf84e35e0`, peeled H
+`27bca2509af2f5eb3756c99803e7c12acfd713c6`, handoff JSON SHA
+`f373bff90ac73f4759a83837bfb4124a7f673512a6f851b0158687f1189b08c3`. The exact remote zsh
+sequence fetched and validated in an empty repo with this Mac's authentication; positive and negative
+object/schema checks passed under `PYTHONOPTIMIZE=1`. A clean replacement host still must reauthenticate.
+The locator remains bootstrap-only: no accepted set, Data T, Kingston K, Brain restore, activation,
+final readiness, or erase authority is established. Sol noted that the displayed handoff digest uses
+a `shasum | cut` pipeline without `pipefail`; this is informational rather than an acceptance gate.
+If it is empty, rerun `shasum` directly before a later restore-flow check. See the v3 qualification
+receipt in the evidence index.
 
 Live checks on the current Mac:
 
@@ -689,17 +692,19 @@ and launched the flow CLI from a neutral working directory. The clone and Git au
 used this Mac; this tests published-code retrieval and bootstrap, not clean-host credentials or Brain
 state restoration. The earlier exact-commit bootstrap at `68253b84c5aefd8676b85b9415d2d242ada58d73`
 also passed dependency check and smoke. The prior handoff pin to `edf2898...` authorizes only that older code commit and legacy card; it is
-historical, not the current entry target. The published v1 and v2 bootstrap locators are preserved as immutable history but retired for
-operator entry. V1 contains a zsh-incompatible unbraced `git show "$HANDOFF_COMMIT:path"`; v2 has
-material validation gaps found by Sol: it does not require the peeled object to be a commit, uses
-`assert` checks that `PYTHONOPTIMIZE` can disable, and accepts duplicate or extra JSON fields. The
-corrected draft is [`BOOTSTRAP-HANDOFF-v3.json`](../recovery/BOOTSTRAP-HANDOFF-v3.json) with the
-operator sequence in [`BOOTSTRAP-HANDOFF-v3.txt`](../recovery/BOOTSTRAP-HANDOFF-v3.txt). Do not use
-it until its exact annotated tag is published and rehearsed from an empty zsh repository. It remains
-bootstrap-only under the authenticated-origin trust boundary; no set/T/K/state/activation/erase
-authority is implied. V2 object identity and its independent review are recorded in
-[`the v2 GitHub rehearsal receipt`](evidence/portability-dr-bootstrap-handoff-v2-github-rehearsal-2026-10-16T0128Z.json)
-and [`the Sol review receipt`](evidence/portability-dr-bootstrap-handoff-v2-independent-review-2026-10-16T0132Z.json).
+historical, not the current entry target. The published v1 and v2 bootstrap locators are preserved
+as immutable history and retired for operator use. The current locator is
+[`BOOTSTRAP-HANDOFF-v3.json`](../recovery/BOOTSTRAP-HANDOFF-v3.json); its operator sequence is
+[`BOOTSTRAP-HANDOFF-v3.txt`](../recovery/BOOTSTRAP-HANDOFF-v3.txt). Use only annotated
+`refs/tags/brain-dr-handoff-v3` from authenticated `origin`, never a latest-tag lookup or moving
+branch. Current remote pins are tag object `aaafd81a4c396cec9d5ffdb50066911cf84e35e0`, peeled H
+`27bca2509af2f5eb3756c99803e7c12acfd713c6`, and handoff JSON SHA
+`f373bff90ac73f4759a83837bfb4124a7f673512a6f851b0158687f1189b08c3`. Sol reviewed v3 and gave GO
+for the bootstrap locator. Exact zsh remote retrieval and strict schema checks passed; this used the
+current Mac's Git authentication. Clean-host reauthentication remains required. The handoff pins C
+`75f3e0405c1fca473eb95fae81fc21c20e289651` and the v2 entry card, but no set/T/K/state/activation/
+erase authority. See the
+[`v3 qualification receipt`](evidence/portability-dr-bootstrap-handoff-v3-qualification-2026-10-16T0135Z.json).
 
 The helper makes a second exact-commit clone into a separate new destination, installs the locked
 development requirements, and runs smoke. Both checkouts must report the pinned `HEAD`, and the
@@ -755,14 +760,13 @@ the [`v2 entry/bootstrap and Kingston publication receipt`](evidence/portability
 
 The authenticated `origin` repository is accepted as the external trust domain for the accidental
 Mac-loss model; this does not protect against loss of Git account/remote access or a compromised
-remote. Handoffs v1 and v2 are retired for operator use and must remain unchanged. The v3 draft
-specifies a dedicated annotated `brain-dr-handoff-v3` tag as the create-once locator for handoff
-commit H, separate from pinned bootstrap commit C. The tag is not a signature and a replacement host
-cannot detect a retarget using the same remote alone; record the tag-object and peeled commit IDs and
-follow the no-move publication rule. H pins only code/card and Kingston identity: recovery-set, T,
-K, activation, and erase authority remain explicitly unavailable/false. Do not follow the v3 draft
-until its exact annotated tag is published and fetched. Sol's v2 findings and the v3 controls are
-recorded in [`the independent review receipt`](evidence/portability-dr-bootstrap-handoff-v2-independent-review-2026-10-16T0132Z.json).
+remote. Handoffs v1 and v2 are retired for operator use and must remain unchanged. The annotated
+`brain-dr-handoff-v3` tag is the create-once locator for handoff commit H, separate from pinned
+bootstrap commit C. It is not a signature, and a replacement host cannot detect a same-remote tag
+retarget; record the tag-object and peeled commit IDs. H pins only code/card and Kingston identity:
+recovery-set, T, K, activation, and erase authority remain explicitly unavailable/false. Sol reviewed
+v3 and approved it as a bootstrap-only locator. Its exact remote retrieval and failure cases are in
+the [`v3 qualification receipt`](evidence/portability-dr-bootstrap-handoff-v3-qualification-2026-10-16T0135Z.json).
 
 The local-fixture rehearsal passed both exact-HEAD checks, locked environment creation, smoke, and
 the wrong-commit, wrong-volume-pin, missing-authentication, and preexisting-target failure cases.
