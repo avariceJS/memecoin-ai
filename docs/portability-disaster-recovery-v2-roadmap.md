@@ -15,8 +15,11 @@ a second SSD/NAS and enterprise secret custody are outside this scope.
 
 ## State at the v1 scope change
 
-Live `research/active` continuation point: `90b8faf0bfb8604a890d74a4573869ec6c81611d`, also at
-`origin/research/active`. Do not move `main` automatically. The exact uncommitted v3 prototype is
+The scope-change baseline was `90b8faf0bfb8604a890d74a4573869ec6c81611d`. The current published
+`research/active` continuation point after the practical Migration v1 implementation and Kingston
+capture is `6658654b294565975a5c632e8374139a457c0e73`, also at `origin/research/active`. Resume v2
+from the current branch after the second-Mac Migration v1 gate; do not move `main` automatically.
+The exact uncommitted v3 prototype is
 archived as
 [`v3-capture-adapter-draft-2026-10-16.tar.gz`](archives/portability-disaster-recovery-v2/v3-capture-adapter-draft-2026-10-16.tar.gz),
 SHA-256 `d4118bf333ded8c7633e22aca3bc103182577c6d8506050244548c1ce0126190`. The archive contains
