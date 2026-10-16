@@ -6,7 +6,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-16 09:45 UTC.** The accepted recovery scope is loss or erasure of the
+**NO-GO for factory reset as of 2026-10-16 10:33 UTC.** The accepted recovery scope is loss or erasure of the
 owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
 reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -1752,6 +1752,29 @@ coverage for a disposable blocked mixed index and missing/malformed handoffs, pl
 smoke. The fixture mocks Git and the read-only storage guard; it is not a separate-process, real
 APFS, or Kingston integration test. See the
 [`v2 synthetic CLI-path clone receipt`](evidence/portability-dr-restore-flow-v2-cli-clone-2026-10-16T1005Z.json).
+
+The local v6b recovery-kit candidate packages 21 selected tracked tool/storage files from the pinned
+commit and a 3,688-member CPython runtime; all runtime paths, types, modes, symlink targets, sizes,
+and file hashes match its manifest. Neutral-cwd imports resolve from `source.zip` with both the
+checkout and Homebrew prefix unreadable. On disposable synthetic APFS volumes, HeldDataT found two
+present roots and seven unresolved roles; recovery preflight matched identity but stopped at
+`blocked_unencrypted`. Archive-only v5 capture produced an eight-member, 2,097,501-byte candidate,
+which a fresh read-only verifier accepted. `extract-inert` then copied those bytes to a distinct
+three-GiB quarantine volume and completed its internal readback; metadata stayed unapplied and no
+service or activation ran. The fixture had three files, five directories, no symlinks, and no
+hardlinks. Sol accepted this bounded same-host synthetic integration only. The `synthetic_fixture_only`
+result field is false because the production backend ran; it does not describe the content provenance.
+The earlier v6 probes launched from the checkout and are not archive-only evidence because checkout
+modules could shadow the ZIP. v6b remains local and unpublished. This qualifies neither a clean host
+nor Recovery, owner capture, T/K, full Brain restore, or erase readiness; see the
+[`v6b archive capture and quarantine receipt`](evidence/portability-dr-v6b-archive-capture-quarantine-2026-10-16T1033Z.json).
+
+The required approximately 819k-entry/30-GB full synthetic capture and fresh readback remain open.
+The current capture target has about 12.6 GiB free, and measured host scratch and other disposable
+volumes cannot satisfy the source, target, and reserve requirements together. Do not reduce reserves
+or count sparse logical bytes as streamed payload evidence. Another Recovery boot is not justified
+until the complete role/source policy and an adequately sized, separately pinned capacity plan are
+ready.
 
 1. Inventory every owner/research/local-config/service root, including owner Codex worktree local
    state, and bind each to a source point or an
