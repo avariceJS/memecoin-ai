@@ -1,21 +1,23 @@
 # Current state
 
-As of 2026-10-17, active scope is **Practical Brain Migration v1**. Erasure remains **NO-GO** until
-the full reset-unique candidate restores and passes acceptance on the second MacBook. Hardened DR
-work is deferred to [`portability-disaster-recovery-v2-roadmap.md`](../docs/portability-disaster-recovery-v2-roadmap.md).
+As of 2026-10-17, active scope is **Practical Brain Migration v1**. Erasure remains
+**NO-GO** until the second MacBook restores the full Kingston pair and passes the handoff checks,
+then Sol independently reviews the transcript. Hardened DR is deferred to
+[`portability-disaster-recovery-v2-roadmap.md`](../docs/portability-disaster-recovery-v2-roadmap.md).
 
-Sol accepted D43's bounded continuation path. The first live capture was interrupted during copy
-because its target identity guard called `diskutil` for every member; source data was untouched.
-Incomplete candidate `5d4804faa1f14c47a0e3ed652e758bdd` has pause records but no manifest or seal.
-The D43 job was left disabled; do not re-enable it. A Sol-reviewed continuation revalidates its
-pause metadata and fresh stable source/target identity, leaves the old payload unopened, and writes
-a new candidate with interval-based target identity checks. The continuation implementation is
-being checkpointed before its one bounded live retry.
+The full current pair is recorded in
+[`candidate-pair receipt`](../docs/evidence/portability-migration-v1-candidate-pair-2026-10-16T2217Z.json):
+ordinary `d2fb11d73cd84c14a24ba3ed870b2ccb` (784,023 members, 28,821,482,721 bytes, manifest
+`0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865`) plus opaque D43
+`58ec529e5a134817bf179b06922ddcf7` (1,567 members, 13,227,642 bytes, manifest
+`ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6`). Both passed fresh external
+verification; 93 ordinary SQLite families passed integrity checks with unchanged family hashes.
+Kingston has 138,415,222,784 free bytes. `BrainData` and PersonalBackup remain untouched.
 
-The ordinary candidate `21843d9664ea45438fd79c9745a30fee` is stale and excludes D43. Do not restore
-it. SQLite verification passed for 93 ordinary databases on that old candidate only; repeat on the
-final paired v1 capture. Kingston `BrainData` and PersonalBackup remain untouched. There is no full
-candidate pair or second-Mac restore yet.
+D43 stays disabled and PID-free; its old partial `5d4804faa1f14c47a0e3ed652e758bdd` remains
+incomplete and must not be restored. Failed ordinary partial `58e4596a3db5403a9b7901cfdb40566d`
+also remains incomplete. Do not delete partial candidates or activate Brain. The single Sol-reviewed
+Mac2 operator package is in the canonical portability document. No second-Mac restore has occurred.
 
-Branch is `research/active`; `main` remains `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Commit
-`54785829248d401475ee8bbbce20f15232a714e4` is the pre-continuation base. Do not activate Brain.
+`research/active` is at `6ad944c40938e1e25d2bddb3ea61234c69e9149d`; `main` remains
+`770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Future-v2 v3 drafts remain untracked and untouched.

@@ -47,8 +47,10 @@ left source data untouched and produced incomplete candidate
 `5d4804faa1f14c47a0e3ed652e758bdd`, with durable pause records but no manifest or completion seal.
 The exact D43 label remains disabled; no automatic resume occurred. A new Sol-reviewed bounded
 continuation path revalidates old pause-record hashes, fresh source stability and target identity,
-and never opens the old partial payload. Neither a full v1 candidate pair nor restore is
-established. See the immutable [Migration v1 capture receipt](evidence/portability-migration-v1-capture-2026-10-16T2030Z.json).
+and never opens the old partial payload. The new D43 overlay and a fresh seven-root ordinary
+candidate now form a separately pinned pair; neither has been restored on Mac2. See the earlier
+[ordinary capture receipt](evidence/portability-migration-v1-capture-2026-10-16T2030Z.json) for the
+stale excluded-D43 candidate and the new [candidate-pair receipt](evidence/portability-migration-v1-candidate-pair-2026-10-16T2217Z.json) for current pins.
 
 ### Migration v1 protected custody and database consistency
 
@@ -81,9 +83,184 @@ mutate a source database during capture. On the restored copy, run
 each ordinary database family against the manifest, opens each database read-only with SQLite's
 immutable URI mode for `PRAGMA integrity_check`, and requires all family hashes to remain unchanged.
 This is a practical structural check after restore, not a substitute for a stopped-writer capture
-boundary. Protected database semantics remain unchecked. The 93-database pass on candidate
-`21843d9664ea45438fd79c9745a30fee` applies only to that older incomplete candidate; repeat it on the
-final paired v1 candidate on the second MacBook.
+boundary. Protected database semantics remain unchecked. The earlier 93-database pass on
+`21843d9664ea45438fd79c9745a30fee` was stale and is not relied upon; the fresh ordinary candidate
+`d2fb11d73cd84c14a24ba3ed870b2ccb` now passes the same 93-database read-only check. Repeat that
+check on the restored copy on the second MacBook.
+
+### Migration v1 second-Mac acceptance package
+
+The full current Kingston pair is ready for one real Mac2 restore attempt from pinned code commit
+`6ad944c40938e1e25d2bddb3ea61234c69e9149d`. The ordinary candidate is
+`d2fb11d73cd84c14a24ba3ed870b2ccb`, manifest SHA-256
+`0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865`, 784,023 manifest members,
+and 28,821,482,721 payload bytes. The separate opaque D43 overlay is
+`58ec529e5a134817bf179b06922ddcf7`, manifest SHA-256
+`ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6`, 1,567 manifest members,
+and 13,227,642 payload bytes. Together they contain 785,590 manifest member records, with
+overlapping directory records included in that sum. Both passed capture readback and fresh
+externally pinned verify. The ordinary payload's 93 database families passed read-only SQLite
+integrity checks and retained their manifest hashes. The immutable
+[candidate-pair receipt](evidence/portability-migration-v1-candidate-pair-2026-10-16T2217Z.json)
+records the source inventory, D43 lineage, incomplete prior attempts, and exact results.
+
+Do the acceptance once, on the second MacBook. Prerequisites: compatible macOS, Python 3.11 or
+newer, GitHub access for this repository and the locked package setup, Kingston mounted at
+`/Volumes/Kingston` with the exact UUID below and case-sensitive APFS, at least 58 GiB free on
+Kingston (50-GiB floor plus 8-GiB operation reserve), and at least 45 GiB free in the Mac2 home
+volume after checkout/setup. The D43 `protected-candidates` directory and pinned candidate directory
+must already be owned by Mac2's effective UID with mode `0700`; the preflight only reads these
+attributes and stops on mismatch. The restore commands only read Kingston and create new user-owned
+quarantine directories; they do not install or load LaunchAgents. Do not proceed if the preflight
+finds an active Brain process or loaded Brain launchd label.
+
+Start a full private terminal transcript at
+`$HOME/BrainMigrationV1-acceptance-20261016/mac2-restore-transcript.txt` using macOS `script`.
+The unique directory creation intentionally fails if this path already exists, so the transcript
+cannot overwrite earlier evidence. Run the following inside that captured shell, and type `exit`
+when the package finishes:
+
+```sh
+umask 077
+mkdir -m 700 "$HOME/BrainMigrationV1-acceptance-20261016"
+test ! -e "$HOME/BrainMigrationV1-acceptance-20261016/mac2-restore-transcript.txt"
+script -q "$HOME/BrainMigrationV1-acceptance-20261016/mac2-restore-transcript.txt"
+```
+
+```sh
+bash -s <<'BRAIN_MIGRATION_V1'
+set -euo pipefail
+ROOT="$HOME/BrainMigrationV1-acceptance-20261016"
+REPO="$ROOT/repo"
+HEAD="6ad944c40938e1e25d2bddb3ea61234c69e9149d"
+ORDINARY="d2fb11d73cd84c14a24ba3ed870b2ccb"
+ORDINARY_SHA="0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865"
+D43="58ec529e5a134817bf179b06922ddcf7"
+D43_SHA="ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6"
+KINGSTON="/Volumes/Kingston"
+Q="$ROOT/quarantine"
+
+expect_json() {
+  local expected="$1"
+  shift
+  local output
+  output="$("$@")"
+  printf '%s\n' "$output"
+  EXPECTED_JSON="$expected" ACTUAL_JSON="$output" python3 - <<'PY'
+import json, os
+expected = json.loads(os.environ['EXPECTED_JSON'])
+actual = json.loads(os.environ['ACTUAL_JSON'])
+if any(actual.get(key) != value for key, value in expected.items()):
+    raise SystemExit(f"unexpected_result_fields: expected={expected!r}, actual={actual!r}")
+print({'expected_fields_verified': sorted(expected)})
+PY
+}
+
+python3 -c 'import sys; print(sys.version); raise SystemExit(0 if sys.version_info >= (3, 11) else 2)'
+git clone --no-checkout https://github.com/avariceJS/memecoin-ai.git "$REPO"
+git -C "$REPO" fetch origin research/active
+git -C "$REPO" checkout --detach "$HEAD"
+test "$(git -C "$REPO" rev-parse HEAD)" = "$HEAD"
+test -z "$(git -C "$REPO" status --porcelain)"
+cd "$REPO"
+make setup
+make smoke
+
+diskutil info "$KINGSTON" | grep -E 'Device Identifier|Mount Point|File System Personality|Volume UUID|Volume Read-Only'
+diskutil info "$KINGSTON" | grep -q 'Case-sensitive APFS'
+python3 - <<'PY'
+import os, plistlib, shutil, stat, subprocess
+from pathlib import Path
+mount = Path('/Volumes/Kingston')
+info = plistlib.loads(subprocess.check_output(['/usr/sbin/diskutil', 'info', '-plist', str(mount)]))
+assert info.get('VolumeUUID', '').lower() == '8f8f1081-9be4-4914-9111-75f1b90255bf'
+assert info.get('MountPoint') == str(mount)
+assert 'apfs' in str(info.get('FilesystemType', info.get('FilesystemName', ''))).lower()
+free = shutil.disk_usage(mount).free
+print({'kingston_uuid': info['VolumeUUID'], 'filesystem': info.get('FilesystemType'), 'free_bytes': free})
+assert free >= 58 * 1024**3
+for path in (mount / 'BrainMigrationV1' / 'protected-candidates', mount / 'BrainMigrationV1' / 'protected-candidates' / '58ec529e5a134817bf179b06922ddcf7'):
+    metadata = path.stat(follow_symlinks=False)
+    print({'path': str(path), 'uid': metadata.st_uid, 'mode': oct(stat.S_IMODE(metadata.st_mode))})
+    assert stat.S_ISDIR(metadata.st_mode)
+    assert metadata.st_uid == os.geteuid() and stat.S_IMODE(metadata.st_mode) == 0o700
+home_free = shutil.disk_usage(Path.home()).free
+print({'mac2_home_free_bytes': home_free, 'required_bytes': 45 * 1024**3})
+assert home_free >= 45 * 1024**3
+PY
+
+brain_runtime_check() {
+  python3 - <<'PY'
+import json, os, re, subprocess
+raw = subprocess.check_output(['/bin/launchctl', 'list'], text=True)
+jobs = []
+for line in raw.splitlines():
+    fields = line.split()
+    if len(fields) == 3 and fields[2].startswith('ai.memecoin.'):
+        jobs.append({'label': fields[2], 'pid': fields[0]})
+comm_raw = subprocess.check_output(['/bin/ps', '-axo', 'pid=,comm='], text=True)
+args_raw = subprocess.check_output(['/bin/ps', '-axo', 'pid=,args='], text=True)
+def by_pid(raw):
+    result = {}
+    for line in raw.splitlines():
+        fields = line.strip().split(None, 1)
+        if len(fields) == 2:
+            result[fields[0]] = fields[1]
+    return result
+commands = by_pid(comm_raw)
+arguments = by_pid(args_raw)
+brain_candidates = []
+other_python_pids = []
+brain_executable_markers = ('brain', 'memecoin')
+brain_argument_markers = ('memecoin_ai', 'memecoin_brain', 'memecoin_collector', 'brain_migration_v1', 'calendar-execution-01')
+for pid, command in commands.items():
+    if pid == str(os.getpid()):
+        continue
+    executable = os.path.basename(command)
+    folded_executable = executable.casefold()
+    folded_args = arguments.get(pid, '').casefold()
+    if any(marker in folded_executable for marker in brain_executable_markers) or any(marker in folded_args for marker in brain_argument_markers):
+        brain_candidates.append({'pid': pid, 'executable': executable})
+    elif re.fullmatch(r'python(?:\d+(?:\.\d+)*)?', folded_executable):
+        other_python_pids.append(pid)
+print(json.dumps({'brain_launchd_jobs': jobs, 'brain_process_candidates': brain_candidates, 'other_python_pids': other_python_pids}, sort_keys=True))
+if jobs or brain_candidates or other_python_pids:
+    raise SystemExit(2)
+PY
+}
+brain_runtime_check
+
+expect_json '{"manifest_sha256":"0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865","member_count":784023,"payload_bytes":28821482721,"protected_custody_complete":false,"protected_custody_disposition":"protected_D43_source_present_uncaptured"}' python3 tools/brain_migration_v1.py verify --target-root "$KINGSTON" --candidate-id "$ORDINARY" --manifest-sha256 "$ORDINARY_SHA"
+expect_json '{"candidate_id":"58ec529e5a134817bf179b06922ddcf7","manifest_sha256":"ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6","member_count":1567,"payload_bytes":13227642,"state":"protected_opaque_candidate_verified","protected_semantics_used":false}' python3 tools/brain_migration_v1_d43.py verify --target-root "$KINGSTON" --candidate-id "$D43" --manifest-sha256 "$D43_SHA"
+
+mkdir -m 700 -p "$Q"
+test ! -e "$Q/ordinary"
+test ! -e "$Q/d43"
+expect_json '{"candidate_id":"d2fb11d73cd84c14a24ba3ed870b2ccb","manifest_sha256":"0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865","member_count":784023,"state":"inert_quarantine_verified","start_or_activation":false,"protected_custody_complete":false}' python3 tools/brain_migration_v1.py restore-inert --target-root "$KINGSTON" --candidate-id "$ORDINARY" --manifest-sha256 "$ORDINARY_SHA" --quarantine-root "$Q/ordinary"
+expect_json '{"candidate_id":"58ec529e5a134817bf179b06922ddcf7","manifest_sha256":"ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6","member_count":1567,"state":"protected_opaque_inert_quarantine_verified","protected_semantics_used":false,"start_or_activation":false}' python3 tools/brain_migration_v1_d43.py restore-inert --target-root "$KINGSTON" --candidate-id "$D43" --manifest-sha256 "$D43_SHA" --quarantine-root "$Q/d43"
+expect_json '{"candidate_id":"d2fb11d73cd84c14a24ba3ed870b2ccb","manifest_sha256":"0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865","ordinary_database_count":93,"protected_database_semantics_checked":false,"restore_payload_mutated":false,"sqlite_family_hashes_unchanged":true,"state":"ordinary_sqlite_integrity_verified"}' python3 tools/brain_migration_v1_verify_sqlite.py --payload-root "$Q/ordinary/payload" --manifest "$KINGSTON/BrainMigrationV1/candidates/$ORDINARY/MANIFEST.jsonl" --manifest-sha256 "$ORDINARY_SHA"
+brain_runtime_check
+git -C "$REPO" rev-parse HEAD
+git -C "$REPO" status --short
+test -z "$(git -C "$REPO" status --porcelain)"
+BRAIN_MIGRATION_V1
+```
+
+Stop immediately on any failed assertion/command; UUID, APFS/case-sensitivity, capacity, commit,
+manifest digest/count/byte mismatch; nonzero runtime check; restore or SQLite error; or any output
+claiming activation. Keep Mac1 and all Kingston candidates intact. Do not inspect private
+configuration or protected payload semantics. `restore-inert` must report
+`inert_quarantine_verified` for ordinary and `protected_opaque_inert_quarantine_verified` for D43,
+with `start_or_activation: false`; SQLite must report 93 databases, unchanged hashes, and no
+restored-payload mutation. Both runtime checks must report empty `brain_launchd_jobs`,
+`brain_process_candidates`, and `other_python_pids`. Any Python process is a stop condition until
+it is identified and stopped or the handoff is reviewed again; the checker deliberately does not
+print process arguments, which may contain private values.
+
+This completes the Migration v1 real acceptance gate only after the entire transcript is reviewed
+by Sol against the two pins and the outputs above. It is not authorized by this capture receipt
+alone. Keep Brain inert and do not erase Mac1 until that final review explicitly returns GO. Once
+accepted, later activation on Mac2 remains a separate operator decision.
 
 This document owns Brain host portability, recovery inventory, and erase readiness. The project
 checkout, owner runtime, large research-data root, and protected evaluations have separate authority
@@ -91,8 +268,12 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-16 20:30 UTC.** The accepted recovery scope is loss or
-erasure of the owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as
+**NO-GO for erasing Mac1 as of 2026-10-17.** The full seven-root ordinary capture and
+opaque D43 overlay now exist as a separately pinned, independently verified Kingston pair, and all
+93 ordinary SQLite families pass read-only integrity checks. The next action is the single real
+Mac2 restore/package above, followed by Sol review of the full transcript. Until that succeeds,
+factory reset remains prohibited. The accepted recovery scope is loss or erasure of the owner Mac
+while Kingston remains healthy. The user explicitly accepts Kingston as
 the only reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
 claim. A future 1-TB+ SSD, NAS, or other independent destination must add a separately verified

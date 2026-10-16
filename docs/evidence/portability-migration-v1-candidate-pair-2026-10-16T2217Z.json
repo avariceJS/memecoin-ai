@@ -1,0 +1,117 @@
+{
+  "schema": "brain-practical-migration-v1-candidate-pair-receipt",
+  "observed_at_utc": "2026-10-16T22:17:31Z",
+  "qualification_scope": "opaque reset-unique capture and host-side integrity only; no restore or erase authority",
+  "tool_commit": "6ad944c40938e1e25d2bddb3ea61234c69e9149d",
+  "target": {
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "filesystem": "case-sensitive APFS",
+    "device_identifier": "disk7s1",
+    "free_bytes_after_candidate_pair_and_verification": 138415222784,
+    "free_floor_bytes": 53687091200,
+    "operation_reserve_bytes": 8589934592,
+    "personalbackup_touched": false,
+    "braindata_touched": false
+  },
+  "pre_capture_quiescence": {
+    "included_root_write_descriptors": 0,
+    "loaded_brain_or_d43_launchd_labels": 1,
+    "loaded_labels_with_pids": 0,
+    "d43_label": "ai.memecoin.d43.calendar01",
+    "d43_loaded_pid": "-",
+    "d43_disabled": true,
+    "capture_source_mutated": false
+  },
+  "ordinary_candidate": {
+    "candidate_id": "d2fb11d73cd84c14a24ba3ed870b2ccb",
+    "relative_path": "BrainMigrationV1/candidates/d2fb11d73cd84c14a24ba3ed870b2ccb",
+    "manifest_sha256": "0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865",
+    "manifest_member_count": 784023,
+    "payload_bytes": 28821482721,
+    "preflight_allocated_bytes": 30811967488,
+    "capture_internal_readback_verified": true,
+    "independent_manifest_verify": {
+      "passed": true,
+      "member_count": 784023,
+      "payload_bytes": 28821482721,
+      "manifest_sha256_matched_external_pin": true
+    },
+    "ordinary_sqlite_integrity": {
+      "passed": true,
+      "ordinary_database_count": 93,
+      "ordinary_sidecar_members": {"-wal": 14, "-shm": 14, "-journal": 0},
+      "sqlite_version": "3.53.4",
+      "sqlite_family_hashes_unchanged": true,
+      "restore_payload_mutated": false,
+      "protected_database_semantics_checked": false
+    },
+    "manifest_member_custody_classes": {
+      "ordinary_opaque": 771525,
+      "protected_path_name_candidate_opaque": 12498
+    },
+    "excluded_records": 23,
+    "root_inventory": [
+      {"alias":"owner_work","entry_count":319437,"allocated_bytes":11801964544,"signature_sha256":"818333c72486c426006572396a2116dfa3cc3e469c8144f1117d86707c6a5a2b"},
+      {"alias":"owner_git","entry_count":4595,"allocated_bytes":74342400,"signature_sha256":"b4a77026d0a2b0d97dab1461199e8c43de0caec2c314a9bf46a6fd9777f27322"},
+      {"alias":"research_work","entry_count":452924,"allocated_bytes":18823237632,"signature_sha256":"a06c6275e37e4c6e9f277dca3f25d5917fc2bd33fa69650223b80d67b3d7bb6e"},
+      {"alias":"research_git","entry_count":6938,"allocated_bytes":111591424,"signature_sha256":"311711f486b5c5e6d8a88bdb4f167873cd4322d5ebd8a4b51089fc2a8ebbe15a"},
+      {"alias":"brain_local_config","entry_count":89,"allocated_bytes":356352,"signature_sha256":"6997c013272a3e3250ebbf1892553fac759898d4413a66515a98a7db20f3c5c9"},
+      {"alias":"recovery_terminal_transcript","entry_count":1,"allocated_bytes":249856,"signature_sha256":"d66a1631a1ef538c395deb47c205bbc8ec29bfffe28dc31e0fb3d6f0dd809a32"},
+      {"alias":"launch_agents","entry_count":62,"allocated_bytes":225280,"signature_sha256":"c309c9c9ee54b96419ad7bdaa214876cbcb2c4918cc37780444a5c54c202e538"}
+    ],
+    "protected_custody_complete": false,
+    "protected_custody_disposition": "D43 is supplied by the paired opaque candidate"
+  },
+  "d43_opaque_candidate": {
+    "candidate_id": "58ec529e5a134817bf179b06922ddcf7",
+    "relative_path": "BrainMigrationV1/protected-candidates/58ec529e5a134817bf179b06922ddcf7",
+    "manifest_sha256": "ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6",
+    "manifest_member_count": 1567,
+    "payload_bytes": 13227642,
+    "capture_internal_readback_verified": true,
+    "independent_manifest_verify": {
+      "passed": true,
+      "member_count": 1567,
+      "payload_bytes": 13227642,
+      "manifest_sha256_matched_external_pin": true
+    },
+    "source_lineage": {
+      "source_device": 16777230,
+      "source_root_inode": 36511776,
+      "source_inventory_member_count": 1565,
+      "source_logical_bytes": 13226352,
+      "source_inventory_signature_sha256": "03a107ac0e1935a7b1a0ba2fa75d5df310d6b72e7c3613277b91b754fb4f58b0",
+      "launch_agent_plist_sha256": "1558480d219673a7bc35683bc2e24bb6a1c80bb667daf15dc89569653c7f6e82"
+    },
+    "continuation": {
+      "prior_incomplete_candidate_id": "5d4804faa1f14c47a0e3ed652e758bdd",
+      "prior_payload_opened": false,
+      "prior_pause_intent_sha256": "23fece5bf299e3a03048f2218c8d656807f2d94718aa8d1aac94aa80d732de43",
+      "prior_pause_started_sha256": "0df76e751bddeb84c23365cc8349636d23c11017b196ae275056171160471552",
+      "prior_pause_witness_sha256": "6101f5620f931db098fd9c513ca0e65a71b9d89e5230f19a28eaecb9b5c61a8e",
+      "automatic_resume": false,
+      "revalidated_stable_interval_seconds": 65
+    },
+    "protected_semantics_used": false,
+    "start_or_activation": false
+  },
+  "candidate_pair": {
+    "ordinary_candidate_id": "d2fb11d73cd84c14a24ba3ed870b2ccb",
+    "d43_candidate_id": "58ec529e5a134817bf179b06922ddcf7",
+    "manifest_member_count_sum_overlapping_records_included": 785590,
+    "restore_completed": false,
+    "activation_started": false,
+    "erase_authorized": false
+  },
+  "incomplete_candidates_retained": [
+    {"candidate_id":"5d4804faa1f14c47a0e3ed652e758bdd","role":"D43 paused copy interrupted; no manifest or completion seal"},
+    {"candidate_id":"58e4596a3db5403a9b7901cfdb40566d","role":"ordinary capture failed closed on owner Git source drift; no accepted manifest or completion seal"}
+  ],
+  "limitations": [
+    "This receipt qualifies an opaque Kingston capture pair and ordinary SQLite structural integrity only.",
+    "No second-host restore, bootstrap, inertness acceptance, or SAFE TO ERASE verdict has occurred.",
+    "D43 is byte custody only; no protected database semantics were checked.",
+    "Ordinary private configuration remains in a user-only quarantine pending reauthentication/reissue decisions.",
+    "Hardlink topology and external aliases, arbitrary embedded secrets, and filesystem metadata restoration are not qualified."
+  ]
+}
