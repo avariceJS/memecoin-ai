@@ -33,13 +33,15 @@ only `ai.memecoin.d43.calendar01` among Brain/D43 labels. The exact source direc
 `protected_custody_complete=false`. D43 is not captured, read, stopped, or semantically used.
 Therefore this bounded candidate cannot establish full Brain custody or authorize erasure.
 
-The latest metadata-only seven-root census gives a conservative copy-budget basis of 30,810,427,392
-bytes (28.694 GiB), below the 35-GiB cap. The current Kingston observation is 199.086 GiB free on
-case-sensitive APFS UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; it includes the existing
-PersonalBackup occupancy and is not a future pin. The writer requires actual payload plus a 50-GiB
-free floor and 8-GiB operation reserve, rechecked immediately before and during capture. The
-inventory is sizing evidence only, not a copy or consistency proof. No Migration v1 candidate has
-been written yet.
+The latest metadata-only seven-root census gave a conservative copy-budget basis of 30,810,427,392
+bytes (28.694 GiB), below the 35-GiB cap. On 2026-10-16, a fresh preflight measured 213,921,214,464
+free bytes on case-sensitive APFS UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; this included
+existing PersonalBackup occupancy. The writer retains a 50-GiB free floor and an 8-GiB operation
+reserve. It created and internally readback-verified candidate
+`21843d9664ea45438fd79c9745a30fee` with 28,820,413,514 payload bytes and 783,922 members; a
+separate read-only verifier matched every member and the externally pinned manifest SHA-256. Free
+space after verification was 182,458,507,264 bytes. D43 custody remains incomplete, and no restore
+has been performed. See the immutable [Migration v1 capture receipt](evidence/portability-migration-v1-capture-2026-10-16T2030Z.json).
 
 This document owns Brain host portability, recovery inventory, and erase readiness. The project
 checkout, owner runtime, large research-data root, and protected evaluations have separate authority
@@ -47,7 +49,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-16 20:03 UTC.** The accepted recovery scope is loss or
+**NO-GO for factory reset as of 2026-10-16 20:30 UTC.** The accepted recovery scope is loss or
 erasure of the owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as
 the only reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss

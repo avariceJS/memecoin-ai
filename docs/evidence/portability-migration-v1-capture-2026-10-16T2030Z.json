@@ -1,0 +1,56 @@
+{
+  "schema": "brain-practical-migration-v1-capture-receipt",
+  "observed_at_utc": "2026-10-16T20:30:01Z",
+  "tool_commit": "03d7ae66a5d1cbfffcd17c15c12752f678402ec5",
+  "candidate_id": "21843d9664ea45438fd79c9745a30fee",
+  "candidate_relative_path": "BrainMigrationV1/candidates/21843d9664ea45438fd79c9745a30fee",
+  "target_volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+  "target_filesystem": "case-sensitive APFS",
+  "capacity_observations": {
+    "pre_capture_available_bytes": 213921214464,
+    "post_capture_available_bytes": 182458507264,
+    "policy_free_floor_bytes": 53687091200,
+    "operation_reserve_bytes": 8589934592,
+    "payload_cap_bytes": 37580963840
+  },
+  "manifest_sha256": "4d5346f052b4fc3943a599b35013f5d0d098d25bf817bb27a29421ba6a7eac55",
+  "manifest_members": 783922,
+  "payload_bytes": 28820413514,
+  "capture_state": "verified_inert_candidate",
+  "capture_internal_readback_verified": true,
+  "independent_cli_verify": {
+    "passed": true,
+    "manifest_sha256_matched_external_pin": true,
+    "member_count": 783922,
+    "payload_bytes": 28820413514
+  },
+  "source_roots": [
+    "owner_work",
+    "owner_git",
+    "research_work",
+    "research_git",
+    "brain_local_config",
+    "recovery_terminal_transcript",
+    "launch_agents"
+  ],
+  "source_preflight": {
+    "brain_owned_launchd_pids": 0,
+    "included_root_write_fds": 0,
+    "protected_d43_source_descended_or_read": false,
+    "personalbackup_touched": false,
+    "braindata_touched": false
+  },
+  "known_gaps": {
+    "protected_custody_complete": false,
+    "protected_custody_disposition": "protected_D43_source_present_uncaptured",
+    "source_point_qualified": false,
+    "hardlink_topology_preserved": false,
+    "external_hardlink_alias_lineage_resolved": false,
+    "sqlite_application_consistency_proven": false,
+    "symlink_targets_restored_or_verified": false,
+    "private_config_secret_free": false
+  },
+  "restore_completed": false,
+  "activation_started": false,
+  "erase_authorized": false
+}
