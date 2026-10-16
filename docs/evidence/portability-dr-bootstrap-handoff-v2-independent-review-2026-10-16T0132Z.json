@@ -1,0 +1,42 @@
+{
+  "schema": "portability-dr-bootstrap-handoff-v2-independent-review-v1",
+  "observed_at_utc": "2026-10-16T01:32:00Z",
+  "reviewer": "Sol High, independent recovery/trust-boundary review",
+  "reviewed_handoff_commit": "6017ac721430c9eb59ead9ae6ab5d414199c3159",
+  "reviewed_tag_ref": "refs/tags/brain-dr-handoff-v2",
+  "reviewed_tag_object": "6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+  "reviewed_tag_peel": "6017ac721430c9eb59ead9ae6ab5d414199c3159",
+  "reviewed_artifact_sha256": {
+    "recovery/BOOTSTRAP-HANDOFF-v2.json": "9641b31e5552f1c7f86038756928086e59b7cb915a8fb96e6be8716d5d5bcd08",
+    "recovery/BOOTSTRAP-HANDOFF-v2.txt": "4a0b790046d382cf766b5209b33ce0030bc6b2086ebaf4cb31b1c5f55195c909"
+  },
+  "findings": [
+    {
+      "severity": "material",
+      "issue": "After peeling, the operator sequence checked only for a 40-hex value, not Git object type. An annotated tag to a tree could pass extraction.",
+      "v2_disposition": "retire_for_operator_entry; preserve tag unchanged",
+      "v3_control": "require cat-file -t of peeled object equals commit before extraction"
+    },
+    {
+      "severity": "material",
+      "issue": "Python JSON checks used assert; PYTHONOPTIMIZE can remove the checks while retaining success output.",
+      "v2_disposition": "retire_for_operator_entry; preserve tag unchanged",
+      "v3_control": "explicit require function raises SystemExit and positive rehearsal with PYTHONOPTIMIZE=1"
+    },
+    {
+      "severity": "material",
+      "issue": "Validation accepted duplicate JSON keys and unrecognized extra fields despite claiming schema validation.",
+      "v2_disposition": "retire_for_operator_entry; preserve tag unchanged",
+      "v3_control": "duplicate-key-rejecting object_pairs_hook and exact key sets across the handoff schema"
+    }
+  ],
+  "review_conclusion": {
+    "v2_current_objects_internally_consistent": true,
+    "v2_acceptable_as_immutable_historical_bootstrap_evidence": true,
+    "v2_operator_interface_go": false,
+    "v3_required_before_operator_use": true,
+    "trust_boundary": "authenticated Git remote/account for accidental Mac loss; not a cryptographic signature or defense against remote/account compromise",
+    "recovery_set_T_K_restore_activation_erase_authority": false
+  },
+  "v3_publication_state": "draft_not_published_at_review_receipt"
+}
