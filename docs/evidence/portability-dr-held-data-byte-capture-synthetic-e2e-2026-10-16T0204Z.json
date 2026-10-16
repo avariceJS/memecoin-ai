@@ -1,0 +1,51 @@
+{
+  "schema": "brain-host-held-data-byte-capture-synthetic-e2e-v1",
+  "observed_at_utc": "2026-10-16T02:04:00Z",
+  "code_commit": "01111f90d37a193abe1e29f934c05404fe0d9e57",
+  "branch": "research/active",
+  "fixture": {
+    "kind": "disposable-read-only-synthetic-apfs-data-volume",
+    "source_image_sha256": "d745db95943d8f8dad0f3859fb6139477203a04b3f64a59a2fdd7ae60b4ee607",
+    "volume_uuid": "6e652e4f-9c38-4a48-887a-530158ba2767",
+    "device_identifier": "disk9s1",
+    "plan_sha256": "08066565547a6b95f4511d8c94f2f04ff77a4c1038298a2e82eaf12f227a788a",
+    "absent_required_role": "verifier_worktree"
+  },
+  "destination": {
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "relative_capture_path": "host-recovery/data-view-captures/3a77b0f88fcb44a8a48791d20ef21f09"
+  },
+  "capture": {
+    "capture_id": "3a77b0f88fcb44a8a48791d20ef21f09",
+    "entry_count": 10,
+    "regular_file_bytes": 2097408,
+    "manifest_sha256": "7be029af160dba079745ad69911d8c87af229ad900eab9350d15e162e1501a96",
+    "manifest_pin_retained_outside_candidate_group": true,
+    "candidate_group_verified_by_fresh_cli": true,
+    "wrong_external_manifest_pin_rejected": true,
+    "member_count_including_controls": 6
+  },
+  "verification": {
+    "focused_tests": 38,
+    "ruff": "passed",
+    "mypy_strict_touched_sources": "passed",
+    "git_diff_check": "passed",
+    "sol_review": "accepted_restricted_byte_custody_scaffold_only"
+  },
+  "authority": {
+    "owner_data_capture_qualified": false,
+    "source_cutoff_T_qualified": false,
+    "kingston_K_frontier_qualified": false,
+    "brain_restore_verified": false,
+    "activation_authorized": false,
+    "safe_to_erase": false
+  },
+  "claim_limit": "A strict-policy synthetic Data fixture regular-file stream was written create-only to the pinned Kingston root and passed fresh descriptor-bound verification against plan and manifest hashes supplied outside the candidate group. This does not qualify owner Data capture, source cutoff, Kingston frontier, restore, Recovery-kit use, activation, or erase readiness.",
+  "runtime_effects": {
+    "brain_services_changed": false,
+    "providers_contacted": false,
+    "production_or_protected_jobs_started": false,
+    "kingston_candidate_groups_cleaned_up": false
+  }
+}

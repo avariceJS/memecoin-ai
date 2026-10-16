@@ -24,6 +24,11 @@ The exact published commit was then fetched into a new clean checkout; isolated 
 dependency check, project smoke, and CLI help passed. This was still the current Mac and authentication
 context, with no Brain state restored. See the
 [`clean-clone bootstrap receipt`](evidence/portability-dr-clean-clone-held-data-cli-bootstrap-2026-10-16T0007Z.json).
+The subsequent restricted byte-custody scaffold passed a nonempty synthetic Darwin/APFS-to-Kingston
+capture and fresh verification using external plan and manifest pins. Sol accepted this narrow
+internal integrity claim only; the strict walker cannot traverse the real owner-root roster, so this
+does not qualify owner capture, T/K, Recovery-kit use, restore, or erase readiness. See the
+[`synthetic byte-capture E2E receipt`](evidence/portability-dr-held-data-byte-capture-synthetic-e2e-2026-10-16T0204Z.json).
 The post-bootstrap restore flow then passed a same-host blocked-path rehearsal: the exact commit,
 entry card and Kingston identity matched, and the operation stopped at the absent accepted set before
 quarantine or witness creation. This still is not a clean-host restore or erase qualification.
