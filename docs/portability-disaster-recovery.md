@@ -6,17 +6,19 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-16 11:41 UTC.** The accepted recovery scope is loss or
+**NO-GO for factory reset as of 2026-10-16 12:40 UTC.** The accepted recovery scope is loss or
 erasure of the owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as
 the only reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
 claim. A future 1-TB+ SSD, NAS, or other independent destination must add a separately verified
-replica and a Kingston-loss rehearsal. The conditional Recovery/capture plan, nine-role policy, and
-PersonalBackup-parameterized capacity worksheet are at draft 3 in this document. Sol reviewed them
-as an accurate non-executable design; they do not authorize a Recovery boot. The final
-PersonalBackup reservation is still one external input; current free-space arithmetic leaves at
-most 14.182 GiB for Brain payload, Kingston-local inventory spool, and metadata even at the 126.9
-GiB lower-bound reservation.
+replica and a Kingston-loss rehearsal. The conditional Recovery/capture plan and nine-role policy
+remain a Sol-reviewed, non-executable design; they do not authorize a Recovery boot. The user has
+changed the PersonalBackup operating plan: it is temporary Kingston occupancy, later moved to a
+second MacBook, verified there, and deleted from Kingston separately by the user. Do not inspect,
+move, or delete PersonalBackup. Brain capacity is planned for the post-transition Kingston state,
+with no permanent PersonalBackup reserve. Before any Brain write, require the user's confirmation
+that the personal migration and separate deletion are complete, then freshly measure Kingston free
+space and identity. The current free-space reading is only a baseline, not that future pin.
 
 On 2026-10-16, the read-only `HeldDataT` identity/locator library and operator CLI passed a real
 Darwin/APFS probe against a disposable read-only synthetic APFS image using the pinned Kingston
@@ -1835,8 +1837,30 @@ The pinned production v5 writer creates its SQLite inventory spool on Kingston u
 device. Its `scratch_reserve_bytes` must be budgeted as `S_K` in the target equation. The independent
 candidate verifier uses a different `PinnedScratchV5` interface that accepts only pinned APFS/HFS
 scratch, rejects RecoveryOS `tmpfs`, and requires Kingston itself to be mounted read-only
-(`ST_RDONLY`). No approved Kingston writable-to-read-only transition is currently qualified. These
-constraints make the proposed one-boot capture-and-verify sequence non-executable today.
+(`ST_RDONLY`). A verifier scratch volume must have a distinct volume UUID and `st_dev` from source
+and target. A disposable local APFS-container rehearsal has confirmed that a sibling APFS volume
+on the same container passes `PinnedScratchV5.open/validate` while the target sibling is mounted
+read-only. A 16 MiB scratch write reduced both volumes' reported available bytes by the same amount,
+confirming they expose one shared pool. This is logical volume separation, not a separate failure
+domain. It does not qualify a Kingston mutation or full candidate verification. Sol accepted the
+conditional design: shared-pool verification must pin the APFS container UUID and enforce the
+50 GiB policy floor plus bounded headroom and remaining DB reserve at each verifier capacity check.
+The code derives shared-pool headroom from the SHA-pinned private operation spec. Sol reviewed the
+current verifier and approved a disposable sibling-volume rehearsal. A 64 GiB local sparse APFS
+image was created and inspected, but its shared pool exposed only 29.17 GiB free, below the 50 GiB
+floor before verifier scratch; no candidate was read or accepted. The image was detached and
+removed. Following Sol's lineage decision, the operator capture CLI hashes and validates the private
+operation spec, then passes that digest into candidate creation; production capture writes it into a
+versioned INDEX and the readback witness binds the INDEX digest. The direct Python capture API
+accepts a digest pin but does not read or validate the private spec bytes, so the validated-spec claim
+applies only to the operator CLI path. Ordinary integrity verification continues to accept legacy
+INDEX schema, while shared-pool verification requires an exact bound spec. The verifier rejects a
+same-container target/scratch pair when shared-pool mode is omitted and fails closed if either APFS
+container identity is missing or malformed. An explicitly supplied spec hash is checked for both
+shared- and external-scratch API verification. These changes pass 94 focused tests, but still need a
+fresh Sol code review and a successful disposable candidate/remount rehearsal. No Kingston
+sibling-scratch operation or writable-to-read-only transition is authorized.
+These constraints make the proposed one-boot capture-and-verify sequence non-executable today.
 
 Any future gate must establish a worst-case bound for entries, payload, `S_K`, and `M` before
 creating the Kingston spool or writing candidate payload. Then recheck Kingston capacity before
@@ -1844,10 +1868,15 @@ spooling. If the production path cannot establish this bound without creating a 
 spool, stop and add/review a bounded no-payload planning path before Recovery. Capture and readback
 verification are separate phases: after capture, close the writer, safely unmount Kingston, remount
 the pinned target read-only with an exact reviewed command, verify UUID/root/device and `ST_RDONLY`,
-then run the candidate verifier using an independently pinned APFS/HFS volume distinct from source
-and Kingston. Require verifier scratch free space of its calculated DB reserve plus 256 MiB; the
-implementation's DB-reserve ceiling is 32 GiB. Do not use source Data or Kingston as verifier
-scratch. The verifier proves candidate integrity only, not global Kingston K.
+then run the candidate verifier using a pinned APFS/HFS volume distinct from source and target by
+volume UUID and `st_dev`. The verifier rejects APFS sibling target/scratch volumes unless shared
+pool mode is explicit. If scratch is on a sibling APFS volume in the Kingston container, bind the
+exact shared APFS container UUID and use one shared-pool ledger; do not sum sibling `df` values.
+The implementation's DB-reserve ceiling is 32 GiB. The new shared-pool code path requires the
+SHA-pinned operation spec bound into the candidate INDEX and has focused unit coverage, but remains
+unqualified until a real disposable candidate, target read-only remount, low-space rejection, and
+post-failure integrity rehearsal pass. Never use Data or the target volume itself as scratch. The
+verifier proves candidate integrity only, not global Kingston K.
 
 1. Shut down cleanly. Record the Recovery entry path, all pre-Terminal user/authentication/key/UI
    choices, and approximate times without recording credentials. Do not open Disk Utility, unlock
@@ -1919,7 +1948,7 @@ scratch. The verifier proves candidate integrity only, not global Kingston K.
    bounds before candidate writes. Re-evaluate the Kingston equation immediately before capture.
    Start only if all nine role dispositions and the protected overlay below are resolved to explicit
    capture, reissue, or evidence-backed rebuild states, with no blocked or unresolved custody role.
-   The writer must preserve the PB allocation and 50 GiB policy floor at every guard. It may leave
+   The writer must preserve the 50 GiB policy floor at every guard. It may leave
    a partial candidate on failure; never resume, overwrite, or delete it. Preserve it as unaccepted evidence
    and require a new reviewed plan.
 8. Candidate verification is a separate post-capture operation, not part of the current Recovery
@@ -1982,22 +2011,27 @@ space.
 #### Kingston and scratch capacity worksheet
 
 All quantities are bytes in the signed operation worksheet; display GiB only for operator
-readability. Re-measure on the pinned volume immediately before any capture. Existing artifacts
-already reduce the observed free-space value and must not be subtracted twice. The user-reported
-PersonalBackup baseline is **126.9 GiB minimum**; it excludes Documents and some protected app data
-and is not a usable final reservation.
+readability. This is a post-PersonalBackup-transition Brain worksheet: PersonalBackup has no
+permanent capacity reservation. The user will separately move the temporary personal copy from
+Kingston to the second MacBook, verify it there, then delete that copy from Kingston. Do not inspect,
+move, delete, or reserve an estimated PersonalBackup size. The user has not confirmed that transition
+complete, so no Brain capture may rely on post-transition capacity yet. Re-measure the exact Kingston
+volume/root and free bytes after that confirmation and immediately before any Brain write. Existing
+BrainData artifacts already reduce the observed free-space value and must not be subtracted twice.
 
 | Symbol | Definition | Current value / rule |
 |---|---|---|
-| `F` | Kingston available bytes at gate time, matching UUID `8f8f1081-9be4-4914-9111-75f1b90255bf` and root `9428695af6d4f46c08e1a444cdc66de8` | Latest read-only `df` observation: 213,762,240,512 bytes = 199.082 GiB; stale for gate-time authorization |
-| `P` | One final PersonalBackup reservation, including full measured baseline, omitted Documents/protected-app data, and PersonalBackup growth/retry headroom | **Unknown**; must be supplied as one final reserved-capacity number; require `P >= 126.9 GiB` |
+| `F_now` | Current read-only Kingston availability, UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`, root `9428695af6d4f46c08e1a444cdc66de8` | 213,767,200,768 bytes = 199.086 GiB; baseline only, may change during the user's personal-data transition |
+| `F_after` | Kingston availability after the user confirms second-MacBook verification and separately deletes the temporary PersonalBackup copy | Unknown until that future confirmation; this is the `F` used by the Brain write gate |
 | `B` | Unique included Brain payload bytes for the pinned role policy | Must be computed from accepted held-view inventory before first payload write; no qualified value exists today |
-| `R` | Kingston free-space floor that remains after Brain capture and PB reservation | 50 GiB policy floor; recheck continuously; a smaller tool-internal 8 GiB floor does not override it |
+| `R` | Kingston free-space floor that remains after Brain capture | 50 GiB policy floor; recheck continuously; a smaller tool-internal 8 GiB floor does not override it |
 | `S_K` | v5 production writer's SQLite inventory spool reserve | Written on Kingston itself at `BrainData/host-recovery/tree-capture-v5/spool`; derive a worst-case bound from a qualified held-view count/path model before any large spool or payload write |
-| `S_V` | Independent verifier SQLite scratch reserve | Separate pinned APFS/HFS volume, distinct from source and Kingston; calculated DB reserve (maximum 32 GiB); its total free-space requirement is `S_V + 256 MiB`; RecoveryOS `tmpfs` is rejected |
+| `S_V` | Verifier SQLite scratch DB reserve | Calculated DB reserve, capped at 32 GiB. Scratch must be a pinned APFS/HFS volume distinct by UUID and `st_dev` from source and target; RecoveryOS `tmpfs` is rejected. A Kingston sibling volume shares one pool and is not an independent failure domain. |
+| `W_V` | Verifier non-DB free-space headroom | 256 MiB required by the current verifier; the sibling-pool policy floor is tracked separately as `R + X` |
+| `X` | Kingston shared-pool allocation/partial-use margin | Must be explicitly bounded in the reviewed operation plan; cannot be assumed zero for a Kingston sibling scratch volume |
 | `M` | Metadata sidecar, candidate/index/manifest/receipt, and bounded incomplete-publication reserve charged by the production writer | Pinned operation-spec value, bounded by the accepted metadata policy and measured held view |
-| `G` | Production writer's fixed Kingston free-space floor | 8 GiB in the pinned v5 writer; this is additional to `R` and cannot be used for PB or payload |
-| `Q` | Inert extraction/quarantine capacity for later restore rehearsal | Separate compatible-host destination and scratch; not counted as Kingston payload or PB capacity |
+| `G` | Production writer's fixed Kingston free-space floor | 8 GiB in the pinned v5 writer; additional to `R` and unavailable for Brain payload |
+| `Q` | Inert extraction/quarantine capacity for later restore rehearsal | Separate compatible-host destination and scratch; not counted as Kingston payload |
 
 The path-free aggregate from the latest complete traversal of the eight declared-present roots
 recorded **29,742,143,024 bytes (27.700 GiB) of regular-file logical size** across 819,063 entries.
@@ -2011,40 +2045,37 @@ payload was read. The receipt is the [`v2 root-boundary census`](evidence/portab
 For capacity screening only, the v5 model applied to that entry count and logical-byte aggregate at
 its default 128-character average-path assumption and 50% margin returns `S_K = 9,024,408,576`
 bytes (8.405 GiB), with the default maximum metadata reserve `M = 8,589,934,592` bytes (8 GiB).
-Together with those observed logical bytes, the model's `B + S_K + M` is 44.104 GiB, before the
-50 GiB policy floor, the code's 8 GiB floor, and PersonalBackup. This is not a qualified production
-estimate because the roster and inclusion set are unresolved; it demonstrates that a full-root
-capture at this observed scale cannot fit the current residual Kingston budget. The actual included
-set must be reduced only by reviewed, evidence-backed rebuild/reissue/disposable dispositions, or
-Kingston capacity must change while leaving PB's final reservation intact. At the PB floor, that
-full-root/max-metadata scenario needs at least **229.004 GiB of free target capacity**; the entire
-current Kingston volume has about 223.4 GiB total, of which only 199.082 GiB is currently free
-after existing content, including BrainData, is accounted for.
-This is a screening scenario, not the final required Brain capacity or an instruction to delete or
-replace existing data.
+Together with those observed logical bytes, the model's `B + S_K + M` is 44.104 GiB. Adding the
+50 GiB policy floor and the writer's 8 GiB floor gives a historical screening total of 102.104 GiB
+for `B + S_K + M + R + G`. This is not a qualified production estimate: the roster and inclusion
+set are unresolved, logical size is not streamed payload, and hardlink aliases may be counted more
+than once. It is not a capture authorization. Capacity is not modeled against a permanent
+PersonalBackup reserve; use `F_after` only after the user confirms their separate migration and
+deletion steps. This does not authorize deleting, moving, or inspecting any personal data.
 
-The conservative Kingston pre-write gate is `F >= P + R + G + B + S_K + M`; the production
-writer must also accept its dynamic reserve at every boundary. Set its pinned
-`payload_reserve_bytes` to at least `P + R`, so it preserves the PB allocation and 50 GiB policy
-floor after streaming the unique included payload. `B`, `S_K`, and `M` must be bounded from the
-same accepted held-view inventory and candidate format before capture begins; no sparse logical size
-substitutes for streamed bytes. Independently require verifier scratch free space `F_V >= S_V +
-256 MiB`, with `S_V` calculated from the candidate/index and no more than 32 GiB. Capture is
-prohibited unless both equations and writer guards pass. Any interrupted candidate is charged at
-its maximum observed/allowed extent and is never assumed reclaimed. If the existing v6b candidate
-is retained, its 79,892,899 bytes are already reflected in `F` and are not subtracted a second
-time. The final worksheet records actual F, P, R, G, B, `S_K`, M, verifier `F_V`/`S_V`, exact
-pins, and revalidation observations; no capacity is taken from PB's allocation.
-
-At the latest Kingston observation, the lower-bound PB value alone leaves at most
-`199.082 - 126.9 - 50 - 8 = 14.182 GiB` for the sum of `B + S_K + M`, before accounting for
-PB's missing data/growth. Even the historical 27.700 GiB regular-file logical-size aggregate exceeds
-that residual before spool and metadata if all eight declared-present roots were included. It is not
-the final candidate size and is not a substitute for accepted held-view sizing. Therefore the current
-free-space observation cannot authorize capture. No final Brain requirement is asserted until B,
-S_K, and M are measured from the accepted held source and role policy. If
-the worksheet does not fit, stop before spool/payload capture and obtain a different capacity design; do
-not lower PB or R, delete existing artifacts, or write a partial set to Kingston.
+With external verifier scratch, the Kingston pre-write gate is
+`F_after >= R + G + B + S_K + M`, and external scratch must satisfy `F_V >= S_V + W_V`. With
+scratch on a Kingston sibling APFS volume, use one shared-pool ledger and require
+`F_after >= R + G + B + S_K + M + S_V + W_V + X`. Set the capture writer's pinned
+`payload_reserve_bytes >= R + S_V + W_V + X` to leave the policy floor and verifier capacity
+after candidate writes. The verified CLI derives `X` from that SHA-pinned operation spec and
+checks that its target UUID/root pins match. Bind sibling verification to the exact APFS container
+UUID; at each verifier capacity boundary require
+`F_pool >= R + X + W_V + (S_V - scratch_used)`. At verifier start this reserves the full DB cap;
+as scratch grows, only its unused remainder is added to the retained floor. A preflight-only check
+is insufficient because another allocator could consume the floor during verification. Do not sum
+free-space reports from sibling volumes. `B`, `S_K`, `S_V`, `M`, and `X` must be bounded from the
+accepted held view, candidate format, and APFS operation before capture; `X` covers only APFS
+metadata or partial allocations not already reflected in `F_after` or `M`. No sparse logical size
+substitutes for streamed bytes. Any interrupted candidate is charged at its maximum observed or
+allowed extent and never assumed reclaimed. If the existing v6b candidate is retained, its
+79,892,899 bytes are already reflected in `F_after` and are not subtracted twice. The final
+worksheet records actual `F_after`, R, G, B, `S_K`, `S_V`, `W_V`, M, X, the APFS container UUID,
+verifier `F_V` when external, the user's transition confirmation, and revalidation observations.
+No personal-data capacity is reserved for Brain after the confirmed transition. The current
+`F_now` is not the post-transition measurement. No final Brain requirement is asserted until B,
+`S_K`, and M are measured from the accepted held source and role policy. If the worksheet does not
+fit, stop before spool/payload capture; do not lower R or write a partial set to Kingston.
 
 Current source-role disposition is:
 

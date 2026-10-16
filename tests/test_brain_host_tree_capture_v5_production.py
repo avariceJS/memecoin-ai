@@ -34,6 +34,7 @@ from tools.brain_host_tree_capture_v5_production import (
     _required_boundary_callback,
     _validate_pins,
     _validate_scratch_devices,
+    _verify_scratch_required_free_bytes,
     extract_production_candidate_inert_v5,
     production_capture_v5,
     verify_production_candidate_v5,
@@ -602,6 +603,337 @@ def test_scratch_capability_pins_no_follow_path_and_rejects_source_alias(
         capability.close()
 
 
+@pytest.mark.parametrize("container_reference", [None, "not-a-disk-reference"])
+def test_apfs_scratch_requires_resolvable_container_identity(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    container_reference: str | None,
+) -> None:
+    scratch_path = tmp_path / "scratch"
+    scratch_path.mkdir(mode=0o700)
+    monkeypatch.setattr(
+        production_module.DarwinDataOS,
+        "disk_info",
+        lambda _self, _target: {
+            "VolumeUUID": "bbbbbbbb-cccc-dddd-eeee-ffffffffffff",
+            "APFSContainerReference": container_reference,
+        },
+    )
+    with pytest.raises(
+        ProductionCaptureV5Error,
+        match="scratch_volume_uuid_unresolved",
+    ):
+        PinnedScratchV5.open(scratch_path)
+
+
+def test_shared_pool_scratch_floor_tracks_remaining_db_and_policy_reserve() -> None:
+    from tools.brain_host_tree_capture_v5_production import (
+        VERIFY_SCRATCH_DB_RESERVE_BYTES,
+        VERIFY_SCRATCH_FREE_FLOOR_BYTES,
+        VERIFY_SHARED_POOL_FLOOR_BYTES,
+    )
+
+    headroom = 3 * 1024**2
+    assert (
+        _verify_scratch_required_free_bytes(0, VERIFY_SCRATCH_DB_RESERVE_BYTES)
+        == VERIFY_SCRATCH_FREE_FLOOR_BYTES + VERIFY_SCRATCH_DB_RESERVE_BYTES
+    )
+    assert _verify_scratch_required_free_bytes(
+        0,
+        VERIFY_SCRATCH_DB_RESERVE_BYTES,
+        shared_pool_mode=True,
+        shared_pool_headroom_bytes=headroom,
+    ) == (
+        VERIFY_SCRATCH_FREE_FLOOR_BYTES
+        + VERIFY_SHARED_POOL_FLOOR_BYTES
+        + VERIFY_SCRATCH_DB_RESERVE_BYTES
+        + headroom
+    )
+    used = 7 * 1024**3
+    assert _verify_scratch_required_free_bytes(
+        used,
+        VERIFY_SCRATCH_DB_RESERVE_BYTES,
+        shared_pool_mode=True,
+        shared_pool_headroom_bytes=headroom,
+    ) == (
+        VERIFY_SCRATCH_FREE_FLOOR_BYTES
+        + VERIFY_SHARED_POOL_FLOOR_BYTES
+        + VERIFY_SCRATCH_DB_RESERVE_BYTES
+        - used
+        + headroom
+    )
+    with pytest.raises(ProductionCaptureV5Error, match="production_verify_scratch_usage_invalid"):
+        _verify_scratch_required_free_bytes(
+            VERIFY_SCRATCH_DB_RESERVE_BYTES + 1,
+            VERIFY_SCRATCH_DB_RESERVE_BYTES,
+            shared_pool_mode=True,
+        )
+
+
+@pytest.mark.parametrize(
+    (
+        "concurrent_pool_free",
+        "target_becomes_writable",
+        "shared_pool_mode",
+        "scratch_container_pin_valid",
+        "target_container_pin_valid",
+        "scratch_filesystem",
+    ),
+    [
+        (100 * 1024**3, False, True, True, True, "apfs"),
+        (50 * 1024**3 + 32 * 1024**3 + 256 * 1024**2 - 1, False, True, True, True, "apfs"),
+        (100 * 1024**3, True, True, True, True, "apfs"),
+        (100 * 1024**3, False, False, True, True, "apfs"),
+        (100 * 1024**3, False, True, False, True, "apfs"),
+        (100 * 1024**3, False, True, True, False, "apfs"),
+        (100 * 1024**3, False, False, True, False, "apfs"),
+        (100 * 1024**3, False, False, True, True, "hfs"),
+    ],
+)
+def test_shared_pool_verifier_checks_dynamic_floor_before_candidate_read(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    concurrent_pool_free: int,
+    target_becomes_writable: bool,
+    shared_pool_mode: bool,
+    scratch_container_pin_valid: bool,
+    target_container_pin_valid: bool,
+    scratch_filesystem: str,
+) -> None:
+    from types import SimpleNamespace
+
+    from memecoin_research_storage import ReadOnlyStorageGuard
+    from tools.brain_host_tree_capture_v5_production import (
+        VERIFY_SCRATCH_DB_RESERVE_BYTES,
+        VERIFY_SCRATCH_FREE_FLOOR_BYTES,
+        VERIFY_SHARED_POOL_FLOOR_BYTES,
+    )
+
+    target = tmp_path / "target"
+    target.mkdir(mode=0o700)
+    scratch_path = tmp_path / "scratch"
+    scratch_path.mkdir(mode=0o700)
+    (target / "sentinel").write_bytes(b"read-only target evidence")
+    sentinel_before = hashlib.sha256((target / "sentinel").read_bytes()).hexdigest()
+    mount_fd = os.open(target, os.O_RDONLY | os.O_DIRECTORY)
+    scratch_fd = os.open(scratch_path, os.O_RDONLY | os.O_DIRECTORY)
+    container_uuid = "11111111-2222-3333-4444-555555555555"
+    target_uuid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    root_id = "a" * 32
+    container_reference = "disk55"
+    guard = object.__new__(ReadOnlyStorageGuard)
+    guard.config = SimpleNamespace(
+        root_id=root_id,
+        volume_uuid=target_uuid,
+        mount_path=target,
+        data_root=".",
+    )
+    guard.root = SimpleNamespace(root_id=root_id, volume_uuid=target_uuid)
+    guard.mount_fd = mount_fd
+    guard.revalidate = lambda: None
+    writer = SimpleNamespace(
+        storage_guard=guard,
+        _read_only=True,
+        device=os.fstat(mount_fd).st_dev,
+        assert_storage_binding=lambda _guard: None,
+    )
+    scratch = PinnedScratchV5(
+        path=scratch_path,
+        fd=scratch_fd,
+        identity=(os.fstat(scratch_fd).st_dev, os.fstat(scratch_fd).st_ino),
+        chain_identities=(),
+        filesystem_identity=(scratch_filesystem, (1, 2), str(scratch_path), "/dev/disk55s2"),
+        volume_uuid="bbbbbbbb-cccc-dddd-eeee-ffffffffffff",
+        apfs_container_reference=container_reference,
+        apfs_container_uuid=container_uuid,
+    )
+    if not scratch_container_pin_valid:
+        scratch.apfs_container_reference = None
+        scratch.apfs_container_uuid = None
+    if scratch_filesystem == "hfs":
+        scratch.apfs_container_reference = None
+        scratch.apfs_container_uuid = None
+    validations: list[int] = []
+    scratch.validate = lambda **kwargs: validations.append(kwargs["required_free_bytes"]) or 0
+    monkeypatch.setattr(
+        production_module.DarwinDataOS,
+        "disk_info",
+        lambda _self, _target: (
+            {"APFSContainerReference": container_reference} if target_container_pin_valid else {}
+        ),
+    )
+    target_fs_checks = 0
+
+    def fake_target_filesystem(_self, _fd):
+        nonlocal target_fs_checks
+        target_fs_checks += 1
+        writable = target_becomes_writable and target_fs_checks > 1
+        return {
+            "flags": 0 if writable else getattr(os, "ST_RDONLY", 1),
+            "fs_type": "apfs",
+        }
+
+    monkeypatch.setattr(production_module.DarwinDataOS, "filesystem", fake_target_filesystem)
+    monkeypatch.setattr(
+        production_module,
+        "_apfs_container_uuid",
+        lambda _reference: container_uuid,
+    )
+    monkeypatch.setattr(
+        production_module, "_validate_scratch_target_separation", lambda *_args: None
+    )
+    monkeypatch.setattr(
+        production_module.os,
+        "fstatvfs",
+        lambda _fd: SimpleNamespace(
+            f_flag=getattr(os, "ST_RDONLY", 1),
+            f_bavail=concurrent_pool_free,
+            f_frsize=1,
+        ),
+    )
+    candidate_reads: list[bool] = []
+    observed_operation_spec_hashes: list[object] = []
+
+    def fake_candidate_verify(*_args: object, scratch_capacity_check, **_kwargs: object):
+        scratch_capacity_check(0, VERIFY_SCRATCH_DB_RESERVE_BYTES)
+        candidate_reads.append(True)
+        observed_operation_spec_hashes.append(_kwargs.get("expected_operation_spec_sha256"))
+        return {"synthetic_fixture_only": False, "index_sha256": "0" * 64}
+
+    monkeypatch.setattr(production_module.capture, "verify_candidate_v5", fake_candidate_verify)
+    try:
+        if scratch_filesystem == "hfs":
+            result = verify_production_candidate_v5(
+                writer,
+                "c" * 32,
+                expected_target_volume_uuid=target_uuid,
+                expected_target_root_id=root_id,
+                scratch=scratch,
+                expected_index_sha256="0" * 64,
+                expected_plan_sha256="d" * 64,
+                expected_operation_spec_sha256="c" * 64,
+                expected_source_data_volume_uuid="99999999-8888-7777-6666-555555555555",
+            )
+            assert result["shared_pool_container_uuid"] is None
+            assert candidate_reads == [True]
+            assert observed_operation_spec_hashes == ["c" * 64]
+        elif not scratch_container_pin_valid:
+            with pytest.raises(
+                ProductionCaptureV5Error,
+                match="scratch_volume_uuid_unresolved",
+            ):
+                verify_production_candidate_v5(
+                    writer,
+                    "c" * 32,
+                    expected_target_volume_uuid=target_uuid,
+                    expected_target_root_id=root_id,
+                    scratch=scratch,
+                    expected_index_sha256="0" * 64,
+                    expected_plan_sha256="d" * 64,
+                    expected_shared_apfs_container_uuid=container_uuid,
+                    expected_operation_spec_sha256="c" * 64,
+                )
+            assert candidate_reads == []
+        elif not target_container_pin_valid:
+            with pytest.raises(
+                ProductionCaptureV5Error,
+                match="production_verify_shared_pool_identity_invalid",
+            ):
+                verify_production_candidate_v5(
+                    writer,
+                    "c" * 32,
+                    expected_target_volume_uuid=target_uuid,
+                    expected_target_root_id=root_id,
+                    scratch=scratch,
+                    expected_index_sha256="0" * 64,
+                    expected_plan_sha256="d" * 64,
+                    expected_shared_apfs_container_uuid=container_uuid,
+                    expected_operation_spec_sha256="c" * 64,
+                )
+            assert candidate_reads == []
+        elif not shared_pool_mode:
+            with pytest.raises(
+                ProductionCaptureV5Error,
+                match="production_verify_shared_pool_pin_invalid",
+            ):
+                verify_production_candidate_v5(
+                    writer,
+                    "c" * 32,
+                    expected_target_volume_uuid=target_uuid,
+                    expected_target_root_id=root_id,
+                    scratch=scratch,
+                    expected_index_sha256="0" * 64,
+                    expected_plan_sha256="d" * 64,
+                )
+            assert candidate_reads == []
+        elif target_becomes_writable:
+            with pytest.raises(
+                ProductionCaptureV5Error,
+                match="production_verify_candidate_target_not_read_only",
+            ):
+                verify_production_candidate_v5(
+                    writer,
+                    "c" * 32,
+                    expected_target_volume_uuid=target_uuid,
+                    expected_target_root_id=root_id,
+                    scratch=scratch,
+                    expected_index_sha256="0" * 64,
+                    expected_plan_sha256="d" * 64,
+                    expected_source_data_volume_uuid="99999999-8888-7777-6666-555555555555",
+                    expected_shared_apfs_container_uuid=container_uuid,
+                    expected_operation_spec_sha256="c" * 64,
+                )
+            assert candidate_reads == []
+        elif concurrent_pool_free < (
+            VERIFY_SHARED_POOL_FLOOR_BYTES
+            + VERIFY_SCRATCH_FREE_FLOOR_BYTES
+            + VERIFY_SCRATCH_DB_RESERVE_BYTES
+        ):
+            with pytest.raises(
+                ProductionCaptureV5Error,
+                match="production_verify_shared_pool_reserve_invalid",
+            ):
+                verify_production_candidate_v5(
+                    writer,
+                    "c" * 32,
+                    expected_target_volume_uuid=target_uuid,
+                    expected_target_root_id=root_id,
+                    scratch=scratch,
+                    expected_index_sha256="0" * 64,
+                    expected_plan_sha256="d" * 64,
+                    expected_source_data_volume_uuid="99999999-8888-7777-6666-555555555555",
+                    expected_shared_apfs_container_uuid=container_uuid,
+                    expected_operation_spec_sha256="c" * 64,
+                )
+            assert candidate_reads == []
+        else:
+            result = verify_production_candidate_v5(
+                writer,
+                "c" * 32,
+                expected_target_volume_uuid=target_uuid,
+                expected_target_root_id=root_id,
+                scratch=scratch,
+                expected_index_sha256="0" * 64,
+                expected_plan_sha256="d" * 64,
+                expected_source_data_volume_uuid="99999999-8888-7777-6666-555555555555",
+                expected_shared_apfs_container_uuid=container_uuid,
+                expected_operation_spec_sha256="c" * 64,
+                shared_pool_headroom_bytes=4 * 1024**2,
+            )
+            assert (
+                result["shared_pool_policy_floor_bytes"]
+                == VERIFY_SHARED_POOL_FLOOR_BYTES + 4 * 1024**2
+            )
+            assert candidate_reads == [True]
+            assert (
+                VERIFY_SHARED_POOL_FLOOR_BYTES + 4 * 1024**2 + VERIFY_SCRATCH_FREE_FLOOR_BYTES
+            ) in validations
+    finally:
+        os.close(scratch_fd)
+        os.close(mount_fd)
+    assert hashlib.sha256((target / "sentinel").read_bytes()).hexdigest() == sentinel_before
+
+
 def test_scratch_path_rejects_symlink_directory(tmp_path: Path) -> None:
     real = tmp_path / "real"
     real.mkdir(mode=0o700)
@@ -1008,6 +1340,7 @@ def test_capture_cli_reports_partial_candidate_as_unaccepted_and_path_free(
 
     @contextlib.contextmanager
     def fake_factory(*_args: object, **_kwargs: object):
+        assert _kwargs["operation_spec_sha256"] == spec_sha
         yield FailingSession()
 
     monkeypatch.setattr(production_module, "HeldDataT", FakeHeldView)
@@ -1055,6 +1388,7 @@ def test_capture_cli_reports_partial_candidate_as_unaccepted_and_path_free(
 
     @contextlib.contextmanager
     def exit_failing_factory(*_args: object, **_kwargs: object):
+        assert _kwargs["operation_spec_sha256"] == spec_sha
         yield SuccessfulSession()
         raise ValueError("private teardown detail")
 

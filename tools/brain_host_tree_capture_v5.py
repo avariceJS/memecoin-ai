@@ -717,6 +717,7 @@ class GlobalInventoryV5:
         scratch_reserve_bytes: int,
         metadata_reserve_bytes: int,
         payload_reserve_bytes: int,
+        operation_spec_sha256: str | None = None,
         production_authority: object | None = None,
         production_root_check: Callable[[], None] | None = None,
         production_fast_check: Callable[[int], None] | None = None,
@@ -743,6 +744,7 @@ class GlobalInventoryV5:
         self.scratch_reserve_bytes = scratch_reserve_bytes
         self.metadata_reserve_bytes = metadata_reserve_bytes
         self.payload_reserve_bytes = payload_reserve_bytes
+        self.operation_spec_sha256 = operation_spec_sha256
         self.production_authorized = production_authority is _PRODUCTION_CAPTURE_AUTHORITY
         self.production_root_check = production_root_check
         self.production_fast_check = production_fast_check
@@ -905,6 +907,7 @@ def _inventory_held_data_v5_core(
     max_entries: int = MAX_ENTRIES,
     expected_plan_sha256: str | None = None,
     expected_policy_roster_sha256: str | None = None,
+    operation_spec_sha256: str | None = None,
     production_authority: object | None = None,
     production_root_check: Callable[[], None] | None = None,
     production_fast_check: Callable[[int], None] | None = None,
@@ -956,6 +959,8 @@ def _inventory_held_data_v5_core(
         or not _is_sha256(expected_policy_roster_sha256)
     ):
         raise TreeCaptureV5Error("production_external_plan_policy_pin_invalid")
+    if production_authorized and not _is_sha256(operation_spec_sha256):
+        raise TreeCaptureV5Error("production_operation_spec_pin_invalid")
     policies: dict[str, dict[str, Any]] = {}
     policy_hashes: dict[str, str] = {}
     policy_scopes = {role: role_policies[role].scope for role in present_roles}
@@ -1146,6 +1151,7 @@ def _inventory_held_data_v5_core(
             scratch_reserve_bytes=scratch_reserve_bytes,
             metadata_reserve_bytes=metadata_reserve_bytes,
             payload_reserve_bytes=payload_reserve_bytes,
+            operation_spec_sha256=operation_spec_sha256,
             production_authority=(_PRODUCTION_CAPTURE_AUTHORITY if production_authorized else None),
             production_root_check=production_root_check,
             production_fast_check=production_fast_check,
@@ -2080,6 +2086,7 @@ def _verify_index_preflight_v5(
     *,
     expected_index_sha256: str | None,
     expected_plan_sha256: str | None,
+    expected_operation_spec_sha256: str | None,
 ) -> tuple[bytes, dict[str, Any], int]:
     """Read bounded index/member pages and estimate SQLite needs before opening its DB."""
     raw = _candidate_read(candidate_fd, base, f"{base}/INDEX.json", MAX_INDEX_BYTES)
@@ -2092,7 +2099,7 @@ def _verify_index_preflight_v5(
         index = json.loads(raw)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise TreeCaptureV5Error("candidate_index_json_invalid") from exc
-    required_fields = {
+    legacy_fields = {
         "schema",
         "candidate_id",
         "synthetic_fixture_only",
@@ -2108,10 +2115,17 @@ def _verify_index_preflight_v5(
         "resource_model",
         "xattr_acl_flags_restore_policy",
     }
-    if not isinstance(index, dict) or set(index) != required_fields:
+    bound_fields = legacy_fields | {"operation_spec_sha256"}
+    if not isinstance(index, dict) or set(index) not in (legacy_fields, bound_fields):
         raise TreeCaptureV5Error("candidate_index_fields_invalid")
+    is_spec_bound = set(index) == bound_fields
     if (
-        index.get("schema") != "brain-host-tree-capture-v5-candidate"
+        index.get("schema")
+        != (
+            "brain-host-tree-capture-v5-candidate-bound-v1"
+            if is_spec_bound
+            else "brain-host-tree-capture-v5-candidate"
+        )
         or index.get("candidate_id") != candidate_id
         or type(index.get("synthetic_fixture_only")) is not bool
         or type(index.get("entry_count")) is not int
@@ -2122,9 +2136,14 @@ def _verify_index_preflight_v5(
         or not isinstance(index.get("resource_model"), dict)
         or not _is_sha256(index.get("plan_sha256"))
         or not _is_sha256(index.get("policy_roster_sha256"))
+        or (is_spec_bound and not _is_sha256(index.get("operation_spec_sha256")))
         or (expected_plan_sha256 is not None and index["plan_sha256"] != expected_plan_sha256)
     ):
         raise TreeCaptureV5Error("candidate_index_value_invalid")
+    if expected_operation_spec_sha256 is not None and (
+        not is_spec_bound or index.get("operation_spec_sha256") != expected_operation_spec_sha256
+    ):
+        raise TreeCaptureV5Error("candidate_operation_spec_pin_mismatch")
     if not isinstance(index["role_dispositions"], list) or len(index["role_dispositions"]) != len(
         REQUIRED_ROOT_ROLES
     ):
@@ -2253,6 +2272,7 @@ def verify_candidate_v5(
     scratch_db_limit_bytes: int = MAX_SCRATCH_BYTES,
     scratch_capacity_check: Callable[[int, int], None] | None = None,
     expected_plan_sha256: str | None = None,
+    expected_operation_spec_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Read a published v5 candidate through a fresh root descriptor."""
     if len(candidate_id) != 32 or any(ch not in "0123456789abcdef" for ch in candidate_id):
@@ -2291,6 +2311,7 @@ def verify_candidate_v5(
             candidate_id,
             expected_index_sha256=expected_index_sha256,
             expected_plan_sha256=expected_plan_sha256,
+            expected_operation_spec_sha256=expected_operation_spec_sha256,
         )
         if unbound_synthetic and preflight_index.get("synthetic_fixture_only") is not True:
             raise TreeCaptureV5Error("candidate_unbound_requires_synthetic_fixture")
@@ -2305,7 +2326,7 @@ def verify_candidate_v5(
         index = preflight_index
         if unbound_synthetic and index.get("synthetic_fixture_only") is not True:
             raise TreeCaptureV5Error("candidate_unbound_requires_synthetic_fixture")
-        if set(index) != {
+        legacy_fields = {
             "schema",
             "candidate_id",
             "synthetic_fixture_only",
@@ -2320,7 +2341,9 @@ def verify_candidate_v5(
             "payload_bytes",
             "resource_model",
             "xattr_acl_flags_restore_policy",
-        }:
+        }
+        bound_fields = legacy_fields | {"operation_spec_sha256"}
+        if set(index) not in (legacy_fields, bound_fields):
             raise TreeCaptureV5Error("candidate_index_fields_invalid")
         if type(index.get("synthetic_fixture_only")) is not bool:
             raise TreeCaptureV5Error("candidate_source_mode_invalid")
@@ -2333,8 +2356,20 @@ def verify_candidate_v5(
             or not isinstance(index.get("resource_model"), dict)
         ):
             raise TreeCaptureV5Error("candidate_index_value_invalid")
-        if index.get("schema") != "brain-host-tree-capture-v5-candidate":
+        is_spec_bound = set(index) == bound_fields
+        if index.get("schema") != (
+            "brain-host-tree-capture-v5-candidate-bound-v1"
+            if is_spec_bound
+            else "brain-host-tree-capture-v5-candidate"
+        ):
             raise TreeCaptureV5Error("candidate_index_schema_invalid")
+        if is_spec_bound and not _is_sha256(index.get("operation_spec_sha256")):
+            raise TreeCaptureV5Error("candidate_index_value_invalid")
+        if (
+            expected_operation_spec_sha256 is not None
+            and index.get("operation_spec_sha256") != expected_operation_spec_sha256
+        ):
+            raise TreeCaptureV5Error("candidate_operation_spec_pin_mismatch")
         if index.get("candidate_id") != candidate_id:
             raise TreeCaptureV5Error("candidate_index_id_mismatch")
         plan_digest = index.get("plan_sha256")
@@ -3244,7 +3279,11 @@ def capture_candidate_v5(inventory: GlobalInventoryV5) -> dict[str, Any]:
 
         plan_receipt = inventory.public_inventory_receipt()
         index = {
-            "schema": "brain-host-tree-capture-v5-candidate",
+            "schema": (
+                "brain-host-tree-capture-v5-candidate-bound-v1"
+                if inventory.operation_spec_sha256 is not None
+                else "brain-host-tree-capture-v5-candidate"
+            ),
             "candidate_id": candidate_id,
             "synthetic_fixture_only": bool(inventory.view.synthetic),
             "plan_sha256": inventory.plan_sha256,
@@ -3259,6 +3298,8 @@ def capture_candidate_v5(inventory: GlobalInventoryV5) -> dict[str, Any]:
             "resource_model": plan_receipt["resource_model"],
             "xattr_acl_flags_restore_policy": "evidence_only_never_applied",
         }
+        if inventory.operation_spec_sha256 is not None:
+            index["operation_spec_sha256"] = inventory.operation_spec_sha256
         index_raw = canonical_json(index)
         _create_candidate_member(inventory, f"{base}/INDEX.json", index_raw)
         verification = verify_candidate_v5(
@@ -3300,6 +3341,7 @@ def capture_candidate_v5(inventory: GlobalInventoryV5) -> dict[str, Any]:
             "candidate_id": candidate_id,
             "synthetic_fixture_only": bool(inventory.view.synthetic),
             "index_sha256": sha256(index_raw),
+            "operation_spec_sha256": inventory.operation_spec_sha256,
             "entry_count": inventory.entry_count,
             "payload_bytes": inventory.included_source_bytes,
             "readback_verified": True,

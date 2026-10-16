@@ -87,6 +87,11 @@ _VERIFY_PUBLIC_ERRORS = frozenset(
         "production_verify_read_only_candidate_guard_required",
         "production_verify_scratch_capability_invalid",
         "production_verify_scratch_usage_invalid",
+        "production_verify_shared_pool_identity_invalid",
+        "production_verify_shared_pool_pin_invalid",
+        "production_verify_shared_pool_reserve_invalid",
+        "production_verify_shared_pool_source_alias",
+        "production_verify_operation_spec_mismatch",
         "scratch_device_separation_invalid",
         "scratch_directory_acl_present",
         "scratch_directory_private_identity_invalid",
@@ -109,6 +114,7 @@ _VERIFY_PUBLIC_ERRORS = frozenset(
 PRODUCTION_FREE_SPACE_FLOOR_BYTES = 8 * 1024**3
 VERIFY_SCRATCH_DB_RESERVE_BYTES = capture.MAX_SCRATCH_BYTES
 VERIFY_SCRATCH_FREE_FLOOR_BYTES = 256 * 1024**2
+VERIFY_SHARED_POOL_FLOOR_BYTES = 50 * 1024**3
 INERT_QUARANTINE_FREE_FLOOR_BYTES = 256 * 1024**2
 INERT_QUARANTINE_SCRATCH_FLOOR_BYTES = 256 * 1024**2
 _UUID = re.compile(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\Z")
@@ -121,6 +127,66 @@ class ProductionCaptureV5Error(ValueError):
 
 class ProductionCaptureV5CLIError(ValueError):
     """Path-free stable operator input or execution failure."""
+
+
+def _apfs_container_uuid(container_reference: str) -> str:
+    if re.fullmatch(r"disk[0-9]+", container_reference) is None:
+        raise ProductionCaptureV5Error("scratch_volume_uuid_unresolved")
+    try:
+        payload = DarwinDataOS._run_plist(["apfs", "list", "-plist", container_reference])
+        rows = payload.get("Containers")
+        matches = [
+            row
+            for row in rows or []
+            if isinstance(row, dict) and row.get("ContainerReference") == container_reference
+        ]
+        value = matches[0].get("APFSContainerUUID") if len(matches) == 1 else None
+        if not isinstance(value, str) or _UUID.fullmatch(value.lower()) is None:
+            raise ValueError("invalid container uuid")
+        return value.lower()
+    except Exception as exc:
+        raise ProductionCaptureV5Error("scratch_volume_uuid_unresolved") from exc
+
+
+def _verify_scratch_required_free_bytes(
+    used_bytes: int,
+    reserve_bytes: int,
+    *,
+    shared_pool_mode: bool = False,
+    shared_pool_headroom_bytes: int = 0,
+) -> int:
+    if (
+        type(used_bytes) is not int
+        or type(reserve_bytes) is not int
+        or type(shared_pool_mode) is not bool
+        or type(shared_pool_headroom_bytes) is not int
+        or not 0 <= used_bytes <= reserve_bytes <= VERIFY_SCRATCH_DB_RESERVE_BYTES
+        or shared_pool_headroom_bytes < 0
+    ):
+        raise ProductionCaptureV5Error("production_verify_scratch_usage_invalid")
+    return (
+        VERIFY_SCRATCH_FREE_FLOOR_BYTES
+        + (VERIFY_SHARED_POOL_FLOOR_BYTES if shared_pool_mode else 0)
+        + shared_pool_headroom_bytes
+        + max(0, reserve_bytes - used_bytes)
+    )
+
+
+def _assert_candidate_target_read_only(guard: ReadOnlyStorageGuard) -> None:
+    try:
+        vfs = os.fstatvfs(guard.mount_fd)
+        filesystem = DarwinDataOS().filesystem(guard.mount_fd)
+        readonly_flag = getattr(os, "ST_RDONLY", 1)
+        if (
+            not (vfs.f_flag & readonly_flag)
+            or not isinstance(filesystem.get("flags"), int)
+            or not (filesystem["flags"] & readonly_flag)
+        ):
+            raise ProductionCaptureV5Error("production_verify_candidate_target_not_read_only")
+    except ProductionCaptureV5Error:
+        raise
+    except Exception as exc:
+        raise ProductionCaptureV5Error("production_verify_candidate_target_not_read_only") from exc
 
 
 # Exact exception types and literal messages only. Do not classify by prefix,
@@ -602,6 +668,8 @@ class PinnedScratchV5:
     chain_identities: tuple[tuple[int, ...], ...]
     filesystem_identity: tuple[str, tuple[int, ...], str, str]
     volume_uuid: str | None
+    apfs_container_reference: str | None
+    apfs_container_uuid: str | None
 
     @classmethod
     def open(cls, path: Path) -> PinnedScratchV5:
@@ -624,14 +692,26 @@ class PinnedScratchV5:
             fs = DarwinDataOS().filesystem(held_fd)
             fs_identity = _scratch_filesystem_identity(fs)
             volume_uuid = None
+            apfs_container_reference = None
+            apfs_container_uuid = None
             if fs_identity[0] in {"apfs", "hfs"}:
                 try:
                     info = DarwinDataOS().disk_info(fs_identity[2])
                     candidate_uuid = info.get("VolumeUUID", info.get("APFSVolumeUUID"))
                     if isinstance(candidate_uuid, str) and _UUID.fullmatch(candidate_uuid.lower()):
                         volume_uuid = candidate_uuid.lower()
+                    candidate_container = info.get("APFSContainerReference")
+                    if isinstance(candidate_container, str) and re.fullmatch(
+                        r"disk[0-9]+", candidate_container
+                    ):
+                        apfs_container_reference = candidate_container
+                        apfs_container_uuid = _apfs_container_uuid(candidate_container)
                 except Exception as exc:
                     raise ProductionCaptureV5Error("scratch_volume_uuid_unresolved") from exc
+            if fs_identity[0] == "apfs" and (
+                apfs_container_reference is None or apfs_container_uuid is None
+            ):
+                raise ProductionCaptureV5Error("scratch_volume_uuid_unresolved")
             return cls(
                 Path(path),
                 held_fd,
@@ -639,6 +719,8 @@ class PinnedScratchV5:
                 chain,
                 fs_identity,
                 volume_uuid,
+                apfs_container_reference,
+                apfs_container_uuid,
             )
         except BaseException:
             os.close(held_fd)
@@ -668,6 +750,16 @@ class PinnedScratchV5:
             fs = DarwinDataOS().filesystem(self.fd)
             vfs = os.fstatvfs(self.fd)
             free_bytes = int(vfs.f_bavail * vfs.f_frsize)
+            current_disk_info = DarwinDataOS().disk_info(self.filesystem_identity[2])
+            current_uuid = current_disk_info.get(
+                "VolumeUUID", current_disk_info.get("APFSVolumeUUID")
+            )
+            current_container = current_disk_info.get("APFSContainerReference")
+            current_container_uuid = (
+                _apfs_container_uuid(current_container)
+                if isinstance(current_container, str)
+                else None
+            )
             if (
                 (st.st_dev, st.st_ino) != self.identity
                 or (current.st_dev, current.st_ino) != self.identity
@@ -676,6 +768,15 @@ class PinnedScratchV5:
                 or stat.S_IMODE(st.st_mode) != 0o700
                 or capture._acl_bytes(self.fd) is not None
                 or _scratch_filesystem_identity(fs) != self.filesystem_identity
+                or (self.volume_uuid is not None and str(current_uuid).lower() != self.volume_uuid)
+                or (
+                    self.apfs_container_reference is not None
+                    and current_container != self.apfs_container_reference
+                )
+                or (
+                    self.apfs_container_uuid is not None
+                    and current_container_uuid != self.apfs_container_uuid
+                )
                 or fs.get("flags", 0) & getattr(os, "ST_RDONLY", 1)
                 or vfs.f_flag & getattr(os, "ST_RDONLY", 1)
                 or free_bytes < required_free_bytes
@@ -1005,6 +1106,7 @@ def production_capture_v5(
     *,
     expected_plan_sha256: str,
     expected_policy_roster_sha256: str,
+    operation_spec_sha256: str | None = None,
     expected_target_volume_uuid: str,
     expected_target_root_id: str,
     role_policies: Mapping[str, capture.RoleCapturePolicy],
@@ -1022,6 +1124,8 @@ def production_capture_v5(
         expected_target_volume_uuid, expected_target_root_id
     )
     source_device = _require_real_held_view(view, expected_plan_sha256)
+    if not _valid_sha256(operation_spec_sha256):
+        raise ProductionCaptureV5Error("production_operation_spec_pin_invalid")
     plan_sha256 = approved_data_plan_sha256(view.plan)
     if plan_sha256 != expected_plan_sha256:
         raise ProductionCaptureV5Error("production_external_plan_pin_mismatch")
@@ -1154,6 +1258,7 @@ def production_capture_v5(
                 max_entries=max_entries,
                 expected_plan_sha256=expected_plan_sha256,
                 expected_policy_roster_sha256=policy_roster_sha256,
+                operation_spec_sha256=operation_spec_sha256,
                 production_authority=capture._PRODUCTION_CAPTURE_AUTHORITY,
                 production_root_check=full_root_check,
                 production_fast_check=fast_check,
@@ -1186,8 +1291,11 @@ def verify_production_candidate_v5(
     scratch: PinnedScratchV5,
     expected_index_sha256: str,
     expected_plan_sha256: str,
+    expected_operation_spec_sha256: str | None = None,
     source_view: HeldDataT | None = None,
     expected_source_data_volume_uuid: str | None = None,
+    expected_shared_apfs_container_uuid: str | None = None,
+    shared_pool_headroom_bytes: int = 0,
 ) -> dict[str, Any]:
     """Verify with an optional held source view; absent source is explicitly un-attested."""
     target_uuid, target_root_id = _validate_pins(
@@ -1206,8 +1314,60 @@ def verify_production_candidate_v5(
             raise ProductionCaptureV5Error("source_storage_uuid_not_distinct")
     if not isinstance(scratch, PinnedScratchV5) or scratch.fd < 0:
         raise ProductionCaptureV5Error("production_verify_scratch_capability_invalid")
-    if os.fstatvfs(guard.mount_fd).f_flag & getattr(os, "ST_RDONLY", 1) == 0:
-        raise ProductionCaptureV5Error("production_verify_candidate_target_not_read_only")
+    scratch_is_apfs = scratch.filesystem_identity[0] == "apfs"
+    if scratch_is_apfs and (
+        scratch.apfs_container_reference is None or scratch.apfs_container_uuid is None
+    ):
+        raise ProductionCaptureV5Error("scratch_volume_uuid_unresolved")
+    if type(shared_pool_headroom_bytes) is not int or shared_pool_headroom_bytes < 0:
+        raise ProductionCaptureV5Error("production_verify_shared_pool_pin_invalid")
+    shared_pool_mode = expected_shared_apfs_container_uuid is not None
+    scratch_container_uuid = scratch.apfs_container_uuid
+    target_container_uuid = None
+    if scratch_is_apfs or shared_pool_mode:
+        try:
+            target_fs = DarwinDataOS().filesystem(guard.mount_fd)
+            target_fs_type = target_fs.get("fs_type")
+            if target_fs_type == "apfs":
+                target_info = DarwinDataOS().disk_info(str(guard.config.mount_path))
+                target_container_reference = target_info.get("APFSContainerReference")
+                if not isinstance(target_container_reference, str):
+                    raise ProductionCaptureV5Error("production_verify_shared_pool_identity_invalid")
+                target_container_uuid = _apfs_container_uuid(target_container_reference)
+            elif shared_pool_mode:
+                raise ProductionCaptureV5Error("production_verify_shared_pool_identity_invalid")
+        except Exception as exc:
+            if isinstance(exc, ProductionCaptureV5Error):
+                raise
+            raise ProductionCaptureV5Error(
+                "production_verify_shared_pool_identity_invalid"
+            ) from exc
+    if (
+        not shared_pool_mode
+        and target_container_uuid is not None
+        and scratch_container_uuid == target_container_uuid
+    ):
+        raise ProductionCaptureV5Error("production_verify_shared_pool_pin_invalid")
+    if shared_pool_mode:
+        if (
+            not isinstance(expected_shared_apfs_container_uuid, str)
+            or _UUID.fullmatch(expected_shared_apfs_container_uuid.lower()) is None
+            or not _valid_sha256(expected_operation_spec_sha256)
+            or scratch.apfs_container_uuid != expected_shared_apfs_container_uuid.lower()
+        ):
+            raise ProductionCaptureV5Error("production_verify_shared_pool_pin_invalid")
+        if target_container_uuid != expected_shared_apfs_container_uuid.lower():
+            raise ProductionCaptureV5Error("production_verify_shared_pool_identity_invalid")
+        if source_view is not None:
+            source_container_uuid = _apfs_container_uuid(source_view.plan.data_container_reference)
+            if source_container_uuid == expected_shared_apfs_container_uuid.lower():
+                raise ProductionCaptureV5Error("production_verify_shared_pool_source_alias")
+        shared_pool_floor = VERIFY_SHARED_POOL_FLOOR_BYTES + shared_pool_headroom_bytes
+    else:
+        if shared_pool_headroom_bytes != 0:
+            raise ProductionCaptureV5Error("production_verify_shared_pool_pin_invalid")
+        shared_pool_floor = 0
+    _assert_candidate_target_read_only(guard)
     writer.assert_storage_binding(guard)
     if scratch.filesystem_identity[0] in {"apfs", "hfs"}:
         if scratch.volume_uuid is None or scratch.volume_uuid == target_uuid:
@@ -1248,31 +1408,69 @@ def verify_production_candidate_v5(
             or not 0 <= used_bytes <= reserve_bytes <= VERIFY_SCRATCH_DB_RESERVE_BYTES
         ):
             raise ProductionCaptureV5Error("production_verify_scratch_usage_invalid")
-        required_remaining = max(0, reserve_bytes - used_bytes)
+        required_free = _verify_scratch_required_free_bytes(
+            used_bytes,
+            reserve_bytes,
+            shared_pool_mode=shared_pool_mode,
+            shared_pool_headroom_bytes=shared_pool_headroom_bytes,
+        )
         if source_device is None:
             scratch.validate(
                 source_device=None,
                 target_device=writer.device,
-                required_free_bytes=VERIFY_SCRATCH_FREE_FLOOR_BYTES + required_remaining,
+                required_free_bytes=required_free,
             )
         else:
             scratch.validate(
                 source_device=source_device,
                 target_device=writer.device,
-                required_free_bytes=VERIFY_SCRATCH_FREE_FLOOR_BYTES + required_remaining,
+                required_free_bytes=required_free,
             )
+        if shared_pool_mode:
+            try:
+                guard.revalidate()
+                _assert_candidate_target_read_only(guard)
+                current_target_info = DarwinDataOS().disk_info(str(guard.config.mount_path))
+                current_target_reference = current_target_info.get("APFSContainerReference")
+                current_target_container_uuid = (
+                    _apfs_container_uuid(current_target_reference)
+                    if isinstance(current_target_reference, str)
+                    else None
+                )
+            except ProductionCaptureV5Error:
+                raise
+            except Exception as exc:
+                raise ProductionCaptureV5Error(
+                    "production_verify_shared_pool_identity_invalid"
+                ) from exc
+            if current_target_container_uuid != expected_shared_apfs_container_uuid.lower():
+                raise ProductionCaptureV5Error("production_verify_shared_pool_identity_invalid")
+            pool_vfs = os.fstatvfs(guard.mount_fd)
+            pool_free = int(pool_vfs.f_bavail * pool_vfs.f_frsize)
+            if pool_free < required_free:
+                raise ProductionCaptureV5Error("production_verify_shared_pool_reserve_invalid")
 
-    result = capture.verify_candidate_v5(
-        writer,
-        candidate_id,
-        expected_index_sha256=expected_index_sha256,
-        scratch_parent_fd=scratch.fd,
-        scratch_db_limit_bytes=VERIFY_SCRATCH_DB_RESERVE_BYTES,
-        scratch_capacity_check=check_scratch_capacity,
-        expected_plan_sha256=expected_plan_sha256,
-    )
+    if shared_pool_mode:
+        check_scratch_capacity(0, VERIFY_SCRATCH_DB_RESERVE_BYTES)
+    try:
+        result = capture.verify_candidate_v5(
+            writer,
+            candidate_id,
+            expected_index_sha256=expected_index_sha256,
+            scratch_parent_fd=scratch.fd,
+            scratch_db_limit_bytes=VERIFY_SCRATCH_DB_RESERVE_BYTES,
+            scratch_capacity_check=check_scratch_capacity,
+            expected_plan_sha256=expected_plan_sha256,
+            expected_operation_spec_sha256=expected_operation_spec_sha256,
+        )
+    except capture.TreeCaptureV5Error as exc:
+        if str(exc) == "candidate_operation_spec_pin_mismatch":
+            raise ProductionCaptureV5Error("production_verify_operation_spec_mismatch") from None
+        raise
     if result.get("synthetic_fixture_only") is not False:
         raise ProductionCaptureV5Error("production_candidate_source_mode_invalid")
+    check_scratch_capacity(0, 0)
+    _assert_candidate_target_read_only(guard)
     guard.revalidate()
     writer.assert_storage_binding(guard)
     if source_device is not None:
@@ -1288,6 +1486,11 @@ def verify_production_candidate_v5(
             target_device=writer.device,
             required_free_bytes=VERIFY_SCRATCH_FREE_FLOOR_BYTES,
         )
+    result["shared_pool_container_uuid"] = (
+        expected_shared_apfs_container_uuid if shared_pool_mode else None
+    )
+    result["shared_pool_policy_floor_bytes"] = shared_pool_floor if shared_pool_mode else 0
+    result["shared_pool_headroom_bytes"] = shared_pool_headroom_bytes
     result["source_status"] = source_status
     if source_view is not None:
         source_view.revalidate()
@@ -1630,6 +1833,7 @@ def _capture_from_pinned_spec(
                 storage_config_path,
                 expected_plan_sha256=plan_digest,
                 expected_policy_roster_sha256=policy_digest,
+                operation_spec_sha256=expected_spec_sha256,
                 expected_target_volume_uuid=target_uuid,
                 expected_target_root_id=target_root_id,
                 role_policies=role_policies,
@@ -1676,6 +1880,9 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument("--plan-sha256", required=True)
     verify.add_argument("--source-data-volume-uuid")
     verify.add_argument("--scratch-parent", required=True, type=Path)
+    verify.add_argument("--shared-apfs-container-uuid")
+    verify.add_argument("--operation-spec", type=Path)
+    verify.add_argument("--operation-spec-sha256")
     extract = subparsers.add_parser(
         "extract-inert",
         help="copy candidate bytes into a pinned inert quarantine rehearsal",
@@ -1761,6 +1968,36 @@ def main(argv: list[str] | None = None) -> int:
             or not _valid_sha256(args.plan_sha256)
         ):
             raise ProductionCaptureV5Error("production_verify_cli_pin_invalid")
+        if (args.operation_spec is None) != (args.operation_spec_sha256 is None):
+            raise ProductionCaptureV5Error("production_verify_shared_pool_pin_invalid")
+        shared_pool_headroom_bytes = 0
+        if args.shared_apfs_container_uuid is not None:
+            if args.operation_spec is None or args.operation_spec_sha256 is None:
+                raise ProductionCaptureV5Error("production_verify_shared_pool_pin_invalid")
+            spec = _read_private_capture_spec(args.operation_spec, args.operation_spec_sha256)
+            _capture_spec_fields(spec)
+            try:
+                spec_target_uuid, spec_target_root = _validate_pins(
+                    spec["target_volume_uuid"], spec["target_root_id"]
+                )
+            except Exception as exc:
+                raise ProductionCaptureV5Error("production_verify_shared_pool_pin_invalid") from exc
+            payload_reserve = spec.get("payload_reserve_bytes")
+            minimum_payload_reserve = (
+                VERIFY_SHARED_POOL_FLOOR_BYTES
+                + VERIFY_SCRATCH_DB_RESERVE_BYTES
+                + VERIFY_SCRATCH_FREE_FLOOR_BYTES
+            )
+            if (
+                spec_target_uuid != args.target_volume_uuid.lower()
+                or spec_target_root != args.target_root_id
+                or type(payload_reserve) is not int
+                or payload_reserve < minimum_payload_reserve
+            ):
+                raise ProductionCaptureV5Error("production_verify_shared_pool_pin_invalid")
+            shared_pool_headroom_bytes = payload_reserve - minimum_payload_reserve
+        elif args.operation_spec is not None:
+            raise ProductionCaptureV5Error("production_verify_shared_pool_pin_invalid")
         config_path = _canonical_config_path(args.storage_config)
         if __package__ in {None, ""}:
             sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -1783,7 +2020,11 @@ def main(argv: list[str] | None = None) -> int:
                     expected_index_sha256=args.index_sha256,
                     expected_plan_sha256=args.plan_sha256,
                     expected_source_data_volume_uuid=args.source_data_volume_uuid,
+                    expected_shared_apfs_container_uuid=args.shared_apfs_container_uuid,
+                    shared_pool_headroom_bytes=shared_pool_headroom_bytes,
+                    expected_operation_spec_sha256=args.operation_spec_sha256,
                 )
+                result["operation_spec_sha256"] = args.operation_spec_sha256
                 guard.revalidate()
             finally:
                 scratch.close()

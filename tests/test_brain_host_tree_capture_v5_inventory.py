@@ -206,6 +206,59 @@ def _rows(inventory) -> dict[tuple[str, str], tuple[object, ...]]:
     }
 
 
+def test_candidate_index_binds_validated_operation_spec_digest(
+    tmp_path: Path,
+) -> None:
+    operation_spec_sha256 = "c" * 64
+    legacy_tmp = tmp_path / "legacy"
+    legacy_tmp.mkdir()
+    legacy_held, legacy_roots = _held_fixture(legacy_tmp)
+    legacy_inventory, legacy_writer = _inventory(legacy_tmp, legacy_held, legacy_roots)
+    try:
+        legacy_receipt = capture_candidate_v5(legacy_inventory)
+        with pytest.raises(
+            TreeCaptureV5Error,
+            match="candidate_operation_spec_pin_mismatch",
+        ):
+            verify_candidate_v5(
+                legacy_writer,
+                legacy_receipt["candidate_id"],
+                expected_index_sha256=legacy_receipt["index_sha256"],
+                expected_operation_spec_sha256=operation_spec_sha256,
+            )
+    finally:
+        legacy_inventory.close()
+        legacy_writer.close()
+
+    bound_tmp = tmp_path / "bound"
+    bound_tmp.mkdir()
+    held, roots = _held_fixture(bound_tmp)
+    inventory, writer = _inventory(bound_tmp, held, roots)
+    inventory.operation_spec_sha256 = operation_spec_sha256
+    try:
+        receipt = capture_candidate_v5(inventory)
+        verified = verify_candidate_v5(
+            writer,
+            receipt["candidate_id"],
+            expected_index_sha256=receipt["index_sha256"],
+            expected_operation_spec_sha256=operation_spec_sha256,
+        )
+        assert verified["index_sha256"] == receipt["index_sha256"]
+        with pytest.raises(
+            TreeCaptureV5Error,
+            match="candidate_operation_spec_pin_mismatch",
+        ):
+            verify_candidate_v5(
+                writer,
+                receipt["candidate_id"],
+                expected_index_sha256=receipt["index_sha256"],
+                expected_operation_spec_sha256="d" * 64,
+            )
+    finally:
+        inventory.close()
+        writer.close()
+
+
 def _set_xattr(path: Path, name: str, value: bytes, *, nofollow: bool = False) -> None:
     import ctypes
 
@@ -1475,6 +1528,8 @@ def test_fresh_process_readonly_verify_cli_rejects_writable_target_without_mutat
     before = sorted(item.relative_to(mount).as_posix() for item in mount.rglob("*"))
     repo = Path(__file__).resolve().parents[1]
     cli_script = """
+import os
+from pathlib import Path
 import memecoin_research_storage as storage
 from memecoin_research_storage import VolumeInfo
 class Probe:
@@ -1483,6 +1538,19 @@ class Probe:
             'Case-sensitive APFS', True, False, 10**9, True,
             filesystem_type='apfs', mount_options=('apfs','local','journaled'))
 storage.MacOSVolumeProbe = Probe
+from tools import brain_host_tree_capture_v5_production as production
+def fake_scratch_open(cls, path):
+    path = Path(path)
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    st = os.fstat(fd)
+    scratch = cls(
+        path, fd, (st.st_dev, st.st_ino), (),
+        ('hfs', (1, 2), str(path), '/dev/disk-test-scratch'),
+        'bbbbbbbb-cccc-dddd-eeee-ffffffffffff', None, None,
+    )
+    scratch.validate = lambda **kwargs: 0
+    return scratch
+production.PinnedScratchV5.open = classmethod(fake_scratch_open)
 from tools.brain_host_tree_capture_v5 import main
 raise SystemExit(main())
 """
