@@ -1,10 +1,16 @@
-CURRENT BRAIN FIRST-HOST HANDOFF
+CURRENT PUBLISHED BRAIN FIRST-HOST HANDOFF
 
-Use exactly: refs/tags/brain-dr-handoff-v3
+Until the v4 tag publication and authenticated-origin retrieval gate is complete, use exactly:
+refs/tags/brain-dr-handoff-v3
 Handoff file: recovery/BOOTSTRAP-HANDOFF-v3.json
 Operator steps: recovery/BOOTSTRAP-HANDOFF-v3.txt
 
+Candidate v4 files are present at recovery/BOOTSTRAP-HANDOFF-v4.json and
+recovery/BOOTSTRAP-HANDOFF-v4.txt. The local retrieval rehearsal passed, but its annotated tag is
+not published; do not use v4 yet. After the exact v4 tag is published and freshly retrieved from
+authenticated origin, update this index in the same logical qualification scope.
+
 Do not use refs/tags/brain-dr-handoff-v1 or refs/tags/brain-dr-handoff-v2. Both remain as
 published immutable history and are retired for operator entry. Do not select the latest tag or a
-moving branch head. Handoff v3 is bootstrap-only: no accepted recovery set, Data T, Kingston K,
-Brain restore, activation, readiness, or erase authority.
+moving branch head. The published v3 handoff is bootstrap-only: no accepted recovery set, Data T,
+Kingston K, Brain restore, activation, readiness, or erase authority.

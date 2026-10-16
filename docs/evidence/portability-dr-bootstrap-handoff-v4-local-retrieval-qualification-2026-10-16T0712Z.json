@@ -1,0 +1,41 @@
+{
+  "schema": "brain-portability-dr-bootstrap-handoff-v4-local-retrieval-qualification-v1",
+  "observed_at_utc": "2026-10-16T07:12:00Z",
+  "repository_head": "baf2e25a91c9984418ef41858279658a09d0913b",
+  "tag_ref": "refs/tags/brain-dr-handoff-v4",
+  "publication_state": "local_only_candidate_not_pushed",
+  "retrieval": {
+    "method": "fresh empty Git repository fetched the exact tag ref from a local bare mirror of the candidate commit",
+    "tag_object_id": "3af219193f45e03dc0fa6e336df5b329a86c4cfb",
+    "tag_object_type": "tag",
+    "peeled_handoff_commit": "baf2e25a91c9984418ef41858279658a09d0913b",
+    "peeled_object_type": "commit",
+    "handoff_json_sha256": "d0b0f77d1baa92ec1442a945a764961dac8c495016052bc17cb29b6586f4cd0b",
+    "bootstrap_commit_C": "bb411e841db9587ecaf0403b4d01698a5221aa98",
+    "entry_card_path": "host-recovery/ENTRY-v2.txt",
+    "entry_card_sha256_from_handoff": "f40e8e160b38fffa6e0ba8e4aa81dc87523850e5dd4cca04b0a8add5e8677c37",
+    "kingston_entry_card_sha256_readback": "f40e8e160b38fffa6e0ba8e4aa81dc87523850e5dd4cca04b0a8add5e8677c37",
+    "strict_handoff_validation": "passed"
+  },
+  "negative_cases": {
+    "missing_exact_tag_fetch": "rejected",
+    "lightweight_tag_object_type": "rejected",
+    "annotated_tag_to_tree_peeled_type": "rejected",
+    "duplicate_json_key": "rejected_with_PYTHONOPTIMIZE_1",
+    "safe_to_erase_authority_escalation": "rejected_with_PYTHONOPTIMIZE_1",
+    "malformed_object_id": "rejected_with_PYTHONOPTIMIZE_1"
+  },
+  "limitations": [
+    "The retrieval rehearsal used a local bare mirror; it does not prove authenticated-origin delivery or a new-host credential flow.",
+    "The tag has not been pushed and v3 remains the only published operator locator until the v4 tag publication gate passes.",
+    "This qualifies only a bootstrap locator; it does not qualify a recovery set, Data T, Kingston K, Brain restore, activation, or erase readiness."
+  ],
+  "authority": {
+    "accepted_set": false,
+    "data_T_qualified": false,
+    "kingston_K_qualified": false,
+    "brain_state_restored": false,
+    "activation_allowed": false,
+    "erase_ready": false
+  }
+}

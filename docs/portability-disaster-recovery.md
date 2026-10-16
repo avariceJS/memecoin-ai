@@ -910,6 +910,16 @@ current Mac's Git authentication. Clean-host reauthentication remains required. 
 erase authority. See the
 [`v3 qualification receipt`](evidence/portability-dr-bootstrap-handoff-v3-qualification-2026-10-16T0135Z.json).
 
+The v4 handoff is a reviewed local candidate at H=`baf2e25a91c9984418ef41858279658a09d0913b`.
+Its local annotated tag object is `3af219193f45e03dc0fa6e336df5b329a86c4cfb`; the extracted
+handoff JSON hash is `d0b0f77d1baa92ec1442a945a764961dac8c495016052bc17cb29b6586f4cd0b`. A fresh
+empty client fetched it from a local bare mirror, strict validation and the Kingston card digest
+matched, and missing-ref, lightweight-tag, annotated-tree-target, duplicate-key, authority-tamper,
+and malformed-ID cases failed closed. Sol reviewed the exact candidate and gave conditional GO
+after qualification evidence and pointers are committed. Because the tag is not published and
+authenticated-origin retrieval has not run, v3 remains the only current operator locator. See the
+[`v4 local retrieval qualification receipt`](evidence/portability-dr-bootstrap-handoff-v4-local-retrieval-qualification-2026-10-16T0712Z.json).
+
 The helper makes a second exact-commit clone into a separate new destination, installs the locked
 development requirements, and runs smoke. Both checkouts must report the pinned `HEAD`, and the
 final helper result must say `complete` with `smoke=passed`. The temporary entry checkout remains
@@ -1673,6 +1683,13 @@ the text records the complete rerun after one earlier interrupted command sessio
 mount with uninterpreted status `0x0000004D`. The four photographs are from the earlier session, not
 four boots or an independent copy. See the
 [`05:06Z live-state refresh`](evidence/portability-dr-live-state-refresh-2026-10-16T0506Z.json).
+
+A bounded 07:12Z refresh found the same pinned Data UUID mounted at `/System/Volumes/Data` on
+`disk3s5`, with the volume at 92% used. Kingston remained mounted at its pinned UUID as case-sensitive
+APFS with owners enabled and 213,834,174,464 bytes free. A label/PID-only `launchctl list` filter
+matched 30 Brain/D43 labels, seven with PIDs. The probe read no BrainData payload, arguments, or
+environments and changed no services; it does not establish active writers, source cutoff, Data T,
+or Kingston K. See the [`07:12Z live-state refresh`](evidence/portability-dr-live-state-refresh-2026-10-16T0712Z.json).
 
 1. Inventory every owner/research/local-config/service root, including owner Codex worktree local
    state, and bind each to a source point or an
