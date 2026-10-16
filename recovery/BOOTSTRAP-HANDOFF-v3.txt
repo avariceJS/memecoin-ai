@@ -37,11 +37,11 @@ card command. In a new private temporary directory:
    TAG_OBJECT=$(git -C "$HANDOFF_DIR" rev-parse "$TAG_REF") || exit 2
    HANDOFF_COMMIT=$(git -C "$HANDOFF_DIR" rev-parse "$TAG_REF^{}") || exit 2
    test "$(git -C "$HANDOFF_DIR" cat-file -t "$HANDOFF_COMMIT")" = commit || exit 2
-   git -C "$HANDOFF_DIR" cat-file tag "$TAG_REF"
+   git -C "$HANDOFF_DIR" cat-file tag "$TAG_REF" || exit 2
    git -C "$HANDOFF_DIR" show "${HANDOFF_COMMIT}:recovery/BOOTSTRAP-HANDOFF-v3.json" \
      > "$HANDOFF_DIR/handoff.json" || exit 2
-   chmod 600 "$HANDOFF_DIR/handoff.json"
-   HANDOFF_SHA256=$(shasum -a 256 "$HANDOFF_DIR/handoff.json" | cut -d ' ' -f 1)
+   chmod 600 "$HANDOFF_DIR/handoff.json" || exit 2
+   HANDOFF_SHA256=$(shasum -a 256 "$HANDOFF_DIR/handoff.json" | cut -d ' ' -f 1) || exit 2
 
 Record TAG_OBJECT, HANDOFF_COMMIT, and HANDOFF_SHA256 in the local recovery notes. Run this
 standard-library validation before inspecting Kingston:
