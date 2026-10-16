@@ -1,0 +1,72 @@
+{
+  "schema": "brain-dr-offline-execution-kit-custody-v1",
+  "created_at_utc": "2026-10-16T10:46:19Z",
+  "candidate": {
+    "candidate_id": "candidate-20261016T104554Z-92bad5fc543edd09",
+    "path": "BrainData/host-recovery/offline-execution-kit-v6b/candidate-20261016T104554Z-92bad5fc543edd09/candidate-v6b.zip",
+    "artifact_bytes": 79892899,
+    "artifact_sha256": "15fd56f2c5d9c64c7a60e54fbc027f52f3d097871899e9b983f3eaf310c166b9",
+    "completion_marker_sha256": "1fa791f2a886b1ffeb76e463dabcee26cc6fd1a21558ae44cba07e3be4409537",
+    "candidate_status": "custody_complete_inert_unexecuted",
+    "transport_member_count": 3692,
+    "runtime_member_count": 3688,
+    "transport_contents": [
+      "MANIFEST.json",
+      "source.zip",
+      "runtime tree with manifest-pinned paths, types, modes, symlink text, sizes, and file hashes"
+    ],
+    "source_commit": "74e5e284cc32e7972b93aa34808088a56c2fd301",
+    "source_commit_reachable_from_pushed_branch": "origin/research/active",
+    "source_archive_sha256": "323b114d5d5a59274f41609e47596ef5269593a53c499e8ae09e6748f5c9fee8",
+    "source_manifest_sha256": "d7c0ddda0cc52f05fee4353e163f18d134a2c223fff012f575ef63685db6b07a"
+  },
+  "storage": {
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "filesystem": "case-sensitive APFS",
+    "owners_enabled": true,
+    "writer": "existing memecoin_research_storage writer_guard and DescriptorWriter",
+    "publication": "unique nonce path; atomic create-only streamed file; fsync; completion marker created last",
+    "pre_write_available_bytes": 213848498176,
+    "minimum_required_free_bytes": 53769081251,
+    "available_before_marker_bytes": 213763543040,
+    "final_available_bytes": 213763538944,
+    "artifact_mode": "0600",
+    "readback": "fresh read-only storage guard and descriptor; exact package size and SHA-256, member set, owner, mode, device, and link count verified; completion marker reread and hash verified"
+  },
+  "pre_write_validation": {
+    "local_manifest_runtime_members_verified": 3688,
+    "source_archive_hash_matched_manifest": true,
+    "all_21_source_files_matched_pushed_commit": true,
+    "transport_archive_member_types_modes_symlink_targets_and_file_hashes_verified": true,
+    "failed_local_package_attempts_before_storage_write": 2,
+    "failed_attempts_included_or_published": false,
+    "failed_attempts_cleanup": "retained as unaccepted local scratch; no Kingston write occurred"
+  },
+  "limitations": {
+    "recovery_boot_compatibility": "unverified",
+    "minimum_macos": "26.0",
+    "runtime": "CPython 3.13.6 arm64",
+    "publisher_identity_or_notarization": false,
+    "transport_extraction_qualified": false,
+    "operator_handoff_target": false,
+    "recovery_kit_approved_for_execution": false,
+    "owner_data_read": false,
+    "protected_payload_accessed": false,
+    "provider_requests": 0,
+    "service_activation": false,
+    "T_qualified": false,
+    "K_qualified": false,
+    "root_closure_verified": false,
+    "protected_closure_verified": false,
+    "capture_complete": false,
+    "restore_verified": false,
+    "activation_permitted": false,
+    "erase_ready": false
+  },
+  "review": {
+    "reviewer": "sol-high",
+    "decision": "GO for create-only custody deposit only; keep the artifact inert, unexecuted, and Recovery-unqualified",
+    "no_independent_rerun_of_deposit": true
+  }
+}

@@ -1765,9 +1765,13 @@ service or activation ran. The fixture had three files, five directories, no sym
 hardlinks. Sol accepted this bounded same-host synthetic integration only. The `synthetic_fixture_only`
 result field is false because the production backend ran; it does not describe the content provenance.
 The earlier v6 probes launched from the checkout and are not archive-only evidence because checkout
-modules could shadow the ZIP. v6b remains local and unpublished. This qualifies neither a clean host
-nor Recovery, owner capture, T/K, full Brain restore, or erase readiness; see the
-[`v6b archive capture and quarantine receipt`](evidence/portability-dr-v6b-archive-capture-quarantine-2026-10-16T1033Z.json).
+modules could shadow the ZIP. A manifest-pinned v6b transport archive now has a create-only custody
+copy on Kingston at `BrainData/host-recovery/offline-execution-kit-v6b/` with fresh descriptor
+readback; it contains only the selected source archive, runtime, and manifest. It remains inert,
+unexecuted, Recovery-unqualified, and is not a handoff target. This custody write does not qualify a
+clean host, Recovery, owner capture, T/K, full Brain restore, or erase readiness; see the
+[`v6b archive capture and quarantine receipt`](evidence/portability-dr-v6b-archive-capture-quarantine-2026-10-16T1033Z.json)
+and [`v6b Kingston candidate-kit custody receipt`](evidence/portability-dr-v6b-kingston-candidate-kit-custody-2026-10-16T1046Z.json).
 
 The required approximately 819k-entry/30-GB full synthetic capture and fresh readback remain open.
 The current capture target has about 12.6 GiB free, and measured host scratch and other disposable
@@ -1775,6 +1779,106 @@ volumes cannot satisfy the source, target, and reserve requirements together. Do
 or count sparse logical bytes as streamed payload evidence. Another Recovery boot is not justified
 until the complete role/source policy and an adequately sized, separately pinned capacity plan are
 ready.
+
+### Conditional offline source-view runbook, draft 1
+
+**Not approved for execution.** This is the operator plan for one future combined Recovery history
+and source-view gate; it does not authorize a boot, unlock, mount, or capture. The v6b candidate now
+has a create-only custody copy on Kingston, but remains unexecuted, Recovery-unqualified, and not a
+handoff target. Before scheduling the gate, revalidate that exact archive and completion marker by
+fresh readback, qualify Recovery compatibility, and have Sol approve the pinned plan, role policy,
+and capacity budget. Do not substitute a newer checkout, runtime, or unreviewed plan.
+
+The known Data pins from the completed Recovery transcript are volume UUID and volume-group UUID
+`430740ca-42e7-4e6c-a07a-e4e7370152cc`, container UUID
+`414bc719-2fea-44a6-9952-d12cd31cb0ca`, and observed device `disk3s5`. Treat these as expected
+identities, not as permission to continue after any mismatch. The v6b source is commit
+`74e5e284cc32e7972b93aa34808088a56c2fd301`; `source.zip` SHA-256 is
+`323b114d5d5a59274f41609e47596ef5269593a53c499e8ae09e6748f5c9fee8` and `MANIFEST.json` SHA-256 is
+`d7c0ddda0cc52f05fee4353e163f18d134a2c223fff012f575ef63685db6b07a`. It contains 21 selected
+source files and 3,688 CPython 3.13.6 arm64 runtime members, declares macOS 26.0, and was tested on
+the online host only. Current Kingston free-space observations are not a future capacity pin and do
+not authorize a synthetic payload write there.
+
+When separately approved, perform exactly one Recovery boot for the combined history/source-view
+gate:
+
+1. Shut down cleanly. Record the Recovery entry path, all pre-Terminal user/authentication/key/UI
+   choices, and approximate times without recording credentials. Do not open Disk Utility, unlock
+   Data, or access a Data path before the first Terminal probe.
+2. Make the first Terminal command the read-only identity/lock probe against the pinned UUID:
+
+   ```sh
+   /usr/sbin/diskutil info 430740ca-42e7-4e6c-a07a-e4e7370152cc
+   ```
+
+   Stop immediately unless the UUID, volume-group UUID, container UUID, expected device, FileVault
+   `Yes`, `Locked: Yes`, and `Mounted: No` all match. If Recovery has already unlocked or mounted
+   Data, or the expected identity cannot be resolved, do not continue with any source operation.
+3. Without unlocking or mounting, record boot time and run these read-only probes once, preserving
+   complete stdout, stderr, exit status, and command order:
+
+   ```sh
+   /usr/sbin/sysctl kern.boottime
+   /usr/sbin/diskutil apfs list
+   /sbin/mount
+   /usr/sbin/diskutil apfs listSnapshots 430740ca-42e7-4e6c-a07a-e4e7370152cc
+   /usr/bin/log show --last 6h --info --style compact --predicate 'process == "diskarbitrationd" OR process == "mount_apfs" OR process == "fsck_apfs"'
+   /usr/sbin/diskutil info 430740ca-42e7-4e6c-a07a-e4e7370152cc
+   /sbin/mount
+   ```
+
+   `listSnapshots` failure or incomplete/unavailable logs mean `unknown`; they are not an empty
+   snapshot list or proof of no earlier mount. Preserve the full APFS listing so every alias and
+   volume-group member can be mapped. Repeat identity and mount checks at the end. If the log begins
+   after boot, explicitly retain the unobserved interval and the human-attested pre-Terminal history
+   assumption.
+4. Save a verbatim transcript with command outputs and failures to the recovery evidence intake and
+   hash it after returning to normal macOS. Include Recovery entry/authentication choices, boot time,
+   first and last probes, and any observed automatic mount event. Never record passwords or recovery
+   keys.
+5. Stop after the read-only gate. Review the complete transcript and alias/history interpretation
+   before any unlock. The prior run's automatic mount attempt ended in an unexplained failure; that
+   event alone neither proves a successful mount nor supplies its missing earlier history.
+
+Only after a separately reviewed follow-on plan may an operator interactively unlock the exact
+volume without mounting, recheck that it is still unmounted, explicitly mount read-only, verify
+read-only flags and descriptor-held identity, and run the pinned `HeldDataT` check. Capture may begin
+only if the approved role/source policy is complete, every required root is mapped to the same held
+view or explicitly unresolved, the full measured target and scratch capacities plus reserves pass,
+and the exact kit has been qualified in Recovery. Capture and a fresh independent verify still do not
+establish Kingston K, protected closure, clean-host restore, or erase readiness. Any writable or
+ambiguous source view, alias gap, identity drift, incomplete history, capacity shortfall, or tool
+incompatibility is a stop; never repair or remap the source to make the plan pass.
+
+Current source-role disposition is:
+
+| Required role | Current classification | Remaining qualification |
+|---|---|---|
+| `owner_checkout` | Present; unique owner/runtime state remains backup-required | Descendant closure, source cutoff, and complete capture |
+| `research_checkout` | Present; current code is fetchable from Git; local `.git` state remains backup-required | Four reflog-only commits and 6,053 `.git` hardlink groups remain unqualified for rebuild/exclusion |
+| `owner_codex_worktree` | Present; linked-worktree and local state remain backup-required | `.local`, worktree administration, and ignored-state closure |
+| `private_brain_config` | Present and private | Capture nonsecret state from a held view; exclude credentials without opening their bytes |
+| `launch_agents` | Present; 56 Brain/D43 definitions match the bounded Kingston archive | Bind definitions to restored runtime/state; keep every service inert |
+| `helius_mcp_wrapper` | Private file role; quarantine/reissue only | Held-source custody and host-path rebinding |
+| `codex_mcp_config` | Private file role; quarantine/reissue only | Held-source custody; no automatic installation or authentication |
+| `cursor_mcp_config` | Private file role; quarantine/reissue only | Held-source custody; no automatic installation or authentication |
+| `verifier_worktree` | Absent in the latest root census; unresolved | Confirm disposition from an accepted source view; tracked commit reachability does not close ignored/local state |
+
+Cross-cutting holds remain: three research `work/wallets` subtrees and owner Codex `.local` are
+opaque, private, unresolved, and backup-required; two `.env.local` credential files are excluded for
+reissue. F01, D43, and reserved-holdout bytes and lineage remain protected and unqualified for
+complete custody. Do not infer disposability from names or Git ignore rules. Symlink targets remain
+unfollowed; external hardlink aliases, SQLite/WAL consistency, and xattr/ACL/flag restoration policy
+remain open. Captured metadata is evidence-only and must not be applied during inert extraction.
+
+This plan is a bounded operator aid, not proof that the current package can run in Recovery. The
+next evidence must bind the deposited kit readback, exact source/target/scratch volume and root
+identities, measured capacity margins, complete role-policy digest, all command outputs, and the
+post-boot interpretation. The deposited-candidate readback is bound by the
+[`v6b Kingston custody receipt`](evidence/portability-dr-v6b-kingston-candidate-kit-custody-2026-10-16T1046Z.json);
+recheck it at gate time. Until the other prerequisites and user-assisted boot are complete, no
+source-view capture is ready to run.
 
 1. Inventory every owner/research/local-config/service root, including owner Codex worktree local
    state, and bind each to a source point or an
