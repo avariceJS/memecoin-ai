@@ -784,6 +784,10 @@ ownership disabled, while the internal Data path is a firmlink rejected by the r
 mountpoint guard. Do not relax these checks or use Kingston as the test destination. The exact
 environment blocker and next operator action are in the
 [`v5 inert extraction host blocker receipt`](evidence/portability-dr-v5-inert-extraction-host-blocker-2026-10-16T0651Z.json).
+The exact pushed `e5455d7ceb7e4340854b6d5447987f56a71886b4` was fetched through a fresh shallow
+HTTPS clone, rebuilt with `requirements-dev.lock`, and passed smoke, all 46 focused tests, and the
+capture/verify/extract-inert CLI help from that checkout. This is same-Mac code reproducibility;
+see the [`v5 extraction clean-clone receipt`](evidence/portability-dr-v5-inert-extraction-clean-clone-2026-10-16T0654Z.json).
 This work qualifies no owner capture, Data T, Kingston K, full-host restore, activation, or erase.
 
 ## State ownership and restore rules

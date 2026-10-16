@@ -1,0 +1,43 @@
+{
+  "schema": "brain-portability-dr-v5-inert-extraction-clean-clone-v1",
+  "observed_at_utc": "2026-10-16T06:54:00Z",
+  "remote": "origin/research/active",
+  "commit": "e5455d7ceb7e4340854b6d5447987f56a71886b4",
+  "checkout": {
+    "path": "/private/tmp/brain-dr-v5-published-e5455d7-shallow",
+    "method": "fresh shallow HTTPS clone at exact branch head",
+    "worktree_clean_after_validation": true
+  },
+  "environment": {
+    "platform": "macOS arm64",
+    "python": "3.13.6",
+    "requirements_dev_lock_installed": true,
+    "editable_project_install": true,
+    "lock_dependency_versions": [
+      "ast_serialize==0.11.2",
+      "build==1.6.1",
+      "hypothesis==6.168.0",
+      "mypy==2.3.1",
+      "pytest==9.1.1",
+      "ruff==0.16.10"
+    ]
+  },
+  "checks": {
+    "make_smoke": "passed; synthetic engineering check only; edge_established=false",
+    "focused_v5_inventory_and_production_tests": "46 passed",
+    "capture_verify_extract_inert_cli_help": "passed; all three subcommands present"
+  },
+  "limitations": [
+    "This is a same-Mac exact-code acquisition and environment rebuild rehearsal, not a new-host restore.",
+    "No production extract-inert command was run because a writable owner-enabled disposable APFS destination has not passed StorageGuard preconditions.",
+    "No owner data, Kingston, protected payload, service, or provider was accessed or changed.",
+    "A first non-shallow clone attempt was interrupted after remote history transfer made no visible progress; the successful rehearsal used an exact shallow branch-head clone. The partial attempt remains unaccepted in private temporary storage."
+  ],
+  "authority": {
+    "restore_verified": false,
+    "T_qualified": false,
+    "K_qualified": false,
+    "activation_allowed": false,
+    "erase_ready": false
+  }
+}
