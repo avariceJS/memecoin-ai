@@ -1244,8 +1244,11 @@ The final text transcript contains no `listSnapshots` command or output, so the 
 inventory remains unknown. The user clarified that the four photographs document one Recovery
 command session interrupted after a command-entry error; the Mac was rebooted and the full command
 set was entered again. `docs/snapshot/Вывод Терминала.txt` contains the output from that rerun and is
-the transcript bound by this receipt. The photographs are not four independent boots or an
-independent copy of that transcript. The final text shows `/usr/bin/log show` working.
+the transcript bound by this receipt. Its exact 249,641 bytes are now preserved in the canonical
+research checkout with the same SHA-256 as the user's working copy; this custody update does not
+change the boot interpretation. The photographs are not four independent boots or an independent
+copy of that transcript. The final text shows `/usr/bin/log show` working. See the
+[`transcript custody receipt`](evidence/portability-dr-recovery-transcript-custody-2026-10-16T0637Z.json).
 
 This boot establishes the point-in-time locked/unmounted state and the logged failed automatic mount
 attempt. It does not establish that no earlier mount occurred: pre-Terminal authentication and Data
