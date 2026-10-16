@@ -2007,9 +2007,22 @@ separate gates.
    unresolved, or if the view is writable or changes identity. HeldDataT/v1 and capture/v5 remain
    unchanged and encode the absent `verifier_worktree` as `absent_unresolved`. Sol has accepted an
    inert v2 plan/witness/policy/capacity/spec/index document-consistency validator for an explicitly
-   nonqualifying absence-gap candidate; no production writer, CLI, or publication path uses it yet.
-   Until a complete production adapter is reviewed, the current capture policy still fails this
-   condition and no candidate capture is ready.
+   nonqualifying absence-gap candidate. The bounded v3 capture-adapter draft now covers streamed
+   member hashing, bounded disk-backed indexes, targeted protected traversal, reissue precedence,
+   external operation pins, INDEX-last publication, and a real temporary-fixture pass through the
+   stored-INDEX read-only verifier. Its focused validation passed 200 tests plus Ruff, formatting,
+   `py_compile`, and `git diff --check`. Sol's 2026-10-16 hard-fork review rejected it for
+   production acceptance: `ScratchSessionV3` has no trusted production adapter, and the SQLite
+   spool checks a scratch pathname before `sqlite3.connect(path)` reopens it, leaving a replacement
+   window and no descriptor-bound database identity. The read-only verifier is also not yet proven
+   after a physical target read-only remount. Keep the public capture entrypoint fail-closed; do not
+   start another protocol generation. Reopen this slice only with a held-directory/file-descriptor
+   scratch binding and post-open identity checks, then qualify the actual capture flow on distinct
+   disposable source, target, and scratch APFS/HFS volumes, including fresh verification after a
+   physical read-only reattach and owner-scale resource/free-floor evidence. No such volumes or
+   owner-scale qualification were available in this run. A passing result would still be only an
+   explicitly nonqualifying absence-gap candidate; T, root closure, K, restore, and erase remain
+   false.
 7. Only under a separately reviewed plan, run the complete metadata/root/hardlink preflight against
    the held view and establish worst-case Kingston spool, payload, metadata, and partial-publication
    bounds before candidate writes. Re-evaluate the Kingston equation immediately before capture.
