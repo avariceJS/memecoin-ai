@@ -320,6 +320,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   tests, v2 CLI help, and smoke. Repository `make check` again stops at 107 Ruff diagnostics in
   untouched files before later stages. Kingston is not attached/read; this proves same-Mac code
   bootstrap only.
+- [`Portability and DR v2 synthetic CLI-path clone`](portability-dr-restore-flow-v2-cli-clone-2026-10-16T1005Z.json):
+  clones exact pushed `52882d5`, installs locked dependencies, passes 75 focused tests including
+  in-process `inspect` coverage for a valid blocked mixed index plus missing/malformed handoffs,
+  CLI help, and smoke. Git/storage are mocked for the fixture; no Kingston read, real APFS binding,
+  or Brain restore is claimed.
 
 - [`Gecko v6 first natural bucket`](gecko-v6-first-natural-bucket-2026-10-13T1315Z.json): independently replayed first prospective bucket with four confirmed response bodies (3,042 bytes), one permanently spent ambiguous request, and one missed slot. All 12 parsed bars were out of window, yielding zero eligible new opens. Controlled LaunchAgent restart preserved the attempt/source prefix without replay; v6 was unloaded pending a distinct forward-only successor.
 - [`Gecko v3 failed-watchdog canary observation`](gecko-capture-only-v3-canary-observation-2026-10-13T0406Z.json): six actual forward-only GeckoTerminal requests all have durable confirmations and pass timing/replay checks; zero returned bars are eligible. The v1 watchdog failed closed on its plan-schema lookup. The v2 full-census replay recognizes that immutable receipt as a zero-attempt diagnostic root, restores the historical a078 projection, and independently accounts for 52 attempts across 40 roots. The capture is not a market-source qualification; actual charge remains unknown/unverified.

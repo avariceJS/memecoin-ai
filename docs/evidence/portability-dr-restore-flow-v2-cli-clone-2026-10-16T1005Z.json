@@ -1,0 +1,41 @@
+{
+  "schema": "brain-host-restore-flow-v2-cli-clone-rehearsal-v1",
+  "observed_at_utc": "2026-10-16T10:05:00Z",
+  "source": {
+    "remote": "origin/research/active",
+    "commit": "52882d5eb34ede00f17b81e33e45036d8a4b56d9",
+    "clone_worktree_clean_after_checks": true,
+    "development_lock_sha256": "13a38c32b3c3ea4af3dc0da61be93ce1a5f5437aeb95b8039f1c31053bb7c7e5",
+    "restore_flow_v2_sha256": "1f055ec396167bfa2304dd3fa87426da71367cc6a35ec8503603f8e354e59353",
+    "test_source_sha256": "dee959d9c4323f13206ae281889374f1722d8a3d4f39bbc98634fb79450bda63"
+  },
+  "environment": {
+    "platform": "macOS",
+    "architecture": "arm64",
+    "python": "3.13.6",
+    "isolated_venv": true,
+    "locked_dev_install": "passed"
+  },
+  "checks": {
+    "focused_restore_and_root_set_tests": "75 passed",
+    "v2_inspect_cli_path_fixture": {
+      "valid_mixed_index": "blocked_with_metadata_pins_match",
+      "missing_and_malformed_handoffs": "static_path_free_phase_failures",
+      "git_boundary": "mocked",
+      "storage_boundary": "mocked",
+      "kingston_access": false,
+      "authority_flags": "all_false"
+    },
+    "restore_flow_v2_cli_help": "passed",
+    "make_smoke": "passed",
+    "repository_make_check": "not_run_on_this_commit"
+  },
+  "scope": {
+    "clean_host": false,
+    "kingston_attached_or_read": false,
+    "brain_state_restored": false,
+    "brain_services_started": false,
+    "safe_to_erase": false
+  },
+  "claim_limit": "Exact published source reproduces in a fresh clone on this Mac. The CLI-path pytest uses disposable inputs with mocked Git and storage boundaries; it is not a separate-process or real APFS/Kingston integration test. This is code-bootstrap and synthetic blocked-interface evidence only."
+}

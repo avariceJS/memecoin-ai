@@ -1763,6 +1763,11 @@ The exact pushed `ec14560` was then fetched into a fresh clone on this Mac; lock
 restore/root-set tests, v2 CLI help, and synthetic smoke passed. `make check` stops at the repository's
 first Ruff stage with 107 diagnostics, none in v2; later global check stages did not run. Kingston was
 not attached or read. See the [`v2 published-clone rehearsal`](evidence/portability-dr-restore-flow-v2-published-clone-2026-10-16T1002Z.json).
+The follow-up exact clone at `52882d5` also passed 75 focused tests, including pytest CLI-path
+coverage for a disposable blocked mixed index and missing/malformed handoffs, plus CLI help and
+smoke. The fixture mocks Git and the read-only storage guard; it is not a separate-process, real
+APFS, or Kingston integration test. See the
+[`v2 synthetic CLI-path clone receipt`](evidence/portability-dr-restore-flow-v2-cli-clone-2026-10-16T1005Z.json).
 
 1. Inventory every owner/research/local-config/service root, including owner Codex worktree local
    state, and bind each to a source point or an
