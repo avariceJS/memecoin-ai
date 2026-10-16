@@ -123,8 +123,8 @@ extract path that handles unique ignored state, symlink and hardlink disposition
 policy, and database consistency. Restore readiness and SAFE TO ERASE remain NO-GO.
 
 Sol's review narrows the hardlink question without closing it: all 6,053 unobserved research
-hardlink groups fall under `.git` in the pinned metadata census, while the exact checkout HEAD is
-reachable from a live published branch. That proves the checked-out commit can be fetched again
+hardlink groups fall under `.git` in the pinned metadata census, while the exact research checkout
+HEAD is reachable from a live published branch. That proves the checked-out commit can be fetched again
 after Git reauthentication; it does not prove local refs, reflogs/stashes, unreachable objects,
 config/hooks, alternates, index state, or linked-worktree administration are disposable. Keep the
 research `.git` directory opaque, separate, and backup-required until its required local state is
@@ -133,6 +133,17 @@ inventory-pinned or explicitly declared rebuildable. A future held-view capture 
 it must not claim topology or root closure. Xattr values must be captured privately and bound to
 the byte manifest, but remain unapplied during inert extraction until each metadata class has a
 qualified policy.
+
+A 03:57Z path-free Git metadata check adds two concrete preservation items. The research checkout is
+at the published `research/active` head, has no stash and no dirty/untracked worktree paths, but its
+reflog reaches four commits outside current live branch/tag histories; those commits remain
+unidentified and uncaptured. The owner Codex linked worktree's HEAD is not reachable from current
+branch heads (correcting the earlier branch-only claim), though it is an ancestor of the three live
+`brain-dr-handoff-v1/v2/v3` tag targets. Its worktree also contains one untracked, unignored 249,641
+byte regular file. Only Git/ref metadata and file lstat fields were inspected; no Git blobs or
+untracked bytes were read. Keep the four reflog-only commits, linked-worktree admin state, and that
+file backup-required until they are classified and included in a verified source capture. Receipt:
+[`Git local-state census`](evidence/portability-dr-git-local-state-census-2026-10-16T0357Z.json).
 
 Live checks on the current Mac:
 
