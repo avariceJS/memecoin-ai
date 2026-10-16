@@ -655,21 +655,28 @@ read.
 ## First-host code entry
 
 `recovery/ENTRY.txt` is a plain-text code-bootstrap card stored at
-`BrainData/host-recovery/ENTRY.txt` for use before a repository checkout exists. Its approved
-commit and SHA-256 are supplied in a trusted handoff outside Kingston; do not treat the card or a
-hash stored beside it as its own trust anchor. The card checks the mounted Kingston UUID and
-existing root marker read-only, then uses interactive Git authentication to fetch the exact pinned
-commit into a new temporary entry checkout. The checkout's card bytes and hash must match Kingston
-before the existing `brain_host_recovery.py bootstrap` helper is run. The independent handoff must
-instruct the operator to calculate and compare the Kingston card hash before executing any command
-from the card; its trusted first command is
+`BrainData/host-recovery/ENTRY.txt` for use before a repository checkout exists. A trusted handoff
+outside Kingston supplies the exact recovery source commit and the expected card SHA-256; do not
+treat the card or a hash stored beside it as its own trust anchor. The source commit is also the
+final bootstrap commit, so the target is explicit and does not follow a moving branch. The card
+checks the mounted Kingston UUID and existing root marker read-only, then uses interactive Git
+authentication to fetch that exact commit into a new temporary entry checkout. The checkout's card
+bytes and hash must match Kingston before the existing `brain_host_recovery.py bootstrap` helper is
+run. The independent handoff must instruct the operator to calculate and compare the Kingston card
+hash before executing any command from the card; its trusted first command is
 `shasum -a 256 /Volumes/Kingston/BrainData/host-recovery/ENTRY.txt`.
 
-The current pinned card is at commit `edf2898ba4fb877ed8bee159fc9673754f7e12e4`, SHA-256
-`ac8859ee4fc499ffe55dc1824be11a55fd4475fee2dbe0cae749a7f6cbbb5b76`. Supply these values
-through an independent trusted handoff when recovering; a Kingston-local copy of these values is
-not an independent trust anchor. This session records the pins in Git and the chat handoff; it has
-not distributed a separate persistent handoff artifact outside Kingston.
+The card bytes were last changed at commit `edf2898ba4fb877ed8bee159fc9673754f7e12e4`; their
+SHA-256 remains `ac8859ee4fc499ffe55dc1824be11a55fd4475fee2dbe0cae749a7f6cbbb5b76`. The card hash
+pins the entry instructions; it does not select the source commit. For each recovery, the external
+handoff must pin the intended accepted source commit and confirm that this card hash is expected at
+that commit. The current `research/active` checkout at `72bd405a773951cf70ce556700f3c96573f73dfb`
+was verified to contain the same card bytes. The latest exact-commit clean-checkout bootstrap
+rehearsal used `f079e0c7aa5111a6bb0c68ec6eda3c3fc37dd3a7`; it does not prove bootstrap of a later
+commit. The prior handoff pin to `edf2898...` authorizes only that older code commit. Before
+recovery, rehearse the exact source commit named by the independent handoff and supply that commit
+and the card hash through a trusted channel outside Kingston; this session has not distributed a
+separate persistent handoff artifact outside Kingston.
 
 The helper makes a second exact-commit clone into a separate new destination, installs the locked
 development requirements, and runs smoke. Both checkouts must report the pinned `HEAD`, and the
@@ -990,6 +997,23 @@ read-only identity/locator check for an already-mounted view. The CLI requires a
 external plan SHA-256, and mountpoint; it does not authenticate approval, assert boot history, unlock,
 mount, capture, or qualify T. Its synthetic APFS rehearsal is receipt-bound above. Kingston K
 remains a separate frontier.
+
+A read-only live feasibility check at 00:10Z on 2026-10-16 found the pinned Data volume mounted
+read/write under normal macOS, 46 GiB available (90% used), and no Data snapshots. The bound
+Kingston storage check passed its UUID/root pins with 214,413,123,584 bytes available. Local
+`diskutil apfs` help exposes no snapshot-creation verb; `mount_apfs` documents a snapshot selector,
+but no Data-snapshot mount was attempted. Local `tmutil` help says `localsnapshot` covers volumes
+included in a Time Machine backup; it is not an approved arbitrary Data-volume creation procedure.
+Earlier preflight found no configured Time Machine destination and no noninteractive admin path.
+Sol reviewed a live APFS snapshot as a valid alternative source-view architecture, but creation is
+held: 46 GiB is not a qualified churn/retention budget, no supported creation/admin procedure is
+qualified, and the active writer ownership and quiescence boundary remain unresolved. A successfully
+attested snapshot can establish filesystem cutoff T; it does not prove application operations
+completed, bind roots outside the snapshot, or reconcile Kingston K. Before any creation, qualify
+the privileged mechanism and read-only mount, a conservative free-space floor and bounded retention,
+the writer inventory/stop/resume procedure, three same-view roots, and separate K reconciliation.
+Do not improvise snapshot creation, thinning, deletion, rollback, or service stops. See the
+[`live snapshot feasibility receipt`](evidence/portability-dr-live-snapshot-feasibility-2026-10-16T0010Z.json).
 
 ### Pinned execution-kit candidate
 
