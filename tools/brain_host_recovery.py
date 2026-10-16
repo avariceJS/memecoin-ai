@@ -292,7 +292,10 @@ def _storage_status(config_path: Path | None, *, probe: Any = None) -> dict[str,
     try:
         # Import only the existing verifier. This does not configure storage or create a root.
         source_root = Path(__file__).resolve().parents[1] / "src"
-        if source_root.is_dir() and str(source_root) not in sys.path:
+        # For a normal checkout this is a directory. In the offline execution kit it
+        # is the /src subpath of source.zip, which zipimport can resolve even though
+        # pathlib quite correctly reports that subpath as not a filesystem directory.
+        if str(source_root) not in sys.path:
             sys.path.insert(0, str(source_root))
         from memecoin_research_storage import verify_root
 
