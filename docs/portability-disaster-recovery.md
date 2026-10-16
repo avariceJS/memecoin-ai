@@ -68,8 +68,8 @@ stages did not run. This remains same-Mac code-bootstrap evidence, not Brain res
 The post-bootstrap restore flow then passed a same-host blocked-path rehearsal: the exact commit,
 entry card and Kingston identity matched, and the operation stopped at the absent accepted set before
 quarantine or witness creation. This still is not a clean-host restore or erase qualification.
-Published v1 and v2 bootstrap tags are preserved as immutable history but retired for operator use.
-The v3 annotated locator is Sol-qualified for bootstrap-only use: tag object
+Published v1, v2, and v3 bootstrap tags are preserved as immutable history but retired for operator use.
+The v3 annotated locator was Sol-qualified for bootstrap-only use: tag object
 `aaafd81a4c396cec9d5ffdb50066911cf84e35e0`, peeled H
 `27bca2509af2f5eb3756c99803e7c12acfd713c6`, handoff JSON SHA
 `f373bff90ac73f4759a83837bfb4124a7f673512a6f851b0158687f1189b08c3`. The exact remote zsh
@@ -79,7 +79,7 @@ The locator remains bootstrap-only: no accepted set, Data T, Kingston K, Brain r
 final readiness, or erase authority is established. Sol noted that the displayed handoff digest uses
 a `shasum | cut` pipeline without `pipefail`; this is informational rather than an acceptance gate.
 If it is empty, rerun `shasum` directly before a later restore-flow check. See the v3 qualification
-receipt in the evidence index.
+receipt in the evidence index. The v4 handoff below supersedes it for operator entry.
 
 After publishing `c2b42cc51be1ff4306140ede5e3b512d370dca04`, the exact commit was cloned twice into
 new scratch checkouts. One fresh environment installed `requirements-dev.lock` plus the editable
@@ -896,29 +896,34 @@ and launched the flow CLI from a neutral working directory. The clone and Git au
 used this Mac; this tests published-code retrieval and bootstrap, not clean-host credentials or Brain
 state restoration. The earlier exact-commit bootstrap at `68253b84c5aefd8676b85b9415d2d242ada58d73`
 also passed dependency check and smoke. The prior handoff pin to `edf2898...` authorizes only that older code commit and legacy card; it is
-historical, not the current entry target. The published v1 and v2 bootstrap locators are preserved
-as immutable history and retired for operator use. The current locator is
-[`BOOTSTRAP-HANDOFF-v3.json`](../recovery/BOOTSTRAP-HANDOFF-v3.json); its operator sequence is
-[`BOOTSTRAP-HANDOFF-v3.txt`](../recovery/BOOTSTRAP-HANDOFF-v3.txt). Use only annotated
-`refs/tags/brain-dr-handoff-v3` from authenticated `origin`, never a latest-tag lookup or moving
-branch. Current remote pins are tag object `aaafd81a4c396cec9d5ffdb50066911cf84e35e0`, peeled H
-`27bca2509af2f5eb3756c99803e7c12acfd713c6`, and handoff JSON SHA
-`f373bff90ac73f4759a83837bfb4124a7f673512a6f851b0158687f1189b08c3`. Sol reviewed v3 and gave GO
-for the bootstrap locator. Exact zsh remote retrieval and strict schema checks passed; this used the
-current Mac's Git authentication. Clean-host reauthentication remains required. The handoff pins C
-`75f3e0405c1fca473eb95fae81fc21c20e289651` and the v2 entry card, but no set/T/K/state/activation/
-erase authority. See the
-[`v3 qualification receipt`](evidence/portability-dr-bootstrap-handoff-v3-qualification-2026-10-16T0135Z.json).
+historical, not the current entry target. Published v1-v3 bootstrap locators are preserved as
+immutable history and retired for operator use. The current locator is
+[`BOOTSTRAP-HANDOFF-v4.json`](../recovery/BOOTSTRAP-HANDOFF-v4.json); its operator sequence is
+[`BOOTSTRAP-HANDOFF-v4.txt`](../recovery/BOOTSTRAP-HANDOFF-v4.txt). Use only annotated
+`refs/tags/brain-dr-handoff-v4` from the accepted `origin`, never a latest-tag lookup or moving
+branch. Current remote pins are tag object `3af219193f45e03dc0fa6e336df5b329a86c4cfb`, peeled H
+`baf2e25a91c9984418ef41858279658a09d0913b`, and handoff JSON SHA
+`d0b0f77d1baa92ec1442a945a764961dac8c495016052bc17cb29b6586f4cd0b`. The exact tag and handoff
+bytes were retrieved into a fresh empty client; the Kingston card SHA matched. Clean-host
+reauthentication remains required. The handoff pins C `bb411e841db9587ecaf41858279658a09d0913b`
+and the v2 entry card, but grants no set/T/K/state/activation/erase authority. See the
+[`v4 origin retrieval receipt`](evidence/portability-dr-bootstrap-handoff-v4-origin-retrieval-qualification-2026-10-16T0715Z.json).
 
-The v4 handoff is a reviewed local candidate at H=`baf2e25a91c9984418ef41858279658a09d0913b`.
-Its local annotated tag object is `3af219193f45e03dc0fa6e336df5b329a86c4cfb`; the extracted
-handoff JSON hash is `d0b0f77d1baa92ec1442a945a764961dac8c495016052bc17cb29b6586f4cd0b`. A fresh
-empty client fetched it from a local bare mirror, strict validation and the Kingston card digest
-matched, and missing-ref, lightweight-tag, annotated-tree-target, duplicate-key, authority-tamper,
-and malformed-ID cases failed closed. Sol reviewed the exact candidate and gave conditional GO
-after qualification evidence and pointers are committed. Because the tag is not published and
-authenticated-origin retrieval has not run, v3 remains the only current operator locator. See the
-[`v4 local retrieval qualification receipt`](evidence/portability-dr-bootstrap-handoff-v4-local-retrieval-qualification-2026-10-16T0712Z.json).
+The current v4 annotated locator is `refs/tags/brain-dr-handoff-v4`, tag object
+`3af219193f45e03dc0fa6e336df5b329a86c4cfb`, peeling to H
+`baf2e25a91c9984418ef41858279658a09d0913b`; its handoff JSON SHA-256 is
+`d0b0f77d1baa92ec1442a945a764961dac8c495016052bc17cb29b6586f4cd0b`. H pins bootstrap C
+`bb411e841db9587ecaf41858279658a09d0913b`, Kingston card `host-recovery/ENTRY-v2.txt` at
+SHA-256 `f40e8e160b38fffa6e0ba8e4aa81dc87523850e5dd4cca04b0a8add5e8677c37`, and the current
+Kingston UUID/root identity. A fresh empty Git client fetched the exact tag from the accepted HTTPS
+origin; tag/peeled types, strict handoff fields, and Kingston card digest matched. The local-mirror
+rehearsal also rejected missing ref, lightweight tag, annotated tree target, duplicate JSON key,
+authority escalation, and malformed object ID. Sol approved publication of this exact immutable tag
+object and reviewed the committed local receipt. This qualifies the bootstrap locator only: it does
+not prove a replacement host's credentials, a recovery set, Data T, Kingston K, owner/protected
+closure, full restore, activation, or erase readiness. See the
+[`v4 origin retrieval qualification receipt`](evidence/portability-dr-bootstrap-handoff-v4-origin-retrieval-qualification-2026-10-16T0715Z.json)
+and [`v4 local retrieval qualification receipt`](evidence/portability-dr-bootstrap-handoff-v4-local-retrieval-qualification-2026-10-16T0712Z.json).
 
 The helper makes a second exact-commit clone into a separate new destination, installs the locked
 development requirements, and runs smoke. Both checkouts must report the pinned `HEAD`, and the
@@ -974,13 +979,13 @@ the [`v2 entry/bootstrap and Kingston publication receipt`](evidence/portability
 
 The authenticated `origin` repository is accepted as the external trust domain for the accidental
 Mac-loss model; this does not protect against loss of Git account/remote access or a compromised
-remote. Handoffs v1 and v2 are retired for operator use and must remain unchanged. The annotated
-`brain-dr-handoff-v3` tag is the create-once locator for handoff commit H, separate from pinned
-bootstrap commit C. It is not a signature, and a replacement host cannot detect a same-remote tag
-retarget; record the tag-object and peeled commit IDs. H pins only code/card and Kingston identity:
-recovery-set, T, K, activation, and erase authority remain explicitly unavailable/false. Sol reviewed
-v3 and approved it as a bootstrap-only locator. Its exact remote retrieval and failure cases are in
-the [`v3 qualification receipt`](evidence/portability-dr-bootstrap-handoff-v3-qualification-2026-10-16T0135Z.json).
+remote. Handoffs v1-v3 are retired for operator use and must remain unchanged. The annotated v4 tag
+is the create-once locator for handoff commit H, separate from pinned bootstrap commit C. It is not a
+signature, and a replacement host cannot detect a same-remote tag retarget; record the tag-object and
+peeled commit IDs. H pins only code/card and Kingston identity: recovery-set, T, K, activation, and
+erase authority remain explicitly unavailable/false. Sol reviewed v4 and approved its bootstrap-only
+publication. Exact retrieval and failure-case evidence are in the
+[`v4 origin retrieval receipt`](evidence/portability-dr-bootstrap-handoff-v4-origin-retrieval-qualification-2026-10-16T0715Z.json).
 
 The local-fixture rehearsal passed both exact-HEAD checks, locked environment creation, smoke, and
 the wrong-commit, wrong-volume-pin, missing-authentication, and preexisting-target failure cases.
