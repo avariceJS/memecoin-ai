@@ -6,7 +6,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-16 03:50 UTC.** The accepted recovery scope is loss or erasure of the
+**NO-GO for factory reset as of 2026-10-16 09:45 UTC.** The accepted recovery scope is loss or erasure of the
 owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
 reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -1711,15 +1711,22 @@ changed no service. The increase from seven PIDs in the 07:12Z probe has no infe
 not identify all writers or establish a frontier. See the
 [`07:16Z runtime label refresh`](evidence/portability-dr-runtime-label-refresh-2026-10-16T0716Z.json).
 
-The read-only `tools/brain_dr_v6_terminal_prefix_v1.py` helper now checks a pinned v6 release's
+The read-only `tools/brain_dr_v6_terminal_prefix_v1.py` helper checks a pinned v6 release's
 descriptor-held file identity, exact membership, canonical hash chain, structural request/outcome/
-confirmation joins, and opaque request/response byte digests. Twelve focused synthetic tests pass,
+confirmation joins, and opaque request/response byte digests. Thirteen focused synthetic tests pass,
 including a full disposable descriptor-backed fixture and fail-closed membership, rooting, payload,
-and inode-replacement mutations; Sol accepted this synthetic scope. It has **not** been invoked on
-Kingston. Runtime observations are supplied externally and are neither authenticated nor proven to
-bracket the scan; the helper does not establish a live quiesced interval. It records the known
-`capture_authorized=true` state and the unresolved source-manifest mismatch. This establishes no STOP,
-live v6 prefix, Kingston K, Data T, restore, or erase readiness.
+duplicate-key, and inode-replacement mutations; Sol accepted this synthetic scope. One live audit
+then passed on 2026-10-16 at 09:45Z after checking the exact release's three labels disabled and
+absent, pinned plist hashes, empty `lsof +D` output under the release root, and the pinned Kingston
+UUID/root. It verified 21 events, five terminal intents/outcomes/confirmations, four opaque response
+members, and 19 pinned member hashes through held descriptors. A preceding attempt stopped at receipt parsing:
+the helper had required canonical whitespace for the two SHA-pinned repository receipts. Commit
+`08ce3f0` now permits formatting whitespace only for those externally hash-pinned receipts while
+still rejecting duplicate keys; journal and release JSON remain canonical. Runtime observations are
+external and unbracketed, not independently authenticated. The live prefix still has
+`capture_authorized=true` and one unresolved source-manifest mismatch. This is scoped byte/structure
+evidence only: no STOP, global Kingston K, Data T, restore, or erase readiness is established. See
+the [`live v6 structural-prefix attempt`](evidence/portability-dr-v6-terminal-prefix-live-attempt-2026-10-16T094549Z.json).
 
 1. Inventory every owner/research/local-config/service root, including owner Codex worktree local
    state, and bind each to a source point or an
