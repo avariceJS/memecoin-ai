@@ -672,11 +672,14 @@ pins the entry instructions; it does not select the source commit. For each reco
 handoff must pin the intended accepted source commit and confirm that this card hash is expected at
 that commit. The current `research/active` checkout at `72bd405a773951cf70ce556700f3c96573f73dfb`
 was verified to contain the same card bytes. The latest exact-commit clean-checkout bootstrap
-rehearsal used `f079e0c7aa5111a6bb0c68ec6eda3c3fc37dd3a7`; it does not prove bootstrap of a later
-commit. The prior handoff pin to `edf2898...` authorizes only that older code commit. Before
-recovery, rehearse the exact source commit named by the independent handoff and supply that commit
-and the card hash through a trusted channel outside Kingston; this session has not distributed a
-separate persistent handoff artifact outside Kingston.
+rehearsal used `68253b84c5aefd8676b85b9415d2d242ada58d73`; it fetched that published commit, rebuilt
+the locked development environment, passed dependency check and smoke, and matched the checkout
+card hash to Kingston. It also exposed CLI help from the clean checkout. This remains a same-host
+code bootstrap, not a clean-compatible-host or Brain-state restore. The prior handoff pin to
+`edf2898...` authorizes only that older code commit. For recovery, supply the exact rehearsed source
+commit and card hash through a trusted channel outside Kingston; this session has not distributed a
+separate persistent handoff artifact outside Kingston. See the
+[`current first-host target bootstrap receipt`](evidence/portability-dr-first-host-current-target-2026-10-16T0020Z.json).
 
 The helper makes a second exact-commit clone into a separate new destination, installs the locked
 development requirements, and runs smoke. Both checkouts must report the pinned `HEAD`, and the
