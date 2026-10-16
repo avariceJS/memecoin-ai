@@ -1998,7 +1998,12 @@ Together with those observed logical bytes, the model's `B + S_K + M` is 44.104 
 estimate because the roster and inclusion set are unresolved; it demonstrates that a full-root
 capture at this observed scale cannot fit the current residual Kingston budget. The actual included
 set must be reduced only by reviewed, evidence-backed rebuild/reissue/disposable dispositions, or
-Kingston capacity must change while leaving PB's final reservation intact.
+Kingston capacity must change while leaving PB's final reservation intact. At the PB floor, that
+full-root/max-metadata scenario needs at least **229.004 GiB of free target capacity**; the entire
+current Kingston volume has about 223.4 GiB total, of which only 199.082 GiB is currently free
+after existing content, including BrainData, is accounted for.
+This is a screening scenario, not the final required Brain capacity or an instruction to delete or
+replace existing data.
 
 The conservative Kingston pre-write gate is `F >= P + R + G + B + S_K + M`; the production
 writer must also accept its dynamic reserve at every boundary. Set its pinned
