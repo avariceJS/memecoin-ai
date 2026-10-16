@@ -1,4 +1,25 @@
-# Portability and Disaster Recovery
+# Portability, Migration, and Disaster Recovery
+
+## Active scope: practical Migration v1
+
+The current user-approved objective is a conservative copy-and-restore migration to the second
+MacBook, not formal hardened DR qualification. Preserve reset-unique Brain-owned state on Kingston,
+verify the copy, restore and verify it on the second MacBook, and prove the restored Brain is inert.
+This remains **NO-GO for erasing the first Mac** until real second-MacBook acceptance passes. Do not
+require RecoveryOS qualification, formal `T/K`, or the v3 universal capture adapter for v1. The
+deferred hardened capability is owned by
+[`portability-disaster-recovery-v2-roadmap.md`](portability-disaster-recovery-v2-roadmap.md).
+
+Git is canonical code/history; Kingston `/Volumes/Kingston/BrainData` is the recovery data tier.
+Migration v1 copies, never moves or deletes source state. It must not overwrite existing BrainData
+or inspect/change PersonalBackup. Exclude secrets and session stores for reauthentication/reissue.
+Restore into quarantine, verify integrity and required state, bootstrap and smoke-check, and prove no
+service or Brain work auto-started. Restore and Start remain separate.
+
+Preparation has not stopped services or written a Migration v1 payload. Kingston is a case-sensitive
+APFS volume with UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; the read-only free-space observation
+is only a baseline and includes existing occupancy. Apply the 50-GiB floor plus bounded restore and
+verification reserves, and remeasure immediately before copying.
 
 This document owns Brain host portability, recovery inventory, and erase readiness. The project
 checkout, owner runtime, large research-data root, and protected evaluations have separate authority

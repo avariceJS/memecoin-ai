@@ -23,6 +23,7 @@ source for the task; do not scan `docs/` or `docs/evidence/` wholesale.
 | Models, training recipe, experiment conclusions and benchmark design | [`training-evaluation.md`](training-evaluation.md) |
 | Control Center, AUTO, virtual paper, Watch Market, two Macs and releases | [`operator-runtime.md`](operator-runtime.md) |
 | Host portability, backup inventory, restore and erase readiness | [`portability-disaster-recovery.md`](portability-disaster-recovery.md) |
+| Deferred hardened portability / DR v2 handoff | [`portability-disaster-recovery-v2-roadmap.md`](portability-disaster-recovery-v2-roadmap.md) |
 | Cross-cutting engineering and research invariants | [`contracts.md`](contracts.md) |
 | Concise experiment timeline and key failures | [`research-history.md`](research-history.md) |
 | Evidence filenames, scope, and reproduction pointers | [`evidence/README.md`](evidence/README.md) |

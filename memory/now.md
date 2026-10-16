@@ -1,22 +1,16 @@
 # Current state
 
-As of 2026-10-16, Portability / DR remains **NO-GO for erase**. `research/active` is the DR work
-branch; `main` remains `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. The v7 source-only kit replay
-proves reproducible source packaging and inert local entrypoints only; RecoveryOS, owner source T,
-complete custody, Kingston K, restore, and erase remain unqualified.
+As of 2026-10-16, active scope is **Practical Brain Migration v1**; erase remains **NO-GO** until
+real second-MacBook restore acceptance. `research/active` is the DR work branch; `main` remains
+`770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Future hardened v2 handoff is
+`docs/portability-disaster-recovery-v2-roadmap.md`.
 
-Sol accepted the strict v2 nine-role absence-gap documents and validators as an **inert
-document-consistency stage only**. The chain binds plan → held-view absence witness → policy → intent
-→ capacity/inventory → capture spec → candidate index; T/K/root closure/restore/activation/erase
-remain false. The uncommitted v3 adapter draft passed 200 related tests and static checks, including
-a real temporary-fixture stored-INDEX verification, but Sol rejected production acceptance because
-the SQLite spool is reopened by pathname instead of through a held descriptor, no trusted pinned
-scratch adapter exists, and the physical RO target reattach/owner-scale qualification is absent.
-Public capture remains fail-closed; do not start a new protocol generation. No Kingston,
-PersonalBackup, owner Data, Recovery, or protected payload was accessed for this stage.
+The exact uncommitted v3 draft is durably archived in
+`docs/archives/portability-disaster-recovery-v2/v3-capture-adapter-draft-2026-10-16.tar.gz` and
+summarized in the future-v2 roadmap. Sol rejected production acceptance; public capture remains
+fail-closed. Do not start a new protocol generation during Migration v1.
 
-PersonalBackup remains temporary Kingston occupancy pending the user's separate migration,
-verification on the second MacBook, and deletion confirmation. Do not inspect or change it; remeasure
-Kingston after that transition before any Brain write. The descriptor-bound v3 scratch adapter,
-RecoveryOS compatibility, qualified source T, full custody, T/K, inert restore, and clean-host
-rehearsal remain open.
+PersonalBackup remains untouched and outside inspection; its separate move/verification/deletion
+transition must be confirmed before capacity is treated as available. Kingston `/BrainData` is not
+to be overwritten. First prepare Migration v1 inventory and a non-overwriting manifest/copy/verify
+flow; current owner Data and launchd writers have not been quiesced.
