@@ -6,7 +6,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-16 03:00 UTC.** The accepted recovery scope is loss or erasure of the
+**NO-GO for factory reset as of 2026-10-16 03:18 UTC.** The accepted recovery scope is loss or erasure of the
 owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
 reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -49,6 +49,17 @@ readback may leave an unaccepted candidate index. Receipt:
 [`mixed held-Data root-set rehearsal`](evidence/portability-dr-mixed-held-data-root-set-apfs-kingston-2026-10-16T0300Z.json).
 The read-only verifier's separate CLI receipt records the fresh run and unchanged storage metadata:
 [`read-only root-set verification`](evidence/portability-dr-root-set-readonly-verification-2026-10-16T0313Z.json).
+The exact pushed commit `6db6a5a` was then bootstrapped into a new scratch clone using this Mac's
+existing Git authentication, the locked Python environment, dependency checks, and smoke. Its own
+focused storage/external-writer/root-set CLI suite passed (75 tests), and its verify-only CLI
+reverified the same five-unit synthetic Kingston candidate with four roles unresolved and the
+inspected lock/index metadata unchanged. A separate real macOS read-only case-sensitive APFS image
+with owners enabled passed `read_only_guard` and the reader factory; a pinned fixture file was read,
+`create()` was rejected, and the inspected lock metadata and root membership stayed unchanged. Sol
+accepted these bounded same-host claims. Neither rehearsal proves whole-volume immutability, clean-host
+credentials, owner Data T, Kingston K, owner closure, Brain restore, inert service reconstruction, or
+erase readiness. See the
+[`published-bootstrap and read-only APFS fixture receipt`](evidence/portability-dr-published-bootstrap-readonly-apfs-2026-10-16T0318Z.json).
 A fresh clone of the exact pushed `ce210910` installed the locked development environment and passed
 `make smoke`, the 38 focused DR tests, and byte-capture CLI help. Repository-wide `make check` stops
 at its first Ruff stage with 107 diagnostics in untouched files, so its later formatting/type/test
@@ -1189,8 +1200,10 @@ quarantine-only candidate units and a set index to the canonical Kingston `Brain
 reads a pinned set index and all declared units without accessing a source mount. Both require a
 private mode-0600 canonical operation spec and its separately supplied SHA-256. The spec pins the
 approved Data plan, role policy, each directory/file policy, source mountpoint, and host-only
-storage binding. The CLI rejects a different Kingston UUID/root marker and requires at least 50 GiB
-free. Capture never unlocks or mounts Data; the source must already be a verified read-only view.
+storage binding. Both operations reject a different Kingston UUID/root marker; `capture` requires at
+least 50 GiB free and takes the writer lock, while `verify` uses a no-lock read-only binding without
+a free-space floor. Capture never unlocks or mounts Data; the source must already be a verified
+read-only view.
 Output is bounded JSON with stable error codes and all qualification flags false. The CLI has no
 restore, start, activation, or erase operation. Its synthetic E2E passed; it has not been used with
 owner roots. The accepted synthetic result and its limits are in the
