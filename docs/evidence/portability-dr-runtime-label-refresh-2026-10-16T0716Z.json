@@ -1,0 +1,28 @@
+{
+  "schema": "brain-portability-dr-runtime-label-refresh-v1",
+  "observed_at_utc": "2026-10-16T07:16:00Z",
+  "probe": "launchctl list; read only PID and label columns for labels matching brain, senses, memecoin, d43, or f01",
+  "matched_label_count": 30,
+  "running_label_count": 8,
+  "running_labels": [
+    "ai.memecoin.brain.b07.ui",
+    "ai.memecoin.brain.b10.ui",
+    "ai.memecoin.brain.b10r1.ui",
+    "ai.memecoin.brain.b10r2.ui",
+    "ai.memecoin.brain.b12.ui",
+    "ai.memecoin.brain.b12r1.ui",
+    "ai.memecoin.brain.b12r2.ui",
+    "ai.memecoin.brain.expansion.ui"
+  ],
+  "scope": {
+    "process_arguments_or_environments_read": false,
+    "data_payload_read": false,
+    "services_changed": false,
+    "writers_established_or_ruled_out": false,
+    "recovery_or_erase_authority": false
+  },
+  "limitations": [
+    "The filter identifies matching launchd labels and PIDs only; it does not independently establish process ownership, behavior, or absence of other writers.",
+    "The change from seven PIDs at 07:12Z to eight at 07:16Z is a point-in-time count difference and has no inferred cause."
+  ]
+}

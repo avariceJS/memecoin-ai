@@ -1,0 +1,30 @@
+{
+  "schema": "brain-portability-dr-bootstrap-handoff-v4-origin-retrieval-correction-v1",
+  "observed_at_utc": "2026-10-16T07:17:00Z",
+  "corrects_receipt": "docs/evidence/portability-dr-bootstrap-handoff-v4-origin-retrieval-qualification-2026-10-16T0715Z.json",
+  "correction": {
+    "field": "handoff.bootstrap_commit_C",
+    "incorrect_transcription": "bb411e841db9587ecaf41858279658a09d0913b",
+    "correct_value": "bb411e841db9587ecaf0403b4d01698a5221aa98",
+    "reason": "The receipt value was transcribed incorrectly; the published handoff JSON was correct."
+  },
+  "independent_checks": {
+    "tag_ref": "refs/tags/brain-dr-handoff-v4",
+    "tag_object_id": "3af219193f45e03dc0fa6e336df5b329a86c4cfb",
+    "peeled_handoff_commit": "baf2e25a91c9984418ef41858279658a09d0913b",
+    "handoff_json_sha256": "d0b0f77d1baa92ec1442a945a764961dac8c495016052bc17cb29b6586f4cd0b",
+    "bootstrap_commit_C_from_fetched_handoff": "bb411e841db9587ecaf0403b4d01698a5221aa98",
+    "bootstrap_commit_C_git_object_type": "commit",
+    "entry_card_sha256": "f40e8e160b38fffa6e0ba8e4aa81dc87523850e5dd4cca04b0a8add5e8677c37",
+    "kingston_entry_card_sha256_readback": "f40e8e160b38fffa6e0ba8e4aa81dc87523850e5dd4cca04b0a8add5e8677c37"
+  },
+  "tag_or_handoff_changed": false,
+  "authority": {
+    "accepted_set": false,
+    "data_T_qualified": false,
+    "kingston_K_qualified": false,
+    "brain_state_restored": false,
+    "activation_allowed": false,
+    "erase_ready": false
+  }
+}

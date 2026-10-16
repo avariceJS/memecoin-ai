@@ -905,15 +905,18 @@ branch. Current remote pins are tag object `3af219193f45e03dc0fa6e336df5b329a86c
 `baf2e25a91c9984418ef41858279658a09d0913b`, and handoff JSON SHA
 `d0b0f77d1baa92ec1442a945a764961dac8c495016052bc17cb29b6586f4cd0b`. The exact tag and handoff
 bytes were retrieved into a fresh empty client; the Kingston card SHA matched. Clean-host
-reauthentication remains required. The handoff pins C `bb411e841db9587ecaf41858279658a09d0913b`
+reauthentication remains required. The handoff pins C `bb411e841db9587ecaf0403b4d01698a5221aa98`
 and the v2 entry card, but grants no set/T/K/state/activation/erase authority. See the
 [`v4 origin retrieval receipt`](evidence/portability-dr-bootstrap-handoff-v4-origin-retrieval-qualification-2026-10-16T0715Z.json).
+That receipt contains one transcribed C value error; the immutable
+[`v4 origin retrieval correction`](evidence/portability-dr-bootstrap-handoff-v4-origin-retrieval-correction-2026-10-16T0717Z.json)
+records the correct C from the fetched handoff. The tag and handoff bytes were not changed.
 
 The current v4 annotated locator is `refs/tags/brain-dr-handoff-v4`, tag object
 `3af219193f45e03dc0fa6e336df5b329a86c4cfb`, peeling to H
 `baf2e25a91c9984418ef41858279658a09d0913b`; its handoff JSON SHA-256 is
 `d0b0f77d1baa92ec1442a945a764961dac8c495016052bc17cb29b6586f4cd0b`. H pins bootstrap C
-`bb411e841db9587ecaf41858279658a09d0913b`, Kingston card `host-recovery/ENTRY-v2.txt` at
+`bb411e841db9587ecaf0403b4d01698a5221aa98`, Kingston card `host-recovery/ENTRY-v2.txt` at
 SHA-256 `f40e8e160b38fffa6e0ba8e4aa81dc87523850e5dd4cca04b0a8add5e8677c37`, and the current
 Kingston UUID/root identity. A fresh empty Git client fetched the exact tag from the accepted HTTPS
 origin; tag/peeled types, strict handoff fields, and Kingston card digest matched. The local-mirror
@@ -1695,6 +1698,12 @@ APFS with owners enabled and 213,834,174,464 bytes free. A label/PID-only `launc
 matched 30 Brain/D43 labels, seven with PIDs. The probe read no BrainData payload, arguments, or
 environments and changed no services; it does not establish active writers, source cutoff, Data T,
 or Kingston K. See the [`07:12Z live-state refresh`](evidence/portability-dr-live-state-refresh-2026-10-16T0712Z.json).
+
+A 07:16Z label/PID-only refresh still found 30 matching Brain/D43 launchd labels and eight with
+PIDs; all eight labels were UI labels. It read no arguments, environments, or data payloads and
+changed no service. The increase from seven PIDs in the 07:12Z probe has no inferred cause and does
+not identify all writers or establish a frontier. See the
+[`07:16Z runtime label refresh`](evidence/portability-dr-runtime-label-refresh-2026-10-16T0716Z.json).
 
 1. Inventory every owner/research/local-config/service root, including owner Codex worktree local
    state, and bind each to a source point or an
