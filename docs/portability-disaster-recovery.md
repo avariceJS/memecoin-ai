@@ -696,6 +696,15 @@ This path produces **code bootstrap verified** only. It does not restore private
 state, qualify Kingston custody, activate services, send provider requests, prove a clean-host
 inert restore, or change erase readiness. Wrong/missing Kingston identity, auth failure, a changed
 card, a wrong commit, a preexisting destination, or an incomplete smoke result blocks the flow.
+At commit `8d6dd13bc0c8f0f94610c9dd65ebd4b1dd06c26d`, the helper applies
+`-c http.version=HTTP/1.1` to the Git clone and exact-commit fetch commands only, reports that
+transport in its result, and leaves global/repository Git configuration and interactive
+authentication unchanged. The helper completed on a fresh same-Mac checkout at that exact commit;
+locked environment setup, dependency check, and smoke passed, followed by 17 focused recovery tests.
+This validates the helper's current code-bootstrap path using the existing host authentication
+context, not clean-host authentication or state restoration. See the
+[`HTTP/1.1 bootstrap rehearsal receipt`](evidence/portability-dr-bootstrap-helper-http11-e2e-2026-10-16T0110Z.json)
+and [Git's configuration documentation](https://git-scm.com/docs/git-config).
 The previously recorded clean-`HOME` auth failure remains a real prerequisite; this card does not
 copy old-host credentials. The Mac-loss recovery procedure below still governs data and runtime.
 The local-fixture rehearsal passed both exact-HEAD checks, locked environment creation, smoke, and
