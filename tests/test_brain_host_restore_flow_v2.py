@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import subprocess
 from copy import deepcopy
 from dataclasses import asdict
+from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -338,6 +340,73 @@ def test_public_inspector_reads_only_disposable_card_and_index(disposable_inspec
     assert before == {
         str(p): flow._digest(p.read_bytes()) for p in fixture.data.rglob("*") if p.is_file()
     }
+
+
+def _cli_args(args: dict[str, Any]) -> list[str]:
+    return [
+        "inspect",
+        "--handoff",
+        str(args["handoff_path"]),
+        "--handoff-sha256",
+        args["expected_handoff_sha256"],
+        "--repository-root",
+        str(args["repository_root"]),
+        "--storage-config",
+        str(args["storage_config"]),
+        "--plan",
+        str(args["plan_path"]),
+        "--plan-sha256",
+        args["expected_plan_sha256"],
+        "--role-policy",
+        str(args["role_policy_path"]),
+        "--role-policy-sha256",
+        args["expected_role_policy_sha256"],
+    ]
+
+
+def test_inspect_cli_runs_disposable_mixed_index_and_stays_blocked(
+    disposable_inspection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = disposable_inspection
+    output = BytesIO()
+    monkeypatch.setattr(flow.sys, "stdout", SimpleNamespace(buffer=output))
+    monkeypatch.setattr(
+        flow,
+        "_git_state",
+        lambda *_args: {"head": fixture.handoff["execution_commit"], "clean": True},
+    )
+    assert flow.main(_cli_args(fixture.kwargs)) == 2
+    result = json.loads(output.getvalue())
+    assert result["status"] == "blocked"
+    assert result["metadata_pins_match"] is True
+    assert result["unresolved_role_count"] == 4
+    assert result["restore_performed"] is False
+    assert result["start_performed"] is False
+    assert all(result[key] is False for key in flow.AUTHORITY_FLAGS)
+
+
+@pytest.mark.parametrize("scenario", ["missing", "malformed"])
+def test_inspect_cli_names_bad_handoff_without_exposing_input(
+    disposable_inspection, monkeypatch: pytest.MonkeyPatch, scenario: str
+) -> None:
+    fixture = disposable_inspection
+    original_path = fixture.kwargs["handoff_path"]
+    if scenario == "missing":
+        fixture.kwargs["handoff_path"] = original_path.with_name("missing-handoff.json")
+    else:
+        raw = b'{"schema":"bad","schema":"duplicate"}\n'
+        fixture.write(original_path, raw)
+        fixture.kwargs["expected_handoff_sha256"] = flow._digest(raw)
+    output = BytesIO()
+    monkeypatch.setattr(flow.sys, "stdout", SimpleNamespace(buffer=output))
+
+    assert flow.main(_cli_args(fixture.kwargs)) == 2
+    result = json.loads(output.getvalue())
+    assert result["status"] == "blocked"
+    assert result["metadata_pins_match"] is False
+    assert result["blockers"] == ["handoff_plan_policy_inspection_failed"]
+    assert str(fixture.kwargs["handoff_path"]) not in output.getvalue().decode()
+    assert all(result[key] is False for key in flow.AUTHORITY_FLAGS)
 
 
 @pytest.mark.parametrize(

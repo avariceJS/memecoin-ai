@@ -1137,6 +1137,22 @@ Operator order for a later accepted handoff:
    partial result remains for review; never resume it or start services from it. Any later service
    activation is a separate, explicit operation outside this flow.
 
+### Operator command selection
+
+| Operator task | Entry point and required inputs | Expected result and boundary |
+|---|---|---|
+| Inspect current host/storage state | `tools/brain_host_recovery.py status --repo <checkout> --storage-config <private-binding> --format json` | Read-only point observations; unknown or missing fields stay unresolved. This is not source cutoff, T/K, or host-wide inertness proof. |
+| Bootstrap code on a replacement host | Exact trusted `BOOTSTRAP-HANDOFF-v4` and its pinned `recovery/ENTRY-v2.txt`; follow the card's two-clone exact-commit flow | Accept only exact HEAD, clean checkout, locked setup, and smoke. Result means code bootstrap only. |
+| Inspect a nine-role mixed handoff | `tools/brain_host_restore_flow_v2.py inspect` with private `--handoff`, its external `--handoff-sha256`, exact `--repository-root`, `--storage-config`, `--plan` plus `--plan-sha256`, and `--role-policy` plus `--role-policy-sha256` | Exit 2 and `status=blocked` are expected today. Phase blockers are path-free. Even `metadata_pins_match=true` checks only metadata joins; payload custody and all recovery/activation/erase authority remain false. |
+| Inspect or restore a previously accepted six-role set | `tools/brain_host_restore_flow_v1.py inspect` or `restore-inert` with its exact externally trusted v1 handoff and required host/source/target inputs | Legacy six-role only. Do not map v2 roles to v1 or infer a v1 handoff. Run `restore-inert` only after its inspect is ready with no blockers; it remains inert and is not erase approval. |
+| Start services or collectors | No command in these restore entry points | Start remains a later, separate, role-specific operation after an independently accepted restore and explicit operator decision. |
+
+The v2 CLI-path test uses disposable handoff/plan/policy/card/index files and mocks the repository
+and storage boundaries. It exercises parsing and blocked result rendering without a separate
+process, real APFS binding, or Kingston access. Missing and malformed handoffs return static
+phase guidance without echoing their paths. This is interface coverage only, not a storage or
+restore rehearsal.
+
 ## Service restore posture
 
 The 01:12Z read-only `launchctl list` inventory captured 18 loaded labels. Nine had a running PID:
@@ -1737,8 +1753,10 @@ files in quarantine/reissue-only disposition. It reads card/index metadata only,
 payloads, and every output remains blocked with all activation, restore, T/K, and erase authority
 false. Sol accepted this interface after review of path, mode, owner, link-count race, join, and
 authority boundaries. Failures report path-free inspection phase and a safe operator action tied to
-independently approved pins. Seventy-two focused tests across v2/v1 handoff, assessment, and root-set
-readers pass with Ruff, formatting, and scoped strict mypy. This qualifies only the synthetic blocked path:
+independently approved pins. Seventy-five focused tests across v2/v1 handoff, assessment, and root-set
+readers pass with Ruff, formatting, and scoped strict mypy. The pytest CLI-path fixture reaches a
+blocked mixed-index result with mocked Git/storage boundaries and rejects missing/malformed handoffs
+without reading Kingston. This qualifies only synthetic blocked-path behavior:
 there is no real v2 owner handoff, source custody closure, payload verification, clean-compatible-host
 restore, T/K, or erase readiness.
 The exact pushed `ec14560` was then fetched into a fresh clone on this Mac; locked setup, 72 focused
