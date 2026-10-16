@@ -37,10 +37,16 @@ from tools.brain_senses_external_writer_v1 import DescriptorWriter, canonical_js
 
 SCHEMA = "brain-host-tree-capture-v5-production-session"
 CAPTURE_SPEC_SCHEMA = "brain-host-tree-capture-v5-operation-spec-v1"
+CAPACITY_INTENT_SCHEMA = "brain-host-tree-capture-v5-capacity-intent-v2"
+CAPACITY_RECEIPT_SCHEMA = "brain-host-tree-capture-v5-capacity-receipt-v2"
+BOUND_CAPTURE_SPEC_SCHEMA = "brain-host-tree-capture-v5-bound-capture-spec-v2"
 MAX_CAPTURE_SPEC_BYTES = 128 * 1024
 _CAPTURE_PUBLIC_ERRORS = frozenset(
     {
         "arguments_invalid",
+        "capture_bound_v2_required",
+        "capture_capacity_bundle_required",
+        "capture_target_container_pin_mismatch",
         "capture_absent_role_fields_invalid",
         "capture_absent_role_reason_mismatch",
         "capture_failed",
@@ -75,6 +81,9 @@ _CAPTURE_PUBLIC_ERRORS = frozenset(
         "capture_spec_sha256_mismatch",
         "capture_spec_size_changed",
         "capture_storage_config_path_invalid",
+        "source_target_container_alias",
+        "target_container_identity_unresolved",
+        "target_container_binding_changed",
         "capture_target_storage_pin_invalid",
     }
 )
@@ -106,6 +115,7 @@ _VERIFY_PUBLIC_ERRORS = frozenset(
         "scratch_volume_uuid_unresolved",
         "storage_config_path_not_canonical",
         "target_storage_binding_pin_mismatch",
+        "target_container_binding_changed",
         "target_storage_pin_invalid",
         "verify_scratch_source_volume_alias",
         "verify_scratch_target_volume_alias",
@@ -117,6 +127,8 @@ VERIFY_SCRATCH_FREE_FLOOR_BYTES = 256 * 1024**2
 VERIFY_SHARED_POOL_FLOOR_BYTES = 50 * 1024**3
 CAPACITY_PLANNER_DB_LIMIT_BYTES = 8 * 1024**3
 CAPACITY_PLANNER_FREE_FLOOR_BYTES = 256 * 1024**2
+CAPTURE_TREE_RELATIVE = "host-recovery/tree-capture-v5"
+CAPTURE_TREE_USAGE_ENTRY_LIMIT = 4_000_000
 INERT_QUARANTINE_FREE_FLOOR_BYTES = 256 * 1024**2
 INERT_QUARANTINE_SCRATCH_FLOOR_BYTES = 256 * 1024**2
 _UUID = re.compile(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\Z")
@@ -148,6 +160,43 @@ def _apfs_container_uuid(container_reference: str) -> str:
         return value.lower()
     except Exception as exc:
         raise ProductionCaptureV5Error("scratch_volume_uuid_unresolved") from exc
+
+
+def _live_target_container_uuid(guard: StorageGuard | ReadOnlyStorageGuard) -> str:
+    try:
+        filesystem = DarwinDataOS().filesystem(guard.mount_fd)
+        if filesystem.get("fs_type") != "apfs":
+            raise ProductionCaptureV5Error("target_container_identity_unresolved")
+        disk_info = DarwinDataOS().disk_info(str(guard.mountpoint))
+        reference = disk_info.get("APFSContainerReference")
+        if not isinstance(reference, str) or re.fullmatch(r"disk[0-9]+", reference) is None:
+            raise ProductionCaptureV5Error("target_container_identity_unresolved")
+        return _apfs_container_uuid(reference)
+    except ProductionCaptureV5Error:
+        raise
+    except Exception as exc:
+        raise ProductionCaptureV5Error("target_container_identity_unresolved") from exc
+
+
+def _assert_container_pins(
+    source_container_uuid: str,
+    target_container_uuid: str,
+    expected_target_container_uuid: str | None = None,
+) -> None:
+    if (
+        not isinstance(source_container_uuid, str)
+        or _UUID.fullmatch(source_container_uuid.lower()) is None
+        or not isinstance(target_container_uuid, str)
+        or _UUID.fullmatch(target_container_uuid.lower()) is None
+    ):
+        raise ProductionCaptureV5Error("container_identity_invalid")
+    if source_container_uuid.lower() == target_container_uuid.lower():
+        raise ProductionCaptureV5Error("source_target_container_alias")
+    if (
+        expected_target_container_uuid is not None
+        and target_container_uuid.lower() != expected_target_container_uuid.lower()
+    ):
+        raise ProductionCaptureV5Error("target_container_binding_changed")
 
 
 def _verify_scratch_required_free_bytes(
@@ -468,7 +517,7 @@ def _require_sha256(value: object, error: str) -> str:
     return str(value)
 
 
-def _capture_spec_fields(spec: Mapping[str, Any]) -> None:
+def _capture_spec_fields(spec: Mapping[str, Any]) -> str:
     expected = {
         "schema",
         "source_mountpoint",
@@ -480,8 +529,552 @@ def _capture_spec_fields(spec: Mapping[str, Any]) -> None:
         "payload_reserve_bytes",
         "role_roster",
     }
-    if set(spec) != expected or spec.get("schema") != CAPTURE_SPEC_SCHEMA:
-        raise ProductionCaptureV5CLIError("capture_spec_schema_fields_invalid")
+    if set(spec) == expected and spec.get("schema") == CAPTURE_SPEC_SCHEMA:
+        return "legacy_v1"
+    _bound_capture_spec_fields(spec)
+    return "bound_v2"
+
+
+_CAPTURE_COMMON_SPEC_FIELDS = {
+    "source_mountpoint",
+    "storage_config_path",
+    "target_volume_uuid",
+    "target_root_id",
+    "role_roster",
+}
+_CAPACITY_BUDGET_SPEC_FIELDS = {
+    "A_formula_version",
+    "R_safety_floor_bytes",
+    "G_writer_floor_bytes",
+    "A_apfs_allocation_reserve_bytes",
+    "verifier_mode",
+    "S_V_verifier_scratch_reserve_bytes",
+    "W_V_verifier_headroom_bytes",
+    "X_shared_pool_margin_bytes",
+    "personal_backup_transition_confirmed",
+    "personal_backup_transition_receipt_sha256",
+}
+_CAPACITY_INTENT_FIELDS = (
+    _CAPTURE_COMMON_SPEC_FIELDS
+    | _CAPACITY_BUDGET_SPEC_FIELDS
+    | {
+        "schema",
+        "metadata_reserve_bytes",
+        "target_spool_reserve_bytes",
+    }
+)
+_BOUND_CAPTURE_FIELDS = (
+    _CAPTURE_COMMON_SPEC_FIELDS
+    | _CAPACITY_BUDGET_SPEC_FIELDS
+    | {
+        "schema",
+        "intent_spec_sha256",
+        "capacity_receipt_sha256",
+        "source_inventory_sha256",
+        "B_payload_logical_bytes",
+        "M_metadata_value_bytes",
+        "J_candidate_json_bytes",
+        "S_K_spool_reserved_bytes",
+        "U_prior_target_usage_bytes",
+        "U_prior_target_usage_entries",
+        "U_observation_sha256",
+        "U_disposition",
+        "capacity_observed_free_bytes_F",
+        "metadata_reserve_bytes",
+        "target_spool_reserve_bytes",
+    }
+)
+
+
+def _validate_capacity_budget_fields(spec: Mapping[str, Any], *, for_capture: bool) -> None:
+    for name in (
+        "R_safety_floor_bytes",
+        "G_writer_floor_bytes",
+        "A_apfs_allocation_reserve_bytes",
+        "S_V_verifier_scratch_reserve_bytes",
+        "W_V_verifier_headroom_bytes",
+        "X_shared_pool_margin_bytes",
+    ):
+        value = spec.get(name)
+        minimum = (
+            1
+            if name
+            in {
+                "A_apfs_allocation_reserve_bytes",
+                "S_V_verifier_scratch_reserve_bytes",
+                "W_V_verifier_headroom_bytes",
+            }
+            else 0
+        )
+        if type(value) is not int or value < minimum:
+            raise ProductionCaptureV5CLIError("capacity_spec_budget_invalid")
+    if spec["R_safety_floor_bytes"] != 50 * 1024**3:
+        raise ProductionCaptureV5CLIError("capacity_spec_safety_floor_invalid")
+    if spec["G_writer_floor_bytes"] != PRODUCTION_FREE_SPACE_FLOOR_BYTES:
+        raise ProductionCaptureV5CLIError("capacity_spec_writer_floor_invalid")
+    verifier_mode = spec.get("verifier_mode")
+    if verifier_mode not in {"external", "shared_target_pool"}:
+        raise ProductionCaptureV5CLIError("capacity_spec_verifier_mode_invalid")
+    if verifier_mode == "external":
+        # v2 has no independently pinned verifier-scratch identity/capacity
+        # fields yet. Do not treat planner scratch as verifier scratch.
+        raise ProductionCaptureV5CLIError("capacity_spec_external_verifier_identity_unbound")
+    if (
+        spec["S_V_verifier_scratch_reserve_bytes"] != VERIFY_SCRATCH_DB_RESERVE_BYTES
+        or spec["W_V_verifier_headroom_bytes"] != VERIFY_SCRATCH_FREE_FLOOR_BYTES
+    ):
+        raise ProductionCaptureV5CLIError("capacity_spec_verifier_reserve_mismatch")
+    if spec.get("A_formula_version") != capture.APFS_ALLOCATION_FORMULA_VERSION:
+        raise ProductionCaptureV5CLIError("capacity_spec_apfs_formula_version_invalid")
+    confirmed = spec.get("personal_backup_transition_confirmed")
+    transition_sha = spec.get("personal_backup_transition_receipt_sha256")
+    if type(confirmed) is not bool or not (
+        _valid_sha256(transition_sha) if confirmed else transition_sha is None
+    ):
+        raise ProductionCaptureV5CLIError("capacity_spec_personal_backup_transition_invalid")
+    if for_capture and not confirmed:
+        raise ProductionCaptureV5CLIError("capture_personal_backup_transition_unconfirmed")
+
+
+def _capacity_intent_fields(spec: Mapping[str, Any]) -> None:
+    if set(spec) != _CAPACITY_INTENT_FIELDS or spec.get("schema") != CAPACITY_INTENT_SCHEMA:
+        raise ProductionCaptureV5CLIError("capacity_intent_schema_fields_invalid")
+    _validate_capacity_budget_fields(spec, for_capture=False)
+    if (
+        type(spec.get("metadata_reserve_bytes")) is not int
+        or not 0 <= spec["metadata_reserve_bytes"] <= capture.MAX_METADATA_TOTAL_BYTES
+        or type(spec.get("target_spool_reserve_bytes")) is not int
+        or not 1 <= spec["target_spool_reserve_bytes"] <= capture.MAX_SCRATCH_BYTES
+        or spec["A_apfs_allocation_reserve_bytes"] > capture.MAX_APFS_ALLOCATION_RESERVE_BYTES
+    ):
+        raise ProductionCaptureV5CLIError("capacity_intent_reserve_invalid")
+
+
+def _bound_capture_spec_fields(spec: Mapping[str, Any]) -> None:
+    if set(spec) != _BOUND_CAPTURE_FIELDS or spec.get("schema") != BOUND_CAPTURE_SPEC_SCHEMA:
+        raise ProductionCaptureV5CLIError("capture_bound_spec_schema_fields_invalid")
+    _validate_capacity_budget_fields(spec, for_capture=True)
+    for name in (
+        "intent_spec_sha256",
+        "capacity_receipt_sha256",
+        "source_inventory_sha256",
+        "U_observation_sha256",
+    ):
+        if not _valid_sha256(spec.get(name)):
+            raise ProductionCaptureV5CLIError("capture_bound_spec_digest_invalid")
+    for name in (
+        "B_payload_logical_bytes",
+        "M_metadata_value_bytes",
+        "J_candidate_json_bytes",
+        "S_K_spool_reserved_bytes",
+        "U_prior_target_usage_bytes",
+        "U_prior_target_usage_entries",
+        "capacity_observed_free_bytes_F",
+        "metadata_reserve_bytes",
+        "target_spool_reserve_bytes",
+    ):
+        if type(spec.get(name)) is not int or spec[name] < 0:
+            raise ProductionCaptureV5CLIError("capture_bound_spec_budget_invalid")
+    if (
+        spec["M_metadata_value_bytes"] > spec["metadata_reserve_bytes"]
+        or spec["S_K_spool_reserved_bytes"] > spec["target_spool_reserve_bytes"]
+        or spec["B_payload_logical_bytes"] > capture.MAX_SOURCE_BYTES
+        or spec["M_metadata_value_bytes"] > capture.MAX_METADATA_TOTAL_BYTES
+        or spec["J_candidate_json_bytes"] > capture.MAX_CANDIDATE_JSON_BYTES
+        or spec["S_K_spool_reserved_bytes"] > capture.MAX_SCRATCH_BYTES
+        or spec["A_apfs_allocation_reserve_bytes"] > capture.MAX_APFS_ALLOCATION_RESERVE_BYTES
+        or spec["U_disposition"] != "informational_already_reflected_in_F"
+    ):
+        raise ProductionCaptureV5CLIError("capture_bound_spec_budget_invalid")
+
+
+def _capture_tree_usage_v5(root_fd: int) -> dict[str, Any]:
+    """Measure existing candidate/spool allocation without reading file contents.
+
+    This is an informational reconciliation with the target's live free-space
+    value. It must never be subtracted from ``f_bavail`` a second time.
+    """
+    root_st = os.fstat(root_fd)
+    if not stat.S_ISDIR(root_st.st_mode):
+        raise ProductionCaptureV5CLIError("capacity_plan_target_root_invalid")
+    tree_fd = -1
+    opened: list[int] = []
+    entry_count = 0
+    allocated_bytes = 0
+    area_present = {"candidates": False, "spool": False}
+    directory_presence = {
+        "host-recovery": False,
+        "tree-capture-v5": False,
+        "candidates": False,
+        "spool": False,
+    }
+    try:
+        current_fd = os.dup(root_fd)
+        opened.append(current_fd)
+        for index, component in enumerate(CAPTURE_TREE_RELATIVE.split("/")):
+            try:
+                child_fd = os.open(
+                    component,
+                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                    dir_fd=current_fd,
+                )
+            except FileNotFoundError:
+                return {
+                    "allocated_bytes": 0,
+                    "entry_count": 0,
+                    "area_present": area_present,
+                    "directory_presence": directory_presence,
+                    "target_device": root_st.st_dev,
+                    "already_reflected_in_available_bytes": True,
+                }
+            child_st = os.fstat(child_fd)
+            if (
+                not stat.S_ISDIR(child_st.st_mode)
+                or child_st.st_dev != root_st.st_dev
+                or child_st.st_uid != os.getuid()
+                or stat.S_IMODE(child_st.st_mode) & 0o077
+            ):
+                os.close(child_fd)
+                raise ProductionCaptureV5CLIError("capacity_plan_target_tree_identity_invalid")
+            opened.append(child_fd)
+            current_fd = child_fd
+            directory_presence["host-recovery" if index == 0 else "tree-capture-v5"] = True
+        tree_fd = current_fd
+        allocated_bytes += int(getattr(os.fstat(tree_fd), "st_blocks", 0)) * 512
+
+        def descend(directory_fd: int) -> None:
+            nonlocal entry_count, allocated_bytes
+            for name in os.listdir(directory_fd):
+                entry_count += 1
+                if entry_count > CAPTURE_TREE_USAGE_ENTRY_LIMIT:
+                    raise ProductionCaptureV5CLIError("capacity_plan_target_tree_entry_limit")
+                st = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+                if st.st_dev != root_st.st_dev:
+                    raise ProductionCaptureV5CLIError("capacity_plan_target_tree_device_invalid")
+                allocated_bytes += int(getattr(st, "st_blocks", 0)) * 512
+                if stat.S_ISDIR(st.st_mode):
+                    if st.st_uid != os.getuid() or stat.S_IMODE(st.st_mode) & 0o077:
+                        raise ProductionCaptureV5CLIError("capacity_plan_target_tree_mode_invalid")
+                    child = os.open(
+                        name,
+                        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                        dir_fd=directory_fd,
+                    )
+                    opened.append(child)
+                    try:
+                        held = os.fstat(child)
+                        if (held.st_dev, held.st_ino) != (st.st_dev, st.st_ino):
+                            raise ProductionCaptureV5CLIError(
+                                "capacity_plan_target_tree_entry_changed"
+                            )
+                        descend(child)
+                    finally:
+                        os.close(child)
+                        opened.remove(child)
+                elif not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
+                    raise ProductionCaptureV5CLIError("capacity_plan_target_tree_entry_invalid")
+
+        for area in ("candidates", "spool"):
+            try:
+                area_fd = os.open(
+                    area,
+                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                    dir_fd=tree_fd,
+                )
+            except FileNotFoundError:
+                continue
+            area_present[area] = True
+            directory_presence[area] = True
+            opened.append(area_fd)
+            try:
+                area_st = os.fstat(area_fd)
+                if (
+                    area_st.st_dev != root_st.st_dev
+                    or area_st.st_uid != os.getuid()
+                    or stat.S_IMODE(area_st.st_mode) & 0o077
+                ):
+                    raise ProductionCaptureV5CLIError("capacity_plan_target_tree_identity_invalid")
+                allocated_bytes += int(getattr(area_st, "st_blocks", 0)) * 512
+                descend(area_fd)
+            finally:
+                os.close(area_fd)
+                opened.remove(area_fd)
+        return {
+            "allocated_bytes": allocated_bytes,
+            "entry_count": entry_count,
+            "area_present": area_present,
+            "directory_presence": directory_presence,
+            "target_device": root_st.st_dev,
+            "already_reflected_in_available_bytes": True,
+        }
+    finally:
+        for fd in reversed(opened):
+            with contextlib.suppress(OSError):
+                os.close(fd)
+
+
+def _capacity_receipt_fields(receipt: Mapping[str, Any]) -> None:
+    required = {
+        "schema",
+        "intent_spec_sha256",
+        "plan_sha256",
+        "policy_roster_sha256",
+        "source_volume_uuid",
+        "source_device_identifier",
+        "source_container_reference",
+        "source_volume_group_id",
+        "target_volume_uuid",
+        "target_root_id",
+        "target_device",
+        "target_container_uuid",
+        "planner_scratch_volume_uuid",
+        "source_inventory_sha256",
+        "B_payload_logical_bytes",
+        "M_metadata_value_bytes",
+        "J_candidate_json_bytes",
+        "S_K_spool_reserved_bytes",
+        "A_apfs_allocation_reserve_bytes",
+        "R_safety_floor_bytes",
+        "G_writer_floor_bytes",
+        "verifier_mode",
+        "S_V_verifier_scratch_reserve_bytes",
+        "W_V_verifier_headroom_bytes",
+        "X_shared_pool_margin_bytes",
+        "N_new_candidate_regular_file_count",
+        "N_new_candidate_directory_count",
+        "N_new_missing_capture_parent_directory_count",
+        "N_new_spool_child_and_db_count",
+        "A_formula_version",
+        "A_new_entry_count_N_new",
+        "A_min_operational_reserve_bytes",
+        "personal_backup_transition_confirmed",
+        "personal_backup_transition_receipt_sha256",
+        "U_prior_target_usage_bytes",
+        "U_prior_target_usage_entries",
+        "U_observation_sha256",
+        "U_disposition",
+        "F_live_available_bytes",
+        "required_new_free_bytes",
+        "capacity_gate_satisfied",
+        "metadata_reserve_bytes",
+        "target_spool_reserve_bytes",
+    }
+    if set(receipt) != required or receipt.get("schema") != CAPACITY_RECEIPT_SCHEMA:
+        raise ProductionCaptureV5CLIError("capacity_receipt_schema_fields_invalid")
+    if (
+        not isinstance(receipt.get("target_container_uuid"), str)
+        or _UUID.fullmatch(receipt["target_container_uuid"].lower()) is None
+        or not isinstance(receipt.get("source_container_reference"), str)
+        or not receipt["source_container_reference"]
+    ):
+        raise ProductionCaptureV5CLIError("capacity_receipt_identity_invalid")
+    for name in (
+        "intent_spec_sha256",
+        "plan_sha256",
+        "policy_roster_sha256",
+        "source_inventory_sha256",
+        "U_observation_sha256",
+    ):
+        if not _valid_sha256(receipt.get(name)):
+            raise ProductionCaptureV5CLIError("capacity_receipt_digest_invalid")
+    for name in (
+        "B_payload_logical_bytes",
+        "M_metadata_value_bytes",
+        "J_candidate_json_bytes",
+        "S_K_spool_reserved_bytes",
+        "A_apfs_allocation_reserve_bytes",
+        "R_safety_floor_bytes",
+        "G_writer_floor_bytes",
+        "S_V_verifier_scratch_reserve_bytes",
+        "W_V_verifier_headroom_bytes",
+        "X_shared_pool_margin_bytes",
+        "A_new_entry_count_N_new",
+        "A_min_operational_reserve_bytes",
+        "N_new_candidate_regular_file_count",
+        "N_new_candidate_directory_count",
+        "N_new_missing_capture_parent_directory_count",
+        "N_new_spool_child_and_db_count",
+        "U_prior_target_usage_bytes",
+        "U_prior_target_usage_entries",
+        "F_live_available_bytes",
+        "required_new_free_bytes",
+        "metadata_reserve_bytes",
+        "target_spool_reserve_bytes",
+    ):
+        if type(receipt.get(name)) is not int or receipt[name] < 0:
+            raise ProductionCaptureV5CLIError("capacity_receipt_budget_invalid")
+    if (
+        receipt["A_apfs_allocation_reserve_bytes"] <= 0
+        or receipt["A_apfs_allocation_reserve_bytes"] > capture.MAX_APFS_ALLOCATION_RESERVE_BYTES
+        or receipt["R_safety_floor_bytes"] != 50 * 1024**3
+        or receipt["G_writer_floor_bytes"] != PRODUCTION_FREE_SPACE_FLOOR_BYTES
+        or receipt["verifier_mode"] != "shared_target_pool"
+        or receipt["S_V_verifier_scratch_reserve_bytes"] != VERIFY_SCRATCH_DB_RESERVE_BYTES
+        or receipt["W_V_verifier_headroom_bytes"] != VERIFY_SCRATCH_FREE_FLOOR_BYTES
+        or receipt["A_formula_version"] != capture.APFS_ALLOCATION_FORMULA_VERSION
+        or receipt["A_new_entry_count_N_new"] > capture.MAX_PLANNED_NEW_ENTRIES
+        or receipt["B_payload_logical_bytes"] > capture.MAX_SOURCE_BYTES
+        or receipt["M_metadata_value_bytes"] > capture.MAX_METADATA_TOTAL_BYTES
+        or receipt["J_candidate_json_bytes"] > capture.MAX_CANDIDATE_JSON_BYTES
+        or receipt["S_K_spool_reserved_bytes"] > capture.MAX_SCRATCH_BYTES
+        or receipt["M_metadata_value_bytes"] > receipt["metadata_reserve_bytes"]
+        or receipt["S_K_spool_reserved_bytes"] > receipt["target_spool_reserve_bytes"]
+        or receipt["N_new_spool_child_and_db_count"] != 2
+        or (
+            receipt["N_new_candidate_regular_file_count"]
+            + receipt["N_new_candidate_directory_count"]
+            + receipt["N_new_missing_capture_parent_directory_count"]
+            + receipt["N_new_spool_child_and_db_count"]
+            != receipt["A_new_entry_count_N_new"]
+        )
+        or receipt["U_disposition"] != "informational_already_reflected_in_F"
+        or type(receipt.get("capacity_gate_satisfied")) is not bool
+        or type(receipt.get("personal_backup_transition_confirmed")) is not bool
+        or not isinstance(receipt.get("planner_scratch_volume_uuid"), str)
+        or not _UUID.fullmatch(receipt["planner_scratch_volume_uuid"].lower())
+        or not (
+            _valid_sha256(receipt.get("personal_backup_transition_receipt_sha256"))
+            if receipt["personal_backup_transition_confirmed"]
+            else receipt.get("personal_backup_transition_receipt_sha256") is None
+        )
+    ):
+        raise ProductionCaptureV5CLIError("capacity_receipt_budget_invalid")
+    try:
+        expected_allocation_floor = capture.apfs_allocation_reserve_floor_v5(
+            receipt["B_payload_logical_bytes"],
+            receipt["M_metadata_value_bytes"],
+            receipt["J_candidate_json_bytes"],
+            receipt["S_K_spool_reserved_bytes"],
+            receipt["A_new_entry_count_N_new"],
+        )
+    except capture.TreeCaptureV5Error as exc:
+        raise ProductionCaptureV5CLIError("capacity_receipt_apfs_budget_invalid") from exc
+    if (
+        receipt["A_min_operational_reserve_bytes"] != expected_allocation_floor
+        or receipt["A_apfs_allocation_reserve_bytes"] < expected_allocation_floor
+    ):
+        raise ProductionCaptureV5CLIError("capacity_receipt_apfs_reserve_below_floor")
+    verifier_reserve = (
+        receipt["S_V_verifier_scratch_reserve_bytes"]
+        + receipt["W_V_verifier_headroom_bytes"]
+        + receipt["X_shared_pool_margin_bytes"]
+    )
+    expected_required = (
+        sum(
+            receipt[name]
+            for name in (
+                "B_payload_logical_bytes",
+                "M_metadata_value_bytes",
+                "J_candidate_json_bytes",
+                "S_K_spool_reserved_bytes",
+                "R_safety_floor_bytes",
+                "G_writer_floor_bytes",
+                "A_apfs_allocation_reserve_bytes",
+            )
+        )
+        + verifier_reserve
+    )
+    expected_gate = bool(
+        receipt["personal_backup_transition_confirmed"]
+        and receipt["F_live_available_bytes"] >= expected_required
+    )
+    if (
+        receipt["required_new_free_bytes"] != expected_required
+        or receipt["capacity_gate_satisfied"] != expected_gate
+    ):
+        raise ProductionCaptureV5CLIError("capacity_receipt_equation_or_gate_invalid")
+
+
+def _assert_capacity_receipt_matches_intent(
+    receipt: Mapping[str, Any], intent: Mapping[str, Any], intent_sha256: str
+) -> None:
+    pairs = {
+        "intent_spec_sha256": intent_sha256,
+        "A_formula_version": intent["A_formula_version"],
+        "A_apfs_allocation_reserve_bytes": intent["A_apfs_allocation_reserve_bytes"],
+        "R_safety_floor_bytes": intent["R_safety_floor_bytes"],
+        "G_writer_floor_bytes": intent["G_writer_floor_bytes"],
+        "verifier_mode": intent["verifier_mode"],
+        "S_V_verifier_scratch_reserve_bytes": intent["S_V_verifier_scratch_reserve_bytes"],
+        "W_V_verifier_headroom_bytes": intent["W_V_verifier_headroom_bytes"],
+        "X_shared_pool_margin_bytes": intent["X_shared_pool_margin_bytes"],
+        "personal_backup_transition_confirmed": intent["personal_backup_transition_confirmed"],
+        "personal_backup_transition_receipt_sha256": intent[
+            "personal_backup_transition_receipt_sha256"
+        ],
+        "metadata_reserve_bytes": intent["metadata_reserve_bytes"],
+        "target_spool_reserve_bytes": intent["target_spool_reserve_bytes"],
+    }
+    if any(receipt.get(key) != expected for key, expected in pairs.items()):
+        raise ProductionCaptureV5CLIError("capacity_receipt_intent_mismatch")
+
+
+def _load_capacity_receipt(path: Path, expected_sha256: str) -> dict[str, Any]:
+    receipt = _read_private_capture_spec(path, expected_sha256)
+    _capacity_receipt_fields(receipt)
+    return receipt
+
+
+def _validate_bound_capture_bundle(
+    capture_spec: Mapping[str, Any],
+    intent: Mapping[str, Any],
+    receipt: Mapping[str, Any],
+    *,
+    intent_sha256: str,
+    receipt_sha256: str,
+    expected_plan_sha256: str,
+    expected_policy_roster_sha256: str,
+) -> str:
+    _capacity_intent_fields(intent)
+    _bound_capture_spec_fields(capture_spec)
+    _capacity_receipt_fields(receipt)
+    if (
+        capture_spec["intent_spec_sha256"] != intent_sha256
+        or capture_spec["capacity_receipt_sha256"] != receipt_sha256
+        or receipt["intent_spec_sha256"] != intent_sha256
+    ):
+        raise ProductionCaptureV5CLIError("capture_capacity_receipt_pin_mismatch")
+    _assert_capacity_receipt_matches_intent(receipt, intent, intent_sha256)
+    copied_fields = (
+        _CAPTURE_COMMON_SPEC_FIELDS
+        | _CAPACITY_BUDGET_SPEC_FIELDS
+        | {"metadata_reserve_bytes", "target_spool_reserve_bytes"}
+    )
+    if any(capture_spec[key] != intent[key] for key in copied_fields):
+        raise ProductionCaptureV5CLIError("capture_intent_copy_mismatch")
+    receipt_pairs = {
+        "plan_sha256": expected_plan_sha256,
+        "policy_roster_sha256": expected_policy_roster_sha256,
+        "source_inventory_sha256": capture_spec["source_inventory_sha256"],
+        "B_payload_logical_bytes": capture_spec["B_payload_logical_bytes"],
+        "M_metadata_value_bytes": capture_spec["M_metadata_value_bytes"],
+        "J_candidate_json_bytes": capture_spec["J_candidate_json_bytes"],
+        "S_K_spool_reserved_bytes": capture_spec["S_K_spool_reserved_bytes"],
+        "A_apfs_allocation_reserve_bytes": capture_spec["A_apfs_allocation_reserve_bytes"],
+        "A_formula_version": capture_spec["A_formula_version"],
+        "R_safety_floor_bytes": capture_spec["R_safety_floor_bytes"],
+        "G_writer_floor_bytes": capture_spec["G_writer_floor_bytes"],
+        "verifier_mode": capture_spec["verifier_mode"],
+        "S_V_verifier_scratch_reserve_bytes": capture_spec["S_V_verifier_scratch_reserve_bytes"],
+        "W_V_verifier_headroom_bytes": capture_spec["W_V_verifier_headroom_bytes"],
+        "X_shared_pool_margin_bytes": capture_spec["X_shared_pool_margin_bytes"],
+        "personal_backup_transition_confirmed": True,
+        "personal_backup_transition_receipt_sha256": capture_spec[
+            "personal_backup_transition_receipt_sha256"
+        ],
+        "U_prior_target_usage_bytes": capture_spec["U_prior_target_usage_bytes"],
+        "U_prior_target_usage_entries": capture_spec["U_prior_target_usage_entries"],
+        "U_observation_sha256": capture_spec["U_observation_sha256"],
+        "U_disposition": capture_spec["U_disposition"],
+        "F_live_available_bytes": capture_spec["capacity_observed_free_bytes_F"],
+        "metadata_reserve_bytes": capture_spec["metadata_reserve_bytes"],
+        "target_spool_reserve_bytes": capture_spec["target_spool_reserve_bytes"],
+    }
+    if any(receipt.get(key) != expected for key, expected in receipt_pairs.items()):
+        raise ProductionCaptureV5CLIError("capture_capacity_receipt_value_mismatch")
+    if not receipt["capacity_gate_satisfied"]:
+        raise ProductionCaptureV5CLIError("capture_capacity_gate_not_satisfied")
+    return str(receipt["source_inventory_sha256"])
 
 
 def _load_capture_policies(
@@ -1002,6 +1595,8 @@ def _full_boundary(
     expected_root_id: str,
     source_device: int,
     required_reserve_bytes: int,
+    expected_target_container_uuid: str | None = None,
+    expected_source_container_uuid: str | None = None,
 ) -> None:
     required = PRODUCTION_FREE_SPACE_FLOOR_BYTES + required_reserve_bytes
     try:
@@ -1010,6 +1605,13 @@ def _full_boundary(
         result = guard.revalidate(min_free_bytes=required)
         writer.assert_storage_binding(guard)
         _assert_writer_source_separation(view, writer, source_device)
+        if expected_target_container_uuid is not None:
+            current_target_container = _live_target_container_uuid(guard)
+            _assert_container_pins(
+                str(expected_source_container_uuid),
+                current_target_container,
+                expected_target_container_uuid,
+            )
         if result.available_bytes < required:
             raise ProductionCaptureV5Error("production_capacity_below_required_reserve")
     except ProductionCaptureV5Error:
@@ -1025,6 +1627,8 @@ def _required_boundary_callback(
     expected_volume_uuid: str,
     expected_root_id: str,
     source_device: int,
+    expected_target_container_uuid: str | None = None,
+    expected_source_container_uuid: str | None = None,
 ) -> Callable[[int], None]:
     """Build the argument-bearing callback used around capture payload work."""
 
@@ -1039,6 +1643,8 @@ def _required_boundary_callback(
             expected_root_id,
             source_device,
             required_reserve_bytes,
+            expected_target_container_uuid,
+            expected_source_container_uuid,
         )
 
     return check
@@ -1057,6 +1663,8 @@ class ProductionCaptureV5:
         expected_volume_uuid: str,
         expected_root_id: str,
         source_device: int,
+        expected_target_container_uuid: str,
+        expected_source_container_uuid: str,
     ) -> None:
         self.view = view
         self.guard = guard
@@ -1065,17 +1673,14 @@ class ProductionCaptureV5:
         self.expected_volume_uuid = expected_volume_uuid
         self.expected_root_id = expected_root_id
         self.source_device = source_device
+        self.expected_target_container_uuid = expected_target_container_uuid
+        self.expected_source_container_uuid = expected_source_container_uuid
         self._published = False
 
     def capture_candidate(self) -> dict[str, Any]:
         if self._published:
             raise ProductionCaptureV5Error("production_candidate_already_published")
-        required = (
-            self.inventory.scratch_reserve_bytes
-            + self.inventory.metadata_reserve_bytes
-            + self.inventory.payload_bytes_remaining
-            + self.inventory.payload_reserve_bytes
-        )
+        required = self.inventory.remaining_capacity_reserve()
         _full_boundary(
             self.view,
             self.guard,
@@ -1084,6 +1689,8 @@ class ProductionCaptureV5:
             self.expected_root_id,
             self.source_device,
             required,
+            self.expected_target_container_uuid,
+            self.expected_source_container_uuid,
         )
         receipt = capture.capture_candidate_v5(self.inventory)
         _full_boundary(
@@ -1094,6 +1701,8 @@ class ProductionCaptureV5:
             self.expected_root_id,
             self.source_device,
             0,
+            self.expected_target_container_uuid,
+            self.expected_source_container_uuid,
         )
         self._published = True
         if receipt.get("synthetic_fixture_only") is not False:
@@ -1109,6 +1718,15 @@ def production_capture_v5(
     expected_plan_sha256: str,
     expected_policy_roster_sha256: str,
     operation_spec_sha256: str | None = None,
+    expected_source_inventory_sha256: str | None = None,
+    expected_capacity_budget: Mapping[str, int] | None = None,
+    expected_new_entry_count: int | None = None,
+    expected_allocation_floor_bytes: int | None = None,
+    expected_allocation_reserve_bytes: int | None = None,
+    existing_target_directories: Mapping[str, bool] | None = None,
+    expected_target_container_uuid: str | None = None,
+    verifier_scratch_reserve_bytes: int = 0,
+    capture_authority: object | None = None,
     expected_target_volume_uuid: str,
     expected_target_root_id: str,
     role_policies: Mapping[str, capture.RoleCapturePolicy],
@@ -1125,9 +1743,35 @@ def production_capture_v5(
     target_uuid, target_root_id = _validate_pins(
         expected_target_volume_uuid, expected_target_root_id
     )
+    if (
+        getattr(view, "synthetic", None) is False
+        and capture_authority is not capture._BOUND_V2_CAPTURE_AUTHORITY
+    ):
+        raise ProductionCaptureV5Error("production_bound_v2_cli_authority_required")
     source_device = _require_real_held_view(view, expected_plan_sha256)
     if not _valid_sha256(operation_spec_sha256):
         raise ProductionCaptureV5Error("production_operation_spec_pin_invalid")
+    if (
+        not _valid_sha256(expected_source_inventory_sha256)
+        or not isinstance(expected_capacity_budget, Mapping)
+        or set(expected_capacity_budget) != {"B", "M", "J", "S_K"}
+        or any(
+            type(expected_capacity_budget.get(key)) is not int or expected_capacity_budget[key] < 0
+            for key in ("B", "M", "J", "S_K")
+        )
+        or expected_capacity_budget["S_K"] < 1
+        or expected_capacity_budget["J"] < 1
+        or type(expected_new_entry_count) is not int
+        or type(expected_allocation_floor_bytes) is not int
+        or type(expected_allocation_reserve_bytes) is not int
+        or not isinstance(existing_target_directories, Mapping)
+        or not isinstance(expected_target_container_uuid, str)
+        or _UUID.fullmatch(expected_target_container_uuid.lower()) is None
+        or type(verifier_scratch_reserve_bytes) is not int
+        or verifier_scratch_reserve_bytes != VERIFY_SCRATCH_DB_RESERVE_BYTES
+        or payload_reserve_bytes < verifier_scratch_reserve_bytes
+    ):
+        raise ProductionCaptureV5Error("production_capacity_bundle_required")
     plan_sha256 = approved_data_plan_sha256(view.plan)
     if plan_sha256 != expected_plan_sha256:
         raise ProductionCaptureV5Error("production_external_plan_pin_mismatch")
@@ -1146,6 +1790,7 @@ def production_capture_v5(
         raise ProductionCaptureV5Error("canonical_storage_config_invalid") from exc
     if config.root_id != target_root_id or str(config.volume_uuid).lower() != target_uuid:
         raise ProductionCaptureV5Error("target_storage_config_pin_mismatch")
+    source_container_uuid = _apfs_container_uuid(view.plan.data_container_reference)
 
     writer: DescriptorWriter | None = None
     inventory: capture.GlobalInventoryV5 | None = None
@@ -1154,6 +1799,12 @@ def production_capture_v5(
         min_free_bytes=PRODUCTION_FREE_SPACE_FLOOR_BYTES,
     ) as guard:
         _assert_guard_pins(guard, config, target_uuid, target_root_id)
+        live_target_container_uuid = _live_target_container_uuid(guard)
+        _assert_container_pins(
+            source_container_uuid,
+            live_target_container_uuid,
+            expected_target_container_uuid.lower(),
+        )
         try:
             guard.revalidate(min_free_bytes=PRODUCTION_FREE_SPACE_FLOOR_BYTES)
             writer = DescriptorWriter.from_storage_guard(guard)
@@ -1179,6 +1830,8 @@ def production_capture_v5(
                     target_root_id,
                     source_device,
                     reserve,
+                    expected_target_container_uuid.lower(),
+                    source_container_uuid,
                 )
 
             boundary_check = _required_boundary_callback(
@@ -1188,6 +1841,8 @@ def production_capture_v5(
                 target_uuid,
                 target_root_id,
                 source_device,
+                expected_target_container_uuid.lower(),
+                source_container_uuid,
             )
 
             def fast_check(required_reserve_bytes: int) -> None:
@@ -1235,11 +1890,24 @@ def production_capture_v5(
                         target_root_id,
                         source_device,
                         required_reserve_bytes,
+                        expected_target_container_uuid.lower(),
+                        source_container_uuid,
                     )
                     cadence_entries = 0
                     cadence_bytes = 0
                     last_full_check = time.monotonic()
 
+            initial_reserve = (
+                scratch_reserve_bytes + metadata_reserve_bytes + payload_reserve_bytes
+                if expected_capacity_budget is None
+                else (
+                    expected_capacity_budget["B"]
+                    + expected_capacity_budget["M"]
+                    + expected_capacity_budget["J"]
+                    + expected_capacity_budget["S_K"]
+                    + payload_reserve_bytes
+                )
+            )
             _full_boundary(
                 view,
                 guard,
@@ -1247,7 +1915,9 @@ def production_capture_v5(
                 target_uuid,
                 target_root_id,
                 source_device,
-                scratch_reserve_bytes + metadata_reserve_bytes + payload_reserve_bytes,
+                initial_reserve,
+                expected_target_container_uuid.lower(),
+                source_container_uuid,
             )
             inventory = capture._inventory_held_data_v5_core(
                 view,
@@ -1256,13 +1926,25 @@ def production_capture_v5(
                 reserve_capacity=reserve_capacity,
                 scratch_reserve_bytes=scratch_reserve_bytes,
                 payload_reserve_bytes=payload_reserve_bytes,
+                verifier_scratch_reserve_bytes=verifier_scratch_reserve_bytes,
                 metadata_reserve_bytes=metadata_reserve_bytes,
                 max_entries=max_entries,
                 expected_plan_sha256=expected_plan_sha256,
                 expected_policy_roster_sha256=policy_roster_sha256,
+                expected_source_inventory_sha256=expected_source_inventory_sha256,
+                expected_capacity_budget=expected_capacity_budget,
+                expected_new_entry_count=expected_new_entry_count,
+                expected_allocation_floor_bytes=expected_allocation_floor_bytes,
+                expected_allocation_reserve_bytes=expected_allocation_reserve_bytes,
+                existing_target_directories=existing_target_directories,
                 operation_spec_sha256=operation_spec_sha256,
                 production_authority=capture._PRODUCTION_CAPTURE_AUTHORITY,
-                production_root_check=full_root_check,
+                # The v2 inventory's own capacity callback already checks the
+                # live remaining cap at each scan cadence. A fixed full-cap
+                # boundary here would double-count allocations already in F.
+                production_root_check=(
+                    full_root_check if expected_capacity_budget is None else None
+                ),
                 production_fast_check=fast_check,
                 production_boundary_check=boundary_check,
                 production_cadence_check=cadence_check,
@@ -1276,6 +1958,8 @@ def production_capture_v5(
                 expected_volume_uuid=target_uuid,
                 expected_root_id=target_root_id,
                 source_device=source_device,
+                expected_target_container_uuid=expected_target_container_uuid.lower(),
+                expected_source_container_uuid=source_container_uuid,
             )
         finally:
             if inventory is not None:
@@ -1764,9 +2448,35 @@ def _capture_from_pinned_spec(
     plan_path: Path,
     expected_plan_sha256: str,
     expected_policy_roster_sha256: str,
+    intent_spec_path: Path | None = None,
+    expected_intent_spec_sha256: str | None = None,
+    capacity_receipt_path: Path | None = None,
+    expected_capacity_receipt_sha256: str | None = None,
 ) -> dict[str, Any]:
     spec = _read_private_capture_spec(spec_path, expected_spec_sha256)
-    _capture_spec_fields(spec)
+    if spec.get("schema") != BOUND_CAPTURE_SPEC_SCHEMA:
+        raise ProductionCaptureV5CLIError("capture_bound_v2_required")
+    _bound_capture_spec_fields(spec)
+    if (
+        intent_spec_path is None
+        or not _valid_sha256(expected_intent_spec_sha256)
+        or capacity_receipt_path is None
+        or not _valid_sha256(expected_capacity_receipt_sha256)
+    ):
+        raise ProductionCaptureV5CLIError("capture_capacity_bundle_required")
+    intent = _read_private_capture_spec(intent_spec_path, str(expected_intent_spec_sha256))
+    capacity_receipt = _load_capacity_receipt(
+        capacity_receipt_path, str(expected_capacity_receipt_sha256)
+    )
+    expected_source_inventory_sha256 = _validate_bound_capture_bundle(
+        spec,
+        intent,
+        capacity_receipt,
+        intent_sha256=str(expected_intent_spec_sha256),
+        receipt_sha256=str(expected_capacity_receipt_sha256),
+        expected_plan_sha256=expected_plan_sha256,
+        expected_policy_roster_sha256=expected_policy_roster_sha256,
+    )
     plan_digest = _require_sha256(expected_plan_sha256, "capture_plan_sha256_invalid")
     policy_digest = _require_sha256(
         expected_policy_roster_sha256, "capture_policy_roster_sha256_invalid"
@@ -1801,27 +2511,70 @@ def _capture_from_pinned_spec(
         raise ProductionCaptureV5CLIError("capture_target_storage_pin_invalid") from exc
     if plan.data_volume_uuid.lower() == target_uuid:
         raise ProductionCaptureV5CLIError("capture_source_target_volume_alias")
-    scratch_reserve = _positive_bounded_int(
-        spec.get("scratch_reserve_bytes"),
-        minimum=1,
-        maximum=capture.MAX_SCRATCH_BYTES,
-        error="capture_scratch_reserve_invalid",
-    )
+    scratch_reserve = spec["S_K_spool_reserved_bytes"]
     metadata_reserve = _positive_bounded_int(
         spec.get("metadata_reserve_bytes"),
         minimum=0,
         maximum=capture.MAX_METADATA_TOTAL_BYTES,
         error="capture_metadata_reserve_invalid",
     )
-    payload_reserve = _positive_bounded_int(
-        spec.get("payload_reserve_bytes"),
-        minimum=0,
-        maximum=capture.MAX_SOURCE_BYTES,
-        error="capture_payload_reserve_invalid",
+    payload_reserve = (
+        spec["R_safety_floor_bytes"]
+        + spec["A_apfs_allocation_reserve_bytes"]
+        + spec["S_V_verifier_scratch_reserve_bytes"]
+        + spec["W_V_verifier_headroom_bytes"]
+        + spec["X_shared_pool_margin_bytes"]
     )
     role_policies, actual_policy_digest = _load_capture_policies(spec, plan, plan_digest)
     if actual_policy_digest != policy_digest:
         raise ProductionCaptureV5CLIError("capture_policy_roster_pin_mismatch")
+    if capacity_receipt is not None:
+        if (
+            capacity_receipt["target_volume_uuid"] != target_uuid
+            or capacity_receipt["target_root_id"] != target_root_id
+            or capacity_receipt["plan_sha256"] != plan_digest
+            or capacity_receipt["policy_roster_sha256"] != policy_digest
+            or capacity_receipt["source_volume_uuid"] != plan.data_volume_uuid.lower()
+            or capacity_receipt["source_device_identifier"] != plan.data_device_identifier
+            or capacity_receipt["source_container_reference"] != plan.data_container_reference
+            or capacity_receipt["source_volume_group_id"] != plan.data_volume_group_id
+        ):
+            raise ProductionCaptureV5CLIError("capture_capacity_receipt_identity_mismatch")
+        with storage.read_only_guard(storage_config_path) as target_guard:
+            _assert_guard_pins(target_guard, target_guard.config, target_uuid, target_root_id)
+            live_target_container_uuid = _live_target_container_uuid(target_guard)
+            source_container_uuid = _apfs_container_uuid(plan.data_container_reference)
+            if live_target_container_uuid != capacity_receipt["target_container_uuid"]:
+                raise ProductionCaptureV5CLIError("capture_target_container_pin_mismatch")
+            _assert_container_pins(
+                source_container_uuid,
+                live_target_container_uuid,
+                capacity_receipt["target_container_uuid"],
+            )
+            observed_usage = _capture_tree_usage_v5(target_guard.root_fd)
+            observed_usage_sha = sha256(
+                canonical_json(
+                    {
+                        "schema": "brain-host-tree-capture-v5-target-usage-observation-v1",
+                        "target_volume_uuid": target_uuid,
+                        "target_root_id": target_root_id,
+                        "target_device": os.fstat(target_guard.root_fd).st_dev,
+                        **observed_usage,
+                    }
+                )
+            )
+            target_guard.revalidate_identity()
+        if (
+            observed_usage_sha != capacity_receipt["U_observation_sha256"]
+            or observed_usage["allocated_bytes"] != capacity_receipt["U_prior_target_usage_bytes"]
+            or observed_usage["entry_count"] != capacity_receipt["U_prior_target_usage_entries"]
+        ):
+            raise ProductionCaptureV5CLIError("capture_target_usage_changed_replan_required")
+        if (
+            target_guard.available_bytes < capacity_receipt["required_new_free_bytes"]
+            or target_guard.available_bytes < capacity_receipt["F_live_available_bytes"]
+        ):
+            raise ProductionCaptureV5CLIError("capture_fresh_capacity_below_bound")
 
     partial_candidate_possible = False
     try:
@@ -1836,6 +2589,20 @@ def _capture_from_pinned_spec(
                 expected_plan_sha256=plan_digest,
                 expected_policy_roster_sha256=policy_digest,
                 operation_spec_sha256=expected_spec_sha256,
+                expected_source_inventory_sha256=expected_source_inventory_sha256,
+                expected_capacity_budget={
+                    "B": spec["B_payload_logical_bytes"],
+                    "M": spec["M_metadata_value_bytes"],
+                    "J": spec["J_candidate_json_bytes"],
+                    "S_K": spec["S_K_spool_reserved_bytes"],
+                },
+                expected_new_entry_count=capacity_receipt["A_new_entry_count_N_new"],
+                expected_allocation_floor_bytes=capacity_receipt["A_min_operational_reserve_bytes"],
+                expected_allocation_reserve_bytes=spec["A_apfs_allocation_reserve_bytes"],
+                existing_target_directories=observed_usage["directory_presence"],
+                expected_target_container_uuid=capacity_receipt["target_container_uuid"],
+                verifier_scratch_reserve_bytes=spec["S_V_verifier_scratch_reserve_bytes"],
+                capture_authority=capture._BOUND_V2_CAPTURE_AUTHORITY,
                 expected_target_volume_uuid=target_uuid,
                 expected_target_root_id=target_root_id,
                 role_policies=role_policies,
@@ -1871,7 +2638,11 @@ def _capacity_plan_from_pinned_spec(
 ) -> dict[str, Any]:
     """Run metadata-only sizing with Kingston held read-only and never written."""
     spec = _read_private_capture_spec(spec_path, expected_spec_sha256)
-    _capture_spec_fields(spec)
+    intent_v2 = spec.get("schema") == CAPACITY_INTENT_SCHEMA
+    if intent_v2:
+        _capacity_intent_fields(spec)
+    else:
+        _capture_spec_fields(spec)
     plan_digest = _require_sha256(expected_plan_sha256, "capture_plan_sha256_invalid")
     policy_digest = _require_sha256(
         expected_policy_roster_sha256, "capture_policy_roster_sha256_invalid"
@@ -1909,6 +2680,16 @@ def _capacity_plan_from_pinned_spec(
         _assert_guard_pins(target_guard, target_guard.config, target_uuid, target_root_id)
         _assert_candidate_target_read_only(target_guard)
         target_device = os.fstat(target_guard.root_fd).st_dev
+        target_available_bytes = int(target_guard.available_bytes)
+        target_usage = _capture_tree_usage_v5(target_guard.root_fd)
+        target_usage_observation = {
+            "schema": "brain-host-tree-capture-v5-target-usage-observation-v1",
+            "target_volume_uuid": target_uuid,
+            "target_root_id": target_root_id,
+            "target_device": target_device,
+            **target_usage,
+        }
+        target_usage_sha256 = sha256(canonical_json(target_usage_observation))
         target_disk = DarwinDataOS().disk_info(str(target_guard.mountpoint))
         target_container_ref = target_disk.get("APFSContainerReference")
         if not isinstance(target_container_ref, str) or not re.fullmatch(
@@ -1916,9 +2697,10 @@ def _capacity_plan_from_pinned_spec(
         ):
             raise ProductionCaptureV5Error("capacity_plan_target_container_unresolved")
         target_container_uuid = _apfs_container_uuid(target_container_ref)
+        source_container_uuid = _apfs_container_uuid(plan.data_container_reference)
+        _assert_container_pins(source_container_uuid, target_container_uuid)
         scratch = PinnedScratchV5.open(scratch_path)
         try:
-            source_container_uuid = _apfs_container_uuid(plan.data_container_reference)
             if (
                 scratch.volume_uuid is None
                 or scratch.volume_uuid == target_uuid
@@ -1970,22 +2752,127 @@ def _capacity_plan_from_pinned_spec(
                     expected_plan_sha256=plan_digest,
                     expected_policy_roster_sha256=policy_digest,
                     scratch_db_limit_bytes=CAPACITY_PLANNER_DB_LIMIT_BYTES,
+                    metadata_reserve_bytes=(
+                        spec["metadata_reserve_bytes"]
+                        if intent_v2
+                        else capture.MAX_METADATA_TOTAL_BYTES
+                    ),
+                    target_spool_reserve_bytes=(
+                        spec["target_spool_reserve_bytes"]
+                        if intent_v2
+                        else capture.MAX_SCRATCH_BYTES
+                    ),
+                    allocation_reserve_bytes=(
+                        spec["A_apfs_allocation_reserve_bytes"] if intent_v2 else 0
+                    ),
+                    prior_target_usage_bytes=target_usage["allocated_bytes"],
+                    target_available_bytes=target_available_bytes,
+                    prior_target_usage_entries=target_usage["entry_count"],
+                    target_observation_sha256=target_usage_sha256,
+                    existing_target_directories=target_usage["directory_presence"],
+                    payload_reserve_bytes=(
+                        spec["S_V_verifier_scratch_reserve_bytes"]
+                        + spec["W_V_verifier_headroom_bytes"]
+                        + spec["X_shared_pool_margin_bytes"]
+                        if intent_v2 and spec["verifier_mode"] == "shared_target_pool"
+                        else 0
+                    ),
+                    safety_floor_bytes=(
+                        spec["R_safety_floor_bytes"] if intent_v2 else 50 * 1024**3
+                    ),
+                    writer_floor_bytes=(
+                        spec["G_writer_floor_bytes"]
+                        if intent_v2
+                        else PRODUCTION_FREE_SPACE_FLOOR_BYTES
+                    ),
+                    operation_spec_sha256=expected_spec_sha256,
                     external_boundary_check=external_boundary_check,
                     production_authority=capture._CAPACITY_PLAN_PRODUCTION_AUTHORITY,
                 )
+                target_usage_after = _capture_tree_usage_v5(target_guard.root_fd)
+                target_usage_after_sha256 = sha256(
+                    canonical_json(
+                        {
+                            "schema": "brain-host-tree-capture-v5-target-usage-observation-v1",
+                            "target_volume_uuid": target_uuid,
+                            "target_root_id": target_root_id,
+                            "target_device": target_device,
+                            **target_usage_after,
+                        }
+                    )
+                )
+                if target_usage_after_sha256 != target_usage_sha256:
+                    raise ProductionCaptureV5Error("capacity_plan_target_usage_changed")
                 target_guard.revalidate_identity()
                 _assert_candidate_target_read_only(target_guard)
         finally:
             scratch.close()
-    result.update(
-        {
-            "operation_spec_sha256": expected_spec_sha256,
-            "scratch_volume_uuid": scratch.volume_uuid,
-            "scratch_db_limit_bytes": CAPACITY_PLANNER_DB_LIMIT_BYTES,
-            "kingston_read_only": True,
-            "kingston_write_performed": False,
+    if intent_v2:
+        logical = result["logical_budget"]
+        receipt = {
+            "schema": CAPACITY_RECEIPT_SCHEMA,
+            "intent_spec_sha256": expected_spec_sha256,
+            "plan_sha256": plan_digest,
+            "policy_roster_sha256": policy_digest,
+            "source_volume_uuid": plan.data_volume_uuid.lower(),
+            "source_device_identifier": plan.data_device_identifier,
+            "source_container_reference": plan.data_container_reference,
+            "source_volume_group_id": plan.data_volume_group_id,
+            "target_volume_uuid": target_uuid,
+            "target_root_id": target_root_id,
+            "target_device": target_device,
+            "target_container_uuid": target_container_uuid,
+            "planner_scratch_volume_uuid": scratch.volume_uuid,
+            "source_inventory_sha256": result["source_inventory_sha256"],
+            "B_payload_logical_bytes": logical["B_payload_logical_bytes"],
+            "M_metadata_value_bytes": logical["M_metadata_value_bytes"],
+            "J_candidate_json_bytes": logical["J_candidate_json_bytes"],
+            "S_K_spool_reserved_bytes": logical["S_K_reserved_bytes"],
+            "A_apfs_allocation_reserve_bytes": spec["A_apfs_allocation_reserve_bytes"],
+            "A_formula_version": logical["A_formula_version"],
+            "A_new_entry_count_N_new": logical["A_new_entry_count_N_new"],
+            "A_min_operational_reserve_bytes": logical["A_min_operational_reserve_bytes"],
+            "N_new_candidate_regular_file_count": logical["N_new_candidate_regular_file_count"],
+            "N_new_candidate_directory_count": logical["N_new_candidate_directory_count"],
+            "N_new_missing_capture_parent_directory_count": logical[
+                "N_new_capture_parent_directory_count"
+            ],
+            "N_new_spool_child_and_db_count": logical["N_new_spool_child_and_db_count"],
+            "R_safety_floor_bytes": spec["R_safety_floor_bytes"],
+            "G_writer_floor_bytes": spec["G_writer_floor_bytes"],
+            "verifier_mode": spec["verifier_mode"],
+            "S_V_verifier_scratch_reserve_bytes": spec["S_V_verifier_scratch_reserve_bytes"],
+            "W_V_verifier_headroom_bytes": spec["W_V_verifier_headroom_bytes"],
+            "X_shared_pool_margin_bytes": spec["X_shared_pool_margin_bytes"],
+            "personal_backup_transition_confirmed": spec["personal_backup_transition_confirmed"],
+            "personal_backup_transition_receipt_sha256": spec[
+                "personal_backup_transition_receipt_sha256"
+            ],
+            "U_prior_target_usage_bytes": logical["U_prior_target_usage_bytes"],
+            "U_prior_target_usage_entries": logical["U_prior_target_usage_entries"],
+            "U_observation_sha256": target_usage_sha256,
+            "U_disposition": logical["U_disposition"],
+            "F_live_available_bytes": target_available_bytes,
+            "required_new_free_bytes": logical["required_new_free_bytes"],
+            "capacity_gate_satisfied": bool(
+                logical["capacity_gate_satisfied"] and spec["personal_backup_transition_confirmed"]
+            ),
+            "metadata_reserve_bytes": spec["metadata_reserve_bytes"],
+            "target_spool_reserve_bytes": spec["target_spool_reserve_bytes"],
         }
-    )
+        _capacity_receipt_fields(receipt)
+        result = receipt
+    else:
+        result.update(
+            {
+                "operation_spec_sha256": expected_spec_sha256,
+                "scratch_volume_uuid": scratch.volume_uuid,
+                "scratch_db_limit_bytes": CAPACITY_PLANNER_DB_LIMIT_BYTES,
+                "qualification": "legacy_v1_unqualified",
+                "kingston_read_only": True,
+                "kingston_write_performed": False,
+            }
+        )
     return result
 
 
@@ -2002,6 +2889,10 @@ def main(argv: list[str] | None = None) -> int:
     operator_capture.add_argument("--plan", required=True, type=Path)
     operator_capture.add_argument("--plan-sha256", required=True)
     operator_capture.add_argument("--policy-roster-sha256", required=True)
+    operator_capture.add_argument("--intent-spec", type=Path)
+    operator_capture.add_argument("--intent-spec-sha256")
+    operator_capture.add_argument("--capacity-receipt", type=Path)
+    operator_capture.add_argument("--capacity-receipt-sha256")
     capacity_plan = subparsers.add_parser(
         "plan-capacity",
         help="size a pinned read-only Data view using separate external scratch",
@@ -2084,6 +2975,10 @@ def main(argv: list[str] | None = None) -> int:
                 plan_path=args.plan,
                 expected_plan_sha256=args.plan_sha256,
                 expected_policy_roster_sha256=args.policy_roster_sha256,
+                intent_spec_path=args.intent_spec,
+                expected_intent_spec_sha256=args.intent_spec_sha256,
+                capacity_receipt_path=args.capacity_receipt,
+                expected_capacity_receipt_sha256=args.capacity_receipt_sha256,
             )
             sys.stdout.buffer.write(canonical_json(result))
             return 0
@@ -2151,14 +3046,22 @@ def main(argv: list[str] | None = None) -> int:
             if args.operation_spec is None or args.operation_spec_sha256 is None:
                 raise ProductionCaptureV5Error("production_verify_shared_pool_pin_invalid")
             spec = _read_private_capture_spec(args.operation_spec, args.operation_spec_sha256)
-            _capture_spec_fields(spec)
+            spec_version = _capture_spec_fields(spec)
             try:
                 spec_target_uuid, spec_target_root = _validate_pins(
                     spec["target_volume_uuid"], spec["target_root_id"]
                 )
             except Exception as exc:
                 raise ProductionCaptureV5Error("production_verify_shared_pool_pin_invalid") from exc
-            payload_reserve = spec.get("payload_reserve_bytes")
+            payload_reserve = (
+                spec.get("payload_reserve_bytes")
+                if spec_version == "legacy_v1"
+                else spec["R_safety_floor_bytes"]
+                + spec["A_apfs_allocation_reserve_bytes"]
+                + spec["S_V_verifier_scratch_reserve_bytes"]
+                + spec["W_V_verifier_headroom_bytes"]
+                + spec["X_shared_pool_margin_bytes"]
+            )
             minimum_payload_reserve = (
                 VERIFY_SHARED_POOL_FLOOR_BYTES
                 + VERIFY_SCRATCH_DB_RESERVE_BYTES

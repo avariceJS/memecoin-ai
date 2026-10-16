@@ -31,12 +31,19 @@ from tools.brain_host_tree_capture_v5 import (
     GIT_OPAQUE_WAIVER,
     RoleCapturePolicy,
     TreeCaptureV5Error,
+    _candidate_json_bytes_v5,
     _plan_held_data_capacity_v5_core,
+    _plan_metadata_rows_v5,
+    _simulate_payload_db_v5,
+    _unique_included_bytes,
+    apfs_allocation_reserve_floor_v5,
     capture_candidate_v5,
     extract_candidate_inert_v5,
     inventory_held_data_v5,
     model_candidate_capacity_v5,
+    planned_new_entry_count_v5,
     policy_roster_sha256_v5,
+    source_inventory_sha256_v5,
     verify_candidate_v5,
 )
 from tools.brain_host_tree_custody_v3 import POLICY_SCHEMA
@@ -44,6 +51,44 @@ from tools.brain_senses_external_writer_v1 import DescriptorWriter, canonical_js
 
 UUID = "430740ca-42e7-4e6c-a07a-e4e7370152cc"
 GROUP = "b72c52b0-591e-4c21-b4d2-87e6d7679c3a"
+
+
+def test_allocation_reserve_floor_and_planned_entry_framing() -> None:
+    sizes = {
+        "payload_page_file_count": 3,
+        "sidecar_file_count": 2,  # includes a zero-byte sidecar
+        "member_page_count": 1,
+        "payload_index_page_count": 1,
+        "payload_directory_count": 2,
+        "metadata_directory_count": 1,
+    }
+    absent_target_dirs = {
+        "host-recovery": False,
+        "tree-capture-v5": False,
+        "candidates": False,
+        "spool": False,
+    }
+    # 9 candidate files + 8 candidate dirs + spool child/DB + 4 missing parents.
+    assert planned_new_entry_count_v5(sizes, absent_target_dirs) == 23
+    floor = apfs_allocation_reserve_floor_v5(100, 50, 80, 100, 23)
+    assert floor == 8 * 1024**3 + 32 * 1024 * 23 + 33
+    assert apfs_allocation_reserve_floor_v5(100, 50, 80, 100, 23) <= floor
+
+
+@pytest.mark.parametrize(
+    ("payload", "metadata", "candidate_json", "spool", "entries"),
+    [
+        (capture_v5.MAX_SOURCE_BYTES + 1, 0, 0, 1, 1),
+        (0, 0, capture_v5.MAX_CANDIDATE_JSON_BYTES + 1, 1, 1),
+        (0, 0, 0, capture_v5.MAX_SCRATCH_BYTES + 1, 1),
+        (0, 0, 0, 1, capture_v5.MAX_PLANNED_NEW_ENTRIES + 1),
+    ],
+)
+def test_apfs_allocation_reserve_floor_rejects_unbounded_inputs(
+    payload: int, metadata: int, candidate_json: int, spool: int, entries: int
+) -> None:
+    with pytest.raises(TreeCaptureV5Error, match="apfs_allocation_budget_limit"):
+        apfs_allocation_reserve_floor_v5(payload, metadata, candidate_json, spool, entries)
 
 
 def test_capacity_model_bounds_owner_scale_without_allocating_payload() -> None:
@@ -56,6 +101,71 @@ def test_capacity_model_bounds_owner_scale_without_allocating_payload() -> None:
     assert estimate["minimum_total_reserve_bytes"] == (
         estimate["minimum_scratch_reserve_bytes"] + 8 * 1024**3 + 30_000_000_000
     )
+
+
+def test_candidate_capacity_credit_uses_durable_allocated_blocks_and_not_failed_writes(
+    tmp_path: Path,
+) -> None:
+    writer = _writer(tmp_path)
+    try:
+        writer.mkdir("planned/candidate/metadata")
+        payload = b"metadata-value" * 200
+        writer.create("planned/candidate/metadata/value.bin", payload)
+        allocated = capture_v5._durable_output_allocation_bytes(
+            writer, "planned/candidate/metadata/value.bin", len(payload)
+        )
+        assert allocated > 0
+        assert allocated % 512 == 0
+
+        credited: list[int] = []
+        original_create = writer.create
+
+        def create_then_report_interruption(relative: str, content: bytes) -> None:
+            original_create(relative, content)
+            raise OSError("simulated interruption after durable create")
+
+        writer.create = create_then_report_interruption  # type: ignore[method-assign]
+        inventory = SimpleNamespace(
+            metadata_bytes_remaining=len(payload),
+            json_bytes_remaining=0,
+            check_remaining_capacity=lambda: None,
+            candidate_write_guard=None,
+            writer=writer,
+            consume_metadata_bytes=credited.append,
+            consume_json_bytes=credited.append,
+        )
+        with pytest.raises(OSError, match="simulated interruption"):
+            capture_v5._create_candidate_member(
+                inventory, "planned/candidate/metadata/interrupted.bin", payload
+            )
+        assert credited == []
+        assert inventory.metadata_bytes_remaining == len(payload)
+    finally:
+        writer.close()
+        os.close(writer._test_mount_fd)
+
+
+def test_bound_capacity_reserve_uses_durable_spool_allocation(tmp_path: Path) -> None:
+    spool_path = tmp_path / "spool.sqlite"
+    spool_path.write_bytes(b"x" * 8192)
+    spool_fd = os.open(spool_path, os.O_RDWR)
+    db = sqlite3.connect(":memory:")
+    try:
+        inventory = object.__new__(capture_v5.GlobalInventoryV5)
+        inventory.db = db
+        inventory.db_fd = spool_fd
+        inventory.scratch_reserve_bytes = 1024 * 1024
+        inventory.payload_bytes_remaining = 10
+        inventory.metadata_bytes_remaining = 20
+        inventory.json_bytes_remaining = 30
+        inventory.payload_reserve_bytes = 40
+        observed = capture_v5._allocated_bytes_from_stat(os.fstat(spool_fd))
+        assert inventory.remaining_capacity_reserve() == (
+            max(0, inventory.scratch_reserve_bytes - observed) + 100
+        )
+    finally:
+        db.close()
+        os.close(spool_fd)
 
 
 def test_capacity_planner_rejects_forged_scratch_device_before_writing(
@@ -140,6 +250,158 @@ def test_capacity_planner_rejects_real_view_without_bound_operator_capability(
         os.close(scratch_fd)
         held.close()
     assert list(scratch_parent.iterdir()) == []
+
+
+def test_source_inventory_digest_and_unique_bytes_cover_sparse_hardlinks(tmp_path: Path) -> None:
+    held, roots = _held_fixture(tmp_path)
+    source_root = roots["research_checkout"]
+    sparse = source_root / "nested" / "sparse-😀-" / ("x" * 120)
+    sparse.parent.mkdir(parents=True)
+    with sparse.open("wb") as stream:
+        stream.seek(9 * 1024 * 1024 - 1)
+        stream.write(b"z")
+    alias = source_root / "hardlink-alias"
+    os.link(sparse, alias)
+    inventory, writer = _inventory(tmp_path, held, roots)
+    try:
+        root_file_bytes = sum(path.stat().st_size for path in roots.values() if not path.is_dir())
+        assert _unique_included_bytes(inventory.db) == 9 * 1024 * 1024 + root_file_bytes
+        digest_before = source_inventory_sha256_v5(
+            inventory.db,
+            plan_sha256=approved_data_plan_sha256(held.plan),
+            policy_roster_sha256=inventory.policy_roster_sha256,
+            root_signatures=inventory.root_signatures,
+        )
+        assert digest_before == inventory.source_inventory_sha256
+        inventory.db.execute(
+            "UPDATE members SET disposition='digest-test' WHERE path=?", ("hardlink-alias",)
+        )
+        digest_after = source_inventory_sha256_v5(
+            inventory.db,
+            plan_sha256=approved_data_plan_sha256(held.plan),
+            policy_roster_sha256=inventory.policy_roster_sha256,
+            root_signatures=inventory.root_signatures,
+        )
+        assert digest_after != digest_before
+    finally:
+        inventory.close()
+        writer.close()
+        held.close()
+
+
+def test_logical_json_projection_matches_synthetic_capture_serializers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    held, roots = _held_fixture(tmp_path)
+    source_root = roots["research_checkout"]
+    metadata_target = source_root / "metadata-target"
+    metadata_target.write_bytes(b"metadata-probe-unique")
+    os.symlink("target-" + ("🍎" * 100), source_root / "unicode-link-🍎")
+    operation_digest = "d" * 64
+    planning = True
+    attr_name = "user.emoji-🍎".encode()
+
+    def attr_names(fd: int) -> list[bytes]:
+        return [attr_name] if os.fstat(fd).st_size == metadata_target.stat().st_size else []
+
+    def attr_value(_fd: int, _name: bytes) -> bytes:
+        if planning:
+            raise AssertionError("planner attempted to read xattr values")
+        return b"x" * 123
+
+    def acl_value(_fd: int) -> bytes | None:
+        if planning:
+            raise AssertionError("planner attempted to read ACL bytes")
+        return b"a" * 7 if os.fstat(_fd).st_size == metadata_target.stat().st_size else None
+
+    monkeypatch.setattr(capture_v5, "_xattr_names_fd", attr_names)
+    monkeypatch.setattr(capture_v5, "_getxattr_size_fd", lambda _fd, _name: 123)
+    monkeypatch.setattr(capture_v5, "_getxattr_fd", attr_value)
+    monkeypatch.setattr(
+        capture_v5,
+        "_acl_size_fd",
+        lambda fd: 7 if os.fstat(fd).st_size == metadata_target.stat().st_size else None,
+    )
+    monkeypatch.setattr(capture_v5, "_acl_bytes", acl_value)
+
+    projection, projection_writer = _inventory(tmp_path, held, roots)
+    projection.operation_spec_sha256 = operation_digest
+    try:
+        projection_id = "0" * 32
+        _simulate_payload_db_v5(projection.db, projection_id)
+        metadata_bytes, _sidecars, _metadata_digest = _plan_metadata_rows_v5(
+            projection.db,
+            projection.roots,
+            projection.root_signatures,
+            metadata_reserve_bytes=8 * 1024**3,
+            candidate_id=projection_id,
+        )
+        with pytest.raises(TreeCaptureV5Error, match="metadata_total_limit"):
+            _plan_metadata_rows_v5(
+                projection.db,
+                projection.roots,
+                projection.root_signatures,
+                metadata_reserve_bytes=metadata_bytes - 1,
+                candidate_id=projection_id,
+            )
+        projected = _candidate_json_bytes_v5(
+            projection.db,
+            view=held,
+            roots=projection.roots,
+            root_signatures=projection.root_signatures,
+            policy_hashes=projection.policy_hashes,
+            policy_scopes=projection.policy_scopes,
+            plan_sha256=projection.plan_sha256,
+            policy_roster_sha256=projection.policy_roster_sha256,
+            included_source_bytes=projection.included_source_bytes,
+            metadata_reserve_bytes=8 * 1024**3,
+            candidate_id=projection_id,
+            operation_spec_sha256=operation_digest,
+        )
+        projected_db_bytes = os.fstat(projection.db_fd).st_size
+    finally:
+        projection.close()
+        projection_writer.close()
+
+    actual_tmp = tmp_path / "actual-capture"
+    actual_tmp.mkdir()
+    captured, capture_writer = _inventory(actual_tmp, held, roots)
+    captured.operation_spec_sha256 = operation_digest
+    try:
+        _capture_m, _capture_sidecars, capture_metadata_digest = _plan_metadata_rows_v5(
+            captured.db,
+            captured.roots,
+            captured.root_signatures,
+            metadata_reserve_bytes=8 * 1024**3,
+            candidate_id="0" * 32,
+        )
+        captured.source_inventory_sha256 = capture_v5.bind_metadata_measurement_sha256_v5(
+            captured.source_inventory_sha256, capture_metadata_digest
+        )
+        planning = False
+        receipt = capture_candidate_v5(captured)
+        captured_db_bytes = os.fstat(captured.db_fd).st_size
+        candidate_dir = (
+            actual_tmp
+            / "storage-volume"
+            / "BrainData"
+            / "host-recovery"
+            / "tree-capture-v5"
+            / "candidates"
+            / receipt["candidate_id"]
+        )
+        actual_json_bytes = sum(
+            path.stat().st_size
+            for path in candidate_dir.rglob("*")
+            if path.is_file() and (path.suffix in {".json", ".jsonl"})
+        )
+        assert captured_db_bytes <= projected_db_bytes + 16 * 1024**2
+        assert actual_json_bytes == projected["candidate_json_bytes"]
+        assert metadata_bytes == 130
+    finally:
+        captured.close()
+        capture_writer.close()
+        held.close()
 
 
 class FakeDataOS:
@@ -289,6 +551,81 @@ def _rows(inventory) -> dict[tuple[str, str], tuple[object, ...]]:
             "SELECT role,path,state,rule,group_id,primary_role,primary_path FROM members"
         )
     }
+
+
+def test_capture_readback_verifier_reserve_is_rechecked_in_both_passes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    held, roots = _held_fixture(tmp_path)
+    inventory, writer = _inventory(tmp_path, held, roots)
+    cap = 64 * 1024
+    inventory.verifier_scratch_reserve_bytes = cap
+    inventory.payload_reserve_bytes = cap + 1024
+    inventory.verify_scratch_fd = inventory.spool_fd
+    boundary_reserves: list[int] = []
+    inventory.production_boundary_check = boundary_reserves.append
+    verifier_pass_reserves: list[tuple[int, int]] = []
+
+    def fake_verify(*_args: object, scratch_capacity_check, **_kwargs: object):
+        start = len(boundary_reserves)
+        scratch_capacity_check(0, 8192)
+        scratch_capacity_check(4096, 8192)
+        verifier_pass_reserves.append((boundary_reserves[start], boundary_reserves[start + 1]))
+        return {
+            "index_sha256": "0" * 64,
+            "member_count": 1,
+            "synthetic_fixture_only": True,
+        }
+
+    monkeypatch.setattr(capture_v5, "verify_candidate_v5", fake_verify)
+    try:
+        capture_candidate_v5(inventory)
+        assert len(verifier_pass_reserves) == 2
+        assert all(first - second == 4096 for first, second in verifier_pass_reserves)
+    finally:
+        inventory.close()
+        writer.close()
+
+
+def test_payload_id_member_lookup_has_a_dedicated_index(tmp_path: Path) -> None:
+    held, roots = _held_fixture(tmp_path)
+    inventory, writer = _inventory(tmp_path, held, roots)
+    try:
+        plan = inventory.db.execute(
+            "EXPLAIN QUERY PLAN SELECT payload_sha256,payload_bytes FROM members "
+            "WHERE payload_id=? LIMIT 1",
+            ("f" * 64,),
+        ).fetchall()
+        assert any("members_payload_id" in str(row) for row in plan)
+    finally:
+        inventory.close()
+        writer.close()
+
+
+def test_verifier_capacity_callback_uses_allocated_bytes_after_durable_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    held, roots = _held_fixture(tmp_path)
+    inventory, writer = _inventory(tmp_path, held, roots)
+    inventory.verify_scratch_fd = inventory.spool_fd
+    try:
+        candidate = capture_candidate_v5(inventory)
+        observed: list[tuple[int, int]] = []
+        monkeypatch.setattr(capture_v5, "_allocated_bytes_from_stat", lambda _st: 4096)
+        verify_candidate_v5(
+            writer,
+            str(candidate["candidate_id"]),
+            scratch_parent_fd=inventory.verify_scratch_fd,
+            scratch_capacity_check=lambda used, cap: observed.append((used, cap)),
+            allow_unbound_synthetic=True,
+        )
+        assert observed
+        assert observed[0][0] == 0
+        assert observed[-1][0] == 4096
+        assert all(cap > 0 for _, cap in observed)
+    finally:
+        inventory.close()
+        writer.close()
 
 
 def test_candidate_index_binds_validated_operation_spec_digest(

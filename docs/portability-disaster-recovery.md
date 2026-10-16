@@ -1857,9 +1857,9 @@ applies only to the operator CLI path. Ordinary integrity verification continues
 INDEX schema, while shared-pool verification requires an exact bound spec. The verifier rejects a
 same-container target/scratch pair when shared-pool mode is omitted and fails closed if either APFS
 container identity is missing or malformed. An explicitly supplied spec hash is checked for both
-shared- and external-scratch API verification. These changes pass 94 focused tests, but still need a
-fresh Sol code review and a successful disposable candidate/remount rehearsal. No Kingston
-sibling-scratch operation or writable-to-read-only transition is authorized.
+shared- and external-scratch API verification. Its shared-pool path still needs a successful
+disposable candidate/remount rehearsal. The later sizing-only planner review does not qualify that
+path. No Kingston sibling-scratch operation or writable-to-read-only transition is authorized.
 These constraints make the proposed one-boot capture-and-verify sequence non-executable today.
 
 Any future gate must establish a worst-case bound for entries, payload, `S_K`, and `M` before
@@ -1878,25 +1878,44 @@ unqualified until a real disposable candidate, target read-only remount, low-spa
 post-failure integrity rehearsal pass. Never use Data or the target volume itself as scratch. The
 verifier proves candidate integrity only, not global Kingston K.
 
-The `plan-capacity` operator command now provides a metadata-only pre-spool sizing pass. It reuses
-the v5 descriptor-relative role scanner and global hardlink reconciliation, holds Kingston through
-the pinned read-only storage guard, and creates its bounded SQLite plan only on a separately pinned
-APFS/HFS scratch volume outside both the Data and Kingston APFS containers. The planner DB is
-capped at 8 GiB with a retained 256 MiB free floor and descriptor-bound cleanup. It reads filesystem
-metadata and symlink text, but no regular-file contents, xattr values, or ACL bytes; its output
-explicitly leaves T, capture authorization, Kingston writes, and erase readiness false. It reports
-scan-time included logical bytes, entry/path totals, hardlink reconciliation, and the existing
-resource-model estimate. That 128-character/50%-margin model is not a hard upper bound for
-candidate/index or filesystem allocation. Until candidate/index and allocation overhead have a
-reviewed bound, this sizing output cannot authorize capture. Sol reviewed the exact core/production
-implementation and accepted it for sizing-only use. The planner has 98 focused tests, CLI-help and
-command-dispatch coverage, and one disposable synthetic scan using a separate local APFS scratch
-volume with cleanup verified. The production CLI path has not yet completed a disposable
-mounted-APFS end-to-end rehearsal. The synthetic pass is not owner source, Kingston, or RecoveryOS
-qualification. The review also confirms that the in-process capability token is an internal API
-convention, not a security boundary against arbitrary code already running in the same process.
-RecoveryOS Python/runtime and scratch availability, owner-role closure, protected custody policy,
-source cutoff T, and Kingston K remain separate gates.
+The `plan-capacity` operator path uses the v5 descriptor-relative role scanner and global hardlink
+reconciliation, holds Kingston through the pinned read-only storage guard, and creates its bounded
+SQLite planning database only on separately pinned APFS/HFS scratch outside both the Data and
+Kingston APFS containers. The planner database is capped at 8 GiB with a retained 256 MiB free
+floor and descriptor-bound cleanup. It reads filesystem metadata and symlink text, but no regular
+file contents, xattr values, or ACL bytes. The two-stage v2 contract pins an immutable intent,
+emits a capacity receipt, and requires a separate final capture spec; a receipt by itself cannot
+authorize capture. `B` counts included logical primary-file sizes after global hardlink
+reconciliation (so sparse files expand), `M` comes from bounded metadata name/size probes, `J` is
+projected from the exact candidate JSON serializers and page splitting, and `S_K` replays the
+capture database mutation shapes with a pinned overshoot margin. Before streaming payload, capture
+must repeat the metadata-only census and match the receipt-bound inventory digest.
+
+The live capture guard retains the unspent `B/M/J` ceilings and `S_K` cap. It credits output only
+after the writer has fsynced the file and a no-follow descriptor confirms its size, identity, and
+allocated blocks; when allocated blocks are unavailable it retains the full relevant ceiling.
+SQLite is committed and fsynced before its descriptor's allocated blocks reduce the remaining
+`S_K` cap. Source, target, free-space, and container pins are rechecked at preflight and bounded
+full-capture boundaries. Each verifier pass checks the shared-pool floor at preflight and after
+each batch of at most 128 inserted rows/pages, releasing only the measured allocated portion of
+`S_V`; the `A` cushion remains reserved. These bounded checks assume no competing writer and do
+not provide a mathematical continuous APFS allocation guarantee. `A` is an operational reserve,
+not a hard upper bound. `U` is a read-only
+observation already reflected in live `F`, so it is recorded and compared but never subtracted a
+second time. PersonalBackup is a transition-confirmation gate, not a permanent reserve.
+
+Sol reviewed the exact v2 implementation and accepted the bounded pre-spool/candidate CLI
+capability. The focused inventory/production suite has 120 passing tests, with Ruff, formatting,
+`py_compile`, and diff checks clean. This source review is not a positive mounted-APFS rehearsal:
+the production CLI still needs a disposable plan → capture → fresh-verify run before operational
+candidate use. The flat sidecar-reference list remains limited by the 16 MiB `INDEX.json` cap and
+may fail closed on owner-scale metadata; do not drop metadata or protected classes to bypass it.
+This sizing output does not qualify T, owner custody, Kingston K, restore, or erase readiness.
+Synthetic tests are not owner source, Kingston, or RecoveryOS qualification. The
+in-process capability token is an internal API convention, not a security boundary against
+arbitrary code already running in the same process. RecoveryOS Python/runtime and scratch
+availability, owner-role closure, protected custody policy, source cutoff T, and Kingston K remain
+separate gates.
 
 1. Shut down cleanly. Record the Recovery entry path, all pre-Terminal user/authentication/key/UI
    choices, and approximate times without recording credentials. Do not open Disk Utility, unlock
@@ -2004,7 +2023,7 @@ the accepted held view before capture. Unknown or duplicate mappings stop the op
 | `helius_mcp_wrapper` | Private, quarantine/reissue-only | Preserve wrapper bytes opaquely; exclude referenced credentials; no install or execution; rebind verified paths after restore | Wrapper/config/credential boundary cannot be separated without reading secret values |
 | `codex_mcp_config` | Private, quarantine/reissue-only | Preserve opaquely; no automatic install/authentication; user reauthenticates | Any secret/session material cannot be excluded or held opaque |
 | `cursor_mcp_config` | Private, quarantine/reissue-only | Preserve opaquely; no automatic install/authentication; user reauthenticates | Any secret/session material cannot be excluded or held opaque |
-| `verifier_worktree` | Currently absent/unresolved; v5 schema only represents it as `absent_unresolved` | Requires a reviewed versioned policy/schema disposition before capture; tracked code reachability alone does not close ignored/local state | Current v5 policy rejects any other state; capture is blocked until the policy is changed and independently reviewed |
+| `verifier_worktree` | Path absent; tracked code commit is fetchable; historical non-Git state is unknown and unrecoverable from current refs | Sol accepted a versioned split disposition: `source_absent_at_T`, exact published commit, and `historical_non_git_state=unknown_unrecoverable` | This can support only a nonqualifying candidate of other present roots after T, with `root_closure=false`; full recovery requires verified prior custody or explicit owner acceptance of the historical gap |
 
 Protected F01, D43, and reserved-holdout data form an additional custody overlay, not extra semantic
 roles. Their exact roots and lineage must be mapped before capture; allowed handling is opaque
@@ -2017,16 +2036,26 @@ auth stores are exact exclusions; all other exclusions require explicit paths, r
 hardlink-alias closure in the pinned policy.
 
 The latest metadata-only v2 census names its absent ninth entry `research_verifier_worktree`; the
-v1/v5 HeldDataT schema names the required role `verifier_worktree`. Treat this as a schema crosswalk
-that needs an explicit externally pinned path/disposition mapping, not an automatic alias. Sol must
-accept that mapping before the capture command can be assembled.
+v1/v5 HeldDataT schema names the required role `verifier_worktree`. Sol accepted this only as an
+explicit two-part versioned crosswalk: recheck the source path at the eventual T, record it as
+absent only if it is still absent, pin the fetchable commit
+`f330999930afdb29485b89908fb275736587a815`, and record historical ignored,
+untracked, or uncommitted state as `unknown_unrecoverable`. The current v5 schema does not implement
+this disposition. Any schema change may admit capture of other present roots only as a clearly
+nonqualifying candidate; it must keep root closure and SAFE TO ERASE false. It does not restore or
+prove absence of former non-Git state. Full recovery still requires independently verified prior
+custody of that state or the owner's explicit acceptance that this historical gap is outside the
+recovery obligation.
 
 A live read-only Git worktree listing shows the active checkout and a stale `/private/tmp`
 `brain-senses-v3-verifier` entry whose path is absent and whose gitdir pointer is prunable. Its
 recorded detached commit `f330999930afdb29485b89908fb275736587a815` is contained by published
 branches and the existing DR handoff tags, so its code commit is fetchable. This does not establish
-whether the missing worktree held ignored or uncommitted unique state. Keep `verifier_worktree`
-`absent_unresolved`; do not prune the stale worktree metadata or treat code reachability as closure.
+whether the missing worktree held ignored or uncommitted unique state. Do not prune the stale
+worktree metadata or treat code reachability as closure. Current live macOS reports no APFS
+snapshots for Data, so no current local snapshot source for recovering the missing path was found.
+The saved Recovery transcript contains no `listSnapshots` invocation or result; snapshot history at
+that boot remains unknown.
 
 The v5 policy also carries a static unresolved-hardlink baseline of 6,053 groups under `.git`.
 Current capture policy preserves these as unresolved and cannot claim root closure. The four research
@@ -2048,15 +2077,17 @@ BrainData artifacts already reduce the observed free-space value and must not be
 
 | Symbol | Definition | Current value / rule |
 |---|---|---|
-| `F_now` | Current read-only Kingston availability, UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`, root `9428695af6d4f46c08e1a444cdc66de8` | 213,767,200,768 bytes = 199.086 GiB; baseline only, may change during the user's personal-data transition |
+| `F_now` | Current read-only Kingston availability, UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`, root `9428695af6d4f46c08e1a444cdc66de8` | 213,767,380,992 bytes = 199.086 GiB; baseline only, may change during the user's personal-data transition |
 | `F_after` | Kingston availability after the user confirms second-MacBook verification and separately deletes the temporary PersonalBackup copy | Unknown until that future confirmation; this is the `F` used by the Brain write gate |
 | `B` | Unique included Brain payload bytes for the pinned role policy | Must be computed from accepted held-view inventory before first payload write; no qualified value exists today |
 | `R` | Kingston free-space floor that remains after Brain capture | 50 GiB policy floor; recheck continuously; a smaller tool-internal 8 GiB floor does not override it |
-| `S_K` | v5 production writer's SQLite inventory spool reserve | Written on Kingston itself at `BrainData/host-recovery/tree-capture-v5/spool`; derive a worst-case bound from a qualified held-view count/path model before any large spool or payload write |
-| `S_V` | Verifier SQLite scratch DB reserve | Calculated DB reserve, capped at 32 GiB. Scratch must be a pinned APFS/HFS volume distinct by UUID and `st_dev` from source and target; RecoveryOS `tmpfs` is rejected. A Kingston sibling volume shares one pool and is not an independent failure domain. |
-| `W_V` | Verifier non-DB free-space headroom | 256 MiB required by the current verifier; the sibling-pool policy floor is tracked separately as `R + X` |
-| `X` | Kingston shared-pool allocation/partial-use margin | Must be explicitly bounded in the reviewed operation plan; cannot be assumed zero for a Kingston sibling scratch volume |
-| `M` | Metadata sidecar, candidate/index/manifest/receipt, and bounded incomplete-publication reserve charged by the production writer | Pinned operation-spec value, bounded by the accepted metadata policy and measured held view |
+| `S_K` | v5 SQLite inventory spool cap | Replay the actual capture DB mutation shapes in planner scratch; pin the replayed peak plus its 16 MiB overshoot margin. The eventual capture spool lives on Kingston. |
+| `S_V` | Verifier SQLite scratch DB cap | The current bound v2 mode requires exactly 32 GiB. The capacity planner supports only a shared target pool; external verifier scratch fails closed until its identity and capacity are separately pinned. |
+| `W_V` | Verifier non-DB free-space headroom | Exactly 256 MiB in the current shared-pool mode. |
+| `X` | Shared-pool allocation/partial-use margin | Explicitly pinned in the intent and charged once in the shared-pool equation. |
+| `M` | Metadata sidecar value bytes | Measured by size-only metadata probes under the capture limits; candidate JSON is accounted separately as `J`. |
+| `J` | Candidate JSON bytes | Exact member/payload-index pages, `INDEX`, and `READBACK` from the shared canonical serializers and page split rules. |
+| `A` | Conservative operational allocation reserve | Pinned in intent and must meet the count-derived floor below. This is not a mathematical APFS allocation upper bound. |
 | `G` | Production writer's fixed Kingston free-space floor | 8 GiB in the pinned v5 writer; additional to `R` and unavailable for Brain payload |
 | `Q` | Inert extraction/quarantine capacity for later restore rehearsal | Separate compatible-host destination and scratch; not counted as Kingston payload |
 
@@ -2069,40 +2100,39 @@ observation, not `B` or a capture authorization. Re-reading the receipt-bound, h
 manifest from Kingston this session produced that path-free aggregate; no source payload or protected
 payload was read. The receipt is the [`v2 root-boundary census`](evidence/portability-dr-root-boundary-census-v2-2026-10-15T2239Z.json).
 
-For capacity screening only, the v5 model applied to that entry count and logical-byte aggregate at
-its default 128-character average-path assumption and 50% margin returns `S_K = 9,024,408,576`
-bytes (8.405 GiB), with the default maximum metadata reserve `M = 8,589,934,592` bytes (8 GiB).
-Together with those observed logical bytes, the model's `B + S_K + M` is 44.104 GiB. Adding the
-50 GiB policy floor and the writer's 8 GiB floor gives a historical screening total of 102.104 GiB
-for `B + S_K + M + R + G`. This is not a qualified production estimate: the roster and inclusion
-set are unresolved, logical size is not streamed payload, and hardlink aliases may be counted more
-than once. It is not a capture authorization. Capacity is not modeled against a permanent
-PersonalBackup reserve; use `F_after` only after the user confirms their separate migration and
-deletion steps. This does not authorize deleting, moving, or inspecting any personal data.
+The metadata-only capacity planner now shares the v5 traversal, global hardlink reconciliation,
+SQLite schema, and canonical candidate serializers. It computes `B` from unique included primary
+file logical sizes (sparse files therefore expand to logical size), measures `M` through bounded
+size-only xattr/ACL probes, derives `J` from exact serialization and page splits, and replays the
+capture DB mutation shapes to derive `S_K`. It binds the full source inventory and metadata census
+into a receipt; capture must reopen the same held read-only view and match that inventory before
+the first payload read. Source drift, metadata drift, target-usage drift, or a retained partial
+requires a fresh plan. Production capture is entered only through the bound v2 CLI contract; the
+Python factory rejects direct real-view calls without its bound-plan authority. The source and
+target APFS container UUIDs must differ; the target UUID from the capacity receipt is checked again
+at capture start and at every full boundary.
 
-With external verifier scratch, the Kingston pre-write gate is
-`F_after >= R + G + B + S_K + M`, and external scratch must satisfy `F_V >= S_V + W_V`. With
-scratch on a Kingston sibling APFS volume, use one shared-pool ledger and require
-`F_after >= R + G + B + S_K + M + S_V + W_V + X`. Set the capture writer's pinned
-`payload_reserve_bytes >= R + S_V + W_V + X` to leave the policy floor and verifier capacity
-after candidate writes. The verified CLI derives `X` from that SHA-pinned operation spec and
-checks that its target UUID/root pins match. Bind sibling verification to the exact APFS container
-UUID; at each verifier capacity boundary require
-`F_pool >= R + X + W_V + (S_V - scratch_used)`. At verifier start this reserves the full DB cap;
-as scratch grows, only its unused remainder is added to the retained floor. A preflight-only check
-is insufficient because another allocator could consume the floor during verification. Do not sum
-free-space reports from sibling volumes. `B`, `S_K`, `S_V`, `M`, and `X` must be bounded from the
-accepted held view, candidate format, and APFS operation before capture; `X` covers only APFS
-metadata or partial allocations not already reflected in `F_after` or `M`. No sparse logical size
-substitutes for streamed bytes. Any interrupted candidate is charged at its maximum observed or
-allowed extent and never assumed reclaimed. If the existing v6b candidate is retained, its
-79,892,899 bytes are already reflected in `F_after` and are not subtracted twice. The final
-worksheet records actual `F_after`, R, G, B, `S_K`, `S_V`, `W_V`, M, X, the APFS container UUID,
-verifier `F_V` when external, the user's transition confirmation, and revalidation observations.
-No personal-data capacity is reserved for Brain after the confirmed transition. The current
-`F_now` is not the post-transition measurement. No final Brain requirement is asserted until B,
-`S_K`, and M are measured from the accepted held source and role policy. If the worksheet does not
-fit, stop before spool/payload capture; do not lower R or write a partial set to Kingston.
+`N_new` is the exact planned number of candidate regular files/directories, the spool child and DB,
+and any missing capture parent directories; transient verifier/probe objects are charged to `S_V`,
+not counted in `N_new`. The selected `A` must satisfy the versioned operational
+floor `A_min = 8 GiB + 32 KiB * N_new + ceil(0.10 * (B + M + J + S_K))`. This is a conservative
+operational reserve, not a mathematical APFS bound. A positive disposable allocation study is
+still required before real Kingston capture. Capacity credit during capture uses durable allocated
+blocks only; if allocation attribution is uncertain, the full relevant reserve remains held.
+
+The pinned shared-target-pool pre-write gate is
+`F_after >= B + M + J + S_K + R + G + A + S_V + W_V + X`, with `S_V = 32 GiB` and
+`W_V = 256 MiB`. The writer separately rechecks remaining planned output, unused `S_K` cap, and
+the fixed floors throughout capture. Both in-capture verifier passes use the shared-pool guard:
+after each verifier DB commit and fsync, measured allocated blocks may release only the matching
+portion of the pinned `S_V` cap; the remainder and `W_V` stay reserved. Existing `U` is an
+informational, identity-bound observation:
+it is already reflected in live `F` and must not be subtracted a second time. The old path-count
+screening estimate above is historical only; it is not this bound. No personal-data capacity is
+reserved for Brain after the confirmed PersonalBackup transition. The current `F_now` is not the
+post-transition measurement. The intent/receipt/capture-spec chain does not authorize a write by
+itself; the operator must review the receipt and final capture pins. If the worksheet does not fit,
+stop before spool/payload capture; do not lower R or write a partial set to Kingston.
 
 Current source-role disposition is:
 

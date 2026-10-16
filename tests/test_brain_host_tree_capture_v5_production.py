@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 import hashlib
 import json
 import os
@@ -11,6 +10,7 @@ import pytest
 
 import memecoin_research_storage as storage
 from memecoin_research_storage import StorageGuard
+from tools import brain_host_tree_capture_v5 as capture_module
 from tools import brain_host_tree_capture_v5_production as production_module
 from tools.brain_host_held_data_t_v1 import DarwinDataOS, HeldDataT
 from tools.brain_host_tree_capture_v5 import (
@@ -24,7 +24,10 @@ from tools.brain_host_tree_capture_v5_production import (
     PinnedScratchV5,
     ProductionCaptureV5CLIError,
     ProductionCaptureV5Error,
+    _assert_container_pins,
     _assert_writer_source_separation,
+    _capacity_intent_fields,
+    _capacity_receipt_fields,
     _capture_failure,
     _capture_summary,
     _load_capture_policies,
@@ -32,6 +35,7 @@ from tools.brain_host_tree_capture_v5_production import (
     _read_private_capture_spec,
     _require_real_held_view,
     _required_boundary_callback,
+    _validate_bound_capture_bundle,
     _validate_pins,
     _validate_scratch_devices,
     _verify_scratch_required_free_bytes,
@@ -68,7 +72,17 @@ def test_required_boundary_callback_forwards_reserve_to_full_check(
     )
     callback(1234)
     assert observed == [
-        (view, guard, writer, "11111111-2222-3333-4444-555555555555", "a" * 32, 17, 1234)
+        (
+            view,
+            guard,
+            writer,
+            "11111111-2222-3333-4444-555555555555",
+            "a" * 32,
+            17,
+            1234,
+            None,
+            None,
+        )
     ]
     with pytest.raises(ProductionCaptureV5Error, match="production_reserve_value_invalid"):
         callback(-1)
@@ -101,6 +115,37 @@ def test_production_factory_rejects_synthetic_view_before_storage_open(
             scratch_reserve_bytes=1,
         ):
             pytest.fail("synthetic source cannot enter the production context")
+
+
+def test_production_factory_rejects_direct_real_view_without_bound_v2_cli_authority(
+    tmp_path: Path,
+) -> None:
+    view = SimpleNamespace(synthetic=False)
+    with pytest.raises(
+        ProductionCaptureV5Error,
+        match="production_bound_v2_cli_authority_required",
+    ):
+        with production_capture_v5(
+            view,
+            tmp_path / "not-opened.json",
+            expected_plan_sha256="a" * 64,
+            expected_policy_roster_sha256="b" * 64,
+            expected_target_volume_uuid="11111111-2222-3333-4444-555555555555",
+            expected_target_root_id="c" * 32,
+            role_policies={},
+            scratch_reserve_bytes=1,
+        ):
+            pytest.fail("direct API caller must not enter the v2 capture path")
+
+
+def test_source_target_container_alias_and_target_pin_drift_fail_closed() -> None:
+    source = "11111111-2222-3333-4444-555555555555"
+    target = "66666666-7777-8888-9999-aaaaaaaaaaaa"
+    _assert_container_pins(source, target, target)
+    with pytest.raises(ProductionCaptureV5Error, match="source_target_container_alias"):
+        _assert_container_pins(source, source)
+    with pytest.raises(ProductionCaptureV5Error, match="target_container_binding_changed"):
+        _assert_container_pins(source, target, source)
 
 
 def _inert_cli_synthetic_args() -> list[str]:
@@ -1171,6 +1216,60 @@ def test_capacity_plan_cli_success_is_sizing_only(
     assert '"erase_ready":false' in output
 
 
+def test_capture_tree_usage_is_read_only_descriptor_bound_and_never_double_counted(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "BrainData"
+    tree = root / production_module.CAPTURE_TREE_RELATIVE
+    candidate = tree / "candidates" / ("a" * 32) / "payload"
+    spool = tree / "spool"
+    candidate.mkdir(parents=True, mode=0o700)
+    spool.mkdir(parents=True, mode=0o700)
+    (candidate / "page.bin").write_bytes(b"candidate payload bytes")
+    with (spool / "inventory.sqlite").open("wb") as stream:
+        stream.write(b"sqlite scratch bytes")
+    for directory in [
+        root,
+        root / "host-recovery",
+        tree,
+        *[path for path in tree.rglob("*") if path.is_dir()],
+    ]:
+        directory.chmod(0o700)
+    root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        observed = production_module._capture_tree_usage_v5(root_fd)
+        assert observed["allocated_bytes"] > 0
+        assert observed["entry_count"] == 4
+        assert observed["area_present"] == {"candidates": True, "spool": True}
+        assert observed["already_reflected_in_available_bytes"] is True
+        assert "page.bin" not in repr(observed)
+    finally:
+        os.close(root_fd)
+
+
+def test_capture_tree_usage_fails_closed_on_symlink_entries(tmp_path: Path) -> None:
+    root = tmp_path / "BrainData"
+    candidate = root / production_module.CAPTURE_TREE_RELATIVE / "candidates"
+    candidate.mkdir(parents=True, mode=0o700)
+    (candidate / "candidate-link").symlink_to(tmp_path)
+    root.chmod(0o700)
+    for directory in (
+        root / "host-recovery",
+        root / "host-recovery" / "tree-capture-v5",
+        candidate,
+    ):
+        directory.chmod(0o700)
+    root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        with pytest.raises(
+            ProductionCaptureV5CLIError,
+            match="capacity_plan_target_tree_entry_invalid",
+        ):
+            production_module._capture_tree_usage_v5(root_fd)
+    finally:
+        os.close(root_fd)
+
+
 def test_capture_result_is_provenance_bound_and_never_authorizes_activation() -> None:
     result = _capture_summary(
         {
@@ -1246,153 +1345,24 @@ def test_verify_cli_does_not_echo_arbitrary_exception_text(
     assert str(tmp_path) not in error
 
 
-def test_capture_cli_reports_partial_candidate_as_unaccepted_and_path_free(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
+def test_capture_cli_rejects_legacy_unqualified_spec_before_any_capture(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    from tools.brain_host_held_data_t_v1 import (
-        ApprovedDataPlan,
-        RootDeclaration,
-        approved_data_plan_sha256,
-    )
-    from tools.brain_host_tree_capture_v5 import policy_roster_sha256_v5
-
-    source_uuid = "11111111-2222-3333-4444-555555555555"
-    target_uuid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
-    declarations = {
-        role: (
-            RootDeclaration(True, "root", "directory", None)
-            if role == "owner_checkout"
-            else RootDeclaration(False, None, None, f"absent_{role}")
-        )
-        for role in REQUIRED_ROOT_ROLES
-    }
-    plan = ApprovedDataPlan(
-        "synthetic-cli-partial-failure",
-        source_uuid,
-        "disk99s1",
-        "disk99",
-        source_uuid,
-        declarations,
-    )
-    plan_document = {
-        "schema": "brain-host-approved-data-plan-v1",
-        "approval_id": plan.approval_id,
-        "data_volume_uuid": plan.data_volume_uuid,
-        "data_device_identifier": plan.data_device_identifier,
-        "data_container_reference": plan.data_container_reference,
-        "data_volume_group_id": plan.data_volume_group_id,
-        "root_roster": {
-            role: {
-                "present": declaration.present,
-                "relative_locator": declaration.relative_locator,
-                "kind": declaration.kind,
-                "unresolved_reason": declaration.unresolved_reason,
-            }
-            for role, declaration in declarations.items()
-        },
-    }
-    plan_path = tmp_path / "plan.json"
-    plan_path.write_text(json.dumps(plan_document), encoding="utf-8")
-    plan_sha = approved_data_plan_sha256(plan)
-
-    policy_path = tmp_path / "policy.json"
-    policy_raw = canonical_json(
-        {
-            "schema": POLICY_SCHEMA,
-            "policy_id": "injected-partial-failure",
-            "version": 1,
-            "rule_set": "owner-work-sensitive-v1",
-            "pem_candidate_dispositions": {},
-            "exact_path_exclusions": {},
-            "symlink_target_dispositions": {},
-            "rebuild_inputs": [],
-        }
-    )
-    policy_path.write_bytes(policy_raw)
-    policy_sha = hashlib.sha256(policy_raw).hexdigest()
-    role_roster = {}
-    digest_rows = []
-    for role in sorted(REQUIRED_ROOT_ROLES):
-        declaration = declarations[role]
-        if declaration.present:
-            role_roster[role] = {
-                "disposition": "present",
-                "policy_path": str(policy_path),
-                "policy_sha256": policy_sha,
-                "scope": "non_protected",
-            }
-            digest_rows.append(
-                {
-                    "role": role,
-                    "present": True,
-                    "scope": "non_protected",
-                    "policy_sha256": policy_sha,
-                }
-            )
-        else:
-            role_roster[role] = {
-                "disposition": "absent_unresolved",
-                "unresolved_reason": declaration.unresolved_reason,
-            }
-            digest_rows.append(
-                {
-                    "role": role,
-                    "present": False,
-                    "disposition": "absent_unresolved",
-                    "unresolved_reason_sha256": hashlib.sha256(
-                        declaration.unresolved_reason.encode()
-                    ).hexdigest(),
-                    "scope": None,
-                    "policy_sha256": None,
-                }
-            )
-    policy_roster_sha = policy_roster_sha256_v5(plan_sha, digest_rows)
-    config_path = tmp_path / "storage.json"
-    config_path.write_text("{}", encoding="utf-8")
     spec_document = {
         "schema": CAPTURE_SPEC_SCHEMA,
         "source_mountpoint": str(tmp_path),
-        "storage_config_path": str(config_path),
-        "target_volume_uuid": target_uuid,
-        "target_root_id": "b" * 32,
+        "storage_config_path": str(tmp_path / "storage.json"),
+        "target_volume_uuid": "11111111-2222-3333-4444-555555555555",
+        "target_root_id": "a" * 32,
         "scratch_reserve_bytes": 1,
         "metadata_reserve_bytes": 0,
         "payload_reserve_bytes": 0,
-        "role_roster": role_roster,
+        "role_roster": {},
     }
-    spec_path = tmp_path / "operation.json"
-    spec_raw = json.dumps(spec_document, sort_keys=True, separators=(",", ":")).encode()
-    spec_sha = _write_private_spec(spec_path, spec_raw)
-
-    class FakeHeldView:
-        def __init__(self, *_args: object, **_kwargs: object) -> None:
-            pass
-
-        def __enter__(self) -> FakeHeldView:
-            return self
-
-        def __exit__(self, *_args: object) -> None:
-            return None
-
-    class FailingSession:
-        def capture_candidate(self) -> dict[str, object]:
-            raise ValueError("secrettoken123")
-
-        def __enter__(self) -> FailingSession:
-            return self
-
-        def __exit__(self, *_args: object) -> None:
-            return None
-
-    @contextlib.contextmanager
-    def fake_factory(*_args: object, **_kwargs: object):
-        assert _kwargs["operation_spec_sha256"] == spec_sha
-        yield FailingSession()
-
-    monkeypatch.setattr(production_module, "HeldDataT", FakeHeldView)
-    monkeypatch.setattr(production_module, "production_capture_v5", fake_factory)
+    spec_path = tmp_path / "legacy-operation.json"
+    spec_sha = _write_private_spec(
+        spec_path, json.dumps(spec_document, sort_keys=True, separators=(",", ":")).encode()
+    )
     code = production_cli_main(
         [
             "capture",
@@ -1401,67 +1371,206 @@ def test_capture_cli_reports_partial_candidate_as_unaccepted_and_path_free(
             "--spec-sha256",
             spec_sha,
             "--plan",
-            str(plan_path),
+            str(tmp_path / "plan.json"),
             "--plan-sha256",
-            plan_sha,
+            "b" * 64,
             "--policy-roster-sha256",
-            policy_roster_sha,
+            "c" * 64,
         ]
     )
     output = capsys.readouterr().out
     assert code == 2
-    assert str(tmp_path) not in output
-    assert '"error":"capture_failed"' in output
-    assert "secrettoken123" not in output
-    assert '"unaccepted_partial_candidate_may_remain":true' in output
+    assert '"error":"capture_bound_v2_required"' in output
     assert '"capture_complete":false' in output
     assert '"activation_permitted":false' in output
 
-    class SuccessfulSession:
-        def capture_candidate(self) -> dict[str, object]:
-            return {
-                "candidate_id": "a" * 32,
-                "index_sha256": "b" * 64,
-                "entry_count": 1,
-                "payload_bytes": 1,
-                "readback_verified": True,
-                "synthetic_fixture_only": False,
-            }
 
-        def __enter__(self) -> SuccessfulSession:
-            return self
+def _valid_capacity_receipt_for_test() -> dict[str, object]:
+    B, M, J, S_K = 100, 50, 80, 100
+    n_new = 8
+    a_min = capture_module.apfs_allocation_reserve_floor_v5(B, M, J, S_K, n_new)
+    S_V = production_module.VERIFY_SCRATCH_DB_RESERVE_BYTES
+    W_V = production_module.VERIFY_SCRATCH_FREE_FLOOR_BYTES
+    X = 0
+    R = 50 * 1024**3
+    G = production_module.PRODUCTION_FREE_SPACE_FLOOR_BYTES
+    required_free = B + M + J + S_K + R + G + a_min + S_V + W_V + X
+    return {
+        "schema": production_module.CAPACITY_RECEIPT_SCHEMA,
+        "intent_spec_sha256": "1" * 64,
+        "plan_sha256": "2" * 64,
+        "policy_roster_sha256": "3" * 64,
+        "source_volume_uuid": "11111111-2222-3333-4444-555555555555",
+        "source_device_identifier": "source-device",
+        "source_container_reference": "source-container",
+        "source_volume_group_id": "source-group",
+        "target_volume_uuid": "66666666-7777-8888-9999-aaaaaaaaaaaa",
+        "target_root_id": "b" * 32,
+        "target_device": 4,
+        "target_container_uuid": "bbbbbbbb-cccc-dddd-eeee-ffffffffffff",
+        "planner_scratch_volume_uuid": "cccccccc-dddd-eeee-ffff-000000000000",
+        "source_inventory_sha256": "4" * 64,
+        "B_payload_logical_bytes": B,
+        "M_metadata_value_bytes": M,
+        "J_candidate_json_bytes": J,
+        "S_K_spool_reserved_bytes": S_K,
+        "A_apfs_allocation_reserve_bytes": a_min,
+        "R_safety_floor_bytes": R,
+        "G_writer_floor_bytes": G,
+        "verifier_mode": "shared_target_pool",
+        "S_V_verifier_scratch_reserve_bytes": S_V,
+        "W_V_verifier_headroom_bytes": W_V,
+        "X_shared_pool_margin_bytes": X,
+        "N_new_candidate_regular_file_count": 2,
+        "N_new_candidate_directory_count": 3,
+        "N_new_missing_capture_parent_directory_count": 1,
+        "N_new_spool_child_and_db_count": 2,
+        "A_formula_version": capture_module.APFS_ALLOCATION_FORMULA_VERSION,
+        "A_new_entry_count_N_new": n_new,
+        "A_min_operational_reserve_bytes": a_min,
+        "personal_backup_transition_confirmed": True,
+        "personal_backup_transition_receipt_sha256": "5" * 64,
+        "U_prior_target_usage_bytes": 0,
+        "U_prior_target_usage_entries": 0,
+        "U_observation_sha256": "6" * 64,
+        "U_disposition": "informational_already_reflected_in_F",
+        "F_live_available_bytes": required_free,
+        "required_new_free_bytes": required_free,
+        "capacity_gate_satisfied": True,
+        "metadata_reserve_bytes": M,
+        "target_spool_reserve_bytes": S_K,
+    }
 
-        def __exit__(self, *_args: object) -> None:
-            return None
 
-    @contextlib.contextmanager
-    def exit_failing_factory(*_args: object, **_kwargs: object):
-        assert _kwargs["operation_spec_sha256"] == spec_sha
-        yield SuccessfulSession()
-        raise ValueError("private teardown detail")
+def test_capacity_receipt_rejects_underreserved_shared_verifier() -> None:
+    receipt = _valid_capacity_receipt_for_test()
+    receipt["S_V_verifier_scratch_reserve_bytes"] = 1
+    with pytest.raises(ProductionCaptureV5CLIError, match="capacity_receipt_budget_invalid"):
+        _capacity_receipt_fields(receipt)
 
-    monkeypatch.setattr(production_module, "production_capture_v5", exit_failing_factory)
-    code = production_cli_main(
-        [
-            "capture",
-            "--spec",
-            str(spec_path),
-            "--spec-sha256",
-            spec_sha,
-            "--plan",
-            str(plan_path),
-            "--plan-sha256",
-            plan_sha,
-            "--policy-roster-sha256",
-            policy_roster_sha,
-        ]
+
+def test_capacity_intent_fails_closed_for_unpinned_external_verifier() -> None:
+    receipt = _valid_capacity_receipt_for_test()
+    intent = {
+        "schema": production_module.CAPACITY_INTENT_SCHEMA,
+        "source_mountpoint": "/held-data",
+        "storage_config_path": "/target/storage.json",
+        "target_volume_uuid": receipt["target_volume_uuid"],
+        "target_root_id": receipt["target_root_id"],
+        "role_roster": {},
+        "A_formula_version": capture_module.APFS_ALLOCATION_FORMULA_VERSION,
+        "R_safety_floor_bytes": receipt["R_safety_floor_bytes"],
+        "G_writer_floor_bytes": receipt["G_writer_floor_bytes"],
+        "A_apfs_allocation_reserve_bytes": receipt["A_apfs_allocation_reserve_bytes"],
+        "verifier_mode": "external",
+        "S_V_verifier_scratch_reserve_bytes": 123,
+        "W_V_verifier_headroom_bytes": 456,
+        "X_shared_pool_margin_bytes": 0,
+        "personal_backup_transition_confirmed": True,
+        "personal_backup_transition_receipt_sha256": receipt[
+            "personal_backup_transition_receipt_sha256"
+        ],
+        "metadata_reserve_bytes": receipt["metadata_reserve_bytes"],
+        "target_spool_reserve_bytes": receipt["target_spool_reserve_bytes"],
+    }
+    with pytest.raises(
+        ProductionCaptureV5CLIError,
+        match="capacity_spec_external_verifier_identity_unbound",
+    ):
+        _capacity_intent_fields(intent)
+
+
+def test_capacity_receipt_rejects_equation_or_forged_gate() -> None:
+    receipt = _valid_capacity_receipt_for_test()
+    receipt["required_new_free_bytes"] = int(receipt["required_new_free_bytes"]) - 1
+    with pytest.raises(
+        ProductionCaptureV5CLIError, match="capacity_receipt_equation_or_gate_invalid"
+    ):
+        _capacity_receipt_fields(receipt)
+
+    receipt = _valid_capacity_receipt_for_test()
+    receipt["F_live_available_bytes"] = 0
+    with pytest.raises(
+        ProductionCaptureV5CLIError, match="capacity_receipt_equation_or_gate_invalid"
+    ):
+        _capacity_receipt_fields(receipt)
+
+
+def test_capacity_receipt_rejects_forged_n_new_breakdown() -> None:
+    receipt = _valid_capacity_receipt_for_test()
+    receipt["N_new_candidate_directory_count"] = int(receipt["N_new_candidate_directory_count"]) + 1
+    with pytest.raises(ProductionCaptureV5CLIError, match="capacity_receipt_budget_invalid"):
+        _capacity_receipt_fields(receipt)
+
+
+def test_capacity_receipt_requires_selected_apfs_reserve_at_computed_floor() -> None:
+    receipt = _valid_capacity_receipt_for_test()
+    receipt["A_apfs_allocation_reserve_bytes"] = int(receipt["A_apfs_allocation_reserve_bytes"]) - 1
+    with pytest.raises(
+        ProductionCaptureV5CLIError, match="capacity_receipt_apfs_reserve_below_floor"
+    ):
+        _capacity_receipt_fields(receipt)
+
+
+def test_bound_capacity_bundle_rejects_intent_receipt_and_capture_spec_drift() -> None:
+    receipt = _valid_capacity_receipt_for_test()
+    intent_sha = str(receipt["intent_spec_sha256"])
+    receipt_sha = "7" * 64
+    intent: dict[str, object] = {
+        "schema": production_module.CAPACITY_INTENT_SCHEMA,
+        "source_mountpoint": "/held-data",
+        "storage_config_path": "/target/storage.json",
+        "target_volume_uuid": receipt["target_volume_uuid"],
+        "target_root_id": receipt["target_root_id"],
+        "role_roster": {},
+        "A_formula_version": capture_module.APFS_ALLOCATION_FORMULA_VERSION,
+        "R_safety_floor_bytes": receipt["R_safety_floor_bytes"],
+        "G_writer_floor_bytes": receipt["G_writer_floor_bytes"],
+        "A_apfs_allocation_reserve_bytes": receipt["A_apfs_allocation_reserve_bytes"],
+        "verifier_mode": "shared_target_pool",
+        "S_V_verifier_scratch_reserve_bytes": receipt["S_V_verifier_scratch_reserve_bytes"],
+        "W_V_verifier_headroom_bytes": receipt["W_V_verifier_headroom_bytes"],
+        "X_shared_pool_margin_bytes": receipt["X_shared_pool_margin_bytes"],
+        "personal_backup_transition_confirmed": True,
+        "personal_backup_transition_receipt_sha256": receipt[
+            "personal_backup_transition_receipt_sha256"
+        ],
+        "metadata_reserve_bytes": receipt["metadata_reserve_bytes"],
+        "target_spool_reserve_bytes": receipt["target_spool_reserve_bytes"],
+    }
+    capture_spec: dict[str, object] = {
+        **intent,
+        "schema": production_module.BOUND_CAPTURE_SPEC_SCHEMA,
+        "intent_spec_sha256": intent_sha,
+        "capacity_receipt_sha256": receipt_sha,
+        "source_inventory_sha256": receipt["source_inventory_sha256"],
+        "B_payload_logical_bytes": receipt["B_payload_logical_bytes"],
+        "M_metadata_value_bytes": receipt["M_metadata_value_bytes"],
+        "J_candidate_json_bytes": receipt["J_candidate_json_bytes"],
+        "S_K_spool_reserved_bytes": receipt["S_K_spool_reserved_bytes"],
+        "U_prior_target_usage_bytes": receipt["U_prior_target_usage_bytes"],
+        "U_prior_target_usage_entries": receipt["U_prior_target_usage_entries"],
+        "U_observation_sha256": receipt["U_observation_sha256"],
+        "U_disposition": receipt["U_disposition"],
+        "capacity_observed_free_bytes_F": receipt["F_live_available_bytes"],
+    }
+    args = {
+        "intent_sha256": intent_sha,
+        "receipt_sha256": receipt_sha,
+        "expected_plan_sha256": str(receipt["plan_sha256"]),
+        "expected_policy_roster_sha256": str(receipt["policy_roster_sha256"]),
+    }
+    assert (
+        _validate_bound_capture_bundle(capture_spec, intent, receipt, **args)
+        == receipt["source_inventory_sha256"]
     )
-    output = capsys.readouterr().out
-    assert code == 2
-    assert str(tmp_path) not in output
-    assert '"error":"capture_failed"' in output
-    assert "private teardown detail" not in output
-    assert '"unaccepted_partial_candidate_may_remain":true' in output
+
+    drifted_spec = dict(capture_spec)
+    drifted_spec["X_shared_pool_margin_bytes"] = 1
+    drifted_intent = dict(intent)
+    drifted_intent["X_shared_pool_margin_bytes"] = 1
+    with pytest.raises(ProductionCaptureV5CLIError, match="capacity_receipt_intent_mismatch"):
+        _validate_bound_capture_bundle(drifted_spec, drifted_intent, receipt, **args)
 
 
 def test_production_verifier_rejects_unbound_writer_before_scratch_use(tmp_path: Path) -> None:
