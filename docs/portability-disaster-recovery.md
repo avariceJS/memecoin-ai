@@ -6,7 +6,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-16 00:04 UTC.** The accepted recovery scope is loss or erasure of the
+**NO-GO for factory reset as of 2026-10-16 00:07 UTC.** The accepted recovery scope is loss or erasure of the
 owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
 reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -20,6 +20,10 @@ verifier role remained unresolved. This validates only the mounted-view identity
 mechanism: it does not qualify owner Data T, source cutoff, capture, Kingston K, restore, root
 closure, or erase readiness. Sol accepted this bounded scope. See the
 [`HeldDataT APFS CLI receipt`](evidence/portability-dr-held-data-t-apfs-cli-2026-10-16T0004Z.json).
+The exact published commit was then fetched into a new clean checkout; isolated Python environment,
+dependency check, project smoke, and CLI help passed. This was still the current Mac and authentication
+context, with no Brain state restored. See the
+[`clean-clone bootstrap receipt`](evidence/portability-dr-clean-clone-held-data-cli-bootstrap-2026-10-16T0007Z.json).
 
 Live checks on the current Mac:
 
