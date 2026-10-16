@@ -95,6 +95,17 @@ def test_rejects_symlink_root_and_unsafe_relative_path(tmp_path):
             custody._component(value, protected=True)
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="Darwin xattr call contract")
+def test_darwin_lists_symlink_xattr_names_without_following_target(tmp_path):
+    target = tmp_path / "target"
+    target.write_bytes(b"payload is not read")
+    link = tmp_path / "link"
+    link.symlink_to(target)
+    names = custody._list_xattrs(link, is_link=True)
+    assert isinstance(names, list)
+    assert all(isinstance(name, bytes) for name in names)
+
+
 def _dummy_writer(tmp_path: Path) -> DescriptorWriter:
     root = tmp_path / "archive-dummy"
     root.mkdir(mode=0o700)

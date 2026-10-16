@@ -86,6 +86,10 @@ documents. Unique JSON receipts and figures remain unchanged.
 - Population facts, coverage work plans, diversity gates and exposure: `src/memecoin_population/`;
   owned by `brain-source-architecture.md` and `training-evaluation.md`.
 - Paper/operator: `src/memecoin_paper/`, `src/memecoin_operator/`.
+- Host recovery and metadata-only root qualification: `tools/brain_host_recovery.py`,
+  `tools/brain_host_restore_flow_v1.py`, and
+  `tools/brain_host_root_metadata_classes_v1.py`; canonical policy is in
+  [`portability-disaster-recovery.md`](portability-disaster-recovery.md).
 - Profiles: `python3 tools/agent_context.py --task operator|data|ml|architecture|review|docs`;
   add `--query 'terms'` for bounded snippets from that task's canonical sources.
 

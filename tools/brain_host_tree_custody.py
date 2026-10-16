@@ -313,7 +313,11 @@ def _list_xattrs_fd(fd: int) -> list[bytes]:
 def _list_xattrs(path: bytes | str, *, is_link: bool) -> list[bytes]:
     """Use the platform xattr syscall directly; Python builds may omit os.listxattr."""
     libc = ctypes.CDLL(None, use_errno=True)
-    function_name = "llistxattr" if is_link else "listxattr"
+    # Darwin exposes no `llistxattr`; its `listxattr` takes XATTR_NOFOLLOW.
+    # Linux keeps the separate `llistxattr` entry point.
+    function_name = (
+        "listxattr" if sys.platform == "darwin" else "llistxattr" if is_link else "listxattr"
+    )
     function = getattr(libc, function_name, None)
     if function is None:
         raise TreeCustodyError("xattr_detection_unavailable")
@@ -323,7 +327,7 @@ def _list_xattrs(path: bytes | str, *, is_link: bool) -> list[bytes]:
         function.restype = ctypes.c_ssize_t
 
         def call(buffer, size):
-            return function(encoded, buffer, size, 0)
+            return function(encoded, buffer, size, 0x0001 if is_link else 0)
     else:
         function.argtypes = [ctypes.c_char_p, ctypes.c_void_p, ctypes.c_size_t]
         function.restype = ctypes.c_ssize_t

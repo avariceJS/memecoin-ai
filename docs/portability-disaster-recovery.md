@@ -6,7 +6,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-16 03:18 UTC.** The accepted recovery scope is loss or erasure of the
+**NO-GO for factory reset as of 2026-10-16 03:50 UTC.** The accepted recovery scope is loss or erasure of the
 owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
 reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -80,6 +80,50 @@ final readiness, or erase authority is established. Sol noted that the displayed
 a `shasum | cut` pipeline without `pipefail`; this is informational rather than an acceptance gate.
 If it is empty, rerun `shasum` directly before a later restore-flow check. See the v3 qualification
 receipt in the evidence index.
+
+The first metadata-class census traversed eight declared-present roots and recorded stable per-object
+descriptor metadata, but its `acl_absent` label did not distinguish a no-ACL result from ambiguous
+ACL API errors. Sol review required a narrower statement. The final scan reopens each declared root
+endpoint at completion, including the parent directory and leaf of file roots. Its Darwin symlink
+xattr fixture resolves to a distinct external target with a different xattr, and the scan observes
+only the link's xattr name. The scan fails closed on ACL results outside the API's accepted no-result
+errors (`ENOENT` or `ENOATTR`). Across 819,547 entries it records only the aggregate no-result class,
+not each entry's errno; disposable file, directory, and symlink fixtures observed `ENOENT`. This is
+probe evidence, not a universal claim about ACL semantics. The path-free aggregate includes
+`com.apple.provenance` (273,672), `com.apple.macl` (995),
+`com.apple.FinderInfo` (67), and one backup exclusion marker; `UF_HIDDEN` was present on 67 entries.
+The research checkout has 6,053 regular-file hardlink groups whose aliases were not all observed
+within that root. The live Data volume remained read/write and changed by one observed entry between
+scans; neither scan establishes a common source point or T. See the initial
+[`metadata-class census`](evidence/portability-dr-root-metadata-classes-2026-10-16T0340Z.json),
+the superseded intermediate [`metadata-probe correction`](evidence/portability-dr-root-metadata-classes-2026-10-16T0350Z.json)
+(its file-root parent check and link-target fixture were incomplete),
+and final [`root-endpoint and metadata-probe census`](evidence/portability-dr-root-metadata-classes-2026-10-16T0352Z.json).
+Sol independently accepted the final receipt as a live read/write metadata-class interval inventory
+only; endpoint observations do not establish continuous custody, ownership authorization, T, K, or
+erase readiness. The exact scanner and test hashes must be published with this receipt.
+
+The Darwin symlink xattr-name probe was corrected from an unavailable `llistxattr` symbol to
+`listxattr` with `XATTR_NOFOLLOW`, and a real macOS symlink probe now passes. Published
+`brain_host_restore_flow_v1` remains unchanged: its eight directory roles are not the current
+nine-role HeldDataT roster, which includes three file roles. Sol requires a versioned v2 handoff and
+negative-only assessor with an explicit type-aware crosswalk; `owner_work` and `research_work` must
+not be mapped automatically, and the MCP files stay quarantine-only/reissue. Current candidate sets
+cannot authorize restore. The next implementation focus is a real descriptor-bound capture and inert
+extract path that handles unique ignored state, symlink and hardlink disposition, xattr/ACL/flag
+policy, and database consistency. Restore readiness and SAFE TO ERASE remain NO-GO.
+
+Sol's review narrows the hardlink question without closing it: all 6,053 unobserved research
+hardlink groups fall under `.git` in the pinned metadata census, while the exact checkout HEAD is
+reachable from a live published branch. That proves the checked-out commit can be fetched again
+after Git reauthentication; it does not prove local refs, reflogs/stashes, unreachable objects,
+config/hooks, alternates, index state, or linked-worktree administration are disposable. Keep the
+research `.git` directory opaque, separate, and backup-required until its required local state is
+inventory-pinned or explicitly declared rebuildable. A future held-view capture may copy observed
+`.git` files and preserve aliases wholly within the captured unit while recording unobserved aliases;
+it must not claim topology or root closure. Xattr values must be captured privately and bound to
+the byte manifest, but remain unapplied during inert extraction until each metadata class has a
+qualified policy.
 
 Live checks on the current Mac:
 
