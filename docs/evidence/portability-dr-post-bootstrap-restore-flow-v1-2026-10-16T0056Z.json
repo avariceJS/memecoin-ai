@@ -1,7 +1,8 @@
 {
   "schema": "brain-portability-post-bootstrap-restore-flow-v1",
-  "observed_at_utc": "2026-10-16T00:54:00Z",
+  "observed_at_utc": "2026-10-16T00:56:00Z",
   "source_commit": "75f580b2741ed34dff47c7ec567a53388979c503",
+  "post_rehearsal_error_reporting_fix_commit": "3d56dd3153e56548bc6191d45cf24d4923678f36",
   "sol_review": {
     "reviewed_commit": "f24de81417bd13800eb89b527c2c8d79a8be25f8",
     "accepted_scope": "missing-set blocked path only",
@@ -24,7 +25,8 @@
   "focused_verification": {
     "ruff_check_touched_files": "passed",
     "ruff_format_touched_files": "passed",
-    "restore_flow_and_related_recovery_tests": "54 passed",
+    "restore_flow_and_related_recovery_tests": "56 passed",
+    "missing checkout/Kingston entry card probes": "named blockers, no traceback",
     "json_receipt_parse": "passed",
     "git_diff_check": "passed",
     "project_smoke": "passed in primary checkout and fresh clone"

@@ -6,7 +6,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-16 00:54 UTC.** The accepted recovery scope is loss or erasure of the
+**NO-GO for factory reset as of 2026-10-16 00:56 UTC.** The accepted recovery scope is loss or erasure of the
 owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
 reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -785,7 +785,8 @@ remains labeled same-host.
 Before creating local run records, the flow reopens the run parent without following symlinks,
 compares its device/inode with inspection, checks that it remains outside Kingston and every
 declared source root, and revalidates the host-only Kingston binding. An unsafe run parent produces
-no records. A safe run parent may retain a blocked record (for example, `set_missing`); this does
+no records. Missing entry cards and Kingston binding failures return named blockers rather than raw
+tracebacks. A safe run parent may retain a blocked record (for example, `set_missing`); this does
 not create a quarantine or write a Kingston restore witness. Before extraction the flow rechecks
 the empty target parent's device/inode and isolation. It persists the conductor result create-only,
 reloads that saved result through the assessor's strict handoff loader, and requires set, identity,
@@ -805,7 +806,7 @@ local request/inspection/blocked records, and confirmed the target remained empt
 witness at the pinned IDs. The handoff was self-generated and is not a trust anchor; this verifies
 operator-facing rejection behavior only. Sol accepted the implementation for this blocked path, not
 positive extraction. See the
-[`post-bootstrap restore-flow receipt`](evidence/portability-dr-post-bootstrap-restore-flow-v1-2026-10-16T0054Z.json).
+[`post-bootstrap restore-flow receipt`](evidence/portability-dr-post-bootstrap-restore-flow-v1-2026-10-16T0056Z.json).
 
 Operator order for a later accepted handoff:
 
