@@ -305,6 +305,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   bootstraps exact pushed `128a251` with the locked dependencies and smoke, then passes the focused
   33-test suite, production CLI help, and pinned RO-target verification from the clone. It remains
   same-Mac synthetic reproduction and does not establish replacement-host restore.
+- [`Portability and DR v5 production CLI clean-clone rehearsal`](portability-dr-v5-production-cli-clean-clone-2026-10-16T0630Z.json):
+  bootstraps exact pushed `326949c`, passes smoke and 41 focused tests, performs a pinned capture
+  from a disposable read-only APFS source, and independently verifies it from the clone against a
+  read-only target using separate APFS scratch. This is same-host synthetic CLI integration, not
+  owner Data T, Kingston K, or replacement-host Brain restore.
 - [`Portability and DR current-code clean clone`](portability-dr-current-code-clean-clone-2026-10-16T0205Z.json):
   clones exact pushed `ce210910`, installs the locked dev environment, passes smoke and the 38 focused
   DR tests. Repository `make check` stops at 107 Ruff findings in untouched project files before

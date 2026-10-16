@@ -757,6 +757,16 @@ verifier against the pinned candidate passed from that clone after reattaching t
 with ownership enabled. This demonstrates published-code reproducibility and current-host verifier
 execution only, not clean-compatible-host Brain restore. See the
 [`v5 production clean-clone receipt`](evidence/portability-dr-v5-production-clean-clone-2026-10-16T0640Z.json).
+
+The next exact pushed commit `326949cfea307611eaae9053a26e41fcbdb1c5d4` passed fresh isolated
+bootstrap/smoke, 41 focused tests, and both CLI help paths. From that clone, the new operator capture
+CLI consumed an externally pinned private spec, plan, and role-policy roster; captured a 3-entry,
+31-byte nonprotected synthetic file from a separate read-only APFS source to a pinned target; and
+passed fresh readback. The target was then reattached read-only with owners enabled, and the clone's
+independent verifier passed with a third APFS scratch volume. All authority fields remain false.
+This qualifies current-host published CLI integration only. No real owner root, Kingston, Recovery
+kit, T/K, restore, or erase evidence is created. See the
+[`v5 production CLI clean-clone receipt`](evidence/portability-dr-v5-production-cli-clean-clone-2026-10-16T0630Z.json).
 The exact pushed commit `435b2241b9a09265b3eb8023afbc0d9e1d0d6ca1` was then cloned into a fresh
 checkout-local virtual environment, installed from `requirements-dev.lock`, and passed the same 21
 focused tests with separate-device synthetic quarantine. The capture and storage modules loaded
