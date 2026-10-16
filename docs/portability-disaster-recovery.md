@@ -105,7 +105,8 @@ integrity checks and retained their manifest hashes. The immutable
 records the source inventory, D43 lineage, incomplete prior attempts, and exact results.
 
 Do the acceptance once, on the second MacBook. Prerequisites: compatible macOS, Python 3.11 or
-newer, GitHub access for this repository and the locked package setup, Kingston mounted at
+newer, non-interactive GitHub access for this repository, and network access for the locked package
+setup; do not type credentials into the captured terminal. Kingston must be mounted at
 `/Volumes/Kingston` with the exact UUID below and case-sensitive APFS, at least 58 GiB free on
 Kingston (50-GiB floor plus 8-GiB operation reserve), and at least 45 GiB free in the Mac2 home
 volume after checkout/setup. The D43 `protected-candidates` directory and pinned candidate directory
@@ -139,6 +140,7 @@ D43="58ec529e5a134817bf179b06922ddcf7"
 D43_SHA="ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6"
 KINGSTON="/Volumes/Kingston"
 Q="$ROOT/quarantine"
+export GIT_TERMINAL_PROMPT=0
 
 expect_json() {
   local expected="$1"
