@@ -123,6 +123,190 @@ class ProductionCaptureV5CLIError(ValueError):
     """Path-free stable operator input or execution failure."""
 
 
+# Exact exception types and literal messages only. Do not classify by prefix,
+# substring, inheritance, or arbitrary exception text: messages may contain paths
+# or candidate-controlled/private bytes. Unknown failures remain deliberately generic.
+_EXTRACT_ERROR_LITERALS = {
+    ProductionCaptureV5CLIError: {
+        "input_pin_invalid": ("arguments_invalid",),
+    },
+    ProductionCaptureV5Error: {
+        "input_pin_invalid": (
+            "target_storage_pin_invalid",
+            "production_extract_external_pin_invalid",
+            "production_verify_cli_pin_invalid",
+        ),
+        "plan_or_storage_pin_mismatch": (
+            "production_extract_source_plan_invalid",
+            "production_extract_source_plan_pin_mismatch",
+            "production_extract_storage_config_invalid",
+            "production_extract_storage_config_pin_mismatch",
+            "target_storage_binding_pin_mismatch",
+            "storage_config_path_not_canonical",
+        ),
+        "target_not_read_only": ("production_extract_target_not_read_only",),
+        "volume_separation_failed": (
+            "production_extract_volume_uuid_alias",
+            "production_extract_scratch_volume_alias",
+            "production_extract_scratch_device_alias",
+            "production_extract_source_storage_device_alias",
+            "scratch_device_separation_invalid",
+        ),
+        "scratch_unavailable": (
+            "production_verify_scratch_capability_invalid",
+            "production_extract_scratch_filesystem_invalid",
+            "production_extract_scratch_volume_unpinned",
+            "production_extract_scratch_usage_invalid",
+            "scratch_path_not_canonical",
+            "scratch_path_component_not_directory",
+            "scratch_path_open_failed",
+            "scratch_directory_private_identity_invalid",
+            "scratch_directory_acl_present",
+            "scratch_volume_uuid_unresolved",
+            "scratch_path_revalidation_failed",
+            "scratch_identity_or_capacity_invalid",
+            "scratch_mountpoint_identity_invalid",
+            "scratch_revalidation_failed",
+            "scratch_filesystem_identity_invalid",
+        ),
+        "destination_unavailable": (
+            "production_extract_destination_identity_invalid",
+            "production_extract_destination_acl_present",
+        ),
+        "capacity_below_reserve": ("production_extract_capacity_below_reserve",),
+        # These known failures do not identify any narrower public category.
+        "extract_inert_failed": (
+            "production_extract_target_acl_present",
+            "production_extract_capacity_request_invalid",
+            "production_extract_mount_identity_invalid",
+            "production_extract_source_mount_unresolved",
+            "production_verify_read_only_candidate_guard_required",
+        ),
+    },
+    capture.TreeCaptureV5Error: {
+        "input_pin_invalid": ("inert_extraction_external_pins_required",),
+        "scratch_unavailable": (
+            "candidate_verify_scratch_unavailable",
+            "candidate_verify_scratch_create_failed",
+            "inert_extraction_scratch_invalid",
+            "inert_extraction_scratch_identity_invalid",
+            "inert_extraction_scratch_database_replaced",
+            "inert_extraction_scratch_limit",
+        ),
+        "destination_unavailable": (
+            "inert_quarantine_parent_invalid",
+            "inert_quarantine_root_replaced",
+            "inert_destination_directory_invalid",
+            "inert_destination_directory_replaced",
+            "inert_destination_directory_acl_present",
+            "inert_destination_write_failed",
+        ),
+        "extract_inert_failed": ("inert_destination_directory_collision",),
+        "candidate_integrity_failed": (
+            "candidate_index_pin_mismatch",
+            "candidate_page_hash_mismatch",
+            "candidate_data_hash_mismatch",
+            "candidate_readback_invalid",
+            "candidate_root_replaced",
+            "candidate_index_changed_after_verify",
+            "inert_member_page_hash_mismatch",
+            "inert_payload_page_invalid",
+            "inert_payload_digest_mismatch",
+            "inert_member_kind_invalid",
+        ),
+        "quarantine_readback_failed": (
+            "inert_readback_member_identity_invalid",
+            "inert_readback_directory_mode_invalid",
+            "inert_readback_directory_replaced",
+            "inert_readback_directory_acl_present",
+            "inert_readback_file_identity_invalid",
+            "inert_readback_file_acl_present",
+            "inert_readback_file_size_changed",
+            "inert_readback_unexpected_link_or_type",
+            "inert_readback_member_missing",
+            "inert_readback_member_unexpected",
+            "inert_readback_content_mismatch",
+            "inert_readback_hardlink_topology_mismatch",
+            "inert_extraction_replaced_during_readback",
+            "inert_extraction_replaced_after_readback",
+        ),
+    },
+    storage.StorageError: {
+        "plan_or_storage_pin_mismatch": (
+            "volume_uuid_mismatch",
+            "root_marker_binding_mismatch",
+            "binding_changed_during_read",
+            "binding_changed_under_lock",
+            "mounted_directory_replaced",
+            "research_root_replaced",
+            "research_root_device_mismatch",
+            "unsafe_root_marker",
+            "root_marker_too_large",
+            "root_marker_changed_during_read",
+        ),
+        "capacity_below_reserve": ("insufficient_free_space",),
+        "destination_unavailable": (
+            "volume_not_writable",
+            "unsafe_writer_lock",
+            "writer_lock_replaced",
+        ),
+        # These guards are shared by candidate and destination. Without a phase
+        # binding their literals cannot safely identify which volume needs repair.
+        "extract_inert_failed": (
+            "volume_not_mounted",
+            "mount_missing",
+            "mountpoint_directory_fallback",
+            "volume_uuid_unavailable",
+            "filesystem_not_case_sensitive_apfs",
+            "filesystem_type_not_apfs",
+            "unsafe_mount_options",
+            "volume_owners_disabled",
+            "research_root_missing",
+            "symlink_root_component",
+            "unsafe_root_ancestor",
+            "unsafe_root_owner_or_mode",
+            "symlink_path_rejected",
+        ),
+    },
+}
+_EXTRACT_NEXT_STEPS = {
+    "input_pin_invalid": "check_external_pins_and_arguments",
+    "plan_or_storage_pin_mismatch": "reconcile_pinned_plan_and_storage",
+    "target_not_read_only": "remount_candidate_volume_read_only",
+    "volume_separation_failed": "choose_distinct_pinned_volumes",
+    "scratch_unavailable": "prepare_private_pinned_scratch",
+    "destination_unavailable": "prepare_private_pinned_destination",
+    "capacity_below_reserve": "provide_capacity_above_reserve",
+    "candidate_integrity_failed": "reverify_candidate_from_trusted_pins",
+    "quarantine_readback_failed": "inspect_unaccepted_quarantine_without_starting",
+    "extract_inert_failed": "inspect_local_failure_without_starting",
+}
+
+
+def _extract_failure(exc: Exception) -> dict[str, Any]:
+    """Return only static public diagnostics, never exception-supplied content."""
+    category = "extract_inert_failed"
+    known_groups = _EXTRACT_ERROR_LITERALS.get(type(exc))
+    if known_groups is not None and len(exc.args) == 1 and type(exc.args[0]) is str:
+        for known_category, literals in known_groups.items():
+            if exc.args[0] in literals:
+                category = known_category
+                break
+    return {
+        "schema": "brain-host-tree-capture-v5-inert-quarantine-result",
+        "ok": False,
+        "error": category,
+        "next_step": _EXTRACT_NEXT_STEPS[category],
+        "quarantine_rehearsal_only": True,
+        "unaccepted_partial_quarantine_may_remain": True,
+        "sqlite_scratch_role": "private_readback_index_only",
+        "start_or_restore_performed": False,
+        "restore_verified": False,
+        "T_qualified": False,
+        "erase_ready": False,
+    }
+
+
 class _OperatorArgumentParser(argparse.ArgumentParser):
     def error(self, _message: str) -> NoReturn:
         raise ProductionCaptureV5CLIError("arguments_invalid") from None
@@ -1511,51 +1695,39 @@ def main(argv: list[str] | None = None) -> int:
     try:
         args = parser.parse_args(argv)
     except ProductionCaptureV5CLIError as exc:
+        command_args = sys.argv[1:] if argv is None else argv
+        if command_args and command_args[0] == "extract-inert":
+            sys.stdout.buffer.write(canonical_json(_extract_failure(exc)))
+            return 2
         sys.stdout.buffer.write(
             canonical_json(_capture_failure(str(exc), partial_candidate_possible=False))
         )
         return 2
     if args.command == "extract-inert":
-        scratch = None
         try:
             scratch = PinnedScratchV5.open(args.scratch_parent)
-            result = extract_production_candidate_inert_v5(
-                args.candidate_id,
-                target_storage_config=args.target_storage_config,
-                expected_target_volume_uuid=args.target_volume_uuid,
-                expected_target_root_id=args.target_root_id,
-                destination_storage_config=args.destination_storage_config,
-                expected_destination_volume_uuid=args.destination_volume_uuid,
-                expected_destination_root_id=args.destination_root_id,
-                scratch=scratch,
-                expected_index_sha256=args.index_sha256,
-                expected_plan_sha256=args.plan_sha256,
-                expected_source_data_volume_uuid=args.source_data_volume_uuid,
-                source_plan_path=args.source_plan,
-            )
+            try:
+                result = extract_production_candidate_inert_v5(
+                    args.candidate_id,
+                    target_storage_config=args.target_storage_config,
+                    expected_target_volume_uuid=args.target_volume_uuid,
+                    expected_target_root_id=args.target_root_id,
+                    destination_storage_config=args.destination_storage_config,
+                    expected_destination_volume_uuid=args.destination_volume_uuid,
+                    expected_destination_root_id=args.destination_root_id,
+                    scratch=scratch,
+                    expected_index_sha256=args.index_sha256,
+                    expected_plan_sha256=args.plan_sha256,
+                    expected_source_data_volume_uuid=args.source_data_volume_uuid,
+                    source_plan_path=args.source_plan,
+                )
+            finally:
+                scratch.close()
             sys.stdout.buffer.write(canonical_json(result))
             return 0
-        except Exception:
-            sys.stdout.buffer.write(
-                canonical_json(
-                    {
-                        "schema": "brain-host-tree-capture-v5-inert-quarantine-result",
-                        "ok": False,
-                        "error": "extract_inert_failed",
-                        "quarantine_rehearsal_only": True,
-                        "unaccepted_partial_quarantine_may_remain": True,
-                        "sqlite_scratch_role": "private_readback_index_only",
-                        "start_or_restore_performed": False,
-                        "restore_verified": False,
-                        "T_qualified": False,
-                        "erase_ready": False,
-                    }
-                )
-            )
+        except Exception as exc:
+            sys.stdout.buffer.write(canonical_json(_extract_failure(exc)))
             return 2
-        finally:
-            if scratch is not None:
-                scratch.close()
     if args.command == "capture":
         try:
             result = _capture_from_pinned_spec(

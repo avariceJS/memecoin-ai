@@ -102,6 +102,25 @@ def test_production_factory_rejects_synthetic_view_before_storage_open(
             pytest.fail("synthetic source cannot enter the production context")
 
 
+def _inert_cli_synthetic_args() -> list[str]:
+    args = ["extract-inert", "a" * 32]
+    for name in (
+        "index-sha256",
+        "plan-sha256",
+        "source-data-volume-uuid",
+        "source-plan",
+        "target-storage-config",
+        "target-volume-uuid",
+        "target-root-id",
+        "destination-storage-config",
+        "destination-volume-uuid",
+        "destination-root-id",
+        "scratch-parent",
+    ):
+        args.extend([f"--{name}", "secret-token"])
+    return args
+
+
 @pytest.mark.parametrize(
     ("volume_uuid", "root_id"),
     [
@@ -305,6 +324,8 @@ def test_extract_inert_cli_reports_unaccepted_partial_quarantine_state(
     assert result == 2
     output = capsys.readouterr().out
     payload = json.loads(output)
+    assert payload["error"] == "extract_inert_failed"
+    assert payload["next_step"] == "inspect_local_failure_without_starting"
     assert payload["ok"] is False
     assert payload["quarantine_rehearsal_only"] is True
     assert payload["unaccepted_partial_quarantine_may_remain"] is True
@@ -313,6 +334,235 @@ def test_extract_inert_cli_reports_unaccepted_partial_quarantine_state(
     assert payload["T_qualified"] is False
     assert payload["erase_ready"] is False
     assert "secrettoken123" not in output
+
+
+@pytest.mark.parametrize(
+    ("failure", "category", "next_step"),
+    [
+        (
+            ProductionCaptureV5Error("target_storage_pin_invalid"),
+            "input_pin_invalid",
+            "check_external_pins_and_arguments",
+        ),
+        (
+            ProductionCaptureV5Error("production_extract_source_plan_pin_mismatch"),
+            "plan_or_storage_pin_mismatch",
+            "reconcile_pinned_plan_and_storage",
+        ),
+        (
+            ProductionCaptureV5Error("production_extract_target_not_read_only"),
+            "target_not_read_only",
+            "remount_candidate_volume_read_only",
+        ),
+        (
+            ProductionCaptureV5Error("production_extract_volume_uuid_alias"),
+            "volume_separation_failed",
+            "choose_distinct_pinned_volumes",
+        ),
+        (
+            ProductionCaptureV5Error("scratch_path_open_failed"),
+            "scratch_unavailable",
+            "prepare_private_pinned_scratch",
+        ),
+        (
+            TreeCaptureV5Error("inert_destination_directory_invalid"),
+            "destination_unavailable",
+            "prepare_private_pinned_destination",
+        ),
+        (
+            storage.StorageError("insufficient_free_space"),
+            "capacity_below_reserve",
+            "provide_capacity_above_reserve",
+        ),
+        (
+            TreeCaptureV5Error("candidate_data_hash_mismatch"),
+            "candidate_integrity_failed",
+            "reverify_candidate_from_trusted_pins",
+        ),
+        (
+            TreeCaptureV5Error("inert_readback_content_mismatch"),
+            "quarantine_readback_failed",
+            "inspect_unaccepted_quarantine_without_starting",
+        ),
+        (
+            ProductionCaptureV5Error("production_extract_target_not_read_only secret-token"),
+            "extract_inert_failed",
+            "inspect_local_failure_without_starting",
+        ),
+        (
+            TreeCaptureV5Error("candidate_data_hash_mismatch /private/secret-token"),
+            "extract_inert_failed",
+            "inspect_local_failure_without_starting",
+        ),
+        (
+            ValueError("production_extract_target_not_read_only"),
+            "extract_inert_failed",
+            "inspect_local_failure_without_starting",
+        ),
+        (
+            OSError("/private/secret-token"),
+            "extract_inert_failed",
+            "inspect_local_failure_without_starting",
+        ),
+        (
+            storage.StorageError("volume_not_writable /private/secret-token"),
+            "extract_inert_failed",
+            "inspect_local_failure_without_starting",
+        ),
+    ],
+)
+def test_extract_inert_cli_uses_only_static_safe_diagnostics(
+    failure: Exception,
+    category: str,
+    next_step: str,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    closed = []
+    monkeypatch.setattr(
+        PinnedScratchV5,
+        "open",
+        classmethod(lambda _cls, _path: SimpleNamespace(close=lambda: closed.append(True))),
+    )
+    partial = tmp_path / "unaccepted-partial-quarantine"
+
+    def fail_extraction(*_args: object, **_kwargs: object) -> None:
+        partial.mkdir(mode=0o700)
+        (partial / "unaccepted-bytes").write_bytes(b"synthetic unaccepted payload")
+        raise failure
+
+    monkeypatch.setattr(production_module, "extract_production_candidate_inert_v5", fail_extraction)
+    assert production_cli_main(_inert_cli_synthetic_args()) == 2
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert "secret-token" not in captured.out
+    assert "/private/" not in captured.out
+    payload = json.loads(captured.out)
+    assert payload["error"] == category
+    assert payload["next_step"] == next_step
+    assert payload["unaccepted_partial_quarantine_may_remain"] is True
+    assert payload["start_or_restore_performed"] is False
+    assert payload["restore_verified"] is False
+    assert payload["T_qualified"] is False
+    assert payload["erase_ready"] is False
+    assert closed == [True]
+    assert (partial / "unaccepted-bytes").read_bytes() == b"synthetic unaccepted payload"
+
+
+@pytest.mark.parametrize(
+    ("failure", "category"),
+    [
+        (
+            ProductionCaptureV5Error("production_extract_target_acl_present"),
+            "extract_inert_failed",
+        ),
+        (
+            ProductionCaptureV5Error("production_extract_mount_identity_invalid"),
+            "extract_inert_failed",
+        ),
+        (
+            ProductionCaptureV5Error("production_extract_source_mount_unresolved"),
+            "extract_inert_failed",
+        ),
+        (
+            ProductionCaptureV5Error("production_verify_read_only_candidate_guard_required"),
+            "extract_inert_failed",
+        ),
+        (
+            ProductionCaptureV5Error("production_extract_capacity_request_invalid"),
+            "extract_inert_failed",
+        ),
+        (
+            ProductionCaptureV5Error("production_extract_capacity_below_reserve"),
+            "capacity_below_reserve",
+        ),
+        (
+            ProductionCaptureV5Error("production_extract_scratch_usage_invalid"),
+            "scratch_unavailable",
+        ),
+        (TreeCaptureV5Error("inert_member_kind_invalid"), "candidate_integrity_failed"),
+        (TreeCaptureV5Error("inert_destination_directory_collision"), "extract_inert_failed"),
+        (TreeCaptureV5Error("inert_extraction_scratch_limit"), "scratch_unavailable"),
+        (TreeCaptureV5Error("inert_extraction_scratch_identity_invalid"), "scratch_unavailable"),
+        (storage.StorageError("binding_changed_during_read"), "plan_or_storage_pin_mismatch"),
+        (storage.StorageError("binding_changed_under_lock"), "plan_or_storage_pin_mismatch"),
+        (storage.StorageError("root_marker_binding_mismatch"), "plan_or_storage_pin_mismatch"),
+        (storage.StorageError("mounted_directory_replaced"), "plan_or_storage_pin_mismatch"),
+        (storage.StorageError("volume_not_writable"), "destination_unavailable"),
+        (storage.StorageError("writer_lock_replaced"), "destination_unavailable"),
+        (storage.StorageError("volume_owners_disabled"), "extract_inert_failed"),
+        (storage.StorageError("mount_missing"), "extract_inert_failed"),
+    ],
+)
+def test_extract_inert_guard_diagnostics_preserve_accurate_failure_categories(
+    failure: Exception, category: str
+) -> None:
+    payload = production_module._extract_failure(failure)
+    assert payload["error"] == category
+    assert payload["next_step"] == production_module._EXTRACT_NEXT_STEPS[category]
+    assert payload["unaccepted_partial_quarantine_may_remain"] is True
+    assert payload["start_or_restore_performed"] is False
+
+
+def test_extract_inert_cli_redacts_scratch_close_failure_before_success_output(
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_close() -> None:
+        raise OSError("secret-token /private/member-name")
+
+    monkeypatch.setattr(
+        PinnedScratchV5,
+        "open",
+        classmethod(lambda _cls, _path: SimpleNamespace(close=fail_close)),
+    )
+    monkeypatch.setattr(
+        production_module,
+        "extract_production_candidate_inert_v5",
+        lambda *_args, **_kwargs: {"ok": True},
+    )
+    assert production_cli_main(_inert_cli_synthetic_args()) == 2
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert "secret-token" not in captured.out
+    assert "/private/member-name" not in captured.out
+    payload = json.loads(captured.out)
+    assert payload["error"] == "extract_inert_failed"
+    assert payload["ok"] is False
+    assert payload["unaccepted_partial_quarantine_may_remain"] is True
+
+
+def test_extract_inert_cli_argument_failure_is_static_and_inert(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert production_cli_main(["extract-inert", "/private/secret-token"]) == 2
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert "secret-token" not in captured.out
+    payload = json.loads(captured.out)
+    assert payload["error"] == "input_pin_invalid"
+    assert payload["unaccepted_partial_quarantine_may_remain"] is True
+    assert payload["start_or_restore_performed"] is False
+
+
+def test_extract_inert_diagnostics_reject_subclasses_and_nonliteral_arguments() -> None:
+    class UntrustedError(ProductionCaptureV5Error):
+        def __str__(self) -> str:
+            raise AssertionError("must not format exception")
+
+    class UntrustedString(str):
+        def __eq__(self, other: object) -> bool:
+            raise AssertionError("must not compare untrusted message objects")
+
+    for failure in (
+        UntrustedError("production_extract_target_not_read_only"),
+        ProductionCaptureV5Error(UntrustedString("production_extract_target_not_read_only")),
+        ProductionCaptureV5Error("production_extract_target_not_read_only", "secret-token"),
+    ):
+        payload = production_module._extract_failure(failure)
+        assert payload["error"] == "extract_inert_failed"
+        assert "secret-token" not in json.dumps(payload)
 
 
 def test_scratch_capability_pins_no_follow_path_and_rejects_source_alias(
