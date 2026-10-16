@@ -301,6 +301,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   target capture/readback, independent read-only target verification with third-volume APFS scratch,
   and 819,557-entry production inventory replay. It is synthetic current-host evidence only; no
   30-GB capture, RecoveryOS, Kingston K, owner T/root closure, restore, or erase readiness is proved.
+- [`Portability and DR v5 production clean-clone rehearsal`](portability-dr-v5-production-clean-clone-2026-10-16T0640Z.json):
+  bootstraps exact pushed `128a251` with the locked dependencies and smoke, then passes the focused
+  33-test suite, production CLI help, and pinned RO-target verification from the clone. It remains
+  same-Mac synthetic reproduction and does not establish replacement-host restore.
 - [`Portability and DR current-code clean clone`](portability-dr-current-code-clean-clone-2026-10-16T0205Z.json):
   clones exact pushed `ce210910`, installs the locked dev environment, passes smoke and the 38 focused
   DR tests. Repository `make check` stops at 107 Ruff findings in untouched project files before

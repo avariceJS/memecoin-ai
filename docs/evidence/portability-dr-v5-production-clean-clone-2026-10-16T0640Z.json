@@ -1,0 +1,49 @@
+{
+  "schema": "portability-dr-v5-production-clean-clone",
+  "recorded_at_utc": "2026-10-16T06:40:00Z",
+  "remote": "https://github.com/avariceJS/memecoin-ai.git",
+  "commit": "128a25143770ec6e53f2aa7ce4c7f17e1f9ae0b7",
+  "destination": "/private/tmp/brain-dr-clean-clone-128a251",
+  "bootstrap": {
+    "state": "complete",
+    "python_version": "3.13.6",
+    "dependency_lock_sha256": "13a38c32b3c3ea4af3dc0da61be93ce1a5f5437aeb95b8039f1c31053bb7c7e5",
+    "isolated_temporary_home": true,
+    "pip_cache": "disabled",
+    "persistent_git_configuration_changed": false,
+    "services_changed": false,
+    "storage_changed": false,
+    "smoke": "passed"
+  },
+  "checks": {
+    "production_cli_help": "passed",
+    "production_verify_cli_help": "passed",
+    "focused_v5_tests": {
+      "passed": 33,
+      "failed": 0,
+      "quarantine_volume": "disposable synthetic APFS target mounted writable"
+    },
+    "ruff": "passed",
+    "ruff_format_check": "passed"
+  },
+  "independent_read_only_verify_from_clean_clone": {
+    "candidate_id": "0358c14b5a463202ae0d0577afed61fe",
+    "candidate_index_sha256": "99b527573d8fc8c84ef8f5153a54f6d4afafc19b012b7d6bb6590b972fb0bea5",
+    "plan_sha256": "c3428aaff3f74ef93e1d92d89acaae61f158016f32791df3bae825bf126f4d18",
+    "target_volume_uuid": "70a0032e-0414-428d-a01b-c77f95899692",
+    "target_root_id": "7e494792047b8ef090aea2dcad05e84c",
+    "source_volume_uuid_pin": "15105a35-d260-4e15-bf65-ff6ebcb31bfd",
+    "target_read_only_with_owners_enabled": true,
+    "scratch": "separate internal APFS volume",
+    "member_count": 10,
+    "source_status": "source_not_present_or_not_attested",
+    "result": "pass"
+  },
+  "environment_correction": "The first focused-suite invocation occurred while the disposable target was read-only and one quarantine fixture could not create its temporary directory. The target was remounted writable, the suite passed 33/33, then it was reattached read-only with owners enabled and independent verification passed.",
+  "limitations": [
+    "Same owner Mac and same macOS host; no replacement-host restore is proved.",
+    "Candidate is synthetic and was produced before the clean clone from identical published source hashes.",
+    "No Kingston write, real owner Data source, RecoveryOS execution, T/K, owner root closure, Brain restore, or erase qualification."
+  ],
+  "safe_to_erase": false
+}

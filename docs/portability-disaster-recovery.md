@@ -744,6 +744,13 @@ This is not a full 30-GB stream/readback or an operator capture command. Recover
 tmpfs scratch remain unqualified. A post-write failure can leave an unaccepted candidate and creates
 no COMPLETE or authority state. The factory does not qualify a real owner source T, Kingston K,
 owner/protected closure, restore, activation, or erase readiness. These gates remain NO-GO.
+The exact pushed factory commit `128a25143770ec6e53f2aa7ce4c7f17e1f9ae0b7` was bootstrapped into a
+new checkout with a temporary isolated environment, checked lock, and smoke. Its focused 33-test
+suite passed against a writable disposable quarantine volume. The production CLI help and independent
+verifier against the pinned candidate passed from that clone after reattaching the target read-only
+with ownership enabled. This demonstrates published-code reproducibility and current-host verifier
+execution only, not clean-compatible-host Brain restore. See the
+[`v5 production clean-clone receipt`](evidence/portability-dr-v5-production-clean-clone-2026-10-16T0640Z.json).
 The exact pushed commit `435b2241b9a09265b3eb8023afbc0d9e1d0d6ca1` was then cloned into a fresh
 checkout-local virtual environment, installed from `requirements-dev.lock`, and passed the same 21
 focused tests with separate-device synthetic quarantine. The capture and storage modules loaded
