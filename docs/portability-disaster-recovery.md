@@ -779,17 +779,18 @@ read-only candidate and extracts payload bytes into a new mode-0700 quarantine o
 bound writable APFS volume, using separately pinned scratch. It preserves hardlink topology, omits
 symlinks, applies no source metadata, never opens extracted databases or code, and performs no
 restore or start. Sol approved the bounded implementation after final review; 46 focused tests pass.
-The first production-boundary `extract-inert` CLI E2E passed against a tiny synthetic candidate.
-An owner-enabled disposable APFS image was attached with `hdiutil attach -owners on`, keeping
-the storage guard intact and avoiding admin credentials; the earlier 06:51 environment blocker
-receipt remains a truthful point-in-time record and is superseded by the later successful
-[same-host APFS extraction E2E receipt](evidence/portability-dr-v5-inert-extraction-apfs-e2e-2026-10-16T0700Z.json).
-The external index, plan, source, target, destination, and scratch pins were checked, and the CLI
-reported readback success. A separate fresh-process check then matched the exact included
-membership and payload bytes against the candidate member page: one 31-byte file, exact SHA-256,
-no symlinks, excluded subtree absent, and quarantine/file modes 0700/0600. Source and candidate
-target remained mounted read-only; the disposable destination was owner-enabled APFS with its
-pinned volume UUID and root marker.
+The production-boundary `extract-inert` CLI E2E passed against a tiny synthetic candidate. An
+owner-enabled disposable APFS image was attached with `hdiutil attach -owners on`, keeping the
+storage guard intact and avoiding admin credentials. The initial 07:00 receipt contained a
+source/scratch UUID labeling contradiction and is explicitly superseded; use only the
+[corrected same-host APFS extraction E2E receipt](evidence/portability-dr-v5-inert-extraction-apfs-e2e-correction-2026-10-16T0703Z.json).
+The correction records a fresh exact-commit CLI run: the source plan pin is the synthetic source
+volume UUID `15105a35-…`, while scratch is on the host Data volume `430740ca-…`; target and
+destination UUIDs are distinct from both. The CLI checked all pins and reported readback success.
+A separate fresh-process check matched exact included membership and payload bytes against the
+candidate member page: one 31-byte file, exact SHA-256, no symlinks, excluded subtree absent, and
+quarantine/file modes 0700/0600. Source and candidate target remained mounted read-only; the
+disposable destination was owner-enabled APFS with its pinned volume UUID and root marker.
 
 This is deliberately limited evidence: same Mac and same filesystem image rehearsal, three
 candidate entries with only 31 payload bytes, and no clean-compatible-host reconstruction. It
