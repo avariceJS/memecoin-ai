@@ -1783,7 +1783,7 @@ A local-only operator staging helper, `tools/brain_host_recovery_stage_v1.sh` (S
 deposited archive, manifest, source ZIP, runtime, and Data UUID internally. On this compatible
 macOS host it staged that archive from a separate read-only APFS transport volume to a distinct
 writable APFS scratch volume; checked every manifested runtime member and source member; ran only
-the three inert `--help` entry points from a neutral directory with an empty environment; and
+the three inert `--help` entry points from a neutral directory with an allowlisted environment; and
 revalidated the staged members, mount identities, read-only/writable flags, scratch device, and
 remaining reserve before reporting completion. The rehearsal preserved a 256 MiB scratch reserve.
 An impossible near-`2^63` reserve was rejected before creating a stage. Negative identity checks
