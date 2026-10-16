@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import hashlib
+import json
 import os
 import re
 import stat
@@ -13,7 +15,7 @@ import time
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 if __package__ in {None, ""}:
     _REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -23,8 +25,10 @@ if __package__ in {None, ""}:
 import memecoin_research_storage as storage
 from memecoin_research_storage import ReadOnlyStorageGuard, StorageConfig, StorageGuard
 from tools import brain_host_tree_capture_v5 as capture
+from tools.brain_host_held_data_t_cli_v1 import _load_plan
 from tools.brain_host_held_data_t_v1 import (
     REQUIRED_ROOT_ROLES,
+    ApprovedDataPlan,
     DarwinDataOS,
     HeldDataT,
     approved_data_plan_sha256,
@@ -32,6 +36,76 @@ from tools.brain_host_held_data_t_v1 import (
 from tools.brain_senses_external_writer_v1 import DescriptorWriter, canonical_json, sha256
 
 SCHEMA = "brain-host-tree-capture-v5-production-session"
+CAPTURE_SPEC_SCHEMA = "brain-host-tree-capture-v5-operation-spec-v1"
+MAX_CAPTURE_SPEC_BYTES = 128 * 1024
+_CAPTURE_PUBLIC_ERRORS = frozenset(
+    {
+        "arguments_invalid",
+        "capture_absent_role_fields_invalid",
+        "capture_absent_role_reason_mismatch",
+        "capture_failed",
+        "capture_json_duplicate_key",
+        "capture_json_nonstandard_constant",
+        "capture_metadata_reserve_invalid",
+        "capture_payload_reserve_invalid",
+        "capture_plan_invalid",
+        "capture_plan_pin_mismatch",
+        "capture_plan_root_roster_invalid",
+        "capture_plan_sha256_invalid",
+        "capture_policy_path_invalid",
+        "capture_policy_pin_mismatch",
+        "capture_policy_roster_pin_mismatch",
+        "capture_policy_roster_sha256_invalid",
+        "capture_policy_sha256_invalid",
+        "capture_present_role_disposition_invalid",
+        "capture_present_role_fields_invalid",
+        "capture_role_declaration_invalid",
+        "capture_role_roster_invalid",
+        "capture_role_scope_invalid",
+        "capture_scratch_reserve_invalid",
+        "capture_source_mountpoint_invalid",
+        "capture_source_target_volume_alias",
+        "capture_spec_json_invalid",
+        "capture_spec_path_invalid",
+        "capture_spec_private_file_invalid",
+        "capture_spec_read_failed",
+        "capture_spec_schema_fields_invalid",
+        "capture_spec_schema_invalid",
+        "capture_spec_sha256_invalid",
+        "capture_spec_sha256_mismatch",
+        "capture_spec_size_changed",
+        "capture_storage_config_path_invalid",
+        "capture_target_storage_pin_invalid",
+    }
+)
+_VERIFY_PUBLIC_ERRORS = frozenset(
+    {
+        "independent_verify_scratch_volume_uuid_pin_required",
+        "production_verify_candidate_target_not_read_only",
+        "production_verify_cli_pin_invalid",
+        "production_verify_plan_pin_invalid",
+        "production_verify_read_only_candidate_guard_required",
+        "production_verify_scratch_capability_invalid",
+        "production_verify_scratch_usage_invalid",
+        "scratch_device_separation_invalid",
+        "scratch_directory_acl_present",
+        "scratch_directory_private_identity_invalid",
+        "scratch_filesystem_identity_invalid",
+        "scratch_identity_or_capacity_invalid",
+        "scratch_mountpoint_identity_invalid",
+        "scratch_path_component_not_directory",
+        "scratch_path_not_canonical",
+        "scratch_path_open_failed",
+        "scratch_path_revalidation_failed",
+        "scratch_revalidation_failed",
+        "scratch_volume_uuid_unresolved",
+        "storage_config_path_not_canonical",
+        "target_storage_binding_pin_mismatch",
+        "target_storage_pin_invalid",
+        "verify_scratch_source_volume_alias",
+        "verify_scratch_target_volume_alias",
+    }
+)
 PRODUCTION_FREE_SPACE_FLOOR_BYTES = 8 * 1024**3
 VERIFY_SCRATCH_DB_RESERVE_BYTES = capture.MAX_SCRATCH_BYTES
 VERIFY_SCRATCH_FREE_FLOOR_BYTES = 256 * 1024**2
@@ -41,6 +115,261 @@ _ROOT_ID = re.compile(r"[0-9a-f]{32}\Z")
 
 class ProductionCaptureV5Error(ValueError):
     """Fail-closed source/storage binding errors for the v5 production gate."""
+
+
+class ProductionCaptureV5CLIError(ValueError):
+    """Path-free stable operator input or execution failure."""
+
+
+class _OperatorArgumentParser(argparse.ArgumentParser):
+    def error(self, _message: str) -> NoReturn:
+        raise ProductionCaptureV5CLIError("arguments_invalid") from None
+
+
+def _json_no_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ProductionCaptureV5CLIError("capture_json_duplicate_key")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(_value: str) -> None:
+    raise ProductionCaptureV5CLIError("capture_json_nonstandard_constant")
+
+
+def _read_private_capture_spec(path: Path, expected_sha256: str) -> dict[str, Any]:
+    if not _valid_sha256(expected_sha256):
+        raise ProductionCaptureV5CLIError("capture_spec_sha256_invalid")
+    try:
+        canonical = _canonical_config_path(path)
+        fd = os.open(canonical, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except Exception as exc:
+        raise ProductionCaptureV5CLIError("capture_spec_path_invalid") from exc
+    try:
+        metadata = os.fstat(fd)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != os.getuid()
+            or stat.S_IMODE(metadata.st_mode) != 0o600
+            or metadata.st_nlink != 1
+            or not 0 < metadata.st_size <= MAX_CAPTURE_SPEC_BYTES
+        ):
+            raise ProductionCaptureV5CLIError("capture_spec_private_file_invalid")
+        raw = bytearray()
+        while len(raw) <= MAX_CAPTURE_SPEC_BYTES:
+            chunk = os.read(fd, min(8192, MAX_CAPTURE_SPEC_BYTES + 1 - len(raw)))
+            if not chunk:
+                break
+            raw.extend(chunk)
+        if len(raw) != metadata.st_size or len(raw) > MAX_CAPTURE_SPEC_BYTES:
+            raise ProductionCaptureV5CLIError("capture_spec_size_changed")
+        if hashlib.sha256(raw).hexdigest() != expected_sha256:
+            raise ProductionCaptureV5CLIError("capture_spec_sha256_mismatch")
+    except ProductionCaptureV5CLIError:
+        raise
+    except OSError as exc:
+        raise ProductionCaptureV5CLIError("capture_spec_read_failed") from exc
+    finally:
+        os.close(fd)
+    try:
+        document = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_json_no_duplicate_pairs,
+            parse_constant=_reject_json_constant,
+        )
+    except ProductionCaptureV5CLIError:
+        raise
+    except (UnicodeDecodeError, ValueError, RecursionError) as exc:
+        raise ProductionCaptureV5CLIError("capture_spec_json_invalid") from exc
+    if not isinstance(document, dict):
+        raise ProductionCaptureV5CLIError("capture_spec_schema_invalid")
+    return document
+
+
+def _require_canonical_directory(value: object, error: str) -> Path:
+    if not isinstance(value, str) or not value:
+        raise ProductionCaptureV5CLIError(error)
+    path = Path(value)
+    try:
+        if (
+            not path.is_absolute()
+            or ".." in path.parts
+            or Path(os.path.normpath(path)) != path
+            or path.resolve(strict=True) != path
+            or not stat.S_ISDIR(path.lstat().st_mode)
+        ):
+            raise ProductionCaptureV5CLIError(error)
+    except ProductionCaptureV5CLIError:
+        raise
+    except OSError as exc:
+        raise ProductionCaptureV5CLIError(error) from exc
+    return path
+
+
+def _require_sha256(value: object, error: str) -> str:
+    if not _valid_sha256(value):
+        raise ProductionCaptureV5CLIError(error)
+    return str(value)
+
+
+def _capture_spec_fields(spec: Mapping[str, Any]) -> None:
+    expected = {
+        "schema",
+        "source_mountpoint",
+        "storage_config_path",
+        "target_volume_uuid",
+        "target_root_id",
+        "scratch_reserve_bytes",
+        "metadata_reserve_bytes",
+        "payload_reserve_bytes",
+        "role_roster",
+    }
+    if set(spec) != expected or spec.get("schema") != CAPTURE_SPEC_SCHEMA:
+        raise ProductionCaptureV5CLIError("capture_spec_schema_fields_invalid")
+
+
+def _load_capture_policies(
+    spec: Mapping[str, Any], plan: ApprovedDataPlan, plan_sha256: str
+) -> tuple[dict[str, capture.RoleCapturePolicy], str]:
+    roster = spec.get("role_roster")
+    if not isinstance(roster, dict) or set(roster) != REQUIRED_ROOT_ROLES:
+        raise ProductionCaptureV5CLIError("capture_role_roster_invalid")
+    policies: dict[str, capture.RoleCapturePolicy] = {}
+    digest_rows: list[Mapping[str, Any]] = []
+    for role in sorted(REQUIRED_ROOT_ROLES):
+        row = roster[role]
+        declaration = plan.root_roster[role]
+        if not isinstance(row, dict):
+            raise ProductionCaptureV5CLIError("capture_role_declaration_invalid")
+        if declaration.present:
+            if set(row) != {"disposition", "policy_path", "policy_sha256", "scope"}:
+                raise ProductionCaptureV5CLIError("capture_present_role_fields_invalid")
+            if row.get("disposition") != "present":
+                raise ProductionCaptureV5CLIError("capture_present_role_disposition_invalid")
+            scope = row.get("scope")
+            if scope not in {"non_protected", "protected_opaque"}:
+                raise ProductionCaptureV5CLIError("capture_role_scope_invalid")
+            policy_path_value = row.get("policy_path")
+            if not isinstance(policy_path_value, str) or not policy_path_value:
+                raise ProductionCaptureV5CLIError("capture_policy_path_invalid")
+            policy_path = Path(policy_path_value)
+            try:
+                if (
+                    not policy_path.is_absolute()
+                    or ".." in policy_path.parts
+                    or Path(os.path.normpath(policy_path)) != policy_path
+                    or policy_path.resolve(strict=True) != policy_path
+                    or not stat.S_ISREG(policy_path.lstat().st_mode)
+                ):
+                    raise ProductionCaptureV5CLIError("capture_policy_path_invalid")
+            except ProductionCaptureV5CLIError:
+                raise
+            except OSError as exc:
+                raise ProductionCaptureV5CLIError("capture_policy_path_invalid") from exc
+            policy_sha = _require_sha256(row.get("policy_sha256"), "capture_policy_sha256_invalid")
+            policy = capture.RoleCapturePolicy(policy_path, policy_sha, scope)
+            try:
+                _value, _raw, actual = capture._validate_policy_pin(policy)
+            except Exception as exc:
+                raise ProductionCaptureV5CLIError("capture_policy_pin_mismatch") from exc
+            if actual != policy_sha:
+                raise ProductionCaptureV5CLIError("capture_policy_pin_mismatch")
+            policies[role] = policy
+            digest_rows.append(
+                {
+                    "role": role,
+                    "present": True,
+                    "scope": scope,
+                    "policy_sha256": policy_sha,
+                }
+            )
+        else:
+            if set(row) != {"disposition", "unresolved_reason"}:
+                raise ProductionCaptureV5CLIError("capture_absent_role_fields_invalid")
+            reason = row.get("unresolved_reason")
+            if (
+                row.get("disposition") != "absent_unresolved"
+                or not isinstance(reason, str)
+                or reason != declaration.unresolved_reason
+            ):
+                raise ProductionCaptureV5CLIError("capture_absent_role_reason_mismatch")
+            digest_rows.append(
+                {
+                    "role": role,
+                    "present": False,
+                    "disposition": "absent_unresolved",
+                    "unresolved_reason_sha256": sha256(reason.encode("utf-8")),
+                    "scope": None,
+                    "policy_sha256": None,
+                }
+            )
+    try:
+        digest = capture.policy_roster_sha256_v5(plan_sha256, digest_rows)
+    except Exception as exc:
+        raise ProductionCaptureV5CLIError("capture_role_roster_invalid") from exc
+    return policies, digest
+
+
+def _positive_bounded_int(value: object, *, minimum: int, maximum: int, error: str) -> int:
+    if type(value) is not int or not minimum <= value <= maximum:
+        raise ProductionCaptureV5CLIError(error)
+    return value
+
+
+def _capture_summary(
+    receipt: Mapping[str, Any],
+    *,
+    operation_spec_sha256: str,
+    plan_sha256: str,
+    policy_roster_sha256: str,
+) -> dict[str, Any]:
+    return {
+        "schema": "brain-host-tree-capture-v5-operator-result",
+        "ok": True,
+        "operation_spec_sha256": operation_spec_sha256,
+        "plan_sha256": plan_sha256,
+        "policy_roster_sha256": policy_roster_sha256,
+        "candidate_id": receipt["candidate_id"],
+        "index_sha256": receipt["index_sha256"],
+        "entry_count": receipt["entry_count"],
+        "payload_bytes": receipt["payload_bytes"],
+        "readback_verified": receipt["readback_verified"],
+        "synthetic_fixture_only": receipt["synthetic_fixture_only"],
+        "clean_shutdown_verified": False,
+        "prior_writable_mount_history_verified": False,
+        "source_cutoff_verified": False,
+        "root_closure_verified": False,
+        "protected_closure_verified": False,
+        "T_qualified": False,
+        "capture_complete": False,
+        "kingston_durable": False,
+        "restore_verified": False,
+        "erase_ready": False,
+        "activation_permitted": False,
+    }
+
+
+def _capture_failure(error: str, *, partial_candidate_possible: bool) -> dict[str, Any]:
+    stable = error if error in _CAPTURE_PUBLIC_ERRORS else "capture_failed"
+    return {
+        "schema": "brain-host-tree-capture-v5-operator-result",
+        "ok": False,
+        "error": stable,
+        "unaccepted_partial_candidate_may_remain": partial_candidate_possible,
+        "clean_shutdown_verified": False,
+        "prior_writable_mount_history_verified": False,
+        "source_cutoff_verified": False,
+        "root_closure_verified": False,
+        "protected_closure_verified": False,
+        "T_qualified": False,
+        "capture_complete": False,
+        "kingston_durable": False,
+        "restore_verified": False,
+        "erase_ready": False,
+        "activation_permitted": False,
+    }
 
 
 def _open_absolute_directory_nofollow(path: Path) -> tuple[int, tuple[tuple[int, ...], ...]]:
@@ -798,10 +1127,121 @@ def independent_target_verify(
     return verify_production_candidate_v5(writer, candidate_id, source_view=None, **kwargs)
 
 
+def _capture_from_pinned_spec(
+    *,
+    spec_path: Path,
+    expected_spec_sha256: str,
+    plan_path: Path,
+    expected_plan_sha256: str,
+    expected_policy_roster_sha256: str,
+) -> dict[str, Any]:
+    spec = _read_private_capture_spec(spec_path, expected_spec_sha256)
+    _capture_spec_fields(spec)
+    plan_digest = _require_sha256(expected_plan_sha256, "capture_plan_sha256_invalid")
+    policy_digest = _require_sha256(
+        expected_policy_roster_sha256, "capture_policy_roster_sha256_invalid"
+    )
+    try:
+        canonical_plan_path = _canonical_config_path(plan_path)
+        plan = _load_plan(canonical_plan_path)
+    except ProductionCaptureV5CLIError:
+        raise
+    except Exception as exc:
+        raise ProductionCaptureV5CLIError("capture_plan_invalid") from exc
+    actual_plan_digest = approved_data_plan_sha256(plan)
+    if actual_plan_digest != plan_digest:
+        raise ProductionCaptureV5CLIError("capture_plan_pin_mismatch")
+    if set(plan.root_roster) != REQUIRED_ROOT_ROLES:
+        raise ProductionCaptureV5CLIError("capture_plan_root_roster_invalid")
+
+    source_mountpoint = _require_canonical_directory(
+        spec.get("source_mountpoint"), "capture_source_mountpoint_invalid"
+    )
+    try:
+        storage_config_path = _canonical_config_path(Path(spec["storage_config_path"]))
+    except Exception as exc:
+        raise ProductionCaptureV5CLIError("capture_storage_config_path_invalid") from exc
+    target_uuid_value = spec.get("target_volume_uuid")
+    target_root_id_value = spec.get("target_root_id")
+    if not isinstance(target_uuid_value, str) or not isinstance(target_root_id_value, str):
+        raise ProductionCaptureV5CLIError("capture_target_storage_pin_invalid")
+    try:
+        target_uuid, target_root_id = _validate_pins(target_uuid_value, target_root_id_value)
+    except ProductionCaptureV5Error as exc:
+        raise ProductionCaptureV5CLIError("capture_target_storage_pin_invalid") from exc
+    if plan.data_volume_uuid.lower() == target_uuid:
+        raise ProductionCaptureV5CLIError("capture_source_target_volume_alias")
+    scratch_reserve = _positive_bounded_int(
+        spec.get("scratch_reserve_bytes"),
+        minimum=1,
+        maximum=capture.MAX_SCRATCH_BYTES,
+        error="capture_scratch_reserve_invalid",
+    )
+    metadata_reserve = _positive_bounded_int(
+        spec.get("metadata_reserve_bytes"),
+        minimum=0,
+        maximum=capture.MAX_METADATA_TOTAL_BYTES,
+        error="capture_metadata_reserve_invalid",
+    )
+    payload_reserve = _positive_bounded_int(
+        spec.get("payload_reserve_bytes"),
+        minimum=0,
+        maximum=capture.MAX_SOURCE_BYTES,
+        error="capture_payload_reserve_invalid",
+    )
+    role_policies, actual_policy_digest = _load_capture_policies(spec, plan, plan_digest)
+    if actual_policy_digest != policy_digest:
+        raise ProductionCaptureV5CLIError("capture_policy_roster_pin_mismatch")
+
+    partial_candidate_possible = False
+    try:
+        with HeldDataT(
+            plan,
+            source_mountpoint,
+            trusted_plan_sha256=plan_digest,
+        ) as view:
+            with production_capture_v5(
+                view,
+                storage_config_path,
+                expected_plan_sha256=plan_digest,
+                expected_policy_roster_sha256=policy_digest,
+                expected_target_volume_uuid=target_uuid,
+                expected_target_root_id=target_root_id,
+                role_policies=role_policies,
+                scratch_reserve_bytes=scratch_reserve,
+                metadata_reserve_bytes=metadata_reserve,
+                payload_reserve_bytes=payload_reserve,
+            ) as session:
+                partial_candidate_possible = True
+                receipt = session.capture_candidate()
+                result = _capture_summary(
+                    receipt,
+                    operation_spec_sha256=expected_spec_sha256,
+                    plan_sha256=plan_digest,
+                    policy_roster_sha256=policy_digest,
+                )
+        partial_candidate_possible = False
+        return result
+    except Exception:
+        code = "capture_failed"
+        raise ProductionCaptureV5CLIError(
+            f"{code}|partial={int(partial_candidate_possible)}"
+        ) from None
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Read-only verifier CLI with explicit target pins and scratch capability."""
-    parser = argparse.ArgumentParser(description=__doc__)
+    """Run pinned operator capture or read-only candidate verification."""
+    parser = _OperatorArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
+    operator_capture = subparsers.add_parser(
+        "capture",
+        help="capture an already-mounted read-only Data view into a pinned target",
+    )
+    operator_capture.add_argument("--spec", required=True, type=Path)
+    operator_capture.add_argument("--spec-sha256", required=True)
+    operator_capture.add_argument("--plan", required=True, type=Path)
+    operator_capture.add_argument("--plan-sha256", required=True)
+    operator_capture.add_argument("--policy-roster-sha256", required=True)
     verify = subparsers.add_parser("verify", help="verify one existing candidate read-only")
     verify.add_argument("candidate_id")
     verify.add_argument("--index-sha256", required=True)
@@ -811,9 +1251,36 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument("--plan-sha256", required=True)
     verify.add_argument("--source-data-volume-uuid")
     verify.add_argument("--scratch-parent", required=True, type=Path)
-    args = parser.parse_args(argv)
-    if args.command != "verify":
-        parser.error("unsupported command")
+    try:
+        args = parser.parse_args(argv)
+    except ProductionCaptureV5CLIError as exc:
+        sys.stdout.buffer.write(
+            canonical_json(_capture_failure(str(exc), partial_candidate_possible=False))
+        )
+        return 2
+    if args.command == "capture":
+        try:
+            result = _capture_from_pinned_spec(
+                spec_path=args.spec,
+                expected_spec_sha256=args.spec_sha256,
+                plan_path=args.plan,
+                expected_plan_sha256=args.plan_sha256,
+                expected_policy_roster_sha256=args.policy_roster_sha256,
+            )
+            sys.stdout.buffer.write(canonical_json(result))
+            return 0
+        except ProductionCaptureV5CLIError as exc:
+            message = str(exc)
+            code, _, partial = message.partition("|partial=")
+            sys.stdout.buffer.write(
+                canonical_json(_capture_failure(code, partial_candidate_possible=partial == "1"))
+            )
+            return 2
+        except Exception:
+            sys.stdout.buffer.write(
+                canonical_json(_capture_failure("capture_failed", partial_candidate_possible=False))
+            )
+            return 2
     try:
         _validate_pins(args.target_volume_uuid, args.target_root_id)
         if (
@@ -856,7 +1323,9 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:
         message = str(exc)
         code = (
-            message if message.isascii() and message.replace("_", "").isalnum() else "verify_failed"
+            message
+            if isinstance(exc, ProductionCaptureV5Error) and message in _VERIFY_PUBLIC_ERRORS
+            else "verify_failed"
         )
         sys.stderr.write(f"brain-host-tree-capture-v5 verify failed: {code}\n")
         return 2

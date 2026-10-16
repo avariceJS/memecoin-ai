@@ -740,9 +740,15 @@ stopped before candidate/payload capture. Two smaller scratch-reserve trials fai
 publication. Sol accepted the bounded factory layer; see the
 [`v5 production APFS and scale receipt`](evidence/portability-dr-v5-production-apfs-scale-2026-10-16T0615Z.json).
 
-This is not a full 30-GB stream/readback or an operator capture command. RecoveryOS execution and
-tmpfs scratch remain unqualified. A post-write failure can leave an unaccepted candidate and creates
-no COMPLETE or authority state. The factory does not qualify a real owner source T, Kingston K,
+This is not a full 30-GB stream/readback. A thin operator `capture` CLI now consumes a mode-0600
+externally hash-pinned operation spec plus separately supplied approved-plan and nine-role policy
+roster hashes. It accepts only an already mounted read-only Data view and never mounts, unlocks,
+creates snapshots, changes services, or semantically reads protected payloads. Its path-free result includes
+candidate and input pins while every source-history, closure, T, K, completion, restore, activation,
+and erase flag remains false. A failed capture may leave an unaccepted partial candidate. The CLI is
+not part of the immutable Recovery kit and must not be run on owner Data or Kingston until the
+combined source-view procedure and external role/policy decision are qualified. RecoveryOS execution
+and tmpfs scratch remain unqualified. The factory does not qualify a real owner source T, Kingston K,
 owner/protected closure, restore, activation, or erase readiness. These gates remain NO-GO.
 The exact pushed factory commit `128a25143770ec6e53f2aa7ce4c7f17e1f9ae0b7` was bootstrapped into a
 new checkout with a temporary isolated environment, checked lock, and smoke. Its focused 33-test
