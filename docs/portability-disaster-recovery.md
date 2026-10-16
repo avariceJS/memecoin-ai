@@ -6,7 +6,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-16 01:36 UTC.** The accepted recovery scope is loss or erasure of the
+**NO-GO for factory reset as of 2026-10-16 03:00 UTC.** The accepted recovery scope is loss or erasure of the
 owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
 reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -29,6 +29,26 @@ capture and fresh verification using external plan and manifest pins. Sol accept
 internal integrity claim only; the strict walker cannot traverse the real owner-root roster, so this
 does not qualify owner capture, T/K, Recovery-kit use, restore, or erase readiness. See the
 [`synthetic byte-capture E2E receipt`](evidence/portability-dr-held-data-byte-capture-synthetic-e2e-2026-10-16T0204Z.json).
+A mixed v2 root-set coordinator now binds directory candidates and exact private-file quarantine
+candidates to the same held source view. A fresh-process read-only synthetic APFS-to-Kingston
+rehearsal verified two directory units and three opaque file units; Sol accepted this as a
+synthetic candidate-index milestone only. The operator `capture` CLI wrote the same five-unit
+candidate set to Kingston. Its initial `verify` implementation incorrectly used `writer_guard`, so
+it could create the coordination lock and required writer headroom; that run is candidate integrity
+evidence only, not read-only verifier qualification. A separate read-only storage binding and
+reader-capability now verify the pinned set without taking that lock or imposing a free-space floor.
+A fresh CLI process verified the five-unit set on Kingston; the set index and existing lock file
+metadata were unchanged. Sol accepted this bounded verification interface and its descriptor,
+marker, UUID, and mutator-rejection checks. Verification is still lockless point-in-time artifact
+integrity, not concurrent-writer exclusion, source cutoff, T, Kingston K, or restore. Four declared
+roles remain unresolved, file metadata is omitted, and every T/K/closure/restore/activation/erase
+authority flag remains false. Focused negative tests cover preflight failure, partial capture,
+payload drift, empty-set rejection, readonly/low-space storage binding, mount/root replacement, and
+mutator denial. A pre-index capture failure leaves no set index; a failure after index creation or
+readback may leave an unaccepted candidate index. Receipt:
+[`mixed held-Data root-set rehearsal`](evidence/portability-dr-mixed-held-data-root-set-apfs-kingston-2026-10-16T0300Z.json).
+The read-only verifier's separate CLI receipt records the fresh run and unchanged storage metadata:
+[`read-only root-set verification`](evidence/portability-dr-root-set-readonly-verification-2026-10-16T0313Z.json).
 A fresh clone of the exact pushed `ce210910` installed the locked development environment and passed
 `make smoke`, the 38 focused DR tests, and byte-capture CLI help. Repository-wide `make check` stops
 at its first Ruff stage with 107 diagnostics in untouched files, so its later formatting/type/test
@@ -1161,6 +1181,20 @@ read-only identity/locator check for an already-mounted view. The CLI requires a
 external plan SHA-256, and mountpoint; it does not authenticate approval, assert boot history, unlock,
 mount, capture, or qualify T. Its synthetic APFS rehearsal is receipt-bound above. Kingston K
 remains a separate frontier.
+
+### Mixed held-Data candidate operator CLI
+
+`tools/brain_host_held_data_root_set_v2_cli.py` has two explicit operations: `capture` writes
+quarantine-only candidate units and a set index to the canonical Kingston `BrainData`; `verify`
+reads a pinned set index and all declared units without accessing a source mount. Both require a
+private mode-0600 canonical operation spec and its separately supplied SHA-256. The spec pins the
+approved Data plan, role policy, each directory/file policy, source mountpoint, and host-only
+storage binding. The CLI rejects a different Kingston UUID/root marker and requires at least 50 GiB
+free. Capture never unlocks or mounts Data; the source must already be a verified read-only view.
+Output is bounded JSON with stable error codes and all qualification flags false. The CLI has no
+restore, start, activation, or erase operation. Its synthetic E2E passed; it has not been used with
+owner roots. The accepted synthetic result and its limits are in the
+[`mixed held-Data root-set rehearsal`](evidence/portability-dr-mixed-held-data-root-set-apfs-kingston-2026-10-16T0300Z.json).
 
 A read-only live feasibility check at 00:10Z on 2026-10-16 found the pinned Data volume mounted
 read/write under normal macOS, 46 GiB available (90% used), and no Data snapshots. The bound

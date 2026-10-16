@@ -298,7 +298,10 @@ def _mount_is_plain(path: Path) -> None:
 
 
 def inspect_config(
-    config: StorageConfig, *, min_free_bytes: int | None = None, probe: VolumeProbe | None = None
+    config: StorageConfig,
+    *,
+    min_free_bytes: int | None = None,
+    probe: VolumeProbe | None = None,
 ) -> ResolvedRoot:
     if min_free_bytes is not None:
         _validate_min_free(min_free_bytes)
@@ -324,6 +327,51 @@ def inspect_config(
         config.volume_uuid,
         config.mount_path,
         target,
+        volume.available_bytes,
+        mount_stat.st_dev,
+        mount_stat.st_ino,
+    )
+
+
+def _inspect_readonly_config(
+    config: StorageConfig, *, probe: VolumeProbe | None = None
+) -> ResolvedRoot:
+    """Resolve a marked APFS root without requiring write access or capacity headroom."""
+    _mount_is_plain(config.mount_path)
+    volume = (probe or MacOSVolumeProbe()).inspect(config.mount_path)
+    if not volume.is_mountpoint or volume.mount_path != config.mount_path:
+        raise StorageError("mountpoint_directory_fallback")
+    if not volume.volume_uuid:
+        raise StorageError("volume_uuid_unavailable")
+    if volume.filesystem.lower().strip() != "case-sensitive apfs":
+        raise StorageError("filesystem_not_case_sensitive_apfs")
+    if volume.filesystem_type.lower().strip() != "apfs":
+        raise StorageError("filesystem_type_not_apfs")
+    if "noowners" in volume.mount_options:
+        raise StorageError("volume_owners_disabled")
+    if not volume.owners_enabled:
+        raise StorageError("volume_owners_disabled")
+    if volume.volume_uuid.lower() != config.volume_uuid.lower():
+        raise StorageError("volume_uuid_mismatch")
+
+    mount_fd = _open_directory(config.mount_path)
+    try:
+        mount_stat = os.fstat(mount_fd)
+        root_fd = _open_relative_directory(mount_fd, config.data_root)
+        try:
+            _verify_marker_in_root_fd(root_fd, config)
+            root_stat = os.fstat(root_fd)
+            if root_stat.st_dev != mount_stat.st_dev:
+                raise StorageError("research_root_device_mismatch")
+        finally:
+            os.close(root_fd)
+    finally:
+        os.close(mount_fd)
+    return ResolvedRoot(
+        config.root_id,
+        config.volume_uuid,
+        config.mount_path,
+        config.mount_path.joinpath(*config.data_root.split("/")),
         volume.available_bytes,
         mount_stat.st_dev,
         mount_stat.st_ino,
@@ -694,6 +742,8 @@ def resolve(
 class StorageGuard:
     """A locked root handle that can revalidate immediately before each dispatch."""
 
+    read_only = False
+
     def __init__(
         self,
         config_path: Path,
@@ -900,6 +950,127 @@ class StorageGuard:
             os.close(root_fd)
         self.revalidate()
         return self.root.path.joinpath(*relative_path.split("/"))
+
+
+class ReadOnlyStorageGuard:
+    """Pinned storage root for verification without locks, writes, or free-space floor."""
+
+    read_only = True
+    bootstrap = False
+
+    def __init__(
+        self,
+        config_path: Path,
+        config: StorageConfig,
+        root: ResolvedRoot,
+        mount_fd: int,
+        root_fd: int,
+        probe: VolumeProbe | None,
+    ) -> None:
+        self.config_path = config_path
+        self.config = config
+        self.root = root
+        self.mount_fd = mount_fd
+        self.root_fd = root_fd
+        self.probe = probe
+
+    @property
+    def root_id(self) -> str:
+        return self.root.root_id
+
+    @property
+    def volume_uuid(self) -> str:
+        return self.root.volume_uuid
+
+    @property
+    def mount_path(self) -> Path:
+        return self.root.mount_path
+
+    @property
+    def path(self) -> Path:
+        return self.root.path
+
+    @property
+    def available_bytes(self) -> int:
+        return self.root.available_bytes
+
+    def revalidate(self) -> ResolvedRoot:
+        if StorageConfig.load(self.config_path) != self.config:
+            raise StorageError("binding_changed_during_read")
+        current = _inspect_readonly_config(self.config, probe=self.probe)
+        pinned_mount = os.fstat(self.mount_fd)
+        pinned_root = os.fstat(self.root_fd)
+        current_mount_fd = _open_directory(current.mount_path)
+        try:
+            current_mount = os.fstat(current_mount_fd)
+            if (pinned_mount.st_dev, pinned_mount.st_ino) != (
+                current_mount.st_dev,
+                current_mount.st_ino,
+            ) or (current.mount_device, current.mount_inode) != (
+                current_mount.st_dev,
+                current_mount.st_ino,
+            ):
+                raise StorageError("mounted_directory_replaced")
+            current_root_fd = _open_relative_directory(current_mount_fd, self.config.data_root)
+            try:
+                current_root = os.fstat(current_root_fd)
+                if (pinned_root.st_dev, pinned_root.st_ino) != (
+                    current_root.st_dev,
+                    current_root.st_ino,
+                ):
+                    raise StorageError("research_root_replaced")
+                _verify_marker_in_root_fd(self.root_fd, self.config)
+                _verify_marker_in_root_fd(current_root_fd, self.config)
+            finally:
+                os.close(current_root_fd)
+        finally:
+            os.close(current_mount_fd)
+        self.root = current
+        return current
+
+    def revalidate_identity(self) -> ResolvedRoot:
+        return self.revalidate()
+
+    def forbid_write(self) -> None:
+        raise StorageError("read_only_storage_guard_write_forbidden")
+
+    def close(self) -> None:
+        if self.root_fd >= 0:
+            os.close(self.root_fd)
+            self.root_fd = -1
+        if self.mount_fd >= 0:
+            os.close(self.mount_fd)
+            self.mount_fd = -1
+
+
+@contextlib.contextmanager
+def read_only_guard(
+    config_path: Path,
+    *,
+    probe: VolumeProbe | None = None,
+) -> Iterator[ReadOnlyStorageGuard]:
+    """Hold a read-only verified storage binding without creating a lock or checking headroom."""
+    config = StorageConfig.load(config_path)
+    initial = _inspect_readonly_config(config, probe=probe)
+    mount_fd = _open_directory(initial.mount_path)
+    root_fd = -1
+    guard: ReadOnlyStorageGuard | None = None
+    try:
+        mount_stat = os.fstat(mount_fd)
+        if (mount_stat.st_dev, mount_stat.st_ino) != (initial.mount_device, initial.mount_inode):
+            raise StorageError("mounted_directory_replaced")
+        root_fd = _open_relative_directory(mount_fd, config.data_root)
+        _verify_marker_in_root_fd(root_fd, config)
+        guard = ReadOnlyStorageGuard(config_path, config, initial, mount_fd, root_fd, probe)
+        guard.revalidate()
+        yield guard
+    finally:
+        if guard is not None:
+            guard.close()
+        else:
+            if root_fd >= 0:
+                os.close(root_fd)
+            os.close(mount_fd)
 
 
 @contextlib.contextmanager

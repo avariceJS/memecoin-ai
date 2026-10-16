@@ -127,6 +127,47 @@ def test_create_only_and_atomic_write_are_durable_and_collision_safe(tmp_path: P
         os.close(root_fd)
 
 
+def test_atomic_write_stream_publishes_complete_bytes_and_cleans_partial_failure(
+    tmp_path: Path,
+) -> None:
+    _, root, root_fd = _root(tmp_path)
+    try:
+        with DescriptorWriter(root_fd) as writer:
+            written, digest = writer.atomic_write_stream(
+                "stream/payload.bin", iter((b"first", b"-second")), max_bytes=32
+            )
+            assert written == 12
+            assert digest == "79be082f29fd48f6922ef9e7c161190ba1e076790e82e9fa490b58205b5e9a44"
+            assert writer.read_bytes("stream/payload.bin") == b"first-second"
+
+            callbacks = 0
+
+            def fail_midstream() -> None:
+                nonlocal callbacks
+                callbacks += 1
+                if callbacks == 2:
+                    raise RuntimeError("source view changed")
+
+            with pytest.raises(RuntimeError, match="source view changed"):
+                writer.atomic_write_stream(
+                    "stream/incomplete.bin",
+                    iter((b"prefix", b"suffix")),
+                    max_bytes=32,
+                    before_chunk=fail_midstream,
+                )
+            with pytest.raises(StorageError, match="stream_file_too_large"):
+                writer.atomic_write_stream(
+                    "stream/oversized.bin",
+                    iter((b"012345", b"6789")),
+                    max_bytes=8,
+                )
+            assert not (root / "stream" / "incomplete.bin").exists()
+            assert not (root / "stream" / "oversized.bin").exists()
+            assert sorted(path.name for path in (root / "stream").iterdir()) == ["payload.bin"]
+    finally:
+        os.close(root_fd)
+
+
 def test_capture_writer_persists_payload_and_receipt_with_separate_times(tmp_path: Path) -> None:
     _, _, root_fd = _root(tmp_path)
     capture = Capture(

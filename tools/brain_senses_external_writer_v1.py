@@ -17,11 +17,16 @@ import os
 import secrets
 import stat
 import subprocess
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import PurePosixPath
 from typing import Any
 
-from memecoin_research_storage import StorageError, _open_relative_directory
+from memecoin_research_storage import (
+    ReadOnlyStorageGuard,
+    StorageError,
+    StorageGuard,
+    _open_relative_directory,
+)
 from tools.brain_senses_external_schema_v1 import RECEIPT_SCHEMA
 
 SCHEMA_VERSION = 1
@@ -80,7 +85,12 @@ class DescriptorWriter:
         before_write: Callable[[], None] | None = None,
         fault_hook: Callable[[str], None] | None = None,
         storage_guard: Any | None = None,
+        read_only: bool = False,
     ) -> None:
+        if isinstance(storage_guard, ReadOnlyStorageGuard) and not read_only:
+            raise StorageError("read_only_guard_requires_reader_factory")
+        if read_only and not isinstance(storage_guard, ReadOnlyStorageGuard):
+            raise StorageError("read_only_reader_requires_storage_guard")
         self.root_fd = os.dup(root_fd)
         self._root_stat = os.fstat(self.root_fd)
         if not stat.S_ISDIR(self._root_stat.st_mode):
@@ -93,6 +103,7 @@ class DescriptorWriter:
         self._before_write = before_write
         self._fault_hook = fault_hook
         self.storage_guard = storage_guard
+        self._read_only = read_only
         self.storage_volume_uuid = (
             str(storage_guard.volume_uuid).lower() if storage_guard is not None else None
         )
@@ -102,18 +113,41 @@ class DescriptorWriter:
     @classmethod
     def from_storage_guard(cls, guard: Any) -> DescriptorWriter:
         """Create a writer bound to a previously initialized storage guard."""
-        if getattr(guard, "bootstrap", True):
+        if not isinstance(guard, StorageGuard) or getattr(guard, "read_only", True):
             raise StorageError("bound_writer_requires_initialized_storage_guard")
         guard.revalidate()
         root_fd = _open_relative_directory(guard.mount_fd, guard.config.data_root)
         try:
+
+            def before_write() -> None:
+                guard.revalidate_identity()
+
             writer = cls(
                 root_fd,
-                before_write=lambda: guard.revalidate_identity(),
+                before_write=before_write,
                 storage_guard=guard,
             )
             writer.assert_storage_binding(guard)
             return writer
+        finally:
+            os.close(root_fd)
+
+    @classmethod
+    def read_only_from_storage_guard(cls, guard: ReadOnlyStorageGuard) -> DescriptorWriter:
+        """Create a verification reader whose complete mutation API is disabled."""
+        if not isinstance(guard, ReadOnlyStorageGuard):
+            raise StorageError("bound_reader_requires_read_only_storage_guard")
+        guard.revalidate()
+        root_fd = _open_relative_directory(guard.mount_fd, guard.config.data_root)
+        try:
+            reader = cls(
+                root_fd,
+                before_write=guard.forbid_write,
+                storage_guard=guard,
+                read_only=True,
+            )
+            reader.assert_storage_binding(guard)
+            return reader
         finally:
             os.close(root_fd)
 
@@ -161,6 +195,7 @@ class DescriptorWriter:
 
     def _prewrite(self, operation: str) -> None:
         self._assert_root()
+        self._assert_writable()
         if self._before_write is not None:
             self._before_write()
         if self._fault_hook is not None:
@@ -169,7 +204,13 @@ class DescriptorWriter:
         # authority for the operation that follows.
         self._assert_root()
 
+    def _assert_writable(self) -> None:
+        if self._read_only:
+            raise StorageError("read_only_storage_guard_write_forbidden")
+
     def _directory(self, relative: str, *, create: bool = False) -> int:
+        if create:
+            self._assert_writable()
         parts = _parts(relative, allow_empty=True)
         current = os.dup(self.root_fd)
         try:
@@ -209,6 +250,7 @@ class DescriptorWriter:
         return "/".join(parts[:-1]), parts[-1]
 
     def mkdir(self, relative: str) -> None:
+        self._assert_writable()
         parts = _parts(relative)
         current = os.dup(self.root_fd)
         try:
@@ -345,6 +387,7 @@ class DescriptorWriter:
             os.close(directory_fd)
 
     def create(self, relative: str, payload: bytes, *, mode: int = 0o600) -> None:
+        self._assert_writable()
         if mode != 0o600:
             raise StorageError("external_writer_unsafe_file_mode")
         parent, name = self._parent_and_name(relative)
@@ -369,6 +412,7 @@ class DescriptorWriter:
             os.close(parent_fd)
 
     def atomic_write(self, relative: str, payload: bytes, *, create_only: bool = False) -> None:
+        self._assert_writable()
         parent, name = self._parent_and_name(relative)
         parent_fd = self._directory(parent, create=True)
         temp = f".{name}.{os.getpid()}.{secrets.token_hex(8)}.tmp"
@@ -427,7 +471,91 @@ class DescriptorWriter:
                 pass
             os.close(parent_fd)
 
+    def atomic_write_stream(
+        self,
+        relative: str,
+        chunks: Iterable[bytes],
+        *,
+        max_bytes: int,
+        create_only: bool = True,
+        before_chunk: Callable[[], None] | None = None,
+    ) -> tuple[int, str]:
+        """Atomically persist bounded chunks and return byte count and SHA-256.
+
+        The destination is visible only after a complete fsynced temporary file
+        is linked or renamed into place. ``before_chunk`` lets a caller recheck
+        an independently held source view while a long stream is in progress.
+        """
+        self._assert_writable()
+        if type(max_bytes) is not int or max_bytes < 0:
+            raise StorageError("external_writer_invalid_stream_limit")
+        parent, name = self._parent_and_name(relative)
+        parent_fd = self._directory(parent, create=True)
+        temp = f".{name}.{os.getpid()}.{secrets.token_hex(8)}.tmp"
+        fd = -1
+        total = 0
+        digest = hashlib.sha256()
+        try:
+            if create_only:
+                try:
+                    os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+                except FileNotFoundError:
+                    pass
+                else:
+                    raise StorageError("external_writer_create_only_collision")
+            self._prewrite("atomic_stream_create")
+            fd = os.open(
+                temp,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600,
+                dir_fd=parent_fd,
+            )
+            _private_file(os.fstat(fd), device=self.device)
+            for chunk in chunks:
+                if not isinstance(chunk, bytes):
+                    raise StorageError("external_writer_stream_chunk_not_bytes")
+                if not chunk:
+                    continue
+                total += len(chunk)
+                if total > max_bytes:
+                    raise StorageError("external_writer_stream_file_too_large")
+                self._prewrite("atomic_stream_write")
+                if before_chunk is not None:
+                    before_chunk()
+                _write_all(fd, chunk)
+                digest.update(chunk)
+            os.fchmod(fd, 0o600)
+            _private_file(os.fstat(fd), device=self.device)
+            os.fsync(fd)
+            os.close(fd)
+            fd = -1
+            self._prewrite("atomic_stream_publish")
+            if create_only:
+                os.link(
+                    temp,
+                    name,
+                    src_dir_fd=parent_fd,
+                    dst_dir_fd=parent_fd,
+                    follow_symlinks=False,
+                )
+                os.unlink(temp, dir_fd=parent_fd)
+            else:
+                os.replace(temp, name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+            os.fsync(parent_fd)
+            return total, digest.hexdigest()
+        except FileExistsError as exc:
+            raise StorageError("external_writer_create_only_collision") from exc
+        finally:
+            if fd >= 0:
+                os.close(fd)
+            try:
+                os.unlink(temp, dir_fd=parent_fd)
+            except FileNotFoundError:
+                pass
+            os.close(parent_fd)
+
     def append(self, relative: str, payload: bytes) -> None:
+        self._assert_writable()
         parent, name = self._parent_and_name(relative)
         parent_fd = self._directory(parent, create=True)
         try:
@@ -450,6 +578,7 @@ class DescriptorWriter:
             os.close(parent_fd)
 
     def unlink(self, relative: str, *, missing_ok: bool = False) -> None:
+        self._assert_writable()
         parent, name = self._parent_and_name(relative)
         parent_fd = self._directory(parent)
         try:
@@ -470,6 +599,7 @@ class DescriptorWriter:
 
     @contextlib.contextmanager
     def lock(self, relative: str = ".writer.lock", *, blocking: bool = False) -> Iterator[int]:
+        self._assert_writable()
         parent, name = self._parent_and_name(relative)
         parent_fd = self._directory(parent, create=True)
         try:

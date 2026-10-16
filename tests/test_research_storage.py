@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import stat
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from memecoin_research_storage import (
     bind_existing,
     configure,
     create_root,
+    read_only_guard,
     resolve,
     verify_root,
     writer_guard,
@@ -76,6 +78,126 @@ def test_read_only_resolve_does_not_create_a_probe_file(tmp_path: Path) -> None:
     before = set(mount.iterdir())
     resolve(config_path, probe=FakeProbe(mount))
     assert set(mount.iterdir()) == before
+
+
+def test_read_only_guard_accepts_readonly_low_space_without_creating_lock(tmp_path: Path) -> None:
+    config_path, mount, _ = make_binding(tmp_path, min_free_bytes=100)
+    resolved = create_root(config_path, probe=FakeProbe(mount))
+    lock_path = mount / research_storage.LOCK_NAME
+    lock_path.unlink()
+    before = sorted(path.relative_to(mount).as_posix() for path in mount.rglob("*"))
+    probe = FakeProbe(
+        mount,
+        read_only=True,
+        available_bytes=1,
+        mount_options=("apfs", "local", "ro"),
+    )
+
+    with read_only_guard(config_path, probe=probe) as guard:
+        assert guard.path == resolved.path
+        assert guard.available_bytes == 1
+        assert guard.revalidate().path == resolved.path
+
+    assert not lock_path.exists()
+    assert sorted(path.relative_to(mount).as_posix() for path in mount.rglob("*")) == before
+    assert probe.calls >= 2
+
+
+def test_read_only_guard_fails_closed_on_volume_and_marker_mismatch(tmp_path: Path) -> None:
+    config_path, mount, _ = make_binding(tmp_path)
+    resolved = create_root(config_path, probe=FakeProbe(mount))
+    with pytest.raises(StorageError, match="volume_uuid_mismatch"):
+        with read_only_guard(config_path, probe=FakeProbe(mount, volume_uuid="wrong")):
+            pytest.fail("wrong volume was accepted")
+
+    marker = resolved.path / ROOT_MARKER
+    marker.write_text("{}", encoding="utf-8")
+    marker.chmod(0o600)
+    with pytest.raises(StorageError, match="root_marker_binding_mismatch"):
+        with read_only_guard(config_path, probe=FakeProbe(mount)):
+            pytest.fail("wrong root marker was accepted")
+
+
+def test_read_only_guard_rejects_replaced_root_descriptor(tmp_path: Path) -> None:
+    config_path, mount, _ = make_binding(tmp_path)
+    resolved = create_root(config_path, probe=FakeProbe(mount))
+    with read_only_guard(config_path, probe=FakeProbe(mount)) as guard:
+        displaced = mount / "research" / "old-root"
+        resolved.path.rename(displaced)
+        resolved.path.mkdir(mode=0o700)
+        (resolved.path / ROOT_MARKER).write_bytes((displaced / ROOT_MARKER).read_bytes())
+        (resolved.path / ROOT_MARKER).chmod(0o600)
+        with pytest.raises(StorageError, match="research_root_replaced"):
+            guard.revalidate()
+
+
+def test_read_only_guard_rejects_mountpoint_substitution(tmp_path: Path) -> None:
+    config_path, mount, _ = make_binding(tmp_path)
+    create_root(config_path, probe=FakeProbe(mount))
+    with read_only_guard(config_path, probe=FakeProbe(mount)) as guard:
+        displaced = tmp_path / "displaced-mount"
+        mount.rename(displaced)
+        mount.mkdir(mode=0o700)
+        shutil.copytree(displaced / "research", mount / "research")
+        with pytest.raises(StorageError, match="mounted_directory_replaced"):
+            guard.revalidate()
+
+
+def test_read_only_descriptor_reader_rejects_every_mutator_before_changes(tmp_path: Path) -> None:
+    from tools.brain_senses_external_writer_v1 import DescriptorWriter
+
+    config_path, mount, _ = make_binding(tmp_path, min_free_bytes=100)
+    resolved = create_root(config_path, probe=FakeProbe(mount))
+    lock_path = mount / research_storage.LOCK_NAME
+    lock_path.unlink()
+    probe = FakeProbe(
+        mount,
+        read_only=True,
+        available_bytes=1,
+        mount_options=("apfs", "local", "ro"),
+    )
+    before = sorted(path.relative_to(resolved.path).as_posix() for path in resolved.path.rglob("*"))
+
+    with read_only_guard(config_path, probe=probe) as guard:
+        with DescriptorWriter.read_only_from_storage_guard(guard) as reader:
+            assert reader.read_bytes(ROOT_MARKER)
+            operations = (
+                lambda: reader.mkdir("new-dir"),
+                lambda: reader.open_directory("new-dir", create=True),
+                lambda: reader.create("new-file", b"x"),
+                lambda: reader.atomic_write("new-atomic", b"x"),
+                lambda: reader.atomic_write_stream("new-stream", [b"x"], max_bytes=1),
+                lambda: reader.append("new-append", b"x"),
+                lambda: reader.unlink(ROOT_MARKER),
+                lambda: reader.unlink("missing", missing_ok=True),
+                lambda: reader.lock("new-lock").__enter__(),
+            )
+            for operation in operations:
+                with pytest.raises(StorageError, match="read_only_storage_guard_write_forbidden"):
+                    operation()
+
+    assert not lock_path.exists()
+    assert (
+        sorted(path.relative_to(resolved.path).as_posix() for path in resolved.path.rglob("*"))
+        == before
+    )
+
+
+def test_read_only_and_writable_factories_reject_opposite_guard_types(tmp_path: Path) -> None:
+    from tools.brain_senses_external_writer_v1 import DescriptorWriter
+
+    config_path, mount, _ = make_binding(tmp_path)
+    create_root(config_path, probe=FakeProbe(mount))
+
+    with read_only_guard(config_path, probe=FakeProbe(mount)) as reader_guard:
+        with pytest.raises(StorageError, match="bound_writer_requires_initialized_storage_guard"):
+            DescriptorWriter.from_storage_guard(reader_guard)
+        with pytest.raises(StorageError, match="read_only_guard_requires_reader_factory"):
+            DescriptorWriter(reader_guard.root_fd, storage_guard=reader_guard)
+
+    with writer_guard(config_path, probe=FakeProbe(mount)) as write_guard:
+        with pytest.raises(StorageError, match="bound_reader_requires_read_only_storage_guard"):
+            DescriptorWriter.read_only_from_storage_guard(write_guard)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
