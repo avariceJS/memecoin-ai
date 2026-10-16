@@ -680,10 +680,16 @@ and launched the flow CLI from a neutral working directory. The clone and Git au
 used this Mac; this tests published-code retrieval and bootstrap, not clean-host credentials or Brain
 state restoration. The earlier exact-commit bootstrap at `68253b84c5aefd8676b85b9415d2d242ada58d73`
 also passed dependency check and smoke. The prior handoff pin to
-`edf2898...` authorizes only that older code commit. For recovery, supply the exact rehearsed source
-commit and card hash through a trusted channel outside Kingston; this session has not distributed a
-separate persistent handoff artifact outside Kingston. See the
-[`current first-host target bootstrap receipt`](evidence/portability-dr-first-host-current-target-2026-10-16T0020Z.json).
+`edf2898...` authorizes only that older code commit and legacy card; it is historical, not the
+current entry target. The current bootstrap-only pins are recorded in
+[`recovery/BOOTSTRAP-HANDOFF-v1.json`](../recovery/BOOTSTRAP-HANDOFF-v1.json); use it only from the
+annotated `brain-dr-handoff-v1` tag on authenticated `origin`, after recording the tag object and
+peeled commit. [`recovery/BOOTSTRAP-HANDOFF-v1.txt`](../recovery/BOOTSTRAP-HANDOFF-v1.txt) gives the
+operator retrieval and verification sequence. The tag is a create-once locator under the accepted
+Git account/remote trust boundary, not a signature or a defense against retargeting by that remote.
+This handoff authorizes code bootstrap only and says the accepted set is unavailable. See the
+[`current v2 entry/bootstrap receipt`](evidence/portability-dr-entry-v2-exact-bootstrap-and-kingston-publication-2026-10-16T0120Z.json)
+for the current same-Mac rehearsal limits.
 
 The helper makes a second exact-commit clone into a separate new destination, installs the locked
 development requirements, and runs smoke. Both checkouts must report the pinned `HEAD`, and the
@@ -723,8 +729,31 @@ persistent configuration and interactive authentication unchanged. The restore-f
 selects exactly one of those two names by the independently supplied card digest, verifies the same
 name and bytes on the pinned Kingston root, and reports both relative paths. It rejects no match,
 duplicate matching bytes, or a source/Kingston name mismatch; arbitrary handoff-supplied card paths
-are not accepted. The legacy Kingston card is preserved until a versioned card is separately
-published create-only and rehearsed.
+are not accepted. The legacy Kingston card remains unchanged; the versioned card was published
+create-only and rehearsed as described below.
+
+At commit `75f3e0405c1fca473eb95fae81fc21c20e289651`, a fresh same-Mac checkout executed the v2
+pre-checkout clone and exact-commit fetch with command-local HTTP/1.1; the card bytes and SHA-256
+matched the source checkout. The helper then built a second exact-commit checkout, installed the
+locked environment, and passed smoke. Forty-eight focused restore-flow, handoff-assessor,
+recovery-set, and bootstrap tests passed. `ENTRY-v2.txt` was then published create-only beneath
+Kingston through the storage writer guard, with descriptor-bound readback; the original `ENTRY.txt`
+hash remained unchanged. The guard created the standard root-level `.research-storage.lock`. A
+read-only inspect using a synthetic blocked-path handoff matched both v2 card paths and hashes, then
+stopped at `set_missing` with the target and run parents empty and all authority flags false. See
+the [`v2 entry/bootstrap and Kingston publication receipt`](evidence/portability-dr-entry-v2-exact-bootstrap-and-kingston-publication-2026-10-16T0120Z.json).
+
+The authenticated `origin` repository is accepted as the external trust domain for the accidental
+Mac-loss model; this does not protect against loss of Git account/remote access or a compromised
+remote. Use a dedicated annotated tag `brain-dr-handoff-v1` as a create-only locator for handoff
+commit H, separate from its pinned bootstrap commit C. The tag is not a signature and a replacement
+host cannot detect a retarget using the same remote alone; record its tag-object and peeled commit
+IDs and follow the no-move publication rule. H may pin only code/card and Kingston identity for now:
+recovery-set, T, K, activation, and erase authority remain explicitly unavailable/false. Obtain and
+inspect H from authenticated `origin` before running any Kingston-card command. Recovery must stop
+until the annotated tag is present on `origin` and both tag-object and peeled commit IDs have been
+recorded.
+
 The local-fixture rehearsal passed both exact-HEAD checks, locked environment creation, smoke, and
 the wrong-commit, wrong-volume-pin, missing-authentication, and preexisting-target failure cases.
 Its success path used an ephemeral local bare remote on the current Mac, so authenticated GitHub
