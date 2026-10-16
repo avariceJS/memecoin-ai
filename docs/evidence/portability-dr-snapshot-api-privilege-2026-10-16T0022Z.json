@@ -1,0 +1,51 @@
+{
+  "schema": "portability-dr-snapshot-api-privilege-v1",
+  "observed_at_utc": "2026-10-16T00:22:14Z",
+  "source_commit": "4be02b6c4960ea89a8c926de5098091c3431cafe",
+  "observations": {
+    "diskutil_apfs_help": {
+      "snapshot_creation_verb_present": false,
+      "read_only_help_inspection": true
+    },
+    "tmutil_destinationinfo": {
+      "exit_status": 0,
+      "output_class": "no_configured_destinations",
+      "raw_output_retained": false
+    },
+    "tmutil_help": {
+      "localsnapshot_command_present": true,
+      "destination_configuration_command_present": true
+    },
+    "fs_snapshot_create_manual": {
+      "local_manual_read": true,
+      "requires_superuser": true,
+      "requires_additional_entitlement": true,
+      "entitlement_name_or_operator_authority_documented": false,
+      "snapshot_can_grow_as_active_filesystem_changes": true,
+      "mounted_snapshot_can_be_deleted": false,
+      "revert_is_destructive": true
+    },
+    "apple_primary_source": "https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man2/fs_snapshot_create.2"
+  },
+  "decision": {
+    "ordinary_admin_qualifies_live_snapshot_creation": false,
+    "authorized_creation_route_identified": false,
+    "data_snapshot_created_or_mounted": false,
+    "data_modified": false,
+    "services_changed": false,
+    "data_T_qualified": false,
+    "kingston_K_qualified": false,
+    "safe_to_erase": false
+  },
+  "scope": {
+    "protected_payloads_read": false,
+    "secret_values_read": false,
+    "provider_requests": 0,
+    "entitlement_or_Time_Machine_configuration_changed": false
+  },
+  "limitations": [
+    "The local command help and public API manual do not establish whether an Apple-supported mechanism can be made available to this owner account or Recovery environment.",
+    "No snapshot creation, mount, delete, thinning, revert, entitlement request, or Time Machine configuration was attempted.",
+    "This finding blocks the current live-snapshot plan; it does not invalidate the separately conditional offline Recovery source-view architecture."
+  ]
+}

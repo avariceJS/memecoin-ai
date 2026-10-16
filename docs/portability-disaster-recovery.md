@@ -947,6 +947,14 @@ residual assumption; no Data T is qualified and erase remains NO-GO. A new Recov
 only as part of a separately planned source-view rehearsal; repeating point checks cannot retroactively
 close this boot's log gap.
 
+Sol's review confirms that the automatic `disk3s5` mount event is a recorded failed attempt with
+uninterpreted status `0x0000004D`; it is not evidence of a successful or writable mount. The
+3.658-second early-log gap and unrecorded pre-Terminal authentication leave prior mount history
+unknown. Keep `prior_writable_mount_history_verified`, `T_qualified`, and erase readiness false.
+Another Recovery boot is not justified to repeat the preflight; perform one only when the complete,
+pinned, read-only source-view rehearsal is ready. The live-snapshot alternative is separately
+blocked by the documented entitlement requirement and lacks an authorized creation route.
+
 `tools/brain_host_recovery_preflight_v1.py` now implements the bounded first-action observation.
 Invocation requires independently pinned Data UUID, volume-group UUID, container UUID, and device
 identifier; all four must match before the point-in-time check can pass. It checks APFS
@@ -1008,6 +1016,16 @@ Kingston storage check passed its UUID/root pins with 214,413,123,584 bytes avai
 but no Data-snapshot mount was attempted. Local `tmutil` help says `localsnapshot` covers volumes
 included in a Time Machine backup; it is not an approved arbitrary Data-volume creation procedure.
 Earlier preflight found no configured Time Machine destination and no noninteractive admin path.
+Follow-up inspection of the local `fs_snapshot_create(2)` manual and Apple's published XNU manual
+confirms that every snapshot operation requires superuser privileges **and an additional
+entitlement**; the manual does not identify an entitlement available to this operator. `tmutil
+destinationinfo` still reports no configured destination, and the local APFS command interface
+exposes no snapshot creation operation. Therefore ordinary administrator access does not qualify a
+live snapshot path. No entitlement request, Time Machine configuration, snapshot API call, or volume
+change was attempted. The live-snapshot path remains unavailable for this rehearsal unless an
+Apple-supported, authorized creation and read-only mount route is established independently. See
+the [`snapshot API privilege receipt`](evidence/portability-dr-snapshot-api-privilege-2026-10-16T0022Z.json)
+and [Apple's XNU `fs_snapshot_create(2)` manual](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man2/fs_snapshot_create.2).
 Sol reviewed a live APFS snapshot as a valid alternative source-view architecture, but creation is
 held: 46 GiB is not a qualified churn/retention budget, no supported creation/admin procedure is
 qualified, and the active writer ownership and quiescence boundary remain unresolved. A successfully
@@ -1223,9 +1241,11 @@ mount. This gate alone still does not authorize unlock/mount or qualify T. Metad
 owner/local-root closure can proceed independently.
 The identity-only `HeldDataT` layer does not perform the source-view mount or establish boot history.
 It has only been exercised against the synthetic APFS image in its receipt. If the offline route is
-infeasible, qualify a conservative Data free-space floor,
-bounded snapshot retention, and interactive admin
-procedure before creating a source snapshot. The 06:15Z read-only preflight found about 12.8 GiB
+infeasible, the live-snapshot alternative currently has no qualified creation mechanism: ordinary
+root is insufficient under the documented API entitlement requirement, and there is no configured
+Time Machine destination. Reconsider it only after an authorized, supported mechanism, conservative
+Data free-space floor, bounded snapshot retention, and read-only mount procedure are independently
+qualified. The 06:15Z read-only preflight found about 12.8 GiB
 free at 97% Data use and no Data snapshot; the prior 06:10Z check found about 12 GiB at 98%. An
 offline route must still prove shutdown boundary, exact volume/root identity, read-only mount flags,
 held-view stability, and tool availability. The APFS T attestor contract remains synthetic-tested; a
