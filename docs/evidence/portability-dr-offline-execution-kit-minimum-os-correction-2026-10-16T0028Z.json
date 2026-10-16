@@ -1,0 +1,73 @@
+{
+  "schema": "brain-portability-offline-execution-kit-minimum-os-correction-v1",
+  "observed_at_utc": "2026-10-16T00:28:04Z",
+  "source_commit": "4be02b6c4960ea89a8c926de5098091c3431cafe",
+  "storage": {
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "publication": "descriptor_bound_create_only",
+    "fresh_image_readback": "sha256_match"
+  },
+  "source_candidate": {
+    "candidate_id": "candidate-20261014T0640Z-a3",
+    "image_sha256": "8f65c9d248749153646385bab32eafd1d38014bc08fb430f094fa5be5ebc6640",
+    "manifest_sha256": "d7c3758478109ad7aa17912dcc78a81a12ced337ddb2f25bbc64800fdc86d1d1",
+    "manifest_minimum_macos_claim": "15.0",
+    "a3_image_modified": false
+  },
+  "finding": {
+    "runtime_members": 3688,
+    "mach_o_members": 85,
+    "architecture": "arm64",
+    "platform": "macOS",
+    "maximum_observed_lc_build_version_minos": "26.0",
+    "members_declaring_minimum_macos_26_0": [
+      "runtime/lib/libcrypto.3.dylib",
+      "runtime/lib/liblzma.5.dylib",
+      "runtime/lib/libsqlite3.dylib",
+      "runtime/lib/libssl.3.dylib"
+    ],
+    "all_mach_o_member_minimum_os_metadata_verified": true,
+    "a3_minimum_os_claim_accurate": false
+  },
+  "corrected_candidate": {
+    "candidate_id": "candidate-20261016T0028Z-a4",
+    "kingston_relative_image": "BrainData/host-recovery/offline-execution-kit-v1/candidate-20261016T0028Z-a4.dmg",
+    "kingston_relative_complete_marker": "BrainData/host-recovery/offline-execution-kit-v1/candidate-20261016T0028Z-a4.COMPLETE.json",
+    "image_bytes": 91740119,
+    "image_sha256": "91278518d12b4bcc18b0d99e3fa2623984329d3b23925db5efdb9597ad93d061",
+    "manifest_sha256": "130712658fafd601050d31c3c468892ab5330fa434d84836947ca1020be67e70",
+    "source_archive_sha256": "9904b989d15bbcc8a13c1d420d6b49cf21e1eb2c58e15160f6c99630dc19b525",
+    "source_commit": "d602cf6a985fc0329be7da3afff12cac2fff72a2",
+    "declared_minimum_macos": "26.0",
+    "recovery_boot_compatibility": "unverified",
+    "existing_a3_unchanged": true
+  },
+  "verification": {
+    "kingston_copy_mounted_read_only": true,
+    "fresh_member_count_and_set_match": true,
+    "file_bytes_hashes_and_modes_match": true,
+    "symlink_targets_match": true,
+    "source_archive_hash_matches": true,
+    "all_85_mach_o_members_maximum_observed_minos_matches_manifest": true,
+    "recovery_cli_help_with_homebrew_reads_denied": true,
+    "held_data_t_cli_help_with_homebrew_reads_denied": true,
+    "dynamic_loader_override_variables_unset": true
+  },
+  "scope": {
+    "data_volume_modified": false,
+    "existing_kingston_artifacts_modified": false,
+    "protected_payloads_read": false,
+    "secret_values_read": false,
+    "provider_requests": 0,
+    "services_changed": false,
+    "recovery_booted": false,
+    "data_unlocked_or_mounted": false
+  },
+  "limitations": [
+    "The a4 image and manifest are byte-pinned by the Kingston COMPLETE marker and were freshly read back from the read-only mounted image.",
+    "The 26.0 minimum is the maximum observed LC_BUILD_VERSION minos across 85 surveyed Mach-O files; no target-host loader test was run on macOS 26.0 or any older macOS release.",
+    "The same-host CLI help probes do not exercise all dynamic load paths or prove clean-host, Recovery, Data capture, T, K, restore, or erase readiness."
+  ],
+  "safe_to_erase": false
+}

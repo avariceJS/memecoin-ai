@@ -1082,6 +1082,19 @@ provider APIs. See the
 Sol independently accepted this narrow current-host result from the receipt and recorded procedure;
 Sol did not open or re-hash the Kingston image.
 
+Static review of the third image's manifest found a packaging-validation gap: it claimed macOS 15.0,
+while four bundled dylibs (`libcrypto`, `liblzma`, `libsqlite3`, and `libssl`) declare
+`LC_BUILD_VERSION minos 26.0`. The immutable a3 image remains unchanged. Kingston candidate a4 updates
+the declared minimum to 26.0 while retaining the same source archive and runtime members. Its exact
+Kingston copy was freshly mounted read-only and all 3,688 runtime members, file bytes/hashes/modes,
+symlink targets, source archive hash, and all 85 Mach-O deployment targets were checked against the
+manifest. With `/opt/homebrew` reads denied and dynamic-loader overrides unset, the recovery and
+HeldDataT CLI help paths launched on this current online host. This establishes bounded same-host
+packaging and launch evidence only: it does not test macOS 26.0, a clean compatible Mac, Recovery,
+all dynamic load paths, real capture, T, K, or restore. Bind future kit handoffs to the exact a4 image
+and manifest hashes in the
+[`minimum OS correction receipt`](evidence/portability-dr-offline-execution-kit-minimum-os-correction-2026-10-16T0028Z.json).
+
 This still proves only bounded tool and dependency behavior on the current online host. Real Recovery
 availability, system-library compatibility, clean compatible-host restore, no-prior-writable-Data
 mount evidence, real Data T, owner/protected custody, Kingston K, and full restore remain open. The
