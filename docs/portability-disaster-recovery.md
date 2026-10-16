@@ -808,6 +808,19 @@ operator-facing rejection behavior only. Sol accepted the implementation for thi
 positive extraction. See the
 [`post-bootstrap restore-flow receipt`](evidence/portability-dr-post-bootstrap-restore-flow-v1-2026-10-16T0056Z.json).
 
+A fresh checkout of current published commit `6b234796` on this Mac installed the locked dev
+environment, passed smoke and restore-flow CLI help, and passed 39 focused restore/set/assessor
+tests. A live read-only `inspect` on that commit, without `--same-host-isolated`, observed 30
+filtered Brain/D43 launchd labels and 10 selected workspace cwd matches, then returned blocked with
+`brain_runtime_not_observably_inert`, `execution_commit_pin_mismatch`, and `set_missing`; all
+activation/readiness/erase flags stayed false. Sol accepts only the narrow runtime-guard claim:
+these are point-in-time filtered observations, and the stale synthetic pins and missing set are
+independent blockers. This is not writer quiescence, a clean-host inertness check, or extraction.
+The first direct HTTPS clone attempt produced no output for over 79 seconds and was interrupted with
+cause unknown; a retry using command-local `git -c http.version=HTTP/1.1` completed in about 14
+seconds. No global Git configuration was changed. See the
+[`current-code clean-clone and host-inert guard receipt`](evidence/portability-dr-current-code-clean-clone-inert-host-guard-2026-10-16T0105Z.json).
+
 Operator order for a later accepted handoff:
 
 1. Obtain the canonical handoff file and its expected SHA-256 through a trusted channel outside
