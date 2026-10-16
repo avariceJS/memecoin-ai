@@ -16,8 +16,8 @@ Kingston has 138,415,222,784 free bytes. `BrainData` and PersonalBackup remain u
 
 D43 stays disabled and PID-free; its old partial `5d4804faa1f14c47a0e3ed652e758bdd` remains
 incomplete and must not be restored. Failed ordinary partial `58e4596a3db5403a9b7901cfdb40566d`
-also remains incomplete. Do not delete partial candidates or activate Brain. The single Sol-reviewed
-Mac2 operator package is in the canonical portability document. No second-Mac restore has occurred.
+also remains incomplete. Do not delete partial candidates or activate Brain. The published Mac2
+operator package is awaiting final Sol review. No second-Mac restore has occurred.
 
-`research/active` is at `6ad944c40938e1e25d2bddb3ea61234c69e9149d`; `main` remains
+`research/active` is at `feb2cccebb023aa1a484909cccc5b47e7d2fd4ea`; `main` remains
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Future-v2 v3 drafts remain untracked and untouched.
