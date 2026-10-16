@@ -14,6 +14,7 @@ from tools.brain_host_restore_flow_v1 import (
     HANDOFF_SCHEMA,
     ROOT_ROLES,
     RestoreFlowError,
+    _find_pinned_card,
     _read_handoff,
     _resolve_source_roots,
     _write_create_only,
@@ -249,6 +250,51 @@ def test_direct_cli_help_imports_from_neutral_working_directory(tmp_path: Path) 
     assert "restore-inert" in result.stdout
 
 
+def test_entry_v2_uses_command_local_http11_for_precheckout_git() -> None:
+    card = Path(__file__).resolve().parents[1] / "recovery" / "ENTRY-v2.txt"
+    lines = card.read_text().splitlines()
+    git_lines = [line.strip() for line in lines if line.strip().startswith("git ")]
+
+    assert any(line.startswith("git -c http.version=HTTP/1.1 clone ") for line in git_lines)
+    assert any(
+        line.startswith('git -c http.version=HTTP/1.1 -C "$ENTRY_DIR" fetch ') for line in git_lines
+    )
+    assert not any("git config" in line for line in git_lines)
+
+
+def test_pinned_entry_card_selects_only_fixed_versioned_names(tmp_path: Path) -> None:
+    recovery = tmp_path / "recovery"
+    recovery.mkdir()
+    old_card = recovery / "ENTRY.txt"
+    new_card = recovery / "ENTRY-v2.txt"
+    old_card.write_text("old entry")
+    new_card.write_text("new entry")
+    expected = hashlib.sha256(new_card.read_bytes()).hexdigest()
+
+    assert _find_pinned_card(tmp_path, "recovery", expected) == ("ENTRY-v2.txt", expected)
+
+    unsupported = tmp_path / "unsupported"
+    unsupported.mkdir()
+    arbitrary = unsupported / "ENTRY-v3.txt"
+    arbitrary.write_bytes(new_card.read_bytes())
+    with pytest.raises(RestoreFlowError, match="entry_card_pin_mismatch"):
+        _find_pinned_card(
+            tmp_path, "unsupported", hashlib.sha256(arbitrary.read_bytes()).hexdigest()
+        )
+
+
+def test_pinned_entry_card_rejects_duplicate_matching_versions(tmp_path: Path) -> None:
+    recovery = tmp_path / "recovery"
+    recovery.mkdir()
+    payload = b"same immutable bytes"
+    (recovery / "ENTRY.txt").write_bytes(payload)
+    (recovery / "ENTRY-v2.txt").write_bytes(payload)
+    expected = hashlib.sha256(payload).hexdigest()
+
+    with pytest.raises(RestoreFlowError, match="entry_card_path_ambiguous"):
+        _find_pinned_card(tmp_path, "recovery", expected)
+
+
 def test_missing_entry_cards_return_named_blockers_not_tracebacks(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
@@ -317,5 +363,33 @@ def test_missing_entry_cards_return_named_blockers_not_tracebacks(
     )
 
     assert result["status"] == "blocked"
-    assert "entry_card_probe_failed:FileNotFoundError" in result["blockers"]
-    assert "kingston_entry_card_probe_failed:FileNotFoundError" in result["blockers"]
+    assert "entry_card_pin_mismatch" in result["blockers"]
+    assert "kingston_entry_card_pin_mismatch" in result["blockers"]
+
+    card_bytes = b"pinned versioned entry\n"
+    card_digest = hashlib.sha256(card_bytes).hexdigest()
+    source_cards = repo / "recovery"
+    source_cards.mkdir()
+    (source_cards / "ENTRY.txt").write_bytes(b"legacy card\n")
+    (source_cards / "ENTRY-v2.txt").write_bytes(card_bytes)
+    kingston_cards = storage_root / "host-recovery"
+    kingston_cards.mkdir()
+    (kingston_cards / "ENTRY.txt").write_bytes(b"legacy card\n")
+    (kingston_cards / "ENTRY-v2.txt").write_bytes(card_bytes)
+    value["entry_card_sha256"] = card_digest
+    digest = _write_handoff(handoff_path, value)
+
+    versioned_result = flow.inspect_restore(
+        handoff_path=handoff_path,
+        expected_handoff_sha256=digest,
+        repository_root=repo,
+        storage_config=tmp_path / "storage.json",
+        target_parent=target,
+        run_parent=run_parent,
+    )
+
+    assert "entry_card_pin_mismatch" not in versioned_result["blockers"]
+    assert "kingston_entry_card_pin_mismatch" not in versioned_result["blockers"]
+    assert versioned_result["entry_card"]["checkout_relative_path"] == "recovery/ENTRY-v2.txt"
+    assert versioned_result["entry_card"]["kingston_relative_path"] == "host-recovery/ENTRY-v2.txt"
+    assert "set_missing" in versioned_result["blockers"]

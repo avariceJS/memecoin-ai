@@ -715,6 +715,16 @@ creating the config. This writes only the private host config, not Kingston. It 
 host, volume attachment, member integrity, a recovery set, or the durable K frontier; the UUID and
 root marker still require an independent trusted handoff. See the
 [`host-only Kingston binding rehearsal receipt`](evidence/portability-dr-clean-profile-kingston-binding-2026-10-16T0111Z.json).
+
+The first-host card now has two fixed source names: legacy `recovery/ENTRY.txt` and versioned
+`recovery/ENTRY-v2.txt`. The v2 card applies command-local HTTP/1.1 to its pre-checkout clone and
+fetch, closing the transport gap before the bootstrap helper is available. It leaves Git's
+persistent configuration and interactive authentication unchanged. The restore-flow inspector
+selects exactly one of those two names by the independently supplied card digest, verifies the same
+name and bytes on the pinned Kingston root, and reports both relative paths. It rejects no match,
+duplicate matching bytes, or a source/Kingston name mismatch; arbitrary handoff-supplied card paths
+are not accepted. The legacy Kingston card is preserved until a versioned card is separately
+published create-only and rehearsed.
 The local-fixture rehearsal passed both exact-HEAD checks, locked environment creation, smoke, and
 the wrong-commit, wrong-volume-pin, missing-authentication, and preexisting-target failure cases.
 Its success path used an ephemeral local bare remote on the current Mac, so authenticated GitHub

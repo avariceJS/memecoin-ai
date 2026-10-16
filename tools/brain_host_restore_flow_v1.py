@@ -34,6 +34,7 @@ SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 COMMIT_RE = re.compile(r"[0-9a-f]{40}\Z")
 ID_RE = re.compile(r"[0-9a-f]{32}\Z")
 UUID_RE = re.compile(r"[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}\Z")
+ENTRY_CARD_NAMES = ("ENTRY.txt", "ENTRY-v2.txt")
 ROOT_ROLES = {
     "owner_checkout",
     "owner_work",
@@ -332,6 +333,26 @@ def _read_card_hash(path: Path) -> str:
         os.close(fd)
 
 
+def _find_pinned_card(root: Path, relative_parent: str, expected_sha256: str) -> tuple[str, str]:
+    """Select one exact card from the fixed version allowlist by its trusted digest."""
+    matches: list[tuple[str, str]] = []
+    for name in ENTRY_CARD_NAMES:
+        path = root / relative_parent / name
+        try:
+            if path.resolve(strict=True) != path:
+                continue
+            digest = _read_card_hash(path)
+        except (OSError, RuntimeError, RestoreFlowError):
+            continue
+        if digest == expected_sha256:
+            matches.append((name, digest))
+    if not matches:
+        raise RestoreFlowError("entry_card_pin_mismatch")
+    if len(matches) != 1:
+        raise RestoreFlowError("entry_card_path_ambiguous")
+    return matches[0]
+
+
 def _git_state(
     repo: Path, runner: Callable[..., subprocess.CompletedProcess[str]]
 ) -> dict[str, Any]:
@@ -578,18 +599,12 @@ def inspect_restore(
     if git.get("clean") is not True:
         blockers.append("execution_checkout_not_clean")
     try:
-        source_card_path = repo / "recovery" / "ENTRY.txt"
-        if source_card_path.resolve(strict=True) != source_card_path:
-            raise RestoreFlowError("entry_card_path_not_canonical")
-        source_card = _read_card_hash(source_card_path)
+        source_card_name, source_card = _find_pinned_card(
+            repo, "recovery", handoff["entry_card_sha256"]
+        )
     except RestoreFlowError as exc:
-        source_card = kingston_card = None
+        source_card_name = source_card = None
         blockers.append(str(exc))
-    except (OSError, RuntimeError) as exc:
-        source_card = kingston_card = None
-        blockers.append(f"entry_card_probe_failed:{type(exc).__name__}")
-    if source_card != handoff["entry_card_sha256"]:
-        blockers.append("entry_card_pin_mismatch")
     source_roots_resolved = False
     try:
         root_states, source_roots = _resolve_source_roots(handoff, repo)
@@ -620,21 +635,21 @@ def inspect_restore(
             blockers.append(f"storage_root_derivation_failed:{type(exc).__name__}")
     if derived_storage_root is not None:
         try:
-            kingston_card_path = derived_storage_root / "host-recovery" / "ENTRY.txt"
-            if kingston_card_path.resolve(strict=True) != kingston_card_path:
-                raise RestoreFlowError("kingston_entry_card_path_not_canonical")
-            kingston_card = _read_card_hash(kingston_card_path)
+            kingston_card_name, kingston_card = _find_pinned_card(
+                derived_storage_root, "host-recovery", handoff["entry_card_sha256"]
+            )
         except RestoreFlowError as exc:
-            kingston_card = None
-            blockers.append(str(exc))
-        except (OSError, RuntimeError) as exc:
-            kingston_card = None
-            blockers.append(f"kingston_entry_card_probe_failed:{type(exc).__name__}")
+            kingston_card_name = kingston_card = None
+            blockers.append(f"kingston_{exc}")
     else:
-        kingston_card = None
+        kingston_card_name = kingston_card = None
         blockers.append("kingston_entry_card_storage_identity_unknown")
-    if kingston_card != handoff["entry_card_sha256"]:
-        blockers.append("entry_card_kingston_pin_mismatch")
+    if (
+        source_card_name != kingston_card_name
+        and source_card_name is not None
+        and kingston_card_name is not None
+    ):
+        blockers.append("entry_card_path_mismatch")
     forbidden = [repo, *([derived_storage_root] if derived_storage_root else []), *source_roots]
     canonical_forbidden = list(dict.fromkeys(path.resolve(strict=False) for path in forbidden))
     try:
@@ -703,6 +718,14 @@ def inspect_restore(
             "execution_commit": git.get("head"),
             "execution_checkout_clean": git.get("clean"),
             "entry_card": {
+                "checkout_relative_path": (
+                    f"recovery/{source_card_name}" if source_card_name is not None else None
+                ),
+                "kingston_relative_path": (
+                    f"host-recovery/{kingston_card_name}"
+                    if kingston_card_name is not None
+                    else None
+                ),
                 "checkout_sha256": source_card,
                 "kingston_sha256": kingston_card,
                 "pinned": handoff["entry_card_sha256"],
