@@ -81,6 +81,15 @@ a `shasum | cut` pipeline without `pipefail`; this is informational rather than 
 If it is empty, rerun `shasum` directly before a later restore-flow check. See the v3 qualification
 receipt in the evidence index.
 
+After publishing `c2b42cc51be1ff4306140ede5e3b512d370dca04`, the exact commit was cloned twice into
+new scratch checkouts. One fresh environment installed `requirements-dev.lock` plus the editable
+project, ran `make smoke`, launched the metadata CLI from a neutral cwd, and passed 136 focused
+custody/recovery tests. The published `brain_host_recovery.py bootstrap` helper separately cloned
+the exact commit, installed the lock, and returned `state=complete`, matching `head`, and
+`smoke=passed`; it changed no storage or services. This used the current Mac, public GitHub access,
+and scratch targets. It proves exact-code bootstrap/rebuild only, not recovery data, a new host, or
+inert Brain restore. See the [`published bootstrap rehearsal`](evidence/portability-dr-published-bootstrap-c2b42cc-2026-10-16T0356Z.json).
+
 The first metadata-class census traversed eight declared-present roots and recorded stable per-object
 descriptor metadata, but its `acl_absent` label did not distinguish a no-ACL result from ambiguous
 ACL API errors. Sol review required a narrower statement. The final scan reopens each declared root
