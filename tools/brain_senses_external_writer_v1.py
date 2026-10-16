@@ -21,7 +21,7 @@ from collections.abc import Callable, Iterator
 from pathlib import PurePosixPath
 from typing import Any
 
-from memecoin_research_storage import StorageError
+from memecoin_research_storage import StorageError, _open_relative_directory
 from tools.brain_senses_external_schema_v1 import RECEIPT_SCHEMA
 
 SCHEMA_VERSION = 1
@@ -79,6 +79,7 @@ class DescriptorWriter:
         *,
         before_write: Callable[[], None] | None = None,
         fault_hook: Callable[[str], None] | None = None,
+        storage_guard: Any | None = None,
     ) -> None:
         self.root_fd = os.dup(root_fd)
         self._root_stat = os.fstat(self.root_fd)
@@ -91,7 +92,52 @@ class DescriptorWriter:
         self.device = self._root_stat.st_dev
         self._before_write = before_write
         self._fault_hook = fault_hook
+        self.storage_guard = storage_guard
+        self.storage_volume_uuid = (
+            str(storage_guard.volume_uuid).lower() if storage_guard is not None else None
+        )
+        self.storage_root_id = str(storage_guard.root_id) if storage_guard is not None else None
         self._closed = False
+
+    @classmethod
+    def from_storage_guard(cls, guard: Any) -> DescriptorWriter:
+        """Create a writer bound to a previously initialized storage guard."""
+        if getattr(guard, "bootstrap", True):
+            raise StorageError("bound_writer_requires_initialized_storage_guard")
+        guard.revalidate()
+        root_fd = _open_relative_directory(guard.mount_fd, guard.config.data_root)
+        try:
+            writer = cls(
+                root_fd,
+                before_write=lambda: guard.revalidate_identity(),
+                storage_guard=guard,
+            )
+            writer.assert_storage_binding(guard)
+            return writer
+        finally:
+            os.close(root_fd)
+
+    def assert_storage_binding(self, guard: Any) -> None:
+        """Revalidate the exact Kingston binding and BrainData root descriptor."""
+        bound_guard = self.storage_guard
+        if bound_guard is None:
+            raise StorageError("bound_writer_storage_guard_mismatch")
+        if (
+            bound_guard is not guard
+            or self.storage_volume_uuid != str(guard.volume_uuid).lower()
+            or self.storage_root_id != str(guard.root_id)
+            or getattr(guard, "bootstrap", True)
+        ):
+            raise StorageError("bound_writer_storage_guard_mismatch")
+        guard.revalidate()
+        current_root_fd = _open_relative_directory(guard.mount_fd, guard.config.data_root)
+        try:
+            current = os.fstat(current_root_fd)
+            held = os.fstat(self.root_fd)
+            if (current.st_dev, current.st_ino) != (held.st_dev, held.st_ino):
+                raise StorageError("bound_writer_root_identity_changed")
+        finally:
+            os.close(current_root_fd)
 
     def close(self) -> None:
         if not self._closed:
@@ -152,6 +198,10 @@ class DescriptorWriter:
         except BaseException:
             os.close(current)
             raise
+
+    def open_directory(self, relative: str, *, create: bool = False) -> int:
+        """Open a private BrainData descendant by descriptor-relative traversal."""
+        return self._directory(relative, create=create)
 
     @staticmethod
     def _parent_and_name(relative: str) -> tuple[str, str]:

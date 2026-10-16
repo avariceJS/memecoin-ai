@@ -607,6 +607,8 @@ def _chunk_file(
     root_fd: int,
     db: sqlite3.Connection,
     row: tuple[Any, ...],
+    *,
+    before_read: Callable[[], None] | None = None,
 ) -> tuple[str, int, list[dict[str, Any]]]:
     path, _kind, _mode, _uid, _gid, size, _mtime, _ctime, _dev, _ino, _nlink, sig, _link, *_ = row
     fd = _open_rel_file(root_fd, path, sig)
@@ -630,6 +632,8 @@ def _chunk_file(
 
     try:
         while True:
+            if before_read is not None:
+                before_read()
             data = os.read(fd, CHUNK_BYTES)
             if not data:
                 break

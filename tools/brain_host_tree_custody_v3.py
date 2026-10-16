@@ -23,6 +23,7 @@ import tempfile
 import time
 from collections import Counter
 from collections.abc import Callable, Iterator, Sequence
+from contextlib import AbstractContextManager, ExitStack, contextmanager
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -385,6 +386,162 @@ def _db_open(path: Path) -> sqlite3.Connection:
         "symlink_target_unresolved INTEGER NOT NULL DEFAULT 0,symlink_policy TEXT)"
     )
     return db
+
+
+def _db_open_at(directory_fd: int, name: str, *, device: int) -> tuple[sqlite3.Connection, int]:
+    """Open a precreated SQLite file through its held descriptor, never a pathname."""
+    db: sqlite3.Connection | None = None
+    try:
+        fd = os.open(
+            name,
+            os.O_CREAT | os.O_EXCL | os.O_RDWR | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=directory_fd,
+        )
+    except OSError as exc:
+        raise TreeCustodyV3Error("scratch_database_create_failed") from exc
+    try:
+        st = os.fstat(fd)
+        if (
+            not stat.S_ISREG(st.st_mode)
+            or st.st_dev != device
+            or st.st_uid != os.getuid()
+            or stat.S_IMODE(st.st_mode) != 0o600
+            or st.st_nlink != 1
+        ):
+            raise TreeCustodyV3Error("scratch_database_identity_invalid")
+        db = sqlite3.connect(f"/dev/fd/{fd}")
+        journal_mode = db.execute("PRAGMA journal_mode=OFF").fetchone()
+        if journal_mode != ("off",):
+            raise TreeCustodyV3Error("scratch_sqlite_journal_mode_unavailable")
+        db.execute("PRAGMA synchronous=OFF")
+        db.execute("PRAGMA temp_store=MEMORY")
+        temp_store = db.execute("PRAGMA temp_store").fetchone()
+        if temp_store != (2,):
+            raise TreeCustodyV3Error("scratch_sqlite_temp_store_unavailable")
+        db.execute(
+            "CREATE TABLE entries(path TEXT PRIMARY KEY,kind TEXT NOT NULL,mode INTEGER NOT NULL,"
+            "uid INTEGER NOT NULL,gid INTEGER NOT NULL,size INTEGER NOT NULL,"
+            "mtime INTEGER NOT NULL,"
+            "ctime INTEGER NOT NULL,dev INTEGER NOT NULL,ino INTEGER NOT NULL,"
+            "nlink INTEGER NOT NULL,"
+            "sig BLOB NOT NULL,link_b64 TEXT,group_id TEXT,primary_path TEXT,digest TEXT,"
+            "chunk_count INTEGER NOT NULL DEFAULT 0,chunk_pages TEXT NOT NULL DEFAULT '[]',"
+            "omitted_xattrs TEXT NOT NULL DEFAULT '[]',state TEXT NOT NULL,rule TEXT,"
+            "disposition TEXT,descendants_unknown INTEGER NOT NULL DEFAULT 0,"
+            "symlink_target_unresolved INTEGER NOT NULL DEFAULT 0,symlink_policy TEXT)"
+        )
+        return db, fd
+    except BaseException:
+        if db is not None:
+            db.close()
+        held: os.stat_result | None = None
+        try:
+            held = os.fstat(fd)
+        except OSError:
+            pass
+        os.close(fd)
+        try:
+            current = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+            if (
+                held is not None
+                and stat.S_ISREG(current.st_mode)
+                and (current.st_dev, current.st_ino) == (held.st_dev, held.st_ino)
+            ):
+                os.unlink(name, dir_fd=directory_fd)
+        except OSError:
+            pass
+        raise
+
+
+def _close_db_at(db: sqlite3.Connection | None, fd: int, directory_fd: int, name: str) -> None:
+    try:
+        if db is not None:
+            db.close()
+        held = os.fstat(fd)
+        current = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+        if (
+            stat.S_ISREG(current.st_mode)
+            and (current.st_dev, current.st_ino) == (held.st_dev, held.st_ino)
+            and current.st_uid == os.getuid()
+            and stat.S_IMODE(current.st_mode) == 0o600
+            and current.st_nlink == 1
+        ):
+            os.unlink(name, dir_fd=directory_fd)
+            os.fsync(directory_fd)
+    except OSError:
+        # Preserve uncertain scratch state; never follow a replacement pathname.
+        pass
+    finally:
+        os.close(fd)
+
+
+@contextmanager
+def _anchored_scratch(
+    writer: DescriptorWriter,
+    relative_root: str,
+    capture_id: str,
+    *,
+    source_device: int,
+    budget_bytes: int,
+) -> Iterator[tuple[int, int, str]]:
+    """Yield a unique private scratch directory opened under the pinned writer root."""
+    parent_fd = writer.open_directory(relative_root, create=True)
+    child_fd = -1
+    child_name = f"tree-v3-{capture_id}"
+    try:
+        parent_st = os.fstat(parent_fd)
+        if parent_st.st_dev != writer.device or parent_st.st_dev == source_device:
+            raise TreeCustodyV3Error("scratch_root_identity_invalid")
+        parent_vfs = os.fstatvfs(parent_fd)
+        free_bytes = int(parent_vfs.f_bavail * parent_vfs.f_frsize)
+        if getattr(os, "ST_RDONLY", 1) & parent_vfs.f_flag or free_bytes < budget_bytes:
+            raise TreeCustodyV3Error("scratch_root_unwritable_or_capacity_low")
+        try:
+            os.mkdir(child_name, mode=0o700, dir_fd=parent_fd)
+            os.fsync(parent_fd)
+        except OSError as exc:
+            raise TreeCustodyV3Error("scratch_directory_create_failed") from exc
+        child_fd = os.open(
+            child_name,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+            dir_fd=parent_fd,
+        )
+        child_st = os.fstat(child_fd)
+        if (
+            child_st.st_dev != writer.device
+            or child_st.st_uid != os.getuid()
+            or stat.S_IMODE(child_st.st_mode) != 0o700
+        ):
+            raise TreeCustodyV3Error("scratch_directory_identity_invalid")
+        yield parent_fd, child_fd, child_name
+    finally:
+        try:
+            if child_fd >= 0:
+                try:
+                    names = set(os.listdir(child_fd))
+                    if names:
+                        raise TreeCustodyV3Error("scratch_cleanup_entry_unexpected")
+                    held = os.fstat(child_fd)
+                    current = os.stat(child_name, dir_fd=parent_fd, follow_symlinks=False)
+                    if not stat.S_ISDIR(current.st_mode) or (current.st_dev, current.st_ino) != (
+                        held.st_dev,
+                        held.st_ino,
+                    ):
+                        raise TreeCustodyV3Error("scratch_directory_replaced_before_cleanup")
+                    os.rmdir(child_name, dir_fd=parent_fd)
+                    os.fsync(parent_fd)
+                finally:
+                    os.close(child_fd)
+        finally:
+            os.close(parent_fd)
+
+
+@contextmanager
+def _legacy_temp_context() -> Iterator[Path]:
+    """Preserve the standalone synthetic-v3 API's existing scratch behavior."""
+    with tempfile.TemporaryDirectory(prefix="brain-tree-v3-") as directory:
+        yield Path(directory)
 
 
 def _insert_entry(
@@ -1566,17 +1723,87 @@ def capture_tree(
     capture_id: str | None = None,
     reserve_capacity: Callable[[int], None] | None = None,
     revalidate_before_publish: Callable[[], None] | None = None,
+    source_root_fd: int | None = None,
+    source_display_path: Path | None = None,
+    scratch_root_relative: str | None = None,
+    scratch_budget_bytes: int | None = None,
+    revalidate_source_chunk: Callable[[], None] | None = None,
+    expected_policy_sha256: str | None = None,
 ) -> dict[str, Any]:
     v2._validate_root(root)
+    held_source = source_root_fd is not None
+    if held_source and (
+        source_display_path is None
+        or scratch_root_relative is None
+        or type(scratch_budget_bytes) is not int
+        or scratch_budget_bytes <= 0
+        or revalidate_source_chunk is None
+        or expected_policy_sha256 is None
+        or writer.storage_guard is None
+    ):
+        raise TreeCustodyV3Error("held_source_requirements_missing")
+    if not held_source and any(
+        value is not None
+        for value in (
+            source_display_path,
+            scratch_root_relative,
+            scratch_budget_bytes,
+            revalidate_source_chunk,
+            expected_policy_sha256,
+        )
+    ):
+        raise TreeCustodyV3Error("held_source_requirements_unexpected")
     policy, policy_raw, policy_hash = _load_policy(policy_path)
+    if expected_policy_sha256 is not None and policy_hash != expected_policy_sha256:
+        raise TreeCustodyV3Error("policy_pin_mismatch")
+    scratch_context: AbstractContextManager[Path | tuple[int, int, str]]
+    if held_source:
+        try:
+            writer.assert_storage_binding(writer.storage_guard)
+        except Exception as exc:
+            raise TreeCustodyV3Error("pinned_storage_binding_invalid") from exc
     chosen = capture_id or secrets.token_hex(16)
     base = _capture_base(chosen)
     start_ns = time.time_ns()
-    source_fd = v2._open_absolute_directory(root.path)
-    root_stat = os.fstat(source_fd)
-    root_sig = v2._sig(root_stat)
-    with tempfile.TemporaryDirectory(prefix="brain-tree-v3-") as tmp:
-        db = _db_open(Path(tmp) / "before.sqlite")
+    source_path = source_display_path if source_display_path is not None else root.path
+    if not source_path.is_absolute() or ".." in source_path.parts:
+        raise TreeCustodyV3Error("source_root_path_invalid")
+    source_fd = (
+        os.dup(source_root_fd)
+        if source_root_fd is not None
+        else v2._open_absolute_directory(root.path)
+    )
+    try:
+        root_stat = os.fstat(source_fd)
+        root_sig = v2._sig(root_stat)
+    except BaseException:
+        os.close(source_fd)
+        raise
+    if held_source:
+        assert scratch_root_relative is not None and scratch_budget_bytes is not None
+        scratch_context = _anchored_scratch(
+            writer,
+            scratch_root_relative,
+            chosen,
+            source_device=root_stat.st_dev,
+            budget_bytes=scratch_budget_bytes,
+        )
+    else:
+        scratch_context = _legacy_temp_context()
+    with ExitStack() as scratch_stack:
+        scratch_stack.callback(os.close, source_fd)
+        scratch_state = scratch_stack.enter_context(scratch_context)
+        scratch_fd = -1
+        before_db_fd = -1
+        after_db_fd = -1
+        after_db: sqlite3.Connection | None = None
+        if held_source:
+            assert isinstance(scratch_state, tuple)
+            _scratch_parent_fd, scratch_fd, _scratch_name = scratch_state
+            db, before_db_fd = _db_open_at(scratch_fd, "before.sqlite", device=writer.device)
+        else:
+            assert isinstance(scratch_state, Path)
+            db = _db_open(scratch_state / "before.sqlite")
         try:
             _inventory(
                 source_fd,
@@ -1586,7 +1813,7 @@ def capture_tree(
                 protected_scope=root.scope == "protected_opaque",
             )
             _resolve_hardlinks(db)
-            _mark_excluded_symlink_targets(db, root.path, policy)
+            _mark_excluded_symlink_targets(db, source_path, policy)
             included_count = db.execute(
                 "SELECT count(*) FROM entries WHERE state='included'"
             ).fetchone()[0]
@@ -1628,7 +1855,9 @@ def capture_tree(
                     "AND (primary_path IS NULL OR primary_path=path) ORDER BY path COLLATE BINARY"
                 )
                 for row in db.execute(query):
-                    v2._chunk_file(
+                    if revalidate_source_chunk is not None:
+                        revalidate_source_chunk()
+                    chunk_args = (
                         writer,
                         base,
                         hashlib.sha256(row[0].encode()).hexdigest(),
@@ -1636,6 +1865,10 @@ def capture_tree(
                         db,
                         row,
                     )
+                    if revalidate_source_chunk is None:
+                        v2._chunk_file(*chunk_args)
+                    else:
+                        v2._chunk_file(*chunk_args, before_read=revalidate_source_chunk)
                 entry_refs = _emit_pages(
                     writer,
                     base,
@@ -1652,7 +1885,15 @@ def capture_tree(
                 )
                 entry_indexes = _emit_indexes(writer, base, entry_refs, kind="entries")
                 exclusion_indexes = _emit_indexes(writer, base, exclusion_refs, kind="exclusions")
-                after = _db_open(Path(tmp) / "after.sqlite")
+                if held_source:
+                    assert isinstance(scratch_state, tuple)
+                    after, after_db_fd = _db_open_at(
+                        scratch_fd, "after.sqlite", device=writer.device
+                    )
+                    after_db = after
+                else:
+                    assert isinstance(scratch_state, Path)
+                    after = _db_open(scratch_state / "after.sqlite")
                 try:
                     _inventory(
                         source_fd,
@@ -1662,7 +1903,7 @@ def capture_tree(
                         protected_scope=root.scope == "protected_opaque",
                     )
                     _resolve_hardlinks(after)
-                    _mark_excluded_symlink_targets(after, root.path, policy)
+                    _mark_excluded_symlink_targets(after, source_path, policy)
                     before_count = db.execute("SELECT count(*) FROM entries").fetchone()[0]
                     after_count = after.execute("SELECT count(*) FROM entries").fetchone()[0]
                     if before_count != after_count:
@@ -1683,18 +1924,32 @@ def capture_tree(
                         if before != current:
                             raise TreeCustodyV3Error("source_member_signature_drift")
                 finally:
-                    after.close()
+                    if held_source:
+                        _close_db_at(after, after_db_fd, scratch_fd, "after.sqlite")
+                        after_db = None
+                        after_db_fd = -1
+                    else:
+                        after.close()
                 policy_now, raw_now, hash_now = _load_policy(policy_path)
                 if raw_now != policy_raw or hash_now != policy_hash or policy_now != policy:
                     raise TreeCustodyV3Error("policy_changed_during_capture")
                 if v2._sig(os.fstat(source_fd)) != root_sig:
                     raise TreeCustodyV3Error("source_root_changed")
-                path_fd = v2._open_absolute_directory(root.path)
-                try:
-                    if v2._sig(os.fstat(path_fd)) != root_sig:
-                        raise TreeCustodyV3Error("source_root_replaced")
-                finally:
-                    os.close(path_fd)
+                if source_root_fd is None:
+                    path_fd = v2._open_absolute_directory(root.path)
+                    try:
+                        if v2._sig(os.fstat(path_fd)) != root_sig:
+                            raise TreeCustodyV3Error("source_root_replaced")
+                    finally:
+                        os.close(path_fd)
+                elif revalidate_before_publish is not None:
+                    revalidate_before_publish()
+                if held_source:
+                    assert scratch_fd >= 0
+                    writer.assert_storage_binding(writer.storage_guard)
+                    scratch_st = os.fstat(scratch_fd)
+                    if scratch_st.st_dev != writer.device:
+                        raise TreeCustodyV3Error("scratch_device_changed")
                 end_ns = time.time_ns()
                 unresolved = db.execute(
                     "SELECT count(*) FROM entries WHERE state!='included' "
@@ -1748,7 +2003,7 @@ def capture_tree(
                     "authority_id": root.authority_id,
                     "recovery_point_id": root.recovery_point_id,
                     "recovery_point_source": "caller_asserted",
-                    "source_root_sha256": hashlib.sha256(os.fsencode(root.path)).hexdigest(),
+                    "source_root_sha256": hashlib.sha256(os.fsencode(source_path)).hexdigest(),
                     "source_flags_or": source_flags_or,
                     "symlink_mode_policy": SYMLINK_MODE_POLICY,
                     "extended_metadata_policy": v2.EXTENDED_METADATA_POLICY,
@@ -1793,6 +2048,8 @@ def capture_tree(
                     raise TreeCustodyV3Error("manifest_size_limit")
                 if revalidate_before_publish is not None:
                     revalidate_before_publish()
+                if held_source:
+                    writer.assert_storage_binding(writer.storage_guard)
                 writer.create(f"{base}/MANIFEST.json", manifest_raw)
                 _verify_capture_objects(
                     writer,
@@ -1848,8 +2105,12 @@ def capture_tree(
                     and unknown_subtrees == rebuild_subtrees + disposable_not_required_subtrees,
                 }
         finally:
-            db.close()
-            os.close(source_fd)
+            if held_source and before_db_fd >= 0:
+                _close_db_at(db, before_db_fd, scratch_fd, "before.sqlite")
+            else:
+                db.close()
+            if after_db_fd >= 0 and scratch_fd >= 0:
+                _close_db_at(after_db, after_db_fd, scratch_fd, "after.sqlite")
 
 
 def extract_tree(
