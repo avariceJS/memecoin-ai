@@ -1736,8 +1736,9 @@ presence separately from capture custody, rejects legacy aliases/bridges, and ke
 files in quarantine/reissue-only disposition. It reads card/index metadata only, never capture-unit
 payloads, and every output remains blocked with all activation, restore, T/K, and erase authority
 false. Sol accepted this interface after review of path, mode, owner, link-count race, join, and
-authority boundaries. Seventy-one focused tests across v2/v1 handoff, assessment, and root-set readers
-pass with Ruff, formatting, and scoped strict mypy. This qualifies only the synthetic blocked path:
+authority boundaries. Failures report path-free inspection phase and a safe operator action tied to
+independently approved pins. Seventy-two focused tests across v2/v1 handoff, assessment, and root-set
+readers pass with Ruff, formatting, and scoped strict mypy. This qualifies only the synthetic blocked path:
 there is no real v2 owner handoff, source custody closure, payload verification, clean-compatible-host
 restore, T/K, or erase readiness.
 

@@ -59,6 +59,25 @@ AUTHORITY_FLAGS = (
     "activation_authorized",
     "safe_to_erase",
 )
+FAILURE_ACTIONS = {
+    "handoff_plan_policy_inspection_failed": (
+        "Inspect private inputs and compare them with independently approved hashes "
+        "and role declarations."
+    ),
+    "checkout_or_source_card_inspection_failed": (
+        "Inspect the checkout and source-card pins against the independently approved handoff."
+    ),
+    "storage_or_card_inspection_failed": (
+        "Inspect Kingston identity and its entry-card copy against the independently approved pins."
+    ),
+    "candidate_index_inspection_failed": (
+        "Do not restore; reconcile index and role declarations against independent pins "
+        "without changing them."
+    ),
+    "arguments_invalid": (
+        "Run this command with inspect and all required input paths and independent pins."
+    ),
+}
 ROLE_FIELDS = {
     "kind",
     "source_state",
@@ -453,6 +472,7 @@ def inspect_handoff(
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> dict[str, Any]:
     """Inspect exact code/card/storage/index pins without reading source roots or payloads."""
+    failure_stage = "handoff_plan_policy_inspection_failed"
     try:
         handoff = _private_json(handoff_path, expected_handoff_sha256)
         validate_handoff(handoff)
@@ -472,10 +492,12 @@ def inspect_handoff(
                 and row["relative_locator"] == declaration.relative_locator
                 and row["absence_reason"] == declaration.unresolved_reason
             )
+        failure_stage = "checkout_or_source_card_inspection_failed"
         _require(repository_root.resolve(strict=True) == Path(__file__).resolve().parents[1])
         state = _git_state(repository_root, runner)
         _require(state == {"head": handoff["execution_commit"], "clean": True})
         card_name, _ = _find_pinned_card(repository_root, "recovery", handoff["entry_card_sha256"])
+        failure_stage = "storage_or_card_inspection_failed"
         with read_only_guard(storage_config) as guard:
             _require(
                 guard.volume_uuid.lower() == handoff["kingston"]["volume_uuid"]
@@ -491,6 +513,7 @@ def inspect_handoff(
                     == handoff["entry_card_sha256"]
                 ]
                 _require(matches == [card_name])
+                failure_stage = "candidate_index_inspection_failed"
                 candidate = handoff["mixed_candidate"]
                 path = f"{mixed.SET_BASE}/{candidate['set_id']}.json"
                 before = reader.stat(path)
@@ -536,7 +559,8 @@ def inspect_handoff(
             "schema": SCHEMA,
             "status": "blocked",
             "metadata_pins_match": False,
-            "blockers": ["inspection_input_rejected"],
+            "blockers": [failure_stage],
+            "operator_action": FAILURE_ACTIONS[failure_stage],
             "unit_payloads_reverified": False,
             "protected_payloads_read": False,
             "restore_performed": False,
@@ -573,7 +597,9 @@ def main(argv: list[str] | None = None) -> int:
         result = {
             "schema": SCHEMA,
             "status": "blocked",
+            "metadata_pins_match": False,
             "blockers": ["arguments_invalid"],
+            "operator_action": FAILURE_ACTIONS["arguments_invalid"],
             **{key: False for key in AUTHORITY_FLAGS},
         }
     sys.stdout.buffer.write(canonical_json(result))

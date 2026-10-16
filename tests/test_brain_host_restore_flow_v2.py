@@ -379,7 +379,35 @@ def test_public_inspector_fails_closed_on_independent_pin_and_file_drift(
     result = flow.inspect_handoff(**fixture.kwargs)
     assert result["metadata_pins_match"] is False
     assert result["status"] == "blocked"
+    expected_stage = {
+        "handoff_hash": "handoff_plan_policy_inspection_failed",
+        "handoff_mode": "handoff_plan_policy_inspection_failed",
+        "plan_mode": "handoff_plan_policy_inspection_failed",
+        "plan_pin": "handoff_plan_policy_inspection_failed",
+        "policy_pin": "handoff_plan_policy_inspection_failed",
+        "index_hash": "candidate_index_inspection_failed",
+        "card_hash": "storage_or_card_inspection_failed",
+        "source_absence": "handoff_plan_policy_inspection_failed",
+    }[mutation]
+    assert result["blockers"] == [expected_stage]
+    assert result["operator_action"] == flow.FAILURE_ACTIONS[expected_stage]
     assert all(result[key] is False for key in flow.AUTHORITY_FLAGS)
+
+
+def test_public_inspector_reports_pinned_checkout_recovery_action(disposable_inspection) -> None:
+    fixture = disposable_inspection
+
+    def runner(args, **_kwargs):
+        stdout = "f" * 40 + "\n" if args[-1] == "HEAD" else ""
+        return subprocess.CompletedProcess(args, 0, stdout, "")
+
+    fixture.kwargs["runner"] = runner
+    result = flow.inspect_handoff(**fixture.kwargs)
+    assert result["blockers"] == ["checkout_or_source_card_inspection_failed"]
+    assert (
+        result["operator_action"]
+        == flow.FAILURE_ACTIONS["checkout_or_source_card_inspection_failed"]
+    )
 
 
 def test_private_json_rejects_duplicate_fields_and_symlink(tmp_path: Path) -> None:
