@@ -927,6 +927,12 @@ not prove a replacement host's credentials, a recovery set, Data T, Kingston K, 
 closure, full restore, activation, or erase readiness. See the
 [`v4 origin retrieval qualification receipt`](evidence/portability-dr-bootstrap-handoff-v4-origin-retrieval-qualification-2026-10-16T0715Z.json)
 and [`v4 local retrieval qualification receipt`](evidence/portability-dr-bootstrap-handoff-v4-local-retrieval-qualification-2026-10-16T0712Z.json).
+Following tag qualification, the exact v4 `ENTRY-v2` path was rehearsed from a new entry clone at C:
+the Kingston and Git card digests matched, the helper made a separate exact-C checkout, rebuilt its
+locked environment under an isolated temporary home, and returned `state=complete` and
+`smoke=passed`. Both checkouts were clean at C; no storage or services changed. This is a current-Mac
+code-bootstrap result, not a separate-host restore or Brain-state recovery. See the
+[`v4 entry code-bootstrap E2E receipt`](evidence/portability-dr-entry-v4-code-bootstrap-e2e-2026-10-16T0719Z.json).
 
 The helper makes a second exact-commit clone into a separate new destination, installs the locked
 development requirements, and runs smoke. Both checkouts must report the pinned `HEAD`, and the
