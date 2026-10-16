@@ -1780,6 +1780,29 @@ clean host, Recovery, owner capture, T/K, full Brain restore, or erase readiness
 [`v6b archive capture and quarantine receipt`](evidence/portability-dr-v6b-archive-capture-quarantine-2026-10-16T1033Z.json)
 and [`v6b Kingston candidate-kit custody receipt`](evidence/portability-dr-v6b-kingston-candidate-kit-custody-2026-10-16T1046Z.json).
 
+A source-only v7 builder candidate defines four explicit entrypoint roles and a versioned 12-module
+roster for operator status, Recovery preflight, held-view inspection, and bound-v2 capacity/capture.
+It reads only tracked Git blobs from a full pinned commit, binds the builder's own Git blob identity
+in the manifest, and rejects execution when builder bytes do not match that commit. A static audit
+of the exact 12 rostered source blobs at commit `3270034e16ae5db48d091b95b9f2fe738322dd26` found
+no recognized dynamic-import or package-resource calls. Builder tests reject unresolved or
+unrostered local imports, extra archive members, and specified syntax forms: direct `__import__`
+and `importlib.import_module` calls, imported-function/simple assignment aliases,
+`builtins.__import__`, literal `getattr` access to import functions/resources, and tested direct,
+assigned, and transitive `importlib.resources` aliases; `pkgutil.get_data` is also recognized.
+These checks are syntax-bounded; they do not prove absence of arbitrary computed reflection,
+`eval`/`exec`, or native import hooks.
+The ZIP uses sorted paths, fixed timestamps/modes, and stored members; its external
+manifest binds the commit, role/roster digest, builder and source Git blob IDs, member sizes/hashes,
+and archive hash. The runtime requirement is CPython 3.13.6 arm64, minimum macOS 26.0; this builder
+emits source only, no runtime or disk image. Two independent clean clones of the same pinned test
+commit produced byte-identical outputs. Neutral-cwd tests with site loading disabled resolved
+first-party imports inside the ZIP and passed help plus negative-only preflights. These tests used
+the local interpreter, not the separately bundled runtime. No provider, Data, Kingston, or service
+operation ran. This proves only source-entry closure for the tested entrypoints; RecoveryOS
+compatibility, bundled-runtime launch, actual capture, T/K, restore, and erase readiness remain
+unqualified. The existing staging helper still pins v6b and is not a v7 execution path.
+
 A local-only operator staging helper, `tools/brain_host_recovery_stage_v1.sh` (SHA-256
 `0724acb9220830517c732a59b3c4e32fee86ab82cfe368501495f860c84019d5`), now pins the exact
 deposited archive, manifest, source ZIP, runtime, and Data UUID internally. On this compatible
