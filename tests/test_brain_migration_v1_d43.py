@@ -85,6 +85,35 @@ def test_nested_mount_device_is_rejected() -> None:
         d43._require_source_device(SimpleNamespace(st_dev=12), 11)
 
 
+def test_target_guard_forces_identity_then_rechecks_on_bytes_or_time(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    identity_checks: list[object] = []
+    free_checks: list[int] = []
+    now = [100.0]
+    monkeypatch.setattr(d43.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(
+        d43.base, "_assert_held_target_identity", lambda *args: identity_checks.append(args)
+    )
+    monkeypatch.setattr(
+        d43.base, "_require_free", lambda _fd, required: free_checks.append(required)
+    )
+    pin = d43.base.TargetPin("uuid", "/Volumes/Kingston", "apfs", "disk7s1")
+    guard = d43._target_capacity_guard(Path("/Volumes/Kingston"), 10, pin, 10_000_000)
+
+    guard(10_000_000)
+    guard(9_999_999)
+    assert len(identity_checks) == 1
+    assert len(free_checks) == 2
+
+    now[0] += d43.base.TARGET_RECHECK_SECONDS + 1
+    guard(9_999_999)
+    assert len(identity_checks) == 2
+
+    guard(9_999_999 - d43.base.TARGET_RECHECK_BYTES)
+    assert len(identity_checks) == 3
+
+
 def test_json_metadata_write_is_create_only_and_readback_verified(tmp_path: Path) -> None:
     fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
     try:
@@ -123,6 +152,8 @@ def test_manifest_rejects_duplicate_member_paths(tmp_path: Path) -> None:
         "version": 1,
         "candidate_id": "a" * 32,
         "candidate_status": "complete",
+        "pause_mode": "fresh_disable",
+        "pause_continuation": None,
         "role": "D43_protected_opaque_custody_only",
         "protected_semantics_used": False,
         "start_or_activation": False,
@@ -239,6 +270,8 @@ def test_manifest_recomputes_lineage_counts_and_payload_bytes() -> None:
         "version": 1,
         "candidate_id": "a" * 32,
         "candidate_status": "complete",
+        "pause_mode": "fresh_disable",
+        "pause_continuation": None,
         "candidate_device": 1,
         "candidate_inode": 5,
         "role": "D43_protected_opaque_custody_only",
@@ -470,6 +503,10 @@ def test_capture_failure_after_pause_keeps_durable_incomplete_witness(
     plist.write_bytes(b"plist")
     target = tmp_path / "kingston"
     (target / d43.MIGRATION_DIR).mkdir(parents=True)
+    home = tmp_path / "second-home"
+    home.mkdir()
+    (home / "BrainRestore").mkdir()
+    quarantine = home / "BrainRestore" / "resumed-d43"
     monkeypatch.setattr(d43, "SOURCE_ROOT", source)
     monkeypatch.setattr(d43, "PLIST_PATH", plist)
     monkeypatch.setattr(d43, "PLIST_SHA256_PIN", hashlib.sha256(b"plist").hexdigest())
@@ -477,6 +514,7 @@ def test_capture_failure_after_pause_keeps_durable_incomplete_witness(
     monkeypatch.setattr(d43.time, "sleep", lambda _seconds: None)
     monkeypatch.setattr(d43, "_lsof_writers", lambda _path: [])
     monkeypatch.setattr(d43, "_launchctl_list", lambda: (True, "-"))
+    monkeypatch.setattr(d43.Path, "home", classmethod(lambda _cls: home))
     disabled = False
     commands: list[list[str]] = []
 
@@ -495,6 +533,7 @@ def test_capture_failure_after_pause_keeps_durable_incomplete_witness(
 
     monkeypatch.setattr(d43, "_disabled_state", disabled_state)
     monkeypatch.setattr(d43.subprocess, "run", fake_launchctl)
+    original_copy = d43._copy_members
     monkeypatch.setattr(d43, "_copy_members", fail_copy)
     monkeypatch.setattr(
         d43.base,
@@ -507,6 +546,7 @@ def test_capture_failure_after_pause_keeps_durable_incomplete_witness(
     monkeypatch.setattr(d43.base, "_assert_held_target_identity", lambda *_args: None)
     monkeypatch.setattr(d43.base, "_free_bytes", lambda _fd: 2**50)
     monkeypatch.setattr(d43, "_require_separate_source_target", lambda *_args: None)
+    monkeypatch.setattr(d43, "_validate_restore_devices", lambda *_args: None)
 
     candidate_id = "e" * 32
     with pytest.raises(d43.D43MigrationError, match="injected_copy_failure"):
@@ -519,3 +559,25 @@ def test_capture_failure_after_pause_keeps_durable_incomplete_witness(
     assert not (candidate / "CAPTURE_COMPLETE.json").exists()
     assert disabled is True
     assert [command[1] for command in commands] == ["disable"]
+
+    monkeypatch.setattr(d43, "_copy_members", original_copy)
+    resumed_id = "f" * 32
+    resumed = d43.capture_d43(
+        target_root=target,
+        candidate_id=resumed_id,
+        paused_candidate_id=candidate_id,
+    )
+    assert resumed["state"] == "protected_opaque_candidate_verified"
+    assert resumed["member_count"] == 4
+    assert disabled is True
+    assert [command[1] for command in commands] == ["disable"]
+    restored = d43.restore_d43_inert(
+        target_root=target,
+        candidate_id=resumed_id,
+        expected_manifest_sha256=resumed["manifest_sha256"],
+        quarantine_root=quarantine,
+    )
+    assert restored["state"] == "protected_opaque_inert_quarantine_verified"
+    assert restored["start_or_activation"] is False
+    assert (quarantine / "payload/calendar-execution-01/opaque.bin").read_bytes() == b"opaque"
+    assert (candidate / "MANIFEST.jsonl").exists() is False

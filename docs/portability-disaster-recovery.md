@@ -30,7 +30,7 @@ not claimed. Symlink targets and filesystem metadata restoration are not proved.
 The initial ordinary candidate excludes `owner_work/calendar-execution-01` without descent and
 reports `protected_custody_complete=false`; it cannot be used alone for the second-Mac acceptance
 run. Sol accepted `tools/brain_migration_v1_d43.py` for one bounded real D43 opaque-custody capture
-attempt at commit `176ef0d`. The full v1 candidate is the separately pinned ordinary candidate plus
+attempt. The full v1 candidate is the separately pinned ordinary candidate plus
 the D43 overlay, with both manifest hashes and member counts in the operator handoff.
 
 The latest metadata-only seven-root census gave a conservative copy-budget basis of 30,810,427,392
@@ -40,8 +40,15 @@ existing PersonalBackup occupancy. The writer retains a 50-GiB free floor and an
 reserve. It created and internally readback-verified candidate
 `21843d9664ea45438fd79c9745a30fee` with 28,820,413,514 payload bytes and 783,922 members; a
 separate read-only verifier matched every member and the externally pinned manifest SHA-256. Free
-space after verification was 182,458,507,264 bytes. D43 custody remains incomplete, and no restore
-has been performed. See the immutable [Migration v1 capture receipt](evidence/portability-migration-v1-capture-2026-10-16T2030Z.json).
+space after verification was 182,458,507,264 bytes. That ordinary candidate is stale after the
+continuation code checkpoint and excludes D43; do not restore it. A D43 live capture on 2026-10-17
+was interrupted during copy after a per-member target identity guard proved prohibitively slow. It
+left source data untouched and produced incomplete candidate
+`5d4804faa1f14c47a0e3ed652e758bdd`, with durable pause records but no manifest or completion seal.
+The exact D43 label remains disabled; no automatic resume occurred. A new Sol-reviewed bounded
+continuation path revalidates old pause-record hashes, fresh source stability and target identity,
+and never opens the old partial payload. Neither a full v1 candidate pair nor restore is
+established. See the immutable [Migration v1 capture receipt](evidence/portability-migration-v1-capture-2026-10-16T2030Z.json).
 
 ### Migration v1 protected custody and database consistency
 
@@ -56,6 +63,16 @@ successful capture, run a fresh verify with the externally recorded manifest SHA
 same label is still disabled and PID-free. This does not inspect D43 semantics, validate protected
 SQLite databases, restore macOS metadata, activate the service, establish global migration
 completeness, or authorize erasure.
+
+If a D43 capture is interrupted or fails after the disable, retain that incomplete candidate and
+leave the exact label disabled. Do not re-enable it to retry. The explicit
+`capture --paused-candidate-id <ID>` continuation accepts only the exact incomplete marker set with
+durable pause records and no manifest or completion seal; it never enters the prior partial payload.
+It rechecks the original pause-record digests, target/plist/source identities, disabled PID-free
+state, writer absence, and a fresh stable metadata interval before creating a new candidate. The
+new manifest and `PAUSE_CONTINUATION.json` bind the old candidate ID and all three pause-record
+digests. Both the old partial and new candidate remain on Kingston; only the new externally pinned
+candidate may qualify for restore.
 
 For ordinary SQLite state, stop Brain-owned writers before capture and preserve each database and
 existing `-wal`, `-shm`, and `-journal` companion as opaque bytes. Do not checkpoint or otherwise

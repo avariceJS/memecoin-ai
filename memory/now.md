@@ -1,27 +1,21 @@
 # Current state
 
-As of 2026-10-17, active scope is **Practical Brain Migration v1**. Factory reset remains **NO-GO**
-until reset-unique state is restored and accepted on the second MacBook. Hardened DR is deferred to
-[`portability-disaster-recovery-v2-roadmap.md`](../docs/portability-disaster-recovery-v2-roadmap.md);
-its three v3 drafts are durably archived in the published v2 checkpoint.
+As of 2026-10-17, active scope is **Practical Brain Migration v1**. Erasure remains **NO-GO** until
+the full reset-unique candidate restores and passes acceptance on the second MacBook. Hardened DR
+work is deferred to [`portability-disaster-recovery-v2-roadmap.md`](../docs/portability-disaster-recovery-v2-roadmap.md).
 
-The ordinary v1 adapter is `tools/brain_migration_v1.py`. D43 opaque custody
-`tools/brain_migration_v1_d43.py` was accepted by Sol for one bounded real capture attempt and
-published at `176ef0d`. It has durable pre-disable intent, an exact disable-only pause, descriptor-
-based copy/readback, fresh verification, inert restore, and synthetic success/failure E2E coverage.
-Focused v1/D43/SQLite checks pass (43 tests), with Ruff, formatting, and `py_compile`. No live D43
-pause/capture has occurred yet. Candidate
-`21843d9664ea45438fd79c9745a30fee` was internally readback-verified and independently verified
-against manifest SHA `4d5346f052b4fc3943a599b35013f5d0d098d25bf817bb27a29421ba6a7eac55` (783,922
-members; 28,820,413,514 bytes). Receipt:
-`docs/evidence/portability-migration-v1-capture-2026-10-16T2030Z.json`. Kingston now has
-182,458,507,264 free bytes. PersonalBackup and `BrainData` remain untouched.
+Sol accepted D43's bounded continuation path. The first live capture was interrupted during copy
+because its target identity guard called `diskutil` for every member; source data was untouched.
+Incomplete candidate `5d4804faa1f14c47a0e3ed652e758bdd` has pause records but no manifest or seal.
+The D43 job was left disabled; do not re-enable it. A Sol-reviewed continuation revalidates its
+pause metadata and fresh stable source/target identity, leaves the old payload unopened, and writes
+a new candidate with interval-based target identity checks. The continuation implementation is
+being checkpointed before its one bounded live retry.
 
-The prior candidate is stale after the new code commit and must not be restored on Mac2. Recheck the
-live writer inventory before capture. Ordinary SQLite state is copied without checkpointing; the
-final restored copy must pass the read-only database-family verifier. D43 remains opaque-only, and
-protected SQLite semantics are excluded. No complete candidate pair or second-Mac restore exists;
-erase remains NO-GO. Do not activate Brain.
+The ordinary candidate `21843d9664ea45438fd79c9745a30fee` is stale and excludes D43. Do not restore
+it. SQLite verification passed for 93 ordinary databases on that old candidate only; repeat on the
+final paired v1 capture. Kingston `BrainData` and PersonalBackup remain untouched. There is no full
+candidate pair or second-Mac restore yet.
 
-`research/active` is the DR work branch at `176ef0d`; `main` remains
-`770699d3ef8558518ae750b6d5d6cab41c2e82c8`.
+Branch is `research/active`; `main` remains `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Commit
+`54785829248d401475ee8bbbce20f15232a714e4` is the pre-continuation base. Do not activate Brain.

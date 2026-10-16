@@ -165,6 +165,40 @@ def _require_separate_source_target(source_device: int, target_device: int) -> N
         raise D43MigrationError("protected_source_target_volume_alias")
 
 
+def _target_capacity_guard(
+    target_root: Path,
+    target_fd: int,
+    target_pin: base.TargetPin,
+    initial_remaining_bytes: int,
+) -> Callable[[int], None]:
+    last_identity_check: float | None = None
+    last_remaining = initial_remaining_bytes
+    bytes_since_identity_check = 0
+
+    def check(remaining: int) -> None:
+        nonlocal last_identity_check, last_remaining, bytes_since_identity_check
+        bytes_since_identity_check += max(0, last_remaining - remaining)
+        last_remaining = remaining
+        now = time.monotonic()
+        if (
+            last_identity_check is None
+            or bytes_since_identity_check >= base.TARGET_RECHECK_BYTES
+            or now - last_identity_check >= base.TARGET_RECHECK_SECONDS
+        ):
+            base._assert_held_target_identity(target_root, target_fd, target_pin)
+            last_identity_check = time.monotonic()
+            bytes_since_identity_check = 0
+        base._require_free(
+            target_fd,
+            max(0, remaining)
+            + base.FREE_FLOOR_BYTES
+            + base.OPERATION_RESERVE_BYTES
+            + ALLOCATION_CUSHION_BYTES,
+        )
+
+    return check
+
+
 def _tree_members(root: Path) -> list[dict[str, Any]]:
     """Metadata-only walk relative to held directory descriptors."""
     members: list[dict[str, Any]] = []
@@ -696,7 +730,12 @@ def _verify_payload(payload_fd: int, rows: list[dict[str, Any]]) -> int:
     return count
 
 
-def capture_d43(*, target_root: Path, candidate_id: str | None = None) -> dict[str, Any]:
+def capture_d43(
+    *,
+    target_root: Path,
+    candidate_id: str | None = None,
+    paused_candidate_id: str | None = None,
+) -> dict[str, Any]:
     candidate_id = candidate_id or uuid.uuid4().hex
     if not base.ID_RE.fullmatch(candidate_id):
         raise D43MigrationError("candidate_id_invalid")
@@ -716,6 +755,11 @@ def capture_d43(*, target_root: Path, candidate_id: str | None = None) -> dict[s
             + base.FREE_FLOOR_BYTES
             + base.OPERATION_RESERVE_BYTES
             + ALLOCATION_CUSHION_BYTES,
+        )
+        continuation = (
+            _resume_existing_pause(target_fd, target_pin, paused_candidate_id)
+            if paused_candidate_id is not None
+            else None
         )
         migration_fd = os.open(
             MIGRATION_DIR, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=target_fd
@@ -753,8 +797,15 @@ def capture_d43(*, target_root: Path, candidate_id: str | None = None) -> dict[s
         _write_json_create(candidate_fd, "CAPTURE_STARTED.json", start)
         base._assert_held_target_identity(target_root, target_fd, target_pin)
 
-        pause = _pause_exact_label(candidate_fd)
-        _write_json_create(candidate_fd, "PAUSE_WITNESS.json", pause)
+        if continuation is None:
+            pause = _pause_exact_label(candidate_fd)
+            _write_json_create(candidate_fd, "PAUSE_WITNESS.json", pause)
+        else:
+            _write_json_create(candidate_fd, "PAUSE_INTENT.json", continuation["intent"])
+            _write_json_create(candidate_fd, "PAUSE_STARTED.json", continuation["started"])
+            pause = continuation["witness"]
+            _write_json_create(candidate_fd, "PAUSE_WITNESS.json", pause)
+            _write_json_create(candidate_fd, "PAUSE_CONTINUATION.json", continuation["record"])
 
         source_root = SOURCE_ROOT
         root_stat = _root_identity(source_root)
@@ -805,16 +856,7 @@ def capture_d43(*, target_root: Path, candidate_id: str | None = None) -> dict[s
         required = source_bytes + base.FREE_FLOOR_BYTES + base.OPERATION_RESERVE_BYTES
         base._require_free(target_fd, required + ALLOCATION_CUSHION_BYTES)
 
-        def target_guard(remaining: int) -> None:
-            base._assert_held_target_identity(target_root, target_fd, target_pin)
-            base._require_free(
-                target_fd,
-                max(0, remaining)
-                + base.FREE_FLOOR_BYTES
-                + base.OPERATION_RESERVE_BYTES
-                + ALLOCATION_CUSHION_BYTES,
-            )
-
+        target_guard = _target_capacity_guard(target_root, target_fd, target_pin, source_bytes)
         target_guard(source_bytes)
         payload_fd = base._mkdir_open(candidate_fd, "payload")
         try:
@@ -938,6 +980,10 @@ def capture_d43(*, target_root: Path, candidate_id: str | None = None) -> dict[s
             "launch_agent_label": LABEL,
             "launch_agent_plist_sha256": PLIST_SHA256_PIN,
             "pause_witness": pause,
+            "pause_mode": (
+                "continued_existing_pause" if continuation is not None else "fresh_disable"
+            ),
+            "pause_continuation": continuation["record"] if continuation is not None else None,
             "member_count": member_count,
             "payload_bytes": sum(
                 int(row["size_bytes"]) for row in records if row["type"] == "file"
@@ -1043,8 +1089,31 @@ def _parse_manifest(
         or header.get("source_root_path") != str(SOURCE_ROOT)
         or not isinstance(header.get("candidate_id"), str)
         or not base.ID_RE.fullmatch(header["candidate_id"])
+        or header.get("pause_mode") not in {"fresh_disable", "continued_existing_pause"}
     ):
         raise D43MigrationError("manifest_schema_or_state_invalid")
+    continuation = header.get("pause_continuation")
+    if header["pause_mode"] == "fresh_disable":
+        if continuation is not None:
+            raise D43MigrationError("manifest_pause_mode_join_invalid")
+    elif (
+        not isinstance(continuation, dict)
+        or continuation.get("state") != "continued_existing_pause"
+        or continuation.get("prior_candidate_id") == header["candidate_id"]
+        or continuation.get("automatic_resume") is not False
+        or continuation.get("source_inventory_signature_sha256")
+        != header.get("source_inventory_signature_sha256")
+        or continuation.get("revalidated_stable_interval_seconds", 0) < STABILITY_SECONDS
+        or any(
+            not base.SHA_RE.fullmatch(str(continuation.get(field, "")))
+            for field in (
+                "pause_intent_sha256",
+                "pause_started_sha256",
+                "prior_pause_witness_sha256",
+            )
+        )
+    ):
+        raise D43MigrationError("manifest_pause_continuation_invalid")
     pause = header.get("pause_witness")
     if (
         not isinstance(pause, dict)
@@ -1068,6 +1137,16 @@ def _parse_manifest(
         or pause.get("post_pause_logical_bytes") != header.get("source_logical_bytes")
         or pause.get("stable_interval_seconds", 0) < STABILITY_SECONDS
         or not base.SHA_RE.fullmatch(str(pause.get("post_pause_inventory_signature_sha256", "")))
+        or (
+            header["pause_mode"] == "continued_existing_pause"
+            and (
+                pause.get("continued_from_candidate_id") != continuation.get("prior_candidate_id")
+                or pause.get("continuation_inventory_signature_sha256")
+                != continuation.get("source_inventory_signature_sha256")
+                or pause.get("continuation_stable_interval_seconds", 0) < STABILITY_SECONDS
+            )
+        )
+        or (header["pause_mode"] == "fresh_disable" and "continued_from_candidate_id" in pause)
     ):
         raise D43MigrationError("manifest_pause_witness_invalid")
     seen: set[str] = set()
@@ -1201,7 +1280,7 @@ def verify_d43(
         try:
             header, rows = _read_manifest_at(candidate_fd, expected_manifest_sha256)
             _verify_candidate_metadata(
-                candidate_fd, candidate_id, pin, header, expected_manifest_sha256
+                candidate_fd, target_fd, candidate_id, pin, header, expected_manifest_sha256
             )
             candidate_stat = os.fstat(candidate_fd)
             payload_fd = os.open(
@@ -1261,6 +1340,11 @@ def _read_manifest_at(
 
 
 def _read_json_at(candidate_fd: int, name: str) -> dict[str, Any]:
+    value, _raw = _read_json_hashed_at(candidate_fd, name)
+    return value
+
+
+def _read_json_hashed_at(candidate_fd: int, name: str) -> tuple[dict[str, Any], bytes]:
     fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=candidate_fd)
     try:
         raw = base._read_fd(fd, max_bytes=1024 * 1024)
@@ -1271,11 +1355,157 @@ def _read_json_at(candidate_fd: int, name: str) -> dict[str, Any]:
         os.close(fd)
     if not isinstance(value, dict):
         raise D43MigrationError("candidate_metadata_invalid")
-    return value
+    return value, raw
+
+
+def _resume_existing_pause(
+    target_fd: int, pin: base.TargetPin, prior_candidate_id: str
+) -> dict[str, Any]:
+    """Revalidate an existing durable pause without reenabling or rereading its payload."""
+    prior_fd = _open_candidate_fd(target_fd, prior_candidate_id)
+    try:
+        if set(os.listdir(prior_fd)) != {
+            "CAPTURE_STARTED.json",
+            "PAUSE_INTENT.json",
+            "PAUSE_STARTED.json",
+            "PAUSE_WITNESS.json",
+            "payload",
+        }:
+            raise D43MigrationError("continuation_source_not_incomplete_pause")
+        started_capture = _read_json_at(prior_fd, "CAPTURE_STARTED.json")
+        intent, intent_raw = _read_json_hashed_at(prior_fd, "PAUSE_INTENT.json")
+        started, started_raw = _read_json_hashed_at(prior_fd, "PAUSE_STARTED.json")
+        prior_witness, witness_raw = _read_json_hashed_at(prior_fd, "PAUSE_WITNESS.json")
+        intent_sha = hashlib.sha256(intent_raw).hexdigest()
+        intent_fields_valid = (
+            started_capture.get("schema") == SCHEMA
+            and started_capture.get("candidate_id") == prior_candidate_id
+            and started_capture.get("state") == "incomplete_until_manifest_published"
+            and started_capture.get("target_volume_uuid") == pin.volume_uuid
+            and intent.get("schema") == SCHEMA
+            and intent.get("label") == LABEL
+            and intent.get("prior_loaded") is True
+            and intent.get("prior_pid") == "-"
+            and intent.get("prior_disabled_override") is False
+            and intent.get("disable_requested") is True
+            and intent.get("plist_sha256") == PLIST_SHA256_PIN
+            and intent.get("source_path") == str(SOURCE_ROOT)
+            and intent.get("automatic_resume") is False
+            and started.get("schema") == SCHEMA
+            and started.get("label") == LABEL
+            and started.get("prior_loaded") is True
+            and started.get("prior_pid") == "-"
+            and started.get("prior_disabled_override") is False
+            and started.get("disable_requested") is True
+            and started.get("plist_sha256") == PLIST_SHA256_PIN
+            and started.get("source_path") == str(SOURCE_ROOT)
+            and started.get("pause_intent_sha256") == intent_sha
+            and started.get("automatic_resume") is False
+        )
+        source_device = intent.get("source_device")
+        source_inode = intent.get("source_inode")
+        if (
+            not intent_fields_valid
+            or not isinstance(source_device, int)
+            or not isinstance(source_inode, int)
+            or source_device < 0
+            or source_inode < 1
+            or started.get("source_device") != source_device
+            or started.get("source_inode") != source_inode
+            or prior_witness.get("label") != LABEL
+            or prior_witness.get("source_path") != str(SOURCE_ROOT)
+            or prior_witness.get("plist_sha256") != PLIST_SHA256_PIN
+            or prior_witness.get("prior_loaded") is not True
+            or prior_witness.get("prior_pid") != "-"
+            or prior_witness.get("prior_disabled_override") is not False
+            or prior_witness.get("disabled_after_pause") is not True
+            or prior_witness.get("loaded_after_pause") is not True
+            or prior_witness.get("loaded_after_pid") != "-"
+            or prior_witness.get("auto_resume") is not False
+            or prior_witness.get("source_mutated_by_tool") is not False
+            or prior_witness.get("source_device") != source_device
+            or prior_witness.get("source_inode") != source_inode
+            or prior_witness.get("pause_intent_sha256") != intent_sha
+            or prior_witness.get("stable_interval_seconds", 0) < STABILITY_SECONDS
+            or not base.SHA_RE.fullmatch(
+                str(prior_witness.get("post_pause_inventory_signature_sha256", ""))
+            )
+        ):
+            raise D43MigrationError("continuation_pause_records_invalid")
+
+        base._assert_held_target_identity(Path(pin.mount_point), target_fd, pin)
+        loaded, pid = _launchctl_list()
+        if not loaded or pid != "-" or not _disabled_state():
+            raise D43MigrationError("continuation_d43_not_disabled_pid_free")
+        if _plist_identity()[0] != PLIST_SHA256_PIN:
+            raise D43MigrationError("continuation_plist_pin_mismatch")
+        initial_root = _root_identity(SOURCE_ROOT)
+        if (initial_root.st_dev, initial_root.st_ino) != (source_device, source_inode):
+            raise D43MigrationError("continuation_source_root_identity_mismatch")
+        if _lsof_writers(SOURCE_ROOT):
+            raise D43MigrationError("continuation_source_writer_present")
+        initial_signature = _inventory_signature(_tree_members(SOURCE_ROOT))
+        expected_signature = prior_witness["post_pause_inventory_signature_sha256"]
+        if initial_signature != expected_signature:
+            raise D43MigrationError("continuation_source_inventory_mismatch")
+
+        deadline = time.monotonic() + STABILITY_SECONDS
+        last_lsof_check = time.monotonic()
+        while time.monotonic() < deadline:
+            loaded_now, pid_now = _launchctl_list()
+            if not loaded_now or pid_now != "-" or not _disabled_state():
+                raise D43MigrationError("continuation_d43_state_changed")
+            if time.monotonic() - last_lsof_check >= 15:
+                if _lsof_writers(SOURCE_ROOT):
+                    raise D43MigrationError("continuation_source_writer_during_stability")
+                last_lsof_check = time.monotonic()
+            time.sleep(min(2, max(0.0, deadline - time.monotonic())))
+        final_root = _root_identity(SOURCE_ROOT)
+        if (final_root.st_dev, final_root.st_ino) != (source_device, source_inode):
+            raise D43MigrationError("continuation_source_root_changed")
+        final_signature = _inventory_signature(_tree_members(SOURCE_ROOT))
+        if final_signature != expected_signature or _lsof_writers(SOURCE_ROOT):
+            raise D43MigrationError("continuation_source_not_stable")
+        loaded_final, pid_final = _launchctl_list()
+        if not loaded_final or pid_final != "-" or not _disabled_state():
+            raise D43MigrationError("continuation_d43_state_changed_after_stability")
+        if _plist_identity()[0] != PLIST_SHA256_PIN:
+            raise D43MigrationError("continuation_plist_changed")
+        base._assert_held_target_identity(Path(pin.mount_point), target_fd, pin)
+    finally:
+        os.close(prior_fd)
+
+    observed_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    continued_witness = {
+        **prior_witness,
+        "continued_from_candidate_id": prior_candidate_id,
+        "continuation_stable_interval_seconds": STABILITY_SECONDS,
+        "continuation_inventory_signature_sha256": final_signature,
+        "continuation_observed_at_utc": observed_at,
+    }
+    record = {
+        "schema": SCHEMA,
+        "state": "continued_existing_pause",
+        "prior_candidate_id": prior_candidate_id,
+        "pause_intent_sha256": hashlib.sha256(intent_raw).hexdigest(),
+        "pause_started_sha256": hashlib.sha256(started_raw).hexdigest(),
+        "prior_pause_witness_sha256": hashlib.sha256(witness_raw).hexdigest(),
+        "source_inventory_signature_sha256": final_signature,
+        "revalidated_stable_interval_seconds": STABILITY_SECONDS,
+        "revalidated_at_utc": observed_at,
+        "automatic_resume": False,
+    }
+    return {
+        "intent": intent,
+        "started": started,
+        "witness": continued_witness,
+        "record": record,
+    }
 
 
 def _verify_candidate_metadata(
     candidate_fd: int,
+    target_fd: int,
     candidate_id: str,
     pin: base.TargetPin,
     header: dict[str, Any],
@@ -1290,6 +1520,8 @@ def _verify_candidate_metadata(
         "MANIFEST.jsonl",
         "payload",
     }
+    if header.get("pause_mode") == "continued_existing_pause":
+        expected_names.add("PAUSE_CONTINUATION.json")
     if set(os.listdir(candidate_fd)) != expected_names:
         raise D43MigrationError("candidate_top_level_membership_mismatch")
     started = _read_json_at(candidate_fd, "CAPTURE_STARTED.json")
@@ -1337,6 +1569,54 @@ def _verify_candidate_metadata(
         raise D43MigrationError("candidate_pause_witness_mismatch")
     if pause_witness.get("pause_intent_sha256") != intent_sha256:
         raise D43MigrationError("candidate_pause_intent_join_invalid")
+    if header.get("pause_mode") == "continued_existing_pause":
+        record = _read_json_at(candidate_fd, "PAUSE_CONTINUATION.json")
+        if record != header.get("pause_continuation"):
+            raise D43MigrationError("candidate_pause_continuation_mismatch")
+        prior_candidate_id = record.get("prior_candidate_id")
+        if (
+            not isinstance(prior_candidate_id, str)
+            or not base.ID_RE.fullmatch(prior_candidate_id)
+            or prior_candidate_id == candidate_id
+            or record.get("schema") != SCHEMA
+            or record.get("state") != "continued_existing_pause"
+            or record.get("automatic_resume") is not False
+        ):
+            raise D43MigrationError("candidate_pause_continuation_invalid")
+        prior_fd = _open_candidate_fd(target_fd, prior_candidate_id)
+        try:
+            if set(os.listdir(prior_fd)) != {
+                "CAPTURE_STARTED.json",
+                "PAUSE_INTENT.json",
+                "PAUSE_STARTED.json",
+                "PAUSE_WITNESS.json",
+                "payload",
+            }:
+                raise D43MigrationError("continuation_prior_candidate_not_incomplete")
+            _prior_started = _read_json_at(prior_fd, "CAPTURE_STARTED.json")
+            _prior_intent, intent_raw = _read_json_hashed_at(prior_fd, "PAUSE_INTENT.json")
+            _prior_pause_started, pause_started_raw = _read_json_hashed_at(
+                prior_fd, "PAUSE_STARTED.json"
+            )
+            _prior_pause_witness, pause_witness_raw = _read_json_hashed_at(
+                prior_fd, "PAUSE_WITNESS.json"
+            )
+            hashes = (
+                hashlib.sha256(intent_raw).hexdigest(),
+                hashlib.sha256(pause_started_raw).hexdigest(),
+                hashlib.sha256(pause_witness_raw).hexdigest(),
+            )
+            expected_hashes = (
+                record.get("pause_intent_sha256"),
+                record.get("pause_started_sha256"),
+                record.get("prior_pause_witness_sha256"),
+            )
+            if hashes != expected_hashes:
+                raise D43MigrationError("continuation_prior_pause_digest_mismatch")
+        finally:
+            os.close(prior_fd)
+    elif "PAUSE_CONTINUATION.json" in os.listdir(candidate_fd):
+        raise D43MigrationError("unexpected_pause_continuation_record")
     seal = _read_json_at(candidate_fd, "CAPTURE_COMPLETE.json")
     if (
         seal.get("schema") != SCHEMA
@@ -1429,7 +1709,7 @@ def restore_d43_inert(
         candidate_fd = _open_candidate_fd(target_fd, candidate_id)
         header, rows = _read_manifest_at(candidate_fd, expected_manifest_sha256)
         _verify_candidate_metadata(
-            candidate_fd, candidate_id, pin, header, expected_manifest_sha256
+            candidate_fd, target_fd, candidate_id, pin, header, expected_manifest_sha256
         )
         candidate_stat = os.fstat(candidate_fd)
         payload_fd = os.open(
@@ -1552,6 +1832,10 @@ def _cli() -> int:
     )
     capture.add_argument("--target-root", type=Path, required=True)
     capture.add_argument("--candidate-id")
+    capture.add_argument(
+        "--paused-candidate-id",
+        help="continue from a pinned incomplete pause witness without reenabling D43",
+    )
     verify = sub.add_parser(
         "verify", help="verify protected opaque candidate without semantic access"
     )
@@ -1568,7 +1852,11 @@ def _cli() -> int:
     args = parser.parse_args()
     try:
         if args.command == "capture":
-            result = capture_d43(target_root=args.target_root, candidate_id=args.candidate_id)
+            result = capture_d43(
+                target_root=args.target_root,
+                candidate_id=args.candidate_id,
+                paused_candidate_id=args.paused_candidate_id,
+            )
         elif args.command == "verify":
             result = verify_d43(
                 target_root=args.target_root,
@@ -1601,6 +1889,24 @@ def _cli() -> int:
             file=sys.stderr,
         )
         return 2
+    except KeyboardInterrupt:
+        print(
+            json.dumps(
+                {
+                    "state": "failed_closed",
+                    "error": "operator_interrupted",
+                    "candidate_accepted": False,
+                    "automatic_resume": False,
+                    "operator_action": (
+                        "inspect exact D43 label and PAUSE_INTENT/PAUSE_STARTED/PAUSE_WITNESS "
+                        "before any manual service decision"
+                    ),
+                },
+                sort_keys=True,
+            ),
+            file=sys.stderr,
+        )
+        return 130
     print(json.dumps(result, sort_keys=True))
     return 0
 
