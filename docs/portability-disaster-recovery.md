@@ -788,6 +788,11 @@ The exact pushed `e5455d7ceb7e4340854b6d5447987f56a71886b4` was fetched through 
 HTTPS clone, rebuilt with `requirements-dev.lock`, and passed smoke, all 46 focused tests, and the
 capture/verify/extract-inert CLI help from that checkout. This is same-Mac code reproducibility;
 see the [`v5 extraction clean-clone receipt`](evidence/portability-dr-v5-inert-extraction-clean-clone-2026-10-16T0654Z.json).
+The repository-wide `make check` and `make test` remain red outside this DR slice: global Ruff
+reports 107 findings on `research/active` versus 110 on current `main`; full test collection reports
+204 import/archived-reference errors and 17 skips on `research/active` versus 8 errors and 13 skips
+on current `main`. All changed v5 files pass Ruff and the focused suite; the collection failures
+prevent claiming a whole-repository test run.
 This work qualifies no owner capture, Data T, Kingston K, full-host restore, activation, or erase.
 
 ## State ownership and restore rules

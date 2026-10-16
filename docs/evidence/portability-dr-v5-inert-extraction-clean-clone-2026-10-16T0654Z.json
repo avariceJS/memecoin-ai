@@ -1,6 +1,6 @@
 {
   "schema": "brain-portability-dr-v5-inert-extraction-clean-clone-v1",
-  "observed_at_utc": "2026-10-16T06:54:00Z",
+  "observed_at_utc": "2026-10-16T06:56:00Z",
   "remote": "origin/research/active",
   "commit": "e5455d7ceb7e4340854b6d5447987f56a71886b4",
   "checkout": {
@@ -25,11 +25,16 @@
   "checks": {
     "make_smoke": "passed; synthetic engineering check only; edge_established=false",
     "focused_v5_inventory_and_production_tests": "46 passed",
-    "capture_verify_extract_inert_cli_help": "passed; all three subcommands present"
+    "capture_verify_extract_inert_cli_help": "passed; all three subcommands present",
+    "make_check": "failed at its first step, repository-wide Ruff check: 107 existing lint findings; all four changed v5 files pass Ruff check and format",
+    "main_ruff_baseline": "110 repository-wide Ruff findings at origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+    "make_test": "not collectable on research/active: 204 collection errors and 17 optional-dependency skips; missing archived tools imports and stale test references",
+    "main_pytest_baseline": "8 collection errors and 13 optional-dependency skips; the same missing archived tools module names are absent from both main and research/active"
   },
   "limitations": [
     "This is a same-Mac exact-code acquisition and environment rebuild rehearsal, not a new-host restore.",
     "No production extract-inert command was run because a writable owner-enabled disposable APFS destination has not passed StorageGuard preconditions.",
+    "Repository-wide check and test gates have pre-existing failures outside this DR slice; their baseline counts are recorded above and were not changed here.",
     "No owner data, Kingston, protected payload, service, or provider was accessed or changed.",
     "A first non-shallow clone attempt was interrupted after remote history transfer made no visible progress; the successful rehearsal used an exact shallow branch-head clone. The partial attempt remains unaccepted in private temporary storage."
   ],
