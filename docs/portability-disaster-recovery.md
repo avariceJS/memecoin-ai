@@ -726,6 +726,12 @@ The historical 6,053-group `.git` waiver remains unresolved custody. This change
 owner/protected closure, clean-host
 restore, activation, or erase gate. See the
 [`v5 synthetic global-inventory receipt`](evidence/portability-dr-global-held-inventory-v5-synthetic-2026-10-16T0500Z.json).
+The exact pushed commit `435b2241b9a09265b3eb8023afbc0d9e1d0d6ca1` was then cloned into a fresh
+checkout-local virtual environment, installed from `requirements-dev.lock`, and passed the same 21
+focused tests with separate-device synthetic quarantine. The capture and storage modules loaded
+from the clone. This remains same-Mac synthetic-code reproduction; it adds no real-host restore
+evidence. See the
+[`published v5 clean-clone receipt`](evidence/portability-dr-v5-published-clean-clone-synthetic-2026-10-16T0503Z.json).
 
 ## State ownership and restore rules
 

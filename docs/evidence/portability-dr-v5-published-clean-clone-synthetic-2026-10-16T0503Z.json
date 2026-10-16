@@ -1,0 +1,40 @@
+{
+  "schema": "brain-host-tree-capture-v5-published-clean-clone-synthetic-v1",
+  "observed_at_utc": "2026-10-16T05:03:00Z",
+  "source": {
+    "remote": "origin/research/active",
+    "branch": "research/active",
+    "commit": "435b2241b9a09265b3eb8023afbc0d9e1d0d6ca1",
+    "worktree_clean_after_setup": true,
+    "engine_sha256": "303f4f2ff2d0a0a792062151cb0f96b29434f40abf49206e0597cc636f780acf",
+    "test_sha256": "47d98698b822697722e39406c3de7bba2ea317c84f8bcc98b7710b5dafeed8b8",
+    "development_lock_sha256": "13a38c32b3c3ea4af3dc0da61be93ce1a5f5437aeb95b8039f1c31053bb7c7e5"
+  },
+  "environment": {
+    "platform": "macOS Darwin arm64",
+    "locked_dev_install": "passed in a fresh clone-local virtual environment",
+    "editable_project_install": "passed",
+    "capture_module_loaded_from_clone": true,
+    "storage_module_loaded_from_clone": true
+  },
+  "checks": {
+    "focused_pytest": "21 passed",
+    "separate_disposable_apfs_quarantine": "passed",
+    "ruff": "passed",
+    "ruff_format_check": "passed",
+    "py_compile": "passed",
+    "git_diff_check": "passed"
+  },
+  "scope": {
+    "replacement_host": false,
+    "synthetic_fixture_only": true,
+    "source_and_candidate_device_separated": false,
+    "quarantine_device_separated": true,
+    "kingston_written": false,
+    "owner_or_protected_payload_read": false,
+    "brain_state_restored": false,
+    "brain_services_started": false,
+    "safe_to_erase": false
+  },
+  "claim_limit": "The exact pushed commit can be cloned, installed from its locked development set, and can reproduce the v5 synthetic fixture suite in a clean checkout-local virtual environment. Candidate source and storage are synthetic local fixtures on one device; inert extraction uses a separate disposable APFS volume. This same-host code reproduction does not prove clean-host credentials or restore Brain-owned state, production storage binding, real T/K, owner or protected closure, inert service reconstruction, activation, or erase readiness. The test-only unbound writer allowance is explicitly limited to candidates marked synthetic_fixture_only; production verify remains bound to the configured read-only storage guard."
+}

@@ -291,6 +291,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   fixture roots only. Source and candidate shared a temporary device; the mode-0700 quarantine used
   a distinct disposable APFS image. No owner capture, Kingston K, source/candidate device separation,
   or Brain restore is qualified.
+- [`Portability and DR v5 published clean-clone rehearsal`](portability-dr-v5-published-clean-clone-synthetic-2026-10-16T0503Z.json):
+  clones exact pushed `435b2241`, installs the development lock in a fresh clone-local virtual
+  environment, and repeats the 21 synthetic tests with separate-device quarantine. This is same-Mac
+  code reproduction, not a replacement-host or Brain restore.
 - [`Portability and DR current-code clean clone`](portability-dr-current-code-clean-clone-2026-10-16T0205Z.json):
   clones exact pushed `ce210910`, installs the locked dev environment, passes smoke and the 38 focused
   DR tests. Repository `make check` stops at 107 Ruff findings in untouched project files before
