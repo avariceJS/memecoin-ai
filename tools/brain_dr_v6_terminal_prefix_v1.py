@@ -61,6 +61,21 @@ def _json(raw: bytes) -> dict[str, Any]:
     return cast(dict[str, Any], value)
 
 
+def _pinned_receipt_json(raw: bytes) -> dict[str, Any]:
+    """Parse a hash-pinned repository receipt without requiring canonical whitespace."""
+
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        value: dict[str, Any] = {}
+        for key, item in pairs:
+            _require(key not in value)
+            value[key] = item
+        return value
+
+    value = json.loads(raw, object_pairs_hook=unique_object)
+    _require(type(value) is dict)
+    return cast(dict[str, Any], value)
+
+
 def _hash(value: Any) -> bool:
     return type(value) is str and SHA.fullmatch(value) is not None
 
@@ -279,7 +294,8 @@ def _audit(
         _sha(quiescence_raw) == spec["quiescence_sha256"]
         and _sha(prequiescence_raw) == spec["prequiescence_sha256"]
     )
-    quiescence, prior = _json(quiescence_raw), _json(prequiescence_raw)
+    quiescence = _pinned_receipt_json(quiescence_raw)
+    prior = _pinned_receipt_json(prequiescence_raw)
     _require(
         quiescence["schema"] == "portability-dr-senses-quiescence-v1"
         and prior["schema"] == "portability-dr-senses-prequiescence-v1"

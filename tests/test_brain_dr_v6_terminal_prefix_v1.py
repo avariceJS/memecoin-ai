@@ -68,6 +68,12 @@ def test_events_rejects_noncanonical_duplicate_json_key() -> None:
         audit._events(raw)
 
 
+def test_pinned_receipts_accept_whitespace_but_reject_duplicate_keys() -> None:
+    assert audit._pinned_receipt_json(b'{\n  "schema": "receipt"\n}\n') == {"schema": "receipt"}
+    with pytest.raises(audit.PrefixAuditError):
+        audit._pinned_receipt_json(b'{"schema":"receipt","schema":"other"}')
+
+
 def test_external_observations_require_exact_disabled_unloaded_labels() -> None:
     expected = {"label-a": "a" * 64, "label-b": "b" * 64}
     observation = {
@@ -255,20 +261,25 @@ def full_prefix(tmp_path: Path):
         "kingston": {"volume_uuid": volume, "root_id": root_id},
         "services": [{"label": label, "plist_sha256": digest} for label, digest in labels.items()],
     }
-    prior_bytes = canonical_json(prior)
-    quiescence = canonical_json(
-        {
-            "schema": "portability-dr-senses-quiescence-v1",
-            "prequiescence_receipt_sha256": audit._sha(prior_bytes),
-            "journal_sha256": audit._sha(journal),
-            "disabled_labels": list(labels),
-            "result": {
-                "all_target_labels_absent_for_window": True,
-                "all_target_labels_disabled": True,
-                "journal_unchanged": True,
+    prior_bytes = (json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()
+    quiescence = (
+        json.dumps(
+            {
+                "schema": "portability-dr-senses-quiescence-v1",
+                "prequiescence_receipt_sha256": audit._sha(prior_bytes),
+                "journal_sha256": audit._sha(journal),
+                "disabled_labels": list(labels),
+                "result": {
+                    "all_target_labels_absent_for_window": True,
+                    "all_target_labels_disabled": True,
+                    "journal_unchanged": True,
+                },
             },
-        }
-    )
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode()
     observation = {
         "schema": audit.OBSERVATION_SCHEMA,
         "observed_ns": 1,
