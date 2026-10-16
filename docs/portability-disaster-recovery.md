@@ -1778,6 +1778,21 @@ clean host, Recovery, owner capture, T/K, full Brain restore, or erase readiness
 [`v6b archive capture and quarantine receipt`](evidence/portability-dr-v6b-archive-capture-quarantine-2026-10-16T1033Z.json)
 and [`v6b Kingston candidate-kit custody receipt`](evidence/portability-dr-v6b-kingston-candidate-kit-custody-2026-10-16T1046Z.json).
 
+A local-only operator staging helper, `tools/brain_host_recovery_stage_v1.sh` (SHA-256
+`0724acb9220830517c732a59b3c4e32fee86ab82cfe368501495f860c84019d5`), now pins the exact
+deposited archive, manifest, source ZIP, runtime, and Data UUID internally. On this compatible
+macOS host it staged that archive from a separate read-only APFS transport volume to a distinct
+writable APFS scratch volume; checked every manifested runtime member and source member; ran only
+the three inert `--help` entry points from a neutral directory with an empty environment; and
+revalidated the staged members, mount identities, read-only/writable flags, scratch device, and
+remaining reserve before reporting completion. The rehearsal preserved a 256 MiB scratch reserve.
+An impossible near-`2^63` reserve was rejected before creating a stage. Negative identity checks
+rejected the pinned Data UUID as transport and rejected a false Kingston UUID on the disposable
+transport before staging. Sol accepted this exact helper only as a local, inert staging candidate.
+It is not in the Kingston kit and has not run in Recovery; this is compatible-host staging evidence
+only. It is not a Recovery command or handoff target. A reset-surviving custody packet and exact
+RecoveryOS qualification remain open.
+
 The required approximately 819k-entry/30-GB full synthetic capture and fresh readback remain open.
 The prior read-only check found about 12.6 GiB free on internal Data (not Kingston), and measured
 host scratch and other disposable volumes cannot satisfy the source, target, and reserve requirements
@@ -1882,7 +1897,9 @@ scratch. The verifier proves candidate integrity only, not global Kingston K.
 5. Before any unlock, re-read the exact kit marker and candidate archive digest, verify runtime and
    member pins, and run only read-only archive help/status and filesystem identity/capacity probes.
    No unpinned staging path is allowed. Stop if a required module or system interface is absent or
-   the exact Recovery-compatible entry point has not been proven. Independent verifier scratch must
+   the exact Recovery-compatible entry point has not been proven. A local staging helper now
+   verifies the pinned kit and launches only inert help commands on this compatible host, but it is
+   not deposited on Kingston and RecoveryOS compatibility remains unknown. Independent verifier scratch must
    be a separately pinned writable APFS/HFS volume with known UUID/device and at least 32 GiB +
    256 MiB free before unlock, matching the implementation's maximum verifier DB reserve; no Data
    operation occurs during this check. A lower actual `S_V` can be rechecked after the candidate is
@@ -1912,8 +1929,9 @@ scratch. The verifier proves candidate integrity only, not global Kingston K.
    integrity only; it does not qualify global K. Do not extract, install services, authenticate
    providers, or activate Brain in Recovery.
 
-The preceding sequence is a conditional contract, not an executable user command packet. Exact
-Recovery-compatible paths and staging, a pre-spool capacity bound, the absent-role policy, held-view
+The preceding sequence is a conditional contract, not an executable user command packet. The local
+staging helper narrows one part of the staging/invocation gap but is not yet reset-surviving or
+Recovery-qualified. Exact Recovery-compatible paths and staging, a pre-spool capacity bound, the absent-role policy, held-view
 and capture arguments, a reviewed Kingston remount-read-only transition, independent APFS/HFS
 verifier scratch, and a deterministic boot-history acceptance rule must be pinned before Sol can
 approve execution. A clean capture and fresh candidate verification could support K qualification
