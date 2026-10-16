@@ -715,21 +715,35 @@ declared nonprotected working-directory entries match the private inventory whil
 or protected-candidate entries remain excluded. Neither pass proves loaded process/code identity or
 changes the owner-wide custody and source-consistency NO-GO.
 
-The v5 global held-inventory engine passed a bounded synthetic-fixture review. It inventories all
-declared fixture roots before streaming, reconciles cross-root hardlinks, verifies member/payload
-relationships, and extracts into a mode-0700 quarantine on a separate disposable APFS device. The
-fixture source and candidate storage were on the same temporary device; no Kingston or owner data
-was used. A one-million-row SQLite probe measured 249.42 bytes per row, 2.282 seconds, and 39.88
-MiB peak RSS; the 819,547-entry/30-GB capacity figure is arithmetic modeling only. Sol accepted this
-synthetic scope, not a production capture capability. The API is explicitly synthetic-fixture-only;
-verification creates a local temporary SQLite spool, and concurrent mutation of writable candidate
-files is not qualified. Production capture still needs pinned scratch placement off held Data,
-enforced source/candidate device separation, owner-scale resource replay, and a concurrency policy.
-Symlinks and xattr/ACL/flag values are evidence only, not restored; ACL grants are not qualified.
-The historical 6,053-group `.git` waiver remains unresolved custody. This changes no T, K,
-owner/protected closure, clean-host
-restore, activation, or erase gate. See the
+The v5 global held-inventory engine first passed a bounded synthetic-fixture review. It inventories
+all declared fixture roots before streaming, reconciles cross-root hardlinks, verifies
+member/payload relationships, and extracts into a mode-0700 quarantine on a separate disposable
+APFS device. Its source and candidate initially shared a temporary device; no Kingston or owner
+data was used. A one-million-row SQLite probe measured 249.42 bytes per row, 2.282 seconds, and
+39.88 MiB peak RSS. The older 819,547-entry/30-GB capacity figure was arithmetic modeling only.
+Sol accepted that synthetic scope, not production capture. Symlinks and xattr/ACL/flag values remain
+evidence only, not restored; ACL grants are not qualified. The historical 6,053-group `.git` waiver
+remains unresolved custody. See the
 [`v5 synthetic global-inventory receipt`](evidence/portability-dr-global-held-inventory-v5-synthetic-2026-10-16T0500Z.json).
+
+The new production-gated v5 factory now binds an externally approved real Darwin `HeldDataT` plan,
+a nine-role policy-roster digest, exact target UUID/root identity, a descriptor-bound writer, and
+source/target device separation. It revalidates source and target identity/capacity at full and
+per-object/chunk cadence and requires separately pinned private APFS/HFS scratch for independent
+verification. A disposable read-only APFS source to target capture produced a 10-entry, 1,144-byte
+candidate with fresh readback; the target was detached and reattached read-only, then the independent
+verifier passed using a third APFS scratch volume and external candidate/plan/target/source pins. A
+separate real production inventory run traversed 819,557 entries from a synthetic read-only APFS
+view in 667 seconds, using a 345,612,288-byte SQLite spool, 46,153,728-byte peak RSS, 36 sampled
+peak file descriptors, 98 full boundary checks, and 819,551 fast identity checks. That scale run
+stopped before candidate/payload capture. Two smaller scratch-reserve trials failed closed before
+publication. Sol accepted the bounded factory layer; see the
+[`v5 production APFS and scale receipt`](evidence/portability-dr-v5-production-apfs-scale-2026-10-16T0615Z.json).
+
+This is not a full 30-GB stream/readback or an operator capture command. RecoveryOS execution and
+tmpfs scratch remain unqualified. A post-write failure can leave an unaccepted candidate and creates
+no COMPLETE or authority state. The factory does not qualify a real owner source T, Kingston K,
+owner/protected closure, restore, activation, or erase readiness. These gates remain NO-GO.
 The exact pushed commit `435b2241b9a09265b3eb8023afbc0d9e1d0d6ca1` was then cloned into a fresh
 checkout-local virtual environment, installed from `requirements-dev.lock`, and passed the same 21
 focused tests with separate-device synthetic quarantine. The capture and storage modules loaded

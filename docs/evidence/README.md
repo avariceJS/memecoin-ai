@@ -296,6 +296,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   clones exact pushed `435b2241`, installs the development lock in a fresh clone-local virtual
   environment, and repeats the 21 synthetic tests with separate-device quarantine. This is same-Mac
   code reproduction, not a replacement-host or Brain restore.
+- [`Portability and DR v5 production APFS and scale rehearsal`](portability-dr-v5-production-apfs-scale-2026-10-16T0615Z.json):
+  Sol-qualified bounded production factory code after a positive separate read-only APFS source to
+  target capture/readback, independent read-only target verification with third-volume APFS scratch,
+  and 819,557-entry production inventory replay. It is synthetic current-host evidence only; no
+  30-GB capture, RecoveryOS, Kingston K, owner T/root closure, restore, or erase readiness is proved.
 - [`Portability and DR current-code clean clone`](portability-dr-current-code-clean-clone-2026-10-16T0205Z.json):
   clones exact pushed `ce210910`, installs the locked dev environment, passes smoke and the 38 focused
   DR tests. Repository `make check` stops at 107 Ruff findings in untouched project files before

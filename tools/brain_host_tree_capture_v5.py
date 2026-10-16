@@ -10,7 +10,6 @@ and inert data extraction. Existing v1/v3/v4 behavior remains unchanged.
 
 from __future__ import annotations
 
-import argparse
 import base64
 import ctypes
 import errno
@@ -33,11 +32,13 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(_repo_root))
     sys.path.insert(0, str(_repo_root / "src"))
 
+from memecoin_research_storage import ReadOnlyStorageGuard, StorageGuard
 from tools import brain_host_tree_custody as v2
 from tools import brain_host_tree_custody_v3 as v3
 from tools.brain_host_held_data_t_v1 import (
     REQUIRED_ROOT_ROLES,
     ROOT_KINDS,
+    DarwinDataOS,
     HeldDataT,
     approved_data_plan_sha256,
 )
@@ -60,9 +61,11 @@ MAX_RELATIVE_PATH_BYTES = 32 * 1024
 MAX_PATH_DEPTH = 128
 DB_BASENAME = "inventory.sqlite"
 CANDIDATE_BASE = "host-recovery/tree-capture-v5/candidates"
+_PRODUCTION_CAPTURE_AUTHORITY = object()
 STREAM_CHUNK_BYTES = 1024 * 1024
 PAGE_RECORDS = 256
 MAX_PAGE_BYTES = 16 * 1024 * 1024
+MAX_INDEX_BYTES = 16 * 1024 * 1024
 MAX_METADATA_VALUE_BYTES = 8 * 1024 * 1024
 MAX_OBJECT_METADATA_BYTES = 32 * 1024 * 1024
 GIT_OPAQUE_WAIVER = {
@@ -142,6 +145,58 @@ def model_candidate_capacity_v5(
         "minimum_scratch_reserve_bytes": modeled_scratch,
         "minimum_total_reserve_bytes": modeled_scratch + metadata_reserve_bytes + source_bytes,
     }
+
+
+def policy_roster_sha256_v5(plan_sha256: str, role_rows: list[Mapping[str, Any]]) -> str:
+    """Hash the canonical plan-bound policy roster carried by a v5 candidate."""
+    if not _is_sha256(plan_sha256) or not isinstance(role_rows, list):
+        raise TreeCaptureV5Error("policy_roster_invalid")
+    if len(role_rows) != len(REQUIRED_ROOT_ROLES):
+        raise TreeCaptureV5Error("policy_roster_invalid")
+    roles: dict[str, dict[str, Any]] = {}
+    for row in role_rows:
+        if not isinstance(row, Mapping):
+            raise TreeCaptureV5Error("policy_roster_invalid")
+        role = row.get("role")
+        present = row.get("present")
+        if role not in REQUIRED_ROOT_ROLES or role in roles or type(present) is not bool:
+            raise TreeCaptureV5Error("policy_roster_invalid")
+        if present:
+            scope = row.get("scope")
+            policy_digest = row.get("policy_sha256")
+            if scope not in {"non_protected", "protected_opaque"} or not _is_sha256(policy_digest):
+                raise TreeCaptureV5Error("policy_roster_present_role_invalid")
+            roles[role] = {
+                "present": True,
+                "scope": scope,
+                "policy_sha256": policy_digest,
+            }
+        else:
+            reason_digest = row.get("unresolved_reason_sha256")
+            if (
+                row.get("disposition") != "absent_unresolved"
+                or not _is_sha256(reason_digest)
+                or row.get("scope") is not None
+                or row.get("policy_sha256") is not None
+            ):
+                raise TreeCaptureV5Error("policy_roster_absent_role_invalid")
+            roles[role] = {
+                "present": False,
+                "disposition": "absent_unresolved",
+                "unresolved_reason_sha256": reason_digest,
+            }
+    if set(roles) != REQUIRED_ROOT_ROLES:
+        raise TreeCaptureV5Error("policy_roster_invalid")
+    return sha256(
+        canonical_json(
+            {
+                "schema": "brain-host-tree-capture-v5-policy-roster",
+                "version": 1,
+                "plan_sha256": plan_sha256,
+                "roles": {role: roles[role] for role in sorted(roles)},
+            }
+        )
+    )
 
 
 @dataclass(frozen=True)
@@ -420,6 +475,7 @@ def _scan_role(
     db_fd: int,
     spool_fd: int,
     scratch_limit: int,
+    fast_boundary_check: Callable[[], None] | None = None,
 ) -> tuple[tuple[int, ...], int]:
     root_stat = os.fstat(root_fd)
     if root_stat.st_dev != os.fstat(view.mount_fd).st_dev:
@@ -466,6 +522,8 @@ def _scan_role(
                         or len(relative.split("/")) > MAX_PATH_DEPTH
                     ):
                         raise TreeCaptureV5Error("source_path_limit")
+                    if v2._sig(os.fstat(root_fd)) != v2._sig(root_stat):
+                        raise TreeCaptureV5Error("source_root_changed_during_inventory")
                     try:
                         st = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
                     except OSError as exc:
@@ -509,6 +567,8 @@ def _scan_role(
                         link_text=link_text,
                     )
                     count += 1
+                    if fast_boundary_check is not None:
+                        fast_boundary_check()
                     if count > max_entries:
                         raise TreeCaptureV5Error("global_entry_limit")
                     if count % 128 == 0:
@@ -528,6 +588,8 @@ def _scan_role(
                         finally:
                             os.close(child_fd)
                         db.execute("INSERT INTO pending_dirs VALUES(?,?)", (role, relative))
+                    if v2._sig(os.fstat(root_fd)) != v2._sig(root_stat):
+                        raise TreeCaptureV5Error("source_root_changed_during_inventory")
         finally:
             os.close(directory_fd)
         _check_spool_size(db, db_fd, spool_fd, scratch_limit)
@@ -648,12 +710,18 @@ class GlobalInventoryV5:
         policy_hashes: dict[str, str],
         policy_scopes: dict[str, str],
         plan_sha256: str,
+        policy_roster_sha256: str,
         hardlink_summary: dict[str, int],
         included_source_bytes: int,
         reserve_capacity: Callable[[int], None],
         scratch_reserve_bytes: int,
         metadata_reserve_bytes: int,
         payload_reserve_bytes: int,
+        production_authority: object | None = None,
+        production_root_check: Callable[[], None] | None = None,
+        production_fast_check: Callable[[int], None] | None = None,
+        production_boundary_check: Callable[[int], None] | None = None,
+        production_cadence_check: Callable[[int, int, int], None] | None = None,
     ) -> None:
         self.view = view
         self.writer = writer
@@ -668,12 +736,20 @@ class GlobalInventoryV5:
         self.policy_hashes = policy_hashes
         self.policy_scopes = policy_scopes
         self.plan_sha256 = plan_sha256
+        self.policy_roster_sha256 = policy_roster_sha256
         self.hardlink_summary = hardlink_summary
         self.included_source_bytes = included_source_bytes
         self.reserve_capacity = reserve_capacity
         self.scratch_reserve_bytes = scratch_reserve_bytes
         self.metadata_reserve_bytes = metadata_reserve_bytes
         self.payload_reserve_bytes = payload_reserve_bytes
+        self.production_authorized = production_authority is _PRODUCTION_CAPTURE_AUTHORITY
+        self.production_root_check = production_root_check
+        self.production_fast_check = production_fast_check
+        self.production_boundary_check = production_boundary_check
+        self.production_cadence_check = production_cadence_check
+        self.verify_scratch_fd = spool_fd if self.production_authorized else None
+        self.payload_bytes_remaining = included_source_bytes
         self.candidate_write_guard: Callable[[], None] | None = None
         self.entry_count = int(db.execute("SELECT count(*) FROM members").fetchone()[0])
         self._closed = False
@@ -698,6 +774,18 @@ class GlobalInventoryV5:
         for role in sorted(REQUIRED_ROOT_ROLES):
             declaration = self.view.plan.root_roster[role]
             root_stat = os.fstat(self.roots[role]) if declaration.present else None
+            locator_digest = None
+            unresolved_digest = None
+            if declaration.present:
+                locator = declaration.relative_locator
+                if not isinstance(locator, str):
+                    raise TreeCaptureV5Error("candidate_present_root_locator_invalid")
+                locator_digest = sha256(locator.encode())
+            else:
+                unresolved_reason = declaration.unresolved_reason
+                if not isinstance(unresolved_reason, str) or not unresolved_reason:
+                    raise TreeCaptureV5Error("candidate_absent_root_reason_invalid")
+                unresolved_digest = sha256(unresolved_reason.encode())
             dispositions.append(
                 {
                     "role": role,
@@ -712,11 +800,7 @@ class GlobalInventoryV5:
                         if declaration.present
                         else "absent_unresolved"
                     ),
-                    "locator_sha256": (
-                        sha256(declaration.relative_locator.encode())
-                        if declaration.present
-                        else None
-                    ),
+                    "locator_sha256": locator_digest,
                     "policy_sha256": self.policy_hashes.get(role),
                     "root_signature": (
                         list(self.root_signatures[role])
@@ -741,17 +825,14 @@ class GlobalInventoryV5:
                         if root_stat is not None
                         else None
                     ),
-                    "unresolved_reason_sha256": (
-                        sha256(declaration.unresolved_reason.encode())
-                        if not declaration.present and declaration.unresolved_reason
-                        else None
-                    ),
+                    "unresolved_reason_sha256": unresolved_digest,
                 }
             )
         return {
             "schema": SCHEMA,
-            "synthetic_fixture_only": True,
+            "synthetic_fixture_only": bool(self.view.synthetic),
             "plan_sha256": self.plan_sha256,
+            "policy_roster_sha256": self.policy_roster_sha256,
             "role_dispositions": dispositions,
             "opaque_waivers": [dict(GIT_OPAQUE_WAIVER)],
             "present_root_count": len(self.roots),
@@ -812,7 +893,7 @@ class GlobalInventoryV5:
         self.close()
 
 
-def inventory_held_data_v5(
+def _inventory_held_data_v5_core(
     view: HeldDataT,
     writer: DescriptorWriter,
     *,
@@ -822,12 +903,24 @@ def inventory_held_data_v5(
     payload_reserve_bytes: int,
     metadata_reserve_bytes: int = MAX_METADATA_TOTAL_BYTES,
     max_entries: int = MAX_ENTRIES,
+    expected_plan_sha256: str | None = None,
+    expected_policy_roster_sha256: str | None = None,
+    production_authority: object | None = None,
+    production_root_check: Callable[[], None] | None = None,
+    production_fast_check: Callable[[int], None] | None = None,
+    production_boundary_check: Callable[[int], None] | None = None,
+    production_cadence_check: Callable[[int, int, int], None] | None = None,
 ) -> GlobalInventoryV5:
     """Build one descriptor-bound global inventory before any payload reads."""
     if not isinstance(view, HeldDataT) or not isinstance(writer, DescriptorWriter):
         raise TreeCaptureV5Error("held_view_or_writer_invalid")
-    if getattr(view, "synthetic", False) is not True:
+    production_authorized = production_authority is _PRODUCTION_CAPTURE_AUTHORITY
+    if getattr(view, "synthetic", False) is not True and not production_authorized:
         raise TreeCaptureV5Error("synthetic_fixture_only")
+    if production_authorized and (
+        view.synthetic is not False or type(view.os_api) is not DarwinDataOS
+    ):
+        raise TreeCaptureV5Error("production_source_view_not_real")
     if writer.storage_guard is None:
         raise TreeCaptureV5Error("pinned_storage_binding_required")
     if not callable(reserve_capacity):
@@ -856,6 +949,51 @@ def inventory_held_data_v5(
     if set(role_policies) != present_roles:
         raise TreeCaptureV5Error("root_policy_roster_mismatch")
     plan_sha256 = approved_data_plan_sha256(view.plan)
+    if production_authorized and (
+        not _is_sha256(expected_plan_sha256)
+        or expected_plan_sha256 != plan_sha256
+        or view.trusted_plan_sha256 != expected_plan_sha256
+        or not _is_sha256(expected_policy_roster_sha256)
+    ):
+        raise TreeCaptureV5Error("production_external_plan_policy_pin_invalid")
+    policies: dict[str, dict[str, Any]] = {}
+    policy_hashes: dict[str, str] = {}
+    policy_scopes = {role: role_policies[role].scope for role in present_roles}
+    for role in sorted(present_roles):
+        policy, _raw, digest = _validate_policy_pin(role_policies[role])
+        policies[role] = policy
+        policy_hashes[role] = digest
+    policy_roster_rows: list[Mapping[str, Any]] = []
+    for role in sorted(REQUIRED_ROOT_ROLES):
+        declaration = roster[role]
+        if declaration.present:
+            policy_roster_rows.append(
+                {
+                    "role": role,
+                    "present": True,
+                    "scope": policy_scopes[role],
+                    "policy_sha256": policy_hashes[role],
+                }
+            )
+        else:
+            unresolved_reason = declaration.unresolved_reason
+            if not isinstance(unresolved_reason, str) or not unresolved_reason:
+                raise TreeCaptureV5Error("production_absent_role_reason_invalid")
+            policy_roster_rows.append(
+                {
+                    "role": role,
+                    "present": False,
+                    "disposition": "absent_unresolved",
+                    "unresolved_reason_sha256": sha256(unresolved_reason.encode("utf-8")),
+                    "scope": None,
+                    "policy_sha256": None,
+                }
+            )
+    policy_roster_digest = policy_roster_sha256_v5(plan_sha256, policy_roster_rows)
+    if expected_policy_roster_sha256 is not None and (
+        policy_roster_digest != expected_policy_roster_sha256
+    ):
+        raise TreeCaptureV5Error("production_policy_roster_pin_mismatch")
     try:
         writer.assert_storage_binding(writer.storage_guard)
         reserve_capacity(scratch_reserve_bytes + metadata_reserve_bytes + payload_reserve_bytes)
@@ -915,16 +1053,12 @@ def inventory_held_data_v5(
         view.revalidate()
         for role in sorted(present_roles):
             roots[role] = stack.enter_context(view.borrow_root(role))
-        policies: dict[str, dict[str, Any]] = {}
-        policy_hashes: dict[str, str] = {}
-        for role in sorted(present_roles):
-            policy, _raw, digest = _validate_policy_pin(role_policies[role])
-            policies[role] = policy
-            policy_hashes[role] = digest
         root_signatures: dict[str, tuple[int, ...]] = {}
         entry_count = 0
         data_device = os.fstat(view.mount_fd).st_dev
         for role in sorted(present_roles):
+            if production_root_check is not None:
+                production_root_check()
             root_sig, _included_bytes = _scan_role(
                 db,
                 view,
@@ -936,6 +1070,21 @@ def inventory_held_data_v5(
                 db_fd=db_fd,
                 spool_fd=spool_fd,
                 scratch_limit=scratch_reserve_bytes,
+                fast_boundary_check=(
+                    (
+                        lambda: production_cadence_check(
+                            scratch_reserve_bytes + metadata_reserve_bytes, 1, 0
+                        )
+                    )
+                    if production_cadence_check is not None
+                    else (
+                        lambda: (
+                            production_fast_check(scratch_reserve_bytes + metadata_reserve_bytes)
+                            if production_fast_check is not None
+                            else None
+                        )
+                    )
+                ),
             )
             if os.fstat(roots[role]).st_dev != data_device:
                 raise TreeCaptureV5Error("source_mount_boundary")
@@ -943,6 +1092,8 @@ def inventory_held_data_v5(
             entry_count = int(db.execute("SELECT count(*) FROM members").fetchone()[0])
             if entry_count > max_entries:
                 raise TreeCaptureV5Error("source_resource_limit")
+            if production_root_check is not None:
+                production_root_check()
         hardlink_summary = _resolve_global_hardlinks(db)
         _check_spool_size(db, db_fd, spool_fd, scratch_reserve_bytes)
         source_bytes = _unique_included_bytes(db)
@@ -988,12 +1139,18 @@ def inventory_held_data_v5(
             policy_hashes=policy_hashes,
             policy_scopes={role: role_policies[role].scope for role in present_roles},
             plan_sha256=plan_sha256,
+            policy_roster_sha256=policy_roster_digest,
             hardlink_summary=hardlink_summary,
             included_source_bytes=source_bytes,
             reserve_capacity=reserve_capacity,
             scratch_reserve_bytes=scratch_reserve_bytes,
             metadata_reserve_bytes=metadata_reserve_bytes,
             payload_reserve_bytes=payload_reserve_bytes,
+            production_authority=(_PRODUCTION_CAPTURE_AUTHORITY if production_authorized else None),
+            production_root_check=production_root_check,
+            production_fast_check=production_fast_check,
+            production_boundary_check=production_boundary_check,
+            production_cadence_check=production_cadence_check,
         )
     except BaseException:
         cleanup_error: BaseException | None = None
@@ -1025,6 +1182,30 @@ def inventory_held_data_v5(
         if cleanup_error is not None:
             raise TreeCaptureV5Error("inventory_failure_cleanup_incomplete") from cleanup_error
         raise
+
+
+def inventory_held_data_v5(
+    view: HeldDataT,
+    writer: DescriptorWriter,
+    *,
+    role_policies: Mapping[str, RoleCapturePolicy],
+    reserve_capacity: Callable[[int], None],
+    scratch_reserve_bytes: int,
+    payload_reserve_bytes: int,
+    metadata_reserve_bytes: int = MAX_METADATA_TOTAL_BYTES,
+    max_entries: int = MAX_ENTRIES,
+) -> GlobalInventoryV5:
+    """Build a global inventory for explicitly synthetic fixtures only."""
+    return _inventory_held_data_v5_core(
+        view,
+        writer,
+        role_policies=role_policies,
+        reserve_capacity=reserve_capacity,
+        scratch_reserve_bytes=scratch_reserve_bytes,
+        payload_reserve_bytes=payload_reserve_bytes,
+        metadata_reserve_bytes=metadata_reserve_bytes,
+        max_entries=max_entries,
+    )
 
 
 def _open_source_entry(
@@ -1137,6 +1318,8 @@ def _capture_metadata(
     sidecar_pages: list[dict[str, Any]],
     metadata_reserve_before: int,
 ) -> dict[str, Any]:
+    if v2._sig(os.fstat(inventory.roots[role])) != inventory.root_signatures[role]:
+        raise TreeCaptureV5Error("source_root_changed_before_metadata")
     source_fd, parent_fd, name = _open_source_entry(inventory.roots[role], path, kind)
     try:
         if source_fd is None:
@@ -1185,7 +1368,7 @@ def _capture_metadata(
             inventory.reserve_capacity(
                 inventory.scratch_reserve_bytes
                 + inventory.metadata_reserve_bytes
-                + inventory.included_source_bytes
+                + inventory.payload_bytes_remaining
                 + inventory.payload_reserve_bytes
             )
         except Exception as exc:
@@ -1218,6 +1401,8 @@ def _capture_metadata(
             os.close(source_fd)
         if parent_fd >= 0:
             os.close(parent_fd)
+        if v2._sig(os.fstat(inventory.roots[role])) != inventory.root_signatures[role]:
+            raise TreeCaptureV5Error("source_root_changed_during_metadata")
 
 
 def _flush_json_page(
@@ -1461,14 +1646,68 @@ def _candidate_file_count(directory_fd: int) -> int:
     return count
 
 
-def _open_candidate_verify_db() -> tuple[int, str, int, int, sqlite3.Connection]:
-    """Open a bounded, private local SQLite merge spool for candidate checks."""
-    parent_fd = os.open(tempfile.gettempdir(), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+def _open_candidate_verify_db(
+    scratch_parent_fd: int | None = None,
+) -> tuple[int, str, int, int, sqlite3.Connection]:
+    """Open bounded verifier scratch under a caller-pinned directory when supplied."""
+    parent_fd = (
+        os.dup(scratch_parent_fd)
+        if scratch_parent_fd is not None
+        else os.open(tempfile.gettempdir(), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    )
+    parent_stat = os.fstat(parent_fd)
+    if (
+        not stat.S_ISDIR(parent_stat.st_mode)
+        or parent_stat.st_uid != os.getuid()
+        or stat.S_IMODE(parent_stat.st_mode) != 0o700
+    ):
+        os.close(parent_fd)
+        raise TreeCaptureV5Error("candidate_verify_scratch_parent_invalid")
     name = f"brain-capture-v5-verify-{secrets.token_hex(16)}"
+    created_directory = False
+    created_identity: tuple[int, int] | None = None
+    directory_fd = -1
     try:
         os.mkdir(name, mode=0o700, dir_fd=parent_fd)
+        created_directory = True
+        created_stat = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        if not stat.S_ISDIR(created_stat.st_mode):
+            raise TreeCaptureV5Error("candidate_verify_scratch_directory_invalid")
+        created_identity = (created_stat.st_dev, created_stat.st_ino)
         directory_fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd)
+        opened_stat = os.fstat(directory_fd)
+        if (opened_stat.st_dev, opened_stat.st_ino) != created_identity:
+            raise TreeCaptureV5Error("candidate_verify_scratch_directory_replaced")
     except BaseException:
+        if created_directory and created_identity is not None:
+            cleanup_fd = -1
+            try:
+                current = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+                if (
+                    stat.S_ISDIR(current.st_mode)
+                    and (current.st_dev, current.st_ino) == created_identity
+                ):
+                    cleanup_fd = (
+                        os.dup(directory_fd)
+                        if directory_fd >= 0
+                        else os.open(
+                            name,
+                            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                            dir_fd=parent_fd,
+                        )
+                    )
+                    opened = os.fstat(cleanup_fd)
+                    if (opened.st_dev, opened.st_ino) == created_identity and not os.listdir(
+                        cleanup_fd
+                    ):
+                        os.rmdir(name, dir_fd=parent_fd)
+            except BaseException:
+                pass
+            finally:
+                if cleanup_fd >= 0:
+                    os.close(cleanup_fd)
+        if directory_fd >= 0:
+            os.close(directory_fd)
         os.close(parent_fd)
         raise TreeCaptureV5Error("candidate_verify_scratch_create_failed") from None
     database_fd = -1
@@ -1605,6 +1844,101 @@ def _close_candidate_verify_db(
         raise TreeCaptureV5Error("candidate_verify_scratch_cleanup_incomplete") from cleanup_error
 
 
+def _prove_candidate_verify_scratch_writable(scratch_parent_fd: int | None) -> None:
+    """Prove pinned scratch can create/write private files before reading a candidate."""
+    if scratch_parent_fd is None:
+        raise TreeCaptureV5Error("candidate_verify_scratch_capability_required")
+    parent_fd = os.dup(scratch_parent_fd)
+    parent_stat = os.fstat(parent_fd)
+    if (
+        not stat.S_ISDIR(parent_stat.st_mode)
+        or parent_stat.st_uid != os.getuid()
+        or stat.S_IMODE(parent_stat.st_mode) != 0o700
+    ):
+        os.close(parent_fd)
+        raise TreeCaptureV5Error("candidate_verify_scratch_parent_invalid")
+    directory_name = f"brain-capture-v5-probe-{secrets.token_hex(16)}"
+    directory_fd = file_fd = -1
+    dir_identity: tuple[int, int] | None = None
+    file_identity: tuple[int, int] | None = None
+    cleanup_ok = False
+    failure: BaseException | None = None
+    try:
+        os.mkdir(directory_name, mode=0o700, dir_fd=parent_fd)
+        st = os.stat(directory_name, dir_fd=parent_fd, follow_symlinks=False)
+        if (
+            not stat.S_ISDIR(st.st_mode)
+            or st.st_uid != os.getuid()
+            or stat.S_IMODE(st.st_mode) != 0o700
+        ):
+            raise TreeCaptureV5Error("candidate_verify_scratch_probe_directory_invalid")
+        dir_identity = st.st_dev, st.st_ino
+        directory_fd = os.open(
+            directory_name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd
+        )
+        held_dir = os.fstat(directory_fd)
+        if (held_dir.st_dev, held_dir.st_ino) != dir_identity:
+            raise TreeCaptureV5Error("candidate_verify_scratch_probe_directory_replaced")
+        file_fd = os.open(
+            "write-probe",
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=directory_fd,
+        )
+        file_stat = os.fstat(file_fd)
+        if (
+            not stat.S_ISREG(file_stat.st_mode)
+            or file_stat.st_uid != os.getuid()
+            or stat.S_IMODE(file_stat.st_mode) != 0o600
+            or file_stat.st_nlink != 1
+            or file_stat.st_dev != held_dir.st_dev
+        ):
+            raise TreeCaptureV5Error("candidate_verify_scratch_probe_file_invalid")
+        file_identity = file_stat.st_dev, file_stat.st_ino
+        probe = b"brain-capture-v5-scratch-write-proof"
+        if os.write(file_fd, probe) != len(probe):
+            raise TreeCaptureV5Error("candidate_verify_scratch_write_proof_failed")
+        os.fsync(file_fd)
+        current_file = os.stat("write-probe", dir_fd=directory_fd, follow_symlinks=False)
+        if (current_file.st_dev, current_file.st_ino) != file_identity:
+            raise TreeCaptureV5Error("candidate_verify_scratch_probe_file_replaced")
+    except BaseException as exc:
+        failure = exc
+    finally:
+        if file_fd >= 0:
+            os.close(file_fd)
+        if directory_fd >= 0:
+            try:
+                if file_identity is not None:
+                    current = os.stat("write-probe", dir_fd=directory_fd, follow_symlinks=False)
+                    if (current.st_dev, current.st_ino) == file_identity:
+                        os.unlink("write-probe", dir_fd=directory_fd)
+                if dir_identity is not None and not os.listdir(directory_fd):
+                    current = os.stat(directory_name, dir_fd=parent_fd, follow_symlinks=False)
+                    held = os.fstat(directory_fd)
+                    if (
+                        (current.st_dev, current.st_ino)
+                        == dir_identity
+                        == (held.st_dev, held.st_ino)
+                    ):
+                        os.rmdir(directory_name, dir_fd=parent_fd)
+                        cleanup_ok = True
+            except OSError:
+                cleanup_ok = False
+            os.close(directory_fd)
+        os.close(parent_fd)
+    if failure is not None:
+        if not cleanup_ok:
+            raise TreeCaptureV5Error(
+                "candidate_verify_scratch_probe_cleanup_incomplete"
+            ) from failure
+        if isinstance(failure, TreeCaptureV5Error):
+            raise failure
+        raise TreeCaptureV5Error("candidate_verify_scratch_write_proof_failed") from failure
+    if not cleanup_ok:
+        raise TreeCaptureV5Error("candidate_verify_scratch_probe_cleanup_incomplete")
+
+
 def _validate_candidate_relationships(db: sqlite3.Connection) -> None:
     for row in db.execute(
         "SELECT payload_id,count(*),min(payload_sha256),max(payload_sha256),"
@@ -1739,6 +2073,175 @@ def _validate_candidate_relationships(db: sqlite3.Connection) -> None:
         raise TreeCaptureV5Error("candidate_unreferenced_payload_pages")
 
 
+def _verify_index_preflight_v5(
+    candidate_fd: int,
+    base: str,
+    candidate_id: str,
+    *,
+    expected_index_sha256: str | None,
+    expected_plan_sha256: str | None,
+) -> tuple[bytes, dict[str, Any], int]:
+    """Read bounded index/member pages and estimate SQLite needs before opening its DB."""
+    raw = _candidate_read(candidate_fd, base, f"{base}/INDEX.json", MAX_INDEX_BYTES)
+    digest = sha256(raw)
+    if expected_index_sha256 is not None and (
+        not _is_sha256(expected_index_sha256) or digest != expected_index_sha256
+    ):
+        raise TreeCaptureV5Error("candidate_index_pin_mismatch")
+    try:
+        index = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise TreeCaptureV5Error("candidate_index_json_invalid") from exc
+    required_fields = {
+        "schema",
+        "candidate_id",
+        "synthetic_fixture_only",
+        "plan_sha256",
+        "policy_roster_sha256",
+        "role_dispositions",
+        "opaque_waivers",
+        "member_pages",
+        "payload_pages",
+        "sidecar_pages",
+        "entry_count",
+        "payload_bytes",
+        "resource_model",
+        "xattr_acl_flags_restore_policy",
+    }
+    if not isinstance(index, dict) or set(index) != required_fields:
+        raise TreeCaptureV5Error("candidate_index_fields_invalid")
+    if (
+        index.get("schema") != "brain-host-tree-capture-v5-candidate"
+        or index.get("candidate_id") != candidate_id
+        or type(index.get("synthetic_fixture_only")) is not bool
+        or type(index.get("entry_count")) is not int
+        or not 1 <= index["entry_count"] <= MAX_ENTRIES
+        or type(index.get("payload_bytes")) is not int
+        or not 0 <= index["payload_bytes"] <= MAX_SOURCE_BYTES
+        or index.get("xattr_acl_flags_restore_policy") != "evidence_only_never_applied"
+        or not isinstance(index.get("resource_model"), dict)
+        or not _is_sha256(index.get("plan_sha256"))
+        or not _is_sha256(index.get("policy_roster_sha256"))
+        or (expected_plan_sha256 is not None and index["plan_sha256"] != expected_plan_sha256)
+    ):
+        raise TreeCaptureV5Error("candidate_index_value_invalid")
+    if not isinstance(index["role_dispositions"], list) or len(index["role_dispositions"]) != len(
+        REQUIRED_ROOT_ROLES
+    ):
+        raise TreeCaptureV5Error("candidate_root_plan_invalid")
+    if (
+        policy_roster_sha256_v5(index["plan_sha256"], index["role_dispositions"])
+        != index["policy_roster_sha256"]
+    ):
+        raise TreeCaptureV5Error("candidate_policy_roster_digest_mismatch")
+
+    member_pages = index["member_pages"]
+    payload_pages = index["payload_pages"]
+    sidecar_pages = index["sidecar_pages"]
+    if not all(isinstance(value, list) for value in (member_pages, payload_pages, sidecar_pages)):
+        raise TreeCaptureV5Error("candidate_page_index_invalid")
+    if (
+        len(member_pages) > index["entry_count"]
+        or len(payload_pages) > MAX_ENTRIES
+        or len(sidecar_pages) > MAX_ENTRIES
+    ):
+        raise TreeCaptureV5Error("candidate_page_index_limit_invalid")
+    member_page_bytes = payload_index_bytes = sidecar_index_bytes = 0
+    declared_member_count = 0
+    sidecar_count = sidecar_path_bytes = 0
+    for page_no, ref in enumerate(member_pages):
+        if (
+            not isinstance(ref, dict)
+            or set(ref) != {"path", "sha256", "count", "size_bytes"}
+            or ref.get("path") != f"{base}/members/{page_no:08d}.jsonl"
+            or not _is_sha256(ref.get("sha256"))
+            or type(ref.get("count")) is not int
+            or type(ref.get("size_bytes")) is not int
+            or not 1 <= ref["count"] <= index["entry_count"]
+            or not 1 <= ref["size_bytes"] <= MAX_PAGE_BYTES
+        ):
+            raise TreeCaptureV5Error("candidate_member_page_index_invalid")
+        page = _candidate_read(candidate_fd, base, ref["path"], MAX_PAGE_BYTES)
+        if len(page) != ref["size_bytes"] or sha256(page) != ref["sha256"]:
+            raise TreeCaptureV5Error("candidate_page_hash_mismatch")
+        lines = page.splitlines()
+        if len(lines) != ref["count"]:
+            raise TreeCaptureV5Error("candidate_member_page_count_invalid")
+        declared_member_count += len(lines)
+        if declared_member_count > index["entry_count"]:
+            raise TreeCaptureV5Error("candidate_entry_count_mismatch")
+        for line in lines:
+            try:
+                member = json.loads(line)
+                metadata = member.get("metadata") if isinstance(member, dict) else None
+                if metadata is None:
+                    continue
+                refs = list(metadata.get("xattrs", []))
+                if metadata.get("acl") is not None:
+                    refs.append(metadata["acl"])
+                for sidecar in refs:
+                    if not isinstance(sidecar, dict) or not isinstance(sidecar.get("path"), str):
+                        raise ValueError
+                    path_len = len(sidecar["path"].encode("utf-8"))
+                    if path_len > MAX_RELATIVE_PATH_BYTES or not _is_sha256(sidecar.get("sha256")):
+                        raise ValueError
+                    if (
+                        type(sidecar.get("size_bytes")) is not int
+                        or not 0 <= sidecar["size_bytes"] <= MAX_METADATA_VALUE_BYTES
+                    ):
+                        raise ValueError
+                    sidecar_count += 1
+                    sidecar_path_bytes += path_len
+            except (
+                UnicodeDecodeError,
+                json.JSONDecodeError,
+                TypeError,
+                ValueError,
+                KeyError,
+            ) as exc:
+                raise TreeCaptureV5Error("candidate_member_preflight_invalid") from exc
+        member_page_bytes += len(page)
+    if declared_member_count != index["entry_count"]:
+        raise TreeCaptureV5Error("candidate_entry_count_mismatch")
+    for pages, expected_prefix in (
+        (payload_pages, f"{base}/payload-index/"),
+        (sidecar_pages, f"{base}/metadata/"),
+    ):
+        for _page_no, ref in enumerate(pages):
+            if (
+                not isinstance(ref, dict)
+                or not isinstance(ref.get("path"), str)
+                or not ref["path"].startswith(expected_prefix)
+                or len(ref["path"].encode("utf-8")) > MAX_RELATIVE_PATH_BYTES
+                or not _is_sha256(ref.get("sha256"))
+                or type(ref.get("size_bytes")) is not int
+                or not 0 <= ref["size_bytes"] <= MAX_PAGE_BYTES
+            ):
+                raise TreeCaptureV5Error("candidate_page_index_invalid")
+            if pages is payload_pages:
+                if set(ref) != {"path", "sha256", "count", "size_bytes"}:
+                    raise TreeCaptureV5Error("candidate_payload_page_index_invalid")
+                if type(ref.get("count")) is not int or ref["count"] < 1:
+                    raise TreeCaptureV5Error("candidate_payload_page_index_invalid")
+                payload_index_bytes += ref["size_bytes"]
+            else:
+                sidecar_index_bytes += len(ref["path"].encode("utf-8")) + 128
+    # SQLite stores member JSON plus indexes and several rows per sidecar/page.
+    estimate = (
+        index["entry_count"] * 512
+        + member_page_bytes * 2
+        + payload_index_bytes * 4
+        + sidecar_index_bytes * 2
+        + sidecar_count * 512
+        + sidecar_path_bytes * 8
+        + len(payload_pages) * 512
+        + 8 * 1024**2
+    )
+    if not 1 <= estimate <= MAX_SCRATCH_BYTES:
+        raise TreeCaptureV5Error("candidate_verify_scratch_reserve_exceeded")
+    return raw, index, estimate
+
+
 def verify_candidate_v5(
     writer: DescriptorWriter,
     candidate_id: str,
@@ -1746,6 +2249,10 @@ def verify_candidate_v5(
     expected_index_sha256: str | None = None,
     require_readback: bool = True,
     allow_unbound_synthetic: bool = False,
+    scratch_parent_fd: int | None = None,
+    scratch_db_limit_bytes: int = MAX_SCRATCH_BYTES,
+    scratch_capacity_check: Callable[[int, int], None] | None = None,
+    expected_plan_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Read a published v5 candidate through a fresh root descriptor."""
     if len(candidate_id) != 32 or any(ch not in "0123456789abcdef" for ch in candidate_id):
@@ -1754,6 +2261,16 @@ def verify_candidate_v5(
     unbound_synthetic = writer.storage_guard is None and allow_unbound_synthetic
     if writer.storage_guard is None and not unbound_synthetic:
         raise TreeCaptureV5Error("candidate_storage_binding_invalid")
+    if (
+        isinstance(writer.storage_guard, (StorageGuard, ReadOnlyStorageGuard))
+        and scratch_parent_fd is None
+    ):
+        raise TreeCaptureV5Error("candidate_verify_scratch_capability_required")
+    if (
+        type(scratch_db_limit_bytes) is not int
+        or not 1 <= scratch_db_limit_bytes <= MAX_SCRATCH_BYTES
+    ):
+        raise TreeCaptureV5Error("candidate_verify_scratch_limit_invalid")
     if writer.storage_guard is not None:
         try:
             writer.assert_storage_binding(writer.storage_guard)
@@ -1764,20 +2281,28 @@ def verify_candidate_v5(
     verify_scratch = None
     verify_db: sqlite3.Connection | None = None
     try:
+        if scratch_parent_fd is not None:
+            _prove_candidate_verify_scratch_writable(scratch_parent_fd)
         candidate_fd = _open_output_directory(fresh_root, base)
         candidate_identity = _validate_candidate_directory(writer, candidate_fd)
-        verify_scratch = _open_candidate_verify_db()
+        index_raw, preflight_index, calculated_reserve = _verify_index_preflight_v5(
+            candidate_fd,
+            base,
+            candidate_id,
+            expected_index_sha256=expected_index_sha256,
+            expected_plan_sha256=expected_plan_sha256,
+        )
+        if unbound_synthetic and preflight_index.get("synthetic_fixture_only") is not True:
+            raise TreeCaptureV5Error("candidate_unbound_requires_synthetic_fixture")
+        if calculated_reserve > scratch_db_limit_bytes:
+            raise TreeCaptureV5Error("candidate_verify_scratch_limit")
+        if scratch_capacity_check is not None:
+            scratch_capacity_check(0, calculated_reserve)
+        verify_scratch = _open_candidate_verify_db(scratch_parent_fd)
         verify_db = verify_scratch[4]
-        index_raw = _candidate_read(candidate_fd, base, f"{base}/INDEX.json", MAX_PAGE_BYTES)
+        scratch_db_limit_bytes = calculated_reserve
         index_digest = sha256(index_raw)
-        if expected_index_sha256 is not None:
-            if (
-                len(expected_index_sha256) != 64
-                or any(ch not in "0123456789abcdef" for ch in expected_index_sha256)
-                or index_digest != expected_index_sha256
-            ):
-                raise TreeCaptureV5Error("candidate_index_pin_mismatch")
-        index = json.loads(index_raw)
+        index = preflight_index
         if unbound_synthetic and index.get("synthetic_fixture_only") is not True:
             raise TreeCaptureV5Error("candidate_unbound_requires_synthetic_fixture")
         if set(index) != {
@@ -1785,6 +2310,7 @@ def verify_candidate_v5(
             "candidate_id",
             "synthetic_fixture_only",
             "plan_sha256",
+            "policy_roster_sha256",
             "role_dispositions",
             "opaque_waivers",
             "member_pages",
@@ -1796,8 +2322,8 @@ def verify_candidate_v5(
             "xattr_acl_flags_restore_policy",
         }:
             raise TreeCaptureV5Error("candidate_index_fields_invalid")
-        if index.get("synthetic_fixture_only") is not True:
-            raise TreeCaptureV5Error("candidate_not_synthetic_fixture")
+        if type(index.get("synthetic_fixture_only")) is not bool:
+            raise TreeCaptureV5Error("candidate_source_mode_invalid")
         if (
             type(index.get("entry_count")) is not int
             or not 1 <= index["entry_count"] <= MAX_ENTRIES
@@ -1818,6 +2344,9 @@ def verify_candidate_v5(
             or any(ch not in "0123456789abcdef" for ch in plan_digest)
         ):
             raise TreeCaptureV5Error("candidate_plan_digest_invalid")
+        policy_roster_digest = index.get("policy_roster_sha256")
+        if not _is_sha256(policy_roster_digest):
+            raise TreeCaptureV5Error("candidate_policy_roster_digest_invalid")
         role_dispositions = index.get("role_dispositions")
         if (
             not isinstance(role_dispositions, list)
@@ -1885,6 +2414,8 @@ def verify_candidate_v5(
                 or not _is_sha256(row.get("unresolved_reason_sha256"))
             ):
                 raise TreeCaptureV5Error("candidate_absent_root_plan_invalid")
+        if policy_roster_sha256_v5(plan_digest, role_dispositions) != policy_roster_digest:
+            raise TreeCaptureV5Error("candidate_policy_roster_digest_mismatch")
         waivers = index.get("opaque_waivers")
         if not isinstance(waivers, list) or len(waivers) != 1 or waivers[0] != GIT_OPAQUE_WAIVER:
             raise TreeCaptureV5Error("candidate_opaque_waiver_invalid")
@@ -2097,8 +2628,11 @@ def verify_candidate_v5(
                     raise TreeCaptureV5Error("candidate_member_duplicate") from exc
                 if checked % 128 == 0:
                     verify_db.commit()
-                    if os.fstat(verify_scratch[3]).st_size > MAX_SCRATCH_BYTES:
+                    used_bytes = os.fstat(verify_scratch[3]).st_size
+                    if used_bytes > scratch_db_limit_bytes:
                         raise TreeCaptureV5Error("candidate_verify_scratch_limit")
+                    if scratch_capacity_check is not None:
+                        scratch_capacity_check(used_bytes, scratch_db_limit_bytes)
         payload_id = None
         payload_digest = hashlib.sha256()
         payload_total = 0
@@ -2177,6 +2711,13 @@ def verify_candidate_v5(
                 except sqlite3.IntegrityError as exc:
                     raise TreeCaptureV5Error("candidate_payload_page_duplicate") from exc
                 expected_page += 1
+                if expected_page % 128 == 0:
+                    verify_db.commit()
+                    used_bytes = os.fstat(verify_scratch[3]).st_size
+                    if used_bytes > scratch_db_limit_bytes:
+                        raise TreeCaptureV5Error("candidate_verify_scratch_limit")
+                    if scratch_capacity_check is not None:
+                        scratch_capacity_check(used_bytes, scratch_db_limit_bytes)
         if payload_id is not None and (
             payload_digest.hexdigest() != expected_payload_hash
             or payload_total != expected_payload_bytes
@@ -2263,6 +2804,7 @@ def verify_candidate_v5(
         return {
             "schema": "brain-host-tree-capture-v5-independent-readback",
             "candidate_id": candidate_id,
+            "synthetic_fixture_only": index["synthetic_fixture_only"],
             "index_sha256": index_digest,
             "member_count": checked,
             "xattr_acl_flags_restore_policy": "evidence_only_never_applied",
@@ -2281,9 +2823,19 @@ def capture_candidate_v5(inventory: GlobalInventoryV5) -> dict[str, Any]:
     """Stream globally reconciled file groups and metadata into a create-only candidate."""
     if not isinstance(inventory, GlobalInventoryV5) or inventory._closed:
         raise TreeCaptureV5Error("inventory_not_live")
-    if getattr(inventory.view, "synthetic", False) is not True:
+    if (
+        getattr(inventory.view, "synthetic", False) is not True
+        and not inventory.production_authorized
+    ):
         raise TreeCaptureV5Error("synthetic_fixture_only")
     inventory.assert_source_stable()
+    if inventory.production_boundary_check is not None:
+        inventory.production_boundary_check(
+            inventory.scratch_reserve_bytes
+            + inventory.metadata_reserve_bytes
+            + inventory.payload_bytes_remaining
+            + inventory.payload_reserve_bytes
+        )
     candidate_id = secrets.token_hex(16)
     inventory.writer.assert_storage_binding(inventory.writer.storage_guard)
     parent_fd = inventory.writer.open_directory(CANDIDATE_BASE, create=True)
@@ -2332,6 +2884,18 @@ def capture_candidate_v5(inventory: GlobalInventoryV5) -> dict[str, Any]:
             "ORDER BY payload_id COLLATE BINARY"
         )
         for role, path, payload_id, sig_raw, expected_size in inventory.db.execute(primary_query):
+            required = (
+                inventory.scratch_reserve_bytes
+                + inventory.metadata_reserve_bytes
+                + inventory.payload_bytes_remaining
+                + inventory.payload_reserve_bytes
+            )
+            if inventory.production_cadence_check is not None:
+                inventory.production_cadence_check(required, 1, 0)
+            elif inventory.production_boundary_check is not None:
+                inventory.production_boundary_check(required)
+            if v2._sig(os.fstat(inventory.roots[role])) != inventory.root_signatures[role]:
+                raise TreeCaptureV5Error("source_root_changed_before_stream")
             source_fd, parent_dir_fd, name = _open_source_entry(inventory.roots[role], path, "file")
             digest = hashlib.sha256()
             total = 0
@@ -2343,8 +2907,27 @@ def capture_candidate_v5(inventory: GlobalInventoryV5) -> dict[str, Any]:
                 while chunk := os.pread(source_fd, STREAM_CHUNK_BYTES, total):
                     digest.update(chunk)
                     total += len(chunk)
+                    if inventory.production_cadence_check is not None:
+                        inventory.production_cadence_check(
+                            inventory.scratch_reserve_bytes
+                            + inventory.metadata_reserve_bytes
+                            + inventory.payload_bytes_remaining
+                            + inventory.payload_reserve_bytes,
+                            0,
+                            len(chunk),
+                        )
+                    elif inventory.production_fast_check is not None:
+                        inventory.production_fast_check(
+                            inventory.scratch_reserve_bytes
+                            + inventory.metadata_reserve_bytes
+                            + inventory.payload_bytes_remaining
+                            + inventory.payload_reserve_bytes
+                        )
                     rel = f"{base}/payload/{payload_id}/{page_no:08d}.bin"
                     _create_candidate_member(inventory, rel, chunk)
+                    inventory.payload_bytes_remaining -= len(chunk)
+                    if inventory.payload_bytes_remaining < 0:
+                        raise TreeCaptureV5Error("production_payload_reserve_underflow")
                     inventory.db.execute(
                         "INSERT INTO payload_pages VALUES(?,?,?,?,?)",
                         (payload_id, page_no, rel, sha256(chunk), len(chunk)),
@@ -2371,6 +2954,22 @@ def capture_candidate_v5(inventory: GlobalInventoryV5) -> dict[str, Any]:
                     raise TreeCaptureV5Error("source_entry_replaced_during_stream")
                 if total != expected_size:
                     raise TreeCaptureV5Error("source_object_size_changed")
+                if inventory.production_cadence_check is not None:
+                    inventory.production_cadence_check(
+                        inventory.scratch_reserve_bytes
+                        + inventory.metadata_reserve_bytes
+                        + inventory.payload_bytes_remaining
+                        + inventory.payload_reserve_bytes,
+                        0,
+                        0,
+                    )
+                elif inventory.production_boundary_check is not None:
+                    inventory.production_boundary_check(
+                        inventory.scratch_reserve_bytes
+                        + inventory.metadata_reserve_bytes
+                        + inventory.payload_bytes_remaining
+                        + inventory.payload_reserve_bytes
+                    )
                 payload_sha = digest.hexdigest()
                 inventory.db.execute(
                     "UPDATE members SET payload_sha256=?,payload_bytes=? WHERE payload_id=?",
@@ -2380,6 +2979,8 @@ def capture_candidate_v5(inventory: GlobalInventoryV5) -> dict[str, Any]:
                 os.close(source_fd)
                 if parent_dir_fd >= 0:
                     os.close(parent_dir_fd)
+                if v2._sig(os.fstat(inventory.roots[role])) != inventory.root_signatures[role]:
+                    raise TreeCaptureV5Error("source_root_changed_during_stream")
         inventory.db.commit()
         _check_spool_size(
             inventory.db,
@@ -2460,6 +3061,16 @@ def capture_candidate_v5(inventory: GlobalInventoryV5) -> dict[str, Any]:
             _primary_role,
             _primary_path,
         ) in enumerate(inventory.db.execute(metadata_query)):
+            required = (
+                inventory.scratch_reserve_bytes
+                + inventory.metadata_reserve_bytes
+                + inventory.payload_bytes_remaining
+                + inventory.payload_reserve_bytes
+            )
+            if inventory.production_cadence_check is not None:
+                inventory.production_cadence_check(required, 1, 0)
+            elif inventory.production_boundary_check is not None:
+                inventory.production_boundary_check(required)
             sidecar_records: list[dict[str, Any]] = []
             metadata = _capture_metadata(
                 inventory,
@@ -2472,6 +3083,22 @@ def capture_candidate_v5(inventory: GlobalInventoryV5) -> dict[str, Any]:
                 sidecar_records,
                 metadata_total_bytes,
             )
+            if inventory.production_cadence_check is not None:
+                inventory.production_cadence_check(
+                    inventory.scratch_reserve_bytes
+                    + inventory.metadata_reserve_bytes
+                    + inventory.payload_bytes_remaining
+                    + inventory.payload_reserve_bytes,
+                    0,
+                    0,
+                )
+            elif inventory.production_boundary_check is not None:
+                inventory.production_boundary_check(
+                    inventory.scratch_reserve_bytes
+                    + inventory.metadata_reserve_bytes
+                    + inventory.payload_bytes_remaining
+                    + inventory.payload_reserve_bytes
+                )
             metadata_total_bytes += sum(ref["size_bytes"] for ref in sidecar_records)
             metadata_raw = canonical_json(metadata)
             inventory.db.execute(
@@ -2614,8 +3241,9 @@ def capture_candidate_v5(inventory: GlobalInventoryV5) -> dict[str, Any]:
         index = {
             "schema": "brain-host-tree-capture-v5-candidate",
             "candidate_id": candidate_id,
-            "synthetic_fixture_only": True,
+            "synthetic_fixture_only": bool(inventory.view.synthetic),
             "plan_sha256": inventory.plan_sha256,
+            "policy_roster_sha256": inventory.policy_roster_sha256,
             "role_dispositions": plan_receipt["role_dispositions"],
             "opaque_waivers": plan_receipt["opaque_waivers"],
             "member_pages": member_refs,
@@ -2628,7 +3256,13 @@ def capture_candidate_v5(inventory: GlobalInventoryV5) -> dict[str, Any]:
         }
         index_raw = canonical_json(index)
         _create_candidate_member(inventory, f"{base}/INDEX.json", index_raw)
-        verification = verify_candidate_v5(inventory.writer, candidate_id, require_readback=False)
+        verification = verify_candidate_v5(
+            inventory.writer,
+            candidate_id,
+            require_readback=False,
+            scratch_parent_fd=inventory.verify_scratch_fd,
+            expected_plan_sha256=inventory.plan_sha256,
+        )
         witness = {
             "schema": "brain-host-tree-capture-v5-final-readback-witness",
             "candidate_id": candidate_id,
@@ -2647,12 +3281,19 @@ def capture_candidate_v5(inventory: GlobalInventoryV5) -> dict[str, Any]:
             os.close(witness_fd)
         if fresh_witness != witness_raw:
             raise TreeCaptureV5Error("candidate_final_witness_changed")
-        verification = verify_candidate_v5(inventory.writer, candidate_id)
+        verification = verify_candidate_v5(
+            inventory.writer,
+            candidate_id,
+            scratch_parent_fd=inventory.verify_scratch_fd,
+            expected_plan_sha256=inventory.plan_sha256,
+        )
+        if inventory.production_root_check is not None:
+            inventory.production_root_check()
         inventory.assert_source_stable()
         return {
             "schema": "brain-host-tree-capture-v5-candidate-receipt",
             "candidate_id": candidate_id,
-            "synthetic_fixture_only": True,
+            "synthetic_fixture_only": bool(inventory.view.synthetic),
             "index_sha256": sha256(index_raw),
             "entry_count": inventory.entry_count,
             "payload_bytes": inventory.included_source_bytes,
@@ -2947,49 +3588,10 @@ def extract_candidate_inert_v5(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Read-only fresh-process candidate verifier; no capture/publish options."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    subparsers = parser.add_subparsers(dest="command", required=True)
-    verify = subparsers.add_parser("verify", help="verify one existing candidate read-only")
-    verify.add_argument("candidate_id")
-    verify.add_argument("--index-sha256", required=True)
-    verify.add_argument("--storage-config", required=True, type=Path)
-    args = parser.parse_args(argv)
-    if args.command != "verify":
-        parser.error("unsupported command")
-    try:
-        if len(args.candidate_id) != 32 or any(
-            ch not in "0123456789abcdef" for ch in args.candidate_id
-        ):
-            raise TreeCaptureV5Error("candidate_id_invalid")
-        if len(args.index_sha256) != 64 or any(
-            ch not in "0123456789abcdef" for ch in args.index_sha256
-        ):
-            raise TreeCaptureV5Error("candidate_index_pin_invalid")
-        if __package__ in {None, ""}:
-            sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-        import memecoin_research_storage as storage
+    """Delegate to the separately pinned, read-only production verifier CLI."""
+    from tools.brain_host_tree_capture_v5_production import main as production_main
 
-        with storage.read_only_guard(args.storage_config.expanduser().absolute()) as guard:
-            reader = DescriptorWriter.read_only_from_storage_guard(guard)
-            try:
-                result = verify_candidate_v5(
-                    reader,
-                    args.candidate_id,
-                    expected_index_sha256=args.index_sha256,
-                )
-                guard.revalidate()
-            finally:
-                reader.close()
-        sys.stdout.buffer.write(canonical_json(result))
-        return 0
-    except Exception as exc:
-        message = str(exc)
-        code = (
-            message if message.isascii() and message.replace("_", "").isalnum() else "verify_failed"
-        )
-        sys.stderr.write(f"brain-host-tree-capture-v5 verify failed: {code}\n")
-        return 2
+    return production_main(argv)
 
 
 if __name__ == "__main__":

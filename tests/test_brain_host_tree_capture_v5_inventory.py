@@ -16,6 +16,7 @@ import pytest
 
 import memecoin_research_storage as storage
 from memecoin_research_storage import StorageConfig, VolumeInfo, create_root
+from tools import brain_host_tree_capture_v5 as capture_v5
 from tools import brain_host_tree_custody as v2
 from tools.brain_host_held_data_t_v1 import (
     MNT_RDONLY,
@@ -34,6 +35,7 @@ from tools.brain_host_tree_capture_v5 import (
     extract_candidate_inert_v5,
     inventory_held_data_v5,
     model_candidate_capacity_v5,
+    policy_roster_sha256_v5,
     verify_candidate_v5,
 )
 from tools.brain_host_tree_custody_v3 import POLICY_SCHEMA
@@ -694,9 +696,19 @@ def test_capture_streams_global_primary_groups_metadata_and_fresh_readback(
     quarantine_temp = None
     try:
         inventory, writer = _inventory(tmp_path, held, roots)
+        original_verify = capture_v5.verify_candidate_v5
+        internal_plan_pins: list[str | None] = []
+
+        def track_internal_plan_pin(*args, **kwargs):
+            if len(internal_plan_pins) < 2:
+                internal_plan_pins.append(kwargs.get("expected_plan_sha256"))
+            return original_verify(*args, **kwargs)
+
+        monkeypatch.setattr(capture_v5, "verify_candidate_v5", track_internal_plan_pin)
         file_role_fd = inventory.roots["helius_mcp_wrapper"]
         os.lseek(file_role_fd, 7, os.SEEK_SET)
         receipt = capture_candidate_v5(inventory)
+        assert internal_plan_pins == [inventory.plan_sha256, inventory.plan_sha256]
         assert os.lseek(file_role_fd, 0, os.SEEK_CUR) == 7
         assert receipt["readback_verified"] is True
         assert receipt["capture_complete"] is False
@@ -1154,7 +1166,7 @@ def test_inert_cleanup_leaves_unexpected_injected_member(
         held.close()
 
 
-def test_fresh_process_readonly_verify_cli_checks_pins_and_candidate_mutation(
+def test_fresh_process_readonly_verify_cli_rejects_writable_target_without_mutation(
     tmp_path: Path,
 ) -> None:
     mount = tmp_path / "synthetic-storage"
@@ -1187,6 +1199,7 @@ def test_fresh_process_readonly_verify_cli_checks_pins_and_candidate_mutation(
 
     create_root(config_path, probe=Probe())
     root = mount / config.data_root
+    (root / "verify-scratch").mkdir(mode=0o700)
     root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
     writer = DescriptorWriter(root_fd)
     os.close(root_fd)
@@ -1279,6 +1292,9 @@ def test_fresh_process_readonly_verify_cli_checks_pins_and_candidate_mutation(
         "candidate_id": candidate_id,
         "synthetic_fixture_only": True,
         "plan_sha256": hashlib.sha256(b"synthetic plan").hexdigest(),
+        "policy_roster_sha256": policy_roster_sha256_v5(
+            hashlib.sha256(b"synthetic plan").hexdigest(), role_dispositions
+        ),
         "role_dispositions": role_dispositions,
         "opaque_waivers": [GIT_OPAQUE_WAIVER],
         "member_pages": [
@@ -1343,6 +1359,14 @@ raise SystemExit(main())
                 candidate_id,
                 "--storage-config",
                 str(config_path),
+                "--target-volume-uuid",
+                config.volume_uuid,
+                "--target-root-id",
+                config.root_id,
+                "--plan-sha256",
+                hashlib.sha256(b"synthetic plan").hexdigest(),
+                "--scratch-parent",
+                str(root / "verify-scratch"),
                 "--index-sha256",
                 index_digest,
             ],
@@ -1353,14 +1377,7 @@ raise SystemExit(main())
         )
 
     verified = invoke(index_sha)
-    assert verified.returncode == 0, verified.stderr
-    assert json.loads(verified.stdout)["index_sha256"] == index_sha
-    mismatched = invoke("0" * 64)
-    assert mismatched.returncode == 2
-    assert "candidate_index_pin_mismatch" in mismatched.stderr
-    (root / base / "READBACK.json").write_bytes(b"{}")
-    mutated = invoke(index_sha)
-    assert mutated.returncode == 2
-    assert "candidate_final_witness_invalid" in mutated.stderr
+    assert verified.returncode == 2
+    assert "production_verify_candidate_target_not_read_only" in verified.stderr
     after = sorted(item.relative_to(mount).as_posix() for item in mount.rglob("*"))
     assert after == before
