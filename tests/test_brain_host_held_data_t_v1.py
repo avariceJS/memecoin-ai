@@ -415,6 +415,21 @@ def test_fails_closed_on_root_filesystem_readback_error(tmp_path: Path) -> None:
         held.close()
 
 
+def test_fast_mount_revalidation_checks_readonly_state_without_diskutil(
+    tmp_path: Path,
+) -> None:
+    _mountpoint, _plan, api, held = _fixture(tmp_path)
+    try:
+        held.revalidate_mount_fast()
+        api.disk_info_calls.clear()
+        api.flags = 0
+        with pytest.raises(HeldDataError, match="mounted_data_changed_or_writable"):
+            held.revalidate_mount_fast()
+        assert api.disk_info_calls == []
+    finally:
+        held.close()
+
+
 def test_absent_role_requires_explicit_reason_and_verifier_stays_absent(
     tmp_path: Path,
 ) -> None:

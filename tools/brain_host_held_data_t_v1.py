@@ -815,6 +815,44 @@ class HeldDataT(AbstractContextManager["HeldDataT"]):
             finally:
                 os.close(current)
 
+    def revalidate_mount_fast(self) -> None:
+        """Check held APFS mount identity and read-only state without diskutil.
+
+        This is suitable inside long bounded byte streams. It does not repeat the
+        APFS alias census, authenticate a global cutoff, or replace full
+        ``revalidate()`` at root and object boundaries.
+        """
+        if self._closed:
+            raise HeldDataError("data_view_released")
+        fs = self.os_api.filesystem(self.mount_fd)
+        if (
+            _identity(os.fstat(self.mount_fd)) != self._mount_identity
+            or not _same_fs(self._mount_fs, fs)
+            or not (fs.get("flags", 0) & MNT_RDONLY)
+        ):
+            raise HeldDataError("mounted_data_changed_or_writable")
+        parent = _open_absolute_directory_nofollow(self.mountpoint.parent)
+        try:
+            if _identity(os.fstat(parent)) != self._mount_parent_identity:
+                raise HeldDataError("mount_parent_replaced")
+            current_mount = os.open(
+                self.mountpoint.name,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                dir_fd=parent,
+            )
+            try:
+                if (
+                    _identity(os.fstat(current_mount)) != self._mount_identity
+                    or not _same_fs(self._mount_fs, self.os_api.filesystem(current_mount))
+                ):
+                    raise HeldDataError("mount_path_replaced")
+            finally:
+                os.close(current_mount)
+        except OSError as exc:
+            raise HeldDataError("mount_path_open_failed") from exc
+        finally:
+            os.close(parent)
+
     def result(self) -> dict[str, Any]:
         self.revalidate()
         return {
