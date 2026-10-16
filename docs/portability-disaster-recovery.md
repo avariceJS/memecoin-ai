@@ -27,11 +27,11 @@ unresolved. Private configuration remains quarantine/reissue-only because filena
 prove it contains no unknown secrets. SQLite/WAL files are opaque bytes; application consistency is
 not claimed. Symlink targets and filesystem metadata restoration are not proved.
 
-Sixteen exact Brain-owned writer labels are disabled and unloaded; current `launchctl list` shows
-only `ai.memecoin.d43.calendar01` among Brain/D43 labels. The exact source directory
-`owner_work/calendar-execution-01` is excluded without descent, and the candidate must report
-`protected_custody_complete=false`. D43 is not captured, read, stopped, or semantically used.
-Therefore this bounded candidate cannot establish full Brain custody or authorize erasure.
+The initial ordinary candidate excludes `owner_work/calendar-execution-01` without descent and
+reports `protected_custody_complete=false`; it cannot be used alone for the second-Mac acceptance
+run. Sol accepted `tools/brain_migration_v1_d43.py` for one bounded real D43 opaque-custody capture
+attempt at commit `176ef0d`. The full v1 candidate is the separately pinned ordinary candidate plus
+the D43 overlay, with both manifest hashes and member counts in the operator handoff.
 
 The latest metadata-only seven-root census gave a conservative copy-budget basis of 30,810,427,392
 bytes (28.694 GiB), below the 35-GiB cap. On 2026-10-16, a fresh preflight measured 213,921,214,464
@@ -42,6 +42,31 @@ reserve. It created and internally readback-verified candidate
 separate read-only verifier matched every member and the externally pinned manifest SHA-256. Free
 space after verification was 182,458,507,264 bytes. D43 custody remains incomplete, and no restore
 has been performed. See the immutable [Migration v1 capture receipt](evidence/portability-migration-v1-capture-2026-10-16T2030Z.json).
+
+### Migration v1 protected custody and database consistency
+
+The D43 component's claim is limited to byte custody, symlink text, source identity/lineage, and an
+inert restore. It records and readback-verifies a durable pause intent before disabling exactly
+`ai.memecoin.d43.calendar01`; it does not kill or unload the job and never automatically resumes it.
+It requires the job PID-free, writer-free, and source metadata stable for the configured interval,
+rejects nested filesystems, pins the exact service plist, checks Kingston identity/free-space while
+copying, and seals only after readback verification. After any failure, retain the incomplete
+candidate and pause records, inspect the exact label, and make no automatic service change. After a
+successful capture, run a fresh verify with the externally recorded manifest SHA and confirm the
+same label is still disabled and PID-free. This does not inspect D43 semantics, validate protected
+SQLite databases, restore macOS metadata, activate the service, establish global migration
+completeness, or authorize erasure.
+
+For ordinary SQLite state, stop Brain-owned writers before capture and preserve each database and
+existing `-wal`, `-shm`, and `-journal` companion as opaque bytes. Do not checkpoint or otherwise
+mutate a source database during capture. On the restored copy, run
+[`brain_migration_v1_verify_sqlite.py`](../tools/brain_migration_v1_verify_sqlite.py): it hashes
+each ordinary database family against the manifest, opens each database read-only with SQLite's
+immutable URI mode for `PRAGMA integrity_check`, and requires all family hashes to remain unchanged.
+This is a practical structural check after restore, not a substitute for a stopped-writer capture
+boundary. Protected database semantics remain unchecked. The 93-database pass on candidate
+`21843d9664ea45438fd79c9745a30fee` applies only to that older incomplete candidate; repeat it on the
+final paired v1 candidate on the second MacBook.
 
 This document owns Brain host portability, recovery inventory, and erase readiness. The project
 checkout, owner runtime, large research-data root, and protected evaluations have separate authority
