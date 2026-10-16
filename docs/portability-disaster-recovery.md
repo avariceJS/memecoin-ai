@@ -766,6 +766,39 @@ closure and durable T/K boundaries are unresolved. The conductor's successful re
 `assessor_handoff` object when one is provided separately; that form has strict schema and authority
 checks but no enclosing conductor digest.
 
+### Pinned post-bootstrap restore flow
+
+`tools/brain_host_restore_flow_v1.py` composes the existing set verifier, inert conductor, and
+negative-only assessor after the exact code checkout is available. Its `inspect` command is
+read-only. `restore-inert` validates a canonical, mode-0600 handoff whose SHA-256 is supplied
+separately, the exact clean execution commit, the entry-card hash in Git and on Kingston, Kingston
+UUID/root identity, accepted six-role set pins, a required source-root roster, and isolated local
+target/run parents. The `research_checkout` declaration must identify the exact execution checkout;
+v1 requires the set's `research_commit` to equal `execution_commit`. The handoff schema does not
+accept a clean-host claim from its caller. Same-host rehearsal requires `--same-host-isolated` and
+remains labeled same-host.
+
+Before creating local run records, the flow reopens the run parent without following symlinks,
+compares its device/inode with inspection, checks that it remains outside Kingston and every
+declared source root, and revalidates the host-only Kingston binding. An unsafe run parent produces
+no records. A safe run parent may retain a blocked record (for example, `set_missing`); this does
+not create a quarantine or write a Kingston restore witness. Before extraction the flow rechecks
+the empty target parent's device/inode and isolation. It persists the conductor result create-only,
+reloads that saved result through the assessor's strict handoff loader, and requires set, identity,
+witness, and stable-root gates to pass before writing `RUN_COMPLETE.JSON`. A partial run is retained
+for manual review and is never resumed or overwritten. There is no start/activation command. Every
+result fixes `activation_authorized`, `final_readiness`, and `safe_to_erase` to false.
+
+This is an operator-flow implementation, not complete restore qualification. It does not attest
+that the target is a new Mac, prove host-wide service inertness, close owner or protected custody,
+qualify Recovery Data T or Kingston K, or authorize activation. The handoff's expected SHA must be
+obtained independently of both its file and Kingston; self-generated set pins are not trusted
+acceptance evidence. The current Kingston inventory has no accepted six-role set, so only the
+blocked path is eligible for live rehearsal; it must stop at `set_missing` before quarantine or
+witness creation. See the
+[`post-bootstrap restore-flow receipt`](evidence/portability-dr-post-bootstrap-restore-flow-v1-2026-10-16.json)
+for exact implementation and bounded test evidence.
+
 ## Service restore posture
 
 The 01:12Z read-only `launchctl list` inventory captured 18 loaded labels. Nine had a running PID:
@@ -1084,16 +1117,24 @@ Sol did not open or re-hash the Kingston image.
 
 Static review of the third image's manifest found a packaging-validation gap: it claimed macOS 15.0,
 while four bundled dylibs (`libcrypto`, `liblzma`, `libsqlite3`, and `libssl`) declare
-`LC_BUILD_VERSION minos 26.0`. The immutable a3 image remains unchanged. Kingston candidate a4 updates
-the declared minimum to 26.0 while retaining the same source archive and runtime members. Its exact
-Kingston copy was freshly mounted read-only and all 3,688 runtime members, file bytes/hashes/modes,
-symlink targets, source archive hash, and all 85 Mach-O deployment targets were checked against the
-manifest. With `/opt/homebrew` reads denied and dynamic-loader overrides unset, the recovery and
-HeldDataT CLI help paths launched on this current online host. This establishes bounded same-host
-packaging and launch evidence only: it does not test macOS 26.0, a clean compatible Mac, Recovery,
-all dynamic load paths, real capture, T, K, or restore. Bind future kit handoffs to the exact a4 image
-and manifest hashes in the
-[`minimum OS correction receipt`](evidence/portability-dr-offline-execution-kit-minimum-os-correction-2026-10-16T0028Z.json).
+`LC_BUILD_VERSION minos 26.0`. Immutable a4 corrects the declared minimum to 26.0 and its runtime
+and archive hashes were read back from a read-only Kingston mount. A later neutral-cwd replay found
+that the earlier a4 CLI launches imported from the research checkout, not `source.zip`; the archive
+has no explicit `tools/__init__.py` and omits the HeldDataT CLI/model. Those launch claims are
+invalidated. The archive-only attempts fail with `ModuleNotFoundError: No module named 'tools'`.
+See the [`a4 entrypoint correction`](evidence/portability-dr-offline-kit-entrypoint-correction-2026-10-16T0042Z.json).
+
+Immutable a5 packages an explicit `tools` package, the recovery status and preflight CLIs, the
+HeldDataT CLI/model, and the complete storage verifier package beneath `src/`. The source loader now
+supports zipimport's `/src` subpath. The exact Kingston image was freshly mounted read-only; the
+completion marker, image and manifest pins, all 3,688 runtime members, and all nine source entries
+matched. From `/private/tmp` with an empty HOME, isolated environment, bundled CPython, and
+`/opt/homebrew` reads denied, all three CLI help paths and configured storage status passed. Status
+resolved the configured Kingston UUID/root and reported zero provider requests. This qualifies only
+these archive-only entrypoints and current-host status path; the source archive is not a complete
+Brain restore bundle and no clean-host or Recovery compatibility, real Data T, K, owner restore,
+protected custody, or erase readiness is established. See the
+[`a5 execution-kit receipt`](evidence/portability-dr-offline-execution-kit-a5-2026-10-16T0034Z.json).
 
 This still proves only bounded tool and dependency behavior on the current online host. Real Recovery
 availability, system-library compatibility, clean compatible-host restore, no-prior-writable-Data
