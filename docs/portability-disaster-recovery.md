@@ -12,14 +12,34 @@ deferred hardened capability is owned by
 
 Git is canonical code/history; Kingston `/Volumes/Kingston/BrainData` is the recovery data tier.
 Migration v1 copies, never moves or deletes source state. It must not overwrite existing BrainData
-or inspect/change PersonalBackup. Exclude secrets and session stores for reauthentication/reissue.
+or inspect/change PersonalBackup. The user authorizes a separate v1 copy while PersonalBackup remains
+on Kingston; its occupancy is already reflected in fresh free-space measurements, so do not reserve
+or estimate it separately. Exclude known secrets and session stores for reauthentication/reissue.
 Restore into quarantine, verify integrity and required state, bootstrap and smoke-check, and prove no
 service or Brain work auto-started. Restore and Start remain separate.
 
-Preparation has not stopped services or written a Migration v1 payload. Kingston is a case-sensitive
-APFS volume with UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; the read-only free-space observation
-is only a baseline and includes existing occupancy. Apply the 50-GiB floor plus bounded restore and
-verification reserves, and remeasure immediately before copying.
+The bounded implementation is [`tools/brain_migration_v1.py`](../tools/brain_migration_v1.py):
+create-only capture, externally pinned verification, and restore into a new inert home quarantine.
+It inventories seven roots: owner `work/` and `.git`, research `work/` and `.git`,
+`~/.config/brain-research`, the saved Recovery terminal transcript, and Brain LaunchAgents. It copies
+hardlink aliases as independently hashed files; topology and aliases outside the selected roots are
+unresolved. Private configuration remains quarantine/reissue-only because filename rules cannot
+prove it contains no unknown secrets. SQLite/WAL files are opaque bytes; application consistency is
+not claimed. Symlink targets and filesystem metadata restoration are not proved.
+
+Sixteen exact Brain-owned writer labels are disabled and unloaded; current `launchctl list` shows
+only `ai.memecoin.d43.calendar01` among Brain/D43 labels. The exact source directory
+`owner_work/calendar-execution-01` is excluded without descent, and the candidate must report
+`protected_custody_complete=false`. D43 is not captured, read, stopped, or semantically used.
+Therefore this bounded candidate cannot establish full Brain custody or authorize erasure.
+
+The latest metadata-only seven-root census gives a conservative copy-budget basis of 30,810,427,392
+bytes (28.694 GiB), below the 35-GiB cap. The current Kingston observation is 199.086 GiB free on
+case-sensitive APFS UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; it includes the existing
+PersonalBackup occupancy and is not a future pin. The writer requires actual payload plus a 50-GiB
+free floor and 8-GiB operation reserve, rechecked immediately before and during capture. The
+inventory is sizing evidence only, not a copy or consistency proof. No Migration v1 candidate has
+been written yet.
 
 This document owns Brain host portability, recovery inventory, and erase readiness. The project
 checkout, owner runtime, large research-data root, and protected evaluations have separate authority
@@ -27,7 +47,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-16 14:31 UTC.** The accepted recovery scope is loss or
+**NO-GO for factory reset as of 2026-10-16 20:03 UTC.** The accepted recovery scope is loss or
 erasure of the owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as
 the only reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -36,10 +56,10 @@ replica and a Kingston-loss rehearsal. The conditional Recovery/capture plan and
 remain a Sol-reviewed, non-executable design; they do not authorize a Recovery boot. The user has
 changed the PersonalBackup operating plan: it is temporary Kingston occupancy, later moved to a
 second MacBook, verified there, and deleted from Kingston separately by the user. Do not inspect,
-move, or delete PersonalBackup. Brain capacity is planned for the post-transition Kingston state,
-with no permanent PersonalBackup reserve. Before any Brain write, require the user's confirmation
-that the personal migration and separate deletion are complete, then freshly measure Kingston free
-space and identity. The current free-space reading is only a baseline, not that future pin.
+move, or delete PersonalBackup. The newly authorized Migration v1 candidate may be written while it
+remains there, provided fresh free space covers the measured candidate and policy reserves. This v1
+exception does not change the post-transition Kingston assumptions for the deferred hardened-v2
+worksheet.
 
 On 2026-10-16, the read-only `HeldDataT` identity/locator library and operator CLI passed a real
 Darwin/APFS probe against a disposable read-only synthetic APFS image using the pinned Kingston
