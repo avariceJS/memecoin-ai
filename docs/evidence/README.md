@@ -286,6 +286,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   Kingston root, then verifies the candidate group with externally supplied plan and manifest pins.
   Sol accepts only the restricted byte-custody scaffold claim; owner Data, T/K, restore, activation,
   Recovery-kit, and erase readiness remain unqualified.
+- [`Portability and DR v5 synthetic global inventory`](portability-dr-global-held-inventory-v5-synthetic-2026-10-16T0500Z.json):
+  qualifies global hardlink reconciliation, candidate readback, and inert extraction for synthetic
+  fixture roots only. Source and candidate shared a temporary device; the mode-0700 quarantine used
+  a distinct disposable APFS image. No owner capture, Kingston K, source/candidate device separation,
+  or Brain restore is qualified.
 - [`Portability and DR current-code clean clone`](portability-dr-current-code-clean-clone-2026-10-16T0205Z.json):
   clones exact pushed `ce210910`, installs the locked dev environment, passes smoke and the 38 focused
   DR tests. Repository `make check` stops at 107 Ruff findings in untouched project files before

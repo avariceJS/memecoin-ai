@@ -711,6 +711,22 @@ declared nonprotected working-directory entries match the private inventory whil
 or protected-candidate entries remain excluded. Neither pass proves loaded process/code identity or
 changes the owner-wide custody and source-consistency NO-GO.
 
+The v5 global held-inventory engine passed a bounded synthetic-fixture review. It inventories all
+declared fixture roots before streaming, reconciles cross-root hardlinks, verifies member/payload
+relationships, and extracts into a mode-0700 quarantine on a separate disposable APFS device. The
+fixture source and candidate storage were on the same temporary device; no Kingston or owner data
+was used. A one-million-row SQLite probe measured 249.42 bytes per row, 2.282 seconds, and 39.88
+MiB peak RSS; the 819,547-entry/30-GB capacity figure is arithmetic modeling only. Sol accepted this
+synthetic scope, not a production capture capability. The API is explicitly synthetic-fixture-only;
+verification creates a local temporary SQLite spool, and concurrent mutation of writable candidate
+files is not qualified. Production capture still needs pinned scratch placement off held Data,
+enforced source/candidate device separation, owner-scale resource replay, and a concurrency policy.
+Symlinks and xattr/ACL/flag values are evidence only, not restored; ACL grants are not qualified.
+The historical 6,053-group `.git` waiver remains unresolved custody. This changes no T, K,
+owner/protected closure, clean-host
+restore, activation, or erase gate. See the
+[`v5 synthetic global-inventory receipt`](evidence/portability-dr-global-held-inventory-v5-synthetic-2026-10-16T0500Z.json).
+
 ## State ownership and restore rules
 
 | State | Canonical source of truth | Recovery rule |
