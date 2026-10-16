@@ -29,6 +29,11 @@ capture and fresh verification using external plan and manifest pins. Sol accept
 internal integrity claim only; the strict walker cannot traverse the real owner-root roster, so this
 does not qualify owner capture, T/K, Recovery-kit use, restore, or erase readiness. See the
 [`synthetic byte-capture E2E receipt`](evidence/portability-dr-held-data-byte-capture-synthetic-e2e-2026-10-16T0204Z.json).
+A fresh clone of the exact pushed `ce210910` installed the locked development environment and passed
+`make smoke`, the 38 focused DR tests, and byte-capture CLI help. Repository-wide `make check` stops
+at its first Ruff stage with 107 diagnostics in untouched files, so its later formatting/type/test
+stages did not run. This remains same-Mac code-bootstrap evidence, not Brain restore. See the
+[`current-code clean-clone receipt`](evidence/portability-dr-current-code-clean-clone-2026-10-16T0205Z.json).
 The post-bootstrap restore flow then passed a same-host blocked-path rehearsal: the exact commit,
 entry card and Kingston identity matched, and the operation stopped at the absent accepted set before
 quarantine or witness creation. This still is not a clean-host restore or erase qualification.

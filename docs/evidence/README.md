@@ -278,6 +278,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   Kingston root, then verifies the candidate group with externally supplied plan and manifest pins.
   Sol accepts only the restricted byte-custody scaffold claim; owner Data, T/K, restore, activation,
   Recovery-kit, and erase readiness remain unqualified.
+- [`Portability and DR current-code clean clone`](portability-dr-current-code-clean-clone-2026-10-16T0205Z.json):
+  clones exact pushed `ce210910`, installs the locked dev environment, passes smoke and the 38 focused
+  DR tests. Repository `make check` stops at 107 Ruff findings in untouched project files before
+  later stages; this is same-Mac code bootstrap, not a Brain restore.
 
 - [`Gecko v6 first natural bucket`](gecko-v6-first-natural-bucket-2026-10-13T1315Z.json): independently replayed first prospective bucket with four confirmed response bodies (3,042 bytes), one permanently spent ambiguous request, and one missed slot. All 12 parsed bars were out of window, yielding zero eligible new opens. Controlled LaunchAgent restart preserved the attempt/source prefix without replay; v6 was unloaded pending a distinct forward-only successor.
 - [`Gecko v3 failed-watchdog canary observation`](gecko-capture-only-v3-canary-observation-2026-10-13T0406Z.json): six actual forward-only GeckoTerminal requests all have durable confirmations and pass timing/replay checks; zero returned bars are eligible. The v1 watchdog failed closed on its plan-schema lookup. The v2 full-census replay recognizes that immutable receipt as a zero-attempt diagnostic root, restores the historical a078 projection, and independently accounts for 52 attempts across 40 roots. The capture is not a market-source qualification; actual charge remains unknown/unverified.

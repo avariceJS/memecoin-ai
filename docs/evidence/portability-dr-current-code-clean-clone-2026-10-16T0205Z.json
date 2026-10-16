@@ -1,0 +1,36 @@
+{
+  "schema": "brain-host-current-code-clean-clone-rehearsal-v1",
+  "observed_at_utc": "2026-10-16T02:05:00Z",
+  "source": {
+    "remote": "origin/research/active",
+    "commit": "ce2109102b3ca6a0ea122d8045f081b81a12e60f",
+    "clone_worktree_clean_after_setup": true,
+    "development_lock_sha256": "13a38c32b3c3ea4af3dc0da61be93ce1a5f5437aeb95b8039f1c31053bb7c7e5"
+  },
+  "environment": {
+    "platform": "macOS",
+    "python": "3.13.6",
+    "isolated_venv": true,
+    "locked_dev_install": "passed"
+  },
+  "checks": {
+    "make_smoke": "passed",
+    "focused_dr_tests": "38 passed",
+    "byte_capture_cli_help": "passed",
+    "repository_make_check": {
+      "status": "failed_at_first_ruff_stage",
+      "diagnostics": 107,
+      "touched_dr_files_lint": "passed_in_preceding_focused_check",
+      "other_check_stages_run": false,
+      "example_untouched_file": "src/memecoin_collector/wss_campaign.py"
+    }
+  },
+  "scope": {
+    "clean_host": false,
+    "kingston_attached": false,
+    "brain_state_restored": false,
+    "brain_services_started": false,
+    "safe_to_erase": false
+  },
+  "claim_limit": "Exact published source can be cloned and its locked development environment, smoke, and focused DR checks reproduced on this Mac. The repository-wide make check stops at unrelated Ruff diagnostics before formatting, type, or test stages. This is code-bootstrap evidence only and not a replacement-host or Brain restore rehearsal."
+}
