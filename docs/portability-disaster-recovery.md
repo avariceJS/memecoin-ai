@@ -6,7 +6,7 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-16 12:40 UTC.** The accepted recovery scope is loss or
+**NO-GO for factory reset as of 2026-10-16 14:31 UTC.** The accepted recovery scope is loss or
 erasure of the owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as
 the only reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
@@ -2004,18 +2004,23 @@ separate gates.
    group/container/device, aliases, `Locked: No`, and `Mounted: No`. Then perform one explicit
    read-only mount, recheck read-only mount flags and held descriptor identity, and run `HeldDataT`
    for every declared root. Stop if an alias, required/protected root, or hardlink relation is
-   unresolved, or if the view is writable or changes identity. Current HeldDataT/v5 policy can
-   represent the absent `verifier_worktree` only as `absent_unresolved`; the current policy therefore
-   fails this condition and capture remains blocked until a versioned schema/policy disposition is
-   reviewed and pinned.
+   unresolved, or if the view is writable or changes identity. HeldDataT/v1 and capture/v5 remain
+   unchanged and encode the absent `verifier_worktree` as `absent_unresolved`. Sol has accepted an
+   inert v2 plan/witness/policy/capacity/spec/index document-consistency validator for an explicitly
+   nonqualifying absence-gap candidate; no production writer, CLI, or publication path uses it yet.
+   Until a complete production adapter is reviewed, the current capture policy still fails this
+   condition and no candidate capture is ready.
 7. Only under a separately reviewed plan, run the complete metadata/root/hardlink preflight against
    the held view and establish worst-case Kingston spool, payload, metadata, and partial-publication
    bounds before candidate writes. Re-evaluate the Kingston equation immediately before capture.
-   Start only if all nine role dispositions and the protected overlay below are resolved to explicit
-   capture, reissue, or evidence-backed rebuild states, with no blocked or unresolved custody role.
-   The writer must preserve the 50 GiB policy floor at every guard. It may leave
-   a partial candidate on failure; never resume, overwrite, or delete it. Preserve it as unaccepted evidence
-   and require a new reviewed plan.
+   A full-closure capture still requires all nine roles and the protected overlay below to have
+   evidence-backed capture, reissue, rebuild, or explicit owner-accepted-loss dispositions, with no
+   unresolved custody role. A future v2 production path may separately write an explicitly
+   nonqualifying candidate for the eight present roles while preserving the ninth historical gap;
+   it cannot establish T, root closure, restore, or erase readiness and has not been implemented.
+   Any writer must preserve the 50 GiB policy floor at every guard. It may leave a partial candidate
+   on failure; never resume, overwrite, or delete it. Preserve it as unaccepted evidence and require
+   a new reviewed plan.
 8. Candidate verification is a separate post-capture operation, not part of the current Recovery
    handoff. It requires a reviewed non-force unmount/remount-read-only sequence for Kingston, fresh
    target identity/`ST_RDONLY` checks, and independently pinned APFS/HFS verifier scratch with the
@@ -2062,16 +2067,20 @@ auth stores are exact exclusions; all other exclusions require explicit paths, r
 hardlink-alias closure in the pinned policy.
 
 The latest metadata-only v2 census names its absent ninth entry `research_verifier_worktree`; the
-v1/v5 HeldDataT schema names the required role `verifier_worktree`. Sol accepted this only as an
-explicit two-part versioned crosswalk: recheck the source path at the eventual T, record it as
-absent only if it is still absent, pin the fetchable commit
-`f330999930afdb29485b89908fb275736587a815`, and record historical ignored,
-untracked, or uncommitted state as `unknown_unrecoverable`. The current v5 schema does not implement
-this disposition. Any schema change may admit capture of other present roots only as a clearly
-nonqualifying candidate; it must keep root closure and SAFE TO ERASE false. It does not restore or
-prove absence of former non-Git state. Full recovery still requires independently verified prior
-custody of that state or the owner's explicit acceptance that this historical gap is outside the
-recovery obligation.
+v1/v5 HeldDataT schema names the required role `verifier_worktree`. Sol approved a strictly
+versioned split: pin a Data-relative locator in an externally hash-pinned plan, observe
+`source_absent_on_held_readonly_view` through the held read-only Data descriptor, pin the fetchable
+commit `f330999930afdb29485b89908fb275736587a815`, and record historical ignored, untracked, or
+uncommitted state as `unknown_unrecoverable`. The v2 offline validators now bind plan → witness →
+nine-role policy → capacity intent → capacity receipt/inventory → capture spec → candidate index,
+reject v1 readers, and keep T, K, root closure, full restore, activation, and erase authority false.
+Sol accepted this only as an inert document-consistency stage: its synthetic fixtures and digests
+are not held-view, Kingston-capacity, payload, or readback observations. No v2 production writer,
+CLI, or publication path exists. The schema path may eventually capture the other eight roots only
+as a `nonqualifying_absence_gap` candidate, and may call absence `source_absent_at_T` only after a
+separately qualified same-view T witness. It does not recover or prove absence of former non-Git
+state. Full recovery still requires independently verified prior custody of that state or the
+owner's explicit acceptance that this historical gap is outside the recovery obligation.
 
 A live read-only Git worktree listing shows the active checkout and a stale `/private/tmp`
 `brain-senses-v3-verifier` entry whose path is absent and whose gitdir pointer is prunable. Its
@@ -2172,7 +2181,7 @@ Current source-role disposition is:
 | `helius_mcp_wrapper` | Private file role; quarantine/reissue only | Held-source custody and host-path rebinding |
 | `codex_mcp_config` | Private file role; quarantine/reissue only | Held-source custody; no automatic installation or authentication |
 | `cursor_mcp_config` | Private file role; quarantine/reissue only | Held-source custody; no automatic installation or authentication |
-| `verifier_worktree` | Absent in the latest root census; v5 schema only encodes `absent_unresolved` | Versioned policy/schema disposition needed; tracked commit reachability does not close ignored/local state |
+| `verifier_worktree` | Absent in the latest root census; v1/v5 still encode `absent_unresolved`; v2 inert schema binds a held-view absence witness | Production adapter, same-view T qualification, and historical non-Git gap disposition remain open |
 
 Cross-cutting holds remain: three research `work/wallets` subtrees and owner Codex `.local` are
 opaque, private, unresolved, and backup-required; two `.env.local` credential files are excluded for

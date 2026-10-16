@@ -7,6 +7,11 @@ from pathlib import Path
 
 import pytest
 
+from tools.brain_host_held_data_absence_witness_v2 import (
+    AbsenceWitnessError,
+    load_absence_gap_plan_v2,
+    validate_absence_witness_v2,
+)
 from tools.brain_host_held_data_t_v1 import (
     MNT_RDONLY,
     REQUIRED_ROOT_ROLES,
@@ -17,6 +22,7 @@ from tools.brain_host_held_data_t_v1 import (
     RootDeclaration,
     approved_data_plan_sha256,
 )
+from tools.brain_senses_external_writer_v1 import canonical_json
 
 UUID = "430740ca-42e7-4e6c-a07a-e4e7370152cc"
 GROUP = "b72c52b0-591e-4c21-b4d2-87e6d7679c3a"
@@ -189,16 +195,14 @@ def test_reports_only_held_data_identity_and_never_qualifies_t(tmp_path: Path) -
         assert report["classification"] == "held_readonly_Data_identity_verified"
         assert report["mock_backend"] is True
         assert (
-            report["identity_uniqueness_scope"]
-            == "pinned_container_and_current_kernel_mount_table"
+            report["identity_uniqueness_scope"] == "pinned_container_and_current_kernel_mount_table"
         )
         assert report["global_apfs_uuid_uniqueness_verified"] is False
         assert report["held_root_count"] == len(REQUIRED_ROOT_ROLES) - 1
         assert report["root_role_roster_schema_validated"] is True
         assert report["required_role_closure"] is False
         assert (
-            report["unresolved_required_roles"]["verifier_worktree"]["state"]
-            == "absent_unresolved"
+            report["unresolved_required_roles"]["verifier_worktree"]["state"] == "absent_unresolved"
         )
         assert report["T_qualified"] is False
         assert report["source_cutoff_verified"] is False
@@ -232,7 +236,11 @@ def test_rejects_wrong_data_uuid_group_container_or_device(
     mountpoint = tmp_path / "held-data"
     mountpoint.mkdir()
     plan = ApprovedDataPlan(
-        "synthetic-plan", UUID, "disk3s5", "disk3", GROUP,
+        "synthetic-plan",
+        UUID,
+        "disk3s5",
+        "disk3",
+        GROUP,
         {
             role: _present_root(role, f"roots/{role}")
             for role in sorted(REQUIRED_ROOT_ROLES)
@@ -325,9 +333,7 @@ def test_rejects_incomplete_roster_aliases_symlinks_and_cross_mount(tmp_path: Pa
 
     ancestry = dict(plan.root_roster)
     ancestry["owner_checkout"] = _present_root("owner_checkout", "roots/Project")
-    ancestry["research_checkout"] = _present_root(
-        "research_checkout", "roots/project/research"
-    )
+    ancestry["research_checkout"] = _present_root("research_checkout", "roots/project/research")
     with pytest.raises(HeldDataError, match="declared_roots_overlap"):
         _construct(mountpoint, replace(plan, root_roster=ancestry), api)
 
@@ -430,6 +436,205 @@ def test_fast_mount_revalidation_checks_readonly_state_without_diskutil(
         held.close()
 
 
+def _absence_plan_document(locator: str = "roots/owner_checkout/.verifier-missing"):
+    roster = {
+        role: {
+            "present": declaration.present,
+            "relative_locator": declaration.relative_locator,
+            "kind": declaration.kind,
+            "unresolved_reason": declaration.unresolved_reason,
+        }
+        for role, declaration in _plan().root_roster.items()
+    }
+    roster["verifier_worktree"] = {
+        "present": False,
+        "relative_locator": None,
+        "kind": None,
+        "unresolved_reason": "verifier_worktree_absent_unresolved",
+    }
+    return {
+        "schema": "brain-host-held-data-absence-plan-v2",
+        "approval_id": "synthetic-v2-plan-approval",
+        "data_volume_uuid": UUID,
+        "data_device_identifier": "disk3s5",
+        "data_container_reference": "disk3",
+        "data_volume_group_id": GROUP,
+        "root_roster": roster,
+        "verifier_worktree_locator": locator,
+        "expected_fetchable_commit": "f330999930afdb29485b89908fb275736587a815",
+        "remote_fetchability_evidence_sha256": "1" * 64,
+        "historical_non_git_state": "unknown_unrecoverable",
+    }
+
+
+def _absence_fixture(tmp_path: Path, locator: str = "roots/owner_checkout/.verifier-missing"):
+    import hashlib
+
+    raw = canonical_json(_absence_plan_document(locator))
+    plan_path = tmp_path / "absence-plan-v2.json"
+    plan_path.write_bytes(raw)
+    plan_path.chmod(0o600)
+    plan = load_absence_gap_plan_v2(
+        plan_path,
+        expected_plan_sha256=hashlib.sha256(raw).hexdigest(),
+    )
+    mountpoint = tmp_path / "held-data-v2"
+    mountpoint.mkdir()
+    _make_roots(mountpoint, plan.held_data_plan)
+    api = FakeDataOS(mountpoint, plan.held_data_plan)
+    held = HeldDataT(
+        plan.held_data_plan,
+        mountpoint,
+        trusted_plan_sha256=plan.held_data_plan_sha256,
+        os_api=api,
+        synthetic=True,
+    )
+    return mountpoint, plan, api, held
+
+
+def _absence_witness(held: HeldDataT, plan):
+    from tools.brain_host_held_data_absence_witness_v2 import build_absence_witness_v2
+
+    return build_absence_witness_v2(held, plan=plan)
+
+
+def test_v2_absence_witness_is_same_view_and_never_qualifies_t_or_restore(tmp_path: Path) -> None:
+    mountpoint, plan, _api, held = _absence_fixture(tmp_path)
+    try:
+        (mountpoint / "roots/owner_checkout").mkdir(parents=True, exist_ok=True)
+        witness = _absence_witness(held, plan)
+        validate_absence_witness_v2(witness)
+        assert witness["leaf_observation"] == "source_absent_on_held_readonly_view"
+        assert witness["historical_non_git_state"] == "unknown_unrecoverable"
+        assert witness["synthetic_backend"] is True
+        for field in (
+            "root_closure",
+            "full_restore_qualified",
+            "activation_authorized",
+            "erase_ready",
+            "T_qualified",
+            "K_qualified",
+        ):
+            assert witness[field] is False
+        with pytest.raises(AbsenceWitnessError, match="schema_fields_invalid"):
+            validate_absence_witness_v2({"schema": "brain-host-held-data-t-v1"})
+    finally:
+        held.close()
+
+
+@pytest.mark.parametrize(
+    ("locator", "setup", "error"),
+    [
+        ("roots/owner_checkout/present", "file", "leaf_present_or_symlink"),
+        ("roots/owner_checkout/link/leaf", "symlink", "parent_unavailable_or_untrusted"),
+        ("roots/owner_checkout/missing-parent/leaf", "none", "parent_unavailable_or_untrusted"),
+    ],
+)
+def test_v2_absence_witness_rejects_present_symlink_and_missing_parent(
+    tmp_path: Path, locator: str, setup: str, error: str
+) -> None:
+    mountpoint, plan, _api, held = _absence_fixture(tmp_path, locator)
+    try:
+        root = mountpoint / "roots/owner_checkout"
+        root.mkdir(parents=True, exist_ok=True)
+        if setup == "file":
+            (root / "present").write_bytes(b"not protected payload")
+        elif setup == "symlink":
+            (root / "link").symlink_to(root, target_is_directory=True)
+        with pytest.raises(AbsenceWitnessError, match=error):
+            _absence_witness(held, plan)
+    finally:
+        held.close()
+
+
+def test_v2_absence_witness_rejects_locator_and_commit_substitution(tmp_path: Path) -> None:
+    mountpoint, plan, _api, held = _absence_fixture(tmp_path)
+    try:
+        (mountpoint / "roots/owner_checkout").mkdir(parents=True, exist_ok=True)
+        with pytest.raises(AbsenceWitnessError, match="plan_sha256_mismatch"):
+            load_absence_gap_plan_v2(
+                tmp_path / "absence-plan-v2.json",
+                expected_plan_sha256="0" * 64,
+            )
+        changed = dict(plan.document)
+        changed["verifier_worktree_locator"] = "roots/owner_checkout/other"
+        changed_raw = canonical_json(changed)
+        (tmp_path / "absence-plan-v2.json").write_bytes(changed_raw)
+        with pytest.raises(AbsenceWitnessError, match="plan_sha256_mismatch"):
+            load_absence_gap_plan_v2(
+                tmp_path / "absence-plan-v2.json",
+                expected_plan_sha256=plan.plan_sha256,
+            )
+    finally:
+        held.close()
+
+
+def test_v2_absence_witness_rejects_digest_tampering(tmp_path: Path) -> None:
+    mountpoint, plan, _api, held = _absence_fixture(tmp_path)
+    try:
+        (mountpoint / "roots/owner_checkout").mkdir(parents=True, exist_ok=True)
+        witness = _absence_witness(held, plan)
+        witness["relative_locator"] = "roots/owner_checkout/replaced"
+        with pytest.raises(AbsenceWitnessError, match="digest_mismatch"):
+            validate_absence_witness_v2(witness)
+    finally:
+        held.close()
+
+
+def test_v2_absence_witness_rechecks_parsed_plan_object_pin(tmp_path: Path) -> None:
+    mountpoint, plan, _api, held = _absence_fixture(tmp_path)
+    try:
+        (mountpoint / "roots/owner_checkout").mkdir(parents=True, exist_ok=True)
+        plan.document["verifier_worktree_locator"] = "roots/owner_checkout/substituted"
+        with pytest.raises(AbsenceWitnessError, match="held_plan_pin_mismatch"):
+            _absence_witness(held, plan)
+    finally:
+        held.close()
+
+
+@pytest.mark.parametrize(
+    "locator",
+    [
+        "/absolute/path",
+        "../parent/leaf",
+        "roots/./leaf",
+        "roots//leaf",
+        "",
+        "roots\\leaf",
+        "roots/leaf\x00tail",
+    ],
+)
+def test_v2_absence_witness_rejects_locator_traversal_forms(tmp_path: Path, locator: str) -> None:
+    with pytest.raises(AbsenceWitnessError, match="locator_invalid"):
+        _absence_fixture(tmp_path, locator)
+
+
+def test_v2_absence_witness_detects_parent_identity_drift(tmp_path: Path, monkeypatch) -> None:
+    from tools import brain_host_held_data_absence_witness_v2 as witness_module
+
+    mountpoint, plan, _api, held = _absence_fixture(tmp_path, "unrelated/parent/.verifier-missing")
+    try:
+        parent = mountpoint / "unrelated/parent"
+        parent.mkdir(parents=True, exist_ok=True)
+        original = witness_module._leaf_absent
+        calls = 0
+
+        def replace_parent_after_first_absence(parent_fd: int, leaf: str) -> None:
+            nonlocal calls
+            original(parent_fd, leaf)
+            calls += 1
+            if calls == 1:
+                moved = parent.with_name("owner_checkout.old")
+                parent.rename(moved)
+                parent.mkdir()
+
+        monkeypatch.setattr(witness_module, "_leaf_absent", replace_parent_after_first_absence)
+        with pytest.raises(AbsenceWitnessError, match="parent_identity_drift"):
+            _absence_witness(held, plan)
+    finally:
+        held.close()
+
+
 def test_absent_role_requires_explicit_reason_and_verifier_stays_absent(
     tmp_path: Path,
 ) -> None:
@@ -450,9 +655,7 @@ def test_absent_role_requires_explicit_reason_and_verifier_stays_absent(
             relative_locator="roots/verifier_worktree",
             kind="directory",
         )
-        with pytest.raises(
-            HeldDataError, match="verifier_worktree_must_remain_absent_unresolved"
-        ):
+        with pytest.raises(HeldDataError, match="verifier_worktree_must_remain_absent_unresolved"):
             _construct(mountpoint, replace(plan, root_roster=malformed), _api)
     finally:
         held.close()

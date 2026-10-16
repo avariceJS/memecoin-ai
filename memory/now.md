@@ -1,9 +1,19 @@
 # Current state
 
-As of 2026-10-16 14:12 UTC, Portability / DR is **NO-GO for erase**. `research/active` HEAD is `83074d1a1abfe3e575cbdf9272df767b16c1e1c0`, pushed to origin; `main` remains `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. The worktree contains only the current DR receipt/docs follow-up.
+As of 2026-10-16 14:31 UTC, Portability / DR remains **NO-GO for erase**. `research/active` is
+the DR work branch; `main` remains `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. The Sol-reviewed
+v7 source-only kit replay proves reproducible source packaging and inert local entrypoints only;
+RecoveryOS, owner source T, complete custody, Kingston K, restore, and erase remain unqualified.
 
-Sol accepted the bounded v7 source-only builder. Two independent clean clones at exact commit `83074d1` produced byte-identical ZIP and manifest; 12 archive-only imports, six inert help commands, negative Recovery preflight, and wrong-spec capacity/capture preflights passed under CPython 3.13.6. Receipt: `docs/evidence/portability-dr-v7-published-clean-clone-replay-2026-10-16T1411Z.json`. This proves source-kit reproducibility and inert entrypoint behavior only; bundled runtime, RecoveryOS, source T, full owner/protected custody, Kingston K, restore, and erase remain unqualified.
+Sol accepted the strict v2 nine-role absence-gap documents and validators as an **inert
+document-consistency stage only**. The chain binds plan → held-view absence witness → policy → intent
+→ capacity/inventory → capture spec → candidate index; T/K/root closure/restore/activation/erase
+remain false. There is no production v2 writer, CLI, or candidate publication path. Four focused
+suites pass (170 tests). No Kingston, PersonalBackup, owner Data, Recovery, or protected payload was
+accessed for this stage.
 
-Kingston and PersonalBackup were not accessed in this work wave. The latest read-only Kingston free-space baseline was 213,768,499,200 bytes before the user's PersonalBackup move/verify/delete transition; do not inspect, move, or delete PersonalBackup. No suitable separately pinned planner scratch volume with at least 8 GiB + 256 MiB outside Data and Kingston was available. Re-measure Kingston only after the user confirms the personal migration and deletion. No Recovery boot is scheduled until the full gate is Sol-reviewed and executable.
-
-Current next policy blocker: implement the already reviewed versioned nine-role split for `verifier_worktree` so a later held T can attest `source_absent_at_T`, bind the fetchable commit, preserve `historical_non_git_state=unknown_unrecoverable`, and keep root closure, full restore, and erase readiness false. Sol is defining exact implementation invariants. Protected payload semantics remain untouched.
+PersonalBackup remains temporary Kingston occupancy pending the user's separate migration,
+verification on the second MacBook, and deletion confirmation. Do not inspect or change it; remeasure
+Kingston after that transition before any Brain write. No separately pinned planner scratch outside
+Data and Kingston is available. The v2 production adapter, RecoveryOS compatibility, qualified
+source T, full custody, T/K, inert restore, and clean-host rehearsal remain open.
