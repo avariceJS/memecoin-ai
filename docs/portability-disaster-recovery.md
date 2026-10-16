@@ -1728,6 +1728,19 @@ external and unbracketed, not independently authenticated. The live prefix still
 evidence only: no STOP, global Kingston K, Data T, restore, or erase readiness is established. See
 the [`live v6 structural-prefix attempt`](evidence/portability-dr-v6-terminal-prefix-live-attempt-2026-10-16T094549Z.json).
 
+The new `tools/brain_host_restore_flow_v2.py inspect` is a negative-only nine-role handoff/index
+inspector. It binds a separately hash-pinned private handoff, approved Data plan, policy roster,
+clean execution commit, entry card, Kingston identity, and mixed-candidate index; local inputs are
+read through a bounded no-symlink descriptor walk and stable owner-only file check. It joins source
+presence separately from capture custody, rejects legacy aliases/bridges, and keeps MCP configuration
+files in quarantine/reissue-only disposition. It reads card/index metadata only, never capture-unit
+payloads, and every output remains blocked with all activation, restore, T/K, and erase authority
+false. Sol accepted this interface after review of path, mode, owner, link-count race, join, and
+authority boundaries. Seventy-one focused tests across v2/v1 handoff, assessment, and root-set readers
+pass with Ruff, formatting, and scoped strict mypy. This qualifies only the synthetic blocked path:
+there is no real v2 owner handoff, source custody closure, payload verification, clean-compatible-host
+restore, T/K, or erase readiness.
+
 1. Inventory every owner/research/local-config/service root, including owner Codex worktree local
    state, and bind each to a source point or an
    explicit reauthentication, rebuild, disposable, or unresolved disposition. Classify potentially
