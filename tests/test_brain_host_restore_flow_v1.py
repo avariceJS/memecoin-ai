@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -201,3 +203,18 @@ def test_unsafe_run_parent_gets_no_record_directory(tmp_path: Path, monkeypatch:
     assert result["status"] == "blocked_without_run_record_parent_unsafe"
     assert result["run_record_created"] is False
     assert list(run_parent.iterdir()) == before
+
+
+def test_direct_cli_help_imports_from_neutral_working_directory(tmp_path: Path) -> None:
+    script = Path(__file__).resolve().parents[1] / "tools" / "brain_host_restore_flow_v1.py"
+    result = subprocess.run(
+        [sys.executable, str(script), "--help"],
+        cwd=tmp_path,
+        env={"PATH": os.environ.get("PATH", ""), "HOME": str(tmp_path)},
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=15,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "restore-inert" in result.stdout

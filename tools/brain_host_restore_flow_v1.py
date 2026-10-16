@@ -17,9 +17,13 @@ import re
 import secrets
 import stat
 import subprocess
+import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from tools import brain_host_recovery as host_recovery
 
