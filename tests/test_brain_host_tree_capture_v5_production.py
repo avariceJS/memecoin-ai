@@ -1123,6 +1123,54 @@ def test_capture_cli_pin_failure_is_path_free_and_has_false_authority(
     assert '"root_closure_verified":false' in output
 
 
+def test_capacity_plan_cli_success_is_sizing_only(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, object] = {}
+
+    def positive_plan(**kwargs: object) -> dict[str, object]:
+        seen.update(kwargs)
+        return {
+            "schema": "brain-host-tree-capture-v5-capacity-plan-v1",
+            "synthetic_fixture_only": True,
+            "capacity_result_status": "sizing_only_unqualified",
+            "payload_read": False,
+            "kingston_written": False,
+            "capture_authorized": False,
+            "erase_ready": False,
+        }
+
+    monkeypatch.setattr(production_module, "_capacity_plan_from_pinned_spec", positive_plan)
+    code = production_cli_main(
+        [
+            "plan-capacity",
+            "--spec",
+            str(tmp_path / "private-operation.json"),
+            "--spec-sha256",
+            "a" * 64,
+            "--plan",
+            str(tmp_path / "plan.json"),
+            "--plan-sha256",
+            "b" * 64,
+            "--policy-roster-sha256",
+            "c" * 64,
+            "--scratch-parent",
+            str(tmp_path / "scratch"),
+        ]
+    )
+    output = capsys.readouterr().out
+    assert code == 0
+    assert seen["expected_spec_sha256"] == "a" * 64
+    assert seen["expected_plan_sha256"] == "b" * 64
+    assert '"capacity_result_status":"sizing_only_unqualified"' in output
+    assert '"payload_read":false' in output
+    assert '"kingston_written":false' in output
+    assert '"capture_authorized":false' in output
+    assert '"erase_ready":false' in output
+
+
 def test_capture_result_is_provenance_bound_and_never_authorizes_activation() -> None:
     result = _capture_summary(
         {

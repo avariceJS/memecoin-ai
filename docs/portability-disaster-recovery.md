@@ -1865,7 +1865,7 @@ These constraints make the proposed one-boot capture-and-verify sequence non-exe
 Any future gate must establish a worst-case bound for entries, payload, `S_K`, and `M` before
 creating the Kingston spool or writing candidate payload. Then recheck Kingston capacity before
 spooling. If the production path cannot establish this bound without creating a large Kingston
-spool, stop and add/review a bounded no-payload planning path before Recovery. Capture and readback
+spool, stop and use the bounded no-payload planning path before Recovery. Capture and readback
 verification are separate phases: after capture, close the writer, safely unmount Kingston, remount
 the pinned target read-only with an exact reviewed command, verify UUID/root/device and `ST_RDONLY`,
 then run the candidate verifier using a pinned APFS/HFS volume distinct from source and target by
@@ -1877,6 +1877,26 @@ SHA-pinned operation spec bound into the candidate INDEX and has focused unit co
 unqualified until a real disposable candidate, target read-only remount, low-space rejection, and
 post-failure integrity rehearsal pass. Never use Data or the target volume itself as scratch. The
 verifier proves candidate integrity only, not global Kingston K.
+
+The `plan-capacity` operator command now provides a metadata-only pre-spool sizing pass. It reuses
+the v5 descriptor-relative role scanner and global hardlink reconciliation, holds Kingston through
+the pinned read-only storage guard, and creates its bounded SQLite plan only on a separately pinned
+APFS/HFS scratch volume outside both the Data and Kingston APFS containers. The planner DB is
+capped at 8 GiB with a retained 256 MiB free floor and descriptor-bound cleanup. It reads filesystem
+metadata and symlink text, but no regular-file contents, xattr values, or ACL bytes; its output
+explicitly leaves T, capture authorization, Kingston writes, and erase readiness false. It reports
+scan-time included logical bytes, entry/path totals, hardlink reconciliation, and the existing
+resource-model estimate. That 128-character/50%-margin model is not a hard upper bound for
+candidate/index or filesystem allocation. Until candidate/index and allocation overhead have a
+reviewed bound, this sizing output cannot authorize capture. Sol reviewed the exact core/production
+implementation and accepted it for sizing-only use. The planner has 98 focused tests, CLI-help and
+command-dispatch coverage, and one disposable synthetic scan using a separate local APFS scratch
+volume with cleanup verified. The production CLI path has not yet completed a disposable
+mounted-APFS end-to-end rehearsal. The synthetic pass is not owner source, Kingston, or RecoveryOS
+qualification. The review also confirms that the in-process capability token is an internal API
+convention, not a security boundary against arbitrary code already running in the same process.
+RecoveryOS Python/runtime and scratch availability, owner-role closure, protected custody policy,
+source cutoff T, and Kingston K remain separate gates.
 
 1. Shut down cleanly. Record the Recovery entry path, all pre-Terminal user/authentication/key/UI
    choices, and approximate times without recording credentials. Do not open Disk Utility, unlock
@@ -2000,6 +2020,13 @@ The latest metadata-only v2 census names its absent ninth entry `research_verifi
 v1/v5 HeldDataT schema names the required role `verifier_worktree`. Treat this as a schema crosswalk
 that needs an explicit externally pinned path/disposition mapping, not an automatic alias. Sol must
 accept that mapping before the capture command can be assembled.
+
+A live read-only Git worktree listing shows the active checkout and a stale `/private/tmp`
+`brain-senses-v3-verifier` entry whose path is absent and whose gitdir pointer is prunable. Its
+recorded detached commit `f330999930afdb29485b89908fb275736587a815` is contained by published
+branches and the existing DR handoff tags, so its code commit is fetchable. This does not establish
+whether the missing worktree held ignored or uncommitted unique state. Keep `verifier_worktree`
+`absent_unresolved`; do not prune the stale worktree metadata or treat code reachability as closure.
 
 The v5 policy also carries a static unresolved-hardlink baseline of 6,053 groups under `.git`.
 Current capture policy preserves these as unresolved and cannot claim root closure. The four research

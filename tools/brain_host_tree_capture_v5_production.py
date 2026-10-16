@@ -115,6 +115,8 @@ PRODUCTION_FREE_SPACE_FLOOR_BYTES = 8 * 1024**3
 VERIFY_SCRATCH_DB_RESERVE_BYTES = capture.MAX_SCRATCH_BYTES
 VERIFY_SCRATCH_FREE_FLOOR_BYTES = 256 * 1024**2
 VERIFY_SHARED_POOL_FLOOR_BYTES = 50 * 1024**3
+CAPACITY_PLANNER_DB_LIMIT_BYTES = 8 * 1024**3
+CAPACITY_PLANNER_FREE_FLOOR_BYTES = 256 * 1024**2
 INERT_QUARANTINE_FREE_FLOOR_BYTES = 256 * 1024**2
 INERT_QUARANTINE_SCRATCH_FLOOR_BYTES = 256 * 1024**2
 _UUID = re.compile(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\Z")
@@ -1858,6 +1860,135 @@ def _capture_from_pinned_spec(
         ) from None
 
 
+def _capacity_plan_from_pinned_spec(
+    *,
+    spec_path: Path,
+    expected_spec_sha256: str,
+    plan_path: Path,
+    expected_plan_sha256: str,
+    expected_policy_roster_sha256: str,
+    scratch_parent: Path,
+) -> dict[str, Any]:
+    """Run metadata-only sizing with Kingston held read-only and never written."""
+    spec = _read_private_capture_spec(spec_path, expected_spec_sha256)
+    _capture_spec_fields(spec)
+    plan_digest = _require_sha256(expected_plan_sha256, "capture_plan_sha256_invalid")
+    policy_digest = _require_sha256(
+        expected_policy_roster_sha256, "capture_policy_roster_sha256_invalid"
+    )
+    try:
+        plan = _load_plan(_canonical_config_path(plan_path))
+    except Exception as exc:
+        raise ProductionCaptureV5CLIError("capture_plan_invalid") from exc
+    if (
+        approved_data_plan_sha256(plan) != plan_digest
+        or set(plan.root_roster) != REQUIRED_ROOT_ROLES
+    ):
+        raise ProductionCaptureV5CLIError("capture_plan_pin_mismatch")
+    source_mountpoint = _require_canonical_directory(
+        spec.get("source_mountpoint"), "capture_source_mountpoint_invalid"
+    )
+    config_path = _canonical_config_path(Path(spec["storage_config_path"]))
+    try:
+        target_uuid, target_root_id = _validate_pins(
+            spec["target_volume_uuid"], spec["target_root_id"]
+        )
+    except Exception as exc:
+        raise ProductionCaptureV5CLIError("capture_target_storage_pin_invalid") from exc
+    if plan.data_volume_uuid.lower() == target_uuid:
+        raise ProductionCaptureV5CLIError("capture_source_target_volume_alias")
+    try:
+        policies, actual_policy_digest = _load_capture_policies(spec, plan, plan_digest)
+    except Exception as exc:
+        raise ProductionCaptureV5CLIError("capture_policy_roster_pin_mismatch") from exc
+    if actual_policy_digest != policy_digest:
+        raise ProductionCaptureV5CLIError("capture_policy_roster_pin_mismatch")
+    scratch_path = _require_canonical_directory(scratch_parent, "scratch_path_not_canonical")
+    result: dict[str, Any]
+    with storage.read_only_guard(config_path) as target_guard:
+        _assert_guard_pins(target_guard, target_guard.config, target_uuid, target_root_id)
+        _assert_candidate_target_read_only(target_guard)
+        target_device = os.fstat(target_guard.root_fd).st_dev
+        target_disk = DarwinDataOS().disk_info(str(target_guard.mountpoint))
+        target_container_ref = target_disk.get("APFSContainerReference")
+        if not isinstance(target_container_ref, str) or not re.fullmatch(
+            r"disk[0-9]+", target_container_ref
+        ):
+            raise ProductionCaptureV5Error("capacity_plan_target_container_unresolved")
+        target_container_uuid = _apfs_container_uuid(target_container_ref)
+        scratch = PinnedScratchV5.open(scratch_path)
+        try:
+            source_container_uuid = _apfs_container_uuid(plan.data_container_reference)
+            if (
+                scratch.volume_uuid is None
+                or scratch.volume_uuid == target_uuid
+                or (
+                    scratch.apfs_container_uuid is not None
+                    and scratch.apfs_container_uuid
+                    in {source_container_uuid, target_container_uuid}
+                )
+            ):
+                raise ProductionCaptureV5Error("capacity_plan_scratch_not_external")
+            with HeldDataT(
+                plan,
+                source_mountpoint,
+                trusted_plan_sha256=plan_digest,
+            ) as view:
+                scratch.validate(
+                    source_device=os.fstat(view.mount_fd).st_dev,
+                    target_device=target_device,
+                    required_free_bytes=(
+                        CAPACITY_PLANNER_DB_LIMIT_BYTES + CAPACITY_PLANNER_FREE_FLOOR_BYTES
+                    ),
+                )
+
+                def external_boundary_check(used_db_bytes: int) -> None:
+                    if (
+                        type(used_db_bytes) is not int
+                        or not 0 <= used_db_bytes <= CAPACITY_PLANNER_DB_LIMIT_BYTES
+                    ):
+                        raise ProductionCaptureV5Error("capacity_plan_scratch_usage_invalid")
+                    view.revalidate()
+                    target_guard.revalidate_identity()
+                    _assert_candidate_target_read_only(target_guard)
+                    scratch.validate(
+                        source_device=os.fstat(view.mount_fd).st_dev,
+                        target_device=target_device,
+                        required_free_bytes=(
+                            CAPACITY_PLANNER_DB_LIMIT_BYTES
+                            - used_db_bytes
+                            + CAPACITY_PLANNER_FREE_FLOOR_BYTES
+                        ),
+                    )
+
+                result = capture._plan_held_data_capacity_v5_core(
+                    view,
+                    role_policies=policies,
+                    scratch_parent_fd=scratch.fd,
+                    scratch_device=os.fstat(scratch.fd).st_dev,
+                    target_device=target_device,
+                    expected_plan_sha256=plan_digest,
+                    expected_policy_roster_sha256=policy_digest,
+                    scratch_db_limit_bytes=CAPACITY_PLANNER_DB_LIMIT_BYTES,
+                    external_boundary_check=external_boundary_check,
+                    production_authority=capture._CAPACITY_PLAN_PRODUCTION_AUTHORITY,
+                )
+                target_guard.revalidate_identity()
+                _assert_candidate_target_read_only(target_guard)
+        finally:
+            scratch.close()
+    result.update(
+        {
+            "operation_spec_sha256": expected_spec_sha256,
+            "scratch_volume_uuid": scratch.volume_uuid,
+            "scratch_db_limit_bytes": CAPACITY_PLANNER_DB_LIMIT_BYTES,
+            "kingston_read_only": True,
+            "kingston_write_performed": False,
+        }
+    )
+    return result
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run capture, candidate verification, or inert quarantine rehearsal."""
     parser = _OperatorArgumentParser(description=__doc__)
@@ -1871,6 +2002,16 @@ def main(argv: list[str] | None = None) -> int:
     operator_capture.add_argument("--plan", required=True, type=Path)
     operator_capture.add_argument("--plan-sha256", required=True)
     operator_capture.add_argument("--policy-roster-sha256", required=True)
+    capacity_plan = subparsers.add_parser(
+        "plan-capacity",
+        help="size a pinned read-only Data view using separate external scratch",
+    )
+    capacity_plan.add_argument("--spec", required=True, type=Path)
+    capacity_plan.add_argument("--spec-sha256", required=True)
+    capacity_plan.add_argument("--plan", required=True, type=Path)
+    capacity_plan.add_argument("--plan-sha256", required=True)
+    capacity_plan.add_argument("--policy-roster-sha256", required=True)
+    capacity_plan.add_argument("--scratch-parent", required=True, type=Path)
     verify = subparsers.add_parser("verify", help="verify one existing candidate read-only")
     verify.add_argument("candidate_id")
     verify.add_argument("--index-sha256", required=True)
@@ -1956,6 +2097,41 @@ def main(argv: list[str] | None = None) -> int:
         except Exception:
             sys.stdout.buffer.write(
                 canonical_json(_capture_failure("capture_failed", partial_candidate_possible=False))
+            )
+            return 2
+    if args.command == "plan-capacity":
+        try:
+            result = _capacity_plan_from_pinned_spec(
+                spec_path=args.spec,
+                expected_spec_sha256=args.spec_sha256,
+                plan_path=args.plan,
+                expected_plan_sha256=args.plan_sha256,
+                expected_policy_roster_sha256=args.policy_roster_sha256,
+                scratch_parent=args.scratch_parent,
+            )
+            sys.stdout.buffer.write(canonical_json(result))
+            return 0
+        except Exception as exc:
+            sys.stdout.buffer.write(
+                canonical_json(
+                    {
+                        "schema": "brain-host-tree-capture-v5-capacity-plan-failure",
+                        "error": str(exc)
+                        if isinstance(
+                            exc,
+                            (
+                                ProductionCaptureV5CLIError,
+                                ProductionCaptureV5Error,
+                                capture.TreeCaptureV5Error,
+                            ),
+                        )
+                        else "capacity_plan_failed",
+                        "payload_read": False,
+                        "kingston_written": False,
+                        "capture_authorized": False,
+                        "erase_ready": False,
+                    }
+                )
             )
             return 2
     try:

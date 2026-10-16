@@ -21,6 +21,7 @@ import sqlite3
 import stat
 import sys
 import tempfile
+import time
 from collections.abc import Callable, Mapping
 from contextlib import ExitStack
 from dataclasses import dataclass
@@ -62,6 +63,7 @@ MAX_PATH_DEPTH = 128
 DB_BASENAME = "inventory.sqlite"
 CANDIDATE_BASE = "host-recovery/tree-capture-v5/candidates"
 _PRODUCTION_CAPTURE_AUTHORITY = object()
+_CAPACITY_PLAN_PRODUCTION_AUTHORITY = object()
 STREAM_CHUNK_BYTES = 1024 * 1024
 PAGE_RECORDS = 256
 MAX_PAGE_BYTES = 16 * 1024 * 1024
@@ -1212,6 +1214,296 @@ def inventory_held_data_v5(
         metadata_reserve_bytes=metadata_reserve_bytes,
         max_entries=max_entries,
     )
+
+
+def _plan_held_data_capacity_v5_core(
+    view: HeldDataT,
+    *,
+    role_policies: Mapping[str, RoleCapturePolicy],
+    scratch_parent_fd: int,
+    scratch_device: int,
+    target_device: int,
+    expected_plan_sha256: str,
+    expected_policy_roster_sha256: str,
+    scratch_db_limit_bytes: int,
+    external_boundary_check: Callable[[int], None] | None = None,
+    production_authority: object | None = None,
+    max_entries: int = MAX_ENTRIES,
+) -> dict[str, Any]:
+    """Read-only source sizing into a pinned external SQLite scratch directory.
+
+    This planner shares the production inventory scanner and global hardlink
+    reconciliation, but has no DescriptorWriter and cannot create a Kingston
+    spool or candidate. It reads filesystem metadata only, never regular-file
+    contents, xattr values, or ACL bytes. Its report is a capacity plan, not T,
+    a capture authorization, or a durability claim.
+    """
+    if (
+        not isinstance(view, HeldDataT)
+        or type(view.synthetic) is not bool
+        or type(scratch_parent_fd) is not int
+        or type(scratch_device) is not int
+        or type(target_device) is not int
+        or target_device <= 0
+        or type(scratch_db_limit_bytes) is not int
+        or not 1 <= scratch_db_limit_bytes <= MAX_SCRATCH_BYTES
+        or type(max_entries) is not int
+        or not 1 <= max_entries <= MAX_ENTRIES
+        or not _is_sha256(expected_plan_sha256)
+        or not _is_sha256(expected_policy_roster_sha256)
+    ):
+        raise TreeCaptureV5Error("capacity_plan_input_invalid")
+    if view.synthetic is False and (
+        production_authority is not _CAPACITY_PLAN_PRODUCTION_AUTHORITY
+        or not callable(external_boundary_check)
+    ):
+        raise TreeCaptureV5Error("capacity_plan_production_capability_required")
+    source_device = os.fstat(view.mount_fd).st_dev
+    parent_st = os.fstat(scratch_parent_fd)
+    parent_vfs = os.fstatvfs(scratch_parent_fd)
+    initial_free_bytes = int(parent_vfs.f_bavail * parent_vfs.f_frsize)
+    if (
+        not stat.S_ISDIR(parent_st.st_mode)
+        or parent_st.st_dev != scratch_device
+        or parent_st.st_uid != os.getuid()
+        or stat.S_IMODE(parent_st.st_mode) != 0o700
+        or parent_vfs.f_flag & getattr(os, "ST_RDONLY", 1)
+        or _acl_bytes(scratch_parent_fd) is not None
+    ):
+        raise TreeCaptureV5Error("capacity_plan_scratch_identity_or_capacity_invalid")
+    if source_device == parent_st.st_dev or target_device == parent_st.st_dev:
+        raise TreeCaptureV5Error("capacity_plan_device_separation_invalid")
+    if initial_free_bytes < scratch_db_limit_bytes + 256 * 1024**2:
+        raise TreeCaptureV5Error("capacity_plan_scratch_identity_or_capacity_invalid")
+    plan_sha256 = approved_data_plan_sha256(view.plan)
+    roster = dict(view.plan.root_roster)
+    present_roles = {role for role, declaration in roster.items() if declaration.present}
+    if (
+        plan_sha256 != expected_plan_sha256
+        or view.trusted_plan_sha256 != expected_plan_sha256
+        or set(roster) != REQUIRED_ROOT_ROLES
+        or not present_roles
+        or set(role_policies) != present_roles
+    ):
+        raise TreeCaptureV5Error("capacity_plan_source_roster_invalid")
+    policy_hashes: dict[str, str] = {}
+    policy_scopes: dict[str, str] = {}
+    for role in sorted(present_roles):
+        _policy, _raw, digest = _validate_policy_pin(role_policies[role])
+        policy_hashes[role] = digest
+        policy_scopes[role] = role_policies[role].scope
+    rows: list[Mapping[str, Any]] = []
+    for role in sorted(REQUIRED_ROOT_ROLES):
+        declaration = roster[role]
+        if declaration.present:
+            rows.append(
+                {
+                    "role": role,
+                    "present": True,
+                    "scope": policy_scopes[role],
+                    "policy_sha256": policy_hashes[role],
+                }
+            )
+        else:
+            reason = declaration.unresolved_reason
+            if not isinstance(reason, str) or not reason:
+                raise TreeCaptureV5Error("capacity_plan_absent_role_invalid")
+            rows.append(
+                {
+                    "role": role,
+                    "present": False,
+                    "disposition": "absent_unresolved",
+                    "unresolved_reason_sha256": sha256(reason.encode("utf-8")),
+                    "scope": None,
+                    "policy_sha256": None,
+                }
+            )
+    actual_roster_sha256 = policy_roster_sha256_v5(plan_sha256, rows)
+    if actual_roster_sha256 != expected_policy_roster_sha256:
+        raise TreeCaptureV5Error("capacity_plan_policy_roster_pin_mismatch")
+
+    name = secrets.token_hex(16)
+    created = False
+    try:
+        os.mkdir(name, mode=0o700, dir_fd=scratch_parent_fd)
+        created = True
+        plan_fd = os.open(
+            name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=scratch_parent_fd
+        )
+    except OSError as exc:
+        if created:
+            # Without a held fd there is no race-free proof that this name is
+            # still the directory created above. Leave it for operator review.
+            raise TreeCaptureV5Error("capacity_plan_scratch_open_failed_unreconciled") from exc
+        raise TreeCaptureV5Error("capacity_plan_scratch_create_failed") from exc
+    db: sqlite3.Connection | None = None
+    db_fd: int | None = None
+    roots: dict[str, int] = {}
+    stack = ExitStack()
+    plan_identity: tuple[int, int] | None = None
+    try:
+        plan_st = os.fstat(plan_fd)
+        plan_identity = (plan_st.st_dev, plan_st.st_ino)
+        if (
+            not stat.S_ISDIR(plan_st.st_mode)
+            or plan_st.st_dev != scratch_device
+            or plan_st.st_uid != os.getuid()
+            or stat.S_IMODE(plan_st.st_mode) != 0o700
+        ):
+            raise TreeCaptureV5Error("capacity_plan_scratch_identity_invalid")
+        db, db_fd = _db_open_at(plan_fd, scratch_device)
+        view.revalidate()
+        root_signatures: dict[str, tuple[int, ...]] = {}
+        for role in sorted(present_roles):
+            roots[role] = stack.enter_context(view.borrow_root(role))
+        for role in sorted(present_roles):
+            view.revalidate()
+            if external_boundary_check is not None:
+                external_boundary_check(os.fstat(db_fd).st_size)
+            view.revalidate_mount_fast()
+            prior_count = int(db.execute("SELECT count(*) FROM members").fetchone()[0])
+            checks = 0
+            last_capacity_check = time.monotonic()
+
+            def plan_boundary_check() -> None:
+                nonlocal checks, last_capacity_check
+                view.revalidate_mount_fast()
+                checks += 1
+                now = time.monotonic()
+                if checks >= 10_000 or now - last_capacity_check >= 60:
+                    view.revalidate()
+                    parent_st = os.fstat(scratch_parent_fd)
+                    vfs = os.fstatvfs(scratch_parent_fd)
+                    db_size = os.fstat(db_fd).st_size
+                    free_bytes = int(vfs.f_bavail * vfs.f_frsize)
+                    if (
+                        parent_st.st_dev != scratch_device
+                        or vfs.f_flag & getattr(os, "ST_RDONLY", 1)
+                        or db_size > scratch_db_limit_bytes
+                        or free_bytes < scratch_db_limit_bytes - db_size + 256 * 1024**2
+                    ):
+                        raise TreeCaptureV5Error("capacity_plan_scratch_capacity_invalid")
+                    if external_boundary_check is not None:
+                        external_boundary_check(db_size)
+                    checks = 0
+                    last_capacity_check = time.monotonic()
+
+            root_sig, _included_bytes = _scan_role(
+                db,
+                view,
+                role,
+                roots[role],
+                _validate_policy_pin(role_policies[role])[0],
+                policy_scopes[role],
+                max_entries=max_entries - prior_count,
+                db_fd=db_fd,
+                spool_fd=plan_fd,
+                scratch_limit=scratch_db_limit_bytes,
+                fast_boundary_check=plan_boundary_check,
+            )
+            if os.fstat(roots[role]).st_dev != source_device:
+                raise TreeCaptureV5Error("source_mount_boundary")
+            root_signatures[role] = root_sig
+            count = int(db.execute("SELECT count(*) FROM members").fetchone()[0])
+            if count > max_entries:
+                raise TreeCaptureV5Error("source_resource_limit")
+        hardlink_summary = _resolve_global_hardlinks(db)
+        _check_spool_size(db, db_fd, plan_fd, scratch_db_limit_bytes)
+        entry_count = int(db.execute("SELECT count(*) FROM members").fetchone()[0])
+        included_bytes = _unique_included_bytes(db)
+        if included_bytes > MAX_SOURCE_BYTES:
+            raise TreeCaptureV5Error("source_resource_limit")
+        path_stats = db.execute(
+            "SELECT coalesce(sum(length(path)),0),coalesce(max(length(path)),0),"
+            "coalesce(avg(length(path)),0) FROM members"
+        ).fetchone()
+        path_chars_total, max_path_chars, average_path_chars = (int(value) for value in path_stats)
+        estimate = model_candidate_capacity_v5(
+            entry_count,
+            included_bytes,
+            average_path_chars=average_path_chars,
+            metadata_reserve_bytes=MAX_METADATA_TOTAL_BYTES,
+        )
+        view.revalidate()
+        if external_boundary_check is not None:
+            external_boundary_check(os.fstat(db_fd).st_size)
+        for role, fd in roots.items():
+            if tuple(v2._sig(os.fstat(fd))) != root_signatures[role]:
+                raise TreeCaptureV5Error("source_root_changed_during_inventory")
+        return {
+            "schema": "brain-host-tree-capture-v5-capacity-plan-v1",
+            "synthetic_fixture_only": bool(view.synthetic),
+            "plan_sha256": plan_sha256,
+            "policy_roster_sha256": actual_roster_sha256,
+            "present_role_count": len(present_roles),
+            "unresolved_role_count": len(REQUIRED_ROOT_ROLES) - len(present_roles),
+            "entry_count": entry_count,
+            "included_unique_logical_bytes_upper_bound": included_bytes,
+            "path_chars_total": path_chars_total,
+            "max_path_chars": max_path_chars,
+            "estimated_average_path_chars": average_path_chars,
+            "hardlink_summary": hardlink_summary,
+            "candidate_resource_estimate": estimate,
+            "capacity_result_status": "sizing_only_unqualified",
+            "candidate_allocation_hard_bound_established": False,
+            "enforced_tool_caps": {
+                "kingston_spool_db_bytes": MAX_SCRATCH_BYTES,
+                "metadata_sidecar_value_bytes": MAX_METADATA_TOTAL_BYTES,
+                "source_payload_bytes": MAX_SOURCE_BYTES,
+                "entries": MAX_ENTRIES,
+            },
+            "planner_scratch_db_limit_bytes": scratch_db_limit_bytes,
+            "payload_read": False,
+            "xattr_values_read": False,
+            "acl_bytes_read": False,
+            "T_qualified": False,
+            "capture_authorized": False,
+            "kingston_written": False,
+            "erase_ready": False,
+        }
+    finally:
+        cleanup_error: BaseException | None = None
+        try:
+            stack.close()
+        except BaseException as exc:
+            cleanup_error = exc
+        if db is not None and db_fd is not None:
+            database_stat = os.fstat(db_fd)
+            try:
+                db.close()
+            except BaseException as exc:
+                cleanup_error = cleanup_error or exc
+            try:
+                os.close(db_fd)
+            except OSError as exc:
+                cleanup_error = cleanup_error or exc
+            try:
+                _cleanup_spool_directory(
+                    scratch_parent_fd,
+                    name,
+                    plan_fd,
+                    (database_stat.st_dev, database_stat.st_ino),
+                )
+            except BaseException as exc:
+                cleanup_error = cleanup_error or exc
+        else:
+            try:
+                current = os.stat(name, dir_fd=scratch_parent_fd, follow_symlinks=False)
+                if plan_identity is None or (current.st_dev, current.st_ino) != plan_identity:
+                    raise TreeCaptureV5Error("capacity_plan_scratch_cleanup_identity_invalid")
+                if os.listdir(plan_fd):
+                    raise TreeCaptureV5Error("capacity_plan_scratch_cleanup_nonempty")
+                os.rmdir(name, dir_fd=scratch_parent_fd)
+            except BaseException as exc:
+                cleanup_error = cleanup_error or exc
+        os.close(plan_fd)
+        if cleanup_error is None and external_boundary_check is not None:
+            try:
+                external_boundary_check(0)
+            except BaseException as exc:
+                cleanup_error = exc
+        if cleanup_error is not None:
+            raise TreeCaptureV5Error("capacity_plan_cleanup_incomplete") from cleanup_error
 
 
 def _open_source_entry(

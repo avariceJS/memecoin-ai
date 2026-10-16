@@ -31,6 +31,7 @@ from tools.brain_host_tree_capture_v5 import (
     GIT_OPAQUE_WAIVER,
     RoleCapturePolicy,
     TreeCaptureV5Error,
+    _plan_held_data_capacity_v5_core,
     capture_candidate_v5,
     extract_candidate_inert_v5,
     inventory_held_data_v5,
@@ -55,6 +56,90 @@ def test_capacity_model_bounds_owner_scale_without_allocating_payload() -> None:
     assert estimate["minimum_total_reserve_bytes"] == (
         estimate["minimum_scratch_reserve_bytes"] + 8 * 1024**3 + 30_000_000_000
     )
+
+
+def test_capacity_planner_rejects_forged_scratch_device_before_writing(
+    tmp_path: Path,
+) -> None:
+    held, roots = _held_fixture(tmp_path)
+    policies = _policies(tmp_path, roots)
+    scratch_parent = tmp_path / "planner-scratch"
+    scratch_parent.mkdir(mode=0o700)
+    scratch_fd = os.open(scratch_parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        with pytest.raises(
+            TreeCaptureV5Error,
+            match="capacity_plan_scratch_identity_or_capacity_invalid",
+        ):
+            _plan_held_data_capacity_v5_core(
+                held,
+                role_policies=policies,
+                scratch_parent_fd=scratch_fd,
+                scratch_device=os.fstat(scratch_fd).st_dev + 1,
+                target_device=os.fstat(scratch_fd).st_dev + 2,
+                expected_plan_sha256=approved_data_plan_sha256(held.plan),
+                expected_policy_roster_sha256="0" * 64,
+                scratch_db_limit_bytes=1024 * 1024,
+            )
+    finally:
+        os.close(scratch_fd)
+        held.close()
+    assert list(scratch_parent.iterdir()) == []
+
+
+def test_capacity_planner_rejects_source_device_alias_before_writing(tmp_path: Path) -> None:
+    held, roots = _held_fixture(tmp_path)
+    policies = _policies(tmp_path, roots)
+    scratch_parent = tmp_path / "planner-scratch"
+    scratch_parent.mkdir(mode=0o700)
+    scratch_fd = os.open(scratch_parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        with pytest.raises(TreeCaptureV5Error, match="capacity_plan_device_separation_invalid"):
+            _plan_held_data_capacity_v5_core(
+                held,
+                role_policies=policies,
+                scratch_parent_fd=scratch_fd,
+                scratch_device=os.fstat(scratch_fd).st_dev,
+                target_device=os.fstat(scratch_fd).st_dev + 1,
+                expected_plan_sha256=approved_data_plan_sha256(held.plan),
+                expected_policy_roster_sha256="0" * 64,
+                scratch_db_limit_bytes=1024 * 1024,
+            )
+    finally:
+        os.close(scratch_fd)
+        held.close()
+    assert list(scratch_parent.iterdir()) == []
+
+
+def test_capacity_planner_rejects_real_view_without_bound_operator_capability(
+    tmp_path: Path,
+) -> None:
+    held, roots = _held_fixture(tmp_path)
+    policies = _policies(tmp_path, roots)
+    scratch_parent = tmp_path / "planner-scratch"
+    scratch_parent.mkdir(mode=0o700)
+    scratch_fd = os.open(scratch_parent, os.O_RDONLY | os.O_DIRECTORY)
+    held.synthetic = False
+    try:
+        with pytest.raises(
+            TreeCaptureV5Error,
+            match="capacity_plan_production_capability_required",
+        ):
+            _plan_held_data_capacity_v5_core(
+                held,
+                role_policies=policies,
+                scratch_parent_fd=scratch_fd,
+                scratch_device=os.fstat(scratch_fd).st_dev + 1,
+                target_device=os.fstat(scratch_fd).st_dev + 2,
+                expected_plan_sha256=approved_data_plan_sha256(held.plan),
+                expected_policy_roster_sha256="0" * 64,
+                scratch_db_limit_bytes=1024 * 1024,
+            )
+    finally:
+        held.synthetic = True
+        os.close(scratch_fd)
+        held.close()
+    assert list(scratch_parent.iterdir()) == []
 
 
 class FakeDataOS:
