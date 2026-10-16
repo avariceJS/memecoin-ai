@@ -1741,6 +1741,10 @@ independently approved pins. Seventy-two focused tests across v2/v1 handoff, ass
 readers pass with Ruff, formatting, and scoped strict mypy. This qualifies only the synthetic blocked path:
 there is no real v2 owner handoff, source custody closure, payload verification, clean-compatible-host
 restore, T/K, or erase readiness.
+The exact pushed `ec14560` was then fetched into a fresh clone on this Mac; locked setup, 72 focused
+restore/root-set tests, v2 CLI help, and synthetic smoke passed. `make check` stops at the repository's
+first Ruff stage with 107 diagnostics, none in v2; later global check stages did not run. Kingston was
+not attached or read. See the [`v2 published-clone rehearsal`](evidence/portability-dr-restore-flow-v2-published-clone-2026-10-16T1002Z.json).
 
 1. Inventory every owner/research/local-config/service root, including owner Codex worktree local
    state, and bind each to a source point or an
