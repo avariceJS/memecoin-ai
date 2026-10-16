@@ -707,6 +707,14 @@ context, not clean-host authentication or state restoration. See the
 and [Git's configuration documentation](https://git-scm.com/docs/git-config).
 The previously recorded clean-`HOME` auth failure remains a real prerequisite; this card does not
 copy old-host credentials. The Mac-loss recovery procedure below still governs data and runtime.
+
+A same-Mac rehearsal from that fresh checkout recreated the host-only Kingston binding in an
+isolated temporary profile. `bind-existing` and `check --require-root` verified the already-mounted
+volume UUID, existing root marker, and a 50 GiB free-space floor; a wrong UUID failed without
+creating the config. This writes only the private host config, not Kingston. It does not test a new
+host, volume attachment, member integrity, a recovery set, or the durable K frontier; the UUID and
+root marker still require an independent trusted handoff. See the
+[`host-only Kingston binding rehearsal receipt`](evidence/portability-dr-clean-profile-kingston-binding-2026-10-16T0111Z.json).
 The local-fixture rehearsal passed both exact-HEAD checks, locked environment creation, smoke, and
 the wrong-commit, wrong-volume-pin, missing-authentication, and preexisting-target failure cases.
 Its success path used an ephemeral local bare remote on the current Mac, so authenticated GitHub
