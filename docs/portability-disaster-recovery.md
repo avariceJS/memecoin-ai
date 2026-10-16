@@ -779,15 +779,29 @@ read-only candidate and extracts payload bytes into a new mode-0700 quarantine o
 bound writable APFS volume, using separately pinned scratch. It preserves hardlink topology, omits
 symlinks, applies no source metadata, never opens extracted databases or code, and performs no
 restore or start. Sol approved the bounded implementation after final review; 46 focused tests pass.
-The production CLI E2E is still pending: the only newly provisioned APFS image mounts with
-ownership disabled, while the internal Data path is a firmlink rejected by the repository's
-mountpoint guard. Do not relax these checks or use Kingston as the test destination. The exact
-environment blocker and next operator action are in the
-[`v5 inert extraction host blocker receipt`](evidence/portability-dr-v5-inert-extraction-host-blocker-2026-10-16T0651Z.json).
-The exact pushed `e5455d7ceb7e4340854b6d5447987f56a71886b4` was fetched through a fresh shallow
-HTTPS clone, rebuilt with `requirements-dev.lock`, and passed smoke, all 46 focused tests, and the
-capture/verify/extract-inert CLI help from that checkout. This is same-Mac code reproducibility;
-see the [`v5 extraction clean-clone receipt`](evidence/portability-dr-v5-inert-extraction-clean-clone-2026-10-16T0654Z.json).
+The first production-boundary `extract-inert` CLI E2E passed against a tiny synthetic candidate.
+An owner-enabled disposable APFS image was attached with `hdiutil attach -owners on`, keeping
+the storage guard intact and avoiding admin credentials; the earlier 06:51 environment blocker
+receipt remains a truthful point-in-time record and is superseded by the later successful
+[same-host APFS extraction E2E receipt](evidence/portability-dr-v5-inert-extraction-apfs-e2e-2026-10-16T0700Z.json).
+The external index, plan, source, target, destination, and scratch pins were checked, and the CLI
+reported readback success. A separate fresh-process check then matched the exact included
+membership and payload bytes against the candidate member page: one 31-byte file, exact SHA-256,
+no symlinks, excluded subtree absent, and quarantine/file modes 0700/0600. Source and candidate
+target remained mounted read-only; the disposable destination was owner-enabled APFS with its
+pinned volume UUID and root marker.
+
+This is deliberately limited evidence: same Mac and same filesystem image rehearsal, three
+candidate entries with only 31 payload bytes, and no clean-compatible-host reconstruction. It
+does not qualify owner Data T, Kingston K, full host restore, protected-state closure, activation,
+or erase readiness. The exact pushed `e5455d7ceb7e4340854b6d5447987f56a71886b4` had already passed
+fresh shallow clone, locked environment rebuild, smoke, 46 focused v5 tests, and CLI help; the
+repository-wide `make check` and `make test` remain blocked by baseline lint and collection debt
+outside this DR slice, as recorded in the
+[`v5 extraction clean-clone receipt`](evidence/portability-dr-v5-inert-extraction-clean-clone-2026-10-16T0654Z.json).
+See the [`v5 extraction clean-clone receipt`](evidence/portability-dr-v5-inert-extraction-clean-clone-2026-10-16T0654Z.json)
+for the exact-code bootstrap and focused test evidence; it is independent of, and weaker than,
+the disposable-volume extraction E2E above.
 The repository-wide `make check` and `make test` remain red outside this DR slice: global Ruff
 reports 107 findings on `research/active` versus 110 on current `main`; full test collection reports
 204 import/archived-reference errors and 17 skips on `research/active` versus 8 errors and 13 skips

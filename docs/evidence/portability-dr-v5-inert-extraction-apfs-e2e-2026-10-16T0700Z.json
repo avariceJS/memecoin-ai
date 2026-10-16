@@ -1,0 +1,77 @@
+{
+  "schema": "brain-portability-dr-v5-inert-extraction-apfs-e2e-v1",
+  "observed_at_utc": "2026-10-16T07:00:00Z",
+  "repository": {
+    "branch": "research/active",
+    "implementation_commit": "e5455d7ceb7e4340854b6d5447987f56a71886b4",
+    "implementation_commit_is_published": true,
+    "core_sha256": "ab875ae5f0d2b2c7ada766e50cf7583503942b39f3c47d5d366d34c2215cc562",
+    "production_sha256": "d2f12307c1bd20c40175f3920984d637e49b1d9fd698c60e3201c84da6c95dee"
+  },
+  "fixture": {
+    "candidate_id": "2b77060dceb3f86088a7c14631f7250f",
+    "candidate_index_sha256": "6e3a7508244ece74edbdd19d70a8b9a364c17461eb8ec998011c09e0cdbcdcd5",
+    "candidate_member_page_sha256": "25991d7e97318976872533fa4699941adfc6c3263f2da070301a3d8a70583d41",
+    "plan_sha256": "48b0de17ff7a5d9379fb38c36c73994d6aed1f77c9516a769f2302b453331dd9",
+    "source_data_volume_uuid_pin": "430740ca-42e7-4e6c-a07a-e4e7370152cc",
+    "capture_fixture_source_volume_uuid": "15105a35-d260-4e15-bf65-ff6ebcb31bfd",
+    "target_volume_uuid": "70a0032e-0414-428d-a01b-c77f95899692",
+    "target_root_id": "7e494792047b8ef090aea2dcad05e84c",
+    "destination_volume_uuid": "8afc18b0-1853-48e2-aee5-a46d06001fa7",
+    "destination_root_id": "35c4ff0fb3423b8e96b678382f769eb1",
+    "scratch_volume_uuid": "430740ca-42e7-4e6c-a07a-e4e7370152cc",
+    "scratch_volume_is_distinct_from_source_target_destination": true
+  },
+  "storage": {
+    "destination_filesystem": "case-sensitive APFS",
+    "destination_owners_enabled": true,
+    "destination_read_only": false,
+    "target_read_only": true,
+    "source_read_only": true,
+    "destination_minimum_free_bytes": 8589934592,
+    "destination_available_bytes_at_check": 12639875072,
+    "destination_root_verified": true,
+    "destination_root_mount_path": "/Volumes/DRV5Quarantine"
+  },
+  "production_cli": {
+    "command": "extract-inert",
+    "exit_code": 0,
+    "extraction_id": "d860e9de2e95bf334e9cc5006b6fc4ed",
+    "production_storage_pins_checked": true,
+    "readback_verified": true,
+    "readback_member_count": 2,
+    "readback_file_count": 1,
+    "readback_directory_count": 1,
+    "start_or_restore_performed": false,
+    "restore_verified": false,
+    "T_qualified": false,
+    "erase_ready": false
+  },
+  "independent_readback": {
+    "performed_in_fresh_process": true,
+    "candidate_membership_exact": true,
+    "included_member_count_including_root": 2,
+    "excluded_subtree_absent": true,
+    "symlink_count": 0,
+    "payload_file_count": 1,
+    "payload_bytes": 31,
+    "payload_sha256": "4e089669475f0953feb1ccb831794f8e26da9acba8363c611819d4c2358daa11",
+    "quarantine_directory_mode": "0700",
+    "payload_file_mode": "0600",
+    "content_readback_verified": true
+  },
+  "scope_and_limitations": [
+    "Same-Mac, small synthetic candidate extraction into a disposable APFS image; this is not a clean-host restore.",
+    "The candidate had three manifest entries and only 31 payload bytes; no owner data or protected payload was used.",
+    "No Kingston content was read or written, and no Brain service, provider, collector, evaluation job, or production component was changed or started.",
+    "No restore, database opening, code execution, metadata application, activation, T, K, or erase qualification was performed.",
+    "The prior 06:51 environment-blocker receipt records the state before the owner-enabled APFS attachment method was found and remains immutable."
+  ],
+  "authority": {
+    "restore_verified": false,
+    "T_qualified": false,
+    "K_qualified": false,
+    "activation_allowed": false,
+    "erase_ready": false
+  }
+}
