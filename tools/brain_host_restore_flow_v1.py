@@ -545,7 +545,13 @@ def inspect_restore(
     except RestoreFlowError as exc:
         return _blocked([str(exc)], handoff_sha256=expected_handoff_sha256)
     repo = repository_root
-    if not repo.is_absolute() or ".." in repo.parts or repo.resolve(strict=False) != repo:
+    try:
+        repository_path_is_canonical = (
+            repo.is_absolute() and ".." not in repo.parts and repo.resolve(strict=False) == repo
+        )
+    except (OSError, RuntimeError):
+        repository_path_is_canonical = False
+    if not repository_path_is_canonical:
         blockers.append("repository_path_not_canonical")
     if (
         not storage_config.is_absolute()
@@ -579,6 +585,9 @@ def inspect_restore(
     except RestoreFlowError as exc:
         source_card = kingston_card = None
         blockers.append(str(exc))
+    except (OSError, RuntimeError) as exc:
+        source_card = kingston_card = None
+        blockers.append(f"entry_card_probe_failed:{type(exc).__name__}")
     if source_card != handoff["entry_card_sha256"]:
         blockers.append("entry_card_pin_mismatch")
     source_roots_resolved = False
@@ -618,6 +627,9 @@ def inspect_restore(
         except RestoreFlowError as exc:
             kingston_card = None
             blockers.append(str(exc))
+        except (OSError, RuntimeError) as exc:
+            kingston_card = None
+            blockers.append(f"kingston_entry_card_probe_failed:{type(exc).__name__}")
     else:
         kingston_card = None
         blockers.append("kingston_entry_card_storage_identity_unknown")
@@ -793,9 +805,14 @@ def _reserve_run_directory(
         _revalidate_storage_binding(
             storage_config, expected_volume_uuid, expected_root_id, storage_device
         )
-    except Exception:
+    except RestoreFlowError:
         os.close(parent_fd)
         raise
+    except Exception as exc:
+        os.close(parent_fd)
+        raise RestoreFlowError(
+            f"kingston_binding_revalidation_failed:{type(exc).__name__}"
+        ) from exc
     for _ in range(10):
         name = f"brain-restore-run-{handoff_id}-{secrets.token_hex(4)}"
         try:
