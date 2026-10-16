@@ -657,8 +657,9 @@ read.
 
 ## First-host code entry
 
-`recovery/ENTRY.txt` is a plain-text code-bootstrap card stored at
-`BrainData/host-recovery/ENTRY.txt` for use before a repository checkout exists. A trusted handoff
+`recovery/ENTRY.txt` is the retained legacy card; the current versioned first-host card is
+`recovery/ENTRY-v2.txt`, stored at `BrainData/host-recovery/ENTRY-v2.txt` for use before a repository
+checkout exists. A trusted handoff
 outside Kingston supplies the exact recovery source commit and the expected card SHA-256; do not
 treat the card or a hash stored beside it as its own trust anchor. The source commit is also the
 final bootstrap commit, so the target is explicit and does not follow a moving branch. The card
@@ -666,8 +667,7 @@ checks the mounted Kingston UUID and existing root marker read-only, then uses i
 authentication to fetch that exact commit into a new temporary entry checkout. The checkout's card
 bytes and hash must match Kingston before the existing `brain_host_recovery.py bootstrap` helper is
 run. The independent handoff must instruct the operator to calculate and compare the Kingston card
-hash before executing any command from the card; its trusted first command is
-`shasum -a 256 /Volumes/Kingston/BrainData/host-recovery/ENTRY.txt`.
+hash before executing any command from the card; the handoff-pinned card digest must be checked before following that card’s commands.
 
 The card bytes were last changed at commit `edf2898ba4fb877ed8bee159fc9673754f7e12e4`; their
 SHA-256 remains `ac8859ee4fc499ffe55dc1824be11a55fd4475fee2dbe0cae749a7f6cbbb5b76`. The card hash
@@ -679,17 +679,20 @@ development environment under a new isolated HOME, passed project smoke and the 
 and launched the flow CLI from a neutral working directory. The clone and Git authentication still
 used this Mac; this tests published-code retrieval and bootstrap, not clean-host credentials or Brain
 state restoration. The earlier exact-commit bootstrap at `68253b84c5aefd8676b85b9415d2d242ada58d73`
-also passed dependency check and smoke. The prior handoff pin to
-`edf2898...` authorizes only that older code commit and legacy card; it is historical, not the
-current entry target. The current bootstrap-only pins are recorded in
-[`recovery/BOOTSTRAP-HANDOFF-v1.json`](../recovery/BOOTSTRAP-HANDOFF-v1.json); use it only from the
-annotated `brain-dr-handoff-v1` tag on authenticated `origin`, after recording the tag object and
-peeled commit. [`recovery/BOOTSTRAP-HANDOFF-v1.txt`](../recovery/BOOTSTRAP-HANDOFF-v1.txt) gives the
-operator retrieval and verification sequence. The tag is a create-once locator under the accepted
-Git account/remote trust boundary, not a signature or a defense against retargeting by that remote.
-This handoff authorizes code bootstrap only and says the accepted set is unavailable. See the
-[`current v2 entry/bootstrap receipt`](evidence/portability-dr-entry-v2-exact-bootstrap-and-kingston-publication-2026-10-16T0120Z.json)
-for the current same-Mac rehearsal limits.
+also passed dependency check and smoke. The prior handoff pin to `edf2898...` authorizes only that older code commit and legacy card; it is
+historical, not the current entry target. The first published bootstrap locator,
+[`brain-dr-handoff-v1`](../recovery/BOOTSTRAP-HANDOFF-v1.json), is preserved as immutable history
+but retired for operator entry: its `git show "$HANDOFF_COMMIT:path"` command fails under zsh
+parameter expansion. Do not use or move it. The corrected draft locator is
+[`brain-dr-handoff-v2`](../recovery/BOOTSTRAP-HANDOFF-v2.json), with exact retrieval and automatic
+field checks in [`BOOTSTRAP-HANDOFF-v2.txt`](../recovery/BOOTSTRAP-HANDOFF-v2.txt). It is not usable
+until its exact annotated tag is published and independently fetched from authenticated `origin`;
+then use only `refs/tags/brain-dr-handoff-v2`, never a latest-tag lookup or moving branch. Record the
+tag object and peeled H. The tag is a locator under the accepted Git
+account/remote trust boundary, not a signature or defense against retargeting by that remote. Handoff
+v2 authorizes code bootstrap only and declares the accepted set unavailable. See the
+[`v2 entry/bootstrap receipt`](evidence/portability-dr-entry-v2-exact-bootstrap-and-kingston-publication-2026-10-16T0120Z.json)
+for same-Mac rehearsal limits.
 
 The helper makes a second exact-commit clone into a separate new destination, installs the locked
 development requirements, and runs smoke. Both checkouts must report the pinned `HEAD`, and the
@@ -745,14 +748,16 @@ the [`v2 entry/bootstrap and Kingston publication receipt`](evidence/portability
 
 The authenticated `origin` repository is accepted as the external trust domain for the accidental
 Mac-loss model; this does not protect against loss of Git account/remote access or a compromised
-remote. Use a dedicated annotated tag `brain-dr-handoff-v1` as a create-only locator for handoff
-commit H, separate from its pinned bootstrap commit C. The tag is not a signature and a replacement
-host cannot detect a retarget using the same remote alone; record its tag-object and peeled commit
-IDs and follow the no-move publication rule. H may pin only code/card and Kingston identity for now:
-recovery-set, T, K, activation, and erase authority remain explicitly unavailable/false. Obtain and
-inspect H from authenticated `origin` before running any Kingston-card command. Recovery must stop
-until the annotated tag is present on `origin` and both tag-object and peeled commit IDs have been
-recorded.
+remote. Handoff v1 is retired and must remain unchanged. The v2 draft specifies a dedicated annotated
+`brain-dr-handoff-v2` tag as the create-once locator for handoff commit H, separate from its pinned
+bootstrap commit C. The tag is not a signature and a replacement host cannot detect a retarget using
+the same remote alone; record its tag-object and peeled commit IDs and follow the no-move publication
+rule. H pins only code/card and Kingston identity: recovery-set, T, K, activation, and erase
+authority remain explicitly unavailable/false. Obtain and inspect H from authenticated `origin`
+before running any Kingston-card command. Do not follow the draft until its exact annotated tag is
+published and fetched. Recovery remains bootstrap-only; no accepted set or clean-host state restore
+is established by the tag. The reason v1 is retired and the corrected zsh expression are recorded in
+[`the handoff retirement receipt`](evidence/portability-dr-bootstrap-handoff-v1-zsh-retirement-2026-10-16T0125Z.json).
 
 The local-fixture rehearsal passed both exact-HEAD checks, locked environment creation, smoke, and
 the wrong-commit, wrong-volume-pin, missing-authentication, and preexisting-target failure cases.
