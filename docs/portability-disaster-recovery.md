@@ -1711,6 +1711,16 @@ changed no service. The increase from seven PIDs in the 07:12Z probe has no infe
 not identify all writers or establish a frontier. See the
 [`07:16Z runtime label refresh`](evidence/portability-dr-runtime-label-refresh-2026-10-16T0716Z.json).
 
+The read-only `tools/brain_dr_v6_terminal_prefix_v1.py` helper now checks a pinned v6 release's
+descriptor-held file identity, exact membership, canonical hash chain, structural request/outcome/
+confirmation joins, and opaque request/response byte digests. Twelve focused synthetic tests pass,
+including a full disposable descriptor-backed fixture and fail-closed membership, rooting, payload,
+and inode-replacement mutations; Sol accepted this synthetic scope. It has **not** been invoked on
+Kingston. Runtime observations are supplied externally and are neither authenticated nor proven to
+bracket the scan; the helper does not establish a live quiesced interval. It records the known
+`capture_authorized=true` state and the unresolved source-manifest mismatch. This establishes no STOP,
+live v6 prefix, Kingston K, Data T, restore, or erase readiness.
+
 1. Inventory every owner/research/local-config/service root, including owner Codex worktree local
    state, and bind each to a source point or an
    explicit reauthentication, rebuild, disposable, or unresolved disposition. Classify potentially
