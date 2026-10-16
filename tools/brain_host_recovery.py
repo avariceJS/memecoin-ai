@@ -528,6 +528,11 @@ def bootstrap(options: BootstrapOptions, *, runner: Runner = run_command) -> dic
         "destination": str(destination),
         "commit": options.commit,
         "python_version": ".".join(version_match.groups()),
+        "git_transport": {
+            "http_version": "HTTP/1.1",
+            "scope": "clone_and_fetch_commands_only",
+            "persistent_configuration_changed": False,
+        },
         "environment": "not_created",
         "smoke": "not_run",
         "services_changed": False,
@@ -538,10 +543,33 @@ def bootstrap(options: BootstrapOptions, *, runner: Runner = run_command) -> dic
         },
     }
     steps: list[tuple[str, list[str], Path | None]] = [
-        ("clone", ["git", "clone", "--no-checkout", "--", options.remote, str(destination)], None),
+        (
+            "clone",
+            [
+                "git",
+                "-c",
+                "http.version=HTTP/1.1",
+                "clone",
+                "--no-checkout",
+                "--",
+                options.remote,
+                str(destination),
+            ],
+            None,
+        ),
         (
             "fetch_exact_commit",
-            ["git", "-C", str(destination), "fetch", "--no-tags", "origin", options.commit],
+            [
+                "git",
+                "-c",
+                "http.version=HTTP/1.1",
+                "-C",
+                str(destination),
+                "fetch",
+                "--no-tags",
+                "origin",
+                options.commit,
+            ],
             None,
         ),
         (

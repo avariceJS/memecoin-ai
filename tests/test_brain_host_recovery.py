@@ -245,7 +245,7 @@ class BootstrapRunner:
         self.calls.append(command)
         self.environments.append(env)
         self.working_directories.append(cwd)
-        if len(command) >= 3 and command[1] == "-c":
+        if command[0] != "git" and len(command) >= 3 and command[1] == "-c":
             if "site.ENABLE_USER_SITE" in command[-1]:
                 return completed(
                     command, code=1 if self.fail_stage == "verify_environment_isolation" else 0
@@ -253,7 +253,7 @@ class BootstrapRunner:
             return completed(command, stdout=self.python_version)
         if command[-2:] == ["rev-parse", "--show-toplevel"]:
             return completed(command, code=1)
-        if command[:2] == ["git", "clone"]:
+        if command[:4] == ["git", "-c", "http.version=HTTP/1.1", "clone"]:
             Path(command[-1]).mkdir()
             (Path(command[-1]) / "requirements-dev.lock").write_text("fixture==1\n")
             stage = "clone"
@@ -311,6 +311,11 @@ def test_bootstrap_clones_exact_commit_and_runs_locked_setup_only_in_new_target(
     assert result["head"] == COMMIT
     assert result["services_changed"] is False
     assert result["storage_changed"] is False
+    assert result["git_transport"] == {
+        "http_version": "HTTP/1.1",
+        "scope": "clone_and_fetch_commands_only",
+        "persistent_configuration_changed": False,
+    }
     assert result["bootstrap_isolation"] == {
         "state": "applied",
         "scope": "python_venv_install_checks_and_smoke",
@@ -321,16 +326,25 @@ def test_bootstrap_clones_exact_commit_and_runs_locked_setup_only_in_new_target(
         "package_index": "https://pypi.org/simple",
     }
     assert len(result["dependency_lock_sha256"]) == 64
-    clone_call = next(command for command in runner.calls if command[:2] == ["git", "clone"])
+    clone_call = next(
+        command
+        for command in runner.calls
+        if command[:4] == ["git", "-c", "http.version=HTTP/1.1", "clone"]
+    )
     assert clone_call == [
         "git",
+        "-c",
+        "http.version=HTTP/1.1",
         "clone",
         "--no-checkout",
         "--",
         "https://example.invalid/repo.git",
         str(destination),
     ]
-    assert any("fetch" in command and COMMIT in command for command in runner.calls)
+    fetch_call = next(
+        command for command in runner.calls if "fetch" in command and COMMIT in command
+    )
+    assert fetch_call[:3] == ["git", "-c", "http.version=HTTP/1.1"]
     install_index = next(
         index
         for index, command in enumerate(runner.calls)
@@ -419,7 +433,9 @@ def test_bootstrap_rejects_unsupported_python_before_clone_or_target_creation(
             runner=runner,
         )
     assert not destination.exists()
-    assert not any(command[:2] == ["git", "clone"] for command in runner.calls)
+    assert not any(
+        command[:4] == ["git", "-c", "http.version=HTTP/1.1", "clone"] for command in runner.calls
+    )
 
 
 def test_bootstrap_accepts_python_311(tmp_path: Path) -> None:
