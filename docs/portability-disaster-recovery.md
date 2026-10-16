@@ -6,12 +6,17 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-16 10:33 UTC.** The accepted recovery scope is loss or erasure of the
-owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
-reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
+**NO-GO for factory reset as of 2026-10-16 11:41 UTC.** The accepted recovery scope is loss or
+erasure of the owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as
+the only reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
 claim. A future 1-TB+ SSD, NAS, or other independent destination must add a separately verified
-replica and a Kingston-loss rehearsal.
+replica and a Kingston-loss rehearsal. The conditional Recovery/capture plan, nine-role policy, and
+PersonalBackup-parameterized capacity worksheet are at draft 3 in this document. Sol reviewed them
+as an accurate non-executable design; they do not authorize a Recovery boot. The final
+PersonalBackup reservation is still one external input; current free-space arithmetic leaves at
+most 14.182 GiB for Brain payload, Kingston-local inventory spool, and metadata even at the 126.9
+GiB lower-bound reservation.
 
 On 2026-10-16, the read-only `HeldDataT` identity/locator library and operator CLI passed a real
 Darwin/APFS probe against a disposable read-only synthetic APFS image using the pinned Kingston
@@ -1774,20 +1779,30 @@ clean host, Recovery, owner capture, T/K, full Brain restore, or erase readiness
 and [`v6b Kingston candidate-kit custody receipt`](evidence/portability-dr-v6b-kingston-candidate-kit-custody-2026-10-16T1046Z.json).
 
 The required approximately 819k-entry/30-GB full synthetic capture and fresh readback remain open.
-The current capture target has about 12.6 GiB free, and measured host scratch and other disposable
-volumes cannot satisfy the source, target, and reserve requirements together. Do not reduce reserves
-or count sparse logical bytes as streamed payload evidence. Another Recovery boot is not justified
-until the complete role/source policy and an adequately sized, separately pinned capacity plan are
-ready.
+The prior read-only check found about 12.6 GiB free on internal Data (not Kingston), and measured
+host scratch and other disposable volumes cannot satisfy the source, target, and reserve requirements
+together. Do not reduce reserves or count sparse logical bytes as streamed payload evidence. Another
+Recovery boot is not justified until the complete role/source policy and an adequately sized,
+separately pinned capacity plan are ready.
 
-### Conditional offline source-view runbook, draft 1
+### Conditional offline source-view and capture plan, draft 3
 
-**Not approved for execution.** This is the operator plan for one future combined Recovery history
-and source-view gate; it does not authorize a boot, unlock, mount, or capture. The v6b candidate now
-has a create-only custody copy on Kingston, but remains unexecuted, Recovery-unqualified, and not a
-handoff target. Before scheduling the gate, revalidate that exact archive and completion marker by
-fresh readback, qualify Recovery compatibility, and have Sol approve the pinned plan, role policy,
-and capacity budget. Do not substitute a newer checkout, runtime, or unreviewed plan.
+**Conditional; Sol-reviewed as a truthful non-executable design, not an operator authorization.**
+The intended work is one combined Recovery session: observe the locked Data/history boundary,
+qualify the exact offline kit and Recovery runtime without touching Data, then (only after history
+acceptance) unlock
+and mount Data read-only for a pinned held-view inventory. Capture to Kingston is a later
+conditional phase and may begin only after the nine-role policy, source closure, capacity model,
+target identity, and runtime bindings are accepted. Any failed or unknown check ends the session
+before payload capture. Do not schedule a boot until the exact pins and complete executable packet
+have passed Sol review. This section authorizes no boot, unlock, mount, or write today.
+
+The deposited v6b artifact is transport custody only. Its Recovery compatibility, archive extraction
+in Recovery, `diskutil`/mount behavior in the installed Recovery version, and RecoveryOS scratch
+capacity remain unqualified. The exact artifact and completion marker must be freshly read back and
+hash-checked before the gate; do not replace them with a newer checkout or runtime. The candidate
+contains the held-view, root-set, tree-capture-v5, production-capture, and inert-extraction entry
+points, but their Recovery invocation and platform filesystem bindings have not been exercised.
 
 The known Data pins from the completed Recovery transcript are volume UUID and volume-group UUID
 `430740ca-42e7-4e6c-a07a-e4e7370152cc`, container UUID
@@ -1800,8 +1815,24 @@ source files and 3,688 CPython 3.13.6 arm64 runtime members, declares macOS 26.0
 the online host only. Current Kingston free-space observations are not a future capacity pin and do
 not authorize a synthetic payload write there.
 
-When separately approved, perform exactly one Recovery boot for the combined history/source-view
-gate:
+The pinned production v5 writer creates its SQLite inventory spool on Kingston under
+`host-recovery/tree-capture-v5/spool`; this spool is a Kingston allocation, not a separate scratch
+device. Its `scratch_reserve_bytes` must be budgeted as `S_K` in the target equation. The independent
+candidate verifier uses a different `PinnedScratchV5` interface that accepts only pinned APFS/HFS
+scratch, rejects RecoveryOS `tmpfs`, and requires Kingston itself to be mounted read-only
+(`ST_RDONLY`). No approved Kingston writable-to-read-only transition is currently qualified. These
+constraints make the proposed one-boot capture-and-verify sequence non-executable today.
+
+Any future gate must establish a worst-case bound for entries, payload, `S_K`, and `M` before
+creating the Kingston spool or writing candidate payload. Then recheck Kingston capacity before
+spooling. If the production path cannot establish this bound without creating a large Kingston
+spool, stop and add/review a bounded no-payload planning path before Recovery. Capture and readback
+verification are separate phases: after capture, close the writer, safely unmount Kingston, remount
+the pinned target read-only with an exact reviewed command, verify UUID/root/device and `ST_RDONLY`,
+then run the candidate verifier using an independently pinned APFS/HFS volume distinct from source
+and Kingston. Require verifier scratch free space of its calculated DB reserve plus 256 MiB; the
+implementation's DB-reserve ceiling is 32 GiB. Do not use source Data or Kingston as verifier
+scratch. The verifier proves candidate integrity only, not global Kingston K.
 
 1. Shut down cleanly. Record the Recovery entry path, all pre-Terminal user/authentication/key/UI
    choices, and approximate times without recording credentials. Do not open Disk Utility, unlock
@@ -1830,26 +1861,167 @@ gate:
 
    `listSnapshots` failure or incomplete/unavailable logs mean `unknown`; they are not an empty
    snapshot list or proof of no earlier mount. Preserve the full APFS listing so every alias and
-   volume-group member can be mapped. Repeat identity and mount checks at the end. If the log begins
-   after boot, explicitly retain the unobserved interval and the human-attested pre-Terminal history
-   assumption.
-4. Save a verbatim transcript with command outputs and failures to the recovery evidence intake and
-   hash it after returning to normal macOS. Include Recovery entry/authentication choices, boot time,
-   first and last probes, and any observed automatic mount event. Never record passwords or recovery
-   keys.
-5. Stop after the read-only gate. Review the complete transcript and alias/history interpretation
-   before any unlock. The prior run's automatic mount attempt ended in an unexplained failure; that
-   event alone neither proves a successful mount nor supplies its missing earlier history.
+   volume-group member can be mapped. Repeat identity and mount checks at the end. The history
+   precondition passes only when the operator records the Recovery entry/UI/authentication path and
+   confirms no Data access before the first probe; the first probe reports the pinned Data locked and
+   unmounted; and complete boot-session logs cover the interval through the first probe and
+   explicitly show every automatic mount attempt and result. Any successful mount before the first
+   probe, unexplained identity transition, evidence of a writable mount, or log gap stops the
+   source-view phase. The saved session's ~3.7-second pre-log interval is unknown, so its logged
+   failed mount attempt and human attestation cannot qualify the history precondition. Preserve that
+   transcript and its gap as evidence; do not unlock Data on that boot. T can only be considered
+   after a later explicit held read-only view passes its own identity, mount, root, and source-cutoff
+   checks.
+4. Save a verbatim transcript with command outputs and failures to the recovery evidence intake
+   during this same Recovery session. Include Recovery entry/authentication choices, boot time, first
+   and last probes, and any observed automatic mount event. Never record passwords or recovery keys.
+   Apply the preapproved history precondition during this session. If it fails, any boot interval is
+   missing, or an automatic mount attempt has unknown outcome, stop before unlock and preserve the
+   uncertainty for review. After returning to normal macOS, hash the completed transcript and bind
+   its digest in the receipt.
+5. Before any unlock, re-read the exact kit marker and candidate archive digest, verify runtime and
+   member pins, and run only read-only archive help/status and filesystem identity/capacity probes.
+   No unpinned staging path is allowed. Stop if a required module or system interface is absent or
+   the exact Recovery-compatible entry point has not been proven. Independent verifier scratch must
+   be a separately pinned writable APFS/HFS volume with known UUID/device and at least 32 GiB +
+   256 MiB free before unlock, matching the implementation's maximum verifier DB reserve; no Data
+   operation occurs during this check. A lower actual `S_V` can be rechecked after the candidate is
+   built, but does not waive the pinned preflight maximum for this one-session plan. This is not yet
+   a runnable command packet because exact staging and Recovery invocation remain unqualified.
+6. Only after the in-session history precondition passes and the prior-boot uncertainty is
+   explicitly carried, interactively unlock the pinned volume without mounting. Recheck UUID,
+   group/container/device, aliases, `Locked: No`, and `Mounted: No`. Then perform one explicit
+   read-only mount, recheck read-only mount flags and held descriptor identity, and run `HeldDataT`
+   for every declared root. Stop if an alias, required/protected root, or hardlink relation is
+   unresolved, or if the view is writable or changes identity. Current HeldDataT/v5 policy can
+   represent the absent `verifier_worktree` only as `absent_unresolved`; the current policy therefore
+   fails this condition and capture remains blocked until a versioned schema/policy disposition is
+   reviewed and pinned.
+7. Only under a separately reviewed plan, run the complete metadata/root/hardlink preflight against
+   the held view and establish worst-case Kingston spool, payload, metadata, and partial-publication
+   bounds before candidate writes. Re-evaluate the Kingston equation immediately before capture.
+   Start only if all nine role dispositions and the protected overlay below are resolved to explicit
+   capture, reissue, or evidence-backed rebuild states, with no blocked or unresolved custody role.
+   The writer must preserve the PB allocation and 50 GiB policy floor at every guard. It may leave
+   a partial candidate on failure; never resume, overwrite, or delete it. Preserve it as unaccepted evidence
+   and require a new reviewed plan.
+8. Candidate verification is a separate post-capture operation, not part of the current Recovery
+   handoff. It requires a reviewed non-force unmount/remount-read-only sequence for Kingston, fresh
+   target identity/`ST_RDONLY` checks, and independently pinned APFS/HFS verifier scratch with the
+   calculated reserve plus 256 MiB. Preserve verifier inputs/outputs. This verifies candidate
+   integrity only; it does not qualify global K. Do not extract, install services, authenticate
+   providers, or activate Brain in Recovery.
 
-Only after a separately reviewed follow-on plan may an operator interactively unlock the exact
-volume without mounting, recheck that it is still unmounted, explicitly mount read-only, verify
-read-only flags and descriptor-held identity, and run the pinned `HeldDataT` check. Capture may begin
-only if the approved role/source policy is complete, every required root is mapped to the same held
-view or explicitly unresolved, the full measured target and scratch capacities plus reserves pass,
-and the exact kit has been qualified in Recovery. Capture and a fresh independent verify still do not
-establish Kingston K, protected closure, clean-host restore, or erase readiness. Any writable or
-ambiguous source view, alias gap, identity drift, incomplete history, capacity shortfall, or tool
-incompatibility is a stop; never repair or remap the source to make the plan pass.
+The preceding sequence is a conditional contract, not an executable user command packet. Exact
+Recovery-compatible paths and staging, a pre-spool capacity bound, the absent-role policy, held-view
+and capture arguments, a reviewed Kingston remount-read-only transition, independent APFS/HFS
+verifier scratch, and a deterministic boot-history acceptance rule must be pinned before Sol can
+approve execution. A clean capture and fresh candidate verification could support K qualification
+only after independent reconciliation; they do not establish root/protected closure, clean-host
+restore, or erase readiness. Never repair or remap source, target, scratch, or role pins to make a
+gate pass.
+
+#### Nine-role disposition policy for the combined gate
+
+The role policy is an externally pinned input; the table defines the permitted disposition, not
+proof that roots are present or custody-complete. Exact path-to-role mappings must be resolved from
+the accepted held view before capture. Unknown or duplicate mappings stop the operation.
+
+| Role | Gate disposition | Capture / restore rule | Stop condition |
+|---|---|---|---|
+| `owner_checkout` | Private, unique owner/runtime state; capture required | Opaque byte custody for declared nonsecret roots; keep deployment and local runtime inert; credentials excluded for reissue | Any undeclared descendant, private value needing review, external alias, or missing source point |
+| `research_checkout` | Code fetch/rebuild plus local-only custody | Re-fetch exact published commits from Git; separately capture unreachable/ref/reflog and ignored unique state; never assume `work/` is disposable | Unreachable objects, ignored paths, or external hardlinks lack a byte-preserving disposition |
+| `owner_codex_worktree` | Private, opaque, backup-required | Preserve worktree administration and `.local` state as bytes; do not interpret candidate artifacts; restore into quarantine only | Worktree metadata or ignored/local state is absent, unstable, or semantically unclassified but omitted |
+| `private_brain_config` | Private, backup-required | Preserve noncredential config opaquely; exclude `.env.local`, tokens, auth/session stores for user reissue; rebind host paths only after restore review | Credential classification uncertain or any excluded credential bytes enter the candidate |
+| `launch_agents` | Host-specific definitions, backup-required, inert | Preserve definitions and hashes; never install/load from Recovery or restore; later reconstitute individually from verified code/config | Definition-to-role mapping absent or any service is enabled/started by restore |
+| `helius_mcp_wrapper` | Private, quarantine/reissue-only | Preserve wrapper bytes opaquely; exclude referenced credentials; no install or execution; rebind verified paths after restore | Wrapper/config/credential boundary cannot be separated without reading secret values |
+| `codex_mcp_config` | Private, quarantine/reissue-only | Preserve opaquely; no automatic install/authentication; user reauthenticates | Any secret/session material cannot be excluded or held opaque |
+| `cursor_mcp_config` | Private, quarantine/reissue-only | Preserve opaquely; no automatic install/authentication; user reauthenticates | Any secret/session material cannot be excluded or held opaque |
+| `verifier_worktree` | Currently absent/unresolved; v5 schema only represents it as `absent_unresolved` | Requires a reviewed versioned policy/schema disposition before capture; tracked code reachability alone does not close ignored/local state | Current v5 policy rejects any other state; capture is blocked until the policy is changed and independently reviewed |
+
+Protected F01, D43, and reserved-holdout data form an additional custody overlay, not extra semantic
+roles. Their exact roots and lineage must be mapped before capture; allowed handling is opaque
+byte/hash custody only. Never parse, score, train, relabel, resplit, or evaluate them. Preserve
+SQLite database/WAL/SHM sidecars together from the same held view without opening them; record
+application consistency as unproven. Preserve symlink text and hardlink topology only where the
+accepted capture policy proves it; never follow symlink targets. xattrs, ACLs, flags, and provenance
+remain evidence-only and must not be applied during inert extraction. `.env.local` and reissue-only
+auth stores are exact exclusions; all other exclusions require explicit paths, rationale, and
+hardlink-alias closure in the pinned policy.
+
+The latest metadata-only v2 census names its absent ninth entry `research_verifier_worktree`; the
+v1/v5 HeldDataT schema names the required role `verifier_worktree`. Treat this as a schema crosswalk
+that needs an explicit externally pinned path/disposition mapping, not an automatic alias. Sol must
+accept that mapping before the capture command can be assembled.
+
+The v5 policy also carries a static unresolved-hardlink baseline of 6,053 groups under `.git`.
+Current capture policy preserves these as unresolved and cannot claim root closure. The four research
+reflog-only commits, linked-worktree administration, ignored/local records, protected-root/lineage
+mapping, opaque `work/wallets` and owner Codex `.local` subtrees remain separately backup-required.
+These are source-custody blockers, not capacity inputs that can be repaired by increasing Kingston
+space.
+
+#### Kingston and scratch capacity worksheet
+
+All quantities are bytes in the signed operation worksheet; display GiB only for operator
+readability. Re-measure on the pinned volume immediately before any capture. Existing artifacts
+already reduce the observed free-space value and must not be subtracted twice. The user-reported
+PersonalBackup baseline is **126.9 GiB minimum**; it excludes Documents and some protected app data
+and is not a usable final reservation.
+
+| Symbol | Definition | Current value / rule |
+|---|---|---|
+| `F` | Kingston available bytes at gate time, matching UUID `8f8f1081-9be4-4914-9111-75f1b90255bf` and root `9428695af6d4f46c08e1a444cdc66de8` | Latest read-only `df` observation: 213,762,240,512 bytes = 199.082 GiB; stale for gate-time authorization |
+| `P` | One final PersonalBackup reservation, including full measured baseline, omitted Documents/protected-app data, and PersonalBackup growth/retry headroom | **Unknown**; must be supplied as one final reserved-capacity number; require `P >= 126.9 GiB` |
+| `B` | Unique included Brain payload bytes for the pinned role policy | Must be computed from accepted held-view inventory before first payload write; no qualified value exists today |
+| `R` | Kingston free-space floor that remains after Brain capture and PB reservation | 50 GiB policy floor; recheck continuously; a smaller tool-internal 8 GiB floor does not override it |
+| `S_K` | v5 production writer's SQLite inventory spool reserve | Written on Kingston itself at `BrainData/host-recovery/tree-capture-v5/spool`; derive a worst-case bound from a qualified held-view count/path model before any large spool or payload write |
+| `S_V` | Independent verifier SQLite scratch reserve | Separate pinned APFS/HFS volume, distinct from source and Kingston; calculated DB reserve (maximum 32 GiB); its total free-space requirement is `S_V + 256 MiB`; RecoveryOS `tmpfs` is rejected |
+| `M` | Metadata sidecar, candidate/index/manifest/receipt, and bounded incomplete-publication reserve charged by the production writer | Pinned operation-spec value, bounded by the accepted metadata policy and measured held view |
+| `G` | Production writer's fixed Kingston free-space floor | 8 GiB in the pinned v5 writer; this is additional to `R` and cannot be used for PB or payload |
+| `Q` | Inert extraction/quarantine capacity for later restore rehearsal | Separate compatible-host destination and scratch; not counted as Kingston payload or PB capacity |
+
+The path-free aggregate from the latest complete traversal of the eight declared-present roots
+recorded **29,742,143,024 bytes (27.700 GiB) of regular-file logical size** across 819,063 entries.
+This was read-only metadata, not payload; the census excluded the absent ninth role, did not prove
+source consistency or root closure, includes files that may later receive explicit rebuild/reissue
+or exclusion dispositions, and can count hardlink aliases more than once. It is a historical sizing
+observation, not `B` or a capture authorization. Re-reading the receipt-bound, hash-verified census
+manifest from Kingston this session produced that path-free aggregate; no source payload or protected
+payload was read. The receipt is the [`v2 root-boundary census`](evidence/portability-dr-root-boundary-census-v2-2026-10-15T2239Z.json).
+
+For capacity screening only, the v5 model applied to that entry count and logical-byte aggregate at
+its default 128-character average-path assumption and 50% margin returns `S_K = 9,024,408,576`
+bytes (8.405 GiB), with the default maximum metadata reserve `M = 8,589,934,592` bytes (8 GiB).
+Together with those observed logical bytes, the model's `B + S_K + M` is 44.104 GiB, before the
+50 GiB policy floor, the code's 8 GiB floor, and PersonalBackup. This is not a qualified production
+estimate because the roster and inclusion set are unresolved; it demonstrates that a full-root
+capture at this observed scale cannot fit the current residual Kingston budget. The actual included
+set must be reduced only by reviewed, evidence-backed rebuild/reissue/disposable dispositions, or
+Kingston capacity must change while leaving PB's final reservation intact.
+
+The conservative Kingston pre-write gate is `F >= P + R + G + B + S_K + M`; the production
+writer must also accept its dynamic reserve at every boundary. Set its pinned
+`payload_reserve_bytes` to at least `P + R`, so it preserves the PB allocation and 50 GiB policy
+floor after streaming the unique included payload. `B`, `S_K`, and `M` must be bounded from the
+same accepted held-view inventory and candidate format before capture begins; no sparse logical size
+substitutes for streamed bytes. Independently require verifier scratch free space `F_V >= S_V +
+256 MiB`, with `S_V` calculated from the candidate/index and no more than 32 GiB. Capture is
+prohibited unless both equations and writer guards pass. Any interrupted candidate is charged at
+its maximum observed/allowed extent and is never assumed reclaimed. If the existing v6b candidate
+is retained, its 79,892,899 bytes are already reflected in `F` and are not subtracted a second
+time. The final worksheet records actual F, P, R, G, B, `S_K`, M, verifier `F_V`/`S_V`, exact
+pins, and revalidation observations; no capacity is taken from PB's allocation.
+
+At the latest Kingston observation, the lower-bound PB value alone leaves at most
+`199.082 - 126.9 - 50 - 8 = 14.182 GiB` for the sum of `B + S_K + M`, before accounting for
+PB's missing data/growth. Even the historical 27.700 GiB regular-file logical-size aggregate exceeds
+that residual before spool and metadata if all eight declared-present roots were included. It is not
+the final candidate size and is not a substitute for accepted held-view sizing. Therefore the current
+free-space observation cannot authorize capture. No final Brain requirement is asserted until B,
+S_K, and M are measured from the accepted held source and role policy. If
+the worksheet does not fit, stop before spool/payload capture and obtain a different capacity design; do
+not lower PB or R, delete existing artifacts, or write a partial set to Kingston.
 
 Current source-role disposition is:
 
@@ -1863,7 +2035,7 @@ Current source-role disposition is:
 | `helius_mcp_wrapper` | Private file role; quarantine/reissue only | Held-source custody and host-path rebinding |
 | `codex_mcp_config` | Private file role; quarantine/reissue only | Held-source custody; no automatic installation or authentication |
 | `cursor_mcp_config` | Private file role; quarantine/reissue only | Held-source custody; no automatic installation or authentication |
-| `verifier_worktree` | Absent in the latest root census; unresolved | Confirm disposition from an accepted source view; tracked commit reachability does not close ignored/local state |
+| `verifier_worktree` | Absent in the latest root census; v5 schema only encodes `absent_unresolved` | Versioned policy/schema disposition needed; tracked commit reachability does not close ignored/local state |
 
 Cross-cutting holds remain: three research `work/wallets` subtrees and owner Codex `.local` are
 opaque, private, unresolved, and backup-required; two `.env.local` credential files are excluded for
