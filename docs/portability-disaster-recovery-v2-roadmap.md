@@ -44,12 +44,28 @@ Implemented evidence with deliberately narrow scope:
   fixture that runs the stored-INDEX verifier. Its relevant checks passed 200 tests plus Ruff,
   formatting, `py_compile`, and `git diff --check`.
 
-Sol's latest v3 ruling is **NO-GO for production acceptance**. SQLite scratch is stat-checked by
-pathname and then reopened with `sqlite3.connect(path)`, leaving a TOCTOU window; there is no trusted
-production `ScratchSessionV3` adapter. The draft has no real APFS/HFS source/target/scratch capture,
-physical read-only target reattach, or owner-scale resource qualification. The public v3 capture
-entrypoint remains fail-closed. This is a bounded v3 implementation/qualification blocker, not a
-reason to start v4/v5.
+On 2026-10-17, Sol accepted **A as a bounded v3 implementation path**, conditional on expendable
+scratch semantics and fail-closed filesystem behavior. Create each SQLite spool relative to the
+verified scratch directory descriptor, validate its open descriptor identity, unlink its name
+before `sqlite3.connect()`, and connect only through `/dev/fd/<held-fd>`. Keep the descriptor open
+until SQLite closes, disable journal files before schema writes, keep SQLite temporary storage in
+memory, and reject any platform/filesystem where this construction cannot be maintained. Before
+unlink, verify the directory entry still names the opened inode and make only one unlink attempt;
+never retry deletion through an unverified name. The private 0700 no-ACL root constrains that short
+create-to-unlink window to the owner identity; a same-UID process remains same-authority. The v3
+spools contain temporary inventory/frontier/verifier state; capture does not resume from them after
+process exit, so a crash discards them and requires a fresh scan. Durable evidence remains separate.
+The caller-supplied `root_id` is metadata; the live root pin is the held descriptor identity plus
+the v5 path-chain and volume checks. If unlink fails, the adapter closes its descriptor without a
+second name-based attempt; a private 0600 scratch entry may remain for later operator cleanup.
+
+This decision does not qualify `/dev/fd` or SQLite VFS behavior on APFS/HFS. Before production
+acceptance, qualify unlinked-descriptor opens, deterministic replacement races, absence of sidecars,
+physical detach/reattach, owner-scale resources, failure handling, and cleanup on the actual source,
+target, and scratch filesystems. The local synthetic probe establishes feasibility only. If the
+platform cannot keep SQLite bound to the held unlinked descriptor, or scratch is later required to
+survive process exit, stop v3 and return to an explicit storage architecture decision. Keep the
+public v3 capture entrypoint fail-closed; do not start v4/v5 automatically.
 
 Recovery transcript evidence observed the pinned Data UUID locked and unmounted at the recorded
 checks; a pre-Terminal automatic mount attempt failed. Early boot/authentication/mount history and
@@ -77,8 +93,8 @@ facts.
 
 ## Remaining v2 path
 
-1. Reopen the archived v3 slice only after practical Migration v1 succeeds. First implement
-   descriptor-bound scratch creation/SQLite identity and cleanup; retain fail-closed publication.
+1. Reopen the archived v3 slice only after practical Migration v1 succeeds. Implement and qualify
+   the Sol-approved unlinked-descriptor SQLite scratch adapter; retain fail-closed publication.
 2. Qualify actual capture using distinct disposable APFS/HFS source, target, and scratch identities;
    exercise failure/partial cases, physical target read-only reattach, and owner-scale memory, FD,
    spool, and free-floor bounds. Do not create another protocol generation unless Sol finds a new

@@ -1,0 +1,1684 @@
+from __future__ import annotations
+
+import hashlib
+import os
+import sqlite3
+import stat
+from contextlib import contextmanager
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
+
+import pytest
+
+from tools.brain_host_absence_gap_chain_v3 import (
+    EXPECTED_COMMIT,
+    HISTORICAL_STATE,
+    INDEX_FIELDS_V3,
+    INDEX_FLAGS,
+    INDEX_V3_SCHEMA,
+    POLICY_V3_SCHEMA,
+    PRESENT_ROLES,
+    PROTECTED_CUSTODY_MODE,
+    ROLE_MODES,
+    AbsenceGapChainError,
+    _validate_member_counts,
+    effective_policy_sha256,
+    policy_roster_v3_sha256,
+    target_measurement_v3_sha256,
+    validate_protected_overlay_v3,
+)
+from tools.brain_host_capture_absence_gap_v3 import (
+    _TEST_HELD_VIEW_CAPABILITY,
+    ApprovedOperationV3,
+    CaptureV3Error,
+    DescriptorBoundTargetSessionV3,
+    DescriptorWriter,
+    InventoryEntryV3,
+    ProductionScratchSessionV3,
+    ReadOnlyCandidateVerifierV3,
+    RolePolicyV3,
+    ScratchDatabaseV3,
+    TargetMeasurementV3,
+    _classify,
+    _inventory_held_view_for_test_v3,
+    _publish_then_verify_index_v3,
+    _recompute_role_dispositions_v3,
+    _role_disposition_rows,
+    _SQLiteInventoryEntriesV3,
+    _SQLiteVerifierRecordsV3,
+    _TargetReserveV3,
+    _walk_root,
+    approved_operation_v3_sha256,
+    capture_candidate_v3,
+    load_role_policy_v3,
+    stream_member_v3,
+    validate_approved_operation_v3,
+)
+from tools.brain_host_held_data_t_v1 import REQUIRED_ROOT_ROLES, ROOT_KINDS
+from tools.brain_senses_external_writer_v1 import canonical_json
+
+
+def _seal(value: dict[str, Any], field: str) -> dict[str, Any]:
+    value[field] = hashlib.sha256(canonical_json(value)).hexdigest()
+    return value
+
+
+def _role_policy(
+    tmp_path: Path,
+    role: str,
+    *,
+    default: str | None = "include_opaque",
+    path_rules: list[dict[str, str]] | None = None,
+) -> RolePolicyV3:
+    value = {
+        "schema": "brain-host-role-policy-v3",
+        "version": 3,
+        "role": role,
+        "default_disposition": default,
+        "path_rules": path_rules or [],
+        "launch_quarantine_required": role == "launch_agents",
+    }
+    _seal(value, "role_policy_sha256")
+    path = tmp_path / f"{role}.json"
+    path.write_bytes(canonical_json(value))
+    path.chmod(0o600)
+    return load_role_policy_v3(path, role=role, expected_sha256=value["role_policy_sha256"])
+
+
+def _overlay(constraints: list[dict[str, Any]]) -> dict[str, Any]:
+    return _seal(
+        {
+            "schema": "brain-host-protected-overlay-v3",
+            "version": 3,
+            "constraints": constraints,
+        },
+        "overlay_sha256",
+    )
+
+
+class _TestScratchV3:
+    """Private temp-only fake; it does not qualify a physical scratch volume."""
+
+    def __init__(
+        self,
+        directory: Path,
+        *,
+        source_device: int,
+        target_device: int,
+        budget: int = 64 << 20,
+        fail_revalidation_number: int | None = None,
+    ) -> None:
+        self.directory = directory
+        self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        self.volume_uuid = "c408b435-b708-4de3-8dbe-3087d8189d5c"
+        self.root_id = "d" * 32
+        root_st = self.directory.stat()
+        self.root_path = self.directory
+        self.root_identity = (root_st.st_dev, root_st.st_ino)
+        self.device = max(source_device, target_device) + 1000
+        self.filesystem_type = "apfs"
+        self.free_floor_bytes = 0
+        self.max_total_bytes = budget
+        self.available_bytes = 1 << 40
+        self.fail_revalidation_number = fail_revalidation_number
+        self.revalidation_count = 0
+        self._databases: dict[int, int] = {}
+        self._paths: dict[int, Path] = {}
+
+    def create_database(
+        self, prefix: str, *, max_bytes: int, source_device: int, target_device: int
+    ) -> ScratchDatabaseV3:
+        assert self.device not in {source_device, target_device}
+        path = self.directory / f"{prefix}-{os.urandom(8).hex()}.sqlite"
+        fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            st = os.fstat(fd)
+            path.unlink()
+            unlinked = os.fstat(fd)
+            assert (unlinked.st_dev, unlinked.st_ino) == (st.st_dev, st.st_ino)
+            assert unlinked.st_nlink == 0
+        except BaseException:
+            os.close(fd)
+            raise
+        record = ScratchDatabaseV3(fd, (st.st_dev, st.st_ino), max_bytes)
+        self._databases[fd] = max_bytes
+        self._paths[fd] = path
+        return record
+
+    def revalidate(
+        self,
+        *,
+        required_free_bytes: int,
+        source_device: int,
+        target_device: int,
+    ) -> None:
+        self.revalidation_count += 1
+        if self.revalidation_count == self.fail_revalidation_number:
+            raise OSError("synthetic pinned scratch revalidation failure")
+        assert self.device not in {source_device, target_device}
+        assert type(required_free_bytes) is int and required_free_bytes >= 0
+        if self.available_bytes < required_free_bytes:
+            raise OSError("synthetic scratch capacity below requested floor")
+        for fd in self._databases:
+            st = os.fstat(fd)
+            assert stat.S_ISREG(st.st_mode) and st.st_nlink == 0
+
+    def used_bytes(self) -> int:
+        return sum(os.fstat(fd).st_blocks * 512 for fd in self._databases)
+
+    def remove_database(self, database: ScratchDatabaseV3) -> None:
+        self._databases.pop(database.fd, None)
+        self._paths.pop(database.fd, None)
+        os.close(database.fd)
+
+
+def test_target_measurement_digest_binds_all_fields() -> None:
+    m = TargetMeasurementV3.stamp(
+        volume_uuid="430740ca-42e7-4e6c-a07a-e4e7370152cc",
+        root_id="f" * 32,
+        container_reference="disk3",
+        device_identifier="disk3s2",
+        available_bytes=500,
+        observed_at_utc="2026-10-16T12:00:00Z",
+        monotonic_start_ns=10,
+        monotonic_end_ns=20,
+    )
+    changed = TargetMeasurementV3.stamp(
+        volume_uuid=m.target_volume_uuid,
+        root_id=m.target_root_id,
+        container_reference=m.target_container_reference,
+        device_identifier=m.target_device_identifier,
+        available_bytes=m.available_bytes - 1,
+        observed_at_utc=m.observed_at_utc,
+        monotonic_start_ns=m.monotonic_start_ns,
+        monotonic_end_ns=m.monotonic_end_ns,
+    )
+    assert changed.measurement_sha256 != m.measurement_sha256
+    with pytest.raises(CaptureV3Error, match="capture_v3_unavailable_until_review"):
+        capture_candidate_v3()
+
+
+def _approved_operation_fixture(*, source_override: dict[str, str] | None = None):
+    m0 = {
+        "target_volume_uuid": "430740ca-42e7-4e6c-a07a-e4e7370152cc",
+        "target_root_id": "f" * 32,
+        "target_container_reference": "disk3",
+        "target_device_identifier": "disk3s2",
+        "available_bytes": 900,
+        "observed_at_utc": "2026-10-16T12:00:00Z",
+        "monotonic_start_ns": 10,
+        "monotonic_end_ns": 20,
+    }
+    m0_sha = target_measurement_v3_sha256(m0)
+    capacity = {
+        "kingston_measurement_sha256": m0_sha,
+        "kingston_measurement_observed_at_utc": m0["observed_at_utc"],
+        "kingston_volume_uuid": m0["target_volume_uuid"],
+        "kingston_root_id": m0["target_root_id"],
+        "F_live_available_bytes": m0["available_bytes"],
+    }
+    capture_spec = {
+        "target_volume_uuid": m0["target_volume_uuid"],
+        "target_root_id": m0["target_root_id"],
+        "personal_backup_transition_completed_at_utc": "2026-10-16T11:00:00Z",
+    }
+    receipt_sha = "a" * 64
+    capture_sha = "b" * 64
+    operation_id = "synthetic-operation"
+    operation_sha = approved_operation_v3_sha256(operation_id, capture_sha)
+    artifact = {
+        "schema": "brain-host-approved-operation-v3",
+        "version": 3,
+        "operation_id": operation_id,
+        "operation_sha256": operation_sha,
+        "capacity_receipt_sha256": receipt_sha,
+        "m0_measurement": m0,
+        "m0_measurement_sha256": m0_sha,
+    }
+    artifact["approval_sha256"] = hashlib.sha256(canonical_json(artifact)).hexdigest()
+    source = {
+        "data_volume_uuid": "5d32c7bb-02b8-4d9e-9b1e-666666666666",
+        "data_container_reference": "disk1",
+        "data_device_identifier": "disk1s5",
+        **(source_override or {}),
+    }
+    return artifact, capacity, capture_spec, source, receipt_sha, capture_sha
+
+
+def test_approved_operation_binds_full_m0_and_receipt() -> None:
+    artifact, capacity, capture_spec, source, receipt_sha, capture_sha = (
+        _approved_operation_fixture()
+    )
+    approved = validate_approved_operation_v3(
+        artifact,
+        expected_sha256=artifact["approval_sha256"],
+        capacity_receipt=capacity,
+        capacity_receipt_sha256=receipt_sha,
+        capture_spec=capture_spec,
+        capture_spec_sha256=capture_sha,
+        source_data_plan=SimpleNamespace(**source),
+    )
+    assert isinstance(approved, ApprovedOperationV3)
+    assert approved.m0.target_container_reference == "disk3"
+
+
+@pytest.mark.parametrize(
+    "source_override",
+    [
+        {"data_volume_uuid": "430740ca-42e7-4e6c-a07a-e4e7370152cc"},
+        {"data_container_reference": "disk3"},
+        {"data_device_identifier": "disk3s2"},
+    ],
+)
+def test_approved_operation_rejects_source_aliases(source_override: dict[str, str]) -> None:
+    artifact, capacity, capture_spec, source, receipt_sha, capture_sha = (
+        _approved_operation_fixture(source_override=source_override)
+    )
+    with pytest.raises(CaptureV3Error, match="approved_operation_m0_join_invalid"):
+        validate_approved_operation_v3(
+            artifact,
+            expected_sha256=artifact["approval_sha256"],
+            capacity_receipt=capacity,
+            capacity_receipt_sha256=receipt_sha,
+            capture_spec=capture_spec,
+            capture_spec_sha256=capture_sha,
+            source_data_plan=SimpleNamespace(**source),
+        )
+
+
+def test_approved_operation_rejects_tampered_m0_and_receipt_drift() -> None:
+    artifact, capacity, capture_spec, source, receipt_sha, capture_sha = (
+        _approved_operation_fixture()
+    )
+    altered = {**artifact, "m0_measurement": {**artifact["m0_measurement"], "available_bytes": 901}}
+    with pytest.raises(CaptureV3Error, match="approved_operation_pin_mismatch"):
+        validate_approved_operation_v3(
+            altered,
+            expected_sha256=artifact["approval_sha256"],
+            capacity_receipt=capacity,
+            capacity_receipt_sha256=receipt_sha,
+            capture_spec=capture_spec,
+            capture_spec_sha256=capture_sha,
+            source_data_plan=SimpleNamespace(**source),
+        )
+    capacity["kingston_root_id"] = "e" * 32
+    with pytest.raises(CaptureV3Error, match="approved_operation_m0_join_invalid"):
+        validate_approved_operation_v3(
+            artifact,
+            expected_sha256=artifact["approval_sha256"],
+            capacity_receipt=capacity,
+            capacity_receipt_sha256=receipt_sha,
+            capture_spec=capture_spec,
+            capture_spec_sha256=capture_sha,
+            source_data_plan=SimpleNamespace(**source),
+        )
+
+
+def test_protected_overlay_requires_exact_receipt_and_external_pin() -> None:
+    row = {
+        "role": "owner_checkout",
+        "relative_prefix": "holdout/opaque",
+        "disposition": PROTECTED_CUSTODY_MODE,
+        "authorization_receipt_sha256": "a" * 64,
+        "protection_class": "F01",
+    }
+    overlay = _overlay([row])
+    assert validate_protected_overlay_v3(overlay, overlay["overlay_sha256"])
+    with pytest.raises(AbsenceGapChainError):
+        validate_protected_overlay_v3(overlay, "b" * 64)
+    malformed = {**overlay, "constraints": [{**row, "unexpected": True}]}
+    malformed["overlay_sha256"] = hashlib.sha256(
+        canonical_json({key: value for key, value in malformed.items() if key != "overlay_sha256"})
+    ).hexdigest()
+    with pytest.raises(AbsenceGapChainError):
+        validate_protected_overlay_v3(malformed, malformed["overlay_sha256"])
+
+
+def test_protected_overlay_cannot_override_reissue_roles() -> None:
+    overlay = _overlay(
+        [
+            {
+                "role": "codex_mcp_config",
+                "relative_prefix": "config.json",
+                "disposition": "exclude_protected_unresolved",
+            }
+        ]
+    )
+    with pytest.raises(AbsenceGapChainError, match="cannot_override_reissue"):
+        validate_protected_overlay_v3(overlay, overlay["overlay_sha256"])
+
+
+def test_protected_custody_is_path_scoped_and_opaque(tmp_path: Path) -> None:
+    role_policy = _role_policy(tmp_path, "owner_checkout")
+    overlay = _overlay(
+        [
+            {
+                "role": "owner_checkout",
+                "relative_prefix": "holdout/opaque",
+                "disposition": PROTECTED_CUSTODY_MODE,
+                "authorization_receipt_sha256": "c" * 64,
+                "protection_class": "F01",
+            }
+        ]
+    )
+    assert (
+        _classify(
+            "owner_checkout",
+            "holdout/opaque/member.bin",
+            "protected_opaque",
+            overlay,
+            role_policy,
+            None,
+        )
+        == "include_opaque"
+    )
+    assert (
+        _classify("owner_checkout", "holdout/other", "protected_opaque", overlay, role_policy, None)
+        == "exclude_protected_unresolved"
+    )
+
+
+@pytest.mark.parametrize("role", ["owner_checkout", "research_checkout", "private_brain_config"])
+def test_protected_overlay_cannot_override_reissue_path_policy(tmp_path: Path, role: str) -> None:
+    role_policy = _role_policy(
+        tmp_path,
+        role,
+        path_rules=[{"relative_prefix": "credential.json", "disposition": "exclude_reissue"}],
+    )
+    overlay = _overlay(
+        [
+            {
+                "role": role,
+                "relative_prefix": "credential.json",
+                "disposition": PROTECTED_CUSTODY_MODE,
+                "authorization_receipt_sha256": "a" * 64,
+                "protection_class": "F01",
+            }
+        ]
+    )
+    assert (
+        _classify(role, "credential.json", "non_protected", overlay, role_policy, None)
+        == "exclude_reissue"
+    )
+
+
+def test_ordinary_directory_keeps_unrelated_siblings_when_protected_child_is_pinned(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "source"
+    (root / "holdout/opaque").mkdir(parents=True)
+    (root / "holdout/opaque/member.bin").write_bytes(b"opaque synthetic bytes")
+    (root / "holdout/ordinary").mkdir()
+    (root / "holdout/ordinary/member.bin").write_bytes(b"ordinary synthetic bytes")
+    root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
+    role_policy = _role_policy(tmp_path, "owner_checkout")
+    overlay = _overlay(
+        [
+            {
+                "role": "owner_checkout",
+                "relative_prefix": "holdout/opaque",
+                "disposition": PROTECTED_CUSTODY_MODE,
+                "authorization_receipt_sha256": "b" * 64,
+                "protection_class": "D43",
+            }
+        ]
+    )
+    try:
+        rows = list(
+            _walk_root(
+                role="owner_checkout",
+                root_fd=root_fd,
+                source_device=os.fstat(root_fd).st_dev,
+                overlay=overlay,
+                role_policy=role_policy,
+                scope="non_protected",
+                git_reconstruction=None,
+                scratch=_TestScratchV3(
+                    tmp_path / "scratch",
+                    source_device=os.fstat(root_fd).st_dev,
+                    target_device=10**9,
+                ),
+                target_device=10**9,
+            )
+        )
+        assert {row.path for row in rows} >= {
+            "holdout/opaque/member.bin",
+            "holdout/ordinary/member.bin",
+        }
+    finally:
+        os.close(root_fd)
+
+
+def test_recursive_protected_boundary_reports_unknown_descendants() -> None:
+    core = {
+        "role": "owner_checkout",
+        "path": "holdout",
+        "kind": "directory",
+        "disposition": "exclude_protected_unresolved",
+        "size_bytes": 0,
+        "signature": [1] * 10,
+        "source_device": 1,
+        "source_inode": 2,
+        "source_nlink": 2,
+        "symlink_target_sha256": None,
+        "parent_identity_chain": [[1, 2]],
+        "protection_class": None,
+        "overlay_rule_sha256": None,
+        "authorization_receipt_sha256": None,
+    }
+    projections: dict[str, dict[str, Any]] = {}
+    entries = {role: [] for role in REQUIRED_ROOT_ROLES if role != "verifier_worktree"}
+    for role in entries:
+        projections[role] = {
+            "role": role,
+            "mode": "owner_tree_opaque",
+            "relative_locator": f"roots/{role}",
+            "kind": "directory",
+            "scope": "non_protected",
+            "effective_policy_sha256": "d" * 64,
+        }
+    entries["owner_checkout"] = [core]
+    projections["verifier_worktree"] = {
+        "role": "verifier_worktree",
+        "relative_locator": "roots/verifier_worktree",
+        "witness_sha256": "e" * 64,
+        "expected_fetchable_commit": "a" * 40,
+        "historical_non_git_state": "known",
+    }
+    rows = _recompute_role_dispositions_v3(entries, projections)
+    owner = next(row for row in rows if row["role"] == "owner_checkout")
+    assert owner["unresolved_entry_count"] is None
+    assert owner["unresolved_logical_bytes"] is None
+    assert owner["member_mode_counts"]["exclude_protected_unresolved"] is None
+    assert owner["member_mode_logical_bytes"]["exclude_protected_unresolved"] is None
+
+
+def test_source_walk_does_not_follow_symlink_and_rejects_parent_drift(tmp_path: Path) -> None:
+    role_policy = _role_policy(tmp_path, "owner_checkout")
+    root = tmp_path / "source"
+    (root / "sub").mkdir(parents=True)
+    (root / "sub" / "data.bin").write_bytes(b"synthetic-only")
+    (root / "jump").symlink_to("/private/should-not-be-read")
+    root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        entries = _walk_root(
+            role="owner_checkout",
+            root_fd=root_fd,
+            source_device=os.fstat(root_fd).st_dev,
+            overlay=_overlay([]),
+            role_policy=role_policy,
+            scope="non_protected",
+            git_reconstruction=None,
+            scratch=_TestScratchV3(
+                tmp_path / "scratch", source_device=os.fstat(root_fd).st_dev, target_device=10**9
+            ),
+            target_device=10**9,
+        )
+        symlink = next(entry for entry in entries if entry.path == "jump")
+        assert symlink.kind == "symlink"
+        member = next(entry for entry in entries if entry.path == "sub/data.bin")
+        (root / "sub").rename(root / "sub.old")
+        (root / "sub").mkdir()
+        (root / "sub" / "data.bin").write_bytes(b"replacement")
+        with pytest.raises(CaptureV3Error, match="source_parent_identity_changed"):
+            stream_member_v3(
+                source_root_fd=root_fd,
+                entry=member,
+                writer=lambda _path, _payload: None,
+                target_relative_path="payload/test/file",
+                progress_check=lambda _size: None,
+            )
+    finally:
+        os.close(root_fd)
+
+
+def test_private_synthetic_view_core_exercises_protected_overlay(tmp_path: Path) -> None:
+    data = tmp_path / "data"
+    data.mkdir()
+    root_roster: dict[str, dict[str, Any]] = {}
+    role_policies: dict[str, RolePolicyV3] = {}
+    for role in sorted(REQUIRED_ROOT_ROLES):
+        if role == "verifier_worktree":
+            root_roster[role] = {
+                "present": False,
+                "relative_locator": None,
+                "kind": None,
+                "unresolved_reason": "verifier_worktree_absent_unresolved",
+            }
+            continue
+        locator = f"roots/{role}"
+        root_roster[role] = {
+            "present": True,
+            "relative_locator": locator,
+            "kind": ROOT_KINDS[role],
+            "unresolved_reason": None,
+        }
+        path = data / locator
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if ROOT_KINDS[role] == "directory":
+            path.mkdir()
+        else:
+            path.write_bytes(b"synthetic-private-config")
+        default = (
+            "exclude_reissue"
+            if role in {"helius_mcp_wrapper", "codex_mcp_config", "cursor_mcp_config"}
+            else "include_opaque"
+        )
+        role_policies[role] = _role_policy(tmp_path, role, default=default)
+
+    owner_root = data / "roots/owner_checkout"
+    (owner_root / "holdout/opaque").mkdir(parents=True)
+    (owner_root / "holdout/opaque/member.bin").write_bytes(b"synthetic-f01-opaque")
+    (owner_root / "holdout/other").mkdir(parents=True)
+    (owner_root / "holdout/other/member.bin").write_bytes(b"synthetic-excluded")
+    overlay = _overlay(
+        [
+            {
+                "role": "owner_checkout",
+                "relative_prefix": "holdout/opaque",
+                "disposition": PROTECTED_CUSTODY_MODE,
+                "authorization_receipt_sha256": "a" * 64,
+                "protection_class": "F01",
+            }
+        ]
+    )
+    plan_data = SimpleNamespace(
+        verifier_worktree_locator="roots/verifier_worktree",
+        expected_fetchable_commit=EXPECTED_COMMIT,
+        historical_non_git_state=HISTORICAL_STATE,
+    )
+    plan_data.root_roster = root_roster
+    plan = SimpleNamespace(
+        held_data_plan=plan_data,
+        held_data_plan_sha256="b" * 64,
+        plan_sha256="c" * 64,
+        document={"root_roster": root_roster},
+    )
+    role_rows: list[dict[str, Any]] = []
+    for role in sorted(REQUIRED_ROOT_ROLES):
+        if role == "verifier_worktree":
+            role_rows.append(
+                {
+                    "role": role,
+                    "present": False,
+                    "mode": ROLE_MODES[role],
+                    "disposition": "nonqualifying_absence_gap",
+                    "witness_sha256": "e" * 64,
+                    "relative_locator": "roots/verifier_worktree",
+                    "expected_fetchable_commit": EXPECTED_COMMIT,
+                    "historical_non_git_state": HISTORICAL_STATE,
+                }
+            )
+            continue
+        scope = "protected_opaque" if role == "owner_checkout" else "non_protected"
+        locator = root_roster[role]["relative_locator"]
+        kind = root_roster[role]["kind"]
+        row = {
+            "role": role,
+            "present": True,
+            "mode": ROLE_MODES[role],
+            "relative_locator": locator,
+            "kind": kind,
+            "scope": scope,
+            "role_policy_sha256": role_policies[role].policy_sha256,
+        }
+        row["effective_policy_sha256"] = effective_policy_sha256(
+            role=role,
+            locator=locator,
+            kind=kind,
+            scope=scope,
+            mode=ROLE_MODES[role],
+            role_policy_sha256=row["role_policy_sha256"],
+            protected_overlay_sha256=overlay["overlay_sha256"],
+        )
+        role_rows.append(row)
+    policy = {
+        "schema": POLICY_V3_SCHEMA,
+        "plan_sha256": plan.plan_sha256,
+        "witness_sha256": "e" * 64,
+        "protected_overlay_sha256": overlay["overlay_sha256"],
+        "roles": role_rows,
+        **INDEX_FLAGS,
+        "policy_roster_sha256": "0" * 64,
+    }
+    policy["policy_roster_sha256"] = policy_roster_v3_sha256(policy)
+
+    class SyntheticHeldView:
+        def __init__(self) -> None:
+            self.plan = plan.held_data_plan
+            self.trusted_plan_sha256 = plan.held_data_plan_sha256
+            self.mount_fd = os.open(data, os.O_RDONLY | os.O_DIRECTORY)
+
+        def revalidate(self) -> None:
+            os.fstat(self.mount_fd)
+
+        @contextmanager
+        def borrow_root(self, role: str):
+            fd = os.open(data / root_roster[role]["relative_locator"], os.O_RDONLY)
+            try:
+                yield fd
+            finally:
+                os.close(fd)
+
+    view = SyntheticHeldView()
+    try:
+        kwargs = {
+            "plan": plan,
+            "policy": policy,
+            "role_policies": role_policies,
+            "protected_overlay": overlay,
+            "protected_overlay_sha256": overlay["overlay_sha256"],
+            "scratch": _TestScratchV3(
+                tmp_path / "scratch",
+                source_device=os.fstat(view.mount_fd).st_dev,
+                target_device=10**9,
+            ),
+            "target_device": 10**9,
+        }
+        with pytest.raises(CaptureV3Error, match="synthetic_inventory_capability_required"):
+            _inventory_held_view_for_test_v3(view, _capability=object(), **kwargs)
+        snapshot = _inventory_held_view_for_test_v3(
+            view, _capability=_TEST_HELD_VIEW_CAPABILITY, **kwargs
+        )
+        included = next(
+            entry
+            for entry in snapshot.entries
+            if entry.role == "owner_checkout" and entry.path == "holdout/opaque/member.bin"
+        )
+        excluded = next(
+            entry
+            for entry in snapshot.entries
+            if entry.role == "owner_checkout" and entry.path == "holdout"
+        )
+        assert not any(
+            entry.role == "owner_checkout" and entry.path.startswith("holdout/other")
+            for entry in snapshot.entries
+        )
+        owner = next(row for row in snapshot.role_dispositions if row["role"] == "owner_checkout")
+        assert included.disposition == "include_opaque"
+        assert included.protection_class == "F01"
+        assert (
+            included.overlay_rule_sha256
+            == hashlib.sha256(canonical_json(overlay["constraints"][0])).hexdigest()
+        )
+        assert included.authorization_receipt_sha256 == "a" * 64
+        assert excluded.disposition == "exclude_protected_unresolved"
+        assert owner["unresolved_entry_count"] is None
+        assert owner["unresolved_logical_bytes"] is None
+    finally:
+        if "snapshot" in locals():
+            snapshot.close()
+        os.close(view.mount_fd)
+
+
+def test_target_and_verifier_require_distinct_capabilities(tmp_path: Path) -> None:
+    root = tmp_path / "target"
+    root.mkdir(mode=0o700)
+    root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        plain_writer = DescriptorWriter(root_fd)
+        with pytest.raises(CaptureV3Error, match="descriptor_target_binding_required"):
+            DescriptorBoundTargetSessionV3(
+                plain_writer,
+                volume_uuid="430740ca-42e7-4e6c-a07a-e4e7370152cc",
+                root_id="f" * 32,
+            )
+        with pytest.raises(CaptureV3Error, match="readonly_verifier_capability_required"):
+            ReadOnlyCandidateVerifierV3(
+                plain_writer,
+                scratch=_TestScratchV3(
+                    tmp_path / "scratch",
+                    source_device=os.fstat(root_fd).st_dev + 1,
+                    target_device=os.fstat(root_fd).st_dev,
+                ),
+                source_device=os.fstat(root_fd).st_dev + 1,
+            )
+        plain_writer.close()
+    finally:
+        os.close(root_fd)
+
+
+def test_target_reserve_credits_only_reopened_allocated_blocks() -> None:
+    reserve = _TargetReserveV3(1000)
+    assert reserve.remaining_bytes() == 1000
+    reserve.credit_member(None)
+    assert reserve.remaining_bytes() == 1000
+    reserve.credit_member(512)
+    assert reserve.remaining_bytes() == 488
+    with pytest.raises(CaptureV3Error, match="allocated_blocks_invalid"):
+        reserve.credit_member(True)
+
+
+def test_sqlite_inventory_spool_keeps_owner_scale_ranges_bounded(tmp_path: Path) -> None:
+    scratch = _TestScratchV3(tmp_path / "scratch", source_device=1, target_device=2)
+    entries = _SQLiteInventoryEntriesV3(scratch, source_device=1, target_device=2)
+    try:
+        for number in range(1537):
+            entries.add(
+                InventoryEntryV3(
+                    "owner_checkout",
+                    f"member-{number:04d}",
+                    "file",
+                    "include_opaque",
+                    1,
+                    (1,) * 10,
+                    1,
+                    number + 1,
+                    1,
+                    None,
+                    ((1, 1),),
+                )
+            )
+        entries.finish()
+        assert len(entries) == 1537
+        policy = {
+            "roles": [
+                {
+                    "role": role,
+                    "relative_locator": f"roots/{role}",
+                    "kind": ROOT_KINDS[role],
+                    "scope": "non_protected",
+                    "effective_policy_sha256": "a" * 64,
+                    **(
+                        {}
+                        if role != "verifier_worktree"
+                        else {
+                            "witness_sha256": "b" * 64,
+                            "expected_fetchable_commit": EXPECTED_COMMIT,
+                            "historical_non_git_state": HISTORICAL_STATE,
+                        }
+                    ),
+                }
+                for role in sorted(REQUIRED_ROOT_ROLES)
+            ]
+        }
+        rows = _role_disposition_rows(entries, policy)
+        owner = next(row for row in rows if row["role"] == "owner_checkout")
+        assert owner["observed_entry_count"] == 1537
+        assert [part["count"] for part in owner["member_ranges"]] == [512, 512, 512, 1]
+    finally:
+        entries.close()
+
+
+def test_index_member_count_partitions_reject_unexplained_nulls() -> None:
+    counts = {
+        "include_opaque": 0,
+        "exclude_backup_required": 0,
+        "exclude_reissue": 0,
+        "exclude_protected_unresolved": None,
+        "git_reconstructible_proven": 0,
+    }
+    amounts = {
+        "include_opaque": 0,
+        "exclude_backup_required": 0,
+        "exclude_reissue": 0,
+        "exclude_protected_unresolved": None,
+        "git_reconstructible_proven": 0,
+    }
+    row = {
+        "role": "owner_checkout",
+        "present": True,
+        "role_mode": ROLE_MODES["owner_checkout"],
+        "relative_locator": "roots/owner_checkout",
+        "kind": "directory",
+        "scope": "non_protected",
+        "effective_policy_sha256": "a" * 64,
+        "member_manifest_sha256": "b" * 64,
+        "observed_entry_count": 1,
+        "included_entry_count": 0,
+        "excluded_entry_count": 0,
+        "unresolved_entry_count": None,
+        "included_logical_bytes": 0,
+        "excluded_logical_bytes": 0,
+        "unresolved_logical_bytes": None,
+        "member_modes": ["exclude_protected_unresolved"],
+        "member_mode_counts": counts,
+        "member_mode_logical_bytes": amounts,
+        "member_ranges": [
+            {"first_path": "holdout", "last_path": "holdout", "count": 1, "sha256": "c" * 64}
+        ],
+    }
+    _validate_member_counts(row)
+    row["included_entry_count"] = 1
+    with pytest.raises(AbsenceGapChainError, match="count_fields_invalid"):
+        _validate_member_counts(row)
+
+
+def test_verifier_membership_spool_is_disk_backed_and_exact(tmp_path: Path) -> None:
+    scratch = _TestScratchV3(tmp_path / "scratch", source_device=1, target_device=2)
+    records = _SQLiteVerifierRecordsV3(scratch, source_device=1, target_device=2)
+    try:
+        records.add_actual("manifest/owner/member.json")
+        records.add_actual("payload/owner/member/00000000.bin")
+        records.add_expected("manifest/owner/member.json")
+        records.add_expected("payload/owner/member/00000000.bin")
+        records.assert_membership_exact()
+        records.add_expected("payload/owner/member/00000001.bin")
+        with pytest.raises(CaptureV3Error, match="membership_mismatch"):
+            records.assert_membership_exact()
+        records.add_member(
+            {
+                "role": "owner_checkout",
+                "path": "member.bin",
+                "target_path": "payload/owner/member.bin",
+                "sha256": "a" * 64,
+                "size_bytes": 7,
+            }
+        )
+        digest_before_tamper = records.members_sha256()
+        records.db.execute(
+            "UPDATE members SET sha256 = ? WHERE role = ? AND path = ?",
+            ("b" * 64, "owner_checkout", "member.bin"),
+        )
+        assert records.members_sha256() != digest_before_tamper
+    finally:
+        records.close()
+
+
+@pytest.mark.parametrize("replacement_kind", ["file", "symlink"])
+def test_sqlite_spool_stays_bound_to_unlinked_descriptor_during_path_substitution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replacement_kind: str,
+) -> None:
+    scratch = _TestScratchV3(tmp_path / "scratch", source_device=1, target_device=2)
+    outside = tmp_path / "outside.sqlite"
+    outside.write_bytes(b"outside sentinel")
+    original_connect = sqlite3.connect
+    observed: dict[str, object] = {}
+
+    def substitute_former_path(database_uri: str, *args: object, **kwargs: object):
+        fd = int(database_uri.rsplit("/", 1)[1])
+        former_path = scratch._paths[fd]
+        held = os.fstat(fd)
+        assert held.st_nlink == 0
+        assert not former_path.exists()
+        if replacement_kind == "file":
+            former_path.write_bytes(b"replacement sentinel")
+            former_path.chmod(0o600)
+        else:
+            former_path.symlink_to(outside)
+        replacement = former_path.lstat()
+        observed["replacement_identity"] = (replacement.st_dev, replacement.st_ino)
+        observed["held_identity"] = (held.st_dev, held.st_ino)
+        observed["former_path"] = former_path
+        return original_connect(database_uri, *args, **kwargs)
+
+    monkeypatch.setattr(sqlite3, "connect", substitute_former_path)
+    entries = _SQLiteInventoryEntriesV3(scratch, source_device=1, target_device=2)
+    try:
+        fd = entries.database.fd
+        entries.add(
+            InventoryEntryV3(
+                "owner_checkout",
+                "probe",
+                "file",
+                "include_opaque",
+                1,
+                (1,) * 10,
+                1,
+                1,
+                1,
+                None,
+                ((1, 1),),
+            )
+        )
+        held = os.fstat(fd)
+        assert (held.st_dev, held.st_ino) == observed["held_identity"]
+        assert held.st_nlink == 0
+        assert (held.st_dev, held.st_ino) != observed["replacement_identity"]
+        assert entries.db.execute("SELECT path FROM entries").fetchone() == ("probe",)
+        if replacement_kind == "file":
+            assert observed["former_path"].read_bytes() == b"replacement sentinel"
+        else:
+            assert observed["former_path"].is_symlink()
+            assert outside.read_bytes() == b"outside sentinel"
+        assert list((tmp_path / "scratch").iterdir()) == [observed["former_path"]]
+    finally:
+        entries.close()
+        replacement_path = observed.get("former_path")
+        if isinstance(replacement_path, Path):
+            replacement_path.unlink(missing_ok=True)
+
+
+def test_sqlite_spool_requires_off_journal_and_memory_temp_store(tmp_path: Path) -> None:
+    scratch = _TestScratchV3(tmp_path / "scratch", source_device=1, target_device=2)
+    entries = _SQLiteInventoryEntriesV3(scratch, source_device=1, target_device=2)
+    try:
+        assert entries.db.execute("PRAGMA journal_mode").fetchone() == ("off",)
+        assert entries.db.execute("PRAGMA temp_store").fetchone() == (2,)
+        assert os.fstat(entries.database.fd).st_nlink == 0
+        assert list((tmp_path / "scratch").iterdir()) == []
+    finally:
+        entries.close()
+
+
+def test_production_scratch_adapter_uses_unlinked_open_descriptors(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "production-scratch-fixture"
+    root.mkdir(mode=0o700)
+
+    class PinnedDirectoryFixture:
+        def __init__(self) -> None:
+            self.path = root
+            self.fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            self.volume_uuid = "c408b435-b708-4de3-8dbe-3087d8189d5c"
+            self.filesystem_identity = ("apfs", (1, 2), str(root), "/dev/test-scratch")
+
+        def validate(self, *, source_device: int, target_device: int, required_free_bytes: int):
+            assert source_device != target_device
+            assert type(required_free_bytes) is int and required_free_bytes >= 0
+            current = os.fstat(self.fd)
+            assert current.st_ino == os.stat(self.path).st_ino
+            return 1 << 40
+
+        def close(self) -> None:
+            os.close(self.fd)
+            self.fd = -1
+
+    pinned = PinnedDirectoryFixture()
+    root_device = os.fstat(pinned.fd).st_dev
+    source_device, target_device = root_device + 1, root_device + 2
+    scratch = ProductionScratchSessionV3(
+        pinned,
+        volume_uuid=pinned.volume_uuid,
+        root_id="e" * 32,
+        source_volume_uuid="11111111-1111-4111-8111-111111111111",
+        target_volume_uuid="22222222-2222-4222-8222-222222222222",
+        free_floor_bytes=4096,
+        max_total_bytes=8192,
+        source_device=source_device,
+        target_device=target_device,
+    )
+    databases = []
+    try:
+        for _ in range(2):
+            database = scratch.create_database(
+                "v3-fixture",
+                max_bytes=4096,
+                source_device=source_device,
+                target_device=target_device,
+            )
+            databases.append(database)
+            fd_stat = os.fstat(database.fd)
+            assert (fd_stat.st_dev, fd_stat.st_ino) == database.identity
+            assert fd_stat.st_nlink == 0
+        assert list(root.iterdir()) == []
+        with pytest.raises(CaptureV3Error, match="scratch_budget_exceeded"):
+            scratch.create_database(
+                "v3-fixture",
+                max_bytes=4096,
+                source_device=source_device,
+                target_device=target_device,
+            )
+    finally:
+        for database in databases:
+            scratch.remove_database(database)
+        scratch.close()
+    assert pinned.fd == -1
+
+
+@pytest.mark.parametrize("replacement_kind", ["file", "symlink"])
+def test_scratch_create_does_not_unlink_a_replaced_directory_entry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replacement_kind: str,
+) -> None:
+    root = tmp_path / "production-scratch-race"
+    root.mkdir(mode=0o700)
+
+    class PinnedDirectoryFixture:
+        def __init__(self) -> None:
+            self.path = root
+            self.fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            self.volume_uuid = "c408b435-b708-4de3-8dbe-3087d8189d5c"
+            self.filesystem_identity = ("apfs", (1, 2), str(root), "/dev/test-scratch")
+
+        def validate(self, *, source_device: int, target_device: int, required_free_bytes: int):
+            assert source_device != target_device
+            assert type(required_free_bytes) is int and required_free_bytes >= 0
+            return 1 << 40
+
+        def close(self) -> None:
+            os.close(self.fd)
+            self.fd = -1
+
+    pinned = PinnedDirectoryFixture()
+    root_device = os.fstat(pinned.fd).st_dev
+    source_device, target_device = root_device + 1, root_device + 2
+    scratch = ProductionScratchSessionV3(
+        pinned,
+        volume_uuid=pinned.volume_uuid,
+        root_id="e" * 32,
+        source_volume_uuid="11111111-1111-4111-8111-111111111111",
+        target_volume_uuid="22222222-2222-4222-8222-222222222222",
+        free_floor_bytes=0,
+        max_total_bytes=8192,
+        source_device=source_device,
+        target_device=target_device,
+    )
+    real_stat = os.stat
+    observed: dict[str, Path] = {}
+    outside = tmp_path / "outside-scratch-sentinel"
+    outside.write_bytes(b"outside sentinel")
+
+    def replace_before_identity_check(path, *args, **kwargs):
+        if (
+            isinstance(path, str)
+            and path.endswith(".sqlite")
+            and kwargs.get("dir_fd") == pinned.fd
+            and kwargs.get("follow_symlinks") is False
+        ):
+            original = root / path
+            moved = root / f"{path}.moved"
+            original.rename(moved)
+            if replacement_kind == "file":
+                original.write_bytes(b"foreign replacement")
+                original.chmod(0o600)
+            else:
+                original.symlink_to(outside)
+            observed["replacement"] = original
+            observed["moved"] = moved
+        return real_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "stat", replace_before_identity_check)
+    try:
+        with pytest.raises(CaptureV3Error, match="database_identity_invalid"):
+            scratch.create_database(
+                "v3-race",
+                max_bytes=4096,
+                source_device=source_device,
+                target_device=target_device,
+            )
+        if replacement_kind == "file":
+            assert observed["replacement"].read_bytes() == b"foreign replacement"
+        else:
+            assert observed["replacement"].is_symlink()
+            assert outside.read_bytes() == b"outside sentinel"
+        assert observed["moved"].exists()
+    finally:
+        scratch.close()
+
+
+def test_scratch_create_unlink_failure_is_not_retried_by_name(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "production-scratch-unlink-failure"
+    root.mkdir(mode=0o700)
+
+    class PinnedDirectoryFixture:
+        def __init__(self) -> None:
+            self.path = root
+            self.fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            self.volume_uuid = "c408b435-b708-4de3-8dbe-3087d8189d5c"
+            self.filesystem_identity = ("apfs", (1, 2), str(root), "/dev/test-scratch")
+
+        def validate(self, *, source_device: int, target_device: int, required_free_bytes: int):
+            assert source_device != target_device
+            assert type(required_free_bytes) is int and required_free_bytes >= 0
+            return 1 << 40
+
+        def close(self) -> None:
+            os.close(self.fd)
+            self.fd = -1
+
+    pinned = PinnedDirectoryFixture()
+    root_device = os.fstat(pinned.fd).st_dev
+    source_device, target_device = root_device + 1, root_device + 2
+    scratch = ProductionScratchSessionV3(
+        pinned,
+        volume_uuid=pinned.volume_uuid,
+        root_id="e" * 32,
+        source_volume_uuid="11111111-1111-4111-8111-111111111111",
+        target_volume_uuid="22222222-2222-4222-8222-222222222222",
+        free_floor_bytes=0,
+        max_total_bytes=8192,
+        source_device=source_device,
+        target_device=target_device,
+    )
+    real_unlink = os.unlink
+    attempted_names: list[str] = []
+
+    def fail_unlink_once(path, *args, **kwargs):
+        if kwargs.get("dir_fd") == pinned.fd:
+            attempted_names.append(path)
+            raise OSError("synthetic unlink failure")
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "unlink", fail_unlink_once)
+    try:
+        with pytest.raises(CaptureV3Error, match="pinned_scratch_database_unlink_failed"):
+            scratch.create_database(
+                "v3-unlink-failure",
+                max_bytes=4096,
+                source_device=source_device,
+                target_device=target_device,
+            )
+        assert len(attempted_names) == 1
+        leftover = root / attempted_names[0]
+        assert leftover.is_file()
+        assert stat.S_IMODE(leftover.stat().st_mode) == 0o600
+        real_unlink(attempted_names[0], dir_fd=pinned.fd)
+    finally:
+        scratch.close()
+
+
+def test_spool_revalidation_failure_has_deterministic_cleanup(tmp_path: Path) -> None:
+    scratch = _TestScratchV3(
+        tmp_path / "scratch",
+        source_device=1,
+        target_device=2,
+        fail_revalidation_number=8,
+    )
+    entries: _SQLiteInventoryEntriesV3 | None = None
+    try:
+        entries = _SQLiteInventoryEntriesV3(scratch, source_device=1, target_device=2)
+        database_fd = entries.database.fd
+        with pytest.raises(OSError, match="synthetic pinned scratch"):
+            entries.add(
+                InventoryEntryV3(
+                    "owner_checkout",
+                    "partial-row",
+                    "file",
+                    "include_opaque",
+                    1,
+                    (1,) * 10,
+                    1,
+                    1,
+                    1,
+                    None,
+                    ((1, 1),),
+                )
+            )
+    finally:
+        if entries is not None:
+            entries.close()
+    with pytest.raises(OSError):
+        os.fstat(database_fd)
+    assert scratch.used_bytes() == 0
+
+
+def test_final_verifier_loads_index_from_readonly_storage(tmp_path: Path) -> None:
+    index = dict.fromkeys(INDEX_FIELDS_V3, "a" * 64)
+    index.update(INDEX_FLAGS)
+    index.update(
+        {
+            "schema": INDEX_V3_SCHEMA,
+            "candidate_status": "nonqualifying_absence_gap",
+            "role_dispositions": [{"role": "loaded-from-storage"}],
+            "candidate_payload_manifest_sha256": "a" * 64,
+            "kingston_measurement_observed_at_utc": "2026-10-16T12:00:00Z",
+            "kingston_volume_uuid": "430740ca-42e7-4e6c-a07a-e4e7370152cc",
+            "kingston_root_id": "f" * 32,
+            "kingston_m1_observed_at_utc": "2026-10-16T12:00:00Z",
+            "kingston_m1_volume_uuid": "430740ca-42e7-4e6c-a07a-e4e7370152cc",
+            "kingston_m1_root_id": "f" * 32,
+            "kingston_m1_available_bytes": 900,
+            "kingston_m1_monotonic_start_ns": 10,
+            "kingston_m1_monotonic_end_ns": 20,
+            "personal_backup_transition_confirmed": True,
+        }
+    )
+    index["candidate_index_sha256"] = hashlib.sha256(
+        canonical_json(
+            {key: value for key, value in index.items() if key != "candidate_index_sha256"}
+        )
+    ).hexdigest()
+    raw = canonical_json(index)
+    reader = object.__new__(DescriptorWriter)
+    reader._read_only = True
+    reader.device = 101
+    reader.storage_guard = SimpleNamespace(read_only=True, revalidate=lambda: None)
+    reader.read_bytes = lambda _path: raw
+    verifier = ReadOnlyCandidateVerifierV3(
+        reader,
+        scratch=_TestScratchV3(tmp_path / "scratch", source_device=100, target_device=101),
+        source_device=100,
+    )
+    observed: dict[str, Any] = {}
+
+    def verify_prepublication(**kwargs: Any) -> dict[str, bool]:
+        observed.update(kwargs)
+        return {"verified": True}
+
+    verifier.verify_prepublication = verify_prepublication
+    result = verifier.verify_published_candidate(
+        candidate_id="f" * 32,
+        expected_plan_sha256="1" * 64,
+        expected_policy_sha256="2" * 64,
+        expected_overlay_sha256="3" * 64,
+        expected_capture_spec_sha256="4" * 64,
+        expected_approved_operation_sha256="5" * 64,
+        expected_approved_operation_artifact_sha256="6" * 64,
+        expected_candidate_index_sha256=index["candidate_index_sha256"],
+        policy={},
+        protected_overlay={},
+        role_policies={},
+        git_reconstruction=None,
+    )
+    assert result == {"verified": True}
+    assert observed["candidate_index"] == index
+    assert observed["expected_role_dispositions"] == index["role_dispositions"]
+    assert observed["allow_published_index"] is True
+
+    extra_field_index = {**index, "unexpected": "value"}
+    extra_field_index["candidate_index_sha256"] = hashlib.sha256(
+        canonical_json(
+            {
+                key: value
+                for key, value in extra_field_index.items()
+                if key != "candidate_index_sha256"
+            }
+        )
+    ).hexdigest()
+    raw = canonical_json(extra_field_index)
+    with pytest.raises(CaptureV3Error, match="published_candidate_index_schema_invalid"):
+        verifier.verify_published_candidate(
+            candidate_id="f" * 32,
+            expected_plan_sha256="1" * 64,
+            expected_policy_sha256="2" * 64,
+            expected_overlay_sha256="3" * 64,
+            expected_capture_spec_sha256="4" * 64,
+            expected_approved_operation_sha256="5" * 64,
+            expected_approved_operation_artifact_sha256="6" * 64,
+            expected_candidate_index_sha256=extra_field_index["candidate_index_sha256"],
+            policy={},
+            protected_overlay={},
+            role_policies={},
+            git_reconstruction=None,
+        )
+
+    missing_field_index = {key: value for key, value in index.items() if key != "candidate_status"}
+    missing_field_index["candidate_index_sha256"] = hashlib.sha256(
+        canonical_json(
+            {
+                key: value
+                for key, value in missing_field_index.items()
+                if key != "candidate_index_sha256"
+            }
+        )
+    ).hexdigest()
+    raw = canonical_json(missing_field_index)
+    with pytest.raises(CaptureV3Error, match="published_candidate_index_schema_invalid"):
+        verifier.verify_published_candidate(
+            candidate_id="f" * 32,
+            expected_plan_sha256="1" * 64,
+            expected_policy_sha256="2" * 64,
+            expected_overlay_sha256="3" * 64,
+            expected_capture_spec_sha256="4" * 64,
+            expected_approved_operation_sha256="5" * 64,
+            expected_approved_operation_artifact_sha256="6" * 64,
+            expected_candidate_index_sha256=missing_field_index["candidate_index_sha256"],
+            policy={},
+            protected_overlay={},
+            role_policies={},
+            git_reconstruction=None,
+        )
+
+    tampered_index = {**index, "plan_sha256": "9" * 64}
+    raw = canonical_json(tampered_index)
+    with pytest.raises(CaptureV3Error, match="published_candidate_index_pin_mismatch"):
+        verifier.verify_published_candidate(
+            candidate_id="f" * 32,
+            expected_plan_sha256="1" * 64,
+            expected_policy_sha256="2" * 64,
+            expected_overlay_sha256="3" * 64,
+            expected_capture_spec_sha256="4" * 64,
+            expected_approved_operation_sha256="5" * 64,
+            expected_approved_operation_artifact_sha256="6" * 64,
+            expected_candidate_index_sha256=index["candidate_index_sha256"],
+            policy={},
+            protected_overlay={},
+            role_policies={},
+            git_reconstruction=None,
+        )
+
+    raw = canonical_json(index)
+
+    def replace_index_during_verification(**_kwargs: Any) -> dict[str, bool]:
+        nonlocal raw
+        raw = canonical_json({**index, "plan_sha256": "8" * 64})
+        return {"verified": True}
+
+    verifier.verify_prepublication = replace_index_during_verification
+    with pytest.raises(
+        CaptureV3Error, match="published_candidate_index_changed_during_verification"
+    ):
+        verifier.verify_published_candidate(
+            candidate_id="f" * 32,
+            expected_plan_sha256="1" * 64,
+            expected_policy_sha256="2" * 64,
+            expected_overlay_sha256="3" * 64,
+            expected_capture_spec_sha256="4" * 64,
+            expected_approved_operation_sha256="5" * 64,
+            expected_approved_operation_artifact_sha256="6" * 64,
+            expected_candidate_index_sha256=index["candidate_index_sha256"],
+            policy={},
+            protected_overlay={},
+            role_policies={},
+            git_reconstruction=None,
+        )
+
+
+def test_final_verifier_recomputes_temp_candidate_members_and_payloads(tmp_path: Path) -> None:
+    from tools.brain_host_absence_gap_chain_v3 import effective_policy_sha256
+    from tools.brain_host_capture_absence_gap_v3 import (
+        _CANDIDATE_BASE,
+        _member_path,
+        _recompute_role_dispositions_v3,
+    )
+
+    candidate_id = "f" * 32
+    plan_sha = "1" * 64
+    witness_sha = "2" * 64
+    capture_sha = "3" * 64
+    approved_sha = "4" * 64
+    approved_artifact_sha = "5" * 64
+    target_uuid = "430740ca-42e7-4e6c-a07a-e4e7370152cc"
+    target_root = "6" * 32
+    overlay = _overlay([])
+    role_policies: dict[str, RolePolicyV3] = {}
+    role_projections: list[dict[str, Any]] = []
+    for role in sorted(PRESENT_ROLES):
+        default = (
+            "exclude_reissue"
+            if role in {"helius_mcp_wrapper", "codex_mcp_config", "cursor_mcp_config"}
+            else ("include_opaque" if role == "owner_checkout" else "exclude_protected_unresolved")
+        )
+        role_policy = _role_policy(tmp_path, role, default=default)
+        role_policies[role] = role_policy
+        locator = f"roots/{role}"
+        kind = ROOT_KINDS[role]
+        scope = "non_protected"
+        role_projections.append(
+            {
+                "role": role,
+                "present": True,
+                "mode": ROLE_MODES[role],
+                "relative_locator": locator,
+                "kind": kind,
+                "scope": scope,
+                "role_policy_sha256": role_policy.policy_sha256,
+                "effective_policy_sha256": effective_policy_sha256(
+                    role=role,
+                    locator=locator,
+                    kind=kind,
+                    scope=scope,
+                    mode=ROLE_MODES[role],
+                    role_policy_sha256=role_policy.policy_sha256,
+                    protected_overlay_sha256=overlay["overlay_sha256"],
+                ),
+            }
+        )
+    absent_projection = {
+        "role": "verifier_worktree",
+        "present": False,
+        "mode": ROLE_MODES["verifier_worktree"],
+        "disposition": "nonqualifying_absence_gap",
+        "witness_sha256": witness_sha,
+        "relative_locator": "roots/verifier_worktree",
+        "expected_fetchable_commit": EXPECTED_COMMIT,
+        "historical_non_git_state": HISTORICAL_STATE,
+    }
+    policy: dict[str, Any] = {
+        "schema": POLICY_V3_SCHEMA,
+        "plan_sha256": plan_sha,
+        "witness_sha256": witness_sha,
+        "protected_overlay_sha256": overlay["overlay_sha256"],
+        "roles": [*role_projections, absent_projection],
+        **INDEX_FLAGS,
+        "policy_roster_sha256": "0" * 64,
+    }
+    policy["policy_roster_sha256"] = policy_roster_v3_sha256(policy)
+    projections = {row["role"]: row for row in [*role_projections, absent_projection]}
+
+    target_root_path = tmp_path / "candidate-target"
+    target_root_path.mkdir(mode=0o700)
+    (target_root_path / "host-recovery").mkdir(mode=0o700)
+    (target_root_path / "host-recovery/absence-gap-v3").mkdir(mode=0o700)
+    (target_root_path / _CANDIDATE_BASE).mkdir(parents=True, mode=0o700)
+    candidate_root = target_root_path / _CANDIDATE_BASE / candidate_id
+    candidate_root.mkdir(mode=0o700)
+    bodies: dict[str, list[dict[str, Any]]] = {role: [] for role in PRESENT_ROLES}
+    members: list[dict[str, Any]] = []
+    source_device = 123
+
+    def persist_manifest(role: str, path: str, body: dict[str, Any]) -> None:
+        raw = canonical_json(body)
+        relative = f"manifest/{role}/{hashlib.sha256(path.encode()).hexdigest()}.json"
+        full = candidate_root / relative
+        full.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        for directory in (candidate_root / "manifest", full.parent):
+            directory.chmod(0o700)
+        full.write_bytes(raw)
+        full.chmod(0o600)
+        bodies[role].append(body)
+        members.append(
+            {
+                "role": role,
+                "path": path,
+                "target_path": body["target_path"],
+                "sha256": hashlib.sha256(raw).hexdigest(),
+                "size_bytes": len(raw),
+            }
+        )
+
+    for number, role in enumerate(sorted(PRESENT_ROLES), start=1):
+        root_kind = ROOT_KINDS[role]
+        root_disposition = (
+            "include_opaque"
+            if role == "owner_checkout"
+            else (
+                "exclude_reissue"
+                if role in {"helius_mcp_wrapper", "codex_mcp_config", "cursor_mcp_config"}
+                else "exclude_protected_unresolved"
+            )
+        )
+        root_body = {
+            "role": role,
+            "path": "",
+            "kind": root_kind,
+            "disposition": root_disposition,
+            "size_bytes": 0,
+            "signature": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            "source_device": source_device,
+            "source_inode": number,
+            "source_nlink": 1,
+            "symlink_target_sha256": None,
+            "parent_identity_chain": [[source_device, number]],
+            "protection_class": None,
+            "overlay_rule_sha256": None,
+            "authorization_receipt_sha256": None,
+            "target_path": _member_path(role, "") if root_disposition == "include_opaque" else None,
+            "payload": None,
+        }
+        persist_manifest(role, "", root_body)
+
+    sample = b"synthetic payload bytes"
+    page_path = "payload/owner_checkout/sample.bin/00000000.bin"
+    payload_parent = candidate_root / page_path
+    payload_parent.parent.mkdir(mode=0o700, parents=True)
+    for directory in (
+        candidate_root / "payload",
+        candidate_root / "payload/owner_checkout",
+        payload_parent.parent,
+    ):
+        directory.chmod(0o700)
+    payload_parent.write_bytes(sample)
+    payload_parent.chmod(0o600)
+    owner_file = {
+        "role": "owner_checkout",
+        "path": "sample.bin",
+        "kind": "file",
+        "disposition": "include_opaque",
+        "size_bytes": len(sample),
+        "signature": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        "source_device": source_device,
+        "source_inode": 100,
+        "source_nlink": 1,
+        "symlink_target_sha256": None,
+        "parent_identity_chain": [[source_device, 1]],
+        "protection_class": None,
+        "overlay_rule_sha256": None,
+        "authorization_receipt_sha256": None,
+        "target_path": _member_path("owner_checkout", "sample.bin"),
+        "payload": {
+            "payload_sha256": hashlib.sha256(sample).hexdigest(),
+            "size_bytes": len(sample),
+            "pages": [
+                {
+                    "path": page_path,
+                    "sha256": hashlib.sha256(sample).hexdigest(),
+                    "size_bytes": len(sample),
+                }
+            ],
+        },
+    }
+    persist_manifest("owner_checkout", "sample.bin", owner_file)
+
+    expected_roles = _recompute_role_dispositions_v3(bodies, projections)
+    members.sort(key=lambda row: (row["role"], row["path"]))
+    members_sha = hashlib.sha256(canonical_json(members)).hexdigest()
+    m1 = {
+        "target_volume_uuid": target_uuid,
+        "target_root_id": target_root,
+        "target_container_reference": "disk3",
+        "target_device_identifier": "disk3s2",
+        "available_bytes": 9000,
+        "observed_at_utc": "2026-10-16T12:00:00Z",
+        "monotonic_start_ns": 10,
+        "monotonic_end_ns": 20,
+    }
+    index = {
+        "schema": INDEX_V3_SCHEMA,
+        "candidate_status": "nonqualifying_absence_gap",
+        "plan_sha256": plan_sha,
+        "witness_sha256": witness_sha,
+        "policy_roster_sha256": policy["policy_roster_sha256"],
+        "intent_sha256": "7" * 64,
+        "capacity_receipt_sha256": "8" * 64,
+        "capture_spec_sha256": capture_sha,
+        "inventory_sha256": "9" * 64,
+        "protected_overlay_sha256": overlay["overlay_sha256"],
+        "candidate_payload_manifest_sha256": members_sha,
+        "approved_operation_sha256": approved_sha,
+        "approved_operation_artifact_sha256": approved_artifact_sha,
+        "role_dispositions": expected_roles,
+        "personal_backup_transition_confirmed": True,
+        "kingston_measurement_sha256": "a" * 64,
+        "kingston_measurement_observed_at_utc": "2026-10-16T11:00:00Z",
+        "kingston_volume_uuid": target_uuid,
+        "kingston_root_id": target_root,
+        "kingston_m1_measurement_sha256": target_measurement_v3_sha256(m1),
+        "kingston_m1_observed_at_utc": m1["observed_at_utc"],
+        "kingston_m1_volume_uuid": target_uuid,
+        "kingston_m1_root_id": target_root,
+        "kingston_m1_container_reference": "disk3",
+        "kingston_m1_device_identifier": "disk3s2",
+        "kingston_m1_available_bytes": 9000,
+        "kingston_m1_monotonic_start_ns": 10,
+        "kingston_m1_monotonic_end_ns": 20,
+        **INDEX_FLAGS,
+    }
+    index["candidate_index_sha256"] = hashlib.sha256(canonical_json(index)).hexdigest()
+    index_path = candidate_root / "INDEX.json"
+    index_path.write_bytes(canonical_json(index))
+    index_path.chmod(0o600)
+
+    target_fd = os.open(target_root_path, os.O_RDONLY | os.O_DIRECTORY)
+    reader = DescriptorWriter(target_fd)
+    reader._read_only = True
+    reader.storage_guard = SimpleNamespace(read_only=True, revalidate=lambda: None)
+    scratch = _TestScratchV3(
+        tmp_path / "scratch", source_device=source_device, target_device=reader.device
+    )
+    verifier = ReadOnlyCandidateVerifierV3(reader, scratch=scratch, source_device=source_device)
+    try:
+        result = verifier.verify_published_candidate(
+            candidate_id=candidate_id,
+            expected_plan_sha256=plan_sha,
+            expected_policy_sha256=policy["policy_roster_sha256"],
+            expected_overlay_sha256=overlay["overlay_sha256"],
+            expected_capture_spec_sha256=capture_sha,
+            expected_approved_operation_sha256=approved_sha,
+            expected_approved_operation_artifact_sha256=approved_artifact_sha,
+            expected_candidate_index_sha256=index["candidate_index_sha256"],
+            policy=policy,
+            protected_overlay=overlay,
+            role_policies=role_policies,
+            git_reconstruction=None,
+        )
+        assert result["verified"] is True
+        assert result["members_sha256"] == members_sha
+        assert result["candidate_index_sha256"] == index["candidate_index_sha256"]
+    finally:
+        reader.close()
+        os.close(target_fd)
+
+
+def test_capture_publishes_index_before_fresh_final_verifier() -> None:
+    events: list[str] = []
+    state: dict[str, Any] = {}
+
+    class Reader:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        def close(self) -> None:
+            events.append(f"close:{self.name}")
+
+    class FakeVerifier(ReadOnlyCandidateVerifierV3):
+        def verify_published_candidate(self, **kwargs: Any) -> dict[str, Any]:
+            events.append("read-published-index")
+            assert state["index_published"] is True
+            assert kwargs["candidate_id"] == "f" * 32
+            return {
+                "verified": True,
+                "candidate_index_sha256": "a" * 64,
+                "members_sha256": "b" * 64,
+            }
+
+    prepublication = object.__new__(FakeVerifier)
+    prepublication.reader = Reader("prepublication")
+    prepublication.source_device = 10
+
+    def factory() -> FakeVerifier:
+        events.append("create-fresh-verifier")
+        final = object.__new__(FakeVerifier)
+        final.reader = Reader("final")
+        final.source_device = 10
+        return final
+
+    def publish_index() -> None:
+        events.append("publish-index")
+        state["index_published"] = True
+
+    result = _publish_then_verify_index_v3(
+        publish_index=publish_index,
+        final_verifier_factory=factory,
+        prepublication_verifier=prepublication,
+        source_device=10,
+        candidate_id="f" * 32,
+        expected_plan_sha256="1" * 64,
+        expected_policy_sha256="2" * 64,
+        expected_overlay_sha256="3" * 64,
+        expected_capture_spec_sha256="4" * 64,
+        expected_approved_operation_sha256="5" * 64,
+        expected_approved_operation_artifact_sha256="6" * 64,
+        expected_candidate_index_sha256="a" * 64,
+        expected_candidate_payload_manifest_sha256="b" * 64,
+        policy={},
+        protected_overlay={},
+        role_policies={},
+        git_reconstruction=None,
+    )
+    assert result["verified"] is True
+    assert events == [
+        "publish-index",
+        "create-fresh-verifier",
+        "read-published-index",
+        "close:final",
+    ]
