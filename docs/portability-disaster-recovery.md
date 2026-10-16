@@ -6,12 +6,20 @@ and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
 ## Current readiness
 
-**NO-GO for factory reset as of 2026-10-15 23:29 UTC.** The accepted recovery scope is loss or erasure of the
+**NO-GO for factory reset as of 2026-10-16 00:04 UTC.** The accepted recovery scope is loss or erasure of the
 owner Mac while Kingston remains healthy. The user explicitly accepts Kingston as the only
 reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
 failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
 claim. A future 1-TB+ SSD, NAS, or other independent destination must add a separately verified
 replica and a Kingston-loss rehearsal.
+
+On 2026-10-16, the read-only `HeldDataT` identity/locator library and operator CLI passed a real
+Darwin/APFS probe against a disposable read-only synthetic APFS image using the pinned Kingston
+execution kit under Homebrew-read denial. The fixed roster held eight roots while the absent
+verifier role remained unresolved. This validates only the mounted-view identity and locator
+mechanism: it does not qualify owner Data T, source cutoff, capture, Kingston K, restore, root
+closure, or erase readiness. Sol accepted this bounded scope. See the
+[`HeldDataT APFS CLI receipt`](evidence/portability-dr-held-data-t-apfs-cli-2026-10-16T0004Z.json).
 
 Live checks on the current Mac:
 
@@ -969,13 +977,15 @@ This route does not close protected-root classification, owner-root closure, xat
 semantics, capture-tool availability in Recovery, SQLite recovery behavior, Kingston K lineage, or
 clean-host restore. All remain open, and `SAFE TO ERASE` remains false.
 
-Sol independently reviewed this feasibility boundary. The offline route is a credible conditional
+Sol independently reviewed this feasibility boundary. The offline route remains a conditional
 Data-volume source view, but no real T is qualified and the NO-GO verdict is unchanged. A later
 read-only `fstatfs` result cannot prove that Recovery did not previously auto-mount Data writable.
 That boot/mount history needs independent evidence from a user-assisted rehearsal or another trusted
-observable mechanism. The next implementation horizon is to close the candidate runtime dependency
-boundary before building a real `HeldDataT` adapter; caller-supplied JSON alone must not assert
-boot-history facts. Kingston K remains a separate frontier.
+observable mechanism. The `HeldDataT` library and `brain_host_held_data_t_cli_v1.py` now provide a
+read-only identity/locator check for an already-mounted view. The CLI requires an explicit plan,
+external plan SHA-256, and mountpoint; it does not authenticate approval, assert boot history, unlock,
+mount, capture, or qualify T. Its synthetic APFS rehearsal is receipt-bound above. Kingston K
+remains a separate frontier.
 
 ### Pinned execution-kit candidate
 
@@ -1180,16 +1190,20 @@ unmapped alias, or any earlier successful or uncertain Data mount. If the earlie
 established, retain the explicit human-attested assumption; do not claim proven no-prior-writable
 mount. This gate alone still does not authorize unlock/mount or qualify T. Metadata-only
 owner/local-root closure can proceed independently.
-Only after these boundaries are designed should a real offline Data-view adapter be implemented. If
-the offline route is infeasible, qualify a conservative Data free-space floor,
+The identity-only `HeldDataT` layer does not perform the source-view mount or establish boot history.
+It has only been exercised against the synthetic APFS image in its receipt. If the offline route is
+infeasible, qualify a conservative Data free-space floor,
 bounded snapshot retention, and interactive admin
 procedure before creating a source snapshot. The 06:15Z read-only preflight found about 12.8 GiB
 free at 97% Data use and no Data snapshot; the prior 06:10Z check found about 12 GiB at 98%. An
 offline route must still prove shutdown boundary, exact volume/root identity, read-only mount flags,
 held-view stability, and tool availability. The APFS T attestor contract remains synthetic-tested; a
 real T still requires an independently pinned source-view identity and Sol-reviewed host plan. A
-fresh read-only status check sees 18 Brain/D43 launchd labels, eight with PIDs; the earlier process
-census found 72 processes in the configured owner/research roots. This work changed none of them. The three
+later read-only status check saw 30 Brain/D43 launchd labels, eight with PIDs, and nine owner/research
+cwd matches including the probe and `lsof`; it inspected neither Data nor the storage binding. Counts
+differ from earlier point checks and do not establish a write frontier. No service was changed. See
+the [`latest live runtime refresh`](evidence/portability-dr-live-runtime-refresh-2026-10-15T2351Z.json).
+The earlier process census found 72 processes in the configured owner/research roots. The three
 `work/wallets` subtrees are authorized for opaque, private, unresolved custody only; preserve them
 without semantic reading and do not infer a role from their names. No payload has yet been read or
 copied. The existing recovery procedure keeps services inert; this checkpoint does not authorize
