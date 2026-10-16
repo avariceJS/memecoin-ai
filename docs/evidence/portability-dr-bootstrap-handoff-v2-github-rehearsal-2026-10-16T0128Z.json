@@ -1,0 +1,56 @@
+{
+  "schema": "portability-dr-bootstrap-handoff-v2-github-rehearsal-v1",
+  "observed_at_utc": "2026-10-16T01:28:57Z",
+  "locator": {
+    "remote": "https://github.com/avariceJS/memecoin-ai.git",
+    "tag_ref": "refs/tags/brain-dr-handoff-v2",
+    "tag_kind": "annotated",
+    "tag_object": "6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+    "peeled_commit": "6017ac721430c9eb59ead9ae6ab5d414199c3159",
+    "handoff_json_sha256": "9641b31e5552f1c7f86038756928086e59b7cb915a8fb96e6be8716d5d5bcd08",
+    "bootstrap_commit_C": "75f3e0405c1fca473eb95fae81fc21c20e289651",
+    "entry_card_sha256": "f40e8e160b38fffa6e0ba8e4aa81dc87523850e5dd4cca04b0a8add5e8677c37"
+  },
+  "exact_zsh_operator_rehearsal": {
+    "shell": "zsh -f",
+    "repository": "new empty temporary repository",
+    "remote_fetch": "passed from authenticated origin using this Mac's existing Git authentication context",
+    "annotated_tag_check": "passed",
+    "tag_peel": "passed",
+    "handoff_extraction_with_braced_commit_expression": "passed",
+    "automatic_schema_and_authority_validation": "passed",
+    "handoff_sha256": "9641b31e5552f1c7f86038756928086e59b7cb915a8fb96e6be8716d5d5bcd08",
+    "recovery_authority_flags": {
+      "accepted_set": false,
+      "data_T_qualified": false,
+      "kingston_K_frontier_qualified": false,
+      "brain_state_restored": false,
+      "activation_authorized": false,
+      "final_readiness": false,
+      "safe_to_erase": false
+    }
+  },
+  "authentication_boundary": {
+    "empty_temporary_home_without_git_credentials": "fetch did not complete and awaited authentication; the task-owned fetch process was stopped",
+    "interpretation": "the replacement host must complete normal user-controlled Git reauthentication before running the handoff retrieval sequence",
+    "no_old_host_credentials_copied": true
+  },
+  "trust_and_scope": {
+    "origin_is_accepted_external_trust_domain_for_accidental_mac_loss": true,
+    "tag_is_cryptographic_signature": false,
+    "remote_or_git_account_compromise_covered": false,
+    "tag_policy": "create_once_never_retarget",
+    "kingston_inspected_or_changed_during_tag_rehearsal": false,
+    "brain_state_restored": false,
+    "activation_or_service_start": false,
+    "provider_requests": 0,
+    "protected_semantic_access": false,
+    "safe_to_erase": false
+  },
+  "limitations": [
+    "Git retrieval used the existing Mac authentication context; this is not a clean-host authentication rehearsal.",
+    "The test fetched and checked the bootstrap-only handoff from an empty Git repository, not a recovery set or private Brain state.",
+    "No Kingston data restore, source-view T, K frontier, owner closure, activation, or erase readiness was demonstrated.",
+    "A replacement host cannot detect a tag retarget performed by an administrator of the same trusted remote."
+  ]
+}
