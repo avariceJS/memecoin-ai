@@ -1096,6 +1096,19 @@ the writer inventory/stop/resume procedure, three same-view roots, and separate 
 Do not improvise snapshot creation, thinning, deletion, rollback, or service stops. See the
 [`live snapshot feasibility receipt`](evidence/portability-dr-live-snapshot-feasibility-2026-10-16T0010Z.json).
 
+A read-only recheck at 01:01Z confirmed `tmutil localsnapshot` is present, but its local manual
+defines snapshots over APFS volumes included in a Time Machine backup; it has no target-volume
+argument. Time Machine still has no configured destination, no backup is running, and neither `/`
+nor Data has local snapshots. Live Data is mounted/unlocked with about 44 GiB free. Kingston remains
+mounted at its pinned UUID, and the recovery-set index still has no accepted set. Sol reviewed the
+finding and rejected running `tmutil localsnapshot`: command presence does not establish Data
+inclusion or a supported Data capture route, and the free-space and snapshot-retention budgets are
+unqualified. No Time Machine setting, snapshot, Kingston artifact, or service was changed. Keep T
+false; no further Recovery boot is justified until a complete source-view rehearsal is ready. See
+the [`tmutil localsnapshot review receipt`](evidence/portability-dr-tmutil-localsnapshot-review-2026-10-16T0101Z.json),
+[Apple's Time Machine snapshot guidance](https://support.apple.com/en-ie/guide/mac-help/mh35933/27/mac/27),
+and [Apple's local snapshot retention guidance](https://support.apple.com/en-ie/102154).
+
 ### Pinned execution-kit candidate
 
 The candidate at `BrainData/host-recovery/offline-execution-kit-v1/candidate-20261014T0624Z-a1.dmg`
