@@ -1,0 +1,34 @@
+{
+  "schema": "brain-dr-bootstrap-handoff-v5-origin-retrieval-v1",
+  "observed_at_utc": "2026-10-16T10:13:00Z",
+  "origin": "https://github.com/avariceJS/memecoin-ai.git",
+  "retrieval": {
+    "client": "fresh empty temporary Git repository",
+    "ref": "refs/tags/brain-dr-handoff-v5",
+    "fetch": "passed",
+    "tag_object_type": "tag",
+    "tag_object_id": "0f90e09307075364d50b6fd68a7f139faa13ff3f",
+    "peeled_target_type": "commit",
+    "handoff_commit": "7fe921db1ca45af7418f28c6388b97f7415ab11a",
+    "handoff_json_sha256": "2cb400b2e3e13d7dac91b3d1da3eceb301945316cd8329313b9acd7a2db37597",
+    "strict_exact_schema_and_pin_validation": "passed",
+    "duplicate_key_and_numeric_boolean_hostile_checks": "passed"
+  },
+  "pinned_bootstrap": {
+    "commit_C": "0e7076d08cbf75fe157083a2e3c96f927d7b6034",
+    "entry_card_git_path": "recovery/ENTRY-v2.txt",
+    "entry_card_kingston_path": "BrainData/host-recovery/ENTRY-v2.txt",
+    "entry_card_sha256_in_C": "f40e8e160b38fffa6e0ba8e4aa81dc87523850e5dd4cca04b0a8add5e8677c37",
+    "exact_C_clean_clone_receipt": "docs/evidence/portability-dr-v5-bootstrap-code-clean-clone-2026-10-16T1010Z.json"
+  },
+  "scope": {
+    "kingston_read_or_written": false,
+    "fresh_client_authenticated_as_replacement_owner": false,
+    "data_T_qualified": false,
+    "kingston_K_frontier_qualified": false,
+    "brain_state_restored": false,
+    "activation_authorized": false,
+    "safe_to_erase": false
+  },
+  "claim_limit": "This verifies exact annotated-tag retrieval and strict handoff validation from the accepted public HTTPS origin, plus the source-card hash in pinned code C. It did not read the physical Kingston copy or test replacement-host authentication. It authorizes code bootstrap only and establishes no recovery-set, T, K, Brain-state, activation, or erase readiness."
+}

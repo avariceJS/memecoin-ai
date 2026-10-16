@@ -896,43 +896,27 @@ and launched the flow CLI from a neutral working directory. The clone and Git au
 used this Mac; this tests published-code retrieval and bootstrap, not clean-host credentials or Brain
 state restoration. The earlier exact-commit bootstrap at `68253b84c5aefd8676b85b9415d2d242ada58d73`
 also passed dependency check and smoke. The prior handoff pin to `edf2898...` authorizes only that older code commit and legacy card; it is
-historical, not the current entry target. Published v1-v3 bootstrap locators are preserved as
-immutable history and retired for operator use. The current locator is
-[`BOOTSTRAP-HANDOFF-v4.json`](../recovery/BOOTSTRAP-HANDOFF-v4.json); its operator sequence is
-[`BOOTSTRAP-HANDOFF-v4.txt`](../recovery/BOOTSTRAP-HANDOFF-v4.txt). Use only annotated
-`refs/tags/brain-dr-handoff-v4` from the accepted `origin`, never a latest-tag lookup or moving
-branch. Current remote pins are tag object `3af219193f45e03dc0fa6e336df5b329a86c4cfb`, peeled H
-`baf2e25a91c9984418ef41858279658a09d0913b`, and handoff JSON SHA
-`d0b0f77d1baa92ec1442a945a764961dac8c495016052bc17cb29b6586f4cd0b`. The exact tag and handoff
-bytes were retrieved into a fresh empty client; the Kingston card SHA matched. Clean-host
-reauthentication remains required. The handoff pins C `bb411e841db9587ecaf0403b4d01698a5221aa98`
-and the v2 entry card, but grants no set/T/K/state/activation/erase authority. See the
-[`v4 origin retrieval receipt`](evidence/portability-dr-bootstrap-handoff-v4-origin-retrieval-qualification-2026-10-16T0715Z.json).
-That receipt contains one transcribed C value error; the immutable
-[`v4 origin retrieval correction`](evidence/portability-dr-bootstrap-handoff-v4-origin-retrieval-correction-2026-10-16T0717Z.json)
-records the correct C from the fetched handoff. The tag and handoff bytes were not changed.
-
-The current v4 annotated locator is `refs/tags/brain-dr-handoff-v4`, tag object
-`3af219193f45e03dc0fa6e336df5b329a86c4cfb`, peeling to H
-`baf2e25a91c9984418ef41858279658a09d0913b`; its handoff JSON SHA-256 is
-`d0b0f77d1baa92ec1442a945a764961dac8c495016052bc17cb29b6586f4cd0b`. H pins bootstrap C
-`bb411e841db9587ecaf0403b4d01698a5221aa98`, Kingston card `host-recovery/ENTRY-v2.txt` at
-SHA-256 `f40e8e160b38fffa6e0ba8e4aa81dc87523850e5dd4cca04b0a8add5e8677c37`, and the current
-Kingston UUID/root identity. A fresh empty Git client fetched the exact tag from the accepted HTTPS
-origin; tag/peeled types, strict handoff fields, and Kingston card digest matched. The local-mirror
-rehearsal also rejected missing ref, lightweight tag, annotated tree target, duplicate JSON key,
-authority escalation, and malformed object ID. Sol approved publication of this exact immutable tag
-object and reviewed the committed local receipt. This qualifies the bootstrap locator only: it does
-not prove a replacement host's credentials, a recovery set, Data T, Kingston K, owner/protected
-closure, full restore, activation, or erase readiness. See the
-[`v4 origin retrieval qualification receipt`](evidence/portability-dr-bootstrap-handoff-v4-origin-retrieval-qualification-2026-10-16T0715Z.json)
-and [`v4 local retrieval qualification receipt`](evidence/portability-dr-bootstrap-handoff-v4-local-retrieval-qualification-2026-10-16T0712Z.json).
-Following tag qualification, the exact v4 `ENTRY-v2` path was rehearsed from a new entry clone at C:
-the Kingston and Git card digests matched, the helper made a separate exact-C checkout, rebuilt its
-locked environment under an isolated temporary home, and returned `state=complete` and
-`smoke=passed`. Both checkouts were clean at C; no storage or services changed. This is a current-Mac
-code-bootstrap result, not a separate-host restore or Brain-state recovery. See the
-[`v4 entry code-bootstrap E2E receipt`](evidence/portability-dr-entry-v4-code-bootstrap-e2e-2026-10-16T0719Z.json).
+historical, not the current entry target. Published v1-v4 bootstrap locators remain immutable history
+and are retired for operator entry. The current locator is
+[`BOOTSTRAP-HANDOFF-v5.json`](../recovery/BOOTSTRAP-HANDOFF-v5.json), with its operator sequence in
+[`BOOTSTRAP-HANDOFF-v5.txt`](../recovery/BOOTSTRAP-HANDOFF-v5.txt). Use only annotated
+`refs/tags/brain-dr-handoff-v5` from the accepted `origin`, never a latest-tag lookup or moving
+branch. Published pins are tag object `0f90e09307075364d50b6fd68a7f139faa13ff3f`, peeled H
+`7fe921db1ca45af7418f28c6388b97f7415ab11a`, and handoff JSON SHA-256
+`2cb400b2e3e13d7dac91b3d1da3eceb301945316cd8329313b9acd7a2db37597`. A fresh empty Git client
+retrieved the exact tag, checked annotated-tag and peeled-commit types, and passed strict schema,
+pin, duplicate-key, and hostile numeric-boolean checks. The pinned C
+`0e7076d08cbf75fe157083a2e3c96f927d7b6034` clean-clone receipt records `make setup`, 51 focused
+tests, and smoke passing. Its repository card `recovery/ENTRY-v2.txt` has the pinned SHA-256
+`f40e8e160b38fffa6e0ba8e4aa81dc87523850e5dd4cca04b0a8add5e8677c37`; the physical Kingston copy
+was not read during v5 qualification and must be compared before following its commands. The
+replacement host must use normal user-controlled Git authentication. v5 grants code bootstrap only:
+no accepted recovery set, Data T, Kingston K, Brain-state restore, activation, final readiness, or
+erase authority is established. See the
+[`v5 origin retrieval receipt`](evidence/portability-dr-bootstrap-handoff-v5-origin-retrieval-2026-10-16T1013Z.json)
+and [`v5 exact-C clean-clone receipt`](evidence/portability-dr-v5-bootstrap-code-clean-clone-2026-10-16T1010Z.json).
+The prior v4 origin-retrieval correction and exact-C two-clone rehearsal remain historical evidence
+for v4 only; see their immutable receipts in the evidence index.
 
 The helper makes a second exact-commit clone into a separate new destination, installs the locked
 development requirements, and runs smoke. Both checkouts must report the pinned `HEAD`, and the
@@ -1142,7 +1126,7 @@ Operator order for a later accepted handoff:
 | Operator task | Entry point and required inputs | Expected result and boundary |
 |---|---|---|
 | Inspect current host/storage state | `tools/brain_host_recovery.py status --repo <checkout> --storage-config <private-binding> --format json` | Read-only point observations; unknown or missing fields stay unresolved. This is not source cutoff, T/K, or host-wide inertness proof. |
-| Bootstrap code on a replacement host | Exact trusted `BOOTSTRAP-HANDOFF-v4` and its pinned `recovery/ENTRY-v2.txt`; follow the card's two-clone exact-commit flow | Accept only exact HEAD, clean checkout, locked setup, and smoke. Result means code bootstrap only. |
+| Bootstrap code on a replacement host | Exact trusted `BOOTSTRAP-HANDOFF-v5` and its pinned Kingston `host-recovery/ENTRY-v2.txt`; follow the card's two-clone exact-commit flow | Accept only exact HEAD, clean checkout, locked setup, and smoke. Result means code bootstrap only. |
 | Inspect a nine-role mixed handoff | `tools/brain_host_restore_flow_v2.py inspect` with private `--handoff`, its external `--handoff-sha256`, exact `--repository-root`, `--storage-config`, `--plan` plus `--plan-sha256`, and `--role-policy` plus `--role-policy-sha256` | Exit 2 and `status=blocked` are expected today. Phase blockers are path-free. Even `metadata_pins_match=true` checks only metadata joins; payload custody and all recovery/activation/erase authority remain false. |
 | Inspect or restore a previously accepted six-role set | `tools/brain_host_restore_flow_v1.py inspect` or `restore-inert` with its exact externally trusted v1 handoff and required host/source/target inputs | Legacy six-role only. Do not map v2 roles to v1 or infer a v1 handoff. Run `restore-inert` only after its inspect is ready with no blockers; it remains inert and is not erase approval. |
 | Start services or collectors | No command in these restore entry points | Start remains a later, separate, role-specific operation after an independently accepted restore and explicit operator decision. |
