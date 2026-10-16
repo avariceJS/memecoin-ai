@@ -140,9 +140,13 @@ reflog reaches four commits outside current live branch/tag histories; those com
 unidentified and uncaptured. The owner Codex linked worktree's HEAD is not reachable from current
 branch heads (correcting the earlier branch-only claim), though it is an ancestor of the three live
 `brain-dr-handoff-v1/v2/v3` tag targets. Its worktree also contains one untracked, unignored 249,641
-byte regular file. Only Git/ref metadata and file lstat fields were inspected; no Git blobs or
-untracked bytes were read. Keep the four reflog-only commits, linked-worktree admin state, and that
-file backup-required until they are classified and included in a verified source capture. Receipt:
+byte regular file. The 03:57Z census inspected only Git/ref metadata and file lstat fields; it read no
+Git blobs or untracked bytes. The user has since identified this file as the Recovery Terminal
+transcript, SHA-256
+`37ea3c44e4ca3483cdfc16c7551a8e8695d80283f5f972120346a4c3e091a0ab`. It is now classified as
+private recovery evidence, but remains untracked/local and backup-required until a verified source
+capture preserves it. Keep the four reflog-only commits and linked-worktree admin state
+backup-required as well. Receipt:
 [`Git local-state census`](evidence/portability-dr-git-local-state-census-2026-10-16T0357Z.json).
 
 Live checks on the current Mac:
@@ -1576,9 +1580,23 @@ differ from earlier point checks and do not establish a write frontier. No servi
 the [`latest live runtime refresh`](evidence/portability-dr-live-runtime-refresh-2026-10-15T2351Z.json).
 The earlier process census found 72 processes in the configured owner/research roots. The three
 `work/wallets` subtrees are authorized for opaque, private, unresolved custody only; preserve them
-without semantic reading and do not infer a role from their names. No payload has yet been read or
-copied. The existing recovery procedure keeps services inert; this checkpoint does not authorize
-starting them.
+without semantic reading and do not infer a role from their names. No complete owner-wide payload
+custody set is qualified. The later, narrowly scoped B09 source-root, B09r1 state/bundle, and
+private-config delta captures recorded above remain specific partial custody results, not broad
+closure. The existing recovery procedure keeps restored services inert; this checkpoint does not
+authorize starting them.
+
+A read-only refresh on 2026-10-16 at 05:06Z found 30 Brain/D43 launchd labels loaded, seven with
+PIDs. The bounded status command did not inspect owner/research roots, process arguments, or
+environments, and changed no service. The pinned Data identity still matched; normal macOS showed
+Data unlocked and mounted writable, with zero Data snapshots. This is not a source cutoff or mount
+history evidence. Kingston remained mounted at its pinned UUID with 213,833,076,736 bytes available;
+the refresh wrote no Kingston artifact. The Recovery transcript remains hash-bound at 249,641 bytes;
+the text records the complete rerun after one earlier interrupted command session, includes
+`/usr/bin/log show`, contains no `listSnapshots` invocation, and records the failed automatic Data
+mount with uninterpreted status `0x0000004D`. The four photographs are from the earlier session, not
+four boots or an independent copy. See the
+[`05:06Z live-state refresh`](evidence/portability-dr-live-state-refresh-2026-10-16T0506Z.json).
 
 1. Inventory every owner/research/local-config/service root, including owner Codex worktree local
    state, and bind each to a source point or an
