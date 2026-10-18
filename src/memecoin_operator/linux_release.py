@@ -23,7 +23,7 @@ from memecoin_operator import linux_service
 RELEASE_BASE = Path("/opt/brain/releases")
 UNIT_BASE = Path("/etc/systemd/system")
 STATE_BASE = Path("/var/lib/brain-lab/releases")
-STAGE_ATTEMPT_BASE = Path("/var/lib/brain-lab/release-stage-attempts")
+STAGE_ATTEMPT_BASE = Path("/var/lib/brain-release-stage-attempts")
 STAGE_LOCK_BASE = Path("/run/lock")
 SCHEMA = "brain-linux-release-v1"
 STAGE_ATTEMPT_SCHEMA = "brain-linux-release-stage-attempt-v1"
@@ -71,55 +71,88 @@ def _stage_attempt_path(attempt_id: str) -> Path:
     return STAGE_ATTEMPT_BASE / f"{attempt_id}.json"
 
 
-def _ensure_stage_attempt_directory() -> None:
-    if STAGE_ATTEMPT_BASE.is_symlink():
-        raise RuntimeError("stage_attempt_directory_unsafe")
-    STAGE_ATTEMPT_BASE.mkdir(mode=0o700, parents=True, exist_ok=True)
-    metadata = STAGE_ATTEMPT_BASE.lstat()
+def _open_stage_attempt_directory() -> int:
+    parent_fd = os.open("/var/lib", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        parent = os.fstat(parent_fd)
+        if (
+            not stat.S_ISDIR(parent.st_mode)
+            or parent.st_uid != 0
+            or stat.S_IMODE(parent.st_mode) & 0o022
+        ):
+            raise RuntimeError("stage_attempt_parent_unsafe")
+        try:
+            os.mkdir(STAGE_ATTEMPT_BASE.name, mode=0o700, dir_fd=parent_fd)
+            os.fsync(parent_fd)
+        except FileExistsError:
+            pass
+        directory_fd = os.open(
+            STAGE_ATTEMPT_BASE.name,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+            dir_fd=parent_fd,
+        )
+    finally:
+        os.close(parent_fd)
+    metadata = os.fstat(directory_fd)
     if (
         not stat.S_ISDIR(metadata.st_mode)
         or metadata.st_uid != 0
         or stat.S_IMODE(metadata.st_mode) != 0o700
     ):
+        os.close(directory_fd)
         raise RuntimeError("stage_attempt_directory_unsafe")
+    return directory_fd
 
 
 def _write_stage_attempt(path: Path, record: dict[str, object], *, create: bool = False) -> None:
-    _ensure_stage_attempt_directory()
+    directory_fd = _open_stage_attempt_directory()
     payload = (json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n").encode()
-    if create:
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-        try:
-            view = memoryview(payload)
-            while view:
-                written = os.write(fd, view)
-                if written <= 0:
-                    raise OSError("stage_attempt_write_failed")
-                view = view[written:]
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-    else:
-        temporary = STAGE_ATTEMPT_BASE / f".{path.name}.{secrets.token_hex(8)}.tmp"
-        fd = os.open(
-            temporary,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-            0o600,
-        )
-        try:
-            view = memoryview(payload)
-            while view:
-                written = os.write(fd, view)
-                if written <= 0:
-                    raise OSError("stage_attempt_write_failed")
-                view = view[written:]
-            os.fsync(fd)
-            os.replace(temporary, path)
-        finally:
-            os.close(fd)
-            temporary.unlink(missing_ok=True)
-    directory_fd = os.open(STAGE_ATTEMPT_BASE, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
+        if create:
+            fd = os.open(
+                path.name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600,
+                dir_fd=directory_fd,
+            )
+            try:
+                view = memoryview(payload)
+                while view:
+                    written = os.write(fd, view)
+                    if written <= 0:
+                        raise OSError("stage_attempt_write_failed")
+                    view = view[written:]
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+        else:
+            temporary = f".{path.name}.{secrets.token_hex(8)}.tmp"
+            fd = os.open(
+                temporary,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600,
+                dir_fd=directory_fd,
+            )
+            try:
+                view = memoryview(payload)
+                while view:
+                    written = os.write(fd, view)
+                    if written <= 0:
+                        raise OSError("stage_attempt_write_failed")
+                    view = view[written:]
+                os.fsync(fd)
+                os.replace(
+                    temporary,
+                    path.name,
+                    src_dir_fd=directory_fd,
+                    dst_dir_fd=directory_fd,
+                )
+            finally:
+                os.close(fd)
+                try:
+                    os.unlink(temporary, dir_fd=directory_fd)
+                except FileNotFoundError:
+                    pass
         os.fsync(directory_fd)
     finally:
         os.close(directory_fd)
@@ -127,9 +160,10 @@ def _write_stage_attempt(path: Path, record: dict[str, object], *, create: bool 
 
 def _read_stage_attempt(attempt_id: str) -> tuple[Path, dict[str, object]]:
     path = _stage_attempt_path(attempt_id)
+    directory_fd = _open_stage_attempt_directory()
     fd = -1
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory_fd)
         metadata = os.fstat(fd)
         if (
             not stat.S_ISREG(metadata.st_mode)
@@ -152,6 +186,7 @@ def _read_stage_attempt(attempt_id: str) -> tuple[Path, dict[str, object]]:
     finally:
         if fd >= 0:
             os.close(fd)
+        os.close(directory_fd)
     expected = {
         "schema",
         "attempt_id",
@@ -293,9 +328,9 @@ def _record_stage_phase(
     record["phase"] = phase
     _write_stage_attempt(path, record)
     if seal:
-        path.chmod(0o444)
-        directory_fd = os.open(STAGE_ATTEMPT_BASE, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        directory_fd = _open_stage_attempt_directory()
         try:
+            os.chmod(path.name, 0o444, dir_fd=directory_fd, follow_symlinks=False)
             os.fsync(directory_fd)
         finally:
             os.close(directory_fd)
