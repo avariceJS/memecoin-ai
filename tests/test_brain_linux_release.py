@@ -370,6 +370,167 @@ def test_discard_receipt_validation_binds_stage_record_to_publish_intent():
         linux_release._validate_discarded_attempt(attempt_id, record, intent, {})
 
 
+def test_preintent_recovery_replays_after_one_quarantine_rename(tmp_path, monkeypatch):
+    attempt_id, old_record = _stage_attempt_record()
+    record = {
+        **old_record,
+        "builder_uid": None,
+        "slice_name": linux_release._stage_slice_name(attempt_id),
+    }
+    store = tmp_path / "attempt-store"
+    store.mkdir(mode=0o700)
+    monkeypatch.setattr(linux_release, "STAGE_ATTEMPT_BASE", store)
+    monkeypatch.setattr(
+        linux_release,
+        "_open_stage_attempt_directory",
+        lambda: os.open(store, os.O_RDONLY | os.O_DIRECTORY),
+    )
+
+    def write_receipt(path, value):
+        path.write_text(json.dumps(value, sort_keys=True) + "\n", encoding="utf-8")
+        path.chmod(0o444)
+
+    def read_receipt(path, *, schema):
+        if not path.exists():
+            return None
+        value = json.loads(path.read_text(encoding="utf-8"))
+        assert value["schema"] == schema
+        return value
+
+    monkeypatch.setattr(linux_release, "_write_sealed_stage_json", write_receipt)
+    monkeypatch.setattr(linux_release, "_read_sealed_stage_json", read_receipt)
+    monkeypatch.setattr(
+        linux_release,
+        "_validate_prepare_intent",
+        lambda _id, _record, _plan: artifacts,
+    )
+    monkeypatch.setattr(linux_release, "_release_stage_artifacts", lambda _release: [])
+    monkeypatch.setattr(
+        linux_release.linux_service,
+        "_unit_status",
+        lambda _unit: ("not-found", "inactive", "", 0),
+    )
+    monkeypatch.setattr(linux_release, "_require_stage_slice_empty", lambda _slice: None)
+    monkeypatch.setattr(linux_release, "_require_root_directory_chain", lambda _path: None)
+    monkeypatch.setattr(
+        linux_release,
+        "_partial_prepare_identity",
+        lambda path, item: linux_release._artifact_identity(path, kind=str(item["kind"])),
+    )
+    monkeypatch.setattr(
+        linux_release,
+        "_ensure_prepare_quarantine",
+        lambda item: _test_prepare_quarantine(item),
+    )
+    artifacts = []
+    for name, kind in (("state", "directory"), ("pin", "file"), ("unit", "file")):
+        parent = tmp_path / name
+        parent.mkdir()
+        source = parent / f"source-{name}"
+        if kind == "directory":
+            source.mkdir()
+            (source / "config.json").write_text("partial", encoding="utf-8")
+        else:
+            source.write_text(f"partial-{name}", encoding="utf-8")
+        artifacts.append(
+            {
+                "name": name,
+                "source_parent": str(parent),
+                "source_name": source.name,
+                "quarantine_parent": str(parent / ".brain-stage-quarantine"),
+                "quarantine_name": f"{attempt_id}.{name}",
+                "kind": kind,
+                "parent_identity": {},
+            }
+        )
+    plan = {"schema": linux_release.PREPARE_INTENT_SCHEMA, "artifacts": artifacts}
+
+    def rename(source_parent, source_name, destination_parent, destination_name):
+        os.rename(source_parent / source_name, destination_parent / destination_name)
+
+    calls = 0
+
+    def interrupted_rename(source_parent, source_name, destination_parent, destination_name):
+        nonlocal calls
+        calls += 1
+        rename(source_parent, source_name, destination_parent, destination_name)
+        if calls == 1:
+            raise RuntimeError("simulated process interruption")
+
+    monkeypatch.setattr(linux_release, "_rename_noreplace", interrupted_rename)
+    with pytest.raises(RuntimeError, match="simulated process interruption"):
+        linux_release._recover_prepared_temps_locked(attempt_id, record, plan)
+    monkeypatch.setattr(linux_release, "_rename_noreplace", rename)
+    result = linux_release._recover_prepared_temps_locked(attempt_id, record, plan)
+    assert result["status"] == "pre-intent-temps-quarantined-retained"
+    assert len(result["quarantined"]) == 3
+    assert all(
+        not (Path(item["source_parent"]) / item["source_name"]).exists()
+        and (Path(item["quarantine_parent"]) / item["quarantine_name"]).exists()
+        for item in artifacts
+    )
+
+
+def test_preintent_recovery_preflights_all_temps_before_quarantine(tmp_path, monkeypatch):
+    monkeypatch.setattr(linux_release, "_release_stage_artifacts", lambda _release: [])
+    artifacts = []
+    for name, kind in (("state", "directory"), ("pin", "file"), ("unit", "file")):
+        parent = tmp_path / name
+        parent.mkdir()
+        source = parent / f"source-{name}"
+        if kind == "directory":
+            source.mkdir()
+            (source / "config.json").write_text("partial", encoding="utf-8")
+        else:
+            source.write_text(f"partial-{name}", encoding="utf-8")
+        artifacts.append(
+            {
+                "name": name,
+                "source_parent": str(parent),
+                "source_name": source.name,
+                "quarantine_parent": str(parent / ".brain-stage-quarantine"),
+                "quarantine_name": f"attempt.{name}",
+                "kind": kind,
+                "parent_identity": {},
+            }
+        )
+
+    def identify(path, item):
+        if item["name"] == "unit":
+            raise RuntimeError("stage_prepare_temp_unsafe")
+        return linux_release._artifact_identity(path, kind=str(item["kind"]))
+
+    monkeypatch.setattr(linux_release, "_partial_prepare_identity", identify)
+    with pytest.raises(RuntimeError, match="stage_prepare_temp_unsafe"):
+        linux_release._preflight_prepared_temp_locations(
+            "attempt", {"release_id": "release"}, artifacts
+        )
+    assert all(
+        (Path(item["source_parent"]) / item["source_name"]).exists()
+        and not Path(item["quarantine_parent"]).exists()
+        for item in artifacts
+    )
+
+
+def test_attempt_audit_observes_directory_metadata_without_tree_walk(tmp_path, monkeypatch):
+    directory = tmp_path / "foreign"
+    directory.mkdir()
+    monkeypatch.setattr(
+        linux_release,
+        "_tree_sha256",
+        lambda _path: (_ for _ in ()).throw(AssertionError("unexpected tree walk")),
+    )
+    observation = linux_release._observe_attempt_path(directory, "directory")
+    assert observation["exists"] is True
+    assert "tree_sha256" not in observation
+
+
+def _test_prepare_quarantine(item):
+    parent = Path(item["quarantine_parent"])
+    parent.mkdir(mode=0o700, exist_ok=True)
+    return parent / item["quarantine_name"]
+
+
 def test_process_census_fails_closed_on_permission_error(tmp_path, monkeypatch):
     status = tmp_path / "proc" / "123" / "status"
     status.parent.mkdir(parents=True)

@@ -34,6 +34,9 @@ STAGE_ATTEMPT_SCHEMA = "brain-linux-release-stage-attempt-v1"
 PUBLISH_INTENT_SCHEMA = "brain-linux-release-publish-intent-v2"
 DISCARD_INTENT_SCHEMA = "brain-linux-release-stage-discard-intent-v1"
 DISCARD_RECEIPT_SCHEMA = "brain-linux-release-stage-discard-receipt-v1"
+PREPARE_INTENT_SCHEMA = "brain-linux-release-stage-prepare-intent-v1"
+PREPARE_PROGRESS_SCHEMA = "brain-linux-release-stage-prepare-progress-v1"
+PREPARE_RECEIPT_SCHEMA = "brain-linux-release-stage-prepare-receipt-v1"
 STAGE_ATTEMPT_ID_RE = re.compile(r"^[0-9a-f]{12}-[0-9a-f]{16}$")
 MAX_WHEEL_BYTES = 100 * 1024 * 1024
 SAFE_WHEEL_NAME = re.compile(
@@ -96,8 +99,110 @@ def _discard_receipt_path(attempt_id: str) -> Path:
     return STAGE_ATTEMPT_BASE / f"{attempt_id}.discarded.json"
 
 
+def _prepare_intent_path(attempt_id: str) -> Path:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return STAGE_ATTEMPT_BASE / f"{attempt_id}.prepare.json"
+
+
+def _prepare_progress_path(attempt_id: str) -> Path:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return STAGE_ATTEMPT_BASE / f"{attempt_id}.prepare-progress.json"
+
+
+def _prepare_receipt_path(attempt_id: str) -> Path:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return STAGE_ATTEMPT_BASE / f"{attempt_id}.prepared-recovered.json"
+
+
 def _discard_quarantine_path(attempt_id: str, item: dict[str, object]) -> Path:
     return Path(str(item["source_parent"])) / f".brain-discard-{attempt_id}-{item['name']}"
+
+
+def _prepare_artifact_specs(attempt_id: str, release_id: str) -> list[dict[str, object]]:
+    unit_name = f"memecoin-brain-{release_id}.service"
+    values = [
+        ("state", STATE_PREPARED_BASE, f".{attempt_id}", "directory"),
+        (
+            "pin",
+            RELEASE_BASE / ".pins",
+            f".{release_id}.{attempt_id}.tmp",
+            "file",
+        ),
+        ("unit", UNIT_BASE, f".{unit_name}.{attempt_id}.tmp", "file"),
+    ]
+    result = []
+    for name, parent, source_name, kind in values:
+        parent_metadata = parent.lstat()
+        result.append(
+            {
+                "name": name,
+                "source_parent": str(parent),
+                "source_name": source_name,
+                "quarantine_parent": str(parent / ".brain-stage-quarantine"),
+                "quarantine_name": f"{attempt_id}.{name}",
+                "kind": kind,
+                "parent_identity": {
+                    "dev": parent_metadata.st_dev,
+                    "ino": parent_metadata.st_ino,
+                    "uid": parent_metadata.st_uid,
+                    "gid": parent_metadata.st_gid,
+                    "mode": stat.S_IMODE(parent_metadata.st_mode),
+                },
+            }
+        )
+    return result
+
+
+def _legacy_preintent_temp_paths(attempt_id: str, release_id: str) -> dict[str, Path]:
+    unit_name = f"memecoin-brain-{release_id}.service"
+    return {
+        "state": STATE_PREPARED_BASE / f".{attempt_id}",
+        "pin": RELEASE_BASE / ".pins" / f".{release_id}.{attempt_id}.tmp",
+        "unit": UNIT_BASE / f".{unit_name}.{attempt_id}.tmp",
+    }
+
+
+def _validate_prepare_intent(
+    attempt_id: str, record: dict[str, object], intent: dict[str, object]
+) -> list[dict[str, object]]:
+    if (
+        intent.get("schema") != PREPARE_INTENT_SCHEMA
+        or intent.get("attempt_id") != attempt_id
+        or intent.get("release_id") != record.get("release_id")
+        or intent.get("source_commit") != record.get("source_commit")
+        or intent.get("wheel_sha256") != record.get("wheel_sha256")
+        or intent.get("interpreter") != record.get("interpreter")
+        or intent.get("artifacts") != _prepare_artifact_specs(attempt_id, str(record["release_id"]))
+    ):
+        raise RuntimeError("stage_prepare_intent_invalid")
+    artifacts = intent["artifacts"]
+    if not isinstance(artifacts, list) or len(artifacts) != 3:
+        raise RuntimeError("stage_prepare_intent_invalid")
+    for item in artifacts:
+        if not isinstance(item, dict):
+            raise RuntimeError("stage_prepare_intent_invalid")
+        parent = Path(str(item["source_parent"]))
+        _require_root_directory_chain(parent)
+        metadata = parent.lstat()
+        if (
+            metadata.st_dev != item["parent_identity"]["dev"]
+            or metadata.st_ino != item["parent_identity"]["ino"]
+        ):
+            raise RuntimeError("stage_prepare_parent_identity_mismatch")
+        quarantine_parent = Path(str(item["quarantine_parent"]))
+        if os.path.lexists(quarantine_parent):
+            _require_root_directory_chain(quarantine_parent)
+            qmeta = quarantine_parent.lstat()
+            if (
+                qmeta.st_dev != metadata.st_dev
+                or qmeta.st_uid != 0
+                or stat.S_IMODE(qmeta.st_mode) != 0o700
+            ):
+                raise RuntimeError("stage_prepare_quarantine_parent_unsafe")
+    return artifacts
 
 
 def _ensure_root_directory(path: Path, mode: int) -> None:
@@ -648,7 +753,8 @@ def _release_stage_artifacts(release_id: str) -> list[Path]:
     artifacts = [RELEASE_BASE / release_id, UNIT_BASE / f"memecoin-brain-{release_id}.service"]
     pin = RELEASE_BASE / ".pins" / f"{release_id}.sha256"
     state = STATE_BASE / release_id
-    artifacts.extend([pin, state])
+    state_v2 = STATE_BASE_V2 / release_id
+    artifacts.extend([pin, state, state_v2])
     return [path for path in artifacts if os.path.lexists(path)]
 
 
@@ -1000,6 +1106,302 @@ def _validate_discarded_attempt(
         raise RuntimeError("stage_discard_receipt_mismatch")
 
 
+def _observe_attempt_path(
+    path: Path, kind: str, *, hash_content: bool = False
+) -> dict[str, object]:
+    if not os.path.lexists(path):
+        return {"path": str(path), "exists": False}
+    metadata = path.lstat()
+    result: dict[str, object] = {
+        "path": str(path),
+        "exists": True,
+        "uid": metadata.st_uid,
+        "gid": metadata.st_gid,
+        "mode": oct(stat.S_IMODE(metadata.st_mode)),
+        "dev": metadata.st_dev,
+        "ino": metadata.st_ino,
+        "size_bytes": metadata.st_size if stat.S_ISREG(metadata.st_mode) else None,
+    }
+    if stat.S_ISREG(metadata.st_mode):
+        result["kind"] = "file"
+        if hash_content:
+            result["sha256"] = _sha256(path)
+    elif stat.S_ISDIR(metadata.st_mode):
+        result["kind"] = "directory"
+        if hash_content:
+            result["tree_sha256"] = _tree_sha256(path)
+    elif stat.S_ISLNK(metadata.st_mode):
+        result["kind"] = "symlink"
+    else:
+        result["kind"] = "special"
+    if kind not in {"file", "directory"}:
+        raise RuntimeError("stage_prepare_artifact_kind_invalid")
+    return result
+
+
+def _audit_attempt_observations(
+    attempt_id: str, record: dict[str, object], plan: dict[str, object] | None
+) -> dict[str, object]:
+    release_id = str(record["release_id"])
+    sources = _legacy_preintent_temp_paths(attempt_id, release_id)
+    prepared_temps = []
+    for name, path in sources.items():
+        kind = "directory" if name == "state" else "file"
+        prepared_temps.append({"name": name, **_observe_attempt_path(path, kind)})
+        if plan is not None:
+            item = next(value for value in plan["artifacts"] if value["name"] == name)
+            quarantine = Path(str(item["quarantine_parent"])) / str(item["quarantine_name"])
+            prepared_temps.append(
+                {"name": f"{name}-quarantine", **_observe_attempt_path(quarantine, kind)}
+            )
+    destinations = []
+    for item in _publish_artifact_paths(attempt_id, release_id):
+        path = Path(str(item["destination_parent"])) / str(item["destination_name"])
+        destinations.append({"name": item["name"], **_observe_attempt_path(path, item["kind"])})
+    unit_status = None
+    unit_error = None
+    try:
+        unit_status = linux_service._unit_status(f"memecoin-brain-{release_id}.service")
+    except RuntimeError as exc:
+        unit_error = str(exc)
+    return {
+        "attempt_phase": record["phase"],
+        "record_mtime_ns": _stage_attempt_path(attempt_id).stat().st_mtime_ns,
+        "prepare_intent_present": plan is not None,
+        "pre_intent_temps": prepared_temps,
+        "final_destinations": destinations,
+        "unit_status": unit_status,
+        "unit_status_error": unit_error,
+    }
+
+
+def _partial_prepare_identity(path: Path, item: dict[str, object]) -> dict[str, object]:
+    metadata = path.lstat()
+    if stat.S_ISLNK(metadata.st_mode):
+        raise RuntimeError("stage_prepare_temp_symlink")
+    if item["kind"] == "file":
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != 0
+            or metadata.st_nlink != 1
+            or stat.S_IMODE(metadata.st_mode) not in {0o600, 0o444, 0o644}
+        ):
+            raise RuntimeError("stage_prepare_temp_unsafe")
+    else:
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or metadata.st_uid != 0
+            or stat.S_IMODE(metadata.st_mode) != 0o711
+        ):
+            raise RuntimeError("stage_prepare_temp_unsafe")
+        if _has_nested_mount(path):
+            raise RuntimeError("stage_prepare_temp_nested_mount")
+        brain = pwd.getpwnam("brain")
+        for parent, dirs, files in os.walk(path, followlinks=False):
+            base = Path(parent)
+            for name in [*dirs, *files]:
+                child = base / name
+                child_metadata = child.lstat()
+                if stat.S_ISLNK(child_metadata.st_mode):
+                    raise RuntimeError("stage_prepare_temp_symlink")
+                if child == path / "operator":
+                    allowed = stat.S_ISDIR(child_metadata.st_mode) and (
+                        child_metadata.st_uid,
+                        stat.S_IMODE(child_metadata.st_mode),
+                    ) in {(0, 0o700), (brain.pw_uid, 0o700)}
+                elif child == path / "operator/config.json":
+                    allowed = (
+                        stat.S_ISREG(child_metadata.st_mode)
+                        and child_metadata.st_nlink == 1
+                        and (
+                            child_metadata.st_uid,
+                            stat.S_IMODE(child_metadata.st_mode),
+                        )
+                        in {(0, 0o600), (0, 0o644), (brain.pw_uid, 0o600)}
+                    )
+                else:
+                    allowed = False
+                if not allowed:
+                    raise RuntimeError("stage_prepare_temp_unsafe")
+    if metadata.st_dev != os.stat(item["source_parent"], follow_symlinks=False).st_dev:
+        raise RuntimeError("stage_prepare_filesystem_mismatch")
+    return _artifact_identity(path, kind=str(item["kind"]))
+
+
+def _has_nested_mount(path: Path) -> bool:
+    """Reject mountpoints below an artifact root before walking or hashing it."""
+    root = path.resolve(strict=True)
+    for line in Path("/proc/self/mountinfo").read_text(encoding="ascii").splitlines():
+        fields = line.split(" ")
+        if len(fields) < 5:
+            raise RuntimeError("stage_mountinfo_invalid")
+        mountpoint = re.sub(
+            r"\\([0-7]{3})",
+            lambda match: chr(int(match.group(1), 8)),
+            fields[4],
+        )
+        candidate = Path(mountpoint)
+        try:
+            candidate.relative_to(root)
+        except ValueError:
+            continue
+        if candidate != root:
+            return True
+    return False
+
+
+def _preflight_prepared_temp_locations(
+    attempt_id: str, record: dict[str, object], artifacts: list[dict[str, object]]
+) -> list[dict[str, object] | None]:
+    """Validate every external temp and quarantine before any recovery rename."""
+    if _release_stage_artifacts(str(record["release_id"])):
+        raise RuntimeError("stage_partial_publication_requires_manual_review")
+    identities = []
+    for item in artifacts:
+        source = Path(str(item["source_parent"])) / str(item["source_name"])
+        quarantine = Path(str(item["quarantine_parent"])) / str(item["quarantine_name"])
+        source_exists = os.path.lexists(source)
+        quarantine_exists = os.path.lexists(quarantine)
+        if source_exists and quarantine_exists:
+            raise RuntimeError("stage_prepare_temp_location_ambiguous")
+        if quarantine_exists:
+            identity = _partial_prepare_identity(quarantine, item)
+        elif source_exists:
+            identity = _partial_prepare_identity(source, item)
+        else:
+            identity = None
+        identities.append(identity)
+    return identities
+
+
+def _ensure_prepare_quarantine(item: dict[str, object]) -> Path:
+    parent = Path(str(item["source_parent"]))
+    _require_root_directory_chain(parent)
+    qparent = Path(str(item["quarantine_parent"]))
+    try:
+        os.mkdir(qparent, mode=0o700)
+        parent_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            os.fsync(parent_fd)
+        finally:
+            os.close(parent_fd)
+    except FileExistsError:
+        pass
+    _require_root_directory_chain(qparent)
+    metadata = qparent.lstat()
+    if stat.S_IMODE(metadata.st_mode) != 0o700 or metadata.st_uid != 0:
+        raise RuntimeError("stage_prepare_quarantine_parent_unsafe")
+    if metadata.st_dev != parent.lstat().st_dev:
+        raise RuntimeError("stage_prepare_filesystem_mismatch")
+    return qparent / str(item["quarantine_name"])
+
+
+def _recover_prepared_temps_locked(
+    attempt_id: str, record: dict[str, object], plan: dict[str, object]
+) -> dict[str, object]:
+    artifacts = _validate_prepare_intent(attempt_id, record, plan)
+    if _release_stage_artifacts(str(record["release_id"])):
+        raise RuntimeError("stage_partial_publication_requires_manual_review")
+    unit_name = f"memecoin-brain-{record['release_id']}.service"
+    load, active, file_state, pid = linux_service._unit_status(unit_name)
+    if (
+        load != "not-found"
+        or active != "inactive"
+        or file_state not in {"", "disabled"}
+        or pid != 0
+    ):
+        raise RuntimeError("stage_recovery_unit_requires_manual_review")
+    _require_stage_slice_empty(str(record["slice_name"]))
+    builder_uid = record["builder_uid"]
+    if builder_uid is not None and _uid_has_processes(builder_uid):
+        raise RuntimeError("stage_builder_processes_remaining")
+    progress_path = _prepare_progress_path(attempt_id)
+    receipt_path = _prepare_receipt_path(attempt_id)
+    receipt = _read_sealed_stage_json(receipt_path, schema=PREPARE_RECEIPT_SCHEMA)
+    progress = _read_sealed_stage_json(progress_path, schema=PREPARE_PROGRESS_SCHEMA)
+    expected_header = {
+        "schema": PREPARE_PROGRESS_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "source_commit": record["source_commit"],
+        "plan_sha256": hashlib.sha256(
+            json.dumps(plan, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
+    }
+    if progress is None:
+        observed_identities = _preflight_prepared_temp_locations(attempt_id, record, artifacts)
+        for item in artifacts:
+            quarantine = Path(str(item["quarantine_parent"])) / str(item["quarantine_name"])
+            if os.path.lexists(quarantine):
+                raise RuntimeError("stage_prepare_quarantine_exists_without_progress")
+        identities = [
+            {"name": item["name"], "identity": identity}
+            for item, identity in zip(artifacts, observed_identities, strict=True)
+        ]
+        for item in artifacts:
+            _ensure_prepare_quarantine(item)
+        progress = {**expected_header, "artifacts": identities}
+        _write_sealed_stage_json(progress_path, progress)
+    elif any(progress.get(key) != value for key, value in expected_header.items()):
+        raise RuntimeError("stage_prepare_progress_invalid")
+    expected_items = [item["name"] for item in artifacts]
+    observed = progress.get("artifacts")
+    if (
+        not isinstance(observed, list)
+        or [value.get("name") for value in observed if isinstance(value, dict)] != expected_items
+        or any(
+            not isinstance(value, dict) or set(value) != {"name", "identity"} for value in observed
+        )
+    ):
+        raise RuntimeError("stage_prepare_progress_invalid")
+    identity_by_name = {value["name"]: value["identity"] for value in observed}
+    current_identities = _preflight_prepared_temp_locations(attempt_id, record, artifacts)
+    for item, current in zip(artifacts, current_identities, strict=True):
+        if current != identity_by_name[item["name"]]:
+            raise RuntimeError("stage_prepare_temp_identity_mismatch")
+    quarantined = []
+    for item in artifacts:
+        identity = identity_by_name[item["name"]]
+        source = Path(str(item["source_parent"])) / str(item["source_name"])
+        quarantine = _ensure_prepare_quarantine(item)
+        source_exists = os.path.lexists(source)
+        quarantine_exists = os.path.lexists(quarantine)
+        if identity is None:
+            if source_exists or quarantine_exists:
+                raise RuntimeError("stage_prepare_temp_unexpected")
+            continue
+        if not isinstance(identity, dict):
+            raise RuntimeError("stage_prepare_progress_invalid")
+        if source_exists == quarantine_exists:
+            raise RuntimeError("stage_prepare_temp_location_ambiguous")
+        current = source if source_exists else quarantine
+        actual = _partial_prepare_identity(current, item)
+        if actual != identity:
+            raise RuntimeError("stage_prepare_temp_identity_mismatch")
+        if source_exists:
+            _rename_noreplace(
+                source.parent,
+                source.name,
+                quarantine.parent,
+                quarantine.name,
+            )
+        quarantined.append({"name": item["name"], "path": str(quarantine), "identity": identity})
+    expected_receipt = {
+        "schema": PREPARE_RECEIPT_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "source_commit": record["source_commit"],
+        "quarantined": quarantined,
+        "status": "pre-intent-temps-quarantined-retained",
+    }
+    if receipt is None:
+        _write_sealed_stage_json(receipt_path, expected_receipt)
+        return expected_receipt
+    if receipt != expected_receipt:
+        raise RuntimeError("stage_prepare_receipt_mismatch")
+    return receipt
+
+
 def audit_stage(attempt_id: str | None = None) -> dict[str, object]:
     """Read-only inventory of interrupted publish attempts and discard eligibility."""
     if os.geteuid() != 0:
@@ -1026,6 +1428,41 @@ def audit_stage(attempt_id: str | None = None) -> dict[str, object]:
     for current_id in ids:
         entry: dict[str, object] = {"attempt_id": current_id, "classification": "manual-review"}
         try:
+            _, record = _read_stage_attempt(current_id)
+            intent = _read_publish_intent(current_id)
+            plan = _read_sealed_stage_json(
+                _prepare_intent_path(current_id), schema=PREPARE_INTENT_SCHEMA
+            )
+            if plan is not None:
+                _validate_prepare_intent(current_id, record, plan)
+            entry.update(_audit_attempt_observations(current_id, record, plan))
+            if intent is None:
+                temp_exists = any(
+                    value["exists"] and not value["name"].endswith("-quarantine")
+                    for value in entry["pre_intent_temps"]
+                )
+                if plan is None and temp_exists:
+                    entry["reason"] = "stage_prepare_intent_missing_manual_review"
+                elif _release_stage_artifacts(str(record["release_id"])):
+                    entry["reason"] = "stage_partial_publication_requires_manual_review"
+                elif record["phase"] in {"complete", "recovered"}:
+                    entry["classification"] = "terminal-no-publish-intent"
+                elif plan is None:
+                    entry["classification"] = "recoverable-no-external-temps"
+                else:
+                    unit_status = entry["unit_status"]
+                    if _release_stage_artifacts(str(record["release_id"])):
+                        raise RuntimeError("stage_partial_publication_requires_manual_review")
+                    if unit_status != ("not-found", "inactive", "", 0):
+                        raise RuntimeError("stage_recovery_unit_requires_manual_review")
+                    _require_stage_slice_empty(str(record["slice_name"]))
+                    if record["builder_uid"] is not None and _uid_has_processes(
+                        record["builder_uid"]
+                    ):
+                        raise RuntimeError("stage_builder_processes_remaining")
+                    entry["classification"] = "pre-intent-recovery-ready"
+                entries.append(entry)
+                continue
             record, intent, artifacts = _discard_preflight(current_id)
             receipt = _read_sealed_stage_json(
                 _discard_receipt_path(current_id), schema=DISCARD_RECEIPT_SCHEMA
@@ -1263,13 +1700,36 @@ def _recover_stage_locked(attempt_id: str) -> dict[str, str]:
         raise RuntimeError("stage_discard_recovery_required")
     if intent is not None:
         return _finish_publish_locked(attempt_id, record, intent)
+    release_id = str(record["release_id"])
+    prepare_intent = _read_sealed_stage_json(
+        _prepare_intent_path(attempt_id), schema=PREPARE_INTENT_SCHEMA
+    )
+    if record["phase"] == "recovered" and prepare_intent is not None:
+        receipt = _recover_prepared_temps_locked(attempt_id, record, prepare_intent)
+        return {
+            "attempt_id": attempt_id,
+            "recovered": "true",
+            "quarantined_preintent_artifacts": str(len(receipt["quarantined"])),
+        }
     if record["phase"] in {"complete", "recovered"}:
         raise RuntimeError("stage_attempt_not_recoverable")
-    release_id = str(record["release_id"])
     if _release_stage_artifacts(release_id):
         raise RuntimeError("stage_partial_publication_requires_manual_review")
+    if prepare_intent is None and any(
+        os.path.lexists(path)
+        for path in _legacy_preintent_temp_paths(attempt_id, release_id).values()
+    ):
+        raise RuntimeError("stage_prepare_intent_missing_manual_review")
+    unit_name = f"memecoin-brain-{release_id}.service"
+    load, active, file_state, pid = linux_service._unit_status(unit_name)
+    if (
+        load != "not-found"
+        or active != "inactive"
+        or file_state not in {"", "disabled"}
+        or pid != 0
+    ):
+        raise RuntimeError("stage_recovery_unit_requires_manual_review")
     slice_name = str(record["slice_name"])
-    _stop_stage_slice(slice_name)
     builder_name = str(record["builder_name"])
     uid_value = record["builder_uid"]
     try:
@@ -1286,6 +1746,14 @@ def _recover_stage_locked(attempt_id: str) -> dict[str, str]:
             raise RuntimeError("stage_builder_processes_remaining")
     elif uid_value is not None and _uid_has_processes(uid_value):
         raise RuntimeError("stage_builder_processes_remaining")
+    prepared_artifacts = (
+        _validate_prepare_intent(attempt_id, record, prepare_intent)
+        if prepare_intent is not None
+        else None
+    )
+    if prepared_artifacts is not None:
+        _preflight_prepared_temp_locations(attempt_id, record, prepared_artifacts)
+    _stop_stage_slice(slice_name)
     staging = RELEASE_BASE / str(record["staging_name"])
     incomplete = RELEASE_BASE / f".incomplete-{attempt_id}"
     try:
@@ -1340,8 +1808,17 @@ def _recover_stage_locked(attempt_id: str) -> dict[str, str]:
             marker.write_text(expected_marker, encoding="utf-8")
         marker.chmod(0o444)
         _seal(incomplete, pwd.getpwnam("brain").pw_gid)
+    prepared_receipt: dict[str, object] | None = None
+    if prepare_intent is not None:
+        prepared_receipt = _recover_prepared_temps_locked(attempt_id, record, prepare_intent)
     _record_stage_phase(record_path, record, "recovered", seal=True)
-    return {"attempt_id": attempt_id, "recovered": "true"}
+    return {
+        "attempt_id": attempt_id,
+        "recovered": "true",
+        "quarantined_preintent_artifacts": str(
+            len(prepared_receipt["quarantined"]) if prepared_receipt is not None else 0
+        ),
+    }
 
 
 def recover_stage(attempt_id: str) -> dict[str, str]:
@@ -1709,6 +2186,9 @@ def stage(
         if previous["release_id"] != release_id:
             continue
         previous_intent = _read_publish_intent(candidate.stem)
+        previous_prepare = _read_sealed_stage_json(
+            _prepare_intent_path(candidate.stem), schema=PREPARE_INTENT_SCHEMA
+        )
         discarded = _read_sealed_stage_json(
             _discard_receipt_path(candidate.stem), schema=DISCARD_RECEIPT_SCHEMA
         )
@@ -1736,6 +2216,12 @@ def stage(
                 raise
             os.close(lock_fd)
             return result
+        if previous["phase"] == "recovered" and previous_prepare is not None:
+            try:
+                _recover_prepared_temps_locked(candidate.stem, previous, previous_prepare)
+            except RuntimeError:
+                os.close(lock_fd)
+                raise
         if previous["phase"] not in {"complete", "recovered"}:
             os.close(lock_fd)
             raise RuntimeError("stage_incomplete_requires_recovery")
@@ -1876,6 +2362,28 @@ def stage(
         builder_root.rmdir()
         state_parent = STATE_BASE_V2 / release_id
         state_root = state_parent / "operator"
+        pin_dir = RELEASE_BASE / ".pins"
+        pin_dir.mkdir(mode=0o755, exist_ok=True)
+        pin_metadata = pin_dir.lstat()
+        if (
+            not stat.S_ISDIR(pin_metadata.st_mode)
+            or pin_metadata.st_uid != 0
+            or stat.S_IMODE(pin_metadata.st_mode) & 0o022
+        ):
+            raise RuntimeError("release_pin_directory_unsafe")
+        for parent in (STATE_PREPARED_BASE, pin_dir, UNIT_BASE):
+            _require_root_directory_chain(parent)
+        prepare_intent = {
+            "schema": PREPARE_INTENT_SCHEMA,
+            "attempt_id": attempt_id,
+            "release_id": release_id,
+            "source_commit": source_commit,
+            "wheel_sha256": expected_wheel_sha256,
+            "interpreter": interpreter,
+            "artifacts": _prepare_artifact_specs(attempt_id, release_id),
+        }
+        _validate_prepare_intent(attempt_id, record, prepare_intent)
+        _write_sealed_stage_json(_prepare_intent_path(attempt_id), prepare_intent)
         state_temp = STATE_PREPARED_BASE / f".{attempt_id}"
         state_temp.mkdir(mode=0o711)
         os.chown(state_temp, 0, 0)
@@ -1939,15 +2447,6 @@ def stage(
         os.chown(manifest_path, 0, user.pw_gid)
         manifest_path.chmod(0o444)
         _seal(staging, user.pw_gid)
-        pin_dir = RELEASE_BASE / ".pins"
-        pin_dir.mkdir(mode=0o755, exist_ok=True)
-        pin_metadata = pin_dir.lstat()
-        if (
-            not stat.S_ISDIR(pin_metadata.st_mode)
-            or pin_metadata.st_uid != 0
-            or stat.S_IMODE(pin_metadata.st_mode) & 0o022
-        ):
-            raise RuntimeError("release_pin_directory_unsafe")
         manifest_sha = _sha256(manifest_path)
         pin_temp = pin_dir / f".{release_id}.{attempt_id}.tmp"
         with pin_temp.open("x", encoding="ascii") as handle:
