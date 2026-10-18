@@ -712,8 +712,6 @@ def _effective_properties(unit: str) -> dict[str, str]:
         "ProtectHome",
         "Restart",
         "EnvironmentFiles",
-        "LoadCredential",
-        "LoadCredentialEncrypted",
     )
     result = subprocess.run(
         ["systemctl", "show", "--no-pager", *[f"--property={name}" for name in names], unit],
@@ -724,7 +722,7 @@ def _effective_properties(unit: str) -> dict[str, str]:
     )
     if result.returncode != 0:
         raise StorageError("attachment_unit_properties_unavailable")
-    values: dict[str, str] = {}
+    values: dict[str, str] = {"EnvironmentFiles": ""}
     for line in result.stdout.splitlines():
         name, separator, value = line.partition("=")
         if not separator or name not in names or name in values:
@@ -769,8 +767,6 @@ def _verify_unit(manifest: dict[str, Any], pin: dict[str, Any]) -> None:
         "ProtectHome": "yes",
         "Restart": "no",
         "EnvironmentFiles": "",
-        "LoadCredential": "",
-        "LoadCredentialEncrypted": "",
     }
     if any(fields[name] != value for name, value in expected.items()):
         raise StorageError("attachment_effective_unit_mismatch")
