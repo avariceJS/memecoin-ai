@@ -220,6 +220,9 @@ Index refresh is a separate explicit operation; read-only planning binds fixed p
 dependency closure, versions, solver output, installed state, source hashes, and host capability
 report to a digest. Apply rechecks that digest and all observed inputs, refuses removals, downgrades,
 unrelated package changes, or active Brain units, and blocks service starts during package scripts.
+The inert-service role explicitly includes `bsdutils` as an Ubuntu Essential transaction companion
+for the pinned util-linux/systemd package set; it is not a capability requirement. Any other solver
+change must be reviewed and added explicitly before it can pass the package transaction allowlist.
 The source-build role may start from a verified externally acquired source artifact when Git is not
 yet installed; it records that preflight gap and requires the exact clean source commit to become
 verifiable after installation. Receipts are create-only and root-private. The utility does not

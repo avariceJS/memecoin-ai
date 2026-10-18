@@ -19,6 +19,15 @@ def test_roles_are_fixed_and_do_not_include_database_test_control():
         "python3.12",
         "python3.12-venv",
     )
+    assert provisioner.ROLES["inert-service-host"] == (
+        "bsdutils",
+        "iproute2",
+        "sudo",
+        "systemd",
+        "systemd-sysv",
+        "udev",
+        "util-linux",
+    )
     assert "dbus" not in sum(provisioner.ROLES.values(), ())
 
 

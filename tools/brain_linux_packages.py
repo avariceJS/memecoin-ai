@@ -38,6 +38,7 @@ ROLES: dict[str, tuple[str, ...]] = {
         "python3.12-venv",
     ),
     "inert-service-host": (
+        "bsdutils",
         "iproute2",
         "sudo",
         "systemd",
