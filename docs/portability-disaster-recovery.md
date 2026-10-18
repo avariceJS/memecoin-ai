@@ -472,9 +472,18 @@ release: group-writable package content, an overly permissive operator state roo
 group-writable unit. Each was rejected with its bounded verifier reason; restoring the exact modes
 returned independent verification to pass while the unit stayed disabled and inactive. See the
 immutable [`permission drift receipt`](evidence/brain-linux-release-permission-drift-2026-10-18.json).
-This does not cover ownership changes, ACLs, or mandatory access-control policy. The next useful
-horizon is a clean disposable reinstall from the published topic branch, then stale-state and
-upgrade recovery.
+This does not cover ownership changes, ACLs, or mandatory access-control policy. A bounded clean v2
+reinstall then removed all 15 independently verified inert v2 releases, their state, and units;
+legacy v1 releases, three unclassified paths, and eight deliberate fail-closed prepared-intent
+fixtures were retained. A fresh private clone of the pushed topic branch passed unattended
+`make setup` and `make build`; a second post-reboot clean clone at the same commit produced identical
+wheel and sdist hashes. A new v2 identity staged inert and verified, then an explicit activation ran
+the synthetic idle service. After stop, verify passed and the unit was disabled/inactive/PID-free. A
+real OS reboot returned SSH through the enabled socket and the release remained
+disabled/inactive/PID-free and verified. Details and retained-state limits are in the immutable
+[`clean v2 reinstall receipt`](evidence/brain-linux-clean-v2-reinstall-2026-10-18.json) and
+[`reset inventory`](evidence/brain-linux-clean-v2-reset-inventory-2026-10-18.json). This is not a
+whole-VM reset; the next useful horizon is stale prepared-state lifecycle and upgrade recovery.
 
 ## Current readiness
 

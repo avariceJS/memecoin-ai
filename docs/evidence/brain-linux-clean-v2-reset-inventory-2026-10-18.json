@@ -1,0 +1,116 @@
+{
+  "active_service_mutations": false,
+  "protected_data": false,
+  "reason": "clean disposable v2 release reinstall qualification",
+  "removed_v2_releases": [
+    {
+      "manifest_sha256": "46343fa1b5c03feea2d98bdc66e012d4eff8ee0afd7c8f84c388b6538d150638",
+      "release_id": "02f3364ec183b86f65b43b17df63c533cd9d5085558075f9bc701e77d1462928",
+      "source_commit": "f99f09e22400189d66bf677d8eae23d11cf82755",
+      "unit": "memecoin-brain-02f3364ec183b86f65b43b17df63c533cd9d5085558075f9bc701e77d1462928.service",
+      "wheel_sha256": "0e0dff785b867416527e90044da8c6e001967b768813b5f1877a9e4aabbb6729"
+    },
+    {
+      "manifest_sha256": "8be247e224962df7c697499b0e89293c888330bca73b0b1bd41e7e244d2201f2",
+      "release_id": "0b968f86b4aa1594a88a227c46339d8ef5737f6de59e4f60363bf4f2322d71db",
+      "source_commit": "4b8c9b379ff2a712478f146ad9a753f26adf3e12",
+      "unit": "memecoin-brain-0b968f86b4aa1594a88a227c46339d8ef5737f6de59e4f60363bf4f2322d71db.service",
+      "wheel_sha256": "c81bdd24943a91485009f621923c9616e79d85d65d396c5b9826bd81478a67b5"
+    },
+    {
+      "manifest_sha256": "c5731418282bd544a8272f0dd6e1032dd9a941113a8d2117335c665886660dda",
+      "release_id": "1e4c816633d646554021def93f8058f2caa1bb398bcb19c1f8dd25e3c1397f97",
+      "source_commit": "4b8c9b379ff2a712478f146ad9a753f26adf3e12",
+      "unit": "memecoin-brain-1e4c816633d646554021def93f8058f2caa1bb398bcb19c1f8dd25e3c1397f97.service",
+      "wheel_sha256": "6869363ee6f7fcbe85f3622187a88f0425a0526c9c1c72d6005bbb8d767a72ef"
+    },
+    {
+      "manifest_sha256": "fc13a1aee9929a253e064999772000e68ab933d36fd6e7608bc8fb018910ea46",
+      "release_id": "40f4cfe09f4d63056ab105bf0f64a495e64c142ff0be483572dcbfe5b4fc5828",
+      "source_commit": "f99f09e22400189d66bf677d8eae23d11cf82755",
+      "unit": "memecoin-brain-40f4cfe09f4d63056ab105bf0f64a495e64c142ff0be483572dcbfe5b4fc5828.service",
+      "wheel_sha256": "6abd7baa4c27a8a6ef2edea346811802f64ed9ba75ba0c43aa4a5c5241da19c5"
+    },
+    {
+      "manifest_sha256": "0f8e0ecdec6cd8ac9f152bbac1376e5241fa745652727b010c69ad0fe4bfab39",
+      "release_id": "41278cf1ff32eebdca0e07d438d253fe17e8750b7eaff4fb7ccce44296205811",
+      "source_commit": "bc50bc3ac47c822070ab217ecd53bb8f4e104806",
+      "unit": "memecoin-brain-41278cf1ff32eebdca0e07d438d253fe17e8750b7eaff4fb7ccce44296205811.service",
+      "wheel_sha256": "c8a3eb06b820e6d665588463d3197d0e50b099f1e980ba18e70473a486559fb3"
+    },
+    {
+      "manifest_sha256": "5c7b05eed3c87883d68156c33b80b7e9c17eca9c25b58e72c6e5875931759bce",
+      "release_id": "6b3562040ae78c2e0bd4552efc6aaf3634abc832723492e93495c88ef8ec8cf2",
+      "source_commit": "f99f09e22400189d66bf677d8eae23d11cf82755",
+      "unit": "memecoin-brain-6b3562040ae78c2e0bd4552efc6aaf3634abc832723492e93495c88ef8ec8cf2.service",
+      "wheel_sha256": "27aae7d7c4e09c44b9f85beba2eff442bbcfbbc2537143c9ba0be3adf3cd67fd"
+    },
+    {
+      "manifest_sha256": "a7605ca48cb96e98b305747354fa9e5dc1a3f25555a94c29cda7ed8c6dc60c96",
+      "release_id": "78835ef973cc25f0dc6e6c48b9a117e66ada1be9aed6ef05d25e61264436889f",
+      "source_commit": "f99f09e22400189d66bf677d8eae23d11cf82755",
+      "unit": "memecoin-brain-78835ef973cc25f0dc6e6c48b9a117e66ada1be9aed6ef05d25e61264436889f.service",
+      "wheel_sha256": "11a7b6ebb1af19d9c3e3e0bbe1cd235b807f2eead2769af40d317c9e368b109f"
+    },
+    {
+      "manifest_sha256": "8760d807af8fcb0ec35a14c18afbfcb874242dc0ba47f65a7c5aebf085b5ce73",
+      "release_id": "7c5a20cb2e775734426024b3ee40186b6118d08c30748f9a8884e90fc1823fe7",
+      "source_commit": "f99f09e22400189d66bf677d8eae23d11cf82755",
+      "unit": "memecoin-brain-7c5a20cb2e775734426024b3ee40186b6118d08c30748f9a8884e90fc1823fe7.service",
+      "wheel_sha256": "3fb4656fb57e24cc91f50073c1ee4c9f73538fa7b18ab48b364be612bf8258f4"
+    },
+    {
+      "manifest_sha256": "86836ba5c4e2b4904999373e108c179e73291b21c5ef0b2130347941737f1832",
+      "release_id": "b74ea865cf1011f93472bad3a5c07a44b26034cd24d7f06ea148f9ca1eb6b405",
+      "source_commit": "4b8c9b379ff2a712478f146ad9a753f26adf3e12",
+      "unit": "memecoin-brain-b74ea865cf1011f93472bad3a5c07a44b26034cd24d7f06ea148f9ca1eb6b405.service",
+      "wheel_sha256": "e13cd92ad04ca07e0ae6e7ab7f6b77c0378ed6c819838ecddc46675409b09dc7"
+    },
+    {
+      "manifest_sha256": "d07d86aea4473453d4fe5f0bde9b1661ece5eac0336d1c8a3559bb8cf56e03f3",
+      "release_id": "b99bccceaacc7ba18a374f5fa50087b6e7e3bbc283beca15bff74f549b05791c",
+      "source_commit": "4b8c9b379ff2a712478f146ad9a753f26adf3e12",
+      "unit": "memecoin-brain-b99bccceaacc7ba18a374f5fa50087b6e7e3bbc283beca15bff74f549b05791c.service",
+      "wheel_sha256": "0b5b69e3e7646cf48a5115afbdd85ece61624d6a45da5bb74dd8207a558f2c6e"
+    },
+    {
+      "manifest_sha256": "e408815c7481bcc3870b1c1048df5873b60ed876f03a7a241774ee670c8adabf",
+      "release_id": "c15832fb297f7b7b58a3a7c07ecf52df14c3d9e98facf465c8641abe891cb856",
+      "source_commit": "f99f09e22400189d66bf677d8eae23d11cf82755",
+      "unit": "memecoin-brain-c15832fb297f7b7b58a3a7c07ecf52df14c3d9e98facf465c8641abe891cb856.service",
+      "wheel_sha256": "096aaf5d8917abefd3a31a315413afddfa6080e38fb7baa036f8419df239c148"
+    },
+    {
+      "manifest_sha256": "03d8bde91e665c4cc38544c75a8826901c3cf8be7ab00a9112200d9ab3a84284",
+      "release_id": "dfafb811fe1c42911b4f81e9e6bc73cf93c2866fdda5d7c043945764533bfbf6",
+      "source_commit": "4b8c9b379ff2a712478f146ad9a753f26adf3e12",
+      "unit": "memecoin-brain-dfafb811fe1c42911b4f81e9e6bc73cf93c2866fdda5d7c043945764533bfbf6.service",
+      "wheel_sha256": "6b8cd73ecd8ea91658544c2b3fa0e90a26b3e2a0e5292e4e26405f7a2e6ff1e8"
+    },
+    {
+      "manifest_sha256": "1bdec5dae04583a626bdde80c53ae8da47403840162f08642247fcae7da98317",
+      "release_id": "ea2f5ea1458826ca6e074075360e42539f9cc962790af73bbaad26e693051619",
+      "source_commit": "f99f09e22400189d66bf677d8eae23d11cf82755",
+      "unit": "memecoin-brain-ea2f5ea1458826ca6e074075360e42539f9cc962790af73bbaad26e693051619.service",
+      "wheel_sha256": "7d74aa8416a6ec41691e70dfa5bd82ce1220b1c82706d356aa0c2c781ebe6280"
+    },
+    {
+      "manifest_sha256": "eadae2b40b138485f663bc67b7feedfdc9e85490062f78b06aa9ba309bcb5cd8",
+      "release_id": "f3b7dcd3a322bfd079edb13d99b3113a02a6c77ab8c435766d4b8df7b185b659",
+      "source_commit": "f99f09e22400189d66bf677d8eae23d11cf82755",
+      "unit": "memecoin-brain-f3b7dcd3a322bfd079edb13d99b3113a02a6c77ab8c435766d4b8df7b185b659.service",
+      "wheel_sha256": "c414f5f8d458e96abb078f233828d2acfe8c7de16daeb65a9a7bb56c3cec8418"
+    },
+    {
+      "manifest_sha256": "19f66aa88550514231a760787447d9ee3c4a520f67d2429a97ff049b8ff054ec",
+      "release_id": "f5f53249c3a69368aeefeb4046ada160d14ca1152136d32297793db288dd25fc",
+      "source_commit": "4b8c9b379ff2a712478f146ad9a753f26adf3e12",
+      "unit": "memecoin-brain-f5f53249c3a69368aeefeb4046ada160d14ca1152136d32297793db288dd25fc.service",
+      "wheel_sha256": "981f9ce546a8e8eadc7b8a344ee66d78f9c69a45a512be5a46586745e4a4577f"
+    }
+  ],
+  "removed_verified_inert_v2_release_count": 15,
+  "retained_unclassified_directory_count": 3,
+  "retained_v1_release_count": 30,
+  "schema": "brain-v2-release-reset-inventory-v1"
+}

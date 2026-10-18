@@ -1,0 +1,61 @@
+{
+  "schema": "brain-linux-clean-v2-reinstall-v1",
+  "repository": {
+    "owner": "avariceJS/memecoin-ai",
+    "branch": "codex/linux-portability-20261018",
+    "source_commit": "2fe5ea1d9c21ba8038b36c24b72c46bf734d8aca",
+    "remote_access": "read-only deploy key through configured Git SSH alias; GIT_TERMINAL_PROMPT=0",
+    "fresh_checkout": "passed and clean",
+    "separate_post_reboot_clean_clone": "passed at the same exact commit and remained clean"
+  },
+  "v2_reset": {
+    "verified_inert_v2_releases_removed": 15,
+    "legacy_v1_releases_retained": 30,
+    "unclassified_directories_retained": 3,
+    "purpose_built_prepared_intent_fixtures_retained": 8,
+    "reset_inventory_sha256": "43c0b261526c25a81e9240eb18712591a5f49ceca2ec875eb2976f68bf74a231",
+    "reset_inventory": "brain-linux-clean-v2-reset-inventory-2026-10-18.json"
+  },
+  "build": {
+    "os": "Ubuntu 24.04 LTS x86_64",
+    "python": "3.12.3",
+    "make_setup": "passed with PIP_NO_INPUT=1 and requirements-dev.lock",
+    "make_build": "passed",
+    "build": "1.6.1",
+    "setuptools": "84.0.0",
+    "wheel_sha256": "36ec5e12b9607186d14f147301805cfdc0ea5a0c75011219c45a78417d47e3dd",
+    "sdist_sha256": "836c46870c054262e775afe5d9a69ea6ce83d856f654d613639edf29a3e99976",
+    "post_reboot_clone_artifact_hashes_matched": true,
+    "sealed_post_reboot_setup_log_sha256": "47b88159674637f5f17f695e16e5e17fff9a9fb7a5fd5881f7ab02d1b1808cfc",
+    "sealed_post_reboot_build_log_sha256": "b7659be74b3ffee5a60766761c9af0ea9d6c1bb9cf19f297228b6eb88dcfe50e"
+  },
+  "fresh_release": {
+    "attempt_id": "12ba4febbcd9-9dc8256b0993491b",
+    "release_id": "12ba4febbcd9ae4317526d71f9d00304dcab7b15686d44b88d0bbe7440cbb575",
+    "manifest_sha256": "21287b180b76dd0a709e4f5e5bc3ec4206ec5de2b5a92710c1ea5f9370503750",
+    "installed_inventory_sha256": "66f1c8ee931135ab9aa38f9649bfb4a191b2fc77e2863e2be77e95bfedc02d56",
+    "initial_state": ["loaded", "inactive", "disabled", 0],
+    "initial_verify": "passed",
+    "explicit_activation": ["loaded", "active", "disabled", 6492, 0],
+    "after_stop": ["loaded", "inactive", "disabled", 0],
+    "post_stop_verify": "passed",
+    "after_reboot": ["loaded", "inactive", "disabled", 0],
+    "post_reboot_verify": "passed",
+    "boot_id_before": "9ff8dc57-0da2-4de5-a464-42c464f74d99",
+    "boot_id_after": "d0c0547f-1018-4efd-ad89-ee8ec80111f9",
+    "ssh_socket_after_reboot": "enabled and active"
+  },
+  "resources_after_reboot": {
+    "root_filesystem_free_gib_approx": 105,
+    "memory_available_gib_approx": 7.4
+  },
+  "authority_and_limitations": {
+    "provider_credentials_or_protected_data_used": false,
+    "migration_v1_candidate_changed": false,
+    "owner_mac_runtime_or_kingston_touched": false,
+    "main_or_research_active_changed": false,
+    "whole_vm_os_reset": false,
+    "retained_state": "legacy v1 releases, three unclassified directories, and eight fail-closed prepared-intent fixtures were preserved; new install used a fresh release identity",
+    "not_qualified": "independent builder, another distribution or architecture, arbitrary Brain data, GPU/CUDA, and full OS package-manager pinning"
+  }
+}

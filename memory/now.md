@@ -73,7 +73,14 @@ passed, and the original release tree was restored and reverified. See
 Permission drift across a release file, v2 state root, and unit failed closed; exact modes were
 restored and independent verify passed. See
 [`permission drift receipt`](../docs/evidence/brain-linux-release-permission-drift-2026-10-18.json).
-Next: clean disposable reinstall, then stale-state/upgrade recovery.
+At exact topic commit `2fe5ea1d9c21ba8038b36c24b72c46bf734d8aca`, 15 previously verified inert v2
+releases/state/units were removed; legacy v1, three unclassified paths, and eight fail-closed
+prepared-intent fixtures were preserved. Fresh private clone setup/build/stage/verify passed,
+explicit activation and stop passed, and after reboot SSH recovered while the release remained
+disabled/inactive and verified. A second post-reboot clean clone matched wheel/sdist hashes. See
+[`clean reinstall`](../docs/evidence/brain-linux-clean-v2-reinstall-2026-10-18.json) and
+[`reset inventory`](../docs/evidence/brain-linux-clean-v2-reset-inventory-2026-10-18.json).
+Next: stale prepared-state lifecycle and upgrade recovery.
 
 `research/active` is at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`; `main` remains
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Future-v2 v3 drafts remain untracked and untouched.

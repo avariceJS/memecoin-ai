@@ -55,6 +55,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - [Linux release permission drift](brain-linux-release-permission-drift-2026-10-18.json):
   verifier rejected writable release, state-root, and unit modes; exact mode restoration returned
   the release to independently verified inert state.
+- [Linux v2 reset inventory](brain-linux-clean-v2-reset-inventory-2026-10-18.json): exact IDs and
+  source/artifact hashes for 15 previously verified inert v2 releases removed before reinstall;
+  legacy v1 and unclassified paths were retained.
+- [Linux clean v2 reinstall](brain-linux-clean-v2-reinstall-2026-10-18.json): fresh private clone,
+  unattended setup/build, explicit activation and stop, then reboot with an inert verified release;
+  retained legacy and fail-closed fixtures are listed as scope limits.
 
 - [Scheduled sensing neural engineering qualification](brain-scheduled-sensing-neural-qualification-2026-10-15.json):
   synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume
