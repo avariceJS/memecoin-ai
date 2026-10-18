@@ -3,8 +3,10 @@
 import json
 import os
 import sqlite3
+import stat
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -330,3 +332,117 @@ def test_linux_synthetic_stop_is_local_and_does_not_load_adapter(tmp_path, monke
     result = control.command(root, "idle-stop", "stop", {"confirm": True})
     assert result["ok"] is True
     assert result["mode"] == "stopped"
+
+
+def _mock_provision_environment(tmp_path, monkeypatch):
+    parent = tmp_path / "var" / "lib"
+    parent.mkdir(parents=True)
+    parent.chmod(0o755)
+    lab_base = parent / "brain-lab"
+    monkeypatch.setattr(linux_attachment, "LAB_BASE", lab_base)
+    monkeypatch.setattr(linux_attachment, "_validate_lab_parent", lambda _parent: None)
+    monkeypatch.setattr(linux_attachment.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(linux_attachment, "_is_mountpoint", lambda _path: False)
+    monkeypatch.setattr(
+        linux_attachment.pwd,
+        "getpwnam",
+        lambda _name: SimpleNamespace(pw_uid=os.getuid(), pw_gid=os.getgid()),
+    )
+    return parent, lab_base
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="renameat2 is Linux-specific")
+def test_provision_base_creates_private_brain_directory_and_is_idempotent(tmp_path, monkeypatch):
+    _parent, lab_base = _mock_provision_environment(tmp_path, monkeypatch)
+    assert linux_attachment.provision_base() == {
+        "state": "created",
+        "path": str(lab_base),
+        "mode": "0700",
+    }
+    metadata = lab_base.lstat()
+    assert stat.S_IMODE(metadata.st_mode) == 0o700
+    assert metadata.st_uid == os.getuid()
+    assert metadata.st_gid == os.getgid()
+    assert linux_attachment.provision_base()["state"] == "present"
+    assert list(lab_base.iterdir()) == []
+
+
+@pytest.mark.parametrize("conflict", ["symlink", "mode", "owner"])
+def test_provision_base_rejects_conflicts_without_changing_them(tmp_path, monkeypatch, conflict):
+    _parent, lab_base = _mock_provision_environment(tmp_path, monkeypatch)
+    if conflict == "symlink":
+        target = lab_base.parent / "other"
+        target.mkdir()
+        lab_base.symlink_to(target, target_is_directory=True)
+    else:
+        lab_base.mkdir(mode=0o700)
+        if conflict == "mode":
+            lab_base.chmod(0o750)
+        else:
+
+            def reject_owner(*_args):
+                raise StorageError("attachment_directory_unsafe")
+
+            monkeypatch.setattr(linux_attachment, "_check_private_directory", reject_owner)
+    before = (lab_base.is_symlink(), lab_base.lstat().st_mode, lab_base.lstat().st_uid)
+    with pytest.raises(StorageError, match="attachment_lab_base_conflict"):
+        linux_attachment.provision_base()
+    after = (lab_base.is_symlink(), lab_base.lstat().st_mode, lab_base.lstat().st_uid)
+    assert after == before
+
+
+def test_provision_base_rejects_mountpoint(tmp_path, monkeypatch):
+    _parent, lab_base = _mock_provision_environment(tmp_path, monkeypatch)
+    lab_base.mkdir(mode=0o700)
+    monkeypatch.setattr(linux_attachment, "_is_mountpoint", lambda path: path == lab_base)
+    with pytest.raises(StorageError, match="attachment_lab_base_mountpoint"):
+        linux_attachment.provision_base()
+
+
+def test_mountinfo_detection_catches_same_filesystem_bind_mount(tmp_path, monkeypatch):
+    lab_base = tmp_path / "var" / "lib" / "brain-lab"
+    escaped = os.fspath(lab_base).replace(" ", r"\040")
+    monkeypatch.setattr(
+        linux_attachment.Path,
+        "read_text",
+        lambda *_args, **_kwargs: f"31 22 0:42 / {escaped} rw,relatime - ext4 /dev/loop0 rw\n",
+    )
+    assert linux_attachment._is_mountpoint(lab_base) is True
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="renameat2 is Linux-specific")
+def test_provision_base_cleans_its_staging_directory_after_collision(tmp_path, monkeypatch):
+    _parent, lab_base = _mock_provision_environment(tmp_path, monkeypatch)
+    observed_staging_roots = []
+
+    def collide(source_parent, _source_name, _destination_parent, _destination_name):
+        observed_staging_roots.append(source_parent)
+        lab_base.mkdir(mode=0o700)
+        raise StorageError("attachment_id_already_exists")
+
+    monkeypatch.setattr(linux_attachment, "_rename_noreplace_between", collide)
+    assert linux_attachment.provision_base()["state"] == "present"
+    assert len(observed_staging_roots) == 1
+    assert not observed_staging_roots[0].exists()
+
+
+def test_provision_base_requires_root(tmp_path, monkeypatch):
+    _mock_provision_environment(tmp_path, monkeypatch)
+    monkeypatch.setattr(linux_attachment.os, "geteuid", lambda: 1000)
+    with pytest.raises(StorageError, match="attachment_provision_base_requires_root"):
+        linux_attachment.provision_base()
+
+
+@pytest.mark.parametrize(
+    "uid,gid",
+    [(0, 0), (1000, 0)],
+)
+def test_provision_base_rejects_brain_mapped_to_root(tmp_path, monkeypatch, uid, gid):
+    _mock_provision_environment(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        linux_attachment.pwd,
+        "getpwnam",
+        lambda _name: SimpleNamespace(pw_uid=uid, pw_gid=gid),
+    )
+    with pytest.raises(StorageError, match="attachment_lab_base_account_unsafe"):
+        linux_attachment.provision_base()

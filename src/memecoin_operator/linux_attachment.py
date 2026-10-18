@@ -33,6 +33,14 @@ RESTORE_SCHEMA = "brain-linux-synthetic-operator-restore-v1"
 ACTIVATION_SCHEMA = "brain-linux-synthetic-attachment-activation-v1"
 ROOT_ACTION_ERROR_SCHEMA = "brain-linux-root-action-error-v1"
 ROOT_ACTION_CODES_BY_ACTION = {
+    "provision-base": {
+        "attachment_lab_base_parent_unsafe",
+        "attachment_lab_base_account_unsafe",
+        "attachment_lab_base_mountpoint",
+        "attachment_lab_base_mount_state_unavailable",
+        "attachment_lab_base_conflict",
+        "attachment_lab_base_provision_failed",
+    },
     "stage-unit": set(),
     "activate-root": {"attachment_activation_already_attempted", "attachment_unit_failed"},
     "verify-root": {
@@ -194,38 +202,57 @@ def _sha256(data: bytes) -> str:
 
 def _rename_noreplace(parent: Path, source_name: str, destination_name: str) -> None:
     """Publish two direct children without replacing a concurrently created name."""
+    _rename_noreplace_between(parent, source_name, parent, destination_name)
+
+
+def _rename_noreplace_between(
+    source_parent: Path, source_name: str, destination_parent: Path, destination_name: str
+) -> None:
+    """Atomically publish a direct child across directories on the same filesystem."""
     if any(
         name in {"", ".", ".."} or "/" in name or "\\" in name
         for name in (source_name, destination_name)
     ):
         raise StorageError("attachment_publish_name_invalid")
-    parent_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    source_fd = os.open(source_parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
-        libc = ctypes.CDLL(None, use_errno=True)
-        renameat2 = getattr(libc, "renameat2", None)
-        if renameat2 is None:
-            raise StorageError("attachment_noreplace_unsupported")
-        renameat2.argtypes = [
-            ctypes.c_int,
-            ctypes.c_char_p,
-            ctypes.c_int,
-            ctypes.c_char_p,
-            ctypes.c_uint,
-        ]
-        renameat2.restype = ctypes.c_int
-        if (
-            renameat2(
-                parent_fd, os.fsencode(source_name), parent_fd, os.fsencode(destination_name), 1
-            )
-            != 0
-        ):
-            error = ctypes.get_errno()
-            if error in {17, 18}:
-                raise StorageError("attachment_id_already_exists")
-            raise StorageError("attachment_publish_failed") from OSError(error, os.strerror(error))
-        os.fsync(parent_fd)
+        destination_fd = os.open(destination_parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            libc = ctypes.CDLL(None, use_errno=True)
+            renameat2 = getattr(libc, "renameat2", None)
+            if renameat2 is None:
+                raise StorageError("attachment_noreplace_unsupported")
+            renameat2.argtypes = [
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_uint,
+            ]
+            renameat2.restype = ctypes.c_int
+            if (
+                renameat2(
+                    source_fd,
+                    os.fsencode(source_name),
+                    destination_fd,
+                    os.fsencode(destination_name),
+                    1,
+                )
+                != 0
+            ):
+                error = ctypes.get_errno()
+                if error == 17:
+                    raise StorageError("attachment_id_already_exists")
+                raise StorageError("attachment_publish_failed") from OSError(
+                    error, os.strerror(error)
+                )
+            os.fsync(source_fd)
+            if source_parent != destination_parent:
+                os.fsync(destination_fd)
+        finally:
+            os.close(destination_fd)
     finally:
-        os.close(parent_fd)
+        os.close(source_fd)
 
 
 def _publish_attachment_directory(staging_dir: Path, final_dir: Path) -> None:
@@ -378,6 +405,110 @@ def _check_private_directory(path: Path, uid: int, gid: int) -> None:
         or metadata.st_gid != gid
     ):
         raise StorageError("attachment_directory_unsafe")
+
+
+def provision_base() -> dict[str, object]:
+    """Create the fixed, private attachment parent as an explicit root action."""
+    if os.geteuid() != 0:
+        raise StorageError("attachment_provision_base_requires_root")
+    parent = LAB_BASE.parent
+    _validate_lab_parent(parent)
+    try:
+        owner = pwd.getpwnam("brain")
+    except KeyError as exc:
+        raise StorageError("attachment_lab_base_account_unsafe") from exc
+    if owner.pw_uid == 0 or owner.pw_gid == 0:
+        raise StorageError("attachment_lab_base_account_unsafe")
+    if _is_mountpoint(LAB_BASE):
+        raise StorageError("attachment_lab_base_mountpoint")
+    if os.path.lexists(LAB_BASE):
+        try:
+            _check_private_directory(LAB_BASE, owner.pw_uid, owner.pw_gid)
+        except StorageError as exc:
+            raise StorageError("attachment_lab_base_conflict") from exc
+        return {"state": "present", "path": str(LAB_BASE), "mode": "0700"}
+
+    staging_root = Path(tempfile.mkdtemp(prefix=".brain-lab-provision-", dir=parent))
+    staging = staging_root / "brain-lab"
+    published = False
+    try:
+        staging.mkdir(mode=0o700)
+        os.chown(staging, owner.pw_uid, owner.pw_gid, follow_symlinks=False)
+        os.chmod(staging, 0o700, follow_symlinks=False)
+        metadata = staging.lstat()
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or stat.S_IMODE(metadata.st_mode) != 0o700
+            or metadata.st_uid != owner.pw_uid
+            or metadata.st_gid != owner.pw_gid
+            or next(staging.iterdir(), None) is not None
+        ):
+            raise StorageError("attachment_lab_base_provision_failed")
+        for directory in (staging, staging_root):
+            directory_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        _rename_noreplace_between(staging_root, staging.name, parent, LAB_BASE.name)
+        published = True
+        staging_root.rmdir()
+        _check_private_directory(LAB_BASE, owner.pw_uid, owner.pw_gid)
+    except (OSError, StorageError) as exc:
+        if isinstance(exc, StorageError) and str(exc) == "attachment_id_already_exists":
+            try:
+                if _is_mountpoint(LAB_BASE):
+                    raise StorageError("attachment_lab_base_mountpoint") from exc
+                _check_private_directory(LAB_BASE, owner.pw_uid, owner.pw_gid)
+            except StorageError as conflict:
+                shutil.rmtree(staging_root, ignore_errors=True)
+                if str(conflict) == "attachment_lab_base_mountpoint":
+                    raise
+                raise StorageError("attachment_lab_base_conflict") from conflict
+            shutil.rmtree(staging_root, ignore_errors=True)
+            return {"state": "present", "path": str(LAB_BASE), "mode": "0700"}
+        if not published:
+            try:
+                shutil.rmtree(staging_root)
+            except FileNotFoundError:
+                pass
+            except OSError:
+                pass
+        if isinstance(exc, StorageError) and str(exc) == "attachment_lab_base_mountpoint":
+            raise
+        raise StorageError("attachment_lab_base_provision_failed") from exc
+    return {"state": "created", "path": str(LAB_BASE), "mode": "0700"}
+
+
+def _is_mountpoint(path: Path) -> bool:
+    """Check mountinfo directly so same-filesystem bind mounts are detected."""
+    try:
+        lines = Path("/proc/self/mountinfo").read_text(encoding="ascii").splitlines()
+    except OSError as exc:
+        raise StorageError("attachment_lab_base_mount_state_unavailable") from exc
+    expected = os.fspath(path)
+    for line in lines:
+        fields = line.split()
+        if len(fields) < 6:
+            raise StorageError("attachment_lab_base_mount_state_unavailable")
+        mountpoint = re.sub(r"\\([0-7]{3})", lambda match: chr(int(match.group(1), 8)), fields[4])
+        if mountpoint == expected:
+            return True
+    return False
+
+
+def _validate_lab_parent(parent: Path) -> None:
+    try:
+        parent_stat = parent.lstat()
+    except OSError as exc:
+        raise StorageError("attachment_lab_base_parent_unsafe") from exc
+    if (
+        not stat.S_ISDIR(parent_stat.st_mode)
+        or stat.S_ISLNK(parent_stat.st_mode)
+        or parent_stat.st_uid != 0
+        or parent_stat.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+    ):
+        raise StorageError("attachment_lab_base_parent_unsafe")
 
 
 def _prepare_runtime_directories(operator_dir: Path, uid: int, gid: int) -> None:
@@ -1631,6 +1762,10 @@ def main(argv: list[str] | None = None) -> int:
     prepare.add_argument("--run-id", required=True)
     prepare.add_argument("--restore-manifest-sha256", required=True)
     prepare.add_argument("--attachment-id", required=True)
+    sub.add_parser(
+        "provision-base",
+        help="create /var/lib/brain-lab as a private brain-owned directory (requires root)",
+    )
     stage = sub.add_parser("stage-unit", help=argparse.SUPPRESS)
     _add_pins(stage)
     activate_root = sub.add_parser("activate-root", help=argparse.SUPPRESS)
@@ -1647,7 +1782,9 @@ def main(argv: list[str] | None = None) -> int:
     _add_pins(verify)
     args = parser.parse_args(argv)
     try:
-        if args.command == "prepare":
+        if args.command == "provision-base":
+            result = provision_base()
+        elif args.command == "prepare":
             result = prepare_attachment(
                 args.release_id,
                 args.release_manifest_sha256,
