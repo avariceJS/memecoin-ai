@@ -20,14 +20,21 @@ also remains incomplete. Do not delete partial candidates or activate Brain. The
 operator package is awaiting final Sol review. No second-Mac restore has occurred.
 
 A separate Linux portability branch, `codex/linux-portability-20261018` at
-`d12d8eb9d424e50f8b631627f9e2340ebfee5d31`, is isolated from that acceptance path. Fresh Ubuntu
-24.04 clones completed `make setup`; repeated builds across separate output directories and a clean
-clone matched both wheel and sdist hashes. The exact-head release restored a synthetic ext4 fixture
+`df0a1a88140048d56752af70da236a1dbd070159`, is isolated from that acceptance path. Fresh Ubuntu
+24.04 clones completed `make setup`; repeated builds across separate output directories and clean
+clones matched wheel and sdist hashes. The exact-head release restored a synthetic ext4 fixture
 inert, activated explicitly, stopped/finalized, then passed release and attachment verification
 after reboot; its unit remained disabled/inactive. Focused Linux/build tests passed (75 passed, one
 optional browser skip); changed-file lint/format and synthetic smoke passed. `make check` stops at
-107 tree-wide Ruff findings outside the changed Linux files. No provider credentials or protected
-data were used. Exact evidence and limits are in
+107 tree-wide Ruff findings outside the changed Linux files. A real ext4 lazy-detach writer rehearsal
+confirmed held-descriptor behavior for mkdir/create/atomic rename, append rejection, and unchanged
+underlay. The Linux UUID probe now cross-checks canonical `findmnt` identity with root-owned udev
+links bound to exact major:minor, with fail-closed conflict/ambiguity handling; the link-only path
+was exercised on a disposable loop device. Fresh setup, 78 focused tests, changed-file lint/format,
+and byte-identical wheel/sdist builds passed at the new head. The disposable detach image, config,
+and underlay were removed after readback; the earlier separate synthetic attachment lab remains
+mounted and inert for follow-up lifecycle experiments. No provider credentials or protected data
+were used. Exact evidence and limits are in
 [`Linux portability receipt`](../docs/evidence/brain-linux-portability-2026-10-18.json). This is not
 Migration v1 acceptance or qualification of production state, CUDA, ARM64, or Windows/WSL.
 

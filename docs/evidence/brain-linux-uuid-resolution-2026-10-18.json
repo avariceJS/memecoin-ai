@@ -1,0 +1,49 @@
+{
+  "schema": "brain-linux-uuid-resolution-v1",
+  "date": "2026-10-18",
+  "scope": "read-only UUID identity probe on disposable Ubuntu/ext4 loop storage",
+  "source": {
+    "repository": "avariceJS/memecoin-ai",
+    "commit": "df0a1a88140048d56752af70da236a1dbd070159",
+    "branch": "codex/linux-portability-20261018"
+  },
+  "host": {
+    "os": "Ubuntu 24.04 LTS",
+    "architecture": "x86_64",
+    "mount_path": "/mnt/brain-storage-detach-qual",
+    "filesystem": "ext4",
+    "mount_id": 55,
+    "source": "/dev/loop1",
+    "major_minor": "7:1",
+    "uuid": "26bd09b0-18b0-43d6-b583-64a09c2e3c4a",
+    "uuid_link_target": "/dev/loop1"
+  },
+  "checks": {
+    "findmnt_and_link_agree": "passed through the real unprivileged LinuxExt4VolumeProbe after normal udev settle",
+    "link_only": "passed after the findmnt UUID command was stubbed to return empty; the mountinfo, source-device, /dev directory, and udev-link checks remained real",
+    "conflict": "rejected as volume_uuid_source_conflict when findmnt was stubbed to return a different canonical UUID",
+    "duplicate_matching_links": "rejected as ambiguous_volume_uuid_link after temporarily adding a second canonical UUID link to the same block device",
+    "malformed_matching_link": "rejected as invalid_volume_uuid_link after temporarily adding a malformed link to the mounted block device",
+    "wrong_device_link": "ignored a temporary canonical UUID link targeting /dev/loop0; the correct /dev/loop1 link remained the unique match",
+    "temporary_links_removed": true,
+    "unsafe_directory": "unit-tested for non-directory, non-root owner, and group/world-writable modes; no live /dev permission change was made",
+    "fresh_clone_setup": "passed make setup in a new private read-only GitHub clone at the exact source commit",
+    "focused_tests": "78 passed across tests/test_research_storage.py and tests/test_brain_senses_gecko_capture_only_v3_host.py",
+    "changed_file_ruff_and_format": "passed",
+    "independent_distribution_builds": {
+      "source_date_epoch": 1792296133,
+      "wheel_sha256": "4c0779afedaa4b900b6c69d3a5fd3b8ff68296a7832aa51d6dc16da435e74a69",
+      "sdist_sha256": "82f1657ccf4babfbdda75d4db0d8e9b80c834f26396045d9fcf556af02332158",
+      "result": "identical across two independent source clones at the exact commit"
+    },
+    "brain_groups": ["brain"],
+    "device_acl": "none; /dev/loop1 remained root:disk mode 0660",
+    "provider_or_protected_data_access": false,
+    "writes": false
+  },
+  "limitations": [
+    "The link-only path was exercised on a synthetic loop image, not a provider-attached research volume.",
+    "The conflict case injects only the findmnt output; the udev UUID link and mounted device are real.",
+    "This does not qualify broad storage-writer behavior, crash durability, or real Brain data."
+  ]
+}

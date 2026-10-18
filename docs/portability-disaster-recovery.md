@@ -325,6 +325,14 @@ exact disposable loop device allowed the existing unprivileged UUID probe to obs
 that ACL and a temporary UUID link were removed immediately afterward. This is a test setup detail,
 not a deployment permission model. See the immutable
 [`ext4 writer detach receipt`](evidence/brain-linux-ext4-writer-detach-2026-10-18.json).
+At exact pushed HEAD `df0a1a88140048d56752af70da236a1dbd070159`, a live disposable loop-volume
+probe exercised the UUID-link-only path with `findmnt` UUID output stubbed empty while mountinfo,
+block-device identity, and the udev link remained real. It returned the exact volume UUID without
+device ACLs or `disk` group membership; an injected conflicting `findmnt` UUID failed closed.
+See the [`Linux UUID resolution receipt`](evidence/brain-linux-uuid-resolution-2026-10-18.json).
+At that same exact commit, a new read-only Git clone passed `make setup`; 78 storage and descriptor
+writer tests passed, and changed-file Ruff/format checks passed. Two independent clean source clones
+produced identical wheel and sdist hashes under `SOURCE_DATE_EPOCH=1792296133`.
 
 This proves clean Linux setup, repeated package-build identity, inert staging, synthetic idle restore
 and explicit activation, bounded maintenance, stop/finalize, and verifier recovery after reboot. It

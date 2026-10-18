@@ -15,6 +15,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
   fixture only, with the underlay inventory verified unchanged. The receipt binds its
   [VPS-specific rehearsal harness](brain-linux-ext4-writer-detach-harness-2026-10-18.py); do not run
   it against any other storage.
+- [Linux UUID resolution](brain-linux-uuid-resolution-2026-10-18.json): real loop-device and udev
+  identity with the link-only fallback and conflicting-source rejection exercised at exact topic
+  HEAD; no device ACL or `disk` group membership.
 
 - [Scheduled sensing neural engineering qualification](brain-scheduled-sensing-neural-qualification-2026-10-15.json):
   synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume
