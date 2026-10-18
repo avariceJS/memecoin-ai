@@ -30,6 +30,7 @@ def main() -> int:
     )
     configure_p.add_argument("--min-free-bytes", type=int, required=True)
     configure_p.add_argument("--volume-uuid", help="optional explicit expected UUID")
+    configure_p.add_argument("--platform", choices=("macos", "linux"), default="macos")
     bind_p = sub.add_parser(
         "bind-existing", help="bind a verified existing root using recovery identity pins"
     )
@@ -57,6 +58,7 @@ def main() -> int:
                 args.data_root,
                 min_free_bytes=args.min_free_bytes,
                 volume_uuid=args.volume_uuid,
+                platform=args.platform,
             )
             payload = config.to_json()
         elif args.command == "bind-existing":
