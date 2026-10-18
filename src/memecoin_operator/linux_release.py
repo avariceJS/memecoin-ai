@@ -1245,7 +1245,7 @@ def _has_nested_mount(path: Path) -> bool:
             candidate.relative_to(root)
         except ValueError:
             continue
-        if candidate != root:
+        if candidate == root or candidate.is_relative_to(root):
             return True
     return False
 
@@ -1730,6 +1730,7 @@ def _recover_stage_locked(attempt_id: str) -> dict[str, str]:
     ):
         raise RuntimeError("stage_recovery_unit_requires_manual_review")
     slice_name = str(record["slice_name"])
+    _stop_stage_slice(slice_name)
     builder_name = str(record["builder_name"])
     uid_value = record["builder_uid"]
     try:
@@ -1753,7 +1754,6 @@ def _recover_stage_locked(attempt_id: str) -> dict[str, str]:
     )
     if prepared_artifacts is not None:
         _preflight_prepared_temp_locations(attempt_id, record, prepared_artifacts)
-    _stop_stage_slice(slice_name)
     staging = RELEASE_BASE / str(record["staging_name"])
     incomplete = RELEASE_BASE / f".incomplete-{attempt_id}"
     try:
