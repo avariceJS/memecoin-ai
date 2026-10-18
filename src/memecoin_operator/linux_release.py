@@ -22,6 +22,9 @@ UNIT_BASE = Path("/etc/systemd/system")
 STATE_BASE = Path("/var/lib/brain-lab/releases")
 SCHEMA = "brain-linux-release-v1"
 MAX_WHEEL_BYTES = 100 * 1024 * 1024
+SAFE_WHEEL_NAME = re.compile(
+    r"^[A-Za-z0-9_]+-[A-Za-z0-9_.]+-[A-Za-z0-9_.]+-[A-Za-z0-9_.]+-[A-Za-z0-9_.]+\.whl$"
+)
 
 
 def _sha256(path: Path) -> str:
@@ -164,7 +167,11 @@ def stage(
         raise ValueError("invalid_wheel_sha256")
     source = source.resolve(strict=True)
     wheel = wheel.resolve(strict=True)
-    if wheel.stat().st_size > MAX_WHEEL_BYTES or not wheel.is_file():
+    if (
+        wheel.stat().st_size > MAX_WHEEL_BYTES
+        or not wheel.is_file()
+        or not SAFE_WHEEL_NAME.fullmatch(wheel.name)
+    ):
         raise ValueError("invalid_wheel_file")
     _commit_and_clean(source, source_commit)
     if _sha256(wheel) != expected_wheel_sha256:
@@ -184,7 +191,7 @@ def stage(
     staging = Path(tempfile.mkdtemp(prefix=f".stage-{release_id[:12]}-", dir=RELEASE_BASE))
     os.chown(staging, builder.pw_uid, builder.pw_gid)
     venv = staging / "venv"
-    staged_wheel = staging / "input.whl"
+    staged_wheel = staging / wheel.name
     try:
         shutil.copyfile(wheel, staged_wheel)
         staged_wheel.chmod(0o444)
