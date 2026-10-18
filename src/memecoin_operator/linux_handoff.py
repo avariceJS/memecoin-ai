@@ -422,7 +422,11 @@ def prepare(
             home=state_root,
             state_layout="handoff-v1",
         )
-        linux_service.install(unit_text, unit=unit_name)
+        linux_service.install(
+            unit_text,
+            unit_path=linux_service.UNIT_PATH.parent / unit_name,
+            unit=unit_name,
+        )
         target_after = linux_release.verify(target_release_id)
         if target_after.get("unit_state") != ("loaded", "inactive", "disabled", 0):
             raise StorageError("handoff_target_changed_during_prepare")
