@@ -270,7 +270,7 @@ def _unit_inventory() -> dict[str, str]:
     for label, output in (("loaded", units.stdout), ("files", files.stdout)):
         for line in output.splitlines():
             fields = line.split()
-            if fields and fields[0].lower().startswith("brain"):
+            if fields and fields[0].lower().startswith(("brain", "memecoin-brain-")):
                 result[f"{label}:{fields[0]}"] = " ".join(fields[1:])
     if result:
         raise HostProvisionError("preexisting_brain_unit_refused")

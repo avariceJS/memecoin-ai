@@ -272,6 +272,16 @@ def test_post_apply_capability_failure_is_returned_for_durable_receipt(monkeypat
     assert error == "brain_source_checkout_not_clean_at_requested_commit"
 
 
+def test_unit_state_recognizes_memecoin_brain_release_unit(monkeypatch):
+    unit = "memecoin-brain-" + "a" * 64 + ".service loaded inactive dead"
+    monkeypatch.setattr(
+        provisioner,
+        "_run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, unit + "\n", ""),
+    )
+    assert provisioner._unit_state() == [unit]
+
+
 def test_refresh_cli_has_no_source_workspace_dependency(monkeypatch, capsys):
     monkeypatch.setattr(
         provisioner,

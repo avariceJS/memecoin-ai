@@ -11,13 +11,15 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - [Linux clean-root cross-host qualification](brain-linux-cleanroot-crosshost-qualification-2026-10-18.json): byte-identical macOS ARM64 and Ubuntu x86_64 source distributions, fresh minimal Ubuntu venv setup, read-only fresh GitHub clone, first-boot release stage/verify, explicit isolated-network activation, idempotent staging, and inert container restart. Package closure is still manually assembled; this is a rootfs-on-VPS test, not a full bare-metal reinstall.
 - The current read-only service-host preflight also requires an existing non-root `brain` account. The historical receipts above predate that account check; the live qualification rootfs has the account. Its missing/root-account cases are covered by focused tests, and explicit user provisioning remains separate from package installation.
 
+- [Linux fresh cloud-image host qualification](brain-linux-clean-host-qualification-2026-10-18.json): verified Ubuntu 24.04.5 cloud image under QEMU TCG, snapshot-bound source-build package apply, clean setup/build/smoke and repeatable artifacts, inert release-v3 stage/verify/activation/stop/reboot. A controlled inert-service package install restored its planned package but detected PackageKit activation and failed closed; full host provisioning is not qualified.
+
 - [Linux inert-service package role](brain-linux-inert-service-package-qualification-2026-10-18.json): pinned Noble snapshot planning and application in a disposable systemd-nspawn rootfs, including the explicit `bsdutils` solver companion and a no-op replan/apply. This is not bare-metal provisioning or service activation.
 
 - [Linux release-v3 host qualification](brain-linux-release-v3-host-qualification-2026-10-18.json):
   real Ubuntu 24.04.1 staging and verification, path-independent venv inventory across two
   installations, nine runnable entry points, same-filesystem bind-mount rejection, private fresh
-  clone, and explicit inert-to-active-to-inert service lifecycle. Clean-host bootstrap, cross-host
-  build identity, publish-crash recovery, and GPU remain unqualified.
+  clone, and explicit inert-to-active-to-inert service lifecycle. Bare-metal whole-host bootstrap,
+  cross-host build identity, publish-crash recovery, and GPU remain unqualified.
 - [Linux handoff recovery boundary](brain-linux-handoff-recovery-boundary-2026-10-18.json): exact
   generation-root membership and mount-boundary checks, conflict-safe recovery before permission
   normalization, Linux retry evidence, and an inert synthetic activation/finalization lifecycle.

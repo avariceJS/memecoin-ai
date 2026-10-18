@@ -356,7 +356,7 @@ def _unit_state() -> list[str]:
     units = []
     for line in result.stdout.splitlines():
         columns = line.split()
-        if columns and columns[0].startswith("brain"):
+        if columns and columns[0].lower().startswith(("brain", "memecoin-brain-")):
             units.append(line.strip())
     active = [row for row in units if len(row.split()) > 2 and row.split()[2] == "active"]
     if active:

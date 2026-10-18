@@ -65,11 +65,19 @@ def test_journal_snapshot_returns_digest_and_signal_without_raw_entries(monkeypa
     assert "synthetic secret marker" not in repr((digest, service_activity))
 
 
-def test_preexisting_brain_units_are_refused(monkeypatch):
+@pytest.mark.parametrize(
+    "unit",
+    [
+        "brain-worker.service",
+        "memecoin-brain-lab.service",
+        "memecoin-brain-" + "a" * 64 + ".service",
+    ],
+)
+def test_preexisting_brain_units_are_refused(monkeypatch, unit):
     calls = iter(
         [
-            subprocess.CompletedProcess([], 0, "brain-worker.service loaded active running\n", ""),
-            subprocess.CompletedProcess([], 0, "brain-worker.service enabled enabled\n", ""),
+            subprocess.CompletedProcess([], 0, f"{unit} loaded active running\n", ""),
+            subprocess.CompletedProcess([], 0, f"{unit} enabled enabled\n", ""),
         ]
     )
     monkeypatch.setattr(host, "_run", lambda *_a, **_kw: next(calls))

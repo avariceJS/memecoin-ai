@@ -45,11 +45,15 @@ install, RECORD, five CLI entrypoints, 58 focused tests, and changed-file lint/f
 content-addressed release staged/verified on bare Ubuntu and nspawn; the nspawn unit completed two
 isolated-network activation/stop cycles and ended inert. See
 [`cross-umask release receipt`](../docs/evidence/brain-linux-cross-umask-release-qualification-2026-10-18.json).
-Next deployment gap: live qualification of the new separate ordinary-host package adapter on a
-verified fresh Ubuntu image. The adapter and focused mocked transaction tests now exist on the
-isolated branch; it refuses destructive solver drift and does not create accounts or grant sudo.
-No APT apply has run through it, and the policy-rc.d service guard is only a mitigation. See
-`docs/brain-development.md` for the contract and limits.
+At commit `d455b6f`, the separate ordinary-host package adapter applied its source-build role on a
+verified Ubuntu 24.04.5 cloud-image guest under QEMU TCG; setup/build/smoke, repeat artifact hashes,
+and an inert release-v3 activation/stop/reboot passed. The controlled service-host install restored
+its exact package but detected PackageKit activation and failed closed. Review found that the
+original precondition matcher missed staged `memecoin-brain-*` release units, so that apply does not
+qualify service-role preconditions. Both host and lab matchers now include those units; live refusal
+verification remains open. Bare-metal bootstrap and service-role installation without unit effects
+remain open. See the
+[`clean-host receipt`](../docs/evidence/brain-linux-clean-host-qualification-2026-10-18.json).
 
 At exact source `df0a1a8`, a post-activation synthetic service SIGKILL left its disabled systemd
 unit failed without restart. Verification failed closed until explicit `reset-failed`; finalization

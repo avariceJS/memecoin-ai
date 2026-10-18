@@ -1,0 +1,169 @@
+{
+  "schema": "brain-linux-clean-host-qualification-v1",
+  "recorded_at_utc": "2026-10-18T10:54:00Z",
+  "scope": "Fresh Ubuntu image guest qualification for source provisioning, synthetic setup/build/smoke, inert release staging and activation, reboot persistence, and ordinary-host package adapter behavior. This is QEMU TCG guest evidence, not bare-metal qualification.",
+  "source": {
+    "repository": "avariceJS/memecoin-ai",
+    "branch": "codex/linux-portability-20261018",
+    "commit": "d455b6f8d7f460977edb2878ca787bfe3a26528a",
+    "checkout_clean": true,
+    "private_source_acquisition": {
+      "method": "fresh depth-1 single-branch clone on the outer Aéza host using the read-only GitHub deploy-key alias, then transfer of that exact checkout into the guest over its separate loopback-only SSH control key",
+      "guest_received_deploy_key": false
+    }
+  },
+  "image": {
+    "url": "https://cloud-images.ubuntu.com/releases/noble/release/ubuntu-24.04-server-cloudimg-amd64.img",
+    "release": "Ubuntu 24.04.5 LTS",
+    "architecture": "x86_64",
+    "sha256": "04e8f2461a16a44e78a370284471f29616cdd9baf1893df25807b71f985b6c94",
+    "sha256sums_file_sha256": "0449a33b78dddb301a3ce2b80398984bc3e1f7880e27b86a31e58bdcbd3d3816",
+    "sha256sums_signature_file_sha256": "68aae716a548e466e58afddd8b767c54c791f40f1d20d1d12e27c471edb535e5",
+    "signature": "good",
+    "signing_key_fingerprint": "D2EB44626FDDC30B513D5BB71A5D6C4C7DB87C81",
+    "fingerprint_reference": "https://ubuntu.com/docs/public-images/public-images-how-to/verify-image-checksum/"
+  },
+  "guest": {
+    "virtualization": "QEMU TCG; outer Aéza /dev/kvm unavailable",
+    "vcpus": 2,
+    "ram_bytes": 2147483648,
+    "overlay_virtual_disk_bytes": 17179869184,
+    "root_filesystem": "ext4",
+    "python": "3.12.3",
+    "systemd_pid1": true,
+    "brain_uid": 1000,
+    "brain_passwordless_sudo": true,
+    "ssh_forward": "127.0.0.1:2222 only on outer host"
+  },
+  "package_adapter": {
+    "tool": "tools/brain_linux_host_packages.py",
+    "snapshot": "20261018T084900Z",
+    "signed_index_count": 54,
+    "index_receipt_sha256": "fd4a34ddb15c1b3585994614820ed207cb3f9018172bec026d4f8703f20cb5b5",
+    "initial_preflight": "ready",
+    "source_build_role": {
+      "plan_sha256": "43fbe1aba34a306f4c826a9b72e83fdaf54a24b71ee3c50f0aada2023537175d",
+      "apply_status": "applied",
+      "transaction": [
+        "make=4.3-4.1build2",
+        "python3-pip-whl=24.0+dfsg-1ubuntu1.3",
+        "python3-setuptools-whl=68.1.2-2ubuntu1.2",
+        "python3.12-venv=3.12.3-1ubuntu0.17"
+      ],
+      "empty_replan_and_apply": true
+    },
+    "inert_service_host_role": {
+      "official_image_initial_plan": "empty; all fixed-role packages were already present",
+      "controlled_fixture": "dpkg removed only iproute2 with --force-depends after ordinary APT simulation showed a seven-package cascade",
+      "install_plan": ["iproute2=6.1.0-1ubuntu6.4"],
+      "package_state_matched_plan": true,
+      "apply_status": "unexpected_unit_or_journal_effect",
+      "observed_unit_effect": "packagekit.service became active at 2026-10-18T10:41:10Z",
+      "recovery": "PackageKit was manually stopped in the disposable guest; after reboot, iproute2 remained installed, preflight was ready, and a fresh empty plan/apply passed",
+      "limitation": "The service-host install path did not pass as inert; the adapter correctly failed closed after observing service activity."
+    },
+        "qualification_precondition_gap": {
+            "discovered_after_run": true,
+            "cause": "The original package adapter matcher recognized names beginning with brain but omitted the actual memecoin-brain-<release-id>.service name.",
+            "unit_present_during_service_role_apply": "memecoin-brain-8e7060a2170f67d2c5d85e6e38199f4f08813c9911de8416deff4cc9b29ab2ac.service",
+            "effect": "The controlled service-role apply ran despite a staged Brain release unit being present. Treat it as an invalid qualification of the adapter's precondition boundary, while retaining its package and PackageKit observations as factual guest evidence.",
+            "source_build_apply_preceded_release_staging": true,
+            "remediation": "Both ordinary-host and lab unit matchers now recognize brain* and memecoin-brain-*; focused tests cover staged release names. The guest should refuse preflight after receiving this fix."
+        },
+    "receipt_sha256": {
+      "source_build_plan": "e2488160909c1c681407bfa06842e43fa1b6c0d562151aab60d311c13fc2a68d",
+      "source_build_apply": "8a474562f6ed4aa081e25e6d8907fc58e5ca840bc6e9229f409027adb80e240a",
+      "source_build_empty_plan": "ecd4dd3da3ff4494990c60feea33f1c57061497f4e20b0ea73d00eccac339939",
+      "source_build_empty_apply": "1c529bb49e24b6ae0690db38368c5f69289500bb2158cdf0e6334cddbb078aff",
+      "service_install_plan": "8a4f308b67892e2f81bc1ce236af00fbb9bac4ff59ed9cc295bb0a5bb94525c1",
+      "service_install_apply_effect": "b17472b5c171d55b0c742507aeeb1d9b0950be9c388c097d7fa5c1ca6fe6ef2c",
+      "post_reboot_empty_plan": "8cf3b3d427dd69dc0255a6f0d92bdd9cc75e6d6399486b630df9c56eda781b63",
+      "post_reboot_empty_apply": "7e494cad71e5b8e710324cbaab6a4a53f2d6d569116c3bf9cf4031f549a03204"
+    }
+  },
+  "build": {
+    "make_setup": true,
+    "make_build": true,
+    "make_smoke": true,
+    "pip_check": "No broken requirements found",
+    "source_checkout_after_build_clean": true,
+    "wheel_sha256_first_and_repeat": "cd84ffe42750f306c2bd92de7e9a53d53dc32810c3b17fb1c698f5aad054a1ea",
+    "sdist_sha256_first_and_repeat": "806713e5b51ce84b52de3864cb25aad779dd9a7f08fe81ee1c9c29cb620e1d32",
+    "repeat_build_byte_identical": true,
+    "capabilities_after_setup": {
+      "source_build": "available",
+      "inert_service_host_ext4": "indeterminate until a release unit is supplied",
+      "cpu_ml": "absent; optional dependencies not installed",
+      "gpu": "indeterminate; no NVIDIA device and CUDA unqualified"
+    }
+  },
+  "release": {
+    "schema": "brain-linux-release-v3",
+    "release_id": "8e7060a2170f67d2c5d85e6e38199f4f08813c9911de8416deff4cc9b29ab2ac",
+    "wheel_sha256": "cd84ffe42750f306c2bd92de7e9a53d53dc32810c3b17fb1c698f5aad054a1ea",
+    "manifest_sha256": "4158e2ddbbf68ab5300571f949f5b07a215acbb3803646d6daf724dc8108a885",
+    "installed_inventory_sha256": "11c54b506b71bbbf64ea0cdb8d7d75bb0359a3f7b5652842c8d03d3a3a03ff7e",
+    "synthetic_state": {
+      "real_execution_enabled": false,
+      "paid_budget_usd": 0,
+      "expires_ns": 0,
+      "production_or_protected_data": false
+    },
+    "stage_and_verify": true,
+    "explicit_activation": true,
+    "systemd_unit": "memecoin-brain-8e7060a2170f67d2c5d85e6e38199f4f08813c9911de8416deff4cc9b29ab2ac.service",
+    "unit_policy": {
+      "static": true,
+      "restart": "no",
+      "private_network": true,
+      "observed_listener": "127.0.0.1:18792 inside the service network namespace"
+    },
+    "after_stop_and_reboot": ["loaded", "inactive", "static", 0],
+    "post_reboot_verify": true,
+    "restart_count": 0
+  },
+  "reboot": {
+    "guest_reboot_completed": true,
+    "outer_aezavpssh_preserved": true,
+    "guest_ssh_tunnel_recovered_without_intervention": true,
+    "post_reboot_packagekit": "inactive",
+    "post_reboot_systemd_failed_units": 0,
+    "post_reboot_host_adapter_preflight": "ready"
+  },
+  "observations": [
+    "The first guest session observed /dev/null mode 0644; a targeted udev change event restored 0666. It remained 0666 after the later reboot. The cause was not isolated.",
+    "APT policy-rc.d did not prevent PackageKit from becoming active during the controlled iproute2 installation. This is evidence that the guard is only a mitigation."
+  ],
+  "limitations": [
+    "QEMU TCG guest, not a bare-metal Ubuntu qualification; the outer Aéza VPS was not a clean host.",
+    "Private GitHub credentials stayed on the outer brain account; the guest received only the clean source checkout and a separate temporary SSH control keypair.",
+    "Ordinary-host source-build apply and inert release lifecycle passed. The inert-service role's package-changing apply detected PackageKit activation and failed closed, but was run with a staged Brain release unit due to the matcher defect noted above; it does not qualify service-role apply preconditions. A no-op post-reboot apply passed before the fix.",
+    "No real durable Brain payload, Kingston content, Migration v1 candidate, protected dataset, provider secret, production runtime, GPU, or trading action was used."
+  ],
+  "raw_evidence_directory": "/home/brain/lab/clean-host-20261018",
+  "selected_log_sha256": {
+    "signature_and_image": {
+      "SHA256SUMS": "0449a33b78dddb301a3ce2b80398984bc3e1f7880e27b86a31e58bdcbd3d3816",
+      "SHA256SUMS.gpg": "68aae716a548e466e58afddd8b767c54c791f40f1d20d1d12e27c471edb535e5",
+      "image": "04e8f2461a16a44e78a370284471f29616cdd9baf1893df25807b71f985b6c94"
+    },
+    "setup_build_smoke_log": "b0441d36267981e865909a5a3308b3a2ba377b674111b2e2040872fc11eba82f",
+    "build_verification_log": "b226de46fa7752c0035be3c0c1f9f9294b6f24659f1ba34793c4268e7c6b614b",
+    "repeat_build_log": "11564d918c99e0e6188fc70acfece55f2d84619df8f11fe6c5772ca27a28cf10",
+    "post_reboot_state_log": "d620dcc62c953655f88b9fce6fbd09d662c397bd83af66c810a86257e80ec262",
+    "post_reboot_preflight_log": "1f97cfca9cff7a29f586668a58448e4b4f246f6a66b9db1d8f1d98d0731907e9",
+    "release_stage": "81f6acf629ff9bde5afbfe347e3e9293bd5a509b4d2039b7ec1e3aad78c4f56f",
+    "release_verify": "73d7899837671e1733652e3c7b9162519913027160aa33585c9afc6820662448",
+    "release_activate": "2e30efeebfcf7e1b0d01006fe0cf14c556b113464f7dc79ebc385152d32bad2a",
+    "release_stop_verify": "4199af6d29b686ef4b7f04a52e6db2d91ba9f6c35993f699e9c2d5d69f99f1ed",
+    "inert_service_install_apply_stderr": "eb4ff2637e82795ca6dba18e28761d94ba5978e2878ad4e6abf4a16e231f16a2",
+    "package_receipts_directory": "/home/brain/lab/clean-host-20261018/package-receipts"
+  },
+  "protected_scope": {
+    "migration_v1_changed": false,
+    "main_or_research_active_changed": false,
+    "mac_brain_runtime_or_kingston_touched": false,
+    "protected_datasets_or_provider_credentials_transferred": false,
+    "real_money_or_trading_activity": false
+  }
+}

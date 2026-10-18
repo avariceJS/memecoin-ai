@@ -248,11 +248,29 @@ archive keyring, and an existing non-root `brain` account. It keeps its own APT 
 binds the keyring, signed snapshot indexes, host identity, installed package state, exact solver
 plan, source capability report, and Brain unit state, and refuses removals, downgrades, unrelated
 solver changes, drift, and concurrent package operations. It does not create users or grant sudo.
-This adapter has focused mocked-transaction coverage only; it has not yet been qualified on a fresh
-ordinary Ubuntu host. Its `policy-rc.d` guard is a mitigation, since package maintainer scripts can
-still start services; receipt evidence checks unit state and stores journal hashes plus a bounded
-service-activity signal without retaining raw journal entries. A fresh-image live apply and reboot
-check remain required before claiming ordinary-host package provisioning.
+This adapter now has a scoped live qualification on a fresh Ubuntu 24.04.5 cloud-image guest under
+QEMU TCG. The source-build role applied its exact snapshot-bound plan and then replanned/applied an
+empty transaction; a clean exact-commit checkout completed setup, build, synthetic smoke, and a
+byte-identical repeat build. A release-v3 candidate staged and verified inert, ran only after
+explicit activation, stopped to static/inactive/PID-0, and remained inert after guest reboot. The
+separate inert-service role was already satisfied by the image. A controlled missing-`iproute2`
+fixture exercised its install path: package state matched the plan, but PackageKit became active
+during the transaction, so the adapter recorded `unexpected_unit_or_journal_effect` and failed
+closed. A later review found that the original unit precondition matcher omitted the actual
+`memecoin-brain-<release-id>.service` name, which was staged during that controlled service-role
+apply. The package and PackageKit observations remain factual, but that apply does not qualify the
+service-role precondition boundary. Both host and lab matchers now recognize Brain release units;
+the live refusal is still to be verified. The source-build apply and inert release lifecycle remain
+qualified on that guest; clean bare-metal Ubuntu bootstrap and a service-role package apply with no
+unexpected activation remain unqualified.
+
+The `policy-rc.d` guard is only a mitigation, since package maintainer scripts and D-Bus activation
+can still start services. Receipts check unit state and store journal hashes plus a bounded
+service-activity signal without retaining raw journal entries. The initial guest also briefly
+reported `/dev/null` as mode `0644`; a targeted udev event restored `0666`, which remained correct
+after reboot. Preserve this as an image/boot observation, not a product guarantee. Full evidence,
+including the PackageKit effect and its limits, is indexed in
+[`docs/evidence/README.md`](evidence/README.md).
 
 At source commit `0b296131a957c5d9c3e3865bd6d94008dd27495b`, the canonical wheel and source archive
 matched byte-for-byte across macOS arm64 and Ubuntu bare-host/nspawn builds under four umask/HOME

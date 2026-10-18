@@ -2182,8 +2182,24 @@ bind mount was rejected. The immutable scope and hashes are in the
 [`Linux release-v3 receipt`](evidence/brain-linux-release-v3-host-qualification-2026-10-18.json).
 This is separate from Migration v1 and changes none of its candidates or acceptance status.
 
-The Linux result is not yet a clean whole-host rebuild: the VPS has older unrelated Brain lab units,
-so first-boot behavior on a host with no legacy units remains open. Cross-host build identity,
+A fresh Ubuntu 24.04.5 cloud image was also booted as an isolated 2-vCPU/2-GiB QEMU TCG guest on
+the disposable Aéza host. After signature and image-hash verification, an exact clean private
+checkout completed source-build package planning/apply, `make setup`, build, synthetic smoke, and a
+byte-identical repeat build. A release-v3 candidate with synthetic inert operator configuration was
+staged, verified, explicitly activated, stopped, and verified again; its unit remained
+static/inactive/PID-0 after guest reboot and the SSH tunnel recovered. The fixed service-host role
+was already present in the cloud image. A controlled missing-`iproute2` apply restored the package
+but also observed PackageKit becoming active; the adapter recorded that service effect and failed
+closed. Review then found that the apply ran with a staged Brain release unit because the original
+precondition matcher omitted its `memecoin-brain-<release-id>.service` name. Keep the package and
+PackageKit observations, but do not count that run as qualification of the service-role
+precondition. The host and lab matchers now include release-unit names; a live refusal check is
+pending. This is fresh-image guest evidence under software emulation, not bare-metal or whole-host
+factory-rebuild qualification.
+The package-time service effect, image details, and receipt hashes are in the
+[`clean Linux host receipt`](evidence/brain-linux-clean-host-qualification-2026-10-18.json).
+
+The Linux result is not yet a whole-host clean-room rebuild on bare metal. Cross-host build identity,
 interrupted v3 publication recovery, GPU qualification, and durable-state restore are also open.
 Broader server recovery still needs a qualified volume-identity and descriptor-bound writer backend,
 private secret delivery, and storage semantics for object-store or multi-worker paths. Shared mutable
