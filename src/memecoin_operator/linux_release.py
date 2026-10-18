@@ -243,8 +243,11 @@ def stage(
             raise RuntimeError("release_import_probe_failed")
         staged_wheel.unlink()
         inventory, inventory_sha = _inventory(venv)
+        release_root.mkdir(mode=0o755)
+        os.replace(venv, release_root / "venv")
+        staging.rmdir()
         unit_text = linux_service.render_unit(
-            venv / "bin/python",
+            release_root / "venv/bin/python",
             STATE_BASE / release_id / "operator",
             18792,
             code_root=release_root,
@@ -266,16 +269,22 @@ def stage(
             "unit_sha256": hashlib.sha256(unit_text.encode()).hexdigest(),
             "install_policy": "create-only-disabled-no-activation",
         }
-        (staging / "release-manifest.json").write_text(
+        (release_root / "release-manifest.json").write_text(
             json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8"
         )
-        os.chown(staging / "release-manifest.json", 0, user.pw_gid)
-        (staging / "release-manifest.json").chmod(0o444)
-        _seal(staging, user.pw_gid)
-        os.replace(staging, release_root)
+        os.chown(release_root / "release-manifest.json", 0, user.pw_gid)
+        (release_root / "release-manifest.json").chmod(0o444)
+        _seal(release_root, user.pw_gid)
         linux_service.install(unit_text, unit_path=unit_path, unit=unit_name)
     except BaseException:
-        candidate = staging if staging.exists() else release_root if release_root.exists() else None
+        if release_root.exists() and (release_root / "venv").exists():
+            candidate = release_root
+            if staging.exists():
+                staging.rmdir()
+        else:
+            candidate = staging if staging.exists() else None
+            if release_root.exists():
+                release_root.rmdir()
         if candidate is not None:
             incomplete = RELEASE_BASE / f".incomplete-{release_id[:12]}-{os.getpid()}"
             if candidate == release_root:
