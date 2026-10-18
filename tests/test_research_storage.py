@@ -516,7 +516,83 @@ def test_linux_bind_existing_fails_closed_on_mount_id_change(
     monkeypatch.setattr(research_storage, "_ensure_config_parent_on_other_device", lambda *_: None)
     monkeypatch.setattr(research_storage, "_fd_mount_id", lambda _fd: 77)
     monkeypatch.setattr(research_storage.sys, "platform", "linux")
+    monkeypatch.setattr(
+        research_storage, "_verify_linux_case_sensitive_directory", lambda _fd: None
+    )
     with pytest.raises(StorageError, match="mounted_directory_replaced"):
+        bind_existing(
+            config_path,
+            mount,
+            "research/root",
+            expected_volume_uuid=UUID,
+            expected_root_id=ROOT_ID,
+            min_free_bytes=100,
+            probe=probe,
+            platform="linux",
+        )
+    assert not config_path.exists()
+
+
+def test_linux_bind_existing_rejects_casefold_root_before_config_publication(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _ = _existing_root_fixture(tmp_path)
+    probe = FakeProbe(
+        mount,
+        filesystem="ext4",
+        filesystem_type="ext4",
+        mount_options=("rw",),
+        mount_id=77,
+        source="/dev/loop0",
+        mount_root="/",
+    )
+    monkeypatch.setattr(research_storage, "_ensure_config_parent_on_other_device", lambda *_: None)
+    monkeypatch.setattr(research_storage, "_fd_mount_id", lambda _fd: 77)
+    monkeypatch.setattr(research_storage.sys, "platform", "linux")
+
+    def reject_casefold(_fd: int) -> None:
+        raise StorageError("filesystem_casefold_enabled")
+
+    monkeypatch.setattr(research_storage, "_verify_linux_case_sensitive_directory", reject_casefold)
+    with pytest.raises(StorageError, match="filesystem_casefold_enabled"):
+        bind_existing(
+            config_path,
+            mount,
+            "research/root",
+            expected_volume_uuid=UUID,
+            expected_root_id=ROOT_ID,
+            min_free_bytes=100,
+            probe=probe,
+            platform="linux",
+        )
+    assert not config_path.exists()
+
+
+def test_linux_bind_existing_removes_its_config_if_final_verify_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _ = _existing_root_fixture(tmp_path)
+    probe = FakeProbe(
+        mount,
+        filesystem="ext4",
+        filesystem_type="ext4",
+        mount_options=("rw",),
+        mount_id=77,
+        source="/dev/loop0",
+        mount_root="/",
+    )
+    monkeypatch.setattr(research_storage, "_ensure_config_parent_on_other_device", lambda *_: None)
+    monkeypatch.setattr(research_storage, "_fd_mount_id", lambda _fd: 77)
+    monkeypatch.setattr(research_storage.sys, "platform", "linux")
+    monkeypatch.setattr(
+        research_storage, "_verify_linux_case_sensitive_directory", lambda _fd: None
+    )
+
+    def fail_verify(*_args, **_kwargs):
+        raise StorageError("synthetic_final_verify_failure")
+
+    monkeypatch.setattr(research_storage, "verify_root", fail_verify)
+    with pytest.raises(StorageError, match="synthetic_final_verify_failure"):
         bind_existing(
             config_path,
             mount,

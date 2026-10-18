@@ -575,7 +575,12 @@ def inspect_config(
     finally:
         os.close(mount_fd)
     target = config.mount_path.joinpath(*config.data_root.split("/"))
-    _check_root_components(config.mount_path, config.data_root, allow_missing=True)
+    _check_root_components(
+        config.mount_path,
+        config.data_root,
+        allow_missing=True,
+        platform=config.platform,
+    )
     return ResolvedRoot(
         config.root_id,
         config.volume_uuid,
@@ -603,6 +608,13 @@ def _inspect_readonly_config(
     )
     if volume.volume_uuid.lower() != config.volume_uuid.lower():
         raise StorageError("volume_uuid_mismatch")
+    if config.platform == "linux":
+        _check_root_components(
+            config.mount_path,
+            config.data_root,
+            allow_missing=False,
+            platform=config.platform,
+        )
 
     mount_fd = _open_directory(config.mount_path)
     try:
@@ -746,9 +758,13 @@ def qualify_volume(
         os.close(mount_fd)
 
 
-def _check_root_components(base: Path, relative: str, *, allow_missing: bool) -> None:
+def _check_root_components(
+    base: Path, relative: str, *, allow_missing: bool, platform: str = "macos"
+) -> None:
     cursor = _open_directory(base)
     try:
+        if platform == "linux":
+            _verify_linux_case_sensitive_directory(cursor)
         for part in relative.split("/"):
             try:
                 child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=cursor)
@@ -770,6 +786,8 @@ def _check_root_components(base: Path, relative: str, *, allow_missing: bool) ->
             if st.st_uid != os.getuid() or stat.S_IMODE(st.st_mode) != 0o700:
                 os.close(child)
                 raise StorageError("unsafe_root_owner_or_mode")
+            if platform == "linux":
+                _verify_linux_case_sensitive_directory(child)
             os.close(cursor)
             cursor = child
         # Existing configured root must already be a private owner-owned directory.
@@ -1610,6 +1628,8 @@ def bind_existing(
         filesystem="ext4" if platform == "linux" else "apfs",
     )
     volume_probe = probe or (LinuxExt4VolumeProbe() if platform == "linux" else MacOSVolumeProbe())
+    published_config_identity: tuple[int, int] | None = None
+    published_parent_identity: tuple[int, int] | None = None
     first_volume = volume_probe.inspect(mount_path)
     _validate_volume_policy(first_volume, mount_path, platform=platform)
     if first_volume.volume_uuid.lower() != volume_uuid:
@@ -1627,6 +1647,12 @@ def bind_existing(
         if platform == "linux" and mount_id_before != first_volume.mount_id:
             raise StorageError("mount_changed_during_probe")
         _ensure_config_parent_on_other_device(config_path.parent, mount_before.st_dev)
+        _check_root_components(
+            mount_path,
+            data_root,
+            allow_missing=False,
+            platform=platform,
+        )
         root_fd = _open_relative_directory(mount_fd, data_root)
         root_before = os.fstat(root_fd)
         try:
@@ -1696,6 +1722,7 @@ def bind_existing(
         parent_fd = _make_private_directory(config_path.parent)
         try:
             _ensure_config_parent_on_other_device(config_path.parent, mount_before.st_dev)
+            parent_stat = os.fstat(parent_fd)
             config_fd = os.open(
                 config_path.name,
                 os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
@@ -1714,6 +1741,8 @@ def bind_existing(
                     or written.st_nlink != 1
                 ):
                     raise StorageError("unsafe_config_permissions")
+                published_config_identity = (written.st_dev, written.st_ino)
+                published_parent_identity = (parent_stat.st_dev, parent_stat.st_ino)
             finally:
                 os.close(config_fd)
             os.fsync(parent_fd)
@@ -1737,9 +1766,35 @@ def bind_existing(
             os.close(root_fd)
         os.close(mount_fd)
 
-    if StorageConfig.load(config_path) != config:
-        raise StorageError("config_binding_changed_after_write")
-    verify_root(config_path, min_free_bytes=minimum, probe=probe)
+    try:
+        if StorageConfig.load(config_path) != config:
+            raise StorageError("config_binding_changed_after_write")
+        verify_root(config_path, min_free_bytes=minimum, probe=probe)
+    except BaseException as verification_error:
+        if published_config_identity is not None and published_parent_identity is not None:
+            cleanup_fd = _open_absolute_directory(config_path.parent)
+            try:
+                cleanup_parent_stat = os.fstat(cleanup_fd)
+                if (cleanup_parent_stat.st_dev, cleanup_parent_stat.st_ino) != (
+                    published_parent_identity
+                ):
+                    raise StorageError("bind_config_parent_replaced_during_cleanup")
+                try:
+                    current_config = os.stat(
+                        config_path.name, dir_fd=cleanup_fd, follow_symlinks=False
+                    )
+                except FileNotFoundError:
+                    current_config = None
+                if current_config is not None:
+                    if (current_config.st_dev, current_config.st_ino) != published_config_identity:
+                        raise StorageError("bind_config_replaced_during_cleanup")
+                    os.unlink(config_path.name, dir_fd=cleanup_fd)
+                    os.fsync(cleanup_fd)
+            except OSError as cleanup_error:
+                raise StorageError("bind_config_cleanup_failed") from cleanup_error
+            finally:
+                os.close(cleanup_fd)
+        raise verification_error
     return config
 
 
@@ -1749,6 +1804,8 @@ def create_root(config_path: Path, *, probe: VolumeProbe | None = None) -> Resol
         mount_fd = guard.mount_fd
         current_fd = os.dup(mount_fd)
         try:
+            if guard.config.platform == "linux":
+                _verify_linux_case_sensitive_directory(current_fd)
             parts = guard.config.data_root.split("/")
             for index, part in enumerate(parts):
                 is_root = index == len(parts) - 1
@@ -1766,6 +1823,8 @@ def create_root(config_path: Path, *, probe: VolumeProbe | None = None) -> Resol
                     os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                     dir_fd=current_fd,
                 )
+                if guard.config.platform == "linux":
+                    _verify_linux_case_sensitive_directory(next_fd)
                 if created or is_root:
                     os.fchmod(next_fd, 0o700)
                 st = os.fstat(next_fd)
