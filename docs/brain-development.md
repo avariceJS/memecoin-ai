@@ -219,9 +219,10 @@ index, and archive area with the official Ubuntu signing key and a caller-pinned
 The provisioner entry substrate must already provide `/usr/bin/python3.12`, APT/dpkg, the Ubuntu
 archive keyring, and a live systemd PID 1. Check this read-only with
 `tools/brain_linux_packages_preflight.sh` before invoking Python; raw minbase without these
-prerequisites is outside the tool contract and must fail before any package-state writes. Construct
-that installer substrate separately from the same pinned signed Noble snapshot and record its
-builder inputs and base package inventory.
+prerequisites is outside the tool contract and must fail before any package-state writes. The check
+requires executable system tools, a readable archive keyring, the actual Python 3.12 runtime, and
+the systemd-nspawn PID 1 marker. Construct that installer substrate separately from the same pinned
+signed Noble snapshot and record its builder inputs and base package inventory.
 Index refresh is a separate explicit operation; read-only planning binds fixed package roles,
 dependency closure, versions, solver output, installed state, source hashes, and host capability
 report to a digest. Apply rechecks that digest and all observed inputs, refuses removals, downgrades,

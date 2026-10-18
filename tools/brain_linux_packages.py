@@ -55,13 +55,13 @@ SAFE_ENV = {
     "APT_LISTCHANGES_FRONTEND": "none",
     "HOME": "/root",
 }
-BOOTSTRAP_FILES = {
+BOOTSTRAP_EXECUTABLES = {
     "/usr/bin/python3.12": "python3.12",
     "/usr/bin/apt-get": "apt_get",
     "/usr/bin/dpkg": "dpkg",
     "/usr/bin/systemd-detect-virt": "systemd_detect_virt",
-    "/usr/share/keyrings/ubuntu-archive-keyring.gpg": "ubuntu_archive_keyring",
 }
+BOOTSTRAP_KEYRING = "/usr/share/keyrings/ubuntu-archive-keyring.gpg"
 
 
 class ProvisionError(RuntimeError):
@@ -121,23 +121,33 @@ def _require_lab(*, mutating: bool) -> None:
     release = _os_release()
     if release.get("ID") != "ubuntu" or release.get("VERSION_ID") != "24.04":
         raise ProvisionError("ubuntu_24_04_required")
-    marker = Path("/run/systemd/container")
-    if not marker.exists() or marker.read_text(encoding="utf-8").strip() != "systemd-nspawn":
-        raise ProvisionError("systemd_nspawn_lab_required")
-    detected = _run(["/usr/bin/systemd-detect-virt", "--container"], check=False)
-    if detected.returncode or detected.stdout.strip() != "systemd-nspawn":
-        raise ProvisionError("systemd_nspawn_lab_required")
     missing = _bootstrap_prerequisites_missing()
     if missing:
         raise ProvisionError(f"bootstrap_prerequisite_missing:{','.join(missing)}")
+    marker = Path("/run/systemd/container")
+    detected = _run(["/usr/bin/systemd-detect-virt", "--container"], check=False)
+    if (
+        marker.read_text(encoding="utf-8").strip() != "systemd-nspawn"
+        or detected.returncode
+        or detected.stdout.strip() != "systemd-nspawn"
+    ):
+        raise ProvisionError("systemd_nspawn_lab_required")
     if mutating and not shutil.which("apt-get"):
         raise ProvisionError("apt_get_missing")
 
 
-def _bootstrap_prerequisites_missing(root: Path = Path("/")) -> list[str]:
-    missing = [
-        name for path, name in BOOTSTRAP_FILES.items() if not (root / path.lstrip("/")).is_file()
-    ]
+def _bootstrap_prerequisites_missing(
+    root: Path = Path("/"), python_version: tuple[int, int] = sys.version_info[:2]
+) -> list[str]:
+    missing = []
+    for path, name in BOOTSTRAP_EXECUTABLES.items():
+        if not os.access(root / path.lstrip("/"), os.X_OK):
+            missing.append(name)
+    keyring = root / BOOTSTRAP_KEYRING.lstrip("/")
+    if not os.access(keyring, os.R_OK):
+        missing.append("ubuntu_archive_keyring")
+    if python_version != (3, 12):
+        missing.append("python3.12_runtime")
     pid1 = root / "proc/1/comm"
     systemd_runtime = root / "run/systemd/system"
     if (
@@ -146,6 +156,12 @@ def _bootstrap_prerequisites_missing(root: Path = Path("/")) -> list[str]:
         or not systemd_runtime.is_dir()
     ):
         missing.append("systemd_pid1")
+    container_marker = root / "run/systemd/container"
+    if (
+        not container_marker.is_file()
+        or container_marker.read_text(encoding="utf-8").strip() != "systemd-nspawn"
+    ):
+        missing.append("systemd_nspawn")
     return missing
 
 

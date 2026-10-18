@@ -31,15 +31,28 @@ for pair in \
 do
     path=${pair%%:*}
     name=${pair#*:}
-    if [ ! -f "$path" ]; then
+    if [ ! -x "$path" ]; then
         add_missing "$name"
     fi
 done
+
+if [ -x /usr/bin/python3.12 ]; then
+    python_version=$(/usr/bin/python3.12 -c 'import sys; print("%s.%s" % sys.version_info[:2])') || python_version=unknown
+    if [ "$python_version" != 3.12 ]; then
+        add_missing python3.12_runtime
+    fi
+fi
+if [ ! -r /usr/share/keyrings/ubuntu-archive-keyring.gpg ]; then
+    add_missing ubuntu_archive_keyring
+fi
 
 if [ ! -r /proc/1/comm ] || [ "$(cat /proc/1/comm)" != systemd ] || [ ! -d /run/systemd/system ]; then
     add_missing systemd_pid1
 fi
 if [ ! -r /run/systemd/container ] || [ "$(cat /run/systemd/container)" != systemd-nspawn ]; then
+    add_missing systemd_nspawn
+fi
+if [ -x /usr/bin/systemd-detect-virt ] && [ "$(/usr/bin/systemd-detect-virt --container 2>/dev/null || true)" != systemd-nspawn ]; then
     add_missing systemd_nspawn
 fi
 

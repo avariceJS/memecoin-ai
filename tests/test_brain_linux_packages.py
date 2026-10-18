@@ -32,24 +32,53 @@ def test_roles_are_fixed_and_do_not_include_database_test_control():
 
 
 def test_bootstrap_preflight_requires_installer_substrate(tmp_path):
-    assert provisioner._bootstrap_prerequisites_missing(tmp_path) == [
+    assert provisioner._bootstrap_prerequisites_missing(tmp_path, (3, 12)) == [
         "python3.12",
         "apt_get",
         "dpkg",
         "systemd_detect_virt",
         "ubuntu_archive_keyring",
         "systemd_pid1",
+        "systemd_nspawn",
     ]
+    (tmp_path / "usr/bin/python3.12").parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "usr/bin/python3.12").touch()
+    assert "python3.12" in provisioner._bootstrap_prerequisites_missing(tmp_path, (3, 12))
 
-    for path in provisioner.BOOTSTRAP_FILES:
+    for path in provisioner.BOOTSTRAP_EXECUTABLES:
         target = tmp_path / path.lstrip("/")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.touch()
+        target.chmod(0o755)
+    keyring = tmp_path / provisioner.BOOTSTRAP_KEYRING.lstrip("/")
+    keyring.parent.mkdir(parents=True, exist_ok=True)
+    keyring.touch()
     pid1 = tmp_path / "proc/1/comm"
     pid1.parent.mkdir(parents=True, exist_ok=True)
     pid1.write_text("systemd\n", encoding="utf-8")
     (tmp_path / "run/systemd/system").mkdir(parents=True)
-    assert provisioner._bootstrap_prerequisites_missing(tmp_path) == []
+    marker = tmp_path / "run/systemd/container"
+    marker.write_text("systemd-nspawn\n", encoding="utf-8")
+    assert provisioner._bootstrap_prerequisites_missing(tmp_path, (3, 12)) == []
+    assert provisioner._bootstrap_prerequisites_missing(tmp_path, (3, 13)) == ["python3.12_runtime"]
+
+
+def test_lab_guard_reports_missing_substrate_before_running_virtualization_probe(monkeypatch):
+    monkeypatch.setattr(provisioner.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(provisioner.platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(provisioner, "_os_release", lambda: {"ID": "ubuntu", "VERSION_ID": "24.04"})
+    monkeypatch.setattr(
+        provisioner, "_bootstrap_prerequisites_missing", lambda: ["systemd_detect_virt"]
+    )
+    monkeypatch.setattr(
+        provisioner,
+        "_run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("unexpected probe")),
+    )
+    with pytest.raises(
+        provisioner.ProvisionError, match="bootstrap_prerequisite_missing:systemd_detect_virt"
+    ):
+        provisioner._require_lab(mutating=True)
 
 
 @pytest.mark.parametrize("snapshot", ["20261018", "20261018T1200Z", "20260230T120000Z", "latest"])
@@ -163,6 +192,7 @@ def test_lab_guard_requires_systemd_nspawn_even_with_root(monkeypatch, tmp_path)
         "_run",
         lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, "systemd-nspawn\n", ""),
     )
+    monkeypatch.setattr(provisioner, "_bootstrap_prerequisites_missing", lambda: [])
 
     class Marker:
         def exists(self):

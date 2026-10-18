@@ -143,8 +143,9 @@ The opt-in lab provisioner passes snapshot-bound `source-build` and `inert-servi
 roles on disposable Ubuntu systemd-nspawn roots. The service role explicitly allows `bsdutils` as
 an Ubuntu Essential solver companion and replans to an empty transaction after application. A
 fresh snapshot-built raw minbase has no Python 3.12 or systemd PID 1, so the tool cannot self-bootstrap
-there; Sol set the entry contract to a separately built installer substrate, with a read-only
-preflight before any writes. The test import-path collision is fixed; full-suite collection still
+there; Sol set the entry contract to a separately built installer substrate, with a read-only shell
+preflight and authoritative Python gate checking executable/runtime capabilities before any writes.
+The test import-path collision is fixed; full-suite collection still
 depends on optional NumPy and an absent legacy work artifact. Next: build the explicit substrate from
 the same signed snapshot, then test package provisioning through first inert boot.
 
