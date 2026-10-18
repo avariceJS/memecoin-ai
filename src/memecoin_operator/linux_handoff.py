@@ -385,8 +385,8 @@ def _prepare_intent(
     release_id: str,
     unit_name: str,
     unit_text: str,
-) -> bool:
-    """Return True for a previously completed prepare; reset only our pinned partial attempt."""
+) -> str:
+    """Classify an exact prepare intent without deleting any published or ambiguous artifact."""
     generation_root, receipt_root = _paths(installation_id, generation_id, binding_id)
     unit_path = linux_service.UNIT_PATH.parent / unit_name
     intent_path = receipt_root / "PREPARE.json"
@@ -404,7 +404,7 @@ def _prepare_intent(
             raise StorageError("handoff_generation_collision")
         _root_directory(receipt_root, 0o700)
         _write_receipt(intent_path, expected_intent)
-        return False
+        return "fresh"
     receipt_metadata = receipt_root.lstat()
     if (
         not stat.S_ISDIR(receipt_metadata.st_mode)
@@ -416,7 +416,7 @@ def _prepare_intent(
     if "PREPARE.json" not in names:
         if not names and not os.path.lexists(generation_root) and not os.path.lexists(unit_path):
             _write_receipt(intent_path, expected_intent)
-            return False
+            return "fresh"
         raise StorageError("handoff_prepare_intent_missing")
     intent, _intent_raw = _read_receipt(intent_path)
     if intent != expected_intent:
@@ -435,41 +435,164 @@ def _prepare_intent(
         if lifecycle_names and lifecycle_names != {"START.json", "PROBE.json", "FINAL.json"}:
             raise StorageError("handoff_prepare_lifecycle_incomplete")
         verify(binding_id)
-        return True
+        return "complete"
+    if names == {"PREPARE.json", "GENERATION.json"}:
+        return "resume"
     if names != {"PREPARE.json"}:
         raise StorageError("handoff_prepare_partial_receipts")
+    if os.path.lexists(generation_root):
+        return "resume"
+    if os.path.lexists(unit_path):
+        raise StorageError("handoff_prepare_unit_without_generation")
+    return "fresh"
+
+
+def _recover_published_prepare(
+    *,
+    binding_id: str,
+    installation_id: str,
+    generation_id: str,
+    source_attachment_id: str,
+    source: dict[str, Any],
+    source_pin: dict[str, Any],
+    source_root: Path,
+    config_bytes: bytes,
+    source_logical: str,
+    target_release_id: str,
+    target: dict[str, Any],
+    target_schema: str,
+    unit_text: str,
+    unit_path: Path,
+    unit_name: str,
+) -> dict[str, object]:
+    generation_root, receipt_root = _paths(installation_id, generation_id, binding_id)
+    try:
+        generation_meta = generation_root.lstat()
+    except OSError as exc:
+        raise StorageError("handoff_recovery_generation_missing") from exc
+    if (
+        not stat.S_ISDIR(generation_meta.st_mode)
+        or generation_meta.st_uid != 0
+        or stat.S_IMODE(generation_meta.st_mode) != 0o711
+        or os.path.ismount(generation_root)
+    ):
+        raise StorageError("handoff_recovery_generation_unsafe")
+    operator = generation_root / "operator"
+    _prepared_inventory(operator)
+    brain = pwd.getpwnam("brain")
+    observed_config = linux_attachment._read_file(
+        operator / "config.json",
+        maximum=linux_attachment.MAX_CONFIG_BYTES,
+        uid=brain.pw_uid,
+        mode=0o600,
+    )
+    observed_database = linux_attachment._read_file(
+        operator / "operator.sqlite",
+        maximum=linux_attachment.MAX_DATABASE_BYTES,
+        uid=brain.pw_uid,
+        mode=0o600,
+    )
+    if observed_config != config_bytes:
+        raise StorageError("handoff_recovery_config_mismatch")
+    linux_attachment._verify_idle_database(observed_database, target_schema)
+    output_schema, output_logical = _logical_state_payload(observed_database)
+    if output_schema != target_schema or output_logical != source_logical:
+        raise StorageError("handoff_recovery_state_mismatch")
+    output_database_sha256 = _sha256(observed_database)
     if os.path.lexists(unit_path):
         try:
             unit_metadata = unit_path.lstat()
-            unit_bytes = unit_path.read_bytes()
+            observed_unit = linux_attachment._read_file(
+                unit_path, maximum=64 * 1024, uid=0, mode=0o644
+            )
         except OSError as exc:
-            raise StorageError("handoff_prepare_unit_unavailable") from exc
+            raise StorageError("handoff_recovery_unit_unavailable") from exc
         state = linux_service._unit_status(unit_name)
         if (
             not stat.S_ISREG(unit_metadata.st_mode)
-            or unit_metadata.st_uid != 0
-            or stat.S_IMODE(unit_metadata.st_mode) != 0o644
-            or _sha256(unit_bytes) != expected_intent["unit_sha256"]
-            or state[1] != "inactive"
-            or state[2] not in {"disabled", "static"}
-            or state[3] != 0
+            or unit_metadata.st_nlink != 1
+            or observed_unit != unit_text.encode()
+            or state != ("loaded", "inactive", "disabled", 0)
         ):
-            raise StorageError("handoff_prepare_unit_recovery_unsafe")
-        unit_path.unlink()
-        subprocess.run(["systemctl", "daemon-reload"], check=True, timeout=10)
-    if os.path.lexists(generation_root):
-        metadata = generation_root.lstat()
-        if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != 0:
-            raise StorageError("handoff_prepare_generation_recovery_unsafe")
-        shutil.rmtree(generation_root)
-    pending_prefix = f".pending-{generation_id}-"
-    for candidate in generation_root.parent.iterdir():
-        if candidate.name.startswith(pending_prefix):
-            metadata = candidate.lstat()
-            if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != 0:
-                raise StorageError("handoff_prepare_pending_recovery_unsafe")
-            shutil.rmtree(candidate)
-    return False
+            raise StorageError("handoff_recovery_unit_mismatch")
+    else:
+        linux_service.install(unit_text, unit_path=unit_path, unit=unit_name, create_only=True)
+    _verify_effective_unit(unit_name, unit_path, target_release_id, operator, binding_id)
+    target_after = linux_release.verify(target_release_id)
+    if target_after.get("manifest_sha256") != target.get("manifest_sha256"):
+        raise StorageError("handoff_recovery_target_changed")
+    current_source = _source_boundary(source_attachment_id)
+    if (
+        current_source[0] != source
+        or current_source[1] != source_pin
+        or current_source[2] != source_root
+        or current_source[3] != config_bytes
+        or current_source[6] != source_logical
+    ):
+        raise StorageError("handoff_source_changed_during_recovery")
+    generation_record = {
+        "schema": SCHEMA,
+        "installation_id": installation_id,
+        "generation_id": generation_id,
+        "source_attachment_id": source_attachment_id,
+        "source_release_id": source["release_id"],
+        "source_attachment_manifest_sha256": source_pin["manifest_sha256"],
+        "source_restore_manifest_sha256": source["restore_manifest_sha256"],
+        "source_logical_state_sha256": source_logical,
+        "target_release_id": target_release_id,
+        "target_release_manifest_sha256": target["manifest_sha256"],
+        "sqlite_schema_sha256": target_schema,
+        "output_logical_state_sha256": output_logical,
+        "config_sha256": _sha256(config_bytes),
+        "operator_sqlite_sha256": output_database_sha256,
+        "unit_name": unit_name,
+        "unit_sha256": _sha256(unit_text.encode()),
+        "created_ns": time.time_ns(),
+    }
+    generation_path = receipt_root / "GENERATION.json"
+    if os.path.lexists(generation_path):
+        recorded, _recorded_raw = _read_receipt(generation_path)
+        expected = dict(generation_record)
+        expected["created_ns"] = recorded.get("created_ns")
+        if recorded != expected:
+            raise StorageError("handoff_recovery_generation_receipt_mismatch")
+    else:
+        _write_receipt(generation_path, generation_record)
+    recorded_generation, recorded_raw = _read_receipt(generation_path)
+    binding_path = receipt_root / "BINDING.json"
+    if os.path.lexists(binding_path):
+        binding, _binding_raw = _read_receipt(binding_path)
+        if binding.get("binding_id") != binding_id or binding.get("generation_sha256") != _sha256(
+            recorded_raw
+        ):
+            raise StorageError("handoff_recovery_binding_receipt_mismatch")
+    else:
+        _write_receipt(
+            binding_path,
+            {
+                "schema": SCHEMA,
+                "binding_id": binding_id,
+                "installation_id": installation_id,
+                "generation_id": generation_id,
+                "target_release_id": target_release_id,
+                "unit_name": unit_name,
+                "generation_sha256": _sha256(recorded_raw),
+                "state": "prepared-inert",
+                "created_ns": time.time_ns(),
+            },
+        )
+    verified = verify(binding_id)
+    return {
+        "state": "prepared-inert",
+        "installation_id": installation_id,
+        "generation_id": generation_id,
+        "binding_id": binding_id,
+        "target_release_id": target_release_id,
+        "unit": unit_name,
+        "sqlite_schema_sha256": recorded_generation["sqlite_schema_sha256"],
+        "logical_state_sha256": verified["logical_state_sha256"],
+        "recovered": True,
+    }
 
 
 def prepare(
@@ -527,14 +650,15 @@ def prepare(
         _root_directory(INSTALLATION_BASE / installation_id)
         _root_directory(INSTALLATION_BASE / installation_id / "generations")
         _root_directory(HANDOFF_BASE, 0o700)
-        if _prepare_intent(
+        prepare_state = _prepare_intent(
             binding_id,
             installation_id,
             generation_id,
             target_release_id,
             unit_name,
             unit_text,
-        ):
+        )
+        if prepare_state == "complete":
             binding, _binding_raw = _read_receipt(receipt_root / "BINDING.json")
             generation, _generation_raw = _read_receipt(receipt_root / "GENERATION.json")
             return {
@@ -547,6 +671,24 @@ def prepare(
                 "sqlite_schema_sha256": generation["sqlite_schema_sha256"],
                 "logical_state_sha256": generation["output_logical_state_sha256"],
             }
+        if prepare_state == "resume":
+            return _recover_published_prepare(
+                binding_id=binding_id,
+                installation_id=installation_id,
+                generation_id=generation_id,
+                source_attachment_id=source_attachment_id,
+                source=source,
+                source_pin=source_pin,
+                source_root=source_root,
+                config_bytes=config_bytes,
+                source_logical=source_logical,
+                target_release_id=target_release_id,
+                target=target,
+                target_schema=target_schema,
+                unit_text=unit_text,
+                unit_path=unit_path,
+                unit_name=unit_name,
+            )
         brain = pwd.getpwnam("brain")
         pending = generation_root.parent / f".pending-{generation_id}-{os.getpid()}"
         pending.mkdir(mode=0o700)
