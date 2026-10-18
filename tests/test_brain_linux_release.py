@@ -525,6 +525,80 @@ def test_attempt_audit_observes_directory_metadata_without_tree_walk(tmp_path, m
     assert "tree_sha256" not in observation
 
 
+def test_recovered_preintent_receipt_remains_valid_after_later_publish(tmp_path, monkeypatch):
+    attempt_id, old_record = _stage_attempt_record()
+    record = {**old_record, "phase": "recovered"}
+    artifacts = []
+    quarantined = []
+    for name, kind in (("state", "directory"), ("pin", "file"), ("unit", "file")):
+        parent = tmp_path / name
+        parent.mkdir()
+        qparent = parent / ".brain-stage-quarantine"
+        qparent.mkdir(mode=0o700)
+        quarantine = qparent / f"{attempt_id}.{name}"
+        if kind == "directory":
+            quarantine.mkdir()
+            (quarantine / "config.json").write_text("partial", encoding="utf-8")
+        else:
+            quarantine.write_text(f"partial-{name}", encoding="utf-8")
+        item = {
+            "name": name,
+            "source_parent": str(parent),
+            "source_name": f"source-{name}",
+            "quarantine_parent": str(qparent),
+            "quarantine_name": quarantine.name,
+            "kind": kind,
+            "parent_identity": {},
+        }
+        identity = linux_release._artifact_identity(quarantine, kind=kind)
+        artifacts.append(item)
+        quarantined.append({"name": name, "path": str(quarantine), "identity": identity})
+    plan = {"schema": linux_release.PREPARE_INTENT_SCHEMA, "artifacts": artifacts}
+    progress = {
+        "schema": linux_release.PREPARE_PROGRESS_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "source_commit": record["source_commit"],
+        "plan_sha256": hashlib.sha256(
+            json.dumps(plan, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
+        "artifacts": [
+            {"name": item["name"], "identity": entry["identity"]}
+            for item, entry in zip(artifacts, quarantined, strict=True)
+        ],
+    }
+    receipt = {
+        "schema": linux_release.PREPARE_RECEIPT_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "source_commit": record["source_commit"],
+        "quarantined": quarantined,
+        "status": "pre-intent-temps-quarantined-retained",
+    }
+    monkeypatch.setattr(linux_release, "_validate_prepare_intent", lambda *_args: artifacts)
+    monkeypatch.setattr(linux_release, "_require_root_directory_chain", lambda _path: None)
+    monkeypatch.setattr(
+        linux_release,
+        "_partial_prepare_identity",
+        lambda path, item: linux_release._artifact_identity(path, kind=str(item["kind"])),
+    )
+    monkeypatch.setattr(
+        linux_release,
+        "_ensure_prepare_quarantine",
+        lambda _item: (_ for _ in ()).throw(
+            AssertionError("terminal validation must be read-only")
+        ),
+    )
+
+    def read(path, *, schema):
+        value = progress if path.name.endswith("prepare-progress.json") else receipt
+        assert value["schema"] == schema
+        return value
+
+    monkeypatch.setattr(linux_release, "_read_sealed_stage_json", read)
+    assert linux_release._recover_prepared_temps_locked(attempt_id, record, plan) == receipt
+
+
 def _test_prepare_quarantine(item):
     parent = Path(item["quarantine_parent"])
     parent.mkdir(mode=0o700, exist_ok=True)

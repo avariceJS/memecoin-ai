@@ -1274,6 +1274,69 @@ def _preflight_prepared_temp_locations(
     return identities
 
 
+def _validate_prepared_recovery_receipt(
+    attempt_id: str,
+    record: dict[str, object],
+    plan: dict[str, object],
+    artifacts: list[dict[str, object]],
+) -> dict[str, object]:
+    """Read-only validation for a terminal pre-intent recovery after later publication."""
+    progress = _read_sealed_stage_json(
+        _prepare_progress_path(attempt_id), schema=PREPARE_PROGRESS_SCHEMA
+    )
+    receipt = _read_sealed_stage_json(
+        _prepare_receipt_path(attempt_id), schema=PREPARE_RECEIPT_SCHEMA
+    )
+    if progress is None or receipt is None:
+        raise RuntimeError("stage_prepare_recovery_receipt_missing")
+    expected_header = {
+        "schema": PREPARE_PROGRESS_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "source_commit": record["source_commit"],
+        "plan_sha256": hashlib.sha256(
+            json.dumps(plan, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
+    }
+    observed = progress.get("artifacts")
+    if (
+        any(progress.get(key) != value for key, value in expected_header.items())
+        or not isinstance(observed, list)
+        or [value.get("name") for value in observed if isinstance(value, dict)]
+        != [item["name"] for item in artifacts]
+        or any(
+            not isinstance(value, dict)
+            or set(value) != {"name", "identity"}
+            or not isinstance(value["identity"], dict)
+            for value in observed
+        )
+    ):
+        raise RuntimeError("stage_prepare_progress_invalid")
+    quarantined = []
+    for item, value in zip(artifacts, observed, strict=True):
+        source = Path(str(item["source_parent"])) / str(item["source_name"])
+        quarantine_parent = Path(str(item["quarantine_parent"]))
+        _require_root_directory_chain(quarantine_parent)
+        quarantine = quarantine_parent / str(item["quarantine_name"])
+        identity = value["identity"]
+        if os.path.lexists(source) or not os.path.lexists(quarantine):
+            raise RuntimeError("stage_prepare_terminal_location_mismatch")
+        if _partial_prepare_identity(quarantine, item) != identity:
+            raise RuntimeError("stage_prepare_temp_identity_mismatch")
+        quarantined.append({"name": item["name"], "path": str(quarantine), "identity": identity})
+    expected_receipt = {
+        "schema": PREPARE_RECEIPT_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "source_commit": record["source_commit"],
+        "quarantined": quarantined,
+        "status": "pre-intent-temps-quarantined-retained",
+    }
+    if receipt != expected_receipt:
+        raise RuntimeError("stage_prepare_receipt_mismatch")
+    return receipt
+
+
 def _ensure_prepare_quarantine(item: dict[str, object]) -> Path:
     parent = Path(str(item["source_parent"]))
     _require_root_directory_chain(parent)
@@ -1300,6 +1363,8 @@ def _recover_prepared_temps_locked(
     attempt_id: str, record: dict[str, object], plan: dict[str, object]
 ) -> dict[str, object]:
     artifacts = _validate_prepare_intent(attempt_id, record, plan)
+    if record["phase"] == "recovered":
+        return _validate_prepared_recovery_receipt(attempt_id, record, plan, artifacts)
     if _release_stage_artifacts(str(record["release_id"])):
         raise RuntimeError("stage_partial_publication_requires_manual_review")
     unit_name = f"memecoin-brain-{record['release_id']}.service"
