@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import fcntl
 import hashlib
 import json
@@ -23,10 +24,14 @@ from memecoin_operator import linux_service
 RELEASE_BASE = Path("/opt/brain/releases")
 UNIT_BASE = Path("/etc/systemd/system")
 STATE_BASE = Path("/var/lib/brain-lab/releases")
+STATE_BASE_V2 = Path("/var/lib/brain-release-state")
+STATE_PREPARED_BASE = Path("/var/lib/brain-release-prepared")
 STAGE_ATTEMPT_BASE = Path("/var/lib/brain-release-stage-attempts")
 STAGE_LOCK_BASE = Path("/run/brain-release-stage-locks")
 SCHEMA = "brain-linux-release-v1"
+SCHEMA_V2 = "brain-linux-release-v2"
 STAGE_ATTEMPT_SCHEMA = "brain-linux-release-stage-attempt-v1"
+PUBLISH_INTENT_SCHEMA = "brain-linux-release-publish-intent-v2"
 STAGE_ATTEMPT_ID_RE = re.compile(r"^[0-9a-f]{12}-[0-9a-f]{16}$")
 MAX_WHEEL_BYTES = 100 * 1024 * 1024
 SAFE_WHEEL_NAME = re.compile(
@@ -69,6 +74,199 @@ def _stage_attempt_path(attempt_id: str) -> Path:
     if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
         raise ValueError("stage_attempt_id_invalid")
     return STAGE_ATTEMPT_BASE / f"{attempt_id}.json"
+
+
+def _publish_intent_path(attempt_id: str) -> Path:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return STAGE_ATTEMPT_BASE / f"{attempt_id}.publish.json"
+
+
+def _ensure_root_directory(path: Path, mode: int) -> None:
+    """Create one /var/lib child and require a root-controlled directory."""
+    parent_fd = os.open("/var/lib", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        parent = os.fstat(parent_fd)
+        if parent.st_uid != 0 or stat.S_IMODE(parent.st_mode) & 0o022:
+            raise RuntimeError("release_state_parent_unsafe")
+        try:
+            os.mkdir(path.name, mode=mode, dir_fd=parent_fd)
+            os.fsync(parent_fd)
+        except FileExistsError:
+            pass
+        fd = os.open(path.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd)
+    finally:
+        os.close(parent_fd)
+    try:
+        metadata = os.fstat(fd)
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or metadata.st_uid != 0
+            or stat.S_IMODE(metadata.st_mode) != mode
+        ):
+            raise RuntimeError("release_state_directory_unsafe")
+    finally:
+        os.close(fd)
+
+
+def _ensure_unit_base() -> None:
+    for path in (Path("/etc"), Path("/etc/systemd"), UNIT_BASE):
+        metadata = path.lstat()
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or metadata.st_uid != 0
+            or stat.S_IMODE(metadata.st_mode) & 0o022
+        ):
+            raise RuntimeError("release_unit_parent_unsafe")
+
+
+def _tree_sha256(path: Path) -> str:
+    return _inventory(path)[1]
+
+
+def _rename_noreplace(
+    source_parent: Path, source_name: str, destination_parent: Path, destination_name: str
+) -> None:
+    if any(
+        name in {"", ".", ".."} or "/" in name or "\\" in name
+        for name in (source_name, destination_name)
+    ):
+        raise RuntimeError("release_publish_name_invalid")
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    source_fd = os.open(source_parent, flags)
+    destination_fd = os.open(destination_parent, flags)
+    try:
+        if os.fstat(source_fd).st_dev != os.fstat(destination_fd).st_dev:
+            raise RuntimeError("release_publish_cross_filesystem")
+        libc = ctypes.CDLL(None, use_errno=True)
+        renameat2 = getattr(libc, "renameat2", None)
+        if renameat2 is None:
+            raise RuntimeError("release_publish_noreplace_unsupported")
+        renameat2.argtypes = [
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        ]
+        renameat2.restype = ctypes.c_int
+        if (
+            renameat2(
+                source_fd,
+                os.fsencode(source_name),
+                destination_fd,
+                os.fsencode(destination_name),
+                1,
+            )
+            != 0
+        ):
+            error = ctypes.get_errno()
+            if error == 17:
+                raise RuntimeError("release_publish_destination_exists")
+            raise RuntimeError("release_publish_failed") from OSError(error, os.strerror(error))
+        os.fsync(source_fd)
+        if source_fd != destination_fd:
+            os.fsync(destination_fd)
+    finally:
+        os.close(source_fd)
+        os.close(destination_fd)
+
+
+def _artifact_identity(path: Path, *, kind: str) -> dict[str, object]:
+    metadata = path.lstat()
+    if kind == "directory":
+        if not stat.S_ISDIR(metadata.st_mode):
+            raise RuntimeError("release_publish_artifact_type_mismatch")
+        content_sha = _tree_sha256(path)
+    elif kind == "file":
+        if not stat.S_ISREG(metadata.st_mode):
+            raise RuntimeError("release_publish_artifact_type_mismatch")
+        content_sha = _sha256(path)
+    else:
+        raise RuntimeError("release_publish_artifact_type_invalid")
+    return {
+        "dev": metadata.st_dev,
+        "ino": metadata.st_ino,
+        "uid": metadata.st_uid,
+        "gid": metadata.st_gid,
+        "mode": stat.S_IMODE(metadata.st_mode),
+        "kind": kind,
+        "content_sha256": content_sha,
+    }
+
+
+def _write_publish_intent(attempt_id: str, record: dict[str, object]) -> None:
+    path = _publish_intent_path(attempt_id)
+    payload = (json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    directory_fd = _open_stage_attempt_directory()
+    temporary = f".{path.name}.{secrets.token_hex(8)}.tmp"
+    try:
+        fd = os.open(
+            temporary,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=directory_fd,
+        )
+        try:
+            view = memoryview(payload)
+            while view:
+                written = os.write(fd, view)
+                if written <= 0:
+                    raise OSError("publish_intent_write_failed")
+                view = view[written:]
+            os.fsync(fd)
+            os.fchmod(fd, 0o444)
+        finally:
+            os.close(fd)
+        _rename_noreplace(STAGE_ATTEMPT_BASE, temporary, STAGE_ATTEMPT_BASE, path.name)
+        os.fsync(directory_fd)
+    finally:
+        try:
+            os.unlink(temporary, dir_fd=directory_fd)
+        except FileNotFoundError:
+            pass
+        os.close(directory_fd)
+
+
+def _read_publish_intent(attempt_id: str) -> dict[str, object] | None:
+    path = _publish_intent_path(attempt_id)
+    directory_fd = _open_stage_attempt_directory()
+    fd = -1
+    try:
+        try:
+            fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory_fd)
+        except FileNotFoundError:
+            return None
+        metadata = os.fstat(fd)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != 0
+            or stat.S_IMODE(metadata.st_mode) != 0o444
+            or metadata.st_size > 32 * 1024
+        ):
+            raise RuntimeError("release_publish_intent_unsafe")
+        payload = bytearray()
+        while len(payload) <= 32 * 1024:
+            block = os.read(fd, 4096)
+            if not block:
+                break
+            payload.extend(block)
+        if len(payload) > 32 * 1024:
+            raise RuntimeError("release_publish_intent_unsafe")
+        value = json.loads(payload.decode("utf-8"), object_pairs_hook=_unique_json_object)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise RuntimeError("release_publish_intent_unavailable") from exc
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        os.close(directory_fd)
+    if (
+        not isinstance(value, dict)
+        or value.get("schema") != PUBLISH_INTENT_SCHEMA
+        or value.get("attempt_id") != attempt_id
+    ):
+        raise RuntimeError("release_publish_intent_invalid")
+    return value
 
 
 def _ensure_release_base() -> None:
@@ -277,7 +475,11 @@ def _validate_stage_attempt_record(attempt_id: str, value: object) -> dict[str, 
         or set(value["interpreter"]) != {"path", "version", "soabi"}
         or any(not isinstance(item, str) or not item for item in value["interpreter"].values())
         or not Path(value["interpreter"]["path"]).is_absolute()
-        or _identity(value["wheel_sha256"], value["interpreter"]) != value["release_id"]
+        or value["release_id"]
+        not in {
+            _identity(value["wheel_sha256"], value["interpreter"], SCHEMA),
+            _identity(value["wheel_sha256"], value["interpreter"], SCHEMA_V2),
+        }
     ):
         raise RuntimeError("stage_attempt_record_invalid")
     return value
@@ -432,9 +634,221 @@ def _release_stage_artifacts(release_id: str) -> list[Path]:
     return [path for path in artifacts if os.path.lexists(path)]
 
 
+def _sync_tree(root: Path) -> None:
+    for parent, _dirs, files in os.walk(root, topdown=False, followlinks=False):
+        for name in files:
+            path = Path(parent) / name
+            if path.is_symlink():
+                continue
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+            try:
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+        fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+
+def _publish_artifact_paths(attempt_id: str, release_id: str) -> list[dict[str, str]]:
+    unit_name = f"memecoin-brain-{release_id}.service"
+    return [
+        {
+            "name": "release",
+            "source_parent": str(RELEASE_BASE),
+            "source_name": f".stage-{attempt_id}",
+            "destination_parent": str(RELEASE_BASE),
+            "destination_name": release_id,
+            "kind": "directory",
+        },
+        {
+            "name": "pin",
+            "source_parent": str(RELEASE_BASE / ".pins"),
+            "source_name": f".{release_id}.{attempt_id}.tmp",
+            "destination_parent": str(RELEASE_BASE / ".pins"),
+            "destination_name": f"{release_id}.sha256",
+            "kind": "file",
+        },
+        {
+            "name": "state",
+            "source_parent": str(STATE_PREPARED_BASE),
+            "source_name": f".{attempt_id}",
+            "destination_parent": str(STATE_BASE_V2),
+            "destination_name": release_id,
+            "kind": "directory",
+        },
+        {
+            "name": "unit",
+            "source_parent": str(UNIT_BASE),
+            "source_name": f".{unit_name}.{attempt_id}.tmp",
+            "destination_parent": str(UNIT_BASE),
+            "destination_name": unit_name,
+            "kind": "file",
+        },
+    ]
+
+
+def _validate_publish_intent(attempt_id: str, record: dict[str, object]) -> list[dict[str, object]]:
+    release_id = record.get("release_id")
+    if (
+        record.get("schema") != PUBLISH_INTENT_SCHEMA
+        or record.get("attempt_id") != attempt_id
+        or not isinstance(release_id, str)
+        or not re.fullmatch(r"[0-9a-f]{64}", release_id)
+        or attempt_id[:12] != release_id[:12]
+        or not isinstance(record.get("source_commit"), str)
+        or not re.fullmatch(r"[0-9a-f]{40,64}", str(record.get("source_commit")))
+        or not isinstance(record.get("wheel_sha256"), str)
+        or not re.fullmatch(r"[0-9a-f]{64}", str(record.get("wheel_sha256")))
+        or not isinstance(record.get("interpreter"), dict)
+        or set(record["interpreter"]) != {"path", "version", "soabi"}
+        or any(not isinstance(value, str) or not value for value in record["interpreter"].values())
+        or not isinstance(record.get("artifacts"), list)
+        or _identity(str(record.get("wheel_sha256")), record["interpreter"], SCHEMA_V2)
+        != release_id
+    ):
+        raise RuntimeError("release_publish_intent_invalid")
+    expected = _publish_artifact_paths(attempt_id, release_id)
+    artifacts = record["artifacts"]
+    if len(artifacts) != len(expected):
+        raise RuntimeError("release_publish_intent_invalid")
+    for item, spec in zip(artifacts, expected, strict=True):
+        if not isinstance(item, dict) or set(item) != {*spec, "identity"}:
+            raise RuntimeError("release_publish_intent_invalid")
+        if any(item.get(key) != value for key, value in spec.items()):
+            raise RuntimeError("release_publish_intent_invalid")
+        identity = item.get("identity")
+        if (
+            not isinstance(identity, dict)
+            or set(identity) != {"dev", "ino", "uid", "gid", "mode", "kind", "content_sha256"}
+            or identity.get("kind") != spec["kind"]
+            or any(
+                type(identity.get(key)) is not int or identity[key] < 0
+                for key in ("dev", "ino", "uid", "gid", "mode")
+            )
+            or not isinstance(identity.get("content_sha256"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", identity["content_sha256"])
+        ):
+            raise RuntimeError("release_publish_intent_invalid")
+        if os.stat(spec["source_parent"], follow_symlinks=False).st_dev != identity["dev"]:
+            raise RuntimeError("release_publish_filesystem_mismatch")
+        if os.stat(spec["destination_parent"], follow_symlinks=False).st_dev != identity["dev"]:
+            raise RuntimeError("release_publish_filesystem_mismatch")
+        brain = pwd.getpwnam("brain")
+        policy = {
+            "release": (0, brain.pw_gid, 0o555),
+            "pin": (0, 0, 0o444),
+            "state": (0, 0, 0o711),
+            "unit": (0, 0, 0o644),
+        }[spec["name"]]
+        if (identity["uid"], identity["gid"], identity["mode"]) != policy:
+            raise RuntimeError("release_publish_artifact_policy_mismatch")
+    return artifacts
+
+
+def _finish_publish_locked(
+    attempt_id: str, record: dict[str, object], intent: dict[str, object]
+) -> dict[str, str]:
+    artifacts = _validate_publish_intent(attempt_id, intent)
+    if record.get("release_id") != intent.get("release_id") or any(
+        record.get(key) != intent.get(key)
+        for key in ("source_commit", "wheel_sha256", "interpreter")
+    ):
+        raise RuntimeError("release_publish_attempt_mismatch")
+    release_id = str(intent["release_id"])
+    _ensure_release_base()
+    _ensure_root_directory(STATE_BASE_V2, 0o755)
+    _ensure_root_directory(STATE_PREPARED_BASE, 0o700)
+    _ensure_unit_base()
+    _stop_stage_slice(str(record["slice_name"]))
+    builder_name = str(record["builder_name"])
+    uid_value = record["builder_uid"]
+    try:
+        builder = pwd.getpwnam(builder_name)
+    except KeyError:
+        builder = None
+    if builder is not None:
+        if (
+            (uid_value is not None and builder.pw_uid != uid_value)
+            or builder.pw_dir != "/nonexistent"
+            or builder.pw_shell != "/usr/sbin/nologin"
+        ):
+            raise RuntimeError("stage_builder_identity_mismatch")
+        uid_value = builder.pw_uid
+        if _uid_has_processes(uid_value):
+            raise RuntimeError("stage_builder_processes_remaining")
+        result = subprocess.run(
+            ["userdel", builder_name],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "HOME": "/root"},
+        )
+        if result.returncode != 0:
+            raise RuntimeError("stage_builder_account_removal_failed")
+    elif uid_value is not None and _uid_has_processes(uid_value):
+        raise RuntimeError("stage_builder_processes_remaining")
+    unit_name = f"memecoin-brain-{release_id}.service"
+    load, active, file_state, pid = linux_service._unit_status(unit_name)
+    if active != "inactive" or pid != 0 or file_state not in {"", "disabled", "static"}:
+        raise RuntimeError("release_publish_unit_requires_manual_review")
+    for item in artifacts:
+        spec = {
+            key: item[key]
+            for key in (
+                "source_parent",
+                "source_name",
+                "destination_parent",
+                "destination_name",
+                "kind",
+            )
+        }
+        identity = item["identity"]
+        source = Path(str(item["source_parent"])) / str(item["source_name"])
+        destination = Path(str(item["destination_parent"])) / str(item["destination_name"])
+        source_exists = os.path.lexists(source)
+        destination_exists = os.path.lexists(destination)
+        if source_exists and destination_exists:
+            raise RuntimeError("release_publish_ambiguous_artifacts")
+        current = source if source_exists else destination if destination_exists else None
+        if current is None or _artifact_identity(current, kind=str(spec["kind"])) != identity:
+            raise RuntimeError("release_publish_artifact_mismatch")
+        if source_exists:
+            _rename_noreplace(
+                Path(str(item["source_parent"])),
+                str(item["source_name"]),
+                Path(str(item["destination_parent"])),
+                str(item["destination_name"]),
+            )
+            if _artifact_identity(destination, kind=str(spec["kind"])) != identity:
+                raise RuntimeError("release_publish_readback_mismatch")
+    _run(["systemctl", "daemon-reload"])
+    if linux_service._unit_status(unit_name) != ("loaded", "inactive", "disabled", 0):
+        raise RuntimeError("release_publish_unit_not_inert")
+    verification = verify(release_id)
+    if (
+        verification["source_commit"] != intent["source_commit"]
+        or verification["wheel_sha256"] != intent["wheel_sha256"]
+    ):
+        raise RuntimeError("release_publish_verify_identity_mismatch")
+    record_path = _stage_attempt_path(attempt_id)
+    _record_stage_phase(record_path, record, "complete", seal=True)
+    return {
+        "release_id": release_id,
+        "unit": unit_name,
+        "release_path": str(RELEASE_BASE / release_id),
+    }
+
+
 def _recover_stage_locked(attempt_id: str) -> dict[str, str]:
     _ensure_release_base()
     record_path, record = _read_stage_attempt(attempt_id)
+    intent = _read_publish_intent(attempt_id)
+    if intent is not None:
+        return _finish_publish_locked(attempt_id, record, intent)
     if record["phase"] in {"complete", "recovered"}:
         raise RuntimeError("stage_attempt_not_recoverable")
     release_id = str(record["release_id"])
@@ -601,9 +1015,9 @@ def _interpreter(python: Path) -> dict[str, str]:
     return {"path": str(resolved), "version": details["version"], "soabi": details["soabi"]}
 
 
-def _identity(wheel_sha: str, interpreter: dict[str, str]) -> str:
+def _identity(wheel_sha: str, interpreter: dict[str, str], schema: str = SCHEMA) -> str:
     body = json.dumps(
-        {"schema": SCHEMA, "wheel_sha256": wheel_sha, "interpreter": interpreter},
+        {"schema": schema, "wheel_sha256": wheel_sha, "interpreter": interpreter},
         sort_keys=True,
         separators=(",", ":"),
     ).encode()
@@ -699,7 +1113,13 @@ def _unit_properties(unit: str) -> dict[str, str]:
     return fields
 
 
-def _verify_effective_unit(unit: str, root: Path, state_root: Path) -> None:
+def _verify_effective_unit(
+    unit: str,
+    root: Path,
+    state_root: Path,
+    *,
+    state_layout: str = "legacy",
+) -> None:
     fields = _unit_properties(unit)
     expected = {
         "FragmentPath": str(UNIT_BASE / unit),
@@ -710,12 +1130,18 @@ def _verify_effective_unit(unit: str, root: Path, state_root: Path) -> None:
         "PrivateNetwork": "yes",
         "WorkingDirectory": str(root),
         "ReadWritePaths": str(state_root),
-        "StateDirectory": "brain-lab",
+        "StateDirectory": "brain-lab" if state_layout == "legacy" else "",
         "ProtectSystem": "strict",
         "Restart": "no",
     }
     if any(fields[key] != value for key, value in expected.items()):
         raise RuntimeError("release_effective_unit_mismatch")
+    if state_layout == "release-v2":
+        environment = _run(
+            ["systemctl", "show", "--property=Environment", "--value", unit]
+        ).stdout.strip()
+        if environment != f"HOME={state_root} PYTHONNOUSERSITE=1":
+            raise RuntimeError("release_effective_environment_mismatch")
     match = re.search(r"(?:^| )argv\[\]=(.*?) ; ignore_errors=", fields["ExecStart"])
     if match is None:
         raise RuntimeError("release_effective_execstart_malformed")
@@ -738,10 +1164,17 @@ def _verify_effective_unit(unit: str, root: Path, state_root: Path) -> None:
         raise RuntimeError("release_effective_execstart_mismatch")
 
 
-def _verify_lab_state(root: Path, release_id: str) -> None:
-    state_root = STATE_BASE / release_id / "operator"
+def _verify_lab_state(root: Path, release_id: str, state_root: Path | None = None) -> None:
+    if state_root is None:
+        state_root = STATE_BASE / release_id / "operator"
+    allowed_roots = {
+        STATE_BASE / release_id / "operator",
+        STATE_BASE_V2 / release_id / "operator",
+    }
+    if state_root not in allowed_roots:
+        raise RuntimeError("release_state_root_mismatch")
     try:
-        state_root.relative_to(STATE_BASE)
+        state_root.relative_to(state_root.parents[1])
     except ValueError as exc:
         raise RuntimeError("release_state_root_mismatch") from exc
     if not os.path.lexists(state_root):
@@ -823,13 +1256,16 @@ def stage(
     if _sha256(wheel) != expected_wheel_sha256:
         raise RuntimeError("wheel_sha256_mismatch")
     interpreter = _interpreter(python)
-    release_id = _identity(expected_wheel_sha256, interpreter)
+    release_id = _identity(expected_wheel_sha256, interpreter, SCHEMA_V2)
     release_root = RELEASE_BASE / release_id
     unit_name = f"memecoin-brain-{release_id}.service"
     unit_path = UNIT_BASE / unit_name
     _ensure_release_base()
-    if os.path.lexists(release_root) or os.path.lexists(unit_path):
-        raise RuntimeError("release_already_exists")
+    _ensure_root_directory(STATE_BASE_V2, 0o755)
+    _ensure_root_directory(STATE_PREPARED_BASE, 0o700)
+    _ensure_unit_base()
+    attempt_dir_fd = _open_stage_attempt_directory()
+    os.close(attempt_dir_fd)
     user = pwd.getpwnam("brain")
     lock_fd = _acquire_stage_lock(release_id)
     record_path: Path | None = None
@@ -839,19 +1275,31 @@ def stage(
             raise RuntimeError("stage_incomplete_requires_recovery")
     except KeyError:
         pass
-    if any(STAGE_ATTEMPT_BASE.glob(f"{release_id[:12]}-*.json")):
-        for candidate in STAGE_ATTEMPT_BASE.glob(f"{release_id[:12]}-*.json"):
+    for candidate in STAGE_ATTEMPT_BASE.glob(f"{release_id[:12]}-*.json"):
+        if candidate.name.endswith(".publish.json"):
+            continue
+        try:
+            _, previous = _read_stage_attempt(candidate.stem)
+        except RuntimeError as exc:
+            os.close(lock_fd)
+            raise RuntimeError("stage_attempt_record_requires_manual_review") from exc
+        if previous["release_id"] != release_id:
+            continue
+        previous_intent = _read_publish_intent(candidate.stem)
+        if previous_intent is not None:
             try:
-                _, previous = _read_stage_attempt(candidate.stem)
-            except RuntimeError as exc:
+                result = _finish_publish_locked(candidate.stem, previous, previous_intent)
+            except RuntimeError:
                 os.close(lock_fd)
-                raise RuntimeError("stage_attempt_record_requires_manual_review") from exc
-            if previous["release_id"] == release_id and previous["phase"] not in {
-                "complete",
-                "recovered",
-            }:
-                os.close(lock_fd)
-                raise RuntimeError("stage_incomplete_requires_recovery")
+                raise
+            os.close(lock_fd)
+            return result
+        if previous["phase"] not in {"complete", "recovered"}:
+            os.close(lock_fd)
+            raise RuntimeError("stage_incomplete_requires_recovery")
+    if os.path.lexists(release_root) or os.path.lexists(unit_path):
+        os.close(lock_fd)
+        raise RuntimeError("release_already_exists")
     if any(RELEASE_BASE.glob(f".stage-{release_id[:12]}-*")):
         os.close(lock_fd)
         raise RuntimeError("stage_unrecorded_staging_requires_manual_review")
@@ -982,23 +1430,52 @@ def stage(
         if result.returncode != 0:
             raise RuntimeError("stage_builder_account_removal_failed")
         _record_stage_phase(record_path, record, "publishing")
-        release_root.mkdir(mode=0o755)
-        os.replace(venv, release_root / "venv")
+        os.replace(venv, staging / "venv")
         builder_root.rmdir()
-        staging.rmdir()
+        state_parent = STATE_BASE_V2 / release_id
+        state_root = state_parent / "operator"
+        state_temp = STATE_PREPARED_BASE / f".{attempt_id}"
+        state_temp.mkdir(mode=0o711)
+        os.chown(state_temp, 0, 0)
+        prepared_state = state_temp / "operator"
+        prepared_state.mkdir(mode=0o700)
+        os.chown(prepared_state, user.pw_uid, user.pw_gid)
+        lab_config = {
+            "mode": "operator",
+            "real_execution_enabled": False,
+            "paid_budget_usd": 0,
+            "expires_ns": 0,
+        }
+        config_path = prepared_state / "config.json"
+        with config_path.open("x", encoding="utf-8") as handle:
+            handle.write(json.dumps(lab_config, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        config_path.chmod(0o600)
+        os.chown(config_path, user.pw_uid, user.pw_gid)
+        state_fd = os.open(state_temp, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            os.fsync(state_fd)
+        finally:
+            os.close(state_fd)
         unit_text = linux_service.render_unit(
             release_root / "venv/bin/python",
-            STATE_BASE / release_id / "operator",
+            state_root,
             18792,
             code_root=release_root,
-            readwrite_path=STATE_BASE / release_id / "operator",
+            readwrite_path=state_root,
+            state_directory=False,
+            state_base=STATE_BASE_V2,
+            home=state_root,
+            state_layout="release-v2",
+            prepared_python=staging / "venv/bin/python",
         )
         unit_text = unit_text.replace(
             "Description=Disposable Brain operator lab (manual activation only)",
             f"Description=Brain release {release_id} (manual activation only)",
         )
         manifest = {
-            "schema": SCHEMA,
+            "schema": SCHEMA_V2,
             "release_id": release_id,
             "source_commit": source_commit,
             "wheel_sha256": expected_wheel_sha256,
@@ -1008,44 +1485,72 @@ def stage(
             "installed_inventory": inventory,
             "unit_name": unit_name,
             "unit_sha256": hashlib.sha256(unit_text.encode()).hexdigest(),
+            "state_layout": "release-v2",
+            "state_root": str(state_root),
             "install_policy": "create-only-disabled-no-activation",
         }
-        (release_root / "release-manifest.json").write_text(
-            json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8"
-        )
-        os.chown(release_root / "release-manifest.json", 0, user.pw_gid)
-        (release_root / "release-manifest.json").chmod(0o444)
-        _seal(release_root, user.pw_gid)
+        manifest_path = staging / "release-manifest.json"
+        with manifest_path.open("x", encoding="utf-8") as handle:
+            handle.write(json.dumps(manifest, sort_keys=True, indent=2) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chown(manifest_path, 0, user.pw_gid)
+        manifest_path.chmod(0o444)
+        _seal(staging, user.pw_gid)
         pin_dir = RELEASE_BASE / ".pins"
         pin_dir.mkdir(mode=0o755, exist_ok=True)
-        if os.path.lexists(pin_dir / f"{release_id}.sha256"):
-            raise RuntimeError("release_pin_already_exists")
-        manifest_sha = _sha256(release_root / "release-manifest.json")
-        pin_path = pin_dir / f"{release_id}.sha256"
-        with pin_path.open("x", encoding="ascii") as handle:
+        pin_metadata = pin_dir.lstat()
+        if (
+            not stat.S_ISDIR(pin_metadata.st_mode)
+            or pin_metadata.st_uid != 0
+            or stat.S_IMODE(pin_metadata.st_mode) & 0o022
+        ):
+            raise RuntimeError("release_pin_directory_unsafe")
+        manifest_sha = _sha256(manifest_path)
+        pin_temp = pin_dir / f".{release_id}.{attempt_id}.tmp"
+        with pin_temp.open("x", encoding="ascii") as handle:
             handle.write(f"{manifest_sha}  release-manifest.json\n")
-        pin_path.chmod(0o444)
-        os.chown(pin_path, 0, 0)
-        state_parent = STATE_BASE / release_id
-        state_root = state_parent / "operator"
-        if os.path.lexists(state_parent):
-            raise RuntimeError("release_lab_state_already_exists")
-        state_parent.mkdir(mode=0o700, parents=True)
-        os.chown(state_parent, user.pw_uid, user.pw_gid)
-        state_root.mkdir(mode=0o700)
-        os.chown(state_root, user.pw_uid, user.pw_gid)
-        lab_config = {
-            "mode": "operator",
-            "real_execution_enabled": False,
-            "paid_budget_usd": 0,
-            "expires_ns": 0,
+            handle.flush()
+            os.fsync(handle.fileno())
+        pin_temp.chmod(0o444)
+        os.chown(pin_temp, 0, 0)
+        unit_temp = UNIT_BASE / f".{unit_name}.{attempt_id}.tmp"
+        unit_fd = os.open(unit_temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        try:
+            payload = unit_text.encode()
+            view = memoryview(payload)
+            while view:
+                written = os.write(unit_fd, view)
+                if written <= 0:
+                    raise OSError("release_unit_temp_write_failed")
+                view = view[written:]
+            os.fsync(unit_fd)
+            os.fchown(unit_fd, 0, 0)
+            os.fchmod(unit_fd, 0o644)
+        finally:
+            os.close(unit_fd)
+        _sync_tree(staging)
+        _sync_tree(state_temp)
+        intent = {
+            "schema": PUBLISH_INTENT_SCHEMA,
+            "attempt_id": attempt_id,
+            "release_id": release_id,
+            "source_commit": source_commit,
+            "wheel_sha256": expected_wheel_sha256,
+            "interpreter": interpreter,
+            "artifacts": [],
         }
-        config_path = state_root / "config.json"
-        config_path.write_text(json.dumps(lab_config, sort_keys=True) + "\n", encoding="utf-8")
-        config_path.chmod(0o600)
-        os.chown(config_path, user.pw_uid, user.pw_gid)
-        linux_service.install(unit_text, unit_path=unit_path, unit=unit_name)
-        _record_stage_phase(record_path, record, "complete", seal=True)
+        for spec in _publish_artifact_paths(attempt_id, release_id):
+            path = Path(spec["source_parent"]) / spec["source_name"]
+            intent["artifacts"].append(
+                {**spec, "identity": _artifact_identity(path, kind=spec["kind"])}
+            )
+        _validate_publish_intent(attempt_id, intent)
+        _write_publish_intent(attempt_id, intent)
+        persisted_intent = _read_publish_intent(attempt_id)
+        if persisted_intent is None:
+            raise RuntimeError("release_publish_intent_unavailable")
+        result = _finish_publish_locked(attempt_id, record, persisted_intent)
     except BaseException:
         try:
             _record_stage_phase(record_path, record, "recovery-required")
@@ -1054,7 +1559,7 @@ def stage(
         raise
     finally:
         os.close(lock_fd)
-    return {"release_id": release_id, "unit": unit_name, "release_path": str(release_root)}
+    return result
 
 
 def verify(release_id: str) -> dict[str, object]:
@@ -1066,7 +1571,8 @@ def verify(release_id: str) -> dict[str, object]:
     if root.is_symlink() or not root.is_dir() or unit_path.is_symlink() or not unit_path.is_file():
         raise RuntimeError("release_or_unit_missing")
     manifest = json.loads((root / "release-manifest.json").read_text(encoding="utf-8"))
-    if manifest.get("schema") != SCHEMA or manifest.get("release_id") != release_id:
+    manifest_schema = manifest.get("schema")
+    if manifest_schema not in {SCHEMA, SCHEMA_V2} or manifest.get("release_id") != release_id:
         raise RuntimeError("release_manifest_mismatch")
     wheel_sha = manifest.get("wheel_sha256")
     interpreter = manifest.get("interpreter")
@@ -1074,7 +1580,7 @@ def verify(release_id: str) -> dict[str, object]:
         not isinstance(wheel_sha, str)
         or not re.fullmatch(r"[0-9a-f]{64}", wheel_sha)
         or not isinstance(interpreter, dict)
-        or _identity(wheel_sha, interpreter) != release_id
+        or _identity(wheel_sha, interpreter, manifest_schema) != release_id
         or manifest.get("unit_name") != unit_name
     ):
         raise RuntimeError("release_manifest_mismatch")
@@ -1101,9 +1607,29 @@ def verify(release_id: str) -> dict[str, object]:
     state = linux_service._unit_status(unit_name)
     if state != ("loaded", "inactive", "disabled", 0):
         raise RuntimeError("release_unit_not_inert")
-    state_root = STATE_BASE / release_id / "operator"
-    _verify_effective_unit(unit_name, root, state_root)
-    _verify_lab_state(root, release_id)
+    if manifest_schema == SCHEMA_V2:
+        state_root = STATE_BASE_V2 / release_id / "operator"
+        if manifest.get("state_layout") != "release-v2" or manifest.get("state_root") != str(
+            state_root
+        ):
+            raise RuntimeError("release_state_layout_mismatch")
+        state_base_metadata = STATE_BASE_V2.lstat()
+        state_parent_metadata = (STATE_BASE_V2 / release_id).lstat()
+        operator_metadata = state_root.lstat()
+        if (
+            state_base_metadata.st_uid != 0
+            or stat.S_IMODE(state_base_metadata.st_mode) != 0o755
+            or state_parent_metadata.st_uid != 0
+            or stat.S_IMODE(state_parent_metadata.st_mode) != 0o711
+            or operator_metadata.st_uid != pwd.getpwnam("brain").pw_uid
+            or stat.S_IMODE(operator_metadata.st_mode) != 0o700
+        ):
+            raise RuntimeError("release_state_ownership_mismatch")
+        _verify_effective_unit(unit_name, root, state_root, state_layout="release-v2")
+    else:
+        state_root = STATE_BASE / release_id / "operator"
+        _verify_effective_unit(unit_name, root, state_root)
+    _verify_lab_state(root, release_id, state_root)
     return {
         "release_id": release_id,
         "unit": unit_name,
@@ -1132,7 +1658,7 @@ def main(argv: list[str] | None = None) -> int:
     install.add_argument("--wheel-sha256", required=True)
     install.add_argument("--python", type=Path, default=Path("/usr/bin/python3"))
     recover = sub.add_parser(
-        "recover-stage", help="stop and quarantine one precisely recorded interrupted stage"
+        "recover-stage", help="recover one precisely recorded interrupted stage without activation"
     )
     recover.add_argument("--attempt-id", required=True)
     check = sub.add_parser("verify", help="read back a release and its inert unit")

@@ -2,9 +2,11 @@
 
 import hashlib
 import json
+import os
 import shutil
 import sqlite3
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -154,6 +156,79 @@ def test_stage_attempt_record_binds_builder_and_release_identity():
     forged = {**record, "release_id": "f" * 64}
     with pytest.raises(RuntimeError, match="stage_attempt_record_invalid"):
         linux_release._validate_stage_attempt_record(attempt_id, forged)
+
+
+def test_publish_intent_pins_fixed_destinations_and_artifact_policy(tmp_path, monkeypatch):
+    wheel_sha = "d" * 64
+    interpreter = {
+        "path": "/usr/bin/python3.12",
+        "version": "3.12.3",
+        "soabi": "cpython-312-x86_64-linux-gnu",
+    }
+    release_id = linux_release._identity(wheel_sha, interpreter, linux_release.SCHEMA_V2)
+    attempt_id = f"{release_id[:12]}-{'e' * 16}"
+    release_base = tmp_path / "opt" / "releases"
+    unit_base = tmp_path / "etc" / "systemd"
+    state_base = tmp_path / "var" / "state"
+    prepared_base = tmp_path / "var" / "prepared"
+    for path in (release_base, release_base / ".pins", unit_base, state_base, prepared_base):
+        path.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(linux_release, "RELEASE_BASE", release_base)
+    monkeypatch.setattr(linux_release, "UNIT_BASE", unit_base)
+    monkeypatch.setattr(linux_release, "STATE_BASE_V2", state_base)
+    monkeypatch.setattr(linux_release, "STATE_PREPARED_BASE", prepared_base)
+    monkeypatch.setattr(
+        linux_release.pwd, "getpwnam", lambda _name: SimpleNamespace(pw_uid=1001, pw_gid=1001)
+    )
+    policies = {
+        "release": (0, 1001, 0o555),
+        "pin": (0, 0, 0o444),
+        "state": (0, 0, 0o711),
+        "unit": (0, 0, 0o644),
+    }
+    artifacts = []
+    device = os.stat(release_base).st_dev
+    for spec in linux_release._publish_artifact_paths(attempt_id, release_id):
+        uid, gid, mode = policies[spec["name"]]
+        artifacts.append(
+            {
+                **spec,
+                "identity": {
+                    "dev": device,
+                    "ino": len(artifacts) + 10,
+                    "uid": uid,
+                    "gid": gid,
+                    "mode": mode,
+                    "kind": spec["kind"],
+                    "content_sha256": "a" * 64,
+                },
+            }
+        )
+    intent = {
+        "schema": linux_release.PUBLISH_INTENT_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": release_id,
+        "source_commit": "c" * 40,
+        "wheel_sha256": wheel_sha,
+        "interpreter": interpreter,
+        "artifacts": artifacts,
+    }
+    assert linux_release._validate_publish_intent(attempt_id, intent) == artifacts
+    forged = {
+        **intent,
+        "artifacts": [{**artifacts[0], "destination_name": "foreign"}, *artifacts[1:]],
+    }
+    with pytest.raises(RuntimeError, match="release_publish_intent_invalid"):
+        linux_release._validate_publish_intent(attempt_id, forged)
+    forged = {
+        **intent,
+        "artifacts": [
+            {**artifacts[0], "identity": {**artifacts[0]["identity"], "mode": 0o777}},
+            *artifacts[1:],
+        ],
+    }
+    with pytest.raises(RuntimeError, match="release_publish_artifact_policy_mismatch"):
+        linux_release._validate_publish_intent(attempt_id, forged)
 
 
 def test_process_census_fails_closed_on_permission_error(tmp_path, monkeypatch):

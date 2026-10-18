@@ -59,6 +59,66 @@ def test_render_can_omit_broad_state_directory_for_attached_state(tmp_path):
     assert "ReadWritePaths=" + str(attachment_root) in unit
 
 
+def test_render_release_v2_uses_only_the_private_operator_directory(tmp_path):
+    release_id = "a" * 64
+    code_root = Path("/opt/brain/releases") / release_id
+    state_base = Path("/var/lib/brain-release-state")
+    state_root = state_base / release_id / "operator"
+    prepared_python = tmp_path / "prepared-python"
+    prepared_python.write_text("", encoding="utf-8")
+    prepared_python.chmod(0o755)
+    unit = render_unit(
+        code_root / "venv/bin/python",
+        state_root,
+        18792,
+        code_root=code_root,
+        readwrite_path=state_root,
+        state_directory=False,
+        state_base=state_base,
+        home=state_root,
+        state_layout="release-v2",
+        prepared_python=prepared_python,
+    )
+    assert f"Environment=HOME={state_root}" in unit
+    assert f"ReadWritePaths={state_root}" in unit
+    assert "StateDirectory=" not in unit
+
+
+def test_render_release_v2_rejects_broad_state_or_unpinned_python(tmp_path):
+    release_id = "a" * 64
+    code_root = Path("/opt/brain/releases") / release_id
+    state_base = Path("/var/lib/brain-release-state")
+    state_root = state_base / release_id / "operator"
+    prepared_python = tmp_path / "prepared-python"
+    prepared_python.write_text("", encoding="utf-8")
+    prepared_python.chmod(0o755)
+    with pytest.raises(ValueError, match="invalid_release_v2_unit_paths"):
+        render_unit(
+            code_root / "venv/bin/python",
+            state_root,
+            18792,
+            code_root=code_root,
+            readwrite_path=state_base / release_id,
+            state_directory=False,
+            state_base=state_base,
+            home=state_root,
+            state_layout="release-v2",
+            prepared_python=prepared_python,
+        )
+    with pytest.raises(ValueError, match="python_not_executable"):
+        render_unit(
+            code_root / "venv/bin/python",
+            state_root,
+            18792,
+            code_root=code_root,
+            readwrite_path=state_root,
+            state_directory=False,
+            state_base=state_base,
+            home=state_root,
+            state_layout="release-v2",
+        )
+
+
 def test_render_rejects_write_scope_outside_lab(tmp_path):
     python = tmp_path / "venv/bin/python"
     python.parent.mkdir(parents=True)

@@ -39,24 +39,51 @@ def render_unit(
     code_root: Path = CODE_ROOT,
     readwrite_path: Path = STATE_BASE,
     state_directory: bool = True,
+    state_base: Path = STATE_BASE,
+    home: Path = STATE_BASE,
+    state_layout: str = "legacy",
+    prepared_python: Path | None = None,
 ) -> str:
     """Return a fixed-policy unit with only validated path and port substitutions."""
     python = _absolute_safe(str(python), "python_path")
     state_root = _absolute_safe(str(state_root), "state_root")
     code_root = _absolute_safe(str(code_root), "code_root")
     readwrite_path = _absolute_safe(str(readwrite_path), "readwrite_path")
+    state_base = _absolute_safe(str(state_base), "state_base")
+    home = _absolute_safe(str(home), "home")
     if type(state_directory) is not bool:
         raise ValueError("invalid_state_directory_policy")
-    if not python.is_file() or not os.access(python, os.X_OK):
-        raise ValueError("python_not_executable")
+    if state_layout == "release-v2":
+        match = re.fullmatch(r"/opt/brain/releases/([0-9a-f]{64})", str(code_root))
+        if (
+            match is None
+            or state_base != Path("/var/lib/brain-release-state")
+            or state_root != state_base / match.group(1) / "operator"
+            or readwrite_path != state_root
+            or state_directory
+            or home != state_root
+            or python != code_root / "venv/bin/python"
+        ):
+            raise ValueError("invalid_release_v2_unit_paths")
+        if prepared_python is not None:
+            prepared_python = _absolute_safe(str(prepared_python), "prepared_python_path")
+            if not prepared_python.is_file() or not os.access(prepared_python, os.X_OK):
+                raise ValueError("prepared_python_not_executable")
+        elif not python.is_file() or not os.access(python, os.X_OK):
+            raise ValueError("python_not_executable")
+    elif state_layout == "legacy":
+        if not python.is_file() or not os.access(python, os.X_OK):
+            raise ValueError("python_not_executable")
+    else:
+        raise ValueError("invalid_state_layout")
     try:
-        state_root.relative_to(STATE_BASE)
+        state_root.relative_to(state_base)
     except ValueError as exc:
         raise ValueError("state_root_outside_lab") from exc
     if state_root == STATE_BASE or not 1024 <= port <= 65535:
         raise ValueError("invalid_port_or_state_root")
     try:
-        readwrite_path.relative_to(STATE_BASE)
+        readwrite_path.relative_to(state_base)
     except ValueError as exc:
         raise ValueError("readwrite_path_outside_lab") from exc
     state_directory_config = (
@@ -71,7 +98,7 @@ Type=simple
 User=brain
 Group=brain
 WorkingDirectory={code_root}
-Environment=HOME=/var/lib/brain-lab
+Environment=HOME={home}
 Environment=PYTHONNOUSERSITE=1
 UMask=0077
 ExecStart={python} -B -I -m memecoin_operator.runtime --root {state_root} --port {port}
