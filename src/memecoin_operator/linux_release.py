@@ -3,18 +3,19 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
 import pwd
 import re
+import secrets
 import shlex
 import shutil
 import sqlite3
 import stat
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 from memecoin_operator import linux_service
@@ -22,7 +23,11 @@ from memecoin_operator import linux_service
 RELEASE_BASE = Path("/opt/brain/releases")
 UNIT_BASE = Path("/etc/systemd/system")
 STATE_BASE = Path("/var/lib/brain-lab/releases")
+STAGE_ATTEMPT_BASE = Path("/var/lib/brain-lab/release-stage-attempts")
+STAGE_LOCK_BASE = Path("/run/lock")
 SCHEMA = "brain-linux-release-v1"
+STAGE_ATTEMPT_SCHEMA = "brain-linux-release-stage-attempt-v1"
+STAGE_ATTEMPT_ID_RE = re.compile(r"^[0-9a-f]{12}-[0-9a-f]{16}$")
 MAX_WHEEL_BYTES = 100 * 1024 * 1024
 SAFE_WHEEL_NAME = re.compile(
     r"^[A-Za-z0-9_]+-[A-Za-z0-9_.]+-[A-Za-z0-9_.]+-[A-Za-z0-9_.]+-[A-Za-z0-9_.]+\.whl$"
@@ -52,6 +57,387 @@ def _run(argv: list[str], *, capture: bool = True) -> subprocess.CompletedProces
             "PIP_CONFIG_FILE": "/dev/null",
         },
     )
+
+
+def _stage_slice_name(attempt_id: str) -> str:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return f"brain-release-stage-{attempt_id}.slice"
+
+
+def _stage_attempt_path(attempt_id: str) -> Path:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return STAGE_ATTEMPT_BASE / f"{attempt_id}.json"
+
+
+def _ensure_stage_attempt_directory() -> None:
+    if STAGE_ATTEMPT_BASE.is_symlink():
+        raise RuntimeError("stage_attempt_directory_unsafe")
+    STAGE_ATTEMPT_BASE.mkdir(mode=0o700, parents=True, exist_ok=True)
+    metadata = STAGE_ATTEMPT_BASE.lstat()
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != 0
+        or stat.S_IMODE(metadata.st_mode) != 0o700
+    ):
+        raise RuntimeError("stage_attempt_directory_unsafe")
+
+
+def _write_stage_attempt(path: Path, record: dict[str, object], *, create: bool = False) -> None:
+    _ensure_stage_attempt_directory()
+    payload = (json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    if create:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        try:
+            view = memoryview(payload)
+            while view:
+                written = os.write(fd, view)
+                if written <= 0:
+                    raise OSError("stage_attempt_write_failed")
+                view = view[written:]
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    else:
+        temporary = STAGE_ATTEMPT_BASE / f".{path.name}.{secrets.token_hex(8)}.tmp"
+        fd = os.open(
+            temporary,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
+        )
+        try:
+            view = memoryview(payload)
+            while view:
+                written = os.write(fd, view)
+                if written <= 0:
+                    raise OSError("stage_attempt_write_failed")
+                view = view[written:]
+            os.fsync(fd)
+            os.replace(temporary, path)
+        finally:
+            os.close(fd)
+            temporary.unlink(missing_ok=True)
+    directory_fd = os.open(STAGE_ATTEMPT_BASE, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
+def _read_stage_attempt(attempt_id: str) -> tuple[Path, dict[str, object]]:
+    path = _stage_attempt_path(attempt_id)
+    fd = -1
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        metadata = os.fstat(fd)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != 0
+            or stat.S_IMODE(metadata.st_mode) not in {0o600, 0o444}
+            or metadata.st_size > 16 * 1024
+        ):
+            raise RuntimeError("stage_attempt_record_unsafe")
+        payload = bytearray()
+        while len(payload) <= 16 * 1024:
+            block = os.read(fd, 4096)
+            if not block:
+                break
+            payload.extend(block)
+        if len(payload) > 16 * 1024:
+            raise RuntimeError("stage_attempt_record_unsafe")
+        value = json.loads(payload.decode("utf-8"), object_pairs_hook=_unique_json_object)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise RuntimeError("stage_attempt_record_unavailable") from exc
+    finally:
+        if fd >= 0:
+            os.close(fd)
+    expected = {
+        "schema",
+        "attempt_id",
+        "release_id",
+        "wheel_sha256",
+        "source_commit",
+        "interpreter",
+        "builder_name",
+        "builder_uid",
+        "staging_name",
+        "staging_dev",
+        "staging_ino",
+        "slice_name",
+        "phase",
+    }
+    if (
+        not isinstance(value, dict)
+        or set(value) != expected
+        or value.get("schema") != STAGE_ATTEMPT_SCHEMA
+        or value.get("attempt_id") != attempt_id
+        or not isinstance(value.get("release_id"), str)
+        or not re.fullmatch(r"[0-9a-f]{64}", value["release_id"])
+        or not isinstance(value.get("wheel_sha256"), str)
+        or not re.fullmatch(r"[0-9a-f]{64}", value["wheel_sha256"])
+        or value.get("staging_name") != f".stage-{attempt_id}"
+        or value.get("slice_name") != _stage_slice_name(attempt_id)
+        or value.get("phase")
+        not in {
+            "intent",
+            "builder-created",
+            "building",
+            "publishing",
+            "complete",
+            "recovery-required",
+            "recovered",
+        }
+        or type(value.get("staging_dev")) is not int
+        or type(value.get("staging_ino")) is not int
+        or (value.get("builder_uid") is not None and type(value.get("builder_uid")) is not int)
+        or not isinstance(value.get("builder_name"), str)
+        or not isinstance(value.get("source_commit"), str)
+        or not isinstance(value.get("interpreter"), dict)
+    ):
+        raise RuntimeError("stage_attempt_record_invalid")
+    return path, value
+
+
+def _acquire_stage_lock(release_id: str) -> int:
+    path = STAGE_LOCK_BASE / f"brain-release-stage-{release_id}.lock"
+    flags = os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW
+    fd = os.open(path, flags, 0o600)
+    metadata = os.fstat(fd)
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != 0
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+    ):
+        os.close(fd)
+        raise RuntimeError("stage_lock_file_unsafe")
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError as exc:
+        os.close(fd)
+        raise RuntimeError("stage_already_in_progress") from exc
+    return fd
+
+
+def _uid_has_processes(uid: int) -> bool:
+    proc = Path("/proc")
+    for entry in proc.iterdir():
+        if not entry.name.isdecimal():
+            continue
+        try:
+            status = (entry / "status").read_text(encoding="ascii")
+        except (FileNotFoundError, ProcessLookupError, PermissionError):
+            continue
+        uid_line = next((line for line in status.splitlines() if line.startswith("Uid:")), "")
+        fields = uid_line.split()
+        if len(fields) >= 5 and str(uid) in fields[1:5]:
+            return True
+    return False
+
+
+def _stage_slice_cgroup(slice_name: str) -> Path | None:
+    if not re.fullmatch(r"brain-release-stage-[0-9a-f]{12}-[0-9a-f]{16}\.slice", slice_name):
+        raise RuntimeError("stage_slice_name_invalid")
+    result = subprocess.run(
+        ["systemctl", "show", "--property=ControlGroup", "--value", slice_name],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=15,
+        env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "HOME": "/root"},
+    )
+    if result.returncode != 0:
+        if result.returncode == 1 and any(
+            phrase in result.stderr.lower()
+            for phrase in ("not found", "could not be found", "not loaded")
+        ):
+            return None
+        raise RuntimeError("stage_cgroup_status_unavailable")
+    value = result.stdout.strip()
+    if not value:
+        return None
+    parts = Path(value).parts
+    if not value.startswith("/") or ".." in parts:
+        raise RuntimeError("stage_cgroup_path_invalid")
+    return Path("/sys/fs/cgroup").joinpath(*parts[1:])
+
+
+def _require_stage_slice_empty(slice_name: str) -> None:
+    cgroup = _stage_slice_cgroup(slice_name)
+    if cgroup is None:
+        return
+    if not cgroup.exists():
+        return
+    try:
+        events = (cgroup / "cgroup.events").read_text(encoding="ascii").splitlines()
+        processes = (cgroup / "cgroup.procs").read_text(encoding="ascii").splitlines()
+    except OSError as exc:
+        raise RuntimeError("stage_cgroup_status_unavailable") from exc
+    populated = next((line for line in events if line.startswith("populated ")), "")
+    if populated != "populated 0" or processes:
+        raise RuntimeError("stage_builder_processes_remaining")
+
+
+def _unique_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate_json_key")
+        result[key] = value
+    return result
+
+
+def _record_stage_phase(
+    path: Path, record: dict[str, object], phase: str, *, seal: bool = False
+) -> None:
+    record["phase"] = phase
+    _write_stage_attempt(path, record)
+    if seal:
+        path.chmod(0o444)
+        directory_fd = os.open(STAGE_ATTEMPT_BASE, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+
+
+def _release_stage_artifacts(release_id: str) -> list[Path]:
+    artifacts = [RELEASE_BASE / release_id, UNIT_BASE / f"memecoin-brain-{release_id}.service"]
+    pin = RELEASE_BASE / ".pins" / f"{release_id}.sha256"
+    state = STATE_BASE / release_id
+    artifacts.extend([pin, state])
+    return [path for path in artifacts if os.path.lexists(path)]
+
+
+def _recover_stage_locked(attempt_id: str) -> dict[str, str]:
+    record_path, record = _read_stage_attempt(attempt_id)
+    if record["phase"] in {"complete", "recovered"}:
+        raise RuntimeError("stage_attempt_not_recoverable")
+    release_id = str(record["release_id"])
+    if _release_stage_artifacts(release_id):
+        raise RuntimeError("stage_partial_publication_requires_manual_review")
+    slice_name = str(record["slice_name"])
+    _stop_stage_slice(slice_name)
+    builder_name = str(record["builder_name"])
+    uid_value = record["builder_uid"]
+    try:
+        builder = pwd.getpwnam(builder_name)
+    except KeyError:
+        builder = None
+    if builder is not None:
+        if uid_value is not None and builder.pw_uid != uid_value:
+            raise RuntimeError("stage_builder_identity_mismatch")
+        uid_value = builder.pw_uid
+        if builder.pw_dir != "/nonexistent" or builder.pw_shell != "/usr/sbin/nologin":
+            raise RuntimeError("stage_builder_identity_mismatch")
+        if _uid_has_processes(uid_value):
+            raise RuntimeError("stage_builder_processes_remaining")
+    elif uid_value is not None and _uid_has_processes(uid_value):
+        raise RuntimeError("stage_builder_processes_remaining")
+    staging = RELEASE_BASE / str(record["staging_name"])
+    try:
+        metadata = staging.lstat()
+    except FileNotFoundError:
+        metadata = None
+    if metadata is not None and (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_dev != record["staging_dev"]
+        or metadata.st_ino != record["staging_ino"]
+        or metadata.st_uid != 0
+    ):
+        raise RuntimeError("stage_staging_identity_mismatch")
+    if builder is not None:
+        result = subprocess.run(
+            ["userdel", builder_name],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "HOME": "/root"},
+        )
+        if result.returncode != 0:
+            raise RuntimeError("stage_builder_account_removal_failed")
+    if metadata is not None:
+        incomplete = RELEASE_BASE / f".incomplete-{attempt_id}"
+        if os.path.lexists(incomplete):
+            raise RuntimeError("stage_incomplete_destination_exists")
+        os.replace(staging, incomplete)
+        marker = incomplete / "INCOMPLETE"
+        marker.write_text(
+            "release staging interrupted; quarantined for evidence\n", encoding="utf-8"
+        )
+        marker.chmod(0o444)
+        _seal(incomplete, pwd.getpwnam("brain").pw_gid)
+    _record_stage_phase(record_path, record, "recovered", seal=True)
+    return {"attempt_id": attempt_id, "recovered": "true"}
+
+
+def recover_stage(attempt_id: str) -> dict[str, str]:
+    if os.geteuid() != 0:
+        raise PermissionError("stage_recovery_requires_root")
+    _, record = _read_stage_attempt(attempt_id)
+    lock_fd = _acquire_stage_lock(str(record["release_id"]))
+    try:
+        return _recover_stage_locked(attempt_id)
+    finally:
+        os.close(lock_fd)
+
+
+def _stop_stage_slice(slice_name: str) -> None:
+    if not re.fullmatch(r"brain-release-stage-[0-9a-f]{12}-[0-9a-f]{16}\.slice", slice_name):
+        raise RuntimeError("stage_slice_name_invalid")
+    result = subprocess.run(
+        ["systemctl", "stop", slice_name],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    if result.returncode != 0:
+        _stage_slice_cgroup(slice_name)
+        if _stage_slice_cgroup(slice_name) is not None:
+            raise RuntimeError("stage_builder_slice_stop_failed")
+    _require_stage_slice_empty(slice_name)
+
+
+def _run_builder(
+    argv: list[str], *, attempt_id: str, phase: str, timeout: int = 120
+) -> subprocess.CompletedProcess:
+    if not re.fullmatch(r"[a-z0-9-]{1,24}", phase):
+        raise ValueError("stage_builder_phase_invalid")
+    slice_name = _stage_slice_name(attempt_id)
+    unit = f"brain-release-stage-{attempt_id}-{phase}.scope"
+    env = {
+        "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+        "HOME": "/root",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PIP_NO_INPUT": "1",
+        "PIP_CONFIG_FILE": "/dev/null",
+    }
+    try:
+        result = subprocess.run(
+            [
+                "systemd-run",
+                "--scope",
+                "--quiet",
+                f"--slice={slice_name}",
+                f"--unit={unit}",
+                "--property=KillMode=control-group",
+                "--",
+                *argv,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError("stage_builder_command_failed") from exc
+    if result.returncode != 0:
+        raise RuntimeError("stage_builder_command_failed")
+    _require_stage_slice_empty(slice_name)
+    return result
 
 
 def _interpreter(python: Path) -> dict[str, str]:
@@ -303,15 +689,65 @@ def stage(
     if os.path.lexists(release_root) or os.path.lexists(unit_path):
         raise RuntimeError("release_already_exists")
     user = pwd.getpwnam("brain")
-    builder_name = f"brain-stage-{release_id[:12]}"
-    staging = Path(tempfile.mkdtemp(prefix=f".stage-{release_id[:12]}-", dir=RELEASE_BASE))
+    lock_fd = _acquire_stage_lock(release_id)
+    record_path: Path | None = None
+    record: dict[str, object] | None = None
+    try:
+        if pwd.getpwnam(f"brain-stage-{release_id[:12]}"):
+            raise RuntimeError("stage_incomplete_requires_recovery")
+    except KeyError:
+        pass
+    if any(STAGE_ATTEMPT_BASE.glob(f"{release_id[:12]}-*.json")):
+        for candidate in STAGE_ATTEMPT_BASE.glob(f"{release_id[:12]}-*.json"):
+            try:
+                _, previous = _read_stage_attempt(candidate.stem)
+            except RuntimeError as exc:
+                os.close(lock_fd)
+                raise RuntimeError("stage_attempt_record_requires_manual_review") from exc
+            if previous["release_id"] == release_id and previous["phase"] not in {
+                "complete",
+                "recovered",
+            }:
+                os.close(lock_fd)
+                raise RuntimeError("stage_incomplete_requires_recovery")
+    if any(RELEASE_BASE.glob(f".stage-{release_id[:12]}-*")):
+        os.close(lock_fd)
+        raise RuntimeError("stage_unrecorded_staging_requires_manual_review")
+    attempt_id = f"{release_id[:12]}-{secrets.token_hex(8)}"
+    builder_name = f"bs-{attempt_id}"
+    if len(builder_name) > 32:
+        os.close(lock_fd)
+        raise RuntimeError("stage_builder_name_invalid")
+    staging = RELEASE_BASE / f".stage-{attempt_id}"
+    staging.mkdir(mode=0o711)
+    staging_metadata = staging.lstat()
+    record_path = _stage_attempt_path(attempt_id)
+    record = {
+        "schema": STAGE_ATTEMPT_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": release_id,
+        "wheel_sha256": expected_wheel_sha256,
+        "source_commit": source_commit,
+        "interpreter": interpreter,
+        "builder_name": builder_name,
+        "builder_uid": None,
+        "staging_name": staging.name,
+        "staging_dev": staging_metadata.st_dev,
+        "staging_ino": staging_metadata.st_ino,
+        "slice_name": _stage_slice_name(attempt_id),
+        "phase": "intent",
+    }
+    try:
+        _write_stage_attempt(record_path, record, create=True)
+    except BaseException:
+        staging.rmdir()
+        os.close(lock_fd)
+        raise
     builder_root = staging / "build"
-    builder_root.mkdir(mode=0o700)
-    staging.chmod(0o711)
     wheel_input = staging / wheel.name
     venv = builder_root / "venv"
-    builder_created = False
     try:
+        builder_root.mkdir(mode=0o700)
         _run(
             [
                 "useradd",
@@ -324,15 +760,17 @@ def stage(
                 builder_name,
             ]
         )
-        builder_created = True
         builder = pwd.getpwnam(builder_name)
+        record["builder_uid"] = builder.pw_uid
+        _record_stage_phase(record_path, record, "builder-created")
         os.chown(builder_root, builder.pw_uid, builder.pw_gid)
         shutil.copyfile(wheel, wheel_input)
         wheel_input.chmod(0o444)
         os.chown(wheel_input, 0, 0)
         if _sha256(wheel_input) != expected_wheel_sha256:
             raise RuntimeError("staged_wheel_sha256_mismatch")
-        _run(
+        _record_stage_phase(record_path, record, "building")
+        _run_builder(
             [
                 "/usr/sbin/runuser",
                 "-u",
@@ -342,9 +780,11 @@ def stage(
                 "-m",
                 "venv",
                 str(venv),
-            ]
+            ],
+            attempt_id=attempt_id,
+            phase="venv",
         )
-        _run(
+        _run_builder(
             [
                 "/usr/sbin/runuser",
                 "-u",
@@ -359,11 +799,13 @@ def stage(
                 "--no-compile",
                 "--no-cache-dir",
                 str(wheel_input),
-            ]
+            ],
+            attempt_id=attempt_id,
+            phase="pip",
         )
         if _sha256(wheel_input) != expected_wheel_sha256:
             raise RuntimeError("staged_wheel_changed_during_install")
-        probe = _run(
+        probe = _run_builder(
             [
                 "/usr/sbin/runuser",
                 "-u",
@@ -375,13 +817,29 @@ def stage(
                 "-c",
                 "import importlib.metadata,memecoin_operator.runtime;"
                 "print(importlib.metadata.version('memecoin-ai'))",
-            ]
+            ],
+            attempt_id=attempt_id,
+            phase="probe",
         )
         version = probe.stdout.strip()
         if not version:
             raise RuntimeError("release_import_probe_failed")
         wheel_input.unlink()
         inventory, inventory_sha = _inventory(venv)
+        _require_stage_slice_empty(str(record["slice_name"]))
+        if _uid_has_processes(builder.pw_uid):
+            raise RuntimeError("stage_builder_processes_remaining")
+        result = subprocess.run(
+            ["userdel", builder_name],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "HOME": "/root"},
+        )
+        if result.returncode != 0:
+            raise RuntimeError("stage_builder_account_removal_failed")
+        _record_stage_phase(record_path, record, "publishing")
         release_root.mkdir(mode=0o755)
         os.replace(venv, release_root / "venv")
         builder_root.rmdir()
@@ -445,44 +903,15 @@ def stage(
         config_path.chmod(0o600)
         os.chown(config_path, user.pw_uid, user.pw_gid)
         linux_service.install(unit_text, unit_path=unit_path, unit=unit_name)
+        _record_stage_phase(record_path, record, "complete", seal=True)
     except BaseException:
-        pin_path = RELEASE_BASE / ".pins" / f"{release_id}.sha256"
-        pin_path.unlink(missing_ok=True)
-        state_root = STATE_BASE / release_id / "operator"
         try:
-            state_root.rmdir()
-            state_root.parent.rmdir()
-        except OSError:
+            _record_stage_phase(record_path, record, "recovery-required")
+        except BaseException:
             pass
-        if release_root.exists() and (release_root / "venv").exists():
-            candidate = release_root
-            if staging.exists():
-                staging.rmdir()
-        else:
-            candidate = staging if staging.exists() else None
-            if release_root.exists():
-                release_root.rmdir()
-        if candidate is not None:
-            incomplete = RELEASE_BASE / f".incomplete-{release_id[:12]}-{os.getpid()}"
-            if candidate == release_root:
-                candidate.chmod(0o755)
-            else:
-                os.chown(candidate, 0, user.pw_gid)
-            os.replace(candidate, incomplete)
-            (incomplete / "INCOMPLETE").write_text(
-                "release staging did not complete\n", encoding="utf-8"
-            )
-            _seal(incomplete, user.pw_gid)
         raise
     finally:
-        if builder_created:
-            subprocess.run(
-                ["userdel", builder_name],
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
+        os.close(lock_fd)
     return {"release_id": release_id, "unit": unit_name, "release_path": str(release_root)}
 
 
@@ -560,6 +989,10 @@ def main(argv: list[str] | None = None) -> int:
     install.add_argument("--source-commit", required=True)
     install.add_argument("--wheel-sha256", required=True)
     install.add_argument("--python", type=Path, default=Path("/usr/bin/python3"))
+    recover = sub.add_parser(
+        "recover-stage", help="stop and quarantine one precisely recorded interrupted stage"
+    )
+    recover.add_argument("--attempt-id", required=True)
     check = sub.add_parser("verify", help="read back a release and its inert unit")
     check.add_argument("--release-id", required=True)
     start = sub.add_parser("activate", help="verify then explicitly start a release")
@@ -570,6 +1003,8 @@ def main(argv: list[str] | None = None) -> int:
             result = stage(
                 args.source, args.wheel, args.source_commit, args.wheel_sha256, args.python
             )
+        elif args.command == "recover-stage":
+            result = recover_stage(args.attempt_id)
         elif args.command == "verify":
             result = verify(args.release_id)
         else:
