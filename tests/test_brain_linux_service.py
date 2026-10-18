@@ -21,7 +21,7 @@ def test_render_is_manual_sandboxed_and_state_scoped(tmp_path):
     assert f"WorkingDirectory={CODE_ROOT}" in unit
     assert f"ReadWritePaths={STATE_BASE}" in unit
     assert "Restart=no" in unit
-    assert "Environment=PYTHONDONTWRITEBYTECODE=1" in unit
+    assert "ExecStart=/" in unit and " -B -I -m memecoin_operator.runtime " in unit
     assert "WantedBy=multi-user.target" in unit
     assert "systemctl enable" not in unit
     assert "systemctl start" not in unit

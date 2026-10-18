@@ -195,6 +195,7 @@ def _verify_effective_unit(unit: str, root: Path, state_root: Path) -> None:
         raise RuntimeError("release_effective_execstart_malformed") from exc
     expected_argv = [
         str(root / "venv/bin/python"),
+        "-B",
         "-I",
         "-m",
         "memecoin_operator.runtime",
@@ -369,6 +370,7 @@ def stage(
                 builder_name,
                 "--",
                 str(venv / "bin/python"),
+                "-B",
                 "-I",
                 "-c",
                 "import importlib.metadata,memecoin_operator.runtime;"
@@ -523,7 +525,7 @@ def verify(release_id: str) -> dict[str, object]:
     if hashlib.sha256(unit_text.encode()).hexdigest() != manifest.get("unit_sha256"):
         raise RuntimeError("release_unit_mismatch")
     expected_python = str(root / "venv/bin/python")
-    if f"ExecStart={expected_python} -I -m memecoin_operator.runtime " not in unit_text:
+    if f"ExecStart={expected_python} -B -I -m memecoin_operator.runtime " not in unit_text:
         raise RuntimeError("release_unit_path_mismatch")
     state = linux_service._unit_status(unit_name)
     if state != ("loaded", "inactive", "disabled", 0):

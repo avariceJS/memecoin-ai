@@ -551,9 +551,8 @@ def prepare_attachment(
             [
                 "sudo",
                 "-n",
-                "/usr/bin/env",
-                "PYTHONDONTWRITEBYTECODE=1",
                 str(release_python),
+                "-B",
                 "-I",
                 "-m",
                 "memecoin_operator.linux_attachment",
@@ -777,6 +776,7 @@ def _verify_unit(manifest: dict[str, Any], pin: dict[str, Any]) -> None:
         raise StorageError("attachment_effective_execstart_malformed") from exc
     expected_argv = [
         str(release_root / "venv/bin/python"),
+        "-B",
         "-I",
         "-m",
         "memecoin_operator.runtime",
@@ -921,6 +921,7 @@ def _probe_status(unit: str, manifest: dict[str, Any]) -> dict[str, Any]:
                 str(state[3]),
                 "--net",
                 "/usr/bin/python3",
+                "-B",
                 "-I",
                 "-c",
                 probe_code,
@@ -1003,9 +1004,8 @@ def _root_call(release_id: str, args: list[str]) -> dict[str, Any]:
         [
             "sudo",
             "-n",
-            "/usr/bin/env",
-            "PYTHONDONTWRITEBYTECODE=1",
             str(python),
+            "-B",
             "-I",
             "-m",
             "memecoin_operator.linux_attachment",

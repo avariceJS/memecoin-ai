@@ -73,9 +73,8 @@ Group=brain
 WorkingDirectory={code_root}
 Environment=HOME=/var/lib/brain-lab
 Environment=PYTHONNOUSERSITE=1
-Environment=PYTHONDONTWRITEBYTECODE=1
 UMask=0077
-ExecStart={python} -I -m memecoin_operator.runtime --root {state_root} --port {port}
+ExecStart={python} -B -I -m memecoin_operator.runtime --root {state_root} --port {port}
 Restart=no
 {state_directory_config}
 PrivateTmp=yes
