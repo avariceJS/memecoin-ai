@@ -703,19 +703,23 @@ def main(argv: list[str] | None = None) -> int:
     fixture = sub.add_parser("make-fixture")
     fixture.add_argument("--release-id", required=True)
     fixture.add_argument("--output", type=Path, required=True)
-    restore = sub.add_parser("restore-inert")
+    restore = sub.add_parser(
+        "restore-inert", help="restore synthetic inert state below bound data root"
+    )
     restore.add_argument("--release-id", required=True)
     restore.add_argument("--unit", required=True)
     restore.add_argument("--storage-config", type=Path, required=True)
-    restore.add_argument("--target-parent", required=True)
+    restore.add_argument("--target-parent", required=True, help="path relative to bound data root")
     restore.add_argument("--run-id", required=True)
     restore.add_argument("--bundle", type=Path, required=True)
     restore.add_argument("--manifest-sha256", required=True)
-    verify = sub.add_parser("verify-inert")
+    verify = sub.add_parser(
+        "verify-inert", help="verify synthetic inert state below bound data root"
+    )
     verify.add_argument("--release-id", required=True)
     verify.add_argument("--unit", required=True)
     verify.add_argument("--storage-config", type=Path, required=True)
-    verify.add_argument("--target-parent", required=True)
+    verify.add_argument("--target-parent", required=True, help="path relative to bound data root")
     verify.add_argument("--run-id", required=True)
     verify.add_argument("--bundle", type=Path, required=True)
     verify.add_argument("--manifest-sha256", required=True)
