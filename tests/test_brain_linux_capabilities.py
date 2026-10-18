@@ -31,6 +31,7 @@ def test_report_keeps_optional_ml_and_gpu_out_of_required_roles(tmp_path: Path, 
                 "python_version",
                 "venv",
                 "ensurepip",
+                "setup_interpreter",
                 "git",
                 "make",
                 "free_space",
@@ -75,6 +76,7 @@ def test_report_keeps_optional_ml_and_gpu_out_of_required_roles(tmp_path: Path, 
     )
     monkeypatch.setattr(capabilities, "_source_os", lambda: dict(ok))
     monkeypatch.setattr(capabilities.platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(capabilities, "_setup_interpreter_check", lambda _command: dict(ok))
 
     result = capabilities.report(source_commit="a" * 40, workspace=tmp_path)
 
@@ -83,6 +85,58 @@ def test_report_keeps_optional_ml_and_gpu_out_of_required_roles(tmp_path: Path, 
     assert result["roles"]["cpu_ml"]["status"] == "absent"
     assert result["roles"]["gpu"]["status"] == "indeterminate"
     assert result["roles"]["gpu"]["observation"]["status"] == "available"
+
+
+def test_setup_interpreter_checks_make_default_without_writes(monkeypatch):
+    monkeypatch.setattr(capabilities.shutil, "which", lambda name, path: None)
+    missing = capabilities._setup_interpreter_check("python3")
+    assert missing == {
+        "status": "absent",
+        "reason": "make_setup_python_missing",
+        "command": "python3",
+    }
+
+    observed = {}
+    monkeypatch.setattr(
+        capabilities,
+        "_command",
+        lambda argv, **kwargs: (
+            observed.update(argv=argv, kwargs=kwargs)
+            or ('{"version":[3,12,3],"venv":true,"ensurepip":true}', "ok")
+        ),
+    )
+    explicit = capabilities._setup_interpreter_check(sys.executable)
+    assert explicit["status"] == "available"
+    assert explicit["reason"] == "make_setup_python_ready"
+    assert explicit["executable"] == sys.executable
+    assert observed["argv"][0] == sys.executable
+    assert observed["argv"][1:4] == ["-I", "-B", "-c"]
+    assert observed["kwargs"] == {"timeout": 5.0}
+
+
+@pytest.mark.parametrize(
+    ("payload", "reason"),
+    [
+        ('{"version":[3,10,14],"venv":true,"ensurepip":true}', "make_setup_python_3_11_required"),
+        ('{"version":[3,12,3],"venv":false,"ensurepip":true}', "make_setup_python_venv_missing"),
+        (
+            '{"version":[3,12,3],"venv":true,"ensurepip":false}',
+            "make_setup_python_ensurepip_missing",
+        ),
+    ],
+)
+def test_setup_interpreter_rejects_missing_requirements(monkeypatch, payload, reason):
+    monkeypatch.setattr(capabilities.shutil, "which", lambda _name, path: sys.executable)
+    monkeypatch.setattr(capabilities, "_command", lambda *_args, **_kwargs: (payload, "ok"))
+    result = capabilities._setup_interpreter_check("python3")
+    assert result["status"] == "absent"
+    assert result["reason"] == reason
+
+
+@pytest.mark.parametrize("command", ["python3 -V", "../python3", "", "/usr/bin/python3\n"])
+def test_setup_interpreter_rejects_shell_text(command):
+    with pytest.raises(ValueError, match="setup_python_invalid"):
+        capabilities._setup_interpreter_check(command)
 
 
 def test_report_rejects_invalid_commit_and_missing_workspace(tmp_path: Path):

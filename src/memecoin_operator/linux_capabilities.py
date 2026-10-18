@@ -28,6 +28,7 @@ SAFE_ENV = {
     "GIT_CONFIG_NOSYSTEM": "1",
     "GIT_CONFIG_GLOBAL": "/dev/null",
 }
+SAFE_EXECUTABLE = re.compile(r"^[A-Za-z0-9_+.-]+$")
 TOOL_PATHS = {
     "git": ("/usr/bin/git", "/usr/local/bin/git"),
     "make": ("/usr/bin/make", "/usr/local/bin/make"),
@@ -228,6 +229,62 @@ def _python_build_checks(workspace: Path) -> dict[str, dict[str, Any]]:
     checks["make"] = _version_check("make")
     checks["free_space"] = _free_space(workspace)
     return checks
+
+
+def _setup_interpreter_check(command: str) -> dict[str, Any]:
+    """Probe the exact executable Make will use, without creating an environment."""
+    if not command or command != command.strip() or "\x00" in command:
+        raise ValueError("setup_python_invalid")
+    candidate = Path(command)
+    if candidate.is_absolute():
+        executable = str(candidate)
+    elif SAFE_EXECUTABLE.fullmatch(command):
+        executable = shutil.which(command, path=SAFE_ENV["PATH"])
+    else:
+        raise ValueError("setup_python_invalid")
+    if executable is None or not Path(executable).is_file() or not os.access(executable, os.X_OK):
+        return _check("absent", "make_setup_python_missing", command=command[:256])
+    script = (
+        "import importlib.util,json,sys; "
+        "print(json.dumps({'version':list(sys.version_info[:3]), "
+        "'venv':importlib.util.find_spec('venv') is not None, "
+        "'ensurepip':importlib.util.find_spec('ensurepip') is not None}))"
+    )
+    result = _command([executable, "-I", "-B", "-c", script], timeout=5.0)
+    if result is None:
+        return _check("indeterminate", "make_setup_python_probe_failed", command=command[:256])
+    output, status = result
+    if status != "ok":
+        return _check("indeterminate", "make_setup_python_probe_failed", command=command[:256])
+    try:
+        payload = json.loads(output)
+        version = payload["version"]
+        venv_available = payload["venv"]
+        ensurepip_available = payload["ensurepip"]
+        if (
+            not isinstance(version, list)
+            or len(version) != 3
+            or any(type(part) is not int for part in version)
+            or type(venv_available) is not bool
+            or type(ensurepip_available) is not bool
+        ):
+            raise ValueError
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return _check("indeterminate", "make_setup_python_probe_output_invalid")
+    details = {
+        "command": command[:256],
+        "executable": executable,
+        "version": ".".join(str(part) for part in version),
+        "venv": venv_available,
+        "ensurepip": ensurepip_available,
+    }
+    if tuple(version) < (3, 11):
+        return _check("absent", "make_setup_python_3_11_required", **details)
+    if not venv_available:
+        return _check("absent", "make_setup_python_venv_missing", **details)
+    if not ensurepip_available:
+        return _check("absent", "make_setup_python_ensurepip_missing", **details)
+    return _check("available", "make_setup_python_ready", **details)
 
 
 def _source_checkout(workspace: Path, expected_commit: str | None = None) -> dict[str, Any]:
@@ -445,6 +502,7 @@ def report(
     *,
     source_commit: str,
     workspace: Path,
+    setup_python: str = "python3",
     state_path: Path | None = None,
     unit: str | None = None,
 ) -> dict[str, Any]:
@@ -454,6 +512,7 @@ def report(
     if not workspace.is_dir():
         raise ValueError("workspace_not_directory")
     source_checks = _python_build_checks(workspace)
+    source_checks["setup_interpreter"] = _setup_interpreter_check(setup_python)
     source_checks["source_checkout"] = _source_checkout(workspace, source_commit)
     source_checks["os"] = _source_os()
     source_checks["architecture"] = _check(
@@ -490,6 +549,7 @@ def report(
                     "os",
                     "architecture",
                     "python_version",
+                    "setup_interpreter",
                     "venv",
                     "ensurepip",
                     "git",
@@ -532,6 +592,11 @@ def main(argv: list[str] | None = None) -> int:
     report_parser = sub.add_parser("report")
     report_parser.add_argument("--source-commit", required=True)
     report_parser.add_argument("--workspace", type=Path, default=Path.cwd())
+    report_parser.add_argument(
+        "--setup-python",
+        default=os.environ.get("PYTHON", "python3"),
+        help="single executable used by `make setup` (defaults to PYTHON or python3)",
+    )
     report_parser.add_argument("--state-path", type=Path)
     report_parser.add_argument("--unit")
     report_parser.add_argument("--format", choices=("json",), default="json")
@@ -542,6 +607,7 @@ def main(argv: list[str] | None = None) -> int:
                 report(
                     source_commit=args.source_commit,
                     workspace=args.workspace,
+                    setup_python=args.setup_python,
                     state_path=args.state_path,
                     unit=args.unit,
                 ),
