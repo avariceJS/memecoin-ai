@@ -40,3 +40,9 @@ Migration/DR, experience, Observatory Python, synthetic smoke and final Gecko co
 Full-suite green is not claimed: 43 broad-run failures reproduce on old main and tree-wide Ruff
 still reports 107 legacy findings. See the consolidation receipt for exact commands and failure
 classification; no runtime implementation changed beyond the already published research checkpoint.
+
+GitHub Actions run `39133861313` at consolidation checkpoint `a6ee5fc` could not start its jobs:
+the account annotation reports failed recent payments or a spending limit requiring attention.
+This is a CI infrastructure blocker, distinct from the locally measured legacy Ruff/test failures.
+No billing/settings changes were made. The immutable `brain-git-consolidated-20261018` tag pins that
+code/test checkpoint; subsequent changes here only clarify documentation.

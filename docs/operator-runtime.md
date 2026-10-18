@@ -224,3 +224,10 @@ at 107 preexisting Ruff findings (old `main`: 110; no new diagnostics). Full-sui
 The five historical `git diff --check 770699d..c157f79` findings are immutable receipt/transcript
 whitespace and plain-text `=======` heading underlines, not unresolved merges; their bytes remain
 unchanged. New changes pass diff, targeted Ruff and formatting checks.
+
+GitHub Actions [run 39133861313](https://github.com/avariceJS/memecoin-ai/actions/runs/39133861313)
+reported failure before jobs started: its account annotation cites failed recent payments or the
+spending limit. No CI execution result is inferred from that infrastructure failure, and no billing
+or repository settings were changed. The published `brain-git-consolidated-20261018` tag anchors
+`a6ee5fcdef32e10475983428dd83302a81dc8773`, including the final object-custody and runtime-status
+verification in its annotation. Later documentation clarification does not change its tested code.
