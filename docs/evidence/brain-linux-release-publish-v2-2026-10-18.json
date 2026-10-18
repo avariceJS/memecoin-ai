@@ -1,0 +1,61 @@
+{
+  "schema": "brain-linux-release-publish-v2-qualification-v1",
+  "source_commit": "4b8c9b379ff2a712478f146ad9a753f26adf3e12",
+  "host": {
+    "os": "Ubuntu 24.04 LTS",
+    "architecture": "x86_64",
+    "filesystem": "ext4",
+    "systemd": true
+  },
+  "checks": {
+    "focused_tests_macos": {"passed": 36, "failed": 0},
+    "focused_tests_ubuntu": {"passed": 36, "failed": 0},
+    "changed_file_ruff": "passed",
+    "changed_file_format": "passed",
+    "make_build": "passed",
+    "provider_credentials_or_protected_data_used": false
+  },
+  "publish_protocol": {
+    "release_identity": "wheel_sha256 + resolved Python path/version/SOABI + release-v2 schema",
+    "prepared_artifacts": ["sealed release tree", "manifest pin", "inert state tree", "disabled unit bytes"],
+    "intent": "root-owned immutable intent binds attempt, source commit, wheel, interpreter, exact destinations, device/inode, owner/group/mode, and content or tree SHA-256",
+    "publication_order": ["release", "pin", "state", "unit"],
+    "primitive": "same-filesystem renameat2 RENAME_NOREPLACE with parent fsync",
+    "unit_activation": "never starts, enables, or resets a unit during stage/recovery",
+    "recovery": "preflights all artifacts before first publication; accepts only exact pinned temp or exact already-published inode and contents; repeated recovery and retry verify the completed release"
+  },
+  "sigkill_after_publication": [
+    {"boundary": 1, "attempt_id": "b99bccceaacc-b3775b6dc2682bbf", "release_id": "b99bccceaacc7ba18a374f5fa50087b6e7e3bbc283beca15bff74f549b05791c", "parent_exit": -9, "recovery_repeat_retry_verify": "passed"},
+    {"boundary": 2, "attempt_id": "1e4c816633d6-ab8a5eddbcabf327", "release_id": "1e4c816633d646554021def93f8058f2caa1bb398bcb19c1f8dd25e3c1397f97", "parent_exit": -9, "recovery_repeat_retry_verify": "passed"},
+    {"boundary": 3, "attempt_id": "0b968f86b4aa-584eb77f0134d3c7", "release_id": "0b968f86b4aa1594a88a227c46339d8ef5737f6de59e4f60363bf4f2322d71db", "parent_exit": -9, "recovery_repeat_retry_verify": "passed"},
+    {"boundary": 4, "attempt_id": "f5f53249c3a6-8fc3da4dcf8c2d57", "release_id": "f5f53249c3a69368aeefeb4046ada160d14ca1152136d32297793db288dd25fc", "parent_exit": -9, "recovery_repeat_retry_verify": "passed"}
+  ],
+  "sigkill_after_daemon_reload": {
+    "attempt_id": "dfafb811fe1c-a74536f58bc3a17d",
+    "release_id": "dfafb811fe1c42911b4f81e9e6bc73cf93c2866fdda5d7c043945764533bfbf6",
+    "parent_exit": -9,
+    "recovery_repeat_retry_verify": "passed"
+  },
+  "fail_closed_preflight": [
+    {"case": "foreign final release path", "attempt_id": "4354533ca211-f230cb6b2a5b9225", "result": "release_publish_ambiguous_artifacts", "foreign artifact preserved": true, "other publications": false},
+    {"case": "tampered prepared pin", "attempt_id": "7073cb51afbe-a5e8ec7b1cba398c", "result": "release_publish_artifact_mismatch", "tampered artifact preserved": true, "other publications": false},
+    {"case": "injected unit status active", "attempt_id": "2870a8780972-0a65f83e34019d40", "result": "release_publish_unit_requires_manual_review", "other_publications": false},
+    {"case": "injected unit status failed", "attempt_id": "654c7ecd271a-acb80024f5341aff", "result": "release_publish_unit_requires_manual_review", "other_publications": false}
+  ],
+  "explicit_activation_lifecycle": {
+    "release_id": "b74ea865cf1011f93472bad3a5c07a44b26034cd24d7f06ea148f9ca1eb6b405",
+    "wheel_sha256": "e13cd92ad04ca07e0ae6e7ab7f6b77c0378ed6c819838ecddc46675409b09dc7",
+    "source_commit": "4b8c9b379ff2a712478f146ad9a753f26adf3e12",
+    "before_activation": ["loaded", "inactive", "disabled", 0],
+    "explicit_activation": ["active", "disabled", 19423, 0],
+    "after_stop_verify": ["loaded", "inactive", "disabled", 0],
+    "same_identity_stage_retry": "returned the same release",
+    "runtime_state": "idle config and SQLite state verified after stop"
+  },
+  "limitations": [
+    "process-level SIGKILL tests do not simulate power loss or filesystem/controller failure",
+    "recovery does not auto-delete or overwrite foreign artifacts; mismatches require operator review",
+    "a completed candidate must still pass inert verify before idempotent stage/recovery returns",
+    "real research state, production runtime, CUDA/NVIDIA, ARM64, and Windows/WSL were not qualified"
+  ]
+}

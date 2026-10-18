@@ -38,6 +38,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - [Linux release recovery windows](brain-linux-release-recovery-windows-2026-10-18.json): recovery
   resumed after the quarantine rename, and partial publication correctly blocked cleanup while
   preserving staging evidence.
+- [Linux release publication v2](brain-linux-release-publish-v2-2026-10-18.json): exact-artifact
+  finish-only recovery after SIGKILL at each release/pin/state/unit publication boundary and after
+  systemd reload, with tamper/foreign-path/unit-state fail-closed cases and one explicit inert
+  activation lifecycle. This is process-crash evidence on one Ubuntu/ext4 host, not power-loss
+  qualification.
 
 - [Scheduled sensing neural engineering qualification](brain-scheduled-sensing-neural-qualification-2026-10-15.json):
   synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume

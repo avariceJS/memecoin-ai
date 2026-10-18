@@ -20,7 +20,7 @@ also remains incomplete. Do not delete partial candidates or activate Brain. The
 operator package is awaiting final Sol review. No second-Mac restore has occurred.
 
 A separate Linux portability branch, `codex/linux-portability-20261018` at
-`a24bfa848d1aa54935780b279fddbd49b696b01a`, is isolated from that acceptance path. Fresh Ubuntu
+`4b8c9b379ff2a712478f146ad9a753f26adf3e12`, is isolated from that acceptance path. Fresh Ubuntu
 24.04 clones completed `make setup`; repeated builds across separate output directories and clean
 clones matched wheel and sdist hashes. The exact-head release restored a synthetic ext4 fixture
 inert, activated explicitly, stopped/finalized, then passed release and attachment verification
@@ -50,17 +50,16 @@ helper SIGKILL after systemd start but before idle-probe left the service active
 unretryable. Verification/finalization rejected it; after exact-unit stop, a fresh attachment passed
 inert verify, explicit idle activation, stop/finalize, and read-only SQLite integrity. Evidence:
 [`start-intent crash and recovery`](../docs/evidence/brain-linux-attachment-start-intent-recovery-2026-10-18.json).
-Release staging now uses a root-only attempt journal and lock directory outside service-writable
-state. On exact source `a24bfa8`, a 6,000-file synthetic wheel was staged, same-release concurrency
-was refused, and a frozen builder cgroup survived a SIGKILL of the stage parent only until explicit
-`recover-stage` stopped it, removed its exact account, and quarantined the recorded inode. Retrying
-the same wheel passed independent verify with its unit disabled/inactive and zero restarts. A second
-recovery-window check resumed after quarantine rename and refused partial-publication cleanup without
-mutating staging evidence. Focused tests now pass 35 locally and 37 on Ubuntu (two Linux-only
-attachment cases skip on macOS). Full power-loss and filesystem-crash recovery remain unqualified.
-Receipts: [`release-stage recovery`](../docs/evidence/brain-linux-release-stage-recovery-2026-10-18.json)
-and [`recovery windows`](../docs/evidence/brain-linux-release-recovery-windows-2026-10-18.json).
-Next horizon: recoverable publication across release tree, pin, runtime state, and systemd unit.
+Release staging now has a finish-only v2 publish intent and an isolated root-owned state parent.
+At exact `4b8c9b3`, 36 focused release/service tests passed on macOS and Ubuntu; real Ubuntu/ext4
+SIGKILL tests after all four publication renames and after systemd reload recovered, repeated
+recovery, retried the same source/wheel, and verified disabled/inactive/PID-0/zero-restart units.
+Foreign paths, a tampered pin, and injected active/failed unit statuses were refused before other
+artifacts published. One exact-head release was explicitly activated, stopped, verified idle, and
+reused safely; it ended inert. This is process-crash evidence, not power-loss or block-device
+failure qualification. See
+[`release publication v2`](../docs/evidence/brain-linux-release-publish-v2-2026-10-18.json).
+Next: host restart and clean rebuild under v2 semantics.
 
 `research/active` is at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`; `main` remains
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Future-v2 v3 drafts remain untracked and untouched.

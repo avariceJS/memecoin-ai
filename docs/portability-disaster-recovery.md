@@ -393,9 +393,54 @@ candidate was removed after inspection. See the
 [`recovery-window receipt`](evidence/brain-linux-release-recovery-windows-2026-10-18.json), and
 [`wrapper fault receipt`](evidence/brain-linux-release-stage-wrapper-fault-2026-10-18.json).
 
-The current next horizon is multi-artifact release publication interruption and operator recovery.
-Power-loss recovery, arbitrary Brain state, real research data, CUDA, NVIDIA, ARM64, and Windows/WSL
-remain unqualified.
+The first release-staging horizon now includes process-crash recovery for multi-artifact publication;
+details and limits follow. Power-loss recovery, arbitrary Brain state, real research data, CUDA,
+NVIDIA, ARM64, and Windows/WSL remain unqualified.
+
+### Release v2 finish-only publication and recovery
+
+New stage attempts use a versioned release identity and prepare the complete sealed release tree,
+manifest pin, inert runtime-state tree, and disabled unit before publishing any of them. A durable
+root-owned immutable intent binds the exact attempt, source commit, wheel and interpreter identity,
+publication order, destination names, device/inode, ownership, mode, and each artifact's content
+hash or tree inventory hash. The release, pin, state, then unit are published with same-filesystem
+`renameat2(RENAME_NOREPLACE)` and parent-directory `fsync`. The unit is the final public artifact.
+
+V2 state lives under root-owned `/var/lib/brain-release-state/<release-id>`; only its `operator`
+child is owned by `brain` and writable. The systemd unit grants write access only to that child,
+uses it as `HOME`, and does not use `StateDirectory=brain-lab`, whose managed parent was service
+writable. Existing v1 release identities and their verification rules remain readable. A stage retry
+that finds a finished intent verifies the release and source-commit provenance; a request from a
+different source commit cannot reuse the earlier release.
+
+Recovery first verifies the builder cgroup and account are gone, then preflights **all** pinned
+artifacts before making any publication. It accepts either the exact pinned temporary inode/content
+or that same inode/content already at its final path. A foreign destination, changed temporary or
+final artifact, active/failed/enabled unit, or untrusted parent stops without publishing the other
+artifacts or deleting evidence. Once all exact artifacts exist, recovery reloads systemd and
+requires the exact loaded, disabled, inactive unit with PID 0 plus full release verification. It
+never starts, enables, or resets a unit. Repeated pre-activation recovery and same-source stage
+retry return the same verified release. After explicit activation, normal release verification is
+required; it allows valid idle runtime state to evolve without comparing it to the initial empty
+state-tree hash.
+
+At exact source `4b8c9b379ff2a712478f146ad9a753f26adf3e12`, focused Linux release/service tests passed
+36/36 on macOS and Ubuntu 24.04; changed-file lint, formatting, and wheel build passed. On the real
+Ubuntu/ext4 host, process SIGKILL after each of the four artifact renames and after `daemon-reload`
+was followed by successful recovery, repeated recovery, same-identity stage retry, independent
+verify, and an inactive/disabled/PID-0/zero-restart check. Separate recovery attempts injected a
+foreign final release path, modified a pinned temporary pin, and reported active or failed systemd
+status; each stopped before publishing any other artifact and preserved the conflicting evidence.
+An exact-head candidate was also explicitly activated once, stopped, independently verified with
+idle SQLite state, then safely reused by same-identity stage retry; it ended disabled/inactive with
+PID 0 and zero restarts. See the immutable
+[`release publication v2 receipt`](evidence/brain-linux-release-publish-v2-2026-10-18.json).
+
+These are process-level tests on one Ubuntu/ext4/systemd host, not sudden power loss, filesystem or
+block-device failure, or a second clean VM reinstall. Legacy partial publications have no v2
+preparation intent and remain manual-review-only. Valid CUDA/NVIDIA execution, ARM64, Windows/WSL,
+arbitrary restored Brain state, and real research data remain unqualified. The next useful horizon is
+host-restart and clean-rebuild behavior for these v2 release semantics.
 
 ## Current readiness
 
