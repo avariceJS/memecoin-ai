@@ -34,6 +34,23 @@ MAX_CONFIG_BYTES = 64 * 1024
 MAX_DATABASE_BYTES = 16 * 1024 * 1024
 MAX_MANIFEST_BYTES = 64 * 1024
 MAX_WITNESS_BYTES = 4096
+RUNTIME_DIRECTORIES = {
+    "background",
+    "background/cancel",
+    "background/history",
+    "background/locks",
+    "background/logs",
+    "background/receipts",
+    "background/specs",
+    "operator",
+    "operator/logs",
+}
+RUNTIME_FILES = {
+    "config.json",
+    "operator.sqlite",
+    "operator/owner.lock",
+    "operator/logs/operator.log",
+}
 ATTACHMENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
 EXPECTED_CONFIG = {
     "mode": "operator",
@@ -169,7 +186,9 @@ def _schema_fingerprint() -> str:
         db.close()
 
 
-def _verify_idle_database(payload: bytes, expected_schema: str) -> None:
+def _verify_idle_database(
+    payload: bytes, expected_schema: str, *, allow_startup_maintenance: bool = False
+) -> None:
     if not payload or len(payload) > MAX_DATABASE_BYTES:
         raise StorageError("attachment_database_size_invalid")
     import tempfile
@@ -222,14 +241,29 @@ def _verify_idle_database(payload: bytes, expected_schema: str) -> None:
                     or row[10] <= 0
                 ):
                     raise StorageError("attachment_state_not_inert_idle")
-                if db.execute("SELECT count(*) FROM meta").fetchone()[0] != 0:
-                    raise StorageError("attachment_state_has_pending_metadata")
+                metadata = db.execute("SELECT key,value FROM meta ORDER BY key").fetchall()
+                if metadata:
+                    if (
+                        not allow_startup_maintenance
+                        or len(metadata) != 1
+                        or metadata[0][0] != "last_maintain_ns"
+                        or not str(metadata[0][1]).isdecimal()
+                        or int(metadata[0][1]) <= 0
+                    ):
+                        raise StorageError("attachment_state_has_pending_metadata")
                 for table in ("commands", "jobs", "publications"):
                     if db.execute(f"SELECT count(*) FROM {table}").fetchone()[0] != 0:
                         raise StorageError("attachment_state_has_activity")
-                if db.execute("SELECT kind,reason FROM events ORDER BY event_id").fetchall() != [
-                    ("audit", "initialized")
-                ]:
+                events = db.execute(
+                    "SELECT kind,reason,payload_json,created_ns FROM events ORDER BY event_id"
+                ).fetchall()
+                allowed_events = [("audit", "initialized", '{"mode": "idle", "phase": "idle"}')]
+                if allow_startup_maintenance and len(events) == 2:
+                    allowed_events.append(("incident", "adapter_error", "{}"))
+                if len(events) != len(allowed_events) or any(
+                    tuple(row[:3]) != expected or type(row[3]) is not int or row[3] <= 0
+                    for row, expected in zip(events, allowed_events, strict=True)
+                ):
                     raise StorageError("attachment_event_history_mismatch")
             finally:
                 db.close()
@@ -816,6 +850,8 @@ def _runtime_inventory(operator_dir: Path, owner_uid: int, owner_gid: int) -> li
             if name in {".", ".."} or "/" in name or "\\" in name or "\x00" in name:
                 raise StorageError("attachment_runtime_member_name_invalid")
             relative = f"{prefix}/{name}" if prefix else name
+            if relative not in RUNTIME_DIRECTORIES | RUNTIME_FILES:
+                raise StorageError("attachment_runtime_member_not_allowlisted")
             try:
                 before = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
             except OSError as exc:
@@ -908,7 +944,7 @@ def _verify_stopped_attachment_state(
         uid=owner.pw_uid,
         mode=0o600,
     )
-    _verify_idle_database(database, _schema_fingerprint())
+    _verify_idle_database(database, _schema_fingerprint(), allow_startup_maintenance=True)
     inventory = _runtime_inventory(operator_dir, owner.pw_uid, owner.pw_gid)
     by_path = {entry["path"]: entry for entry in inventory}
     if by_path.get("config.json", {}).get("sha256") != _sha256(config) or by_path.get(
