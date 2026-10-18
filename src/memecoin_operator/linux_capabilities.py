@@ -9,9 +9,11 @@ import json
 import os
 import platform
 import re
+import selectors
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +21,13 @@ SCHEMA = "brain-linux-capabilities-v1"
 HASH_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 MIN_SOURCE_FREE_BYTES = 1024**3
 MAX_COMMAND_OUTPUT = 4096
-SAFE_ENV = {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C"}
+SAFE_ENV = {
+    "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+    "LC_ALL": "C",
+    "GIT_OPTIONAL_LOCKS": "0",
+    "GIT_CONFIG_NOSYSTEM": "1",
+    "GIT_CONFIG_GLOBAL": "/dev/null",
+}
 TOOL_PATHS = {
     "git": ("/usr/bin/git", "/usr/local/bin/git"),
     "make": ("/usr/bin/make", "/usr/local/bin/make"),
@@ -46,28 +54,57 @@ def _check(status: str, reason: str, **fields: Any) -> dict[str, Any]:
 
 
 def _command(argv: list[str], *, timeout: float = 2.0) -> tuple[str, str] | None:
+    """Run an allowlisted probe, stopping as soon as combined output exceeds its cap."""
     try:
-        result = subprocess.run(
+        process = subprocess.Popen(
             argv,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             env=SAFE_ENV,
         )
     except FileNotFoundError:
         return None
+    except OSError:
+        return None
+    assert process.stdout is not None and process.stderr is not None
+    deadline = time.monotonic() + timeout
+    try:
+        output = bytearray()
+        with selectors.DefaultSelector() as selector:
+            selector.register(process.stdout, selectors.EVENT_READ)
+            selector.register(process.stderr, selectors.EVENT_READ)
+            while selector.get_map():
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(argv, timeout)
+                events = selector.select(remaining)
+                if not events:
+                    raise subprocess.TimeoutExpired(argv, timeout)
+                for key, _ in events:
+                    chunk = os.read(key.fd, MAX_COMMAND_OUTPUT + 1 - len(output))
+                    if not chunk:
+                        selector.unregister(key.fileobj)
+                        continue
+                    output.extend(chunk)
+                    if len(output) > MAX_COMMAND_OUTPUT:
+                        return ("", "output_oversize")
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(argv, timeout)
+        returncode = process.wait(timeout=remaining)
     except (OSError, subprocess.TimeoutExpired):
         return None
-    output = result.stdout.strip()
-    if (
-        len(result.stdout.encode()) > MAX_COMMAND_OUTPUT
-        or len(result.stderr.encode()) > MAX_COMMAND_OUTPUT
-    ):
-        return None
-    if result.returncode != 0:
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait()
+        process.stdout.close()
+        process.stderr.close()
+    text_output = bytes(output).decode("utf-8", errors="replace").strip()
+    if returncode != 0:
         return ("", "command_failed")
-    return (output, "ok")
+    return (text_output, "ok")
 
 
 def _aggregate(checks: dict[str, dict[str, Any]], required: tuple[str, ...]) -> dict[str, Any]:
@@ -130,7 +167,11 @@ def _systemd_check() -> dict[str, Any]:
     return _check("available", "systemd_pid1_and_bus", pid1="systemd", version=version[:64])
 
 
-def _ext4_check(path: Path) -> dict[str, Any]:
+def _ext4_check(path: Path | None) -> dict[str, Any]:
+    if path is None:
+        return _check("indeterminate", "state_path_not_supplied")
+    if not path.is_dir():
+        return _check("indeterminate", "state_path_not_directory")
     executable = _tool("findmnt")
     if executable is None:
         return _check("absent", "findmnt_missing")
@@ -189,6 +230,56 @@ def _python_build_checks(workspace: Path) -> dict[str, dict[str, Any]]:
     return checks
 
 
+def _source_checkout(workspace: Path, expected_commit: str | None = None) -> dict[str, Any]:
+    git = _tool("git")
+    if git is None:
+        return _check("absent", "git_missing")
+    head = _command([git, "-c", "core.fsmonitor=false", "-C", str(workspace), "rev-parse", "HEAD"])
+    if head is None or head[1] != "ok" or not HASH_RE.fullmatch(head[0]):
+        return _check("indeterminate", "source_head_probe_failed")
+    status = _command(
+        [
+            git,
+            "-c",
+            "core.fsmonitor=false",
+            "-c",
+            "core.untrackedCache=false",
+            "-C",
+            str(workspace),
+            "status",
+            "--porcelain=v1",
+        ]
+    )
+    if status is None or status[1] != "ok":
+        return _check("indeterminate", "source_status_probe_failed")
+    dirty_entries = sum(1 for line in status[0].splitlines() if line)
+    matches = expected_commit is None or head[0] == expected_commit
+    clean = dirty_entries == 0
+    if not matches:
+        return _check(
+            "absent",
+            "source_commit_mismatch",
+            observed_commit=head[0],
+            clean=clean,
+            dirty_entry_count=dirty_entries,
+        )
+    if not clean:
+        return _check(
+            "absent",
+            "source_checkout_dirty",
+            observed_commit=head[0],
+            clean=False,
+            dirty_entry_count=dirty_entries,
+        )
+    return _check(
+        "available",
+        "source_commit_matches_clean_checkout",
+        observed_commit=head[0],
+        clean=True,
+        dirty_entry_count=0,
+    )
+
+
 def sysconfig_tag() -> str:
     try:
         import sysconfig
@@ -208,7 +299,7 @@ def _free_space(path: Path) -> dict[str, Any]:
     return _check("available", "at_least_1_gib_free", available_bytes=available)
 
 
-def _service_checks(path: Path) -> dict[str, dict[str, Any]]:
+def _service_checks(path: Path | None, unit: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
     checks: dict[str, dict[str, Any]] = {"systemd": _systemd_check(), "ext4": _ext4_check(path)}
     for name in ("nsenter", "blkid", "udevadm"):
         checks[name] = _version_check(name)
@@ -222,6 +313,19 @@ def _service_checks(path: Path) -> dict[str, dict[str, Any]]:
             else _check("absent", "proc_interface_missing")
         )
     checks["root_action"] = _root_action_check()
+    if unit is None:
+        checks["unit_inert"] = _check("indeterminate", "unit_not_supplied")
+    elif unit.get("status") != "available":
+        checks["unit_inert"] = _check("indeterminate", "unit_status_unavailable")
+    elif (
+        unit.get("LoadState") == "loaded"
+        and unit.get("ActiveState") == "inactive"
+        and unit.get("UnitFileState") == "disabled"
+        and unit.get("MainPID") == "0"
+    ):
+        checks["unit_inert"] = _check("available", "unit_disabled_inactive_pid_zero")
+    else:
+        checks["unit_inert"] = _check("absent", "unit_not_inert")
     return checks
 
 
@@ -237,7 +341,19 @@ def _cpu_ml_check() -> dict[str, Any]:
         "b=float(torch.tensor([1.0, 2.0]).sum().item()); "
         "print(json.dumps({'numpy':numpy.__version__,'torch':torch.__version__,'cpu_sum':a+b}))"
     )
-    result = _command([sys.executable, "-I", "-c", script], timeout=15.0)
+    expected = _ml_pins()
+    if expected is None:
+        return _check("indeterminate", "cpu_ml_pins_unavailable")
+    if numpy_version != expected["numpy"] or torch_version != expected["torch"]:
+        return _check(
+            "absent",
+            "cpu_ml_versions_mismatch",
+            numpy=numpy_version[:64],
+            torch=torch_version[:64],
+            expected_numpy=expected["numpy"],
+            expected_torch=expected["torch"],
+        )
+    result = _command([sys.executable, "-I", "-B", "-c", script], timeout=15.0)
     if result is None:
         return _check("indeterminate", "cpu_ml_probe_failed")
     payload, status = result
@@ -249,12 +365,32 @@ def _cpu_ml_check() -> dict[str, Any]:
         return _check("indeterminate", "cpu_ml_probe_output_invalid")
     if values.get("cpu_sum") != 6.0:
         return _check("indeterminate", "cpu_ml_operation_failed")
+    if values.get("numpy") != expected["numpy"] or values.get("torch") != expected["torch"]:
+        return _check("indeterminate", "cpu_ml_imported_versions_mismatch")
     return _check(
         "available",
         "numpy_torch_cpu_operation_passed",
         numpy=numpy_version[:64],
         torch=torch_version[:64],
     )
+
+
+def _ml_pins() -> dict[str, str] | None:
+    try:
+        requirements = importlib.metadata.requires("memecoin-ai")
+    except importlib.metadata.PackageNotFoundError:
+        return None
+    if requirements is None:
+        return None
+    pins: dict[str, str] = {}
+    for line in requirements:
+        match = re.fullmatch(
+            r"(numpy|torch)==([A-Za-z0-9.+!-]+);\s*extra\s*==\s*['\"]ml['\"]",
+            line.strip(),
+        )
+        if match:
+            pins[match.group(1)] = match.group(2)
+    return pins if set(pins) == {"numpy", "torch"} else None
 
 
 def _gpu_observation() -> dict[str, Any]:
@@ -305,13 +441,20 @@ def _unit_observation(unit: str | None) -> dict[str, Any] | None:
     return _check("available", "unit_status_observed", **fields)
 
 
-def report(*, source_commit: str, workspace: Path, unit: str | None = None) -> dict[str, Any]:
+def report(
+    *,
+    source_commit: str,
+    workspace: Path,
+    state_path: Path | None = None,
+    unit: str | None = None,
+) -> dict[str, Any]:
     if not HASH_RE.fullmatch(source_commit):
         raise ValueError("source_commit_invalid")
     workspace = workspace.resolve(strict=True)
     if not workspace.is_dir():
         raise ValueError("workspace_not_directory")
     source_checks = _python_build_checks(workspace)
+    source_checks["source_checkout"] = _source_checkout(workspace, source_commit)
     source_checks["os"] = _source_os()
     source_checks["architecture"] = _check(
         "available" if platform.machine().lower() in {"x86_64", "amd64"} else "absent",
@@ -320,7 +463,9 @@ def report(*, source_commit: str, workspace: Path, unit: str | None = None) -> d
         else "x86_64_required",
         value=platform.machine()[:64],
     )
-    service_checks = _service_checks(workspace)
+    resolved_state = state_path.resolve(strict=True) if state_path else None
+    unit_observation = _unit_observation(unit)
+    service_checks = _service_checks(resolved_state, unit_observation)
     checks = {**source_checks, **{f"service_{key}": value for key, value in service_checks.items()}}
     cpu_ml = _cpu_ml_check()
     gpu = _gpu_observation()
@@ -350,9 +495,10 @@ def report(*, source_commit: str, workspace: Path, unit: str | None = None) -> d
                     "git",
                     "make",
                     "free_space",
+                    "source_checkout",
                 ),
             ),
-            "inert_service_ext4": _aggregate(
+            "inert_service_host_ext4": _aggregate(
                 service_checks,
                 (
                     "systemd",
@@ -363,6 +509,7 @@ def report(*, source_commit: str, workspace: Path, unit: str | None = None) -> d
                     "blkid",
                     "udevadm",
                     "root_action",
+                    "unit_inert",
                 ),
             ),
             "cpu_ml": {"status": cpu_ml["status"], "optional": True, "check": cpu_ml},
@@ -374,7 +521,7 @@ def report(*, source_commit: str, workspace: Path, unit: str | None = None) -> d
             },
         },
         "tool_versions": {key: source_checks[key] for key in ("git", "make")},
-        "unit": _unit_observation(unit),
+        "unit": unit_observation,
         "scope": "capability_observation_only_no_deployment_or_activation",
     }
 
@@ -385,13 +532,19 @@ def main(argv: list[str] | None = None) -> int:
     report_parser = sub.add_parser("report")
     report_parser.add_argument("--source-commit", required=True)
     report_parser.add_argument("--workspace", type=Path, default=Path.cwd())
+    report_parser.add_argument("--state-path", type=Path)
     report_parser.add_argument("--unit")
     report_parser.add_argument("--format", choices=("json",), default="json")
     args = parser.parse_args(argv)
     try:
         print(
             json.dumps(
-                report(source_commit=args.source_commit, workspace=args.workspace, unit=args.unit),
+                report(
+                    source_commit=args.source_commit,
+                    workspace=args.workspace,
+                    state_path=args.state_path,
+                    unit=args.unit,
+                ),
                 sort_keys=True,
             )
         )
