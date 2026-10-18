@@ -2774,7 +2774,8 @@ def stage(
         os.close(lock_fd)
         raise
     builder_root = staging / "build"
-    wheel_input = staging / wheel.name
+    wheelhouse = builder_root / "wheelhouse"
+    wheel_input = wheelhouse / wheel.name
     venv = builder_root / "venv"
     try:
         builder_root.mkdir(mode=0o700)
@@ -2794,6 +2795,8 @@ def stage(
         record["builder_uid"] = builder.pw_uid
         _record_stage_phase(record_path, record, "builder-created")
         os.chown(builder_root, builder.pw_uid, builder.pw_gid)
+        wheelhouse.mkdir(mode=0o755)
+        os.chown(wheelhouse, builder.pw_uid, builder.pw_gid)
         shutil.copyfile(wheel, wheel_input)
         wheel_input.chmod(0o444)
         os.chown(wheel_input, 0, 0)
@@ -2829,7 +2832,7 @@ def stage(
                 "--no-compile",
                 "--no-cache-dir",
                 "--find-links",
-                str(staging),
+                str(wheelhouse),
                 f"{wheel_name}=={wheel_version}",
             ],
             attempt_id=attempt_id,
@@ -2857,6 +2860,7 @@ def stage(
         if version != wheel_version:
             raise RuntimeError("release_import_probe_failed")
         wheel_input.unlink()
+        wheelhouse.rmdir()
         _require_stage_slice_empty(str(record["slice_name"]))
         if _uid_has_processes(builder.pw_uid):
             raise RuntimeError("stage_builder_processes_remaining")
