@@ -66,6 +66,14 @@ def _canonicalize_sdist(path: Path, epoch: int) -> None:
                     ) as target:
                         for member in sorted(members, key=lambda item: item.name):
                             normalized = copy.copy(member)
+                            if member.isfile():
+                                normalized.mode = 0o755 if member.mode & 0o111 else 0o644
+                            elif member.isdir():
+                                normalized.mode = 0o755
+                            elif member.issym():
+                                normalized.mode = 0o777
+                            else:
+                                raise ValueError("sdist_unsupported_member_type")
                             normalized.mtime = epoch
                             normalized.uid = 0
                             normalized.gid = 0
