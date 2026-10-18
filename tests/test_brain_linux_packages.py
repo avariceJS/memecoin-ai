@@ -160,3 +160,23 @@ def test_source_checkout_may_be_pending_git_only_for_source_role_bootstrap():
     dirty = {"checks": {"source_checkout": {"status": "absent", "reason": "worktree_dirty"}}}
     with pytest.raises(provisioner.ProvisionError, match="brain_source_checkout_not_clean"):
         provisioner._validate_source_checkout(dirty, allow_git_missing=True)
+
+
+def test_refresh_cli_has_no_source_workspace_dependency(monkeypatch, capsys):
+    monkeypatch.setattr(
+        provisioner,
+        "refresh_indexes",
+        lambda snapshot, source_commit: {"status": snapshot, "source_commit": source_commit},
+    )
+    result = provisioner.main(
+        [
+            "refresh-indexes",
+            "--lab-only",
+            "--snapshot",
+            "20261018T120000Z",
+            "--source-commit",
+            "a" * 40,
+        ]
+    )
+    assert result == 0
+    assert '"status": "20261018T120000Z"' in capsys.readouterr().out

@@ -661,9 +661,9 @@ def main(argv: list[str] | None = None) -> int:
         item.add_argument("--lab-only", action="store_true", required=True)
         item.add_argument("--snapshot", required=True)
         item.add_argument("--source-commit", required=True)
-        item.add_argument("--workspace", type=Path, required=True)
         if name == "plan":
             item.add_argument("--role", choices=sorted(ROLES), required=True)
+            item.add_argument("--workspace", type=Path, required=True)
     apply = sub.add_parser("apply")
     apply.add_argument("--lab-only", action="store_true", required=True)
     apply.add_argument("--plan", type=Path, required=True)
