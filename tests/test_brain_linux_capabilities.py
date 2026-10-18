@@ -177,10 +177,18 @@ def test_command_uses_fixed_minimal_environment_and_bounded_output(monkeypatch):
 def test_source_checkout_rejects_forged_hash_and_dirty_tree(monkeypatch):
     monkeypatch.setattr(capabilities, "_tool", lambda _name: "/usr/bin/git")
     responses = iter([("b" * 40, "ok"), ("", "ok")])
-    monkeypatch.setattr(capabilities, "_command", lambda _argv: next(responses))
+    commands = []
+
+    def command(argv):
+        commands.append(argv)
+        return next(responses)
+
+    monkeypatch.setattr(capabilities, "_command", command)
     mismatch = capabilities._source_checkout(Path("/workspace"), "a" * 40)
     assert mismatch["status"] == "absent"
     assert mismatch["reason"] == "source_commit_mismatch"
+    assert commands[0][commands[0].index("-c") + 1] == "core.fsmonitor=false"
+    assert "safe.directory=/workspace" in commands[0]
 
     responses = iter([("a" * 40, "ok"), ("?? untracked\n", "ok")])
     dirty = capabilities._source_checkout(Path("/workspace"), "a" * 40)

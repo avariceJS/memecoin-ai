@@ -302,7 +302,19 @@ def _source_checkout(workspace: Path, expected_commit: str | None = None) -> dic
     git = _tool("git")
     if git is None:
         return _check("absent", "git_missing")
-    head = _command([git, "-c", "core.fsmonitor=false", "-C", str(workspace), "rev-parse", "HEAD"])
+    head = _command(
+        [
+            git,
+            "-c",
+            "core.fsmonitor=false",
+            "-c",
+            f"safe.directory={workspace}",
+            "-C",
+            str(workspace),
+            "rev-parse",
+            "HEAD",
+        ]
+    )
     if head is None or head[1] != "ok" or not HASH_RE.fullmatch(head[0]):
         return _check("indeterminate", "source_head_probe_failed")
     status = _command(
@@ -312,6 +324,8 @@ def _source_checkout(workspace: Path, expected_commit: str | None = None) -> dic
             "core.fsmonitor=false",
             "-c",
             "core.untrackedCache=false",
+            "-c",
+            f"safe.directory={workspace}",
             "-C",
             str(workspace),
             "status",
