@@ -188,7 +188,9 @@ def snapshot() -> dict[str, Any]:
     }
     sudo = _run([str(SUDO), "-n", "-l", "-U", account.pw_name])
     denial = re.search(r"^User\s+brain\s+is not allowed to run sudo\b", sudo.stdout, re.MULTILINE)
-    if sudo.returncode != 1 or not denial:
+    # sudo -l -U <user> reports a denied user with exit status 0 on Ubuntu 24.04;
+    # some sudo builds use 1 for the same negative query. The denial text is the proof.
+    if sudo.returncode not in {0, 1} or not denial:
         raise IdentityError("service_sudo_denial_unproven")
     # Include the concrete, configured key locations in the digest without storing key material.
     value["checked_ssh_authorized_key_paths"] = [str(path) for path in keys]

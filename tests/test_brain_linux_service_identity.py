@@ -43,7 +43,7 @@ def _configure(
             return SimpleNamespace(returncode=0, stdout="brain L 2026-01-01 0 99999 7 -1\n")
         if argv[0] == str(identity.SUDO):
             return SimpleNamespace(
-                returncode=1, stdout="User brain is not allowed to run sudo on host.\n"
+                returncode=0, stdout="User brain is not allowed to run sudo on host.\n"
             )
         raise AssertionError(argv)
 
@@ -115,7 +115,7 @@ def test_identity_refuses_unlocked_password(monkeypatch, tmp_path):
             )
             if argv[0] == str(identity.PASSWD)
             else SimpleNamespace(
-                returncode=1, stdout="User brain is not allowed to run sudo on host.\n"
+                returncode=0, stdout="User brain is not allowed to run sudo on host.\n"
             )
         ),
     )
