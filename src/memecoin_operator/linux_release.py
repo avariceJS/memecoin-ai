@@ -758,6 +758,18 @@ def _finish_publish_locked(
     ):
         raise RuntimeError("release_publish_attempt_mismatch")
     release_id = str(intent["release_id"])
+    if record.get("phase") == "complete":
+        verification = verify(release_id)
+        if (
+            verification["source_commit"] != intent["source_commit"]
+            or verification["wheel_sha256"] != intent["wheel_sha256"]
+        ):
+            raise RuntimeError("release_publish_verify_identity_mismatch")
+        return {
+            "release_id": release_id,
+            "unit": f"memecoin-brain-{release_id}.service",
+            "release_path": str(RELEASE_BASE / release_id),
+        }
     _ensure_release_base()
     _ensure_root_directory(STATE_BASE_V2, 0o755)
     _ensure_root_directory(STATE_PREPARED_BASE, 0o700)
@@ -1290,6 +1302,9 @@ def stage(
             continue
         previous_intent = _read_publish_intent(candidate.stem)
         if previous_intent is not None:
+            if previous["source_commit"] != source_commit:
+                os.close(lock_fd)
+                raise RuntimeError("stage_existing_release_source_commit_mismatch")
             try:
                 result = _finish_publish_locked(candidate.stem, previous, previous_intent)
             except RuntimeError:

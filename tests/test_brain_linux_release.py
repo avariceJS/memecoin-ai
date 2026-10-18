@@ -231,6 +231,43 @@ def test_publish_intent_pins_fixed_destinations_and_artifact_policy(tmp_path, mo
         linux_release._validate_publish_intent(attempt_id, forged)
 
 
+def test_completed_publish_rechecks_release_without_pinning_mutable_runtime_state(monkeypatch):
+    release_id = "e" * 64
+    wheel_sha = "d" * 64
+    interpreter = {
+        "path": "/usr/bin/python3.12",
+        "version": "3.12.3",
+        "soabi": "cpython-312-x86_64-linux-gnu",
+    }
+    source_commit = "c" * 40
+    attempt_id = f"{release_id[:12]}-{'f' * 16}"
+    record = {
+        "phase": "complete",
+        "release_id": release_id,
+        "wheel_sha256": wheel_sha,
+        "source_commit": source_commit,
+        "interpreter": interpreter,
+    }
+    intent = {
+        "release_id": release_id,
+        "wheel_sha256": wheel_sha,
+        "source_commit": source_commit,
+        "interpreter": interpreter,
+    }
+    monkeypatch.setattr(linux_release, "_validate_publish_intent", lambda _id, _record: [])
+    monkeypatch.setattr(
+        linux_release,
+        "verify",
+        lambda _release: {
+            "source_commit": source_commit,
+            "wheel_sha256": wheel_sha,
+        },
+    )
+    result = linux_release._finish_publish_locked(attempt_id, record, intent)
+    assert result["release_id"] == release_id
+    assert result["release_path"] == str(linux_release.RELEASE_BASE / release_id)
+
+
 def test_process_census_fails_closed_on_permission_error(tmp_path, monkeypatch):
     status = tmp_path / "proc" / "123" / "status"
     status.parent.mkdir(parents=True)
