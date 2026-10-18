@@ -1455,14 +1455,6 @@ def _command_tx(
     _schema(db)
     if db.execute("SELECT 1 FROM revisions LIMIT 1").fetchone() is None:
         raise Rejected("bad_request", "uninitialized", 400)
-    existing = db.execute("SELECT * FROM commands WHERE request_id=?", (request_id,)).fetchone()
-    if existing is not None:
-        if existing["fingerprint"] != fingerprint:
-            raise Rejected("conflict", "conflict")
-        stored = json.loads(existing["result_json"])
-        stored["duplicate"] = True
-        stored["http_status"] = int(existing["http_status"])
-        return stored
     config, _config_error = _read_config(root)
     if sys.platform == "linux":
         if not _linux_synthetic_idle_config(root):
@@ -1471,6 +1463,14 @@ def _command_tx(
             raise Rejected("unsupported", "linux_synthetic_idle_only", 409)
     elif config.get("maintenance_policy") == "linux-synthetic-idle":
         raise Rejected("unsupported", "linux_policy_platform_mismatch", 409)
+    existing = db.execute("SELECT * FROM commands WHERE request_id=?", (request_id,)).fetchone()
+    if existing is not None:
+        if existing["fingerprint"] != fingerprint:
+            raise Rejected("conflict", "conflict")
+        stored = json.loads(existing["result_json"])
+        stored["duplicate"] = True
+        stored["http_status"] = int(existing["http_status"])
+        return stored
     state = _state(db)
     bounds, _err = _bounds(root)
     if view is None:

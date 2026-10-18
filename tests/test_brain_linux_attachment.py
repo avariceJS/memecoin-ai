@@ -183,6 +183,10 @@ def test_linux_tick_and_status_never_load_adapter_after_config_drift(tmp_path, m
     assert control.tick(root)["mode"] == "idle"
     rejected = control.command(root, "drifted-collect", "collect", {"profile": "balanced"})
     assert rejected["reason"] == "linux_unsupported_mode"
+    assert (
+        control.command(root, "synthetic-collect", "collect", {"profile": "balanced"})["reason"]
+        == "linux_unsupported_mode"
+    )
 
 
 def test_linux_policy_string_does_not_change_macos_adapter_behavior(tmp_path, monkeypatch):
