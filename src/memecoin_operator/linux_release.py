@@ -71,6 +71,41 @@ def _stage_attempt_path(attempt_id: str) -> Path:
     return STAGE_ATTEMPT_BASE / f"{attempt_id}.json"
 
 
+def _ensure_release_base() -> None:
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    try:
+        current_fd = os.open("/opt", flags)
+    except OSError as exc:
+        raise RuntimeError("release_parent_unavailable") from exc
+    try:
+        parent = os.fstat(current_fd)
+        if (
+            not stat.S_ISDIR(parent.st_mode)
+            or parent.st_uid != 0
+            or stat.S_IMODE(parent.st_mode) & 0o022
+        ):
+            raise RuntimeError("release_parent_unsafe")
+        for name in ("brain", "releases"):
+            try:
+                os.mkdir(name, mode=0o755, dir_fd=current_fd)
+                os.fsync(current_fd)
+            except FileExistsError:
+                pass
+            next_fd = os.open(name, flags, dir_fd=current_fd)
+            metadata = os.fstat(next_fd)
+            if (
+                not stat.S_ISDIR(metadata.st_mode)
+                or metadata.st_uid != 0
+                or stat.S_IMODE(metadata.st_mode) & 0o022
+            ):
+                os.close(next_fd)
+                raise RuntimeError("release_parent_unsafe")
+            os.close(current_fd)
+            current_fd = next_fd
+    finally:
+        os.close(current_fd)
+
+
 def _open_stage_attempt_directory() -> int:
     parent_fd = os.open("/var/lib", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
@@ -187,6 +222,10 @@ def _read_stage_attempt(attempt_id: str) -> tuple[Path, dict[str, object]]:
         if fd >= 0:
             os.close(fd)
         os.close(directory_fd)
+    return path, _validate_stage_attempt_record(attempt_id, value)
+
+
+def _validate_stage_attempt_record(attempt_id: str, value: object) -> dict[str, object]:
     expected = {
         "schema",
         "attempt_id",
@@ -213,6 +252,8 @@ def _read_stage_attempt(attempt_id: str) -> tuple[Path, dict[str, object]]:
         or not re.fullmatch(r"[0-9a-f]{64}", value["wheel_sha256"])
         or value.get("staging_name") != f".stage-{attempt_id}"
         or value.get("slice_name") != _stage_slice_name(attempt_id)
+        or value.get("builder_name") != f"bs-{attempt_id}"
+        or attempt_id[:12] != value.get("release_id", "")[:12]
         or value.get("phase")
         not in {
             "intent",
@@ -225,13 +266,21 @@ def _read_stage_attempt(attempt_id: str) -> tuple[Path, dict[str, object]]:
         }
         or type(value.get("staging_dev")) is not int
         or type(value.get("staging_ino")) is not int
-        or (value.get("builder_uid") is not None and type(value.get("builder_uid")) is not int)
+        or (
+            value.get("builder_uid") is not None
+            and (type(value.get("builder_uid")) is not int or not 1 <= value["builder_uid"] < 2**31)
+        )
         or not isinstance(value.get("builder_name"), str)
         or not isinstance(value.get("source_commit"), str)
+        or not re.fullmatch(r"[0-9a-f]{40,64}", value["source_commit"])
         or not isinstance(value.get("interpreter"), dict)
+        or set(value["interpreter"]) != {"path", "version", "soabi"}
+        or any(not isinstance(item, str) or not item for item in value["interpreter"].values())
+        or not Path(value["interpreter"]["path"]).is_absolute()
+        or _identity(value["wheel_sha256"], value["interpreter"]) != value["release_id"]
     ):
         raise RuntimeError("stage_attempt_record_invalid")
-    return path, value
+    return value
 
 
 def _acquire_stage_lock(release_id: str) -> int:
@@ -254,18 +303,21 @@ def _acquire_stage_lock(release_id: str) -> int:
     return fd
 
 
-def _uid_has_processes(uid: int) -> bool:
-    proc = Path("/proc")
-    for entry in proc.iterdir():
+def _uid_has_processes(uid: int, proc_root: Path = Path("/proc")) -> bool:
+    for entry in proc_root.iterdir():
         if not entry.name.isdecimal():
             continue
         try:
             status = (entry / "status").read_text(encoding="ascii")
-        except (FileNotFoundError, ProcessLookupError, PermissionError):
+        except (FileNotFoundError, ProcessLookupError):
             continue
+        except OSError as exc:
+            raise RuntimeError("stage_process_census_unavailable") from exc
         uid_line = next((line for line in status.splitlines() if line.startswith("Uid:")), "")
         fields = uid_line.split()
-        if len(fields) >= 5 and str(uid) in fields[1:5]:
+        if len(fields) != 5 or any(not field.isdecimal() for field in fields[1:]):
+            raise RuntimeError("stage_process_census_unavailable")
+        if str(uid) in fields[1:]:
             return True
     return False
 
@@ -345,6 +397,7 @@ def _release_stage_artifacts(release_id: str) -> list[Path]:
 
 
 def _recover_stage_locked(attempt_id: str) -> dict[str, str]:
+    _ensure_release_base()
     record_path, record = _read_stage_attempt(attempt_id)
     if record["phase"] in {"complete", "recovered"}:
         raise RuntimeError("stage_attempt_not_recoverable")
@@ -738,9 +791,7 @@ def stage(
     release_root = RELEASE_BASE / release_id
     unit_name = f"memecoin-brain-{release_id}.service"
     unit_path = UNIT_BASE / unit_name
-    if RELEASE_BASE.is_symlink() or (RELEASE_BASE.exists() and not RELEASE_BASE.is_dir()):
-        raise RuntimeError("release_root_unsafe")
-    RELEASE_BASE.mkdir(parents=True, exist_ok=True)
+    _ensure_release_base()
     if os.path.lexists(release_root) or os.path.lexists(unit_path):
         raise RuntimeError("release_already_exists")
     user = pwd.getpwnam("brain")

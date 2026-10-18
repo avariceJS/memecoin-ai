@@ -4,6 +4,7 @@ import hashlib
 import json
 import shutil
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -110,6 +111,73 @@ def test_release_identity_binds_wheel_and_interpreter():
     }
     assert linux_release._identity(wheel, py312) != linux_release._identity(wheel, py313)
     assert linux_release._identity(wheel, py312) != linux_release._identity("c" * 64, py312)
+
+
+def _stage_attempt_record():
+    wheel_sha = "b" * 64
+    interpreter = {
+        "path": "/usr/bin/python3.12",
+        "version": "3.12.3",
+        "soabi": "cpython-312-x86_64-linux-gnu",
+    }
+    release_id = linux_release._identity(wheel_sha, interpreter)
+    attempt_id = f"{release_id[:12]}-{'a' * 16}"
+    return attempt_id, {
+        "schema": linux_release.STAGE_ATTEMPT_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": release_id,
+        "wheel_sha256": wheel_sha,
+        "source_commit": "c" * 40,
+        "interpreter": interpreter,
+        "builder_name": f"bs-{attempt_id}",
+        "builder_uid": 1000,
+        "staging_name": f".stage-{attempt_id}",
+        "staging_dev": 1,
+        "staging_ino": 2,
+        "slice_name": linux_release._stage_slice_name(attempt_id),
+        "phase": "building",
+    }
+
+
+def test_stage_attempt_record_binds_builder_and_release_identity():
+    attempt_id, record = _stage_attempt_record()
+    assert linux_release._validate_stage_attempt_record(attempt_id, record) == record
+
+    forged = {**record, "builder_name": "nobody"}
+    with pytest.raises(RuntimeError, match="stage_attempt_record_invalid"):
+        linux_release._validate_stage_attempt_record(attempt_id, forged)
+
+    forged = {**record, "builder_uid": 0}
+    with pytest.raises(RuntimeError, match="stage_attempt_record_invalid"):
+        linux_release._validate_stage_attempt_record(attempt_id, forged)
+
+    forged = {**record, "release_id": "f" * 64}
+    with pytest.raises(RuntimeError, match="stage_attempt_record_invalid"):
+        linux_release._validate_stage_attempt_record(attempt_id, forged)
+
+
+def test_process_census_fails_closed_on_permission_error(tmp_path, monkeypatch):
+    status = tmp_path / "proc" / "123" / "status"
+    status.parent.mkdir(parents=True)
+    status.write_text("Name:\ttest\nUid:\t1000\t1000\t1000\t1000\n", encoding="ascii")
+    original_read_text = Path.read_text
+
+    def unreadable_status(path, *args, **kwargs):
+        if path == status:
+            raise PermissionError("synthetic unreadable proc status")
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", unreadable_status)
+    with pytest.raises(RuntimeError, match="stage_process_census_unavailable"):
+        linux_release._uid_has_processes(1000, proc_root=status.parent.parent)
+
+
+def test_process_census_fails_closed_on_malformed_status(tmp_path):
+    status = tmp_path / "proc" / "123" / "status"
+    status.parent.mkdir(parents=True)
+    status.write_text("Name:\ttest\n", encoding="ascii")
+    with pytest.raises(RuntimeError, match="stage_process_census_unavailable"):
+        linux_release._uid_has_processes(1000, proc_root=status.parent.parent)
 
 
 def test_verify_binds_installed_tree_and_versioned_unit(tmp_path, monkeypatch):
