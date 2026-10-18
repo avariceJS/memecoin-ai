@@ -26,8 +26,7 @@ for pair in \
     '/usr/bin/python3.12:python3.12' \
     '/usr/bin/apt-get:apt_get' \
     '/usr/bin/dpkg:dpkg' \
-    '/usr/bin/systemd-detect-virt:systemd_detect_virt' \
-    '/usr/share/keyrings/ubuntu-archive-keyring.gpg:ubuntu_archive_keyring'
+    '/usr/bin/systemd-detect-virt:systemd_detect_virt'
 do
     path=${pair%%:*}
     name=${pair#*:}
