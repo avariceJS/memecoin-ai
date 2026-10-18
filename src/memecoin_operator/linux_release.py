@@ -298,6 +298,7 @@ def stage(
     staging = Path(tempfile.mkdtemp(prefix=f".stage-{release_id[:12]}-", dir=RELEASE_BASE))
     builder_root = staging / "build"
     builder_root.mkdir(mode=0o700)
+    staging.chmod(0o711)
     wheel_input = staging / wheel.name
     venv = builder_root / "venv"
     builder_created = False
