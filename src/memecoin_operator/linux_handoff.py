@@ -161,7 +161,7 @@ def _logical_state(database: Path) -> tuple[str, str]:
     return _logical_state_payload(payload)
 
 
-def _prepared_inventory(operator: Path) -> list[dict[str, Any]]:
+def _verify_operator_root(operator: Path) -> None:
     owner = pwd.getpwnam("brain")
     metadata = operator.lstat()
     if (
@@ -171,6 +171,11 @@ def _prepared_inventory(operator: Path) -> list[dict[str, Any]]:
         or stat.S_IMODE(metadata.st_mode) != 0o700
     ):
         raise StorageError("handoff_operator_directory_unsafe")
+
+
+def _prepared_inventory(operator: Path) -> list[dict[str, Any]]:
+    _verify_operator_root(operator)
+    owner = pwd.getpwnam("brain")
     inventory = linux_attachment._runtime_inventory(operator, owner.pw_uid, owner.pw_gid)
     expected_paths = linux_attachment.RUNTIME_DIRECTORIES | {"config.json", "operator.sqlite"}
     if {entry["path"] for entry in inventory} != expected_paths:
@@ -749,7 +754,7 @@ def _verify_finalized(binding_id: str) -> dict[str, object]:
     if _sha256(_json_bytes(effective)) != probe.get("effective_policy_sha256"):
         raise StorageError("handoff_final_policy_mismatch")
     manifest = {"files": {"config.json": {"sha256": generation["config_sha256"]}}}
-    _prepared_inventory(operator)
+    _verify_operator_root(operator)
     hashes, inventory = linux_attachment._verify_stopped_attachment_state(
         manifest, generation_root / "operator"
     )
