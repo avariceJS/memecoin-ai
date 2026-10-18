@@ -20,7 +20,7 @@ also remains incomplete. Do not delete partial candidates or activate Brain. The
 operator package is awaiting final Sol review. No second-Mac restore has occurred.
 
 A separate Linux portability branch, `codex/linux-portability-20261018` at
-`1349548596b2a5dda20203951f39ce7b499b2efd`, is isolated from that acceptance path. Fresh Ubuntu
+`94495e34071a6cd5a3a10343f2c2f274885ea9a7`, is isolated from that acceptance path. Fresh Ubuntu
 24.04 clones completed `make setup`; repeated builds across separate output directories and clean
 clones matched wheel and sdist hashes. The exact-head release restored a synthetic ext4 fixture
 inert, activated explicitly, stopped/finalized, then passed release and attachment verification
@@ -43,6 +43,14 @@ unit failed without restart. Verification failed closed until explicit `reset-fa
 then verified idle SQLite and inventory. This does not distinguish crash from clean stop or test a
 crash before the idle-probe receipt. The diagnostic remains generic (`attachment_root_action_failed`).
 See [`SIGKILL recovery receipt`](../docs/evidence/brain-linux-attachment-sigkill-recovery-2026-10-18.json).
+
+At `94495e34071a6cd5a3a10343f2c2f274885ea9a7`, root actions now return only bounded allowlisted
+diagnostics; the release ID is validated before deriving a privileged executable path. A synthetic
+helper SIGKILL after systemd start but before idle-probe left the service active and the attachment
+unretryable. Verification/finalization rejected it; after exact-unit stop, a fresh attachment passed
+inert verify, explicit idle activation, stop/finalize, and read-only SQLite integrity. Evidence:
+[`start-intent crash and recovery`](../docs/evidence/brain-linux-attachment-start-intent-recovery-2026-10-18.json).
+Next horizon: interrupted release and attachment publication cleanup.
 
 `research/active` is at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`; `main` remains
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Future-v2 v3 drafts remain untracked and untouched.

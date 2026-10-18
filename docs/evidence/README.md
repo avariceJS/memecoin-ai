@@ -22,6 +22,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
   post-activation synthetic service kill, no-restart observation, fail-closed verification, and
   explicit reset/finalization of an idle fixture. Root-owned receipt storage was sealed after the
   recovery action; this does not test a crash before the idle-probe receipt.
+- [Linux attachment start-intent crash and recovery](brain-linux-attachment-start-intent-recovery-2026-10-18.json):
+  activation helper SIGKILL before the idle-probe receipt, bounded fail-closed diagnostics, exact
+  unit cleanup, and successful rebuild/activation/finalization through a fresh synthetic attachment.
 
 - [Scheduled sensing neural engineering qualification](brain-scheduled-sensing-neural-qualification-2026-10-15.json):
   synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume

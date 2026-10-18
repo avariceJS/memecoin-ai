@@ -1,0 +1,77 @@
+{
+  "schema": "brain-linux-attachment-start-intent-recovery-v1",
+  "date": "2026-10-18",
+  "scope": "explicit cleanup and fresh synthetic attachment rebuild after activation helper crash before idle-probe receipt",
+  "source": {
+    "repository": "avariceJS/memecoin-ai",
+    "branch": "codex/linux-portability-20261018",
+    "commit": "94495e34071a6cd5a3a10343f2c2f274885ea9a7"
+  },
+  "failed_attachment": {
+    "attachment_id": "att-94495e3",
+    "unit": "memecoin-brain-cce209a13d6b56a2629935b99f9a0bfda025c96355bfbe7f4cc929ab69beefb4.service",
+    "manual_cleanup": "systemctl stop the exact disabled unit after root-owned pre-recovery state receipt was sealed",
+    "post_stop_state": {
+      "Restart": "no",
+      "MainPID": 0,
+      "Result": "success",
+      "NRestarts": 0,
+      "ActiveState": "inactive",
+      "UnitFileState": "disabled"
+    },
+    "verify_after_stop": "rejected as attachment_idle_probe_missing_or_unbound",
+    "finalize_after_stop": "rejected as attachment_idle_probe_missing_or_unbound",
+    "same_attachment_retry": "rejected as attachment_activation_already_attempted"
+  },
+  "fresh_attachment_rebuild": {
+    "attachment_id": "att-94495e3-rebuild",
+    "unit": "memecoin-brain-aaee86b5fe0a946ef4d40f01a21aedb8beb43bb6e3ed3d8a795f777be0ec8524.service",
+    "source": "fresh synthetic inert restore on the same UUID-bound disposable ext4 volume",
+    "prepare": "attached_inert",
+    "independent_verify_before_activation": "attached_inert_verified",
+    "activation": "active_synthetic_idle; mode=idle; phase=idle; jobs=0",
+    "stop": "explicit systemctl stop",
+    "finalize": "activated_stopped_idle_verified",
+    "final_inventory_sha256": "0961c80cfc2eb8c1446e873d10eff80a471e7ab545f99fcdb79205ef17900860",
+    "final_operator_sqlite_sha256": "9e8fe739e7e45d638dbf09c9237f5a31be34cbf2bbc4da921f06678024513aa3",
+    "verify_after_finalize": "activated_stopped_idle_verified",
+    "read_only_sqlite_integrity_check": "ok",
+    "jobs_commands_publications": 0,
+    "events": 1,
+    "final_unit_state": {
+      "Restart": "no",
+      "MainPID": 0,
+      "Result": "success",
+      "NRestarts": 0,
+      "ActiveState": "inactive",
+      "UnitFileState": "disabled"
+    }
+  },
+  "root_action_error_protocol": {
+    "known_missing_idle_probe": "returned bounded attachment_idle_probe_missing_or_unbound code",
+    "same_attachment_retry": "returned bounded attachment_activation_already_attempted code",
+    "raw_stderr_or_paths_forwarded": false
+  },
+  "build_and_tests": {
+    "fresh_private_clone": "exact commit checked out and clean before build",
+    "make_setup": "passed unattended",
+    "focused_linux_tests": "163 passed, one optional browser skip",
+    "changed_file_ruff_and_format": "passed",
+    "independent_distribution_builds": {
+      "source_date_epoch": 1792296133,
+      "wheel_sha256": "0c22c0d38bdcaa3fbeacda04323f0a75f87cda980d9cfb4e82fa1c1eb5a4515e",
+      "sdist_sha256": "69e678935bdbd2591a657b69d99345ef0cc084a0021ba5e122e8484237bc8a35",
+      "result": "identical across separate output directories from the fresh source clone"
+    }
+  },
+  "interpretation": [
+    "A killed activation helper can leave the separately supervised service active even though the activation receipt is incomplete; the systemd unit remains disabled and has Restart=no.",
+    "The start-intent is create-only. The affected attachment fails closed and is not retried; after an operator stops its exact unit, recovery proceeds by creating a fresh attachment from verified source state.",
+    "The strict error envelope exposes only a fixed action and allowlisted code; sudo failure, timeout, malformed output, and unrecognized failures remain generic."
+  ],
+  "limitations": [
+    "The experiment covers synthetic empty idle state and process-level SIGKILL only, not abrupt host power loss, storage failure, arbitrary state, jobs, or external effects.",
+    "The first attachment is intentionally retained inert with its start-intent but no idle-probe or activation-result; it is a failed synthetic record, not a valid finalized attachment.",
+    "Provider credentials, protected datasets, Kingston, Migration v1 candidates, owner runtime, main, and research/active were not used or changed."
+  ]
+}

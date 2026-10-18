@@ -1,0 +1,52 @@
+{
+  "schema": "brain-linux-attachment-start-intent-crash-v1",
+  "date": "2026-10-18",
+  "scope": "synthetic activation helper SIGKILL after systemd start and before durable idle-probe receipt",
+  "source": {
+    "repository": "avariceJS/memecoin-ai",
+    "branch": "codex/linux-portability-20261018",
+    "commit": "94495e34071a6cd5a3a10343f2c2f274885ea9a7"
+  },
+  "release": {
+    "release_id": "1d3132360252bf816caf01c2242e3ee58c44f5d2954df99f36873c7f3c45ff11",
+    "manifest_sha256": "2461adba933a19594d98c48c3c86135df7cad4ae9485daf567f2fc6ac57d0079",
+    "restore_manifest_sha256": "08ef1111693e3e1d44afa3db70d1c593ad01b6ca14b2f0e211459ef2ec52002a"
+  },
+  "fixture": {
+    "kind": "synthetic empty idle operator state on disposable ext4 loop storage",
+    "attachment_id": "att-94495e3",
+    "unit": "memecoin-brain-cce209a13d6b56a2629935b99f9a0bfda025c96355bfbe7f4cc929ab69beefb4.service"
+  },
+  "injection": {
+    "method": "patched only the synthetic root activation helper to SIGKILL its own process immediately before writing the idle-probe receipt; systemd service was started by the real helper first",
+    "activation_helper_exit": 137,
+    "durable_records_after_kill": ["start-intent"],
+    "durable_records_missing_after_kill": ["idle-probe", "activation-result"]
+  },
+  "systemd_before_recovery": {
+    "Restart": "no",
+    "MainPID": 8993,
+    "Result": "success",
+    "NRestarts": 0,
+    "ExecMainStatus": 0,
+    "ActiveState": "active",
+    "UnitFileState": "disabled"
+  },
+  "operator_checks_before_recovery": {
+    "verify_exit": 2,
+    "verify_error": "attachment_idle_probe_missing_or_unbound",
+    "same_attachment_retry_exit": 2,
+    "same_attachment_retry_error": "attachment_activation_already_attempted"
+  },
+  "evidence_sealing": "systemd and operator observations were copied to root-owned mode-0444 receipt storage before the service was stopped",
+  "interpretation": [
+    "The process crash after systemd start but before idle-probe sealing leaves an active disabled service and a consumed create-only start intent.",
+    "Verification and same-attachment retry both fail closed with bounded static diagnostics.",
+    "No automatic restart was observed. The activation result cannot be finalized until a trusted idle-probe exists; this path therefore requires explicit service cleanup and a fresh attachment."
+  ],
+  "limitations": [
+    "Synthetic idle state only; no production state, job, provider access, or protected data was used.",
+    "This was process-level SIGKILL fault injection, not host power loss or storage-device failure.",
+    "Root-owned evidence was sealed before stopping the process; subsequent cleanup and fresh-attachment results belong in a separate receipt."
+  ]
+}

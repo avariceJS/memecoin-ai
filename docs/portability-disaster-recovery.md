@@ -342,9 +342,21 @@ the synthetic idle database and inventory verified. This proves manual post-exit
 verification, not graceful shutdown or crash durability. The `activated_stopped_idle_verified`
 result does not preserve whether the process stopped normally or abnormally. The captured pre-reset
 systemd observation was sealed in root-owned receipt storage after recovery, not before it. The
-experiment started after both the start-intent and bound idle-probe receipts existed; a crash before
-idle-probe creation is a separate unqualified failure window. See the
+experiment started after both the start-intent and bound idle-probe receipts existed. A separate
+fault injection on exact source `94495e34071a6cd5a3a10343f2c2f274885ea9a7` killed the root activation
+helper after the real systemd start and immediately before the idle-probe receipt write. The service
+remained active with the unit disabled, `Restart=no`, and zero restarts; only the create-only
+start-intent existed. Verification returned the bounded `attachment_idle_probe_missing_or_unbound`
+code, and same-attachment activation returned `attachment_activation_already_attempted`. After a
+root-owned pre-recovery receipt was sealed, the exact unit was stopped. Verify and finalize continued
+to reject the incomplete attachment. A new attachment from a freshly restored inert synthetic
+fixture then passed independent verify, explicit idle activation, stop, finalize, and post-finalize
+verify; SQLite integrity was `ok` and jobs/commands/publications remained empty. This qualifies
+explicit manual cleanup and fresh-attachment recovery for this synthetic process-crash window, not
+power loss, storage failure, arbitrary state, or external effects. See the
 [`Linux attachment SIGKILL recovery receipt`](evidence/brain-linux-attachment-sigkill-recovery-2026-10-18.json).
+See also the
+[`start-intent crash and recovery receipt`](evidence/brain-linux-attachment-start-intent-recovery-2026-10-18.json).
 
 This proves clean Linux setup, repeated package-build identity, inert staging, synthetic idle restore
 and explicit activation, bounded maintenance, stop/finalize, and verifier recovery after reboot. It
@@ -352,9 +364,11 @@ does not qualify production or arbitrary restored-state modes, source authentici
 trusted Git checkout and builder, Linux research-data writer semantics, boot-time activation,
 ARM64, Windows/WSL, macOS-to-Linux payload portability, CUDA, or NVIDIA. The immutable
 [`Linux portability receipt`](evidence/brain-linux-portability-2026-10-18.json) records exact
-artifacts, lifecycle hashes, host facts, failures, and limitations. The next architecture horizon is
-operator diagnostics and recovery semantics for systemd failure, then interruption safety during
-release/attachment publication. The crash-before-idle-probe path, crash consistency, and real
+artifacts, lifecycle hashes, host facts, failures, and limitations. Root attachment calls now expose
+only a versioned JSON envelope with static allowlisted error codes; sudo failure, timeout, malformed
+output, and unexpected errors remain generic. The unprivileged wrapper validates release IDs before
+constructing root executable paths. The next engineering horizon is interruption safety during
+release/attachment publication and cleanup; crash consistency, power-loss recovery, and real
 research-data use remain unqualified.
 
 ## Current readiness
