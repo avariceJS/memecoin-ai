@@ -280,7 +280,7 @@ def _source_boundary(
     if linux_service._unit_status(str(manifest["unit_name"])) != (
         "loaded",
         "inactive",
-        "disabled",
+        "static",
         0,
     ):
         raise StorageError("handoff_source_not_stopped")
@@ -317,7 +317,7 @@ def _handoff_identity(installation_id: str, generation_id: str, release_id: str)
                 "installation_id": installation_id,
                 "generation_id": generation_id,
                 "release_id": release_id,
-                "unit_policy": "disabled-private-network-v1",
+                "unit_policy": "static-private-network-v2",
             }
         )
     )
@@ -571,7 +571,7 @@ def _recover_published_prepare(
             or observed_unit != unit_text.encode()
             or state[0] not in {"not-found", "loaded"}
             or state[1] != "inactive"
-            or state[2] not in {"", "disabled", "static"}
+            or state[2] not in {"", "static"}
             or state[3] != 0
         ):
             raise StorageError("handoff_recovery_unit_mismatch")
@@ -584,7 +584,7 @@ def _recover_published_prepare(
             os.close(parent_fd)
     if existing_unit:
         subprocess.run(["systemctl", "daemon-reload"], check=True, timeout=10)
-        if linux_service._unit_status(unit_name) != ("loaded", "inactive", "disabled", 0):
+        if linux_service._unit_status(unit_name) != ("loaded", "inactive", "static", 0):
             raise StorageError("handoff_recovery_unit_not_inert")
     else:
         linux_service.install(unit_text, unit_path=unit_path, unit=unit_name, create_only=True)
@@ -660,7 +660,7 @@ def prepare(
     if source_schema != linux_attachment._schema_fingerprint():
         raise StorageError("handoff_schema_mismatch")
     target = linux_release.verify(target_release_id)
-    if target.get("unit_state") != ("loaded", "inactive", "disabled", 0):
+    if target.get("unit_state") != ("loaded", "inactive", "static", 0):
         raise StorageError("handoff_target_not_inert")
     target_schema = _release_schema(target_release_id)
     if target_schema != source_schema:
@@ -820,7 +820,7 @@ def prepare(
             create_only=True,
         )
         target_after = linux_release.verify(target_release_id)
-        if target_after.get("unit_state") != ("loaded", "inactive", "disabled", 0):
+        if target_after.get("unit_state") != ("loaded", "inactive", "static", 0):
             raise StorageError("handoff_target_changed_during_prepare")
         generation_record = {
             "schema": SCHEMA,
@@ -964,7 +964,7 @@ def verify(binding_id: str) -> dict[str, object]:
         or logical_sha != generation.get("output_logical_state_sha256")
         or target.get("manifest_sha256") != generation.get("target_release_manifest_sha256")
         or linux_service._unit_status(str(binding["unit_name"]))
-        != ("loaded", "inactive", "disabled", 0)
+        != ("loaded", "inactive", "static", 0)
     ):
         raise StorageError("handoff_inert_verification_failed")
     return {
@@ -1036,7 +1036,7 @@ def _verify_finalized(binding_id: str) -> dict[str, object]:
     if linux_service._unit_status(str(binding["unit_name"])) != (
         "loaded",
         "inactive",
-        "disabled",
+        "static",
         0,
     ):
         raise StorageError("handoff_final_unit_not_inert")
@@ -1166,9 +1166,9 @@ def stop(binding_id: str) -> dict[str, object]:
         raise StorageError("handoff_active_unit_mismatch")
     subprocess.run(["systemctl", "stop", str(binding["unit_name"])], check=True, timeout=30)
     state = linux_service._unit_status(str(binding["unit_name"]))
-    if state != ("loaded", "inactive", "disabled", 0):
-        raise StorageError("handoff_unit_not_stopped_disabled")
-    return {"state": "stopped-disabled", "binding_id": binding_id, "unit": binding["unit_name"]}
+    if state != ("loaded", "inactive", "static", 0):
+        raise StorageError("handoff_unit_not_stopped_static")
+    return {"state": "stopped-static", "binding_id": binding_id, "unit": binding["unit_name"]}
 
 
 def finalize(binding_id: str) -> dict[str, object]:
@@ -1204,10 +1204,10 @@ def finalize(binding_id: str) -> dict[str, object]:
     if linux_service._unit_status(str(binding["unit_name"])) != (
         "loaded",
         "inactive",
-        "disabled",
+        "static",
         0,
     ):
-        raise StorageError("handoff_unit_not_stopped_disabled")
+        raise StorageError("handoff_unit_not_stopped_static")
     generation_root, _receipt_root = _paths(
         str(binding["installation_id"]), str(binding["generation_id"]), binding_id
     )

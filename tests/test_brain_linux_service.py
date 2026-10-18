@@ -22,7 +22,8 @@ def test_render_is_manual_sandboxed_and_state_scoped(tmp_path):
     assert f"ReadWritePaths={STATE_BASE}" in unit
     assert "Restart=no" in unit
     assert "ExecStart=/" in unit and " -B -I -m memecoin_operator.runtime " in unit
-    assert "WantedBy=multi-user.target" in unit
+    assert "[Install]" not in unit
+    assert "WantedBy=multi-user.target" not in unit
     assert "systemctl enable" not in unit
     assert "systemctl start" not in unit
 
@@ -200,7 +201,7 @@ def test_rejects_unsafe_paths_and_ports(python, state_root, port, reason):
         render_unit(Path(python), Path(state_root), port)
 
 
-def test_install_only_reloads_and_leaves_unit_disabled(tmp_path, monkeypatch):
+def test_install_only_reloads_and_leaves_unit_static(tmp_path, monkeypatch):
     python = tmp_path / "venv/bin/python"
     python.parent.mkdir(parents=True)
     python.write_text("", encoding="utf-8")
@@ -213,7 +214,7 @@ def test_install_only_reloads_and_leaves_unit_disabled(tmp_path, monkeypatch):
     statuses = iter(
         [
             "LoadState=not-found\nActiveState=inactive\nUnitFileState=\nMainPID=0\n",
-            "LoadState=loaded\nActiveState=inactive\nUnitFileState=disabled\nMainPID=0\n",
+            "LoadState=loaded\nActiveState=inactive\nUnitFileState=static\nMainPID=0\n",
         ]
     )
 
@@ -261,7 +262,7 @@ def test_install_refuses_to_replace_active_unit(tmp_path, monkeypatch):
         "run",
         lambda *_args, **_kwargs: SimpleNamespace(
             returncode=0,
-            stdout="LoadState=loaded\nActiveState=active\nUnitFileState=disabled\nMainPID=42\n",
+            stdout="LoadState=loaded\nActiveState=active\nUnitFileState=static\nMainPID=42\n",
             stderr="",
         ),
     )
@@ -275,10 +276,10 @@ def test_install_refuses_to_replace_active_unit(tmp_path, monkeypatch):
     [
         (
             "LoadState=loaded\nActiveState=inactive\nUnitFileState=enabled\nMainPID=0\n",
-            "refusing_to_replace_enabled_unit",
+            "refusing_to_replace_nonstatic_unit",
         ),
         (
-            "LoadState=loaded\nActiveState=inactive\nUnitFileState=disabled\nMainPID=0\nMainPID=0\n",
+            "LoadState=loaded\nActiveState=inactive\nUnitFileState=static\nMainPID=0\nMainPID=0\n",
             "systemctl_status_malformed",
         ),
     ],
@@ -319,7 +320,7 @@ def test_install_rolls_back_when_post_reload_state_is_enabled(tmp_path, monkeypa
     monkeypatch.setattr(linux_service.os, "geteuid", lambda: 0)
     statuses = iter(
         [
-            "LoadState=loaded\nActiveState=inactive\nUnitFileState=disabled\nMainPID=0\n",
+            "LoadState=loaded\nActiveState=inactive\nUnitFileState=static\nMainPID=0\n",
             "LoadState=loaded\nActiveState=inactive\nUnitFileState=enabled\nMainPID=0\n",
         ]
     )
@@ -330,7 +331,7 @@ def test_install_rolls_back_when_post_reload_state_is_enabled(tmp_path, monkeypa
             returncode=0, stdout=next(statuses) if argv[1] == "show" else "", stderr=""
         ),
     )
-    with pytest.raises(RuntimeError, match="unit_not_inert_after_install"):
+    with pytest.raises(RuntimeError, match="unit_not_static_after_install"):
         linux_service.install("new unit", unit_path=path)
     assert path.read_text(encoding="utf-8") == "old unit\n"
     assert path.stat().st_mode & 0o777 == 0o640
@@ -346,7 +347,7 @@ def test_versioned_install_writes_only_its_own_unit(tmp_path, monkeypatch):
     statuses = iter(
         [
             "LoadState=not-found\nActiveState=inactive\nUnitFileState=\nMainPID=0\n",
-            "LoadState=loaded\nActiveState=inactive\nUnitFileState=disabled\nMainPID=0\n",
+            "LoadState=loaded\nActiveState=inactive\nUnitFileState=static\nMainPID=0\n",
         ]
     )
     monkeypatch.setattr(

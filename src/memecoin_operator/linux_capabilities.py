@@ -320,10 +320,10 @@ def _service_checks(path: Path | None, unit: dict[str, Any] | None) -> dict[str,
     elif (
         unit.get("LoadState") == "loaded"
         and unit.get("ActiveState") == "inactive"
-        and unit.get("UnitFileState") == "disabled"
+        and unit.get("UnitFileState") == "static"
         and unit.get("MainPID") == "0"
     ):
-        checks["unit_inert"] = _check("available", "unit_disabled_inactive_pid_zero")
+        checks["unit_inert"] = _check("available", "unit_static_inactive_pid_zero")
     else:
         checks["unit_inert"] = _check("absent", "unit_not_inert")
     return checks

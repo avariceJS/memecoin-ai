@@ -187,6 +187,51 @@ def test_state_path_and_unit_must_support_inert_host_claim(monkeypatch, tmp_path
     assert capabilities._service_checks(tmp_path, None)["unit_inert"]["status"] == "indeterminate"
 
 
+def test_static_inactive_unit_is_the_only_available_inert_contract(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        capabilities,
+        "_ext4_check",
+        lambda _path: capabilities._check("available", "ext4"),
+    )
+    monkeypatch.setattr(
+        capabilities,
+        "_systemd_check",
+        lambda: capabilities._check("available", "systemd"),
+    )
+    monkeypatch.setattr(
+        capabilities,
+        "_version_check",
+        lambda _name: capabilities._check("available", "present"),
+    )
+    monkeypatch.setattr(
+        capabilities,
+        "_root_action_check",
+        lambda: capabilities._check("available", "sudo"),
+    )
+    observed = capabilities._check(
+        "available",
+        "unit_status_observed",
+        LoadState="loaded",
+        ActiveState="inactive",
+        UnitFileState="static",
+        MainPID="0",
+    )
+    checks = capabilities._service_checks(tmp_path, observed)
+    assert checks["unit_inert"] == {
+        "status": "available",
+        "reason": "unit_static_inactive_pid_zero",
+    }
+    disabled = capabilities._check(
+        "available",
+        "unit_status_observed",
+        LoadState="loaded",
+        ActiveState="inactive",
+        UnitFileState="disabled",
+        MainPID="0",
+    )
+    assert capabilities._service_checks(tmp_path, disabled)["unit_inert"]["status"] == "absent"
+
+
 def test_filesystem_check_measures_the_requested_state_path(monkeypatch, tmp_path):
     observed = {}
     monkeypatch.setattr(capabilities, "_tool", lambda _name: "/usr/bin/findmnt")

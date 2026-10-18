@@ -52,7 +52,7 @@ ROOT_ACTION_CODES_BY_ACTION = {
         "attachment_activation_already_attempted",
         "attachment_idle_probe_missing_or_unbound",
         "attachment_unit_failed",
-        "attachment_unit_not_stopped_disabled",
+        "attachment_unit_not_stopped_static",
     },
 }
 ROOT_ACTION_ERROR_MAX_BYTES = 512
@@ -1359,7 +1359,7 @@ def _verify_attachment(
     )
     payloads = _verify_local_payloads(manifest, owner_uid=pwd.getpwnam("brain").pw_uid)
     state = linux_service._unit_status(str(manifest["unit_name"]))
-    if state != ("loaded", "inactive", "disabled", 0):
+    if state != ("loaded", "inactive", "static", 0):
         raise StorageError("attachment_unit_not_inert")
     return manifest, pin, payloads
 
@@ -1416,7 +1416,7 @@ def stage_unit(
         linux_service.install(unit_text, unit_path=unit_path, unit=unit)
         unit_installed = True
         state = linux_service._unit_status(unit)
-        if state != ("loaded", "inactive", "disabled", 0):
+        if state != ("loaded", "inactive", "static", 0):
             raise StorageError("attachment_unit_not_inert_after_install")
         _verify_attachment(
             attachment_id,
@@ -1577,8 +1577,8 @@ def finalize_attached(
     state = linux_service._unit_status(unit)
     if state[1] == "failed":
         raise StorageError("attachment_unit_failed")
-    if state != ("loaded", "inactive", "disabled", 0):
-        raise StorageError("attachment_unit_not_stopped_disabled")
+    if state != ("loaded", "inactive", "static", 0):
+        raise StorageError("attachment_unit_not_stopped_static")
     hashes, inventory = _verify_stopped_attachment_state(manifest, operator_dir)
     result = {
         "schema": ACTIVATION_SCHEMA,
@@ -1620,7 +1620,7 @@ def verify_attached(
         raise StorageError("attachment_unit_failed")
     if intent is None:
         payloads = _verify_local_payloads(manifest, owner_uid=pwd.getpwnam("brain").pw_uid)
-        if state != ("loaded", "inactive", "disabled", 0):
+        if state != ("loaded", "inactive", "static", 0):
             raise StorageError("attachment_unit_not_inert")
         return {
             "state": "attached_inert_verified",
@@ -1650,8 +1650,8 @@ def verify_attached(
                 "jobs": len(status["jobs"]),
             }
         raise StorageError("attachment_activation_incomplete")
-    if state != ("loaded", "inactive", "disabled", 0):
-        raise StorageError("attachment_unit_not_stopped_disabled")
+    if state != ("loaded", "inactive", "static", 0):
+        raise StorageError("attachment_unit_not_stopped_static")
     if _sha256(_json_bytes(intent)) != result["intent_sha256"]:
         raise StorageError("attachment_activation_intent_result_mismatch")
     if (
@@ -1751,7 +1751,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     prepare = sub.add_parser(
-        "prepare", help="copy verified synthetic restore and stage a disabled unit"
+        "prepare", help="copy verified synthetic restore and stage a static unit"
     )
     prepare.add_argument("--release-id", required=True)
     prepare.add_argument("--release-manifest-sha256", required=True)

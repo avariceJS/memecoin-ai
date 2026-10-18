@@ -1030,12 +1030,7 @@ def _discard_preflight(
             raise RuntimeError("stage_discard_source_missing")
     unit_name = f"memecoin-brain-{record['release_id']}.service"
     load, active, file_state, pid = linux_service._unit_status(unit_name)
-    if (
-        load != "not-found"
-        or active != "inactive"
-        or file_state not in {"", "disabled"}
-        or pid != 0
-    ):
+    if load != "not-found" or active != "inactive" or file_state != "" or pid != 0:
         raise RuntimeError("stage_discard_unit_requires_manual_review")
     _require_stage_slice_empty(str(record["slice_name"]))
     builder_uid = record["builder_uid"]
@@ -1375,12 +1370,7 @@ def _recover_prepared_temps_locked(
         raise RuntimeError("stage_partial_publication_requires_manual_review")
     unit_name = f"memecoin-brain-{record['release_id']}.service"
     load, active, file_state, pid = linux_service._unit_status(unit_name)
-    if (
-        load != "not-found"
-        or active != "inactive"
-        or file_state not in {"", "disabled"}
-        or pid != 0
-    ):
+    if load != "not-found" or active != "inactive" or file_state != "" or pid != 0:
         raise RuntimeError("stage_recovery_unit_requires_manual_review")
     _require_stage_slice_empty(str(record["slice_name"]))
     builder_uid = record["builder_uid"]
@@ -1705,7 +1695,7 @@ def _finish_publish_locked(
         raise RuntimeError("stage_builder_processes_remaining")
     unit_name = f"memecoin-brain-{release_id}.service"
     load, active, file_state, pid = linux_service._unit_status(unit_name)
-    if active != "inactive" or pid != 0 or file_state not in {"", "disabled", "static"}:
+    if active != "inactive" or pid != 0 or file_state not in {"", "static"}:
         raise RuntimeError("release_publish_unit_requires_manual_review")
     publish_pending = []
     for item in artifacts:
@@ -1741,7 +1731,7 @@ def _finish_publish_locked(
         if _artifact_identity(destination, kind=str(kind)) != identity:
             raise RuntimeError("release_publish_readback_mismatch")
     _run(["systemctl", "daemon-reload"])
-    if linux_service._unit_status(unit_name) != ("loaded", "inactive", "disabled", 0):
+    if linux_service._unit_status(unit_name) != ("loaded", "inactive", "static", 0):
         raise RuntimeError("release_publish_unit_not_inert")
     verification = verify(release_id)
     if (
@@ -1793,12 +1783,7 @@ def _recover_stage_locked(attempt_id: str) -> dict[str, str]:
         raise RuntimeError("stage_prepare_intent_missing_manual_review")
     unit_name = f"memecoin-brain-{release_id}.service"
     load, active, file_state, pid = linux_service._unit_status(unit_name)
-    if (
-        load != "not-found"
-        or active != "inactive"
-        or file_state not in {"", "disabled"}
-        or pid != 0
-    ):
+    if load != "not-found" or active != "inactive" or file_state != "" or pid != 0:
         raise RuntimeError("stage_recovery_unit_requires_manual_review")
     slice_name = str(record["slice_name"])
     _stop_stage_slice(slice_name)
@@ -2208,7 +2193,7 @@ def stage(
     expected_wheel_sha256: str,
     python: Path = Path("/usr/bin/python3"),
 ) -> dict[str, str]:
-    """Build a root-owned, service-read-only venv and unique disabled unit."""
+    """Build a root-owned, service-read-only venv and unique static unit."""
     if os.geteuid() != 0:
         raise PermissionError("stage_requires_root")
     if not re.fullmatch(r"[0-9a-f]{40,64}", source_commit):
@@ -2508,7 +2493,7 @@ def stage(
             "unit_sha256": hashlib.sha256(unit_text.encode()).hexdigest(),
             "state_layout": "release-v2",
             "state_root": str(state_root),
-            "install_policy": "create-only-disabled-no-activation",
+            "install_policy": "create-only-static-no-activation-v2",
         }
         manifest_path = staging / "release-manifest.json"
         with manifest_path.open("x", encoding="utf-8") as handle:
@@ -2617,7 +2602,7 @@ def verify(release_id: str) -> dict[str, object]:
     if f"ExecStart={expected_python} -B -I -m memecoin_operator.runtime " not in unit_text:
         raise RuntimeError("release_unit_path_mismatch")
     state = linux_service._unit_status(unit_name)
-    if state != ("loaded", "inactive", "disabled", 0):
+    if state != ("loaded", "inactive", "static", 0):
         raise RuntimeError("release_unit_not_inert")
     if manifest_schema == SCHEMA_V2:
         state_root = STATE_BASE_V2 / release_id / "operator"
@@ -2625,6 +2610,8 @@ def verify(release_id: str) -> dict[str, object]:
             state_root
         ):
             raise RuntimeError("release_state_layout_mismatch")
+        if manifest.get("install_policy") != "create-only-static-no-activation-v2":
+            raise RuntimeError("release_inert_policy_mismatch")
         state_base_metadata = STATE_BASE_V2.lstat()
         state_parent_metadata = (STATE_BASE_V2 / release_id).lstat()
         operator_metadata = state_root.lstat()
@@ -2663,7 +2650,7 @@ def activate(release_id: str) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    install = sub.add_parser("stage", help="create a disabled content-addressed release candidate")
+    install = sub.add_parser("stage", help="create a static content-addressed release candidate")
     install.add_argument("--source", type=Path, required=True)
     install.add_argument("--wheel", type=Path, required=True)
     install.add_argument("--source-commit", required=True)

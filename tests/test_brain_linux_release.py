@@ -75,7 +75,7 @@ def _verified_fixture(tmp_path, monkeypatch):
     monkeypatch.setattr(
         linux_release.linux_service,
         "_unit_status",
-        lambda _unit: ("loaded", "inactive", "disabled", 0),
+        lambda _unit: ("loaded", "inactive", "static", 0),
     )
     properties = {
         "FragmentPath": str(tmp_path / "systemd" / unit_name),
@@ -656,7 +656,7 @@ def test_verify_binds_installed_tree_and_versioned_unit(tmp_path, monkeypatch):
     result = linux_release.verify(release_id)
     assert result["release_id"] == release_id
     assert result["unit"] == f"memecoin-brain-{release_id}.service"
-    assert result["unit_state"] == ("loaded", "inactive", "disabled", 0)
+    assert result["unit_state"] == ("loaded", "inactive", "static", 0)
 
 
 def test_verify_rejects_installed_file_drift(tmp_path, monkeypatch):
@@ -679,7 +679,7 @@ def test_verify_rejects_non_inert_unit(tmp_path, monkeypatch):
     monkeypatch.setattr(
         linux_release.linux_service,
         "_unit_status",
-        lambda _unit: ("loaded", "active", "disabled", 42),
+        lambda _unit: ("loaded", "active", "static", 42),
     )
     with pytest.raises(RuntimeError, match="release_unit_not_inert"):
         linux_release.verify(release_id)

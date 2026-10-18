@@ -1,7 +1,7 @@
-"""Install a disabled, sandboxed Linux systemd unit for the operator runtime.
+"""Install a static, sandboxed Linux systemd unit for the operator runtime.
 
 Installation only writes the dedicated unit and reloads systemd. It never creates
-operator state, enables the unit, or starts a process. Starting the unit is a separate
+operator state, makes it boot-installable, or starts a process. Starting the unit is a separate
 operator action after an explicit decision to activate the selected root.
 """
 
@@ -141,9 +141,6 @@ RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 ReadWritePaths={readwrite_path}
 StandardOutput=journal
 StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
 """
 
 
@@ -222,8 +219,8 @@ def install(
     load, active, file_state, pid = _unit_status(unit)
     if active != "inactive" or pid != 0:
         raise RuntimeError("refusing_to_replace_active_unit")
-    if load == "loaded" and file_state not in {"disabled", "static"}:
-        raise RuntimeError("refusing_to_replace_enabled_unit")
+    if load == "loaded" and file_state != "static":
+        raise RuntimeError("refusing_to_replace_nonstatic_unit")
     if load == "not-found" and (file_state or active != "inactive"):
         raise RuntimeError("refusing_to_replace_unknown_unit")
     old_bytes = unit_path.read_bytes() if unit_path.exists() else None
@@ -247,9 +244,9 @@ def install(
     try:
         subprocess.run(["systemctl", "daemon-reload"], check=True, timeout=10)
         load, active, file_state, pid = _unit_status(unit)
-        if (load, active, file_state, pid) != ("loaded", "inactive", "disabled", 0):
+        if (load, active, file_state, pid) != ("loaded", "inactive", "static", 0):
             raise RuntimeError(
-                f"unit_not_inert_after_install:{load}:{active}:{file_state or 'empty'}:{pid}"
+                f"unit_not_static_after_install:{load}:{active}:{file_state or 'empty'}:{pid}"
             )
     except (OSError, subprocess.SubprocessError, RuntimeError):
         if old_bytes is None:
@@ -271,7 +268,7 @@ def main(argv: list[str] | None = None) -> int:
     render.add_argument("--python", default=str(DEFAULT_PYTHON))
     render.add_argument("--state-root", default=str(STATE_ROOT))
     render.add_argument("--port", type=int, default=DEFAULT_PORT)
-    sub.add_parser("install", help="install and reload the disabled unit; never start it")
+    sub.add_parser("install", help="install and reload the static unit; never start it")
     args = parser.parse_args(argv)
     try:
         if args.command == "render":
