@@ -452,6 +452,84 @@ def test_bind_existing_writes_host_binding_without_volume_mutation(
     assert root.is_dir()
 
 
+def test_linux_bind_existing_writes_tagged_config_and_does_not_mutate_volume(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _ = _existing_root_fixture(tmp_path)
+    probe = FakeProbe(
+        mount,
+        filesystem="ext4",
+        filesystem_type="ext4",
+        mount_options=("rw",),
+        mount_id=77,
+        source="/dev/loop0",
+        mount_root="/",
+    )
+    monkeypatch.setattr(research_storage, "_ensure_config_parent_on_other_device", lambda *_: None)
+    monkeypatch.setattr(research_storage, "_fd_mount_id", lambda _fd: 77)
+    monkeypatch.setattr(research_storage.sys, "platform", "linux")
+    monkeypatch.setattr(
+        research_storage, "_verify_linux_case_sensitive_directory", lambda _fd: None
+    )
+    before = sorted(str(path.relative_to(mount)) for path in mount.rglob("*"))
+    config = bind_existing(
+        config_path,
+        mount,
+        "research/root",
+        expected_volume_uuid=UUID,
+        expected_root_id=ROOT_ID,
+        min_free_bytes=100,
+        probe=probe,
+        platform="linux",
+    )
+    after = sorted(str(path.relative_to(mount)) for path in mount.rglob("*"))
+    assert before == after
+    assert config.version == 2
+    assert config.platform == "linux"
+    assert config.filesystem == "ext4"
+    assert StorageConfig.load(config_path) == config
+    assert json.loads(config_path.read_text()) == {
+        "version": 2,
+        "platform": "linux",
+        "filesystem": "ext4",
+        "root_id": ROOT_ID,
+        "fs_uuid": UUID,
+        "mount_path": str(mount),
+        "data_root": "research/root",
+        "min_free_bytes": 100,
+    }
+
+
+def test_linux_bind_existing_fails_closed_on_mount_id_change(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _ = _existing_root_fixture(tmp_path)
+    probe = FakeProbe(
+        mount,
+        filesystem="ext4",
+        filesystem_type="ext4",
+        mount_options=("rw",),
+        mount_id=lambda call: 77 if call == 1 else 78,
+        source="/dev/loop0",
+        mount_root="/",
+    )
+    monkeypatch.setattr(research_storage, "_ensure_config_parent_on_other_device", lambda *_: None)
+    monkeypatch.setattr(research_storage, "_fd_mount_id", lambda _fd: 77)
+    monkeypatch.setattr(research_storage.sys, "platform", "linux")
+    with pytest.raises(StorageError, match="mounted_directory_replaced"):
+        bind_existing(
+            config_path,
+            mount,
+            "research/root",
+            expected_volume_uuid=UUID,
+            expected_root_id=ROOT_ID,
+            min_free_bytes=100,
+            probe=probe,
+            platform="linux",
+        )
+    assert not config_path.exists()
+
+
 def test_bind_existing_rejects_absent_malformed_or_mismatched_marker(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

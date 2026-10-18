@@ -39,6 +39,7 @@ def main() -> int:
     bind_p.add_argument("--expected-volume-uuid", required=True)
     bind_p.add_argument("--expected-root-id", required=True)
     bind_p.add_argument("--min-free-bytes", type=int, required=True)
+    bind_p.add_argument("--platform", choices=("macos", "linux"), default="macos")
     check_p = sub.add_parser(
         "check", help="check the mounted volume; use --require-root to verify the root marker"
     )
@@ -66,6 +67,7 @@ def main() -> int:
                 expected_volume_uuid=args.expected_volume_uuid,
                 expected_root_id=args.expected_root_id,
                 min_free_bytes=args.min_free_bytes,
+                platform=args.platform,
             )
             payload = config.to_json()
         elif args.command == "create-root":

@@ -1551,13 +1551,19 @@ def bind_existing(
     expected_root_id: str,
     min_free_bytes: int,
     probe: VolumeProbe | None = None,
+    platform: str = "macos",
 ) -> StorageConfig:
     """Bind an already existing root from trusted recovery identity pins.
 
     This performs read-only volume/root checks. Its only write is a create-only
     host config file outside the mounted volume; it never creates a volume probe,
-    root directory, lock, or marker.
+    root directory, lock, or marker. Linux bindings use the explicit v2 ext4
+    config and pin the mount ID throughout the read-only verification.
     """
+    if platform not in {"macos", "linux"}:
+        raise StorageError("unsupported_storage_platform")
+    if platform == "linux" and not sys.platform.startswith("linux"):
+        raise StorageError("unsupported_host: Linux storage binding requires Linux")
     _validate_relative(data_root, "data_root")
     minimum = _validate_min_free(min_free_bytes)
     volume_uuid = _validate_uuid(expected_volume_uuid)
@@ -1593,10 +1599,19 @@ def bind_existing(
     if config_path.exists() or config_path.is_symlink():
         raise StorageError("config_already_exists")
 
-    config = StorageConfig(expected_root_id, volume_uuid, mount_path, data_root, minimum)
-    volume_probe = probe or MacOSVolumeProbe()
+    config = StorageConfig(
+        expected_root_id,
+        volume_uuid,
+        mount_path,
+        data_root,
+        minimum,
+        version=LINUX_CONFIG_VERSION if platform == "linux" else CONFIG_VERSION,
+        platform=platform,
+        filesystem="ext4" if platform == "linux" else "apfs",
+    )
+    volume_probe = probe or (LinuxExt4VolumeProbe() if platform == "linux" else MacOSVolumeProbe())
     first_volume = volume_probe.inspect(mount_path)
-    _validate_volume_policy(first_volume, mount_path)
+    _validate_volume_policy(first_volume, mount_path, platform=platform)
     if first_volume.volume_uuid.lower() != volume_uuid:
         raise StorageError("volume_uuid_mismatch")
     if first_volume.available_bytes < minimum:
@@ -1608,6 +1623,9 @@ def bind_existing(
     root_fd = marker_fd = -1
     try:
         mount_before = os.fstat(mount_fd)
+        mount_id_before = _fd_mount_id(mount_fd) if platform == "linux" else None
+        if platform == "linux" and mount_id_before != first_volume.mount_id:
+            raise StorageError("mount_changed_during_probe")
         _ensure_config_parent_on_other_device(config_path.parent, mount_before.st_dev)
         root_fd = _open_relative_directory(mount_fd, data_root)
         root_before = os.fstat(root_fd)
@@ -1625,7 +1643,9 @@ def bind_existing(
         _read_marker_fd(marker_fd, config)
 
         second_volume = volume_probe.inspect(mount_path)
-        _validate_volume_policy(second_volume, mount_path)
+        _validate_volume_policy(second_volume, mount_path, platform=platform)
+        if platform == "linux" and second_volume.mount_id != mount_id_before:
+            raise StorageError("mounted_directory_replaced")
         if second_volume.volume_uuid.lower() != volume_uuid:
             raise StorageError("volume_uuid_mismatch")
         if second_volume.available_bytes < minimum:
@@ -1633,6 +1653,8 @@ def bind_existing(
         current_mount_fd = _open_directory(mount_path)
         try:
             current_mount = os.fstat(current_mount_fd)
+            if platform == "linux" and _fd_mount_id(current_mount_fd) != mount_id_before:
+                raise StorageError("mounted_directory_replaced")
             if (mount_before.st_dev, mount_before.st_ino) != (
                 current_mount.st_dev,
                 current_mount.st_ino,

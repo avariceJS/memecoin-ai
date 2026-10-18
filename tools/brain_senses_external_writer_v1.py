@@ -26,6 +26,7 @@ from memecoin_research_storage import (
     StorageError,
     StorageGuard,
     _open_relative_directory,
+    _verify_linux_case_sensitive_directory,
 )
 from tools.brain_senses_external_schema_v1 import RECEIPT_SCHEMA
 
@@ -104,11 +105,18 @@ class DescriptorWriter:
         self._fault_hook = fault_hook
         self.storage_guard = storage_guard
         self._read_only = read_only
+        self._verify_directory_policy(self.root_fd)
         self.storage_volume_uuid = (
             str(storage_guard.volume_uuid).lower() if storage_guard is not None else None
         )
         self.storage_root_id = str(storage_guard.root_id) if storage_guard is not None else None
         self._closed = False
+
+    def _verify_directory_policy(self, directory_fd: int) -> None:
+        """Enforce Linux ext4 name semantics on every directory we traverse."""
+        config = getattr(self.storage_guard, "config", None)
+        if getattr(config, "platform", None) == "linux":
+            _verify_linux_case_sensitive_directory(directory_fd)
 
     @classmethod
     def from_storage_guard(cls, guard: Any) -> DescriptorWriter:
@@ -228,6 +236,7 @@ class DescriptorWriter:
                     dir_fd=current,
                 )
                 _private_dir(os.fstat(child), device=self.device)
+                self._verify_directory_policy(child)
                 os.close(current)
                 current = child
             return current
@@ -267,6 +276,7 @@ class DescriptorWriter:
                     dir_fd=current,
                 )
                 _private_dir(os.fstat(child), device=self.device)
+                self._verify_directory_policy(child)
                 os.close(current)
                 current = child
         except OSError as exc:
@@ -363,6 +373,7 @@ class DescriptorWriter:
                         dir_fd=directory_fd,
                     )
                     try:
+                        self._verify_directory_policy(child_fd)
                         visit(child_fd, relative)
                     finally:
                         os.close(child_fd)
