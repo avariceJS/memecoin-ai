@@ -10,6 +10,7 @@ import os
 import pwd
 import re
 import shlex
+import shutil
 import sqlite3
 import stat
 import subprocess
@@ -260,6 +261,28 @@ def _paths(installation_id: str, generation_id: str, binding_id: str) -> tuple[P
     return generation, receipt
 
 
+def _prepare_runtime_directories(operator: Path, uid: int, gid: int) -> None:
+    for relative in sorted(
+        linux_attachment.RUNTIME_DIRECTORIES, key=lambda item: (item.count("/"), item)
+    ):
+        current = operator
+        for part in relative.split("/"):
+            current = current / part
+            created = False
+            try:
+                current.mkdir(mode=0o700)
+                created = True
+            except FileExistsError:
+                pass
+            metadata = current.lstat()
+            if not stat.S_ISDIR(metadata.st_mode) or stat.S_IMODE(metadata.st_mode) != 0o700:
+                raise StorageError("handoff_runtime_directory_unsafe")
+            if created:
+                os.chown(current, uid, gid)
+            elif metadata.st_uid != uid or metadata.st_gid != gid:
+                raise StorageError("handoff_runtime_directory_unsafe")
+
+
 def prepare(
     installation_id: str, source_attachment_id: str, target_release_id: str
 ) -> dict[str, object]:
@@ -303,6 +326,9 @@ def prepare(
     lock_fd = os.open(
         LOCK_BASE / f"{installation_id}.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600
     )
+    pending: Path | None = None
+    pending_created = False
+    generation_published = False
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX)
         _root_directory(INSTALLATION_BASE)
@@ -314,6 +340,7 @@ def prepare(
         brain = pwd.getpwnam("brain")
         pending = generation_root.parent / f".pending-{generation_id}-{os.getpid()}"
         pending.mkdir(mode=0o700)
+        pending_created = True
         os.chown(pending, 0, 0)
         operator = pending / "operator"
         operator.mkdir(mode=0o700)
@@ -348,7 +375,7 @@ def prepare(
                 raise StorageError("handoff_snapshot_failed") from exc
         os.chown(db_path, brain.pw_uid, brain.pw_gid)
         os.chmod(db_path, 0o600)
-        linux_attachment._prepare_runtime_directories(operator, brain.pw_uid, brain.pw_gid)
+        _prepare_runtime_directories(operator, brain.pw_uid, brain.pw_gid)
         (
             after_source,
             after_pin,
@@ -379,6 +406,7 @@ def prepare(
         os.chown(operator, brain.pw_uid, brain.pw_gid)
         os.chmod(operator, 0o700)
         os.rename(pending, generation_root)
+        generation_published = True
         unit_name = f"memecoin-brain-{binding_id}.service"
         code_root = linux_release.RELEASE_BASE / target_release_id
         state_root = generation_root / "operator"
@@ -443,6 +471,8 @@ def prepare(
             "logical_state_sha256": output_logical,
         }
     except BaseException:
+        if pending_created and not generation_published and pending is not None:
+            shutil.rmtree(pending, ignore_errors=True)
         raise
     finally:
         os.close(lock_fd)
