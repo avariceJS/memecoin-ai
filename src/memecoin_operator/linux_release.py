@@ -32,6 +32,8 @@ SCHEMA = "brain-linux-release-v1"
 SCHEMA_V2 = "brain-linux-release-v2"
 STAGE_ATTEMPT_SCHEMA = "brain-linux-release-stage-attempt-v1"
 PUBLISH_INTENT_SCHEMA = "brain-linux-release-publish-intent-v2"
+DISCARD_INTENT_SCHEMA = "brain-linux-release-stage-discard-intent-v1"
+DISCARD_RECEIPT_SCHEMA = "brain-linux-release-stage-discard-receipt-v1"
 STAGE_ATTEMPT_ID_RE = re.compile(r"^[0-9a-f]{12}-[0-9a-f]{16}$")
 MAX_WHEEL_BYTES = 100 * 1024 * 1024
 SAFE_WHEEL_NAME = re.compile(
@@ -80,6 +82,22 @@ def _publish_intent_path(attempt_id: str) -> Path:
     if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
         raise ValueError("stage_attempt_id_invalid")
     return STAGE_ATTEMPT_BASE / f"{attempt_id}.publish.json"
+
+
+def _discard_intent_path(attempt_id: str) -> Path:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return STAGE_ATTEMPT_BASE / f"{attempt_id}.discard.json"
+
+
+def _discard_receipt_path(attempt_id: str) -> Path:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return STAGE_ATTEMPT_BASE / f"{attempt_id}.discarded.json"
+
+
+def _discard_quarantine_path(attempt_id: str, item: dict[str, object]) -> Path:
+    return Path(str(item["source_parent"])) / f".brain-discard-{attempt_id}-{item['name']}"
 
 
 def _ensure_root_directory(path: Path, mode: int) -> None:
@@ -748,6 +766,305 @@ def _validate_publish_intent(attempt_id: str, record: dict[str, object]) -> list
     return artifacts
 
 
+def _write_sealed_stage_json(path: Path, payload: dict[str, object]) -> None:
+    directory_fd = _open_stage_attempt_directory()
+    temporary = f".{path.name}.{secrets.token_hex(8)}.tmp"
+    encoded = (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    try:
+        fd = os.open(
+            temporary,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=directory_fd,
+        )
+        try:
+            view = memoryview(encoded)
+            while view:
+                written = os.write(fd, view)
+                if written <= 0:
+                    raise OSError("stage_discard_write_failed")
+                view = view[written:]
+            os.fsync(fd)
+            os.fchmod(fd, 0o444)
+        finally:
+            os.close(fd)
+        _rename_noreplace(STAGE_ATTEMPT_BASE, temporary, STAGE_ATTEMPT_BASE, path.name)
+        os.fsync(directory_fd)
+    finally:
+        try:
+            os.unlink(temporary, dir_fd=directory_fd)
+        except FileNotFoundError:
+            pass
+        os.close(directory_fd)
+
+
+def _read_sealed_stage_json(path: Path, *, schema: str) -> dict[str, object] | None:
+    directory_fd = _open_stage_attempt_directory()
+    fd = -1
+    try:
+        try:
+            fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory_fd)
+        except FileNotFoundError:
+            return None
+        metadata = os.fstat(fd)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != 0
+            or stat.S_IMODE(metadata.st_mode) != 0o444
+            or metadata.st_size > 32 * 1024
+        ):
+            raise RuntimeError("stage_discard_record_unsafe")
+        payload = bytearray()
+        while len(payload) <= 32 * 1024:
+            block = os.read(fd, 4096)
+            if not block:
+                break
+            payload.extend(block)
+        if len(payload) > 32 * 1024:
+            raise RuntimeError("stage_discard_record_unsafe")
+        value = json.loads(payload.decode("utf-8"), object_pairs_hook=_unique_json_object)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise RuntimeError("stage_discard_record_unavailable") from exc
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        os.close(directory_fd)
+    if not isinstance(value, dict) or value.get("schema") != schema:
+        raise RuntimeError("stage_discard_record_invalid")
+    return value
+
+
+def _artifact_location(path: Path, identity: dict[str, object], kind: str) -> bool:
+    if not os.path.lexists(path):
+        return False
+    if path.is_symlink() or _artifact_identity(path, kind=kind) != identity:
+        raise RuntimeError("stage_discard_artifact_mismatch")
+    return True
+
+
+def _require_root_directory_chain(path: Path) -> None:
+    if not path.is_absolute():
+        raise RuntimeError("stage_discard_parent_unsafe")
+    for directory in reversed((path, *path.parents)):
+        metadata = directory.lstat()
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or metadata.st_uid != 0
+            or stat.S_IMODE(metadata.st_mode) & 0o022
+        ):
+            raise RuntimeError("stage_discard_parent_unsafe")
+
+
+def _artifact_size(path: Path) -> int:
+    metadata = path.lstat()
+    if stat.S_ISREG(metadata.st_mode):
+        return metadata.st_size
+    if not stat.S_ISDIR(metadata.st_mode):
+        raise RuntimeError("stage_discard_artifact_type_mismatch")
+    total = 0
+    for parent, dirs, files in os.walk(path, followlinks=False):
+        for name in [*dirs, *files]:
+            item = Path(parent) / name
+            metadata = item.lstat()
+            if stat.S_ISREG(metadata.st_mode):
+                total += metadata.st_size
+            elif not stat.S_ISDIR(metadata.st_mode) and not stat.S_ISLNK(metadata.st_mode):
+                raise RuntimeError("stage_discard_artifact_type_mismatch")
+    return total
+
+
+def _discard_preflight(
+    attempt_id: str,
+) -> tuple[dict[str, object], dict[str, object], list[dict[str, object]]]:
+    _, record = _read_stage_attempt(attempt_id)
+    intent = _read_publish_intent(attempt_id)
+    if intent is None:
+        raise RuntimeError("stage_discard_publish_intent_required")
+    artifacts = _validate_publish_intent(attempt_id, intent)
+    for item in artifacts:
+        _require_root_directory_chain(Path(str(item["source_parent"])))
+        _require_root_directory_chain(Path(str(item["destination_parent"])))
+    discard_intent = _read_sealed_stage_json(
+        _discard_intent_path(attempt_id), schema=DISCARD_INTENT_SCHEMA
+    )
+    expected_discard_intent = {
+        "schema": DISCARD_INTENT_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "artifacts": [
+            {
+                "name": item["name"],
+                "source_parent": item["source_parent"],
+                "source_name": item["source_name"],
+                "quarantine_name": _discard_quarantine_path(attempt_id, item).name,
+                "identity": item["identity"],
+            }
+            for item in artifacts
+        ],
+    }
+    if discard_intent is not None and discard_intent != expected_discard_intent:
+        raise RuntimeError("stage_discard_intent_invalid")
+    if record.get("phase") not in {"publishing", "recovery-required"} or any(
+        record.get(key) != intent.get(key)
+        for key in ("release_id", "source_commit", "wheel_sha256", "interpreter")
+    ):
+        raise RuntimeError("stage_discard_attempt_not_abandoned")
+    for item in artifacts:
+        identity = item["identity"]
+        source = Path(str(item["source_parent"])) / str(item["source_name"])
+        destination = Path(str(item["destination_parent"])) / str(item["destination_name"])
+        source_exists = _artifact_location(source, identity, str(item["kind"]))
+        if os.path.lexists(destination):
+            raise RuntimeError("stage_discard_destination_exists")
+        quarantine = _discard_quarantine_path(attempt_id, item)
+        quarantine_exists = _artifact_location(quarantine, identity, str(item["kind"]))
+        if source_exists == quarantine_exists:
+            raise RuntimeError("stage_discard_artifact_location_ambiguous")
+        if discard_intent is None and not source_exists:
+            raise RuntimeError("stage_discard_source_missing")
+    unit_name = f"memecoin-brain-{record['release_id']}.service"
+    load, active, file_state, pid = linux_service._unit_status(unit_name)
+    if (
+        load != "not-found"
+        or active != "inactive"
+        or file_state not in {"", "disabled"}
+        or pid != 0
+    ):
+        raise RuntimeError("stage_discard_unit_requires_manual_review")
+    _require_stage_slice_empty(str(record["slice_name"]))
+    builder_uid = record["builder_uid"]
+    if builder_uid is not None and _uid_has_processes(builder_uid):
+        raise RuntimeError("stage_discard_builder_processes_remaining")
+    return record, intent, artifacts
+
+
+def audit_stage(attempt_id: str | None = None) -> dict[str, object]:
+    """Read-only inventory of interrupted publish attempts and discard eligibility."""
+    if os.geteuid() != 0:
+        raise PermissionError("stage_audit_requires_root")
+    if attempt_id is None:
+        ids = sorted(
+            path.name[:-5]
+            for path in STAGE_ATTEMPT_BASE.glob("*.json")
+            if STAGE_ATTEMPT_ID_RE.fullmatch(path.name[:-5])
+        )
+    else:
+        ids = [attempt_id]
+    entries = []
+    for current_id in ids:
+        entry: dict[str, object] = {"attempt_id": current_id, "classification": "manual-review"}
+        try:
+            record, intent, artifacts = _discard_preflight(current_id)
+            receipt = _read_sealed_stage_json(
+                _discard_receipt_path(current_id), schema=DISCARD_RECEIPT_SCHEMA
+            )
+            bytes_pinned = 0
+            for item in artifacts:
+                location = Path(str(item["source_parent"])) / str(item["source_name"])
+                if not os.path.lexists(location):
+                    location = _discard_quarantine_path(current_id, item)
+                bytes_pinned += _artifact_size(location)
+            entry.update(
+                {
+                    "classification": (
+                        "quarantined-retained" if receipt is not None else "discard-eligible"
+                    ),
+                    "release_id": record["release_id"],
+                    "source_commit": intent["source_commit"],
+                    "artifacts": len(artifacts),
+                    "bytes": bytes_pinned,
+                    "record_mtime_ns": _stage_attempt_path(current_id).stat().st_mtime_ns,
+                }
+            )
+        except (OSError, RuntimeError, ValueError) as exc:
+            entry["reason"] = str(exc)
+        entries.append(entry)
+    return {"attempts": entries, "count": len(entries), "read_only": True}
+
+
+def discard_stage(attempt_id: str) -> dict[str, object]:
+    """Quarantine one exact abandoned publish attempt; never activates or deletes it."""
+    if os.geteuid() != 0:
+        raise PermissionError("stage_discard_requires_root")
+    _, record = _read_stage_attempt(attempt_id)
+    lock_fd = _acquire_stage_lock(str(record["release_id"]))
+    try:
+        receipt_path = _discard_receipt_path(attempt_id)
+        receipt = _read_sealed_stage_json(receipt_path, schema=DISCARD_RECEIPT_SCHEMA)
+        _, intent, artifacts = _discard_preflight(attempt_id)
+        existing = _read_sealed_stage_json(
+            _discard_intent_path(attempt_id), schema=DISCARD_INTENT_SCHEMA
+        )
+        expected_intent = {
+            "schema": DISCARD_INTENT_SCHEMA,
+            "attempt_id": attempt_id,
+            "release_id": record["release_id"],
+            "artifacts": [
+                {
+                    "name": item["name"],
+                    "source_parent": item["source_parent"],
+                    "source_name": item["source_name"],
+                    "quarantine_name": _discard_quarantine_path(attempt_id, item).name,
+                    "identity": item["identity"],
+                }
+                for item in artifacts
+            ],
+        }
+        if existing is None:
+            _write_sealed_stage_json(_discard_intent_path(attempt_id), expected_intent)
+        elif existing != expected_intent:
+            raise RuntimeError("stage_discard_intent_invalid")
+        if receipt is not None:
+            expected_quarantine = [
+                {
+                    "name": item["name"],
+                    "quarantine": str(_discard_quarantine_path(attempt_id, item)),
+                    "identity": item["identity"],
+                }
+                for item in artifacts
+            ]
+            if receipt != {
+                "schema": DISCARD_RECEIPT_SCHEMA,
+                "attempt_id": attempt_id,
+                "release_id": record["release_id"],
+                "source_commit": intent["source_commit"],
+                "quarantined": expected_quarantine,
+                "status": "quarantined-retained",
+            } or any(
+                os.path.lexists(Path(str(item["source_parent"])) / str(item["source_name"]))
+                or not os.path.lexists(_discard_quarantine_path(attempt_id, item))
+                for item in artifacts
+            ):
+                raise RuntimeError("stage_discard_receipt_mismatch")
+            return receipt
+        moved = []
+        for item in artifacts:
+            identity = item["identity"]
+            source = Path(str(item["source_parent"])) / str(item["source_name"])
+            quarantine = _discard_quarantine_path(attempt_id, item)
+            source_exists = _artifact_location(source, identity, str(item["kind"]))
+            quarantine_exists = _artifact_location(quarantine, identity, str(item["kind"]))
+            if source_exists == quarantine_exists:
+                raise RuntimeError("stage_discard_artifact_location_ambiguous")
+            if source_exists:
+                _rename_noreplace(source.parent, source.name, quarantine.parent, quarantine.name)
+            moved.append(
+                {"name": item["name"], "quarantine": str(quarantine), "identity": identity}
+            )
+        result = {
+            "schema": DISCARD_RECEIPT_SCHEMA,
+            "attempt_id": attempt_id,
+            "release_id": record["release_id"],
+            "source_commit": intent["source_commit"],
+            "quarantined": moved,
+            "status": "quarantined-retained",
+        }
+        _write_sealed_stage_json(receipt_path, result)
+        return result
+    finally:
+        os.close(lock_fd)
+
+
 def _finish_publish_locked(
     attempt_id: str, record: dict[str, object], intent: dict[str, object]
 ) -> dict[str, str]:
@@ -863,6 +1180,13 @@ def _recover_stage_locked(attempt_id: str) -> dict[str, str]:
     _ensure_release_base()
     record_path, record = _read_stage_attempt(attempt_id)
     intent = _read_publish_intent(attempt_id)
+    if (
+        _read_sealed_stage_json(_discard_intent_path(attempt_id), schema=DISCARD_INTENT_SCHEMA)
+        is not None
+        or _read_sealed_stage_json(_discard_receipt_path(attempt_id), schema=DISCARD_RECEIPT_SCHEMA)
+        is not None
+    ):
+        raise RuntimeError("stage_discard_recovery_required")
     if intent is not None:
         return _finish_publish_locked(attempt_id, record, intent)
     if record["phase"] in {"complete", "recovered"}:
@@ -1301,7 +1625,7 @@ def stage(
     except KeyError:
         pass
     for candidate in STAGE_ATTEMPT_BASE.glob(f"{release_id[:12]}-*.json"):
-        if candidate.name.endswith(".publish.json"):
+        if not STAGE_ATTEMPT_ID_RE.fullmatch(candidate.stem):
             continue
         try:
             _, previous = _read_stage_attempt(candidate.stem)
@@ -1310,6 +1634,24 @@ def stage(
             raise RuntimeError("stage_attempt_record_requires_manual_review") from exc
         if previous["release_id"] != release_id:
             continue
+        discarded = _read_sealed_stage_json(
+            _discard_receipt_path(candidate.stem), schema=DISCARD_RECEIPT_SCHEMA
+        )
+        discard_intent = _read_sealed_stage_json(
+            _discard_intent_path(candidate.stem), schema=DISCARD_INTENT_SCHEMA
+        )
+        if discarded is not None:
+            if (
+                discarded.get("attempt_id") != candidate.stem
+                or discarded.get("release_id") != release_id
+                or discarded.get("source_commit") != source_commit
+            ):
+                os.close(lock_fd)
+                raise RuntimeError("stage_discard_receipt_mismatch")
+            continue
+        if discard_intent is not None:
+            os.close(lock_fd)
+            raise RuntimeError("stage_discard_recovery_required")
         previous_intent = _read_publish_intent(candidate.stem)
         if previous_intent is not None:
             if previous["source_commit"] != source_commit:
@@ -1689,6 +2031,10 @@ def main(argv: list[str] | None = None) -> int:
         "recover-stage", help="recover one precisely recorded interrupted stage without activation"
     )
     recover.add_argument("--attempt-id", required=True)
+    audit = sub.add_parser("audit-stage", help="read-only audit of abandoned publish attempts")
+    audit.add_argument("--attempt-id")
+    discard = sub.add_parser("discard-stage", help="quarantine one exact abandoned publish attempt")
+    discard.add_argument("--attempt-id", required=True)
     check = sub.add_parser("verify", help="read back a release and its inert unit")
     check.add_argument("--release-id", required=True)
     start = sub.add_parser("activate", help="verify then explicitly start a release")
@@ -1701,6 +2047,10 @@ def main(argv: list[str] | None = None) -> int:
             )
         elif args.command == "recover-stage":
             result = recover_stage(args.attempt_id)
+        elif args.command == "audit-stage":
+            result = audit_stage(args.attempt_id)
+        elif args.command == "discard-stage":
+            result = discard_stage(args.attempt_id)
         elif args.command == "verify":
             result = verify(args.release_id)
         else:

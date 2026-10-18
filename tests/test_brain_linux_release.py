@@ -275,6 +275,80 @@ def test_completed_publish_rechecks_release_without_pinning_mutable_runtime_stat
     assert sealed == [(linux_release._stage_attempt_path(attempt_id), "complete", True)]
 
 
+def test_discard_stage_replays_after_interrupted_quarantine_rename(tmp_path, monkeypatch):
+    attempt_id, record = _stage_attempt_record()
+    artifacts = []
+    for index, name in enumerate(("release", "pin", "state", "unit")):
+        parent = tmp_path / name
+        parent.mkdir()
+        source = parent / f"source-{index}"
+        if name in {"release", "state"}:
+            source.mkdir()
+            (source / "payload").write_text(name, encoding="utf-8")
+            kind = "directory"
+        else:
+            source.write_text(name, encoding="utf-8")
+            kind = "file"
+        artifacts.append(
+            {
+                "name": name,
+                "source_parent": str(parent),
+                "source_name": source.name,
+                "destination_parent": str(parent),
+                "destination_name": f"destination-{index}",
+                "kind": kind,
+                "identity": linux_release._artifact_identity(source, kind=kind),
+            }
+        )
+    intent = {"source_commit": record["source_commit"]}
+    monkeypatch.setattr(linux_release.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(linux_release, "_read_stage_attempt", lambda _id: (Path("record"), record))
+    monkeypatch.setattr(
+        linux_release, "_acquire_stage_lock", lambda _id: os.open("/dev/null", os.O_RDONLY)
+    )
+    monkeypatch.setattr(
+        linux_release, "_discard_preflight", lambda _id: (record, intent, artifacts)
+    )
+    sealed = {}
+    monkeypatch.setattr(
+        linux_release,
+        "_read_sealed_stage_json",
+        lambda path, *, schema: sealed.get(path.name),
+    )
+    monkeypatch.setattr(
+        linux_release,
+        "_write_sealed_stage_json",
+        lambda path, payload: sealed.__setitem__(path.name, payload),
+    )
+
+    def rename(source_parent, source_name, destination_parent, destination_name):
+        os.rename(source_parent / source_name, destination_parent / destination_name)
+
+    calls = 0
+
+    def fail_after_first_rename(source_parent, source_name, destination_parent, destination_name):
+        nonlocal calls
+        calls += 1
+        rename(source_parent, source_name, destination_parent, destination_name)
+        if calls == 1:
+            raise RuntimeError("simulated process interruption")
+
+    monkeypatch.setattr(linux_release, "_rename_noreplace", fail_after_first_rename)
+    with pytest.raises(RuntimeError, match="simulated process interruption"):
+        linux_release.discard_stage(attempt_id)
+    monkeypatch.setattr(linux_release, "_rename_noreplace", rename)
+    result = linux_release.discard_stage(attempt_id)
+    assert result["status"] == "quarantined-retained"
+    assert len(result["quarantined"]) == 4
+    for item in artifacts:
+        assert not (Path(item["source_parent"]) / item["source_name"]).exists()
+        assert linux_release._artifact_location(
+            linux_release._discard_quarantine_path(attempt_id, item),
+            item["identity"],
+            item["kind"],
+        )
+
+
 def test_process_census_fails_closed_on_permission_error(tmp_path, monkeypatch):
     status = tmp_path / "proc" / "123" / "status"
     status.parent.mkdir(parents=True)
