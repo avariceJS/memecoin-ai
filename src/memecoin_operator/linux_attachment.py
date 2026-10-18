@@ -551,6 +551,8 @@ def prepare_attachment(
             [
                 "sudo",
                 "-n",
+                "/usr/bin/env",
+                "PYTHONDONTWRITEBYTECODE=1",
                 str(release_python),
                 "-I",
                 "-m",
@@ -998,7 +1000,17 @@ def verify_attached(
 def _root_call(release_id: str, args: list[str]) -> dict[str, Any]:
     python = linux_release.RELEASE_BASE / release_id / "venv/bin/python"
     result = subprocess.run(
-        ["sudo", "-n", str(python), "-I", "-m", "memecoin_operator.linux_attachment", *args],
+        [
+            "sudo",
+            "-n",
+            "/usr/bin/env",
+            "PYTHONDONTWRITEBYTECODE=1",
+            str(python),
+            "-I",
+            "-m",
+            "memecoin_operator.linux_attachment",
+            *args,
+        ],
         check=False,
         capture_output=True,
         text=True,
@@ -1039,8 +1051,6 @@ def main(argv: list[str] | None = None) -> int:
     prepare.add_argument("--attachment-id", required=True)
     stage = sub.add_parser("stage-unit", help=argparse.SUPPRESS)
     _add_pins(stage)
-    install_root = sub.add_parser("stage-root", help=argparse.SUPPRESS)
-    _add_pins(install_root)
     activate_root = sub.add_parser("activate-root", help=argparse.SUPPRESS)
     _add_pins(activate_root)
     verify_root = sub.add_parser("verify-root", help=argparse.SUPPRESS)
@@ -1064,15 +1074,6 @@ def main(argv: list[str] | None = None) -> int:
                 args.attachment_id,
             )
         elif args.command == "stage-unit":
-            result = stage_unit(
-                args.attachment_id,
-                args.release_id,
-                args.release_manifest_sha256,
-                args.restore_manifest_sha256,
-            )
-        elif args.command == "stage-root":
-            if os.geteuid() != 0:
-                raise StorageError("attachment_root_action_requires_root")
             result = stage_unit(
                 args.attachment_id,
                 args.release_id,
