@@ -525,22 +525,31 @@ def test_attempt_audit_observes_directory_metadata_without_tree_walk(tmp_path, m
     assert "tree_sha256" not in observation
 
 
-def test_recovered_preintent_receipt_remains_valid_after_later_publish(tmp_path, monkeypatch):
+@pytest.mark.parametrize("present_count", [0, 1, 3])
+def test_recovered_preintent_receipt_remains_valid_after_later_publish(
+    tmp_path, monkeypatch, present_count
+):
     attempt_id, old_record = _stage_attempt_record()
     record = {**old_record, "phase": "recovered"}
     artifacts = []
     quarantined = []
-    for name, kind in (("state", "directory"), ("pin", "file"), ("unit", "file")):
+    progress_artifacts = []
+    for index, (name, kind) in enumerate(
+        (("state", "directory"), ("pin", "file"), ("unit", "file"))
+    ):
         parent = tmp_path / name
         parent.mkdir()
         qparent = parent / ".brain-stage-quarantine"
         qparent.mkdir(mode=0o700)
         quarantine = qparent / f"{attempt_id}.{name}"
-        if kind == "directory":
-            quarantine.mkdir()
-            (quarantine / "config.json").write_text("partial", encoding="utf-8")
-        else:
-            quarantine.write_text(f"partial-{name}", encoding="utf-8")
+        identity = None
+        if index < present_count:
+            if kind == "directory":
+                quarantine.mkdir()
+                (quarantine / "config.json").write_text("partial", encoding="utf-8")
+            else:
+                quarantine.write_text(f"partial-{name}", encoding="utf-8")
+            identity = linux_release._artifact_identity(quarantine, kind=kind)
         item = {
             "name": name,
             "source_parent": str(parent),
@@ -550,9 +559,10 @@ def test_recovered_preintent_receipt_remains_valid_after_later_publish(tmp_path,
             "kind": kind,
             "parent_identity": {},
         }
-        identity = linux_release._artifact_identity(quarantine, kind=kind)
         artifacts.append(item)
-        quarantined.append({"name": name, "path": str(quarantine), "identity": identity})
+        progress_artifacts.append({"name": name, "identity": identity})
+        if identity is not None:
+            quarantined.append({"name": name, "path": str(quarantine), "identity": identity})
     plan = {"schema": linux_release.PREPARE_INTENT_SCHEMA, "artifacts": artifacts}
     progress = {
         "schema": linux_release.PREPARE_PROGRESS_SCHEMA,
@@ -562,10 +572,7 @@ def test_recovered_preintent_receipt_remains_valid_after_later_publish(tmp_path,
         "plan_sha256": hashlib.sha256(
             json.dumps(plan, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest(),
-        "artifacts": [
-            {"name": item["name"], "identity": entry["identity"]}
-            for item, entry in zip(artifacts, quarantined, strict=True)
-        ],
+        "artifacts": progress_artifacts,
     }
     receipt = {
         "schema": linux_release.PREPARE_RECEIPT_SCHEMA,

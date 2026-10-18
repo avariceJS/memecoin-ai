@@ -1307,7 +1307,7 @@ def _validate_prepared_recovery_receipt(
         or any(
             not isinstance(value, dict)
             or set(value) != {"name", "identity"}
-            or not isinstance(value["identity"], dict)
+            or (value["identity"] is not None and not isinstance(value["identity"], dict))
             for value in observed
         )
     ):
@@ -1319,7 +1319,13 @@ def _validate_prepared_recovery_receipt(
         _require_root_directory_chain(quarantine_parent)
         quarantine = quarantine_parent / str(item["quarantine_name"])
         identity = value["identity"]
-        if os.path.lexists(source) or not os.path.lexists(quarantine):
+        if os.path.lexists(source):
+            raise RuntimeError("stage_prepare_terminal_location_mismatch")
+        if identity is None:
+            if os.path.lexists(quarantine):
+                raise RuntimeError("stage_prepare_terminal_location_mismatch")
+            continue
+        if not os.path.lexists(quarantine):
             raise RuntimeError("stage_prepare_terminal_location_mismatch")
         if _partial_prepare_identity(quarantine, item) != identity:
             raise RuntimeError("stage_prepare_temp_identity_mismatch")
