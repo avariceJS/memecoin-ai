@@ -4,6 +4,9 @@ set -eu
 
 missing=""
 add_missing() {
+    case ",$missing," in
+        *,"$1",*) return ;;
+    esac
     if [ -n "$missing" ]; then
         missing="$missing,$1"
     else
