@@ -1009,6 +1009,9 @@ def _run_builder(
     except (OSError, subprocess.SubprocessError) as exc:
         raise RuntimeError("stage_builder_command_failed") from exc
     if result.returncode != 0:
+        output = f"{result.stdout or ''}\n{result.stderr or ''}"
+        if "No space left on device" in output or "Errno 28" in output:
+            raise RuntimeError("stage_builder_no_space")
         raise RuntimeError("stage_builder_command_failed")
     _require_stage_slice_empty(slice_name)
     return result

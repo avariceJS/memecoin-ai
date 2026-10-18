@@ -402,3 +402,24 @@ def test_verify_rejects_existing_job_state(tmp_path, monkeypatch):
         db.execute("INSERT INTO jobs(job_id) VALUES ('synthetic-job')")
     with pytest.raises(RuntimeError, match="release_lab_state_not_idle"):
         linux_release.verify(release_id)
+
+
+@pytest.mark.parametrize(
+    ("stdout", "stderr", "reason"),
+    [
+        ("", "OSError: [Errno 28] No space left on device", "stage_builder_no_space"),
+        ("", "builder returned nonzero", "stage_builder_command_failed"),
+    ],
+)
+def test_run_builder_reports_bounded_failure_reason(monkeypatch, stdout, stderr, reason):
+    monkeypatch.setattr(
+        linux_release.subprocess,
+        "run",
+        lambda *_args, **_kwargs: SimpleNamespace(returncode=1, stdout=stdout, stderr=stderr),
+    )
+    with pytest.raises(RuntimeError, match=reason):
+        linux_release._run_builder(
+            ["/bin/false"],
+            attempt_id="a" * 12 + "-" + "b" * 16,
+            phase="venv",
+        )
