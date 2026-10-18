@@ -6,6 +6,8 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- [Linux setup preflight and deployment](brain-linux-setup-preflight-deployment-2026-10-18.json): checks the exact `make setup` interpreter before venv creation, detects absent `python3` and `udev` prerequisites, validates an explicit Python override, and passes clean setup/build/smoke plus inert release restart on Ubuntu minbase. Package resolution remains live/unpinned and manual.
+- [Linux bootstrap preflight](brain-linux-bootstrap-preflight-2026-10-18.json): read-only pre-venv detection of missing Make setup Python and `udev` package closure, recognized explicit interpreter override, clean setup/build/smoke under default and override paths, and final clean-root release verification. A package installer, pinned Ubuntu archive, and separate bare-metal reinstall remain unqualified.
 - [Linux clean-root cross-host qualification](brain-linux-cleanroot-crosshost-qualification-2026-10-18.json): byte-identical macOS ARM64 and Ubuntu x86_64 source distributions, fresh minimal Ubuntu venv setup, read-only fresh GitHub clone, first-boot release stage/verify, explicit isolated-network activation, idempotent staging, and inert container restart. Package closure is still manually assembled; this is a rootfs-on-VPS test, not a full bare-metal reinstall.
 
 - [Linux release-v3 host qualification](brain-linux-release-v3-host-qualification-2026-10-18.json):

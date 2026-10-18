@@ -116,6 +116,23 @@ Ubuntu's unversioned `python3`; the corrected setup passed. Manual package provi
 next meaningful gap. See
 [`Linux clean-root receipt`](../docs/evidence/brain-linux-cleanroot-crosshost-qualification-2026-10-18.json).
 
+At `412aeb985a73683a106c4a6cf0833961c2e91026`, the read-only Linux preflight checks the actual
+`make setup` interpreter before venv creation. A minimal rootfs with `python3.12` but no `python3`
+now reports the missing default, accepts an explicit interpreter override, and completes setup,
+build, and smoke; restoring `python3` makes the default path pass. Adding `udev` closes the service
+host capability report. Cross-host wheel/sdist hashes still match, and the new release passed
+activation, private-netns, stop, and inert restart verification. Next: package provisioning design.
+See
+[`Linux bootstrap preflight receipt`](../docs/evidence/brain-linux-bootstrap-preflight-2026-10-18.json).
+
+At `bdad490e079f84a1ebe92c9646bc6e8c6b6f33b0`, preflight imports the selected interpreter's real
+`venv` and `ensurepip` modules read-only. The missing-default and explicit-override scenarios passed
+on minbase; default and override setup/build/smoke passed from empty venvs. Clean Mac/Ubuntu wheel
+and sdist hashes match. The latest release passed verify, explicit private-netns activation, stop,
+restart, and read-only preflight with both required roles available. Next: assess opt-in package
+provisioning. See
+[`setup preflight deployment receipt`](../docs/evidence/brain-linux-setup-preflight-deployment-2026-10-18.json).
+
 At topic commit `51306aa3629ed11df5991a70caf399feefff025b`, schema-v3 Linux release staging passed on
 the VPS after fixing a builder wheelhouse permission defect. The installed venv entrypoints are
 relocatable; two fresh pip installs normalized to the same inventory hash, and a same-filesystem

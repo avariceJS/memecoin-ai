@@ -197,7 +197,12 @@ isolated Linux portability branch. At the same source commit and build epoch, th
 archive are byte-identical between macOS arm64 and Ubuntu x86_64; source archive modes are
 canonicalized to remove umask differences. A minimal Ubuntu rootfs also completed a clean venv setup,
 first-boot stage/verify, explicit activation in a private network namespace, inert restart, and
-idempotent restaging. The current proof covers one CPU-only x86_64 toolchain and one systemd host.
+idempotent restaging. The read-only Linux capability report can run directly from source before a
+venv exists and now checks the exact `PYTHON` executable used by `make setup`, importing its `venv`
+and `ensurepip` modules without creating an environment or using the network. It correctly detected
+the absent `python3` alias and `udevadm` package on a minimal rootfs. The resulting source-build and
+service-host roles passed after installing the corresponding Ubuntu packages. The current proof
+covers one CPU-only x86_64 toolchain and one systemd host.
 ARM64 runtime, Windows/WSL, CUDA/NVIDIA, power-loss behavior, production datasets, and unattended
 host package provisioning remain unqualified. Preserve the adapter boundary: discover optional
 compute and host capabilities explicitly, while release identity, state formats, manifests, and

@@ -1,0 +1,131 @@
+{
+  "schema": "brain-linux-bootstrap-preflight-v1",
+  "recorded_at_utc": "2026-10-18T08:24:19Z",
+  "scope": "Read-only setup-interpreter preflight, observed Ubuntu package closure, clean setup/build/smoke, and v3 release lifecycle in a minimal Ubuntu rootfs. No apt installer is provided by this work.",
+  "source": {
+    "repository": "avariceJS/memecoin-ai",
+    "branch": "codex/linux-portability-20261018",
+    "commit": "412aeb985a73683a106c4a6cf0833961c2e91026",
+    "source_date_epoch": 1792311701
+  },
+  "private_source": {
+    "fresh_read_only_clone": true,
+    "interactive_prompts_disabled": true,
+    "commit": "412aeb985a73683a106c4a6cf0833961c2e91026",
+    "checkout_clean": true,
+    "disposable_clone_removed": true
+  },
+  "cross_host_build": {
+    "macos": "arm64",
+    "ubuntu": "24.04 x86_64",
+    "python": "3.12.3",
+    "source_date_epoch": 1792311701,
+    "wheel_sha256_macos": "656854a664e356f8bd5615d95bafb76c4d27634b2d62374a6ef36ff843f7e7bc",
+    "wheel_sha256_ubuntu": "656854a664e356f8bd5615d95bafb76c4d27634b2d62374a6ef36ff843f7e7bc",
+    "sdist_sha256_macos": "2353648d1caad03a4f05bf20a2dff00ef7912bfa59fcd56d5c2bef7f41541543",
+    "sdist_sha256_ubuntu": "2353648d1caad03a4f05bf20a2dff00ef7912bfa59fcd56d5c2bef7f41541543",
+    "both_artifacts_byte_identical": true
+  },
+  "preflight": {
+    "entrypoint": "python3.12 -B src/memecoin_operator/linux_capabilities.py report --source-commit <commit> --workspace <checkout>",
+    "usable_before_venv": true,
+    "writes_or_network_access": false,
+    "initial_rootfs_missing_packages": ["python3", "python3-minimal"],
+    "default_setup_python_result": {
+      "command": "python3",
+      "status": "absent",
+      "reason": "make_setup_python_missing",
+      "source_build_role": "absent"
+    },
+    "explicit_python_override_result": {
+      "command": "/usr/bin/python3.12",
+      "status": "available",
+      "version": "3.12.3",
+      "venv": true,
+      "ensurepip": true,
+      "source_build_role": "available"
+    },
+    "service_package_gap": {
+      "missing_command": "udevadm",
+      "package": "udev",
+      "before_install": "inert_service_host_ext4 role absent",
+      "after_install": "inert_service_host_ext4 role available"
+    },
+    "post_install_report": {
+      "source_build_role": "available",
+      "inert_service_host_ext4_role": "available",
+      "cpu_ml": "optional_absent_no_ML_dependencies",
+      "gpu": "not qualified; nvidia-smi absent"
+    }
+  },
+  "package_closure_observed": {
+    "ubuntu": "24.04 LTS",
+    "python": "3.12.3",
+    "required_for_tested_source_setup": [
+      "ca-certificates",
+      "git",
+      "make",
+      "python3",
+      "python3.12",
+      "python3.12-venv"
+    ],
+    "required_for_tested_inert_service_host_role": [
+      "systemd",
+      "systemd-sysv",
+      "udev",
+      "util-linux",
+      "iproute2",
+      "sudo"
+    ],
+    "test_control_only": ["dbus"],
+    "versions": {
+      "systemd": "255.4-1ubuntu8",
+      "udev": "255.4-1ubuntu8",
+      "git": "2.43.0",
+      "make": "4.3",
+      "python3": "3.12.3"
+    }
+  },
+  "clean_setup": {
+    "venv_deleted_before_each_setup": true,
+    "default_command": "make setup",
+    "explicit_override_command": "make setup PYTHON=/usr/bin/python3.12",
+    "default_setup_build_smoke": "passed",
+    "explicit_override_setup_build_smoke": "passed",
+    "focused_capability_tests": "23 passed",
+    "ruff": "passed",
+    "format": "passed"
+  },
+  "release": {
+    "execution_environment": "systemd-nspawn minimal Ubuntu rootfs on the disposable VPS; CAP_SYS_ADMIN and CAP_NET_ADMIN were granted to nspawn only to qualify the service's PrivateNetwork behavior",
+    "release_id": "0e08de102c1522bd7814a75488e9b2465133812cbfaa6c2f4391703f906df58d",
+    "wheel_sha256": "656854a664e356f8bd5615d95bafb76c4d27634b2d62374a6ef36ff843f7e7bc",
+    "manifest_sha256": "dfd0404048855ff02327ea816a73ef685d51cbac6fc6d7460e8ed60cb6fcdd3d",
+    "installed_inventory_sha256": "ed1c5b3e7aef0faf35d5b15db968e3bbfa7fdcb194739cc43843bb52c881a6f2",
+    "unit_sha256": "6022d74d4458609fdcad0e7a011f96332d6e5a111a454cfc8bb6d9ac9d52c02e",
+    "checks": {
+      "first_boot_stage_and_verify": "passed",
+      "explicit_activation": "passed",
+      "service_net_namespace_distinct_from_container_init": true,
+      "stop_and_verify_inert": "passed",
+      "container_restart_state": ["loaded", "inactive", "static", 0],
+      "verify_after_restart": "passed",
+      "final_capability_source_build_role": "available",
+      "final_capability_inert_service_host_ext4_role": "available"
+    }
+  },
+  "limits": [
+    "The rootfs uses the VPS host kernel and is not a separate bare-metal reinstall.",
+    "APT versions came from the live Ubuntu archive, not a pinned repository snapshot.",
+    "No automated package installer or package snapshot policy is implemented.",
+    "No ARM64 runtime, Windows/WSL, CUDA/NVIDIA, power-loss, production data, or Migration v1 behavior is qualified."
+  ],
+  "protected_scope": {
+    "migration_v1_candidate_or_handoff_changed": false,
+    "main_or_research_active_changed": false,
+    "mac_brain_runtime_or_kingston_touched": false,
+    "protected_datasets_or_real_provider_credentials_transferred": false,
+    "real_money_or_trading_activity": false
+  },
+  "next_horizon": "Decide whether to implement an unattended Ubuntu package provisioner after making preflight reliably predict the exact setup command and service-host requirements; keep package mutation opt-in and outside release identity."
+}

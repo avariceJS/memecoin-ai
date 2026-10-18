@@ -1,0 +1,110 @@
+{
+  "schema": "brain-linux-setup-preflight-deployment-v1",
+  "recorded_at_utc": "2026-10-18T08:28:42Z",
+  "scope": "Pre-venv setup interpreter diagnosis, explicit interpreter override, clean source setup/build/smoke, read-only host capability reporting, and v3 release lifecycle on a minimal Ubuntu rootfs.",
+  "source": {
+    "repository": "avariceJS/memecoin-ai",
+    "branch": "codex/linux-portability-20261018",
+    "commit": "bdad490e079f84a1ebe92c9646bc6e8c6b6f33b0",
+    "source_date_epoch": 1792311954
+  },
+  "source_acquisition": {
+    "fresh_read_only_github_clone": true,
+    "interactive_prompts_disabled": true,
+    "commit": "bdad490e079f84a1ebe92c9646bc6e8c6b6f33b0",
+    "checkout_clean": true,
+    "disposable_clone_removed": true
+  },
+  "cross_host_build": {
+    "macos": "arm64",
+    "ubuntu": "24.04 x86_64",
+    "python": "3.12.3",
+    "same_clean_source_commit_and_epoch": true,
+    "wheel_sha256": "3068d4ecf992d01b86502546e46988d170245ddaa7831aa69512ea32f417bcb6",
+    "sdist_sha256": "46c9136b419b6830b0b20c40827cdc72c3586d37a85da8c4413b63d174b0e194",
+    "both_artifacts_byte_identical": true
+  },
+  "preflight": {
+    "command": "python3.12 -B src/memecoin_operator/linux_capabilities.py report --source-commit <commit> --workspace <checkout>",
+    "read_only": true,
+    "network_access": false,
+    "works_before_project_venv": true,
+    "without_unversioned_python3": {
+      "default_setup_interpreter": "absent: make_setup_python_missing",
+      "source_build_role": "absent"
+    },
+    "explicit_override": {
+      "setup_python": "/usr/bin/python3.12",
+      "status": "available",
+      "version": "3.12.3",
+      "venv_imported": true,
+      "ensurepip_version": "24.0",
+      "source_build_role": "available"
+    },
+    "with_tested_package_closure_and_inert_release": {
+      "default_setup_interpreter": "available: /usr/bin/python3",
+      "source_build_role": "available",
+      "inert_service_host_ext4_role": "available",
+      "cpu_ml": "optional absent; ML dependencies not installed",
+      "gpu": "not qualified; nvidia-smi absent"
+    },
+    "udev_gap_detected_and_closed": true
+  },
+  "setup_qualification": {
+    "project_venv_removed_before_each_setup": true,
+    "default": {
+      "command": "make setup",
+      "build": "make build passed",
+      "smoke": "make smoke passed"
+    },
+    "explicit_override": {
+      "command": "make setup PYTHON=/usr/bin/python3.12",
+      "build": "make build passed",
+      "smoke": "make smoke passed"
+    },
+    "focused_preflight_tests": "23 passed",
+    "ruff": "passed",
+    "format": "passed"
+  },
+  "release": {
+    "execution_environment": "systemd-nspawn Ubuntu minbase rootfs; CAP_SYS_ADMIN and CAP_NET_ADMIN granted to the nspawn harness only for PrivateNetwork qualification",
+    "release_id": "eb9a6cd905502a99acd9d25f3bb8f49f13970a0e4b9e96db9956e67414da01e6",
+    "source_commit": "bdad490e079f84a1ebe92c9646bc6e8c6b6f33b0",
+    "wheel_sha256": "3068d4ecf992d01b86502546e46988d170245ddaa7831aa69512ea32f417bcb6",
+    "manifest_sha256": "255aff19840b033911eba0efbb522e352183065851a44a962fe25e7cf2bd9749",
+    "installed_inventory_sha256": "89d9e629873ef21d881700e6ffc13b3e4de5a1276d261946e01506adb77d07d4",
+    "unit_sha256": "135cc0ec0b955c524f66390b3e5941d78b1693cee13ec485e3150176e4658976",
+    "checks": {
+      "stage_and_verify": "passed",
+      "activation_only_after_explicit_command": true,
+      "service_network_namespace_distinct_from_container_init": true,
+      "manual_stop_and_verify_inert": "passed",
+      "container_restart_state": ["loaded", "inactive", "static", 0],
+      "verify_after_restart": "passed",
+      "final_capability_source_build_role": "available",
+      "final_capability_service_host_ext4_role": "available"
+    }
+  },
+  "logs": [
+    "/home/brain/lab/host-qualification-20261018/preflight-default-missing-final.json",
+    "/home/brain/lab/host-qualification-20261018/preflight-override-final.json",
+    "/home/brain/lab/host-qualification-20261018/setup-default-python.log",
+    "/home/brain/lab/host-qualification-20261018/setup-override-final.log",
+    "/home/brain/lab/host-qualification-20261018/build-final.log",
+    "/home/brain/lab/host-qualification-20261018/smoke-final.log",
+    "/home/brain/lab/host-qualification-20261018/cleanroot-udev-install.log"
+  ],
+  "limits": [
+    "The rootfs runs on the disposable VPS kernel; this is not a full bare-metal VM reinstall.",
+    "APT uses the live Ubuntu archive, with no pinned snapshot or unattended package installer.",
+    "No ARM64 runtime, Windows/WSL, CUDA/NVIDIA, power-loss, production data, or Migration v1 behavior is qualified."
+  ],
+  "protected_scope": {
+    "migration_v1_candidate_or_handoff_changed": false,
+    "main_or_research_active_changed": false,
+    "mac_brain_runtime_or_kingston_touched": false,
+    "protected_datasets_or_real_provider_credentials_transferred": false,
+    "real_money_or_trading_activity": false
+  },
+  "next_horizon": "Evaluate an opt-in Ubuntu package provisioner with a fixed package set, explicit package-resolution receipt, and preflight verification; keep it separate from release identity and make all mutation explicit."
+}
