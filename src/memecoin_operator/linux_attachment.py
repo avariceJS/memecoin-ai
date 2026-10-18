@@ -25,9 +25,11 @@ from memecoin_research_storage import StorageConfig, StorageError, read_only_gua
 LAB_BASE = Path("/var/lib/brain-lab")
 ATTACHMENT_BASE = LAB_BASE / "attachments"
 PIN_BASE = Path("/var/lib/brain-linux-attachment-pins")
+ACTIVATION_BASE = Path("/var/lib/brain-linux-attachment-activations")
 UNIT_BASE = Path("/etc/systemd/system")
 ATTACHMENT_SCHEMA = "brain-linux-synthetic-attachment-v1"
 RESTORE_SCHEMA = "brain-linux-synthetic-operator-restore-v1"
+ACTIVATION_SCHEMA = "brain-linux-synthetic-attachment-activation-v1"
 MAX_CONFIG_BYTES = 64 * 1024
 MAX_DATABASE_BYTES = 16 * 1024 * 1024
 MAX_MANIFEST_BYTES = 64 * 1024
@@ -696,6 +698,229 @@ def _read_root_pin(path: Path) -> dict[str, Any]:
     return value
 
 
+def _activation_path(attachment_id: str, name: str) -> Path:
+    if name not in {"start-intent", "activation-result"}:
+        raise StorageError("attachment_activation_record_name_invalid")
+    return ACTIVATION_BASE / f"{_validate_attachment_id(attachment_id)}.{name}.json"
+
+
+def _ensure_activation_directory() -> None:
+    if ACTIVATION_BASE.is_symlink():
+        raise StorageError("attachment_activation_directory_symlink")
+    ACTIVATION_BASE.mkdir(mode=0o700, parents=True, exist_ok=True)
+    directory = ACTIVATION_BASE.lstat()
+    if (
+        not stat.S_ISDIR(directory.st_mode)
+        or directory.st_uid != 0
+        or stat.S_IMODE(directory.st_mode) != 0o700
+    ):
+        raise StorageError("attachment_activation_directory_unsafe")
+
+
+def _write_activation_record(attachment_id: str, name: str, value: dict[str, Any]) -> None:
+    _ensure_activation_directory()
+    payload = _json_bytes(value)
+    path = _activation_path(attachment_id, name)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
+        offset = 0
+        while offset < len(payload):
+            offset += os.write(fd, payload[offset:])
+        os.fsync(fd)
+        os.fchmod(fd, 0o444)
+    finally:
+        os.close(fd)
+    directory_fd = os.open(ACTIVATION_BASE, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
+def _read_activation_record(
+    manifest: dict[str, Any], pin: dict[str, Any], name: str
+) -> dict[str, Any] | None:
+    path = _activation_path(str(manifest["attachment_id"]), name)
+    if not os.path.lexists(path):
+        return None
+    _ensure_activation_directory()
+    record = _strict_json(
+        _read_file(path, maximum=MAX_MANIFEST_BYTES, uid=0, mode=0o444),
+        MAX_MANIFEST_BYTES,
+        "activation_record",
+    )
+    if not isinstance(record, dict):
+        raise StorageError("attachment_activation_record_invalid")
+    common = {
+        "schema": ACTIVATION_SCHEMA,
+        "attachment_id": manifest["attachment_id"],
+        "unit_name": manifest["unit_name"],
+        "manifest_sha256": pin["manifest_sha256"],
+        "pin_sha256": _sha256(_json_bytes(pin)),
+    }
+    if any(record.get(key) != value for key, value in common.items()):
+        raise StorageError("attachment_activation_record_mismatch")
+    if name == "start-intent":
+        expected = set(common) | {"config_sha256", "operator_sqlite_sha256", "intent_ns"}
+        if (
+            set(record) != expected
+            or record.get("config_sha256") != manifest["files"]["config.json"]["sha256"]
+            or record.get("operator_sqlite_sha256")
+            != manifest["files"]["operator.sqlite"]["sha256"]
+            or type(record.get("intent_ns")) is not int
+            or record["intent_ns"] <= 0
+        ):
+            raise StorageError("attachment_start_intent_mismatch")
+    else:
+        expected = set(common) | {
+            "intent_sha256",
+            "config_sha256",
+            "operator_sqlite_sha256",
+            "inventory",
+            "inventory_sha256",
+            "result_ns",
+        }
+        if (
+            set(record) != expected
+            or not re.fullmatch(r"[0-9a-f]{64}", str(record.get("intent_sha256", "")))
+            or not re.fullmatch(r"[0-9a-f]{64}", str(record.get("config_sha256", "")))
+            or not re.fullmatch(r"[0-9a-f]{64}", str(record.get("operator_sqlite_sha256", "")))
+            or not isinstance(record.get("inventory"), list)
+            or record.get("inventory_sha256") != _sha256(_json_bytes(record["inventory"]))
+            or type(record.get("result_ns")) is not int
+            or record["result_ns"] <= 0
+        ):
+            raise StorageError("attachment_result_record_mismatch")
+    return record
+
+
+def _runtime_inventory(operator_dir: Path, owner_uid: int, owner_gid: int) -> list[dict[str, Any]]:
+    try:
+        root_fd = os.open(operator_dir, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    except OSError as exc:
+        raise StorageError("attachment_runtime_root_unavailable") from exc
+    entries: list[dict[str, Any]] = []
+    total_bytes = 0
+
+    def walk(directory_fd: int, prefix: str) -> None:
+        nonlocal total_bytes
+        names = sorted(os.listdir(directory_fd))
+        if not prefix and set(names) != {
+            "background",
+            "config.json",
+            "operator",
+            "operator.sqlite",
+        }:
+            raise StorageError("attachment_runtime_root_members_mismatch")
+        for name in names:
+            if name in {".", ".."} or "/" in name or "\\" in name or "\x00" in name:
+                raise StorageError("attachment_runtime_member_name_invalid")
+            relative = f"{prefix}/{name}" if prefix else name
+            try:
+                before = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+            except OSError as exc:
+                raise StorageError("attachment_runtime_member_unavailable") from exc
+            if stat.S_ISDIR(before.st_mode):
+                if (
+                    before.st_uid != owner_uid
+                    or before.st_gid != owner_gid
+                    or stat.S_IMODE(before.st_mode) != 0o700
+                ):
+                    raise StorageError("attachment_runtime_directory_unsafe")
+                entries.append({"path": relative, "kind": "directory", "mode": "0700"})
+                child_fd = os.open(
+                    name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=directory_fd
+                )
+                try:
+                    after = os.fstat(child_fd)
+                    if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+                        raise StorageError("attachment_runtime_directory_changed")
+                    walk(child_fd, relative)
+                finally:
+                    os.close(child_fd)
+                continue
+            if (
+                not stat.S_ISREG(before.st_mode)
+                or before.st_uid != owner_uid
+                or before.st_gid != owner_gid
+                or stat.S_IMODE(before.st_mode) != 0o600
+                or before.st_nlink != 1
+                or before.st_size > MAX_DATABASE_BYTES
+            ):
+                raise StorageError("attachment_runtime_file_unsafe")
+            fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory_fd)
+            try:
+                opened = os.fstat(fd)
+                if (before.st_dev, before.st_ino) != (opened.st_dev, opened.st_ino):
+                    raise StorageError("attachment_runtime_file_changed")
+                digest = hashlib.sha256()
+                size = 0
+                while block := os.read(fd, 1024 * 1024):
+                    size += len(block)
+                    total_bytes += len(block)
+                    if size > MAX_DATABASE_BYTES or total_bytes > 64 * 1024 * 1024:
+                        raise StorageError("attachment_runtime_files_oversized")
+                    digest.update(block)
+                after = os.fstat(fd)
+                if (opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns) != (
+                    after.st_dev,
+                    after.st_ino,
+                    after.st_size,
+                    after.st_mtime_ns,
+                ):
+                    raise StorageError("attachment_runtime_file_changed")
+                entries.append(
+                    {
+                        "path": relative,
+                        "kind": "file",
+                        "mode": "0600",
+                        "bytes": size,
+                        "sha256": digest.hexdigest(),
+                    }
+                )
+            finally:
+                os.close(fd)
+            if len(entries) > 2048:
+                raise StorageError("attachment_runtime_file_count_exceeded")
+
+    try:
+        walk(root_fd, "")
+    finally:
+        os.close(root_fd)
+    return sorted(entries, key=lambda item: str(item["path"]))
+
+
+def _verify_stopped_attachment_state(
+    manifest: dict[str, Any], operator_dir: Path
+) -> tuple[dict[str, str], list[dict[str, Any]]]:
+    owner = pwd.getpwnam("brain")
+    config = _read_file(
+        operator_dir / "config.json", maximum=MAX_CONFIG_BYTES, uid=owner.pw_uid, mode=0o600
+    )
+    if (
+        _sha256(config) != manifest["files"]["config.json"]["sha256"]
+        or _strict_json(config, MAX_CONFIG_BYTES, "runtime_config") != EXPECTED_CONFIG
+    ):
+        raise StorageError("attachment_runtime_config_mismatch")
+    database = _read_file(
+        operator_dir / "operator.sqlite",
+        maximum=MAX_DATABASE_BYTES,
+        uid=owner.pw_uid,
+        mode=0o600,
+    )
+    _verify_idle_database(database, _schema_fingerprint())
+    inventory = _runtime_inventory(operator_dir, owner.pw_uid, owner.pw_gid)
+    by_path = {entry["path"]: entry for entry in inventory}
+    if by_path.get("config.json", {}).get("sha256") != _sha256(config) or by_path.get(
+        "operator.sqlite", {}
+    ).get("sha256") != _sha256(database):
+        raise StorageError("attachment_runtime_inventory_mismatch")
+    return {
+        "config_sha256": _sha256(config),
+        "operator_sqlite_sha256": _sha256(database),
+    }, inventory
+
+
 def _effective_properties(unit: str) -> dict[str, str]:
     names = (
         "FragmentPath",
@@ -790,15 +1015,15 @@ def _verify_unit(manifest: dict[str, Any], pin: dict[str, Any]) -> None:
         raise StorageError("attachment_effective_execstart_mismatch")
 
 
-def _verify_attachment(
+def _load_pinned_attachment(
     attachment_id: str,
     expected_release_id: str,
     expected_release_sha256: str,
     expected_restore_sha256: str,
-) -> tuple[dict[str, Any], dict[str, Any], dict[str, bytes]]:
+) -> tuple[dict[str, Any], dict[str, Any], Path]:
     if os.geteuid() != 0:
         raise StorageError("attachment_verify_requires_root")
-    manifest, raw_manifest, _directory, _operator_dir = _read_attachment_manifest(attachment_id)
+    manifest, raw_manifest, _directory, operator_dir = _read_attachment_manifest(attachment_id)
     if (
         manifest.get("release_id") != expected_release_id
         or manifest.get("release_manifest_sha256") != expected_release_sha256
@@ -819,8 +1044,23 @@ def _verify_attachment(
         or pin.get("manifest_sha256") != _sha256(raw_manifest)
     ):
         raise StorageError("attachment_root_pin_mismatch")
-    payloads = _verify_local_payloads(manifest, owner_uid=pwd.getpwnam("brain").pw_uid)
     _verify_unit(manifest, pin)
+    return manifest, pin, operator_dir
+
+
+def _verify_attachment(
+    attachment_id: str,
+    expected_release_id: str,
+    expected_release_sha256: str,
+    expected_restore_sha256: str,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, bytes]]:
+    manifest, pin, _operator_dir = _load_pinned_attachment(
+        attachment_id,
+        expected_release_id,
+        expected_release_sha256,
+        expected_restore_sha256,
+    )
+    payloads = _verify_local_payloads(manifest, owner_uid=pwd.getpwnam("brain").pw_uid)
     state = linux_service._unit_status(str(manifest["unit_name"]))
     if state != ("loaded", "inactive", "disabled", 0):
         raise StorageError("attachment_unit_not_inert")
@@ -959,10 +1199,28 @@ def activate_attached(
 ) -> dict[str, object]:
     if os.geteuid() != 0:
         raise StorageError("attachment_activate_requires_root")
+    manifest, pin, _operator_dir = _load_pinned_attachment(
+        attachment_id, release_id, release_manifest_sha256, restore_manifest_sha256
+    )
+    if _read_activation_record(manifest, pin, "start-intent") is not None:
+        raise StorageError("attachment_activation_already_attempted")
+    if _read_activation_record(manifest, pin, "activation-result") is not None:
+        raise StorageError("attachment_activation_result_already_exists")
     manifest, _pin, _payloads = _verify_attachment(
         attachment_id, release_id, release_manifest_sha256, restore_manifest_sha256
     )
     unit = str(manifest["unit_name"])
+    intent = {
+        "schema": ACTIVATION_SCHEMA,
+        "attachment_id": attachment_id,
+        "unit_name": unit,
+        "manifest_sha256": pin["manifest_sha256"],
+        "pin_sha256": _sha256(_json_bytes(pin)),
+        "config_sha256": manifest["files"]["config.json"]["sha256"],
+        "operator_sqlite_sha256": manifest["files"]["operator.sqlite"]["sha256"],
+        "intent_ns": time.time_ns(),
+    }
+    _write_activation_record(attachment_id, "start-intent", intent)
     try:
         subprocess.run(["systemctl", "start", unit], check=True, timeout=30)
         status = _probe_status(unit, manifest)
@@ -977,6 +1235,50 @@ def activate_attached(
         "mode": status["mode"],
         "phase": status["phase"],
         "jobs": len(status["jobs"]),
+        "finalization_required": True,
+    }
+
+
+def finalize_attached(
+    attachment_id: str,
+    release_id: str,
+    release_manifest_sha256: str,
+    restore_manifest_sha256: str,
+) -> dict[str, object]:
+    if os.geteuid() != 0:
+        raise StorageError("attachment_finalize_requires_root")
+    manifest, pin, operator_dir = _load_pinned_attachment(
+        attachment_id, release_id, release_manifest_sha256, restore_manifest_sha256
+    )
+    intent = _read_activation_record(manifest, pin, "start-intent")
+    if intent is None:
+        raise StorageError("attachment_start_intent_missing")
+    if _read_activation_record(manifest, pin, "activation-result") is not None:
+        raise StorageError("attachment_activation_result_already_exists")
+    unit = str(manifest["unit_name"])
+    state = linux_service._unit_status(unit)
+    if state != ("loaded", "inactive", "disabled", 0):
+        raise StorageError("attachment_unit_not_stopped_disabled")
+    hashes, inventory = _verify_stopped_attachment_state(manifest, operator_dir)
+    result = {
+        "schema": ACTIVATION_SCHEMA,
+        "attachment_id": attachment_id,
+        "unit_name": unit,
+        "manifest_sha256": pin["manifest_sha256"],
+        "pin_sha256": _sha256(_json_bytes(pin)),
+        "intent_sha256": _sha256(_json_bytes(intent)),
+        **hashes,
+        "inventory": inventory,
+        "inventory_sha256": _sha256(_json_bytes(inventory)),
+        "result_ns": time.time_ns(),
+    }
+    _write_activation_record(attachment_id, "activation-result", result)
+    return {
+        "state": "activated_stopped_idle_verified",
+        "attachment_id": attachment_id,
+        "unit": unit,
+        "inventory_sha256": result["inventory_sha256"],
+        "operator_sqlite_sha256": result["operator_sqlite_sha256"],
     }
 
 
@@ -986,16 +1288,56 @@ def verify_attached(
     release_manifest_sha256: str,
     restore_manifest_sha256: str,
 ) -> dict[str, object]:
-    manifest, pin, payloads = _verify_attachment(
+    manifest, pin, operator_dir = _load_pinned_attachment(
         attachment_id, release_id, release_manifest_sha256, restore_manifest_sha256
     )
+    intent = _read_activation_record(manifest, pin, "start-intent")
+    result = _read_activation_record(manifest, pin, "activation-result")
+    state = linux_service._unit_status(str(manifest["unit_name"]))
+    if intent is None:
+        payloads = _verify_local_payloads(manifest, owner_uid=pwd.getpwnam("brain").pw_uid)
+        if state != ("loaded", "inactive", "disabled", 0):
+            raise StorageError("attachment_unit_not_inert")
+        return {
+            "state": "attached_inert_verified",
+            "attachment_id": attachment_id,
+            "unit": manifest["unit_name"],
+            "manifest_sha256": pin["manifest_sha256"],
+            "config_sha256": _sha256(payloads["config.json"]),
+            "operator_sqlite_sha256": _sha256(payloads["operator.sqlite"]),
+        }
+    if result is None:
+        if state[0] == "loaded" and state[1] == "active" and state[3] > 0:
+            status = _probe_status(str(manifest["unit_name"]), manifest)
+            return {
+                "state": "activation_started_needs_finalize",
+                "attachment_id": attachment_id,
+                "unit": manifest["unit_name"],
+                "mode": status["mode"],
+                "phase": status["phase"],
+                "jobs": len(status["jobs"]),
+            }
+        raise StorageError("attachment_activation_incomplete")
+    if state != ("loaded", "inactive", "disabled", 0):
+        raise StorageError("attachment_unit_not_stopped_disabled")
+    if _sha256(_json_bytes(intent)) != result["intent_sha256"]:
+        raise StorageError("attachment_activation_intent_result_mismatch")
+    hashes, inventory = _verify_stopped_attachment_state(manifest, operator_dir)
+    inventory_sha = _sha256(_json_bytes(inventory))
+    if (
+        hashes.get("config_sha256") != result["config_sha256"]
+        or hashes.get("operator_sqlite_sha256") != result["operator_sqlite_sha256"]
+        or inventory != result["inventory"]
+        or inventory_sha != result["inventory_sha256"]
+    ):
+        raise StorageError("attachment_activation_result_state_mismatch")
     return {
-        "state": "attached_inert_verified",
+        "state": "activated_stopped_idle_verified",
         "attachment_id": attachment_id,
         "unit": manifest["unit_name"],
         "manifest_sha256": pin["manifest_sha256"],
-        "config_sha256": _sha256(payloads["config.json"]),
-        "operator_sqlite_sha256": _sha256(payloads["operator.sqlite"]),
+        "inventory_sha256": inventory_sha,
+        "operator_sqlite_sha256": hashes["operator_sqlite_sha256"],
     }
 
 
@@ -1054,10 +1396,14 @@ def main(argv: list[str] | None = None) -> int:
     _add_pins(stage)
     activate_root = sub.add_parser("activate-root", help=argparse.SUPPRESS)
     _add_pins(activate_root)
+    finalize_root = sub.add_parser("finalize-root", help=argparse.SUPPRESS)
+    _add_pins(finalize_root)
     verify_root = sub.add_parser("verify-root", help=argparse.SUPPRESS)
     _add_pins(verify_root)
     activate = sub.add_parser("activate", help="explicitly start a verified synthetic attachment")
     _add_pins(activate)
+    finalize = sub.add_parser("finalize", help="verify a stopped activation and pin its receipt")
+    _add_pins(finalize)
     verify = sub.add_parser("verify", help="verify an installed attachment remains inert")
     _add_pins(verify)
     args = parser.parse_args(argv)
@@ -1111,6 +1457,21 @@ def main(argv: list[str] | None = None) -> int:
                     args.restore_manifest_sha256,
                 ],
             )
+        elif args.command == "finalize":
+            result = _root_call(
+                args.release_id,
+                [
+                    "finalize-root",
+                    "--attachment-id",
+                    args.attachment_id,
+                    "--release-id",
+                    args.release_id,
+                    "--release-manifest-sha256",
+                    args.release_manifest_sha256,
+                    "--restore-manifest-sha256",
+                    args.restore_manifest_sha256,
+                ],
+            )
         elif args.command in {"verify-root", "activate-root"}:
             if os.geteuid() != 0:
                 raise StorageError("attachment_root_action_requires_root")
@@ -1128,6 +1489,13 @@ def main(argv: list[str] | None = None) -> int:
                     args.release_manifest_sha256,
                     args.restore_manifest_sha256,
                 )
+        elif args.command == "finalize-root":
+            result = finalize_attached(
+                args.attachment_id,
+                args.release_id,
+                args.release_manifest_sha256,
+                args.restore_manifest_sha256,
+            )
         print(json.dumps(result, sort_keys=True))
         return 0
     except (StorageError, OSError, RuntimeError, ValueError) as exc:
