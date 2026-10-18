@@ -104,6 +104,20 @@ def test_simulation_records_only_new_dependency_closure(monkeypatch):
     assert raw == output
 
 
+def test_dependency_closure_includes_package_breaks_and_conflicts(monkeypatch):
+    output = "util-linux\n  Breaks: bsdutils (< 1:2.39)\n  Conflicts: old-tool\n"
+    monkeypatch.setattr(
+        provisioner,
+        "_run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, output, ""),
+    )
+    assert provisioner._dependency_closure({"util-linux": "2.39"}) == {
+        "util-linux",
+        "bsdutils",
+        "old-tool",
+    }
+
+
 def test_lab_guard_requires_systemd_nspawn_even_with_root(monkeypatch, tmp_path):
     monkeypatch.setattr(provisioner.os, "geteuid", lambda: 0)
     monkeypatch.setattr(provisioner.platform, "machine", lambda: "x86_64")
