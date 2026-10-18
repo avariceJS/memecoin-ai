@@ -80,7 +80,13 @@ explicit activation and stop passed, and after reboot SSH recovered while the re
 disabled/inactive and verified. A second post-reboot clean clone matched wheel/sdist hashes. See
 [`clean reinstall`](../docs/evidence/brain-linux-clean-v2-reinstall-2026-10-18.json) and
 [`reset inventory`](../docs/evidence/brain-linux-clean-v2-reset-inventory-2026-10-18.json).
-Next: stale prepared-state lifecycle and upgrade recovery.
+At `b0e77f5064fd757d8f606dfd6b0f8d2774767715` (topic branch), Linux release staging now has read-only attempt
+audit and explicit exact-ID discard into retained quarantine. On the VPS, 3/37 journaled attempts
+were eligible; one was qualified, two remain eligible, and 34 manual-review records remain
+untouched. SIGKILL after discard intent and each of four renames replayed safely; normal recovery
+refused throughout, and an active unit blocked discard. Quarantine retained 16.8 MB; no pruning
+policy exists. See the stage-discard qualification receipt. Next: stale prepared-state lifecycle
+and upgrade recovery.
 
 `research/active` is at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`; `main` remains
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Future-v2 v3 drafts remain untracked and untouched.

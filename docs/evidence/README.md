@@ -61,6 +61,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - [Linux clean v2 reinstall](brain-linux-clean-v2-reinstall-2026-10-18.json): fresh private clone,
   unattended setup/build, explicit activation and stop, then reboot with an inert verified release;
   retained legacy and fail-closed fixtures are listed as scope limits.
+- [Linux stage-discard qualification](brain-linux-stage-discard-qualification-2026-10-18.json):
+  read-only abandoned-attempt inventory, SIGKILL/replay after durable intent and each quarantine
+  rename, refusal by normal recovery, and refusal while the exact unit was active. Quarantine remains
+  retained; no physical pruning or automatic cleanup is qualified. See its linked inventory and
+  interruption/active-unit receipts for raw observations.
 
 - [Scheduled sensing neural engineering qualification](brain-scheduled-sensing-neural-qualification-2026-10-15.json):
   synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume

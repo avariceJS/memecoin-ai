@@ -379,6 +379,30 @@ staging tree in an `.incomplete-*` quarantine. Retry refuses concurrent or unres
 partial release tree, unit, pin, or runtime-state publication requires manual inspection and is
 never auto-deleted. Recovery can resume after the inode rename if marker/sealing was interrupted.
 
+At source `b0e77f5064fd757d8f606dfd6b0f8d2774767715`, release tooling adds a read-only
+`audit-stage` inventory and explicit `discard-stage --attempt-id`. Discard is limited to one
+abandoned publishing attempt whose immutable publish intent, all four source identities, absent
+destinations, safe root-owned parent chains, builder cgroup/process census, and not-found inactive
+unit all pass under the release lock. It writes a durable immutable discard intent before moving
+each exact artifact with no-replace rename into an attempt-specific quarantine on the same
+filesystem, then seals a completion receipt. A retry resumes only from the pinned source or
+quarantine inode; normal publish recovery refuses once discard intent exists. Quarantine is retained
+for evidence; this command does not delete artifacts or activate/enable services. There is no
+automatic garbage collection or retention policy.
+
+On the disposable Ubuntu host, a read-only inventory classified 3 of 37 attempts as discardable;
+one was qualified, while the two other eligible attempts and 34 manual-review attempts remained
+untouched. The selected attempt was SIGKILLed after the discard intent and after each of four
+artifact renames. `recover-stage` refused
+at every boundary, and repeated `discard-stage` completed and verified the four retained quarantine
+artifacts. A loaded active unit caused preflight refusal and the fixture was removed after the check.
+The receipt records 16.8 MB retained and no bytes deleted. These are same-host process-crash checks;
+no power-loss, physical prune, or same-release rebuild-after-discard claim is made. See the
+[`Linux stage-discard qualification`](evidence/brain-linux-stage-discard-qualification-2026-10-18.json),
+the [pre-discard inventory](evidence/brain-linux-stage-discard-inventory-2026-10-18.json),
+[interruption replay](evidence/brain-linux-stage-discard-interruption-2026-10-18.json), and
+[active-unit refusal](evidence/brain-linux-stage-discard-active-unit-refusal-2026-10-18.json).
+
 At exact source `a24bfa848d1aa54935780b279fddbd49b696b01a`, a 6,000-file synthetic wheel was staged
 while a second same-release stage was refused. The active builder cgroup was frozen, the stage parent
 was killed with SIGKILL, and `recover-stage` removed the builder, verified and quarantined the exact

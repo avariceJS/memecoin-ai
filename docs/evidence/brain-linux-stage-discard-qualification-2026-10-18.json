@@ -1,0 +1,55 @@
+{
+  "active_unit_refusal": {
+    "attempt_id": "654c7ecd271a-acb80024f5341aff",
+    "attempt_remained_discard_eligible": true,
+    "discard_refused": true,
+    "receipt": "brain-linux-stage-discard-active-unit-refusal-2026-10-18.json",
+    "sha256": "fb717ac915203ea4ff769f754d3ed825f9eb5bc184cd28851be58e59f59a95f0",
+    "temporary_unit_removed_and_daemon_reloaded": true,
+    "unit_was_loaded_active": true
+  },
+  "audit_before": {
+    "attempt_count": 37,
+    "discard_eligible": 3,
+    "manual_review_preserved": 34,
+    "receipt": "brain-linux-stage-discard-inventory-2026-10-18.json",
+    "sha256": "972f9b7994f9d4769be84ba46792c9088265e4c7c2bc6d4af7375f6f302f757f"
+  },
+  "branch": "codex/linux-portability-20261018",
+  "build": {
+    "command": "make setup build",
+    "log_sha256": "a66cbbe9e4a08c32a0a3030ad10f5efa035720f3ed3409649244fa73a6e34db1",
+    "sdist_sha256": "c848a99d2419d8a284c15e39760ac143c6963a95a640dfc92112eb9e66b94fbd",
+    "wheel_sha256": "3347b09fa793460ebc1d67d2f99d195f051aaa8868cbd83724a8499e1a250145"
+  },
+  "date": "2026-10-18",
+  "host": {
+    "architecture": "x86_64",
+    "os": "Ubuntu 24.04 LTS",
+    "ram_bytes": 8362700800,
+    "vcpus": 4
+  },
+  "limits": [
+    "Quarantine is reversible and retained; no physical pruning or retention policy was qualified.",
+    "No power-loss or block-device fault was simulated.",
+    "34 noneligible or ambiguous attempts remain untouched for manual review.",
+    "A wheel rebuild from the old source commit did not match the historical pinned wheel; same-release restaging after discard was not claimed."
+  ],
+  "process_crash_recovery": {
+    "attempt_id": "2870a8780972-0a65f83e34019d40",
+    "deleted_bytes": 0,
+    "discard_replay_completed": true,
+    "kill_boundaries": [
+      "after durable discard intent",
+      "after each of four quarantine renames before completion receipt"
+    ],
+    "quarantined_artifacts": 4,
+    "receipt": "brain-linux-stage-discard-interruption-2026-10-18.json",
+    "recover_stage_refused_at_every_boundary": true,
+    "retained_bytes": 16778532,
+    "sha256": "67ea5c50166b47b20cd79ae4670a5249d3766a68aaa897216190e18312221a34"
+  },
+  "repository": "avariceJS/memecoin-ai",
+  "schema": "brain-linux-stage-discard-qualification-v1",
+  "source_commit": "b0e77f5064fd757d8f606dfd6b0f8d2774767715"
+}

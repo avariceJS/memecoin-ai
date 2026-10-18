@@ -358,6 +358,18 @@ def test_audit_stage_does_not_create_attempt_store_on_clean_host(tmp_path, monke
     assert not attempt_store.exists()
 
 
+def test_discard_receipt_validation_binds_stage_record_to_publish_intent():
+    attempt_id, record = _stage_attempt_record()
+    intent = {
+        "release_id": record["release_id"],
+        "source_commit": "d" * 40,
+        "wheel_sha256": record["wheel_sha256"],
+        "interpreter": record["interpreter"],
+    }
+    with pytest.raises(RuntimeError, match="release_publish_attempt_mismatch"):
+        linux_release._validate_discarded_attempt(attempt_id, record, intent, {})
+
+
 def test_process_census_fails_closed_on_permission_error(tmp_path, monkeypatch):
     status = tmp_path / "proc" / "123" / "status"
     status.parent.mkdir(parents=True)

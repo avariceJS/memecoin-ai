@@ -1,0 +1,13 @@
+{
+  "attempt_id": "654c7ecd271a-acb80024f5341aff",
+  "discard_exit": 2,
+  "post_cleanup_classification": "discard-eligible",
+  "refusal": "linux_release_error: stage_discard_unit_requires_manual_review",
+  "schema": "brain-linux-stage-discard-active-unit-refusal-v1",
+  "unit_state": [
+    "loaded",
+    "active",
+    "static",
+    3537
+  ]
+}

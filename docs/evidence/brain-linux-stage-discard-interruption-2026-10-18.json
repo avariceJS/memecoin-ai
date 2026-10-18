@@ -1,0 +1,65 @@
+{
+  "attempt_id": "2870a8780972-0a65f83e34019d40",
+  "events": [
+    {
+      "attempt": 1,
+      "expected_sigkill": true,
+      "phase": "intent",
+      "returncode": -9
+    },
+    {
+      "recover_refusal": true,
+      "stderr": "linux_release_error: stage_discard_recovery_required"
+    },
+    {
+      "attempt": 2,
+      "expected_sigkill": true,
+      "phase": "rename",
+      "returncode": -9
+    },
+    {
+      "recover_refusal": true,
+      "stderr": "linux_release_error: stage_discard_recovery_required"
+    },
+    {
+      "attempt": 3,
+      "expected_sigkill": true,
+      "phase": "rename",
+      "returncode": -9
+    },
+    {
+      "recover_refusal": true,
+      "stderr": "linux_release_error: stage_discard_recovery_required"
+    },
+    {
+      "attempt": 4,
+      "expected_sigkill": true,
+      "phase": "rename",
+      "returncode": -9
+    },
+    {
+      "recover_refusal": true,
+      "stderr": "linux_release_error: stage_discard_recovery_required"
+    },
+    {
+      "attempt": 5,
+      "expected_sigkill": true,
+      "phase": "rename",
+      "returncode": -9
+    },
+    {
+      "recover_refusal": true,
+      "stderr": "linux_release_error: stage_discard_recovery_required"
+    },
+    {
+      "final_receipt_status": "quarantined-retained",
+      "quarantined_artifacts": 4
+    },
+    {
+      "audit_classification": "quarantined-retained",
+      "bytes_retained": 16778532
+    }
+  ],
+  "schema": "brain-linux-stage-discard-interruption-qualification-v1",
+  "source_commit": "b0e77f5064fd757d8f606dfd6b0f8d2774767715"
+}
