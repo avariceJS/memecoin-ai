@@ -117,6 +117,23 @@ def test_idle_database_rejects_jobs_and_bad_sqlite(tmp_path: Path) -> None:
         )
 
 
+def test_idle_database_rejects_pending_stop_metadata_and_revision_drift(tmp_path: Path) -> None:
+    database = tmp_path / "db.sqlite"
+    _idle_database(database)
+    fingerprint = rehearsal._expected_schema_fingerprint()
+    with sqlite3.connect(database) as db:
+        db.execute("INSERT INTO meta(key, value) VALUES('pending_stop', 'full')")
+    with pytest.raises(StorageError, match="restore_state_has_pending_metadata"):
+        rehearsal._verify_idle_database(database.read_bytes(), expected_schema=fingerprint)
+
+    database.unlink()
+    _idle_database(database)
+    with sqlite3.connect(database) as db:
+        db.execute("UPDATE revisions SET collect_profile='aggressive'")
+    with pytest.raises(StorageError, match="restore_state_not_inert_idle"):
+        rehearsal._verify_idle_database(database.read_bytes(), expected_schema=fingerprint)
+
+
 @pytest.mark.parametrize("run_id", ["", "../escape", "A", "has/slash", "has\\slash"])
 def test_target_names_reject_unsafe_run_ids(run_id: str) -> None:
     with pytest.raises(StorageError, match="restore_run_id_invalid"):

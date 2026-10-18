@@ -114,8 +114,9 @@ def _verify_idle_database(payload: bytes, *, expected_schema: str) -> None:
                 if _schema_fingerprint(db) != expected_schema:
                     raise StorageError("restore_sqlite_schema_fingerprint_mismatch")
                 revisions = db.execute(
-                    "SELECT revision,mode,phase,selected_candidate_id,active_exam_id,"
-                    "resume_mode,auto_reason,cycle_json,reason FROM revisions "
+                    "SELECT revision,mode,phase,collect_profile,selected_candidate_id,"
+                    "active_exam_id,"
+                    "resume_mode,auto_reason,cycle_json,reason,created_ns FROM revisions "
                     "ORDER BY revision"
                 ).fetchall()
                 if len(revisions) != 1:
@@ -123,21 +124,26 @@ def _verify_idle_database(payload: bytes, *, expected_schema: str) -> None:
                 revision = revisions[0]
                 expected_cycle = {"candidate_id": None, "expect": "none", "snapshot_id": None}
                 try:
-                    cycle = json.loads(str(revision[7]))
+                    cycle = json.loads(str(revision[8]))
                 except json.JSONDecodeError as exc:
                     raise StorageError("restore_state_cycle_invalid") from exc
                 if (
                     revision[0] != 1
                     or revision[1] != "idle"
                     or revision[2] != "idle"
-                    or revision[3] is not None
+                    or revision[3] != "balanced"
                     or revision[4] is not None
                     or revision[5] is not None
                     or revision[6] is not None
+                    or revision[7] is not None
                     or cycle != expected_cycle
-                    or revision[8] != "initialized"
+                    or revision[9] != "initialized"
+                    or type(revision[10]) is not int
+                    or revision[10] <= 0
                 ):
                     raise StorageError("restore_state_not_inert_idle")
+                if db.execute("SELECT count(*) FROM meta").fetchone()[0] != 0:
+                    raise StorageError("restore_state_has_pending_metadata")
                 for table in ("commands", "jobs", "publications"):
                     if db.execute(f"SELECT count(*) FROM {table}").fetchone()[0] != 0:
                         raise StorageError("restore_state_has_activity")
@@ -454,25 +460,37 @@ def _rename_directory_noreplace(parent_fd: int, source: str, destination: str) -
         raise StorageError(f"restore_directory_publish_failed_errno_{error}")
 
 
-def _read_target(
+def _read_target_payloads(
     reader: DescriptorWriter,
     target: str,
     payloads: dict[str, bytes],
     manifest_sha256: str,
-    release_id: str,
-    run_id: str,
+    *,
+    include_completion: bool,
 ) -> None:
-    expected_names = {"COMPLETE", "config.json", "manifest.json", "operator.sqlite"}
+    expected_names = {"config.json", "manifest.json", "operator.sqlite"}
+    if include_completion:
+        expected_names.add("COMPLETE")
     if set(reader.list_names(target)) != expected_names:
         raise StorageError("restore_target_member_set_mismatch")
     manifest = reader.read_bytes(f"{target}/manifest.json", max_bytes=MAX_MANIFEST_BYTES)
     config = reader.read_bytes(f"{target}/config.json", max_bytes=MAX_CONFIG_BYTES)
     database = reader.read_bytes(f"{target}/operator.sqlite", max_bytes=MAX_DATABASE_BYTES)
-    witness = reader.read_bytes(f"{target}/COMPLETE", max_bytes=4096)
     if _sha256(manifest) != manifest_sha256 or manifest != payloads["manifest.json"]:
         raise StorageError("restore_target_manifest_mismatch")
     if config != payloads["config.json"] or database != payloads["operator.sqlite"]:
         raise StorageError("restore_target_payload_mismatch")
+    _verify_idle_database(database, expected_schema=_expected_schema_fingerprint())
+
+
+def _read_completion_witness(
+    reader: DescriptorWriter,
+    target: str,
+    manifest_sha256: str,
+    release_id: str,
+    run_id: str,
+) -> None:
+    witness = reader.read_bytes(f"{target}/COMPLETE", max_bytes=4096)
     expected_witness = _json_bytes(
         {
             "schema": SCHEMA,
@@ -483,7 +501,18 @@ def _read_target(
     )
     if witness != expected_witness:
         raise StorageError("restore_completion_witness_mismatch")
-    _verify_idle_database(database, expected_schema=_expected_schema_fingerprint())
+
+
+def _read_target(
+    reader: DescriptorWriter,
+    target: str,
+    payloads: dict[str, bytes],
+    manifest_sha256: str,
+    release_id: str,
+    run_id: str,
+) -> None:
+    _read_target_payloads(reader, target, payloads, manifest_sha256, include_completion=True)
+    _read_completion_witness(reader, target, manifest_sha256, release_id, run_id)
 
 
 def verify_completed(
@@ -507,7 +536,9 @@ def verify_completed(
     with read_only_guard(storage_config) as guard:
         reader = DescriptorWriter.read_only_from_storage_guard(guard)
         try:
+            guard.revalidate()
             _read_target(reader, final, payloads, expected_manifest_sha256, release_id, run_id)
+            guard.revalidate()
         finally:
             reader.close()
     _verify_unit_excludes_target(unit, target_path)
@@ -547,6 +578,7 @@ def restore_inert(
             else:
                 os.close(existing_fd)
                 try:
+                    guard.revalidate()
                     _read_target(
                         reader,
                         final,
@@ -555,6 +587,7 @@ def restore_inert(
                         release_id,
                         run_id,
                     )
+                    guard.revalidate()
                     return {
                         "state": "inert_quarantine_verified",
                         "run_id": run_id,
@@ -606,6 +639,11 @@ def restore_inert(
             }:
                 raise StorageError("restore_pending_member_set_mismatch")
             if (
+                writer.read_bytes(f"{pending}/manifest.json", max_bytes=MAX_MANIFEST_BYTES)
+                != manifest
+            ):
+                raise StorageError("restore_pending_manifest_mismatch")
+            if (
                 writer.read_bytes(f"{pending}/config.json", max_bytes=MAX_CONFIG_BYTES)
                 != payloads["config.json"]
             ):
@@ -625,25 +663,27 @@ def restore_inert(
             finally:
                 os.close(parent_fd)
             writer.assert_storage_binding(guard)
-            writer.create(
-                f"{final}/COMPLETE",
-                _json_bytes(
-                    {
-                        "schema": SCHEMA,
-                        "run_id": run_id,
-                        "source_release_id": release_id,
-                        "manifest_sha256": expected_manifest_sha256,
-                    }
-                ),
-            )
-            _read_target(
+            final_payloads = {**payloads, "manifest.json": manifest}
+            _read_target_payloads(
                 writer,
                 final,
-                {**payloads, "manifest.json": manifest},
+                final_payloads,
                 expected_manifest_sha256,
-                release_id,
-                run_id,
+                include_completion=False,
             )
+            writer.assert_storage_binding(guard)
+            completion_witness = _json_bytes(
+                {
+                    "schema": SCHEMA,
+                    "run_id": run_id,
+                    "source_release_id": release_id,
+                    "manifest_sha256": expected_manifest_sha256,
+                }
+            )
+            writer.atomic_write(f"{final}/COMPLETE", completion_witness, create_only=True)
+            if writer.read_bytes(f"{final}/COMPLETE", max_bytes=4096) != completion_witness:
+                raise StorageError("restore_completion_witness_mismatch")
+            writer.assert_storage_binding(guard)
         finally:
             writer.close()
     _verify_unit_excludes_target(unit, target_path)
