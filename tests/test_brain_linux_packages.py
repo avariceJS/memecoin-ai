@@ -31,6 +31,27 @@ def test_roles_are_fixed_and_do_not_include_database_test_control():
     assert "dbus" not in sum(provisioner.ROLES.values(), ())
 
 
+def test_bootstrap_preflight_requires_installer_substrate(tmp_path):
+    assert provisioner._bootstrap_prerequisites_missing(tmp_path) == [
+        "python3.12",
+        "apt_get",
+        "dpkg",
+        "systemd_detect_virt",
+        "ubuntu_archive_keyring",
+        "systemd_pid1",
+    ]
+
+    for path in provisioner.BOOTSTRAP_FILES:
+        target = tmp_path / path.lstrip("/")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.touch()
+    pid1 = tmp_path / "proc/1/comm"
+    pid1.parent.mkdir(parents=True, exist_ok=True)
+    pid1.write_text("systemd\n", encoding="utf-8")
+    (tmp_path / "run/systemd/system").mkdir(parents=True)
+    assert provisioner._bootstrap_prerequisites_missing(tmp_path) == []
+
+
 @pytest.mark.parametrize("snapshot", ["20261018", "20261018T1200Z", "20260230T120000Z", "latest"])
 def test_snapshot_id_must_be_exact_utc_form(snapshot):
     with pytest.raises(provisioner.ProvisionError, match="invalid_snapshot_id"):

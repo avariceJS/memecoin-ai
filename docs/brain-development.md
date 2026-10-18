@@ -216,6 +216,12 @@ restore semantics remain platform-independent. Recovery evidence and exact limit
 The opt-in `tools/brain_linux_packages.py` bootstrap utility is restricted to Ubuntu 24.04 x86_64
 inside systemd-nspawn and requires explicit `--lab-only` invocation. It uses a dedicated APT source,
 index, and archive area with the official Ubuntu signing key and a caller-pinned archive snapshot.
+The provisioner entry substrate must already provide `/usr/bin/python3.12`, APT/dpkg, the Ubuntu
+archive keyring, and a live systemd PID 1. Check this read-only with
+`tools/brain_linux_packages_preflight.sh` before invoking Python; raw minbase without these
+prerequisites is outside the tool contract and must fail before any package-state writes. Construct
+that installer substrate separately from the same pinned signed Noble snapshot and record its
+builder inputs and base package inventory.
 Index refresh is a separate explicit operation; read-only planning binds fixed package roles,
 dependency closure, versions, solver output, installed state, source hashes, and host capability
 report to a digest. Apply rechecks that digest and all observed inputs, refuses removals, downgrades,

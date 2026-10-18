@@ -55,6 +55,13 @@ SAFE_ENV = {
     "APT_LISTCHANGES_FRONTEND": "none",
     "HOME": "/root",
 }
+BOOTSTRAP_FILES = {
+    "/usr/bin/python3.12": "python3.12",
+    "/usr/bin/apt-get": "apt_get",
+    "/usr/bin/dpkg": "dpkg",
+    "/usr/bin/systemd-detect-virt": "systemd_detect_virt",
+    "/usr/share/keyrings/ubuntu-archive-keyring.gpg": "ubuntu_archive_keyring",
+}
 
 
 class ProvisionError(RuntimeError):
@@ -120,8 +127,26 @@ def _require_lab(*, mutating: bool) -> None:
     detected = _run(["/usr/bin/systemd-detect-virt", "--container"], check=False)
     if detected.returncode or detected.stdout.strip() != "systemd-nspawn":
         raise ProvisionError("systemd_nspawn_lab_required")
+    missing = _bootstrap_prerequisites_missing()
+    if missing:
+        raise ProvisionError(f"bootstrap_prerequisite_missing:{','.join(missing)}")
     if mutating and not shutil.which("apt-get"):
         raise ProvisionError("apt_get_missing")
+
+
+def _bootstrap_prerequisites_missing(root: Path = Path("/")) -> list[str]:
+    missing = [
+        name for path, name in BOOTSTRAP_FILES.items() if not (root / path.lstrip("/")).is_file()
+    ]
+    pid1 = root / "proc/1/comm"
+    systemd_runtime = root / "run/systemd/system"
+    if (
+        not pid1.is_file()
+        or pid1.read_text(encoding="utf-8").strip() != "systemd"
+        or not systemd_runtime.is_dir()
+    ):
+        missing.append("systemd_pid1")
+    return missing
 
 
 def _ensure_private_dir(path: Path) -> None:
