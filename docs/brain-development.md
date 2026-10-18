@@ -242,6 +242,18 @@ installed file modes or artifact bytes. The utility does not create users, grant
 setup or restore, or promise rollback after an interrupted dpkg transaction. This lab-only contract
 does not qualify ordinary host provisioning or package update policy.
 
+`tools/brain_linux_host_packages.py` is a separate, explicitly invoked adapter for an already
+provisioned Ubuntu 24.04 x86_64 system with systemd PID 1, Python 3.12, APT/dpkg, the Ubuntu
+archive keyring, and an existing non-root `brain` account. It keeps its own APT indexes and receipts,
+binds the keyring, signed snapshot indexes, host identity, installed package state, exact solver
+plan, source capability report, and Brain unit state, and refuses removals, downgrades, unrelated
+solver changes, drift, and concurrent package operations. It does not create users or grant sudo.
+This adapter has focused mocked-transaction coverage only; it has not yet been qualified on a fresh
+ordinary Ubuntu host. Its `policy-rc.d` guard is a mitigation, since package maintainer scripts can
+still start services; receipt evidence checks unit state and stores journal hashes plus a bounded
+service-activity signal without retaining raw journal entries. A fresh-image live apply and reboot
+check remain required before claiming ordinary-host package provisioning.
+
 At source commit `0b296131a957c5d9c3e3865bd6d94008dd27495b`, the canonical wheel and source archive
 matched byte-for-byte across macOS arm64 and Ubuntu bare-host/nspawn builds under four umask/HOME
 contexts. A private fresh clone in an empty HOME completed setup, build, and synthetic smoke without
