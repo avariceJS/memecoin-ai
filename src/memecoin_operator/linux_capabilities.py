@@ -8,6 +8,7 @@ import importlib.metadata
 import json
 import os
 import platform
+import pwd
 import re
 import selectors
 import shutil
@@ -202,6 +203,16 @@ def _root_action_check() -> dict[str, Any]:
     return _check("available", "passwordless_sudo")
 
 
+def _brain_account_check() -> dict[str, Any]:
+    try:
+        account = pwd.getpwnam("brain")
+    except KeyError:
+        return _check("absent", "brain_account_missing")
+    if account.pw_uid == 0:
+        return _check("absent", "brain_account_must_not_be_root")
+    return _check("available", "brain_account_present", uid=account.pw_uid, gid=account.pw_gid)
+
+
 def _python_build_checks(workspace: Path) -> dict[str, dict[str, Any]]:
     version = sys.version_info
     checks = {
@@ -357,7 +368,11 @@ def _free_space(path: Path) -> dict[str, Any]:
 
 
 def _service_checks(path: Path | None, unit: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
-    checks: dict[str, dict[str, Any]] = {"systemd": _systemd_check(), "ext4": _ext4_check(path)}
+    checks: dict[str, dict[str, Any]] = {
+        "systemd": _systemd_check(),
+        "ext4": _ext4_check(path),
+        "brain_user": _brain_account_check(),
+    }
     for name in ("nsenter", "blkid", "udevadm"):
         checks[name] = _version_check(name)
     for name, proc_path in (
@@ -563,6 +578,7 @@ def report(
                 (
                     "systemd",
                     "ext4",
+                    "brain_user",
                     "nsenter",
                     "mountinfo",
                     "fdinfo",

@@ -5,6 +5,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -55,6 +56,7 @@ def test_report_keeps_optional_ml_and_gpu_out_of_required_roles(tmp_path: Path, 
                 "udevadm",
                 "root_action",
                 "unit_inert",
+                "brain_user",
             )
         },
     )
@@ -290,6 +292,29 @@ def test_static_inactive_unit_is_the_only_available_inert_contract(monkeypatch, 
         MainPID="0",
     )
     assert capabilities._service_checks(tmp_path, disabled)["unit_inert"]["status"] == "absent"
+
+
+@pytest.mark.parametrize(
+    ("account", "expected_status", "expected_reason"),
+    [
+        (None, "absent", "brain_account_missing"),
+        (SimpleNamespace(pw_uid=0, pw_gid=0), "absent", "brain_account_must_not_be_root"),
+        (SimpleNamespace(pw_uid=1001, pw_gid=1001), "available", "brain_account_present"),
+    ],
+)
+def test_brain_account_is_a_service_host_prerequisite(
+    monkeypatch, account, expected_status, expected_reason
+):
+    def getpwnam(name):
+        assert name == "brain"
+        if account is None:
+            raise KeyError(name)
+        return account
+
+    monkeypatch.setattr(capabilities.pwd, "getpwnam", getpwnam)
+    result = capabilities._brain_account_check()
+    assert result["status"] == expected_status
+    assert result["reason"] == expected_reason
 
 
 def test_filesystem_check_measures_the_requested_state_path(monkeypatch, tmp_path):

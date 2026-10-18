@@ -201,10 +201,14 @@ idempotent restaging. The read-only Linux capability report can run directly fro
 venv exists and now checks the exact `PYTHON` executable used by `make setup`, importing its `venv`
 and `ensurepip` modules without creating an environment or using the network. It correctly detected
 the absent `python3` alias and `udevadm` package on a minimal rootfs. The resulting source-build and
-service-host roles passed after installing the corresponding Ubuntu packages. The current proof
-covers one CPU-only x86_64 toolchain and one systemd host.
+service-host roles passed after installing the corresponding Ubuntu packages. A follow-up check
+also requires a present non-root `brain` account before declaring the service-host role ready,
+matching the account required by Linux release staging. The current proof covers one CPU-only
+x86_64 toolchain and one systemd host.
 ARM64 runtime, Windows/WSL, CUDA/NVIDIA, power-loss behavior, production datasets, and unattended
-host package provisioning remain unqualified. Preserve the adapter boundary: discover optional
+host package provisioning remain unqualified. Keep account creation explicit and fail closed when
+the required service identity is missing; package provisioning must not silently create users or
+grant sudo. Preserve the adapter boundary: discover optional
 compute and host capabilities explicitly, while release identity, state formats, manifests, and
 restore semantics remain platform-independent. Recovery evidence and exact limits are indexed in
 [`docs/evidence/README.md`](evidence/README.md).

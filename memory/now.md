@@ -133,6 +133,12 @@ restart, and read-only preflight with both required roles available. Next: asses
 provisioning. See
 [`setup preflight deployment receipt`](../docs/evidence/brain-linux-setup-preflight-deployment-2026-10-18.json).
 
+The next check found one missing readiness prerequisite: release staging requires an existing
+non-root `brain` account. The read-only host report now fails closed when it is missing or UID 0;
+the disposable rootfs account is present. Package provisioning remains explicit and will not create
+accounts or grant sudo. Ubuntu's official snapshot service supports Noble; a separate explicit
+index refresh is required before any plan/apply workflow can bind to immutable signed indexes.
+
 At topic commit `51306aa3629ed11df5991a70caf399feefff025b`, schema-v3 Linux release staging passed on
 the VPS after fixing a builder wheelhouse permission defect. The installed venv entrypoints are
 relocatable; two fresh pip installs normalized to the same inventory hash, and a same-filesystem
