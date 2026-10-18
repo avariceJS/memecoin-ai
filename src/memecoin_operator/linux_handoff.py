@@ -113,15 +113,8 @@ def _read_receipt(path: Path, maximum: int = 1024 * 1024) -> tuple[dict[str, Any
     return value, raw
 
 
-def _logical_state(database: Path) -> tuple[str, str]:
-    """Hash canonical schema and rows; SQLite page-layout bytes are intentionally irrelevant."""
-    owner = pwd.getpwnam("brain")
-    payload = linux_attachment._read_file(
-        database,
-        maximum=linux_attachment.MAX_DATABASE_BYTES,
-        uid=owner.pw_uid,
-        mode=0o600,
-    )
+def _logical_state_payload(payload: bytes) -> tuple[str, str]:
+    """Hash canonical schema and rows from an isolated copy of exact SQLite bytes."""
     with tempfile.TemporaryDirectory(prefix="brain-linux-handoff-logical-") as temp:
         snapshot = Path(temp) / "operator.sqlite"
         snapshot.write_bytes(payload)
@@ -155,6 +148,17 @@ def _logical_state(database: Path) -> tuple[str, str]:
                 db.close()
         except sqlite3.Error as exc:
             raise StorageError("handoff_sqlite_read_failed") from exc
+
+
+def _logical_state(database: Path) -> tuple[str, str]:
+    owner = pwd.getpwnam("brain")
+    payload = linux_attachment._read_file(
+        database,
+        maximum=linux_attachment.MAX_DATABASE_BYTES,
+        uid=owner.pw_uid,
+        mode=0o600,
+    )
+    return _logical_state_payload(payload)
 
 
 def _release_schema(release_id: str) -> str:
@@ -237,7 +241,7 @@ def _source_boundary(
         uid=owner.pw_uid,
         mode=0o600,
     )
-    schema_sha, logical_sha = _logical_state(operator_dir / "operator.sqlite")
+    schema_sha, logical_sha = _logical_state_payload(database_bytes)
     return manifest, pin, operator_dir, config_bytes, database_bytes, schema_sha, logical_sha
 
 
@@ -618,6 +622,196 @@ def verify(binding_id: str) -> dict[str, object]:
     }
 
 
+def _lifecycle_path(binding_id: str, name: str) -> Path:
+    if name not in {"START", "PROBE", "FINAL"}:
+        raise StorageError("handoff_lifecycle_record_invalid")
+    return HANDOFF_BASE / binding_id / f"{name}.json"
+
+
+def _read_lifecycle(binding_id: str, name: str) -> tuple[dict[str, Any], bytes] | None:
+    path = _lifecycle_path(binding_id, name)
+    if not os.path.lexists(path):
+        return None
+    record, raw = _read_receipt(path)
+    binding, _binding_raw = _read_receipt(HANDOFF_BASE / binding_id / "BINDING.json")
+    generation, generation_raw = _read_receipt(HANDOFF_BASE / binding_id / "GENERATION.json")
+    if (
+        record.get("schema") != SCHEMA
+        or record.get("binding_id") != binding_id
+        or record.get("generation_receipt_sha256") != _sha256(generation_raw)
+        or record.get("unit_name") != binding.get("unit_name")
+        or record.get("unit_sha256") != generation.get("unit_sha256")
+    ):
+        raise StorageError("handoff_lifecycle_record_mismatch")
+    return record, raw
+
+
+def activate(binding_id: str) -> dict[str, object]:
+    if os.geteuid() != 0:
+        raise StorageError("handoff_activate_requires_root")
+    verified = verify(binding_id)
+    if _read_lifecycle(binding_id, "START") is not None:
+        raise StorageError("handoff_activation_already_attempted")
+    binding, _binding_raw = _read_receipt(HANDOFF_BASE / binding_id / "BINDING.json")
+    generation, generation_raw = _read_receipt(HANDOFF_BASE / binding_id / "GENERATION.json")
+    start = {
+        "schema": SCHEMA,
+        "binding_id": binding_id,
+        "generation_receipt_sha256": _sha256(generation_raw),
+        "unit_name": binding["unit_name"],
+        "unit_sha256": generation["unit_sha256"],
+        "start_ns": time.time_ns(),
+    }
+    _write_receipt(_lifecycle_path(binding_id, "START"), start)
+    try:
+        subprocess.run(["systemctl", "start", str(binding["unit_name"])], check=True, timeout=30)
+        status = linux_attachment._probe_status(
+            str(binding["unit_name"]),
+            {"port": 20000 + int(binding_id[:8], 16) % 40000},
+        )
+        unit_state = linux_service._unit_status(str(binding["unit_name"]))
+        if unit_state[0] != "loaded" or unit_state[1] != "active" or unit_state[3] <= 0:
+            raise StorageError("handoff_unit_not_active_after_probe")
+        probe = {
+            "schema": SCHEMA,
+            "binding_id": binding_id,
+            "generation_receipt_sha256": _sha256(generation_raw),
+            "unit_name": binding["unit_name"],
+            "unit_sha256": generation["unit_sha256"],
+            "start_sha256": _sha256(_json_bytes(start)),
+            "pid": unit_state[3],
+            "status_schema": status["schema"],
+            "mode": status["mode"],
+            "phase": status["phase"],
+            "jobs": status["jobs"],
+            "probe_ns": time.time_ns(),
+        }
+        _write_receipt(_lifecycle_path(binding_id, "PROBE"), probe)
+    except BaseException:
+        subprocess.run(["systemctl", "stop", str(binding["unit_name"])], check=False, timeout=15)
+        raise
+    return {
+        "state": "active-synthetic-idle",
+        "binding_id": binding_id,
+        "unit": binding["unit_name"],
+        "pid": unit_state[3],
+        "mode": status["mode"],
+        "phase": status["phase"],
+        "jobs": len(status["jobs"]),
+        "finalize_required": True,
+        "prepared_state_sha256": verified["logical_state_sha256"],
+    }
+
+
+def stop(binding_id: str) -> dict[str, object]:
+    if os.geteuid() != 0:
+        raise StorageError("handoff_stop_requires_root")
+    if not HASH_RE.fullmatch(binding_id):
+        raise StorageError("handoff_binding_id_invalid")
+    binding, _binding_raw = _read_receipt(HANDOFF_BASE / binding_id / "BINDING.json")
+    start_result = _read_lifecycle(binding_id, "START")
+    probe_result = _read_lifecycle(binding_id, "PROBE")
+    if start_result is None or probe_result is None:
+        raise StorageError("handoff_activation_probe_missing")
+    start, _start_raw = start_result
+    probe, _probe_raw = probe_result
+    if probe.get("start_sha256") != _sha256(_json_bytes(start)):
+        raise StorageError("handoff_activation_probe_unbound")
+    state = linux_service._unit_status(str(binding["unit_name"]))
+    if state[0] != "loaded" or state[1] != "active" or state[3] != probe.get("pid"):
+        raise StorageError("handoff_active_unit_mismatch")
+    subprocess.run(["systemctl", "stop", str(binding["unit_name"])], check=True, timeout=30)
+    state = linux_service._unit_status(str(binding["unit_name"]))
+    if state != ("loaded", "inactive", "disabled", 0):
+        raise StorageError("handoff_unit_not_stopped_disabled")
+    return {"state": "stopped-disabled", "binding_id": binding_id, "unit": binding["unit_name"]}
+
+
+def finalize(binding_id: str) -> dict[str, object]:
+    if os.geteuid() != 0:
+        raise StorageError("handoff_finalize_requires_root")
+    if not HASH_RE.fullmatch(binding_id):
+        raise StorageError("handoff_binding_id_invalid")
+    binding, _binding_raw = _read_receipt(HANDOFF_BASE / binding_id / "BINDING.json")
+    generation, generation_raw = _read_receipt(HANDOFF_BASE / binding_id / "GENERATION.json")
+    if (
+        binding.get("schema") != SCHEMA
+        or generation.get("schema") != SCHEMA
+        or binding.get("generation_sha256") != _sha256(generation_raw)
+        or _handoff_identity(
+            str(binding.get("installation_id")),
+            str(binding.get("generation_id")),
+            str(binding.get("target_release_id")),
+        )
+        != binding_id
+    ):
+        raise StorageError("handoff_binding_receipt_mismatch")
+    start_result = _read_lifecycle(binding_id, "START")
+    probe_result = _read_lifecycle(binding_id, "PROBE")
+    if start_result is None or probe_result is None:
+        raise StorageError("handoff_activation_probe_missing")
+    start, start_raw = start_result
+    probe, probe_raw = probe_result
+    if (
+        probe.get("start_sha256") != _sha256(start_raw)
+        or _read_lifecycle(binding_id, "FINAL") is not None
+    ):
+        raise StorageError("handoff_activation_receipt_mismatch")
+    if linux_service._unit_status(str(binding["unit_name"])) != (
+        "loaded",
+        "inactive",
+        "disabled",
+        0,
+    ):
+        raise StorageError("handoff_unit_not_stopped_disabled")
+    generation_root, _receipt_root = _paths(
+        str(binding["installation_id"]), str(binding["generation_id"]), binding_id
+    )
+    target = linux_release.verify(str(binding["target_release_id"]))
+    unit_path = linux_service.UNIT_PATH.parent / str(binding["unit_name"])
+    try:
+        unit_bytes = unit_path.read_bytes()
+    except OSError as exc:
+        raise StorageError("handoff_unit_missing") from exc
+    if target.get("manifest_sha256") != generation.get("target_release_manifest_sha256") or _sha256(
+        unit_bytes
+    ) != generation.get("unit_sha256"):
+        raise StorageError("handoff_unit_pin_mismatch")
+    manifest = {
+        "files": {"config.json": {"sha256": generation["config_sha256"]}},
+    }
+    hashes, inventory = linux_attachment._verify_stopped_attachment_state(
+        manifest, generation_root / "operator"
+    )
+    final_schema, final_logical = _logical_state(generation_root / "operator/operator.sqlite")
+    if final_schema != generation.get("sqlite_schema_sha256"):
+        raise StorageError("handoff_final_schema_mismatch")
+    final = {
+        "schema": SCHEMA,
+        "binding_id": binding_id,
+        "generation_receipt_sha256": _sha256(generation_raw),
+        "unit_name": binding["unit_name"],
+        "unit_sha256": generation["unit_sha256"],
+        "start_sha256": _sha256(start_raw),
+        "probe_sha256": _sha256(probe_raw),
+        **hashes,
+        "logical_state_sha256": final_logical,
+        "inventory": inventory,
+        "inventory_sha256": _sha256(linux_attachment._json_bytes(inventory)),
+        "finalized_ns": time.time_ns(),
+    }
+    _write_receipt(_lifecycle_path(binding_id, "FINAL"), final)
+    return {
+        "state": "activated-stopped-idle-finalized",
+        "binding_id": binding_id,
+        "unit": binding["unit_name"],
+        "operator_sqlite_sha256": hashes["operator_sqlite_sha256"],
+        "logical_state_sha256": final["logical_state_sha256"],
+        "inventory_sha256": final["inventory_sha256"],
+        "prepared_state_sha256": generation["output_logical_state_sha256"],
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -627,13 +821,28 @@ def main(argv: list[str] | None = None) -> int:
     prepare_parser.add_argument("--target-release-id", required=True)
     verify_parser = sub.add_parser("verify")
     verify_parser.add_argument("--binding-id", required=True)
+    activate_parser = sub.add_parser(
+        "activate", help="explicitly start the verified bound generation"
+    )
+    activate_parser.add_argument("--binding-id", required=True)
+    stop_parser = sub.add_parser("stop", help="stop an explicitly activated handoff unit")
+    stop_parser.add_argument("--binding-id", required=True)
+    finalize_parser = sub.add_parser("finalize", help="pin a stopped idle activation receipt")
+    finalize_parser.add_argument("--binding-id", required=True)
     args = parser.parse_args(argv)
     try:
-        result = (
-            prepare(args.installation_id, args.source_attachment_id, args.target_release_id)
-            if args.command == "prepare"
-            else verify(args.binding_id)
-        )
+        if args.command == "prepare":
+            result = prepare(
+                args.installation_id, args.source_attachment_id, args.target_release_id
+            )
+        elif args.command == "verify":
+            result = verify(args.binding_id)
+        elif args.command == "activate":
+            result = activate(args.binding_id)
+        elif args.command == "stop":
+            result = stop(args.binding_id)
+        else:
+            result = finalize(args.binding_id)
         print(json.dumps(result, sort_keys=True))
         return 0
     except (StorageError, OSError, RuntimeError, ValueError) as exc:
