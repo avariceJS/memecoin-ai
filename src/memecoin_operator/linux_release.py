@@ -1012,6 +1012,12 @@ def _run_builder(
         output = f"{result.stdout or ''}\n{result.stderr or ''}"
         if "No space left on device" in output or "Errno 28" in output:
             raise RuntimeError("stage_builder_no_space")
+        try:
+            filesystem = os.statvfs(RELEASE_BASE)
+        except OSError:
+            filesystem = None
+        if filesystem is not None and (filesystem.f_bavail == 0 or filesystem.f_favail == 0):
+            raise RuntimeError("stage_builder_no_space")
         raise RuntimeError("stage_builder_command_failed")
     _require_stage_slice_empty(slice_name)
     return result

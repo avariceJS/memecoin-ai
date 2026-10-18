@@ -405,17 +405,25 @@ def test_verify_rejects_existing_job_state(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("stdout", "stderr", "reason"),
+    ("stdout", "stderr", "free_blocks", "free_inodes", "reason"),
     [
-        ("", "OSError: [Errno 28] No space left on device", "stage_builder_no_space"),
-        ("", "builder returned nonzero", "stage_builder_command_failed"),
+        ("", "OSError: [Errno 28] No space left on device", 1, 1, "stage_builder_no_space"),
+        ("", "builder returned nonzero", 0, 1, "stage_builder_no_space"),
+        ("", "builder returned nonzero", 1, 1, "stage_builder_command_failed"),
     ],
 )
-def test_run_builder_reports_bounded_failure_reason(monkeypatch, stdout, stderr, reason):
+def test_run_builder_reports_bounded_failure_reason(
+    monkeypatch, stdout, stderr, free_blocks, free_inodes, reason
+):
     monkeypatch.setattr(
         linux_release.subprocess,
         "run",
         lambda *_args, **_kwargs: SimpleNamespace(returncode=1, stdout=stdout, stderr=stderr),
+    )
+    monkeypatch.setattr(
+        linux_release.os,
+        "statvfs",
+        lambda _path: SimpleNamespace(f_bavail=free_blocks, f_favail=free_inodes),
     )
     with pytest.raises(RuntimeError, match=reason):
         linux_release._run_builder(
