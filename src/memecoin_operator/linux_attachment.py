@@ -564,7 +564,9 @@ def prepare_attachment(
             timeout=60,
         )
         if result.returncode != 0:
-            raise StorageError("attachment_unit_stage_failed")
+            match = re.search(r"linux_attachment_error: ([a-z0-9_:-]+)", result.stderr)
+            detail = match.group(1) if match else "unknown"
+            raise StorageError(f"attachment_unit_stage_failed:{detail}")
     except BaseException:
         if attachment_dir_published:
             shutil.rmtree(attachment_dir, ignore_errors=True)
