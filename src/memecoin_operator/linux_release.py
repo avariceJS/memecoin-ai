@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import configparser
+import csv
 import ctypes
 import fcntl
 import hashlib
@@ -17,7 +20,11 @@ import sqlite3
 import stat
 import subprocess
 import sys
+from email.parser import BytesParser
+from email.policy import default as email_default
+from io import StringIO
 from pathlib import Path
+from zipfile import ZipFile
 
 from memecoin_operator import linux_service
 
@@ -30,6 +37,7 @@ STAGE_ATTEMPT_BASE = Path("/var/lib/brain-release-stage-attempts")
 STAGE_LOCK_BASE = Path("/run/brain-release-stage-locks")
 SCHEMA = "brain-linux-release-v1"
 SCHEMA_V2 = "brain-linux-release-v2"
+SCHEMA_V3 = "brain-linux-release-v3"
 STAGE_ATTEMPT_SCHEMA = "brain-linux-release-stage-attempt-v1"
 PUBLISH_INTENT_SCHEMA = "brain-linux-release-publish-intent-v2"
 DISCARD_INTENT_SCHEMA = "brain-linux-release-stage-discard-intent-v1"
@@ -602,6 +610,7 @@ def _validate_stage_attempt_record(attempt_id: str, value: object) -> dict[str, 
         not in {
             _identity(value["wheel_sha256"], value["interpreter"], SCHEMA),
             _identity(value["wheel_sha256"], value["interpreter"], SCHEMA_V2),
+            _identity(value["wheel_sha256"], value["interpreter"], SCHEMA_V3),
         }
     ):
         raise RuntimeError("stage_attempt_record_invalid")
@@ -830,8 +839,12 @@ def _validate_publish_intent(attempt_id: str, record: dict[str, object]) -> list
         or set(record["interpreter"]) != {"path", "version", "soabi"}
         or any(not isinstance(value, str) or not value for value in record["interpreter"].values())
         or not isinstance(record.get("artifacts"), list)
-        or _identity(str(record.get("wheel_sha256")), record["interpreter"], SCHEMA_V2)
-        != release_id
+        or release_id
+        not in {
+            _identity(str(record.get("wheel_sha256")), record["interpreter"], SCHEMA),
+            _identity(str(record.get("wheel_sha256")), record["interpreter"], SCHEMA_V2),
+            _identity(str(record.get("wheel_sha256")), record["interpreter"], SCHEMA_V3),
+        }
     ):
         raise RuntimeError("release_publish_intent_invalid")
     expected = _publish_artifact_paths(attempt_id, release_id)
@@ -2004,6 +2017,438 @@ def _inventory(root: Path) -> tuple[list[dict[str, str]], str]:
     return entries, hashlib.sha256(encoded).hexdigest()
 
 
+def _wheel_requirement(wheel: Path) -> tuple[str, str]:
+    try:
+        with ZipFile(wheel) as archive:
+            metadata_names = [
+                name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
+            ]
+            if len(metadata_names) != 1:
+                raise RuntimeError("release_wheel_metadata_invalid")
+            info = archive.getinfo(metadata_names[0])
+            if info.file_size > 1024 * 1024:
+                raise RuntimeError("release_wheel_metadata_invalid")
+            with archive.open(info) as handle:
+                metadata_bytes = handle.read(1024 * 1024 + 1)
+            if len(metadata_bytes) > 1024 * 1024:
+                raise RuntimeError("release_wheel_metadata_invalid")
+            metadata = BytesParser(policy=email_default).parsebytes(metadata_bytes)
+    except (OSError, ValueError, KeyError) as exc:
+        raise RuntimeError("release_wheel_metadata_invalid") from exc
+    name = metadata.get("Name")
+    version = metadata.get("Version")
+    canonical_name = re.sub(r"[-_.]+", "-", name or "").lower()
+    if (
+        canonical_name != "memecoin-ai"
+        or not isinstance(version, str)
+        or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.!+_-]*", version)
+    ):
+        raise RuntimeError("release_wheel_metadata_invalid")
+    return canonical_name, version
+
+
+def _staged_parts(relative: str) -> tuple[str, ...]:
+    parts = tuple(relative.split("/"))
+    if not parts or any(part in {"", ".", ".."} or "\\" in part for part in parts):
+        raise RuntimeError("release_venv_normalization_path_invalid")
+    return parts
+
+
+def _staged_parent(root_fd: int, relative: str) -> tuple[int, str]:
+    parts = _staged_parts(relative)
+    current = os.dup(root_fd)
+    root_device = os.fstat(root_fd).st_dev
+    try:
+        for component in parts[:-1]:
+            before = os.stat(component, dir_fd=current, follow_symlinks=False)
+            if not stat.S_ISDIR(before.st_mode) or before.st_dev != root_device:
+                raise RuntimeError("release_venv_normalization_layout_invalid")
+            flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+            if hasattr(os, "O_CLOEXEC"):
+                flags |= os.O_CLOEXEC
+            child = os.open(component, flags, dir_fd=current)
+            after = os.fstat(child)
+            if (after.st_dev, after.st_ino) != (before.st_dev, before.st_ino):
+                os.close(child)
+                raise RuntimeError("release_venv_normalization_path_changed")
+            os.close(current)
+            current = child
+        return current, parts[-1]
+    except OSError as exc:
+        os.close(current)
+        raise RuntimeError("release_venv_normalization_path_invalid") from exc
+    except BaseException:
+        os.close(current)
+        raise
+
+
+def _read_staged_regular(
+    root_fd: int, relative: str, *, max_bytes: int = MAX_WHEEL_BYTES
+) -> tuple[bytes, os.stat_result]:
+    parent_fd, name = _staged_parent(root_fd, relative)
+    try:
+        metadata = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_nlink != 1
+            or metadata.st_size > max_bytes
+        ):
+            raise RuntimeError("release_venv_normalization_file_invalid")
+        flags = os.O_RDONLY | os.O_NOFOLLOW
+        if hasattr(os, "O_CLOEXEC"):
+            flags |= os.O_CLOEXEC
+        fd = os.open(name, flags, dir_fd=parent_fd)
+        try:
+            opened = os.fstat(fd)
+            if (
+                not stat.S_ISREG(opened.st_mode)
+                or opened.st_nlink != 1
+                or (opened.st_dev, opened.st_ino) != (metadata.st_dev, metadata.st_ino)
+                or opened.st_size > max_bytes
+            ):
+                raise RuntimeError("release_venv_normalization_file_invalid")
+            chunks: list[bytes] = []
+            total = 0
+            while True:
+                chunk = os.read(fd, min(1024 * 1024, max_bytes + 1 - total))
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                total += len(chunk)
+                if total > max_bytes:
+                    raise RuntimeError("release_venv_normalization_file_invalid")
+            return b"".join(chunks), opened
+        finally:
+            os.close(fd)
+    except OSError as exc:
+        raise RuntimeError("release_venv_normalization_path_invalid") from exc
+    finally:
+        os.close(parent_fd)
+
+
+def _replace_staged_regular(
+    root_fd: int, relative: str, payload: bytes, original: os.stat_result
+) -> None:
+    parent_fd, name = _staged_parent(root_fd, relative)
+    temporary = f".{name}.brain-normalize-{secrets.token_hex(8)}"
+    try:
+        parent_metadata = os.fstat(parent_fd)
+        if (
+            parent_metadata.st_uid not in {0, original.st_uid}
+            or stat.S_IMODE(parent_metadata.st_mode) & 0o022
+        ):
+            raise RuntimeError("release_venv_normalization_parent_invalid")
+        current = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        if (current.st_dev, current.st_ino) != (original.st_dev, original.st_ino):
+            raise RuntimeError("release_venv_normalization_path_changed")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+        if hasattr(os, "O_CLOEXEC"):
+            flags |= os.O_CLOEXEC
+        fd = os.open(temporary, flags, stat.S_IMODE(original.st_mode), dir_fd=parent_fd)
+        try:
+            os.fchown(fd, original.st_uid, original.st_gid)
+            os.fchmod(fd, stat.S_IMODE(original.st_mode))
+            view = memoryview(payload)
+            while view:
+                written = os.write(fd, view)
+                if written <= 0:
+                    raise RuntimeError("release_venv_normalization_write_failed")
+                view = view[written:]
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        current = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        if (current.st_dev, current.st_ino) != (original.st_dev, original.st_ino):
+            raise RuntimeError("release_venv_normalization_path_changed")
+        os.replace(temporary, name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+        os.fsync(parent_fd)
+    except OSError as exc:
+        raise RuntimeError("release_venv_normalization_write_failed") from exc
+    finally:
+        try:
+            os.unlink(temporary, dir_fd=parent_fd)
+        except FileNotFoundError:
+            pass
+        os.close(parent_fd)
+
+
+def _normalize_staged_venv(
+    venv: Path,
+    final_venv: Path,
+    source: Path,
+    attempt_id: str,
+    expected_interpreter: Path | None = None,
+) -> None:
+    """Normalize only known venv-generated absolute paths before sealing its inventory."""
+    if not venv.is_absolute() or not final_venv.is_absolute():
+        raise RuntimeError("release_venv_normalization_path_invalid")
+    root_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    if hasattr(os, "O_CLOEXEC"):
+        root_flags |= os.O_CLOEXEC
+    try:
+        root_fd = os.open(venv, root_flags)
+    except OSError as exc:
+        raise RuntimeError("release_venv_normalization_path_invalid") from exc
+    root_metadata = os.fstat(root_fd)
+    try:
+        path_metadata = venv.lstat()
+    except OSError as exc:
+        os.close(root_fd)
+        raise RuntimeError("release_venv_normalization_path_invalid") from exc
+    if not stat.S_ISDIR(path_metadata.st_mode) or (root_metadata.st_dev, root_metadata.st_ino) != (
+        path_metadata.st_dev,
+        path_metadata.st_ino,
+    ):
+        os.close(root_fd)
+        raise RuntimeError("release_venv_normalization_path_invalid")
+    try:
+        _normalize_staged_venv_at_fd(
+            root_fd, venv, final_venv, source, attempt_id, expected_interpreter
+        )
+    finally:
+        os.close(root_fd)
+
+
+def _normalize_staged_venv_at_fd(
+    root_fd: int,
+    venv: Path,
+    final_venv: Path,
+    source: Path,
+    attempt_id: str,
+    expected_interpreter: Path | None,
+) -> None:
+    root_device = os.fstat(root_fd).st_dev
+
+    def list_directory(relative: str) -> list[str]:
+        if not relative:
+            return sorted(os.listdir(root_fd))
+        directory_fd, _ = _staged_parent(root_fd, f"{relative}/.sentinel")
+        try:
+            return sorted(os.listdir(directory_fd))
+        finally:
+            os.close(directory_fd)
+
+    def metadata(relative: str) -> os.stat_result:
+        parent_fd, name = _staged_parent(root_fd, relative)
+        try:
+            return os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        finally:
+            os.close(parent_fd)
+
+    def remove_file(relative: str) -> None:
+        parent_fd, name = _staged_parent(root_fd, relative)
+        try:
+            os.unlink(name, dir_fd=parent_fd)
+            os.fsync(parent_fd)
+        finally:
+            os.close(parent_fd)
+
+    def remove_dir(relative: str) -> None:
+        parent_fd, name = _staged_parent(root_fd, relative)
+        try:
+            os.rmdir(name, dir_fd=parent_fd)
+            os.fsync(parent_fd)
+        finally:
+            os.close(parent_fd)
+
+    lib_names = [
+        name for name in list_directory("lib") if re.fullmatch(r"python[0-9]+\.[0-9]+", name)
+    ]
+    if len(lib_names) != 1 or len(list_directory("lib")) != 1:
+        raise RuntimeError("release_venv_normalization_layout_invalid")
+    site_root = f"lib/{lib_names[0]}/site-packages"
+    if not stat.S_ISDIR(metadata(site_root).st_mode):
+        raise RuntimeError("release_venv_normalization_layout_invalid")
+    site_names = list_directory(site_root)
+    package_metadata = [
+        name for name in site_names if re.fullmatch(r"memecoin_ai-[^/]+\.dist-info", name)
+    ]
+    if len(package_metadata) != 1:
+        raise RuntimeError("release_venv_normalization_metadata_invalid")
+    metadata_root = f"{site_root}/{package_metadata[0]}"
+    entry_points_bytes, _ = _read_staged_regular(root_fd, f"{metadata_root}/entry_points.txt")
+    parser = configparser.ConfigParser(interpolation=None, strict=True)
+    try:
+        parser.read_string(entry_points_bytes.decode("utf-8"))
+        scripts = set(parser["console_scripts"])
+    except (UnicodeDecodeError, configparser.Error, KeyError) as exc:
+        raise RuntimeError("release_venv_normalization_entry_points_invalid") from exc
+    if (
+        not scripts
+        or len(scripts) > 32
+        or any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name) for name in scripts)
+    ):
+        raise RuntimeError("release_venv_normalization_entry_points_invalid")
+
+    directories: list[str] = []
+    files: list[str] = []
+
+    def walk(relative: str) -> None:
+        for name in list_directory(relative):
+            child = f"{relative}/{name}" if relative else name
+            item = metadata(child)
+            if stat.S_ISDIR(item.st_mode):
+                if item.st_dev != root_device:
+                    raise RuntimeError("release_venv_normalization_layout_invalid")
+                directories.append(child)
+                walk(child)
+            else:
+                files.append(child)
+
+    walk("")
+    for directory in sorted(directories, key=lambda item: item.count("/"), reverse=True):
+        if directory.endswith("/__pycache__"):
+            for child_name in list_directory(directory):
+                child = f"{directory}/{child_name}"
+                item = metadata(child)
+                if (
+                    not stat.S_ISREG(item.st_mode)
+                    or item.st_nlink != 1
+                    or not child_name.endswith(".pyc")
+                ):
+                    raise RuntimeError("release_venv_bytecode_layout_invalid")
+                remove_file(child)
+                files.remove(child)
+            remove_dir(directory)
+            directories.remove(directory)
+    pyvenv_cfg = "pyvenv.cfg"
+    cfg_bytes, cfg_metadata = _read_staged_regular(root_fd, pyvenv_cfg)
+    old_venv = str(venv).encode()
+    new_venv = str(final_venv).encode()
+    cfg_lines = cfg_bytes.splitlines(keepends=True)
+    command_indexes = [
+        index for index, line in enumerate(cfg_lines) if line.startswith(b"command = ")
+    ]
+    if len(command_indexes) != 1 or cfg_bytes.count(old_venv) != 1:
+        raise RuntimeError("release_venv_command_path_invalid")
+    cfg_lines[command_indexes[0]] = cfg_lines[command_indexes[0]].replace(old_venv, new_venv)
+    _replace_staged_regular(root_fd, pyvenv_cfg, b"".join(cfg_lines), cfg_metadata)
+
+    activation_paths = [f"bin/{name}" for name in ("activate", "activate.csh", "activate.fish")]
+    for activation in activation_paths:
+        data, file_metadata = _read_staged_regular(root_fd, activation)
+        if old_venv not in data:
+            raise RuntimeError("release_venv_activation_path_invalid")
+        _replace_staged_regular(
+            root_fd, activation, data.replace(old_venv, new_venv), file_metadata
+        )
+
+    changed_scripts: dict[str, bytes] = {}
+    for script_name in list_directory("bin"):
+        relative = f"bin/{script_name}"
+        item = metadata(relative)
+        if stat.S_ISLNK(item.st_mode):
+            continue
+        if not stat.S_ISREG(item.st_mode) or not item.st_mode & 0o111:
+            continue
+        data, file_metadata = _read_staged_regular(root_fd, relative)
+        first_line, separator, remainder = data.partition(b"\n")
+        prefix = b"#!" + str(venv / "bin").encode() + b"/python"
+        if first_line.startswith(prefix):
+            suffix = first_line[len(prefix) :]
+            if suffix not in {b"", b"3", b"3.11", b"3.12", b"3.13", b"3.14"}:
+                raise RuntimeError("release_venv_console_script_path_invalid")
+            interpreter_name = "python" + suffix.decode("ascii")
+            normalized = (
+                b"#!"
+                + str(final_venv / "bin" / interpreter_name).encode()
+                + (b"\n" + remainder if separator else b"")
+            )
+            _replace_staged_regular(root_fd, relative, normalized, file_metadata)
+            changed_scripts[relative] = normalized
+        elif script_name in scripts:
+            raise RuntimeError("release_venv_console_script_path_invalid")
+
+    if not scripts.issubset({Path(item).name for item in changed_scripts}):
+        raise RuntimeError("release_venv_console_script_missing")
+    records = [f"{site_root}/{name}/RECORD" for name in site_names if name.endswith(".dist-info")]
+    matched_scripts: dict[str, int] = dict.fromkeys(changed_scripts, 0)
+    for record_path in records:
+        record_data, record_metadata = _read_staged_regular(root_fd, record_path)
+        try:
+            reader = csv.reader(StringIO(record_data.decode("utf-8"), newline=""))
+            rows = list(reader)
+        except (UnicodeDecodeError, csv.Error) as exc:
+            raise RuntimeError("release_venv_record_invalid") from exc
+        output = StringIO(newline="")
+        writer = csv.writer(output, lineterminator="\n")
+        for row in rows:
+            if len(row) != 3:
+                raise RuntimeError("release_venv_record_invalid")
+            record_name = row[0]
+            if record_name.startswith("/") or "\\" in record_name:
+                raise RuntimeError("release_venv_record_invalid")
+            parts = tuple(f"{site_root}/{record_name}".split("/"))
+            if any(part in {"", "."} or "\\" in part for part in parts):
+                raise RuntimeError("release_venv_record_invalid")
+            stack: list[str] = []
+            for part in parts:
+                if part == "..":
+                    if not stack:
+                        raise RuntimeError("release_venv_record_invalid")
+                    stack.pop()
+                else:
+                    stack.append(part)
+            relative_target = "/".join(stack)
+            normalized = changed_scripts.get(relative_target)
+            if normalized is not None:
+                encoded_hash = base64.urlsafe_b64encode(hashlib.sha256(normalized).digest())
+                row[1] = "sha256=" + encoded_hash.rstrip(b"=").decode("ascii")
+                row[2] = str(len(normalized))
+                matched_scripts[relative_target] += 1
+            writer.writerow(row)
+        _replace_staged_regular(
+            root_fd, record_path, output.getvalue().encode("utf-8"), record_metadata
+        )
+    if not records or any(count != 1 for count in matched_scripts.values()):
+        raise RuntimeError("release_venv_record_entrypoint_mismatch")
+
+    forbidden = [
+        str(venv).encode(),
+        str(source).encode(),
+        attempt_id.encode(),
+    ]
+    for relative in files:
+        item = metadata(relative)
+        if stat.S_ISLNK(item.st_mode):
+            parent_fd, name = _staged_parent(root_fd, relative)
+            try:
+                target = os.readlink(name, dir_fd=parent_fd).encode()
+            finally:
+                os.close(parent_fd)
+            versioned_link = f"bin/python{lib_names[0][6:]}"
+            expected_target = (
+                os.fsencode(str(expected_interpreter)) if expected_interpreter is not None else None
+            )
+            allowed_link = (
+                (relative == "lib64" and target == b"lib")
+                or (relative == "bin/python" and target == b"python3")
+                or (
+                    relative == "bin/python3"
+                    and target in {expected_target, versioned_link.encode()}
+                    and expected_target is not None
+                    and (target == expected_target or versioned_link in files)
+                )
+                or (
+                    relative == versioned_link
+                    and target == expected_target
+                    and expected_target is not None
+                )
+            )
+            if not allowed_link:
+                raise RuntimeError("release_venv_normalization_layout_invalid")
+            if any(token and token in target for token in forbidden):
+                raise RuntimeError("release_venv_path_residue")
+        elif stat.S_ISREG(item.st_mode):
+            if item.st_nlink != 1:
+                raise RuntimeError("release_venv_normalization_file_invalid")
+            data, _ = _read_staged_regular(root_fd, relative)
+            if any(token and token in data for token in forbidden):
+                raise RuntimeError("release_venv_path_residue")
+        else:
+            raise RuntimeError("release_venv_normalization_layout_invalid")
+
+
 def _seal(root: Path, group_id: int) -> None:
     for parent, dirs, files in os.walk(root, topdown=False, followlinks=False):
         for name in files:
@@ -2211,8 +2656,9 @@ def stage(
     _commit_and_clean(source, source_commit)
     if _sha256(wheel) != expected_wheel_sha256:
         raise RuntimeError("wheel_sha256_mismatch")
+    wheel_name, wheel_version = _wheel_requirement(wheel)
     interpreter = _interpreter(python)
-    release_id = _identity(expected_wheel_sha256, interpreter, SCHEMA_V2)
+    release_id = _identity(expected_wheel_sha256, interpreter, SCHEMA_V3)
     release_root = RELEASE_BASE / release_id
     unit_name = f"memecoin-brain-{release_id}.service"
     unit_path = UNIT_BASE / unit_name
@@ -2372,7 +2818,9 @@ def stage(
                 "--no-deps",
                 "--no-compile",
                 "--no-cache-dir",
-                str(wheel_input),
+                "--find-links",
+                str(staging),
+                f"{wheel_name}=={wheel_version}",
             ],
             attempt_id=attempt_id,
             phase="pip",
@@ -2396,10 +2844,9 @@ def stage(
             phase="probe",
         )
         version = probe.stdout.strip()
-        if not version:
+        if version != wheel_version:
             raise RuntimeError("release_import_probe_failed")
         wheel_input.unlink()
-        inventory, inventory_sha = _inventory(venv)
         _require_stage_slice_empty(str(record["slice_name"]))
         if _uid_has_processes(builder.pw_uid):
             raise RuntimeError("stage_builder_processes_remaining")
@@ -2413,6 +2860,14 @@ def stage(
         )
         if result.returncode != 0:
             raise RuntimeError("stage_builder_account_removal_failed")
+        _normalize_staged_venv(
+            venv,
+            RELEASE_BASE / release_id / "venv",
+            source,
+            attempt_id,
+            Path(interpreter["path"]),
+        )
+        inventory, inventory_sha = _inventory(venv)
         _record_stage_phase(record_path, record, "publishing")
         os.replace(venv, staging / "venv")
         builder_root.rmdir()
@@ -2481,7 +2936,7 @@ def stage(
             f"Description=Brain release {release_id} (manual activation only)",
         )
         manifest = {
-            "schema": SCHEMA_V2,
+            "schema": SCHEMA_V3,
             "release_id": release_id,
             "source_commit": source_commit,
             "wheel_sha256": expected_wheel_sha256,
@@ -2493,7 +2948,7 @@ def stage(
             "unit_sha256": hashlib.sha256(unit_text.encode()).hexdigest(),
             "state_layout": "release-v2",
             "state_root": str(state_root),
-            "install_policy": "create-only-static-no-activation-v2",
+            "install_policy": "create-only-static-no-activation-v3-relocatable-venv",
         }
         manifest_path = staging / "release-manifest.json"
         with manifest_path.open("x", encoding="utf-8") as handle:
@@ -2569,7 +3024,10 @@ def verify(release_id: str) -> dict[str, object]:
         raise RuntimeError("release_or_unit_missing")
     manifest = json.loads((root / "release-manifest.json").read_text(encoding="utf-8"))
     manifest_schema = manifest.get("schema")
-    if manifest_schema not in {SCHEMA, SCHEMA_V2} or manifest.get("release_id") != release_id:
+    if (
+        manifest_schema not in {SCHEMA, SCHEMA_V2, SCHEMA_V3}
+        or manifest.get("release_id") != release_id
+    ):
         raise RuntimeError("release_manifest_mismatch")
     wheel_sha = manifest.get("wheel_sha256")
     interpreter = manifest.get("interpreter")
@@ -2604,13 +3062,18 @@ def verify(release_id: str) -> dict[str, object]:
     state = linux_service._unit_status(unit_name)
     if state != ("loaded", "inactive", "static", 0):
         raise RuntimeError("release_unit_not_inert")
-    if manifest_schema == SCHEMA_V2:
+    if manifest_schema in {SCHEMA_V2, SCHEMA_V3}:
         state_root = STATE_BASE_V2 / release_id / "operator"
         if manifest.get("state_layout") != "release-v2" or manifest.get("state_root") != str(
             state_root
         ):
             raise RuntimeError("release_state_layout_mismatch")
-        if manifest.get("install_policy") != "create-only-static-no-activation-v2":
+        expected_policy = (
+            "create-only-static-no-activation-v2"
+            if manifest_schema == SCHEMA_V2
+            else "create-only-static-no-activation-v3-relocatable-venv"
+        )
+        if manifest.get("install_policy") != expected_policy:
             raise RuntimeError("release_inert_policy_mismatch")
         state_base_metadata = STATE_BASE_V2.lstat()
         state_parent_metadata = (STATE_BASE_V2 / release_id).lstat()

@@ -1,5 +1,7 @@
 """Content-addressed Linux release verification is fail-closed."""
 
+import base64
+import csv
 import hashlib
 import json
 import os
@@ -113,6 +115,150 @@ def test_release_identity_binds_wheel_and_interpreter():
     }
     assert linux_release._identity(wheel, py312) != linux_release._identity(wheel, py313)
     assert linux_release._identity(wheel, py312) != linux_release._identity("c" * 64, py312)
+    assert linux_release._identity(wheel, py312, linux_release.SCHEMA_V2) != (
+        linux_release._identity(wheel, py312, linux_release.SCHEMA_V3)
+    )
+
+
+def _staged_venv_fixture(root: Path, attempt_id: str, final_venv: Path, source: Path) -> Path:
+    venv = root / f".stage-{attempt_id}" / "build" / "venv"
+    site = venv / "lib/python3.12/site-packages"
+    package_metadata = site / "memecoin_ai-0.1.0.dist-info"
+    pip_metadata = site / "pip-24.0.dist-info"
+    bin_dir = venv / "bin"
+    package_metadata.mkdir(parents=True)
+    pip_metadata.mkdir()
+    bin_dir.mkdir()
+    scripts = {
+        "mcai",
+        "brain-linux-service",
+        "brain-linux-release",
+        "brain-linux-attachment",
+        "brain-linux-handoff",
+        "brain-linux-capabilities",
+    }
+    (package_metadata / "entry_points.txt").write_text(
+        "[console_scripts]\n" + "".join(f"{name} = pkg:main\n" for name in sorted(scripts)),
+        encoding="utf-8",
+    )
+    (venv / "pyvenv.cfg").write_text(
+        "home = /usr/bin\ninclude-system-site-packages = false\nversion = 3.12.3\n"
+        f"command = /usr/bin/python3 -m venv {venv}\n",
+        encoding="utf-8",
+    )
+    for name in ("activate", "activate.csh", "activate.fish"):
+        (bin_dir / name).write_text(f'VIRTUAL_ENV="{venv}"\n', encoding="utf-8")
+    app_rows = []
+    for name in sorted(scripts):
+        wrapper = bin_dir / name
+        wrapper.write_text(f"#!{venv}/bin/python\nprint('ok')\n", encoding="utf-8")
+        wrapper.chmod(0o755)
+        app_rows.append([f"../../../bin/{name}", "", ""])
+    pip_rows = []
+    for name in ("pip", "pip3", "pip3.12"):
+        wrapper = bin_dir / name
+        wrapper.write_text(f"#!{venv}/bin/python3.12\nprint('pip')\n", encoding="utf-8")
+        wrapper.chmod(0o755)
+        pip_rows.append([f"../../../bin/{name}", "", ""])
+    with (package_metadata / "RECORD").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle, lineterminator="\n")
+        writer.writerows([*app_rows, ["memecoin_ai-0.1.0.dist-info/RECORD", "", ""]])
+    with (pip_metadata / "RECORD").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle, lineterminator="\n")
+        writer.writerows([*pip_rows, ["pip-24.0.dist-info/RECORD", "", ""]])
+    bytecode = site / "pip/__pycache__/entry.cpython-312.pyc"
+    bytecode.parent.mkdir(parents=True)
+    bytecode.write_bytes(b"attempt-dependent bytecode")
+    return venv
+
+
+def test_staged_venv_normalization_is_path_independent_and_preserves_record(tmp_path):
+    final_venv = Path("/opt/brain/releases") / ("e" * 64) / "venv"
+    source = tmp_path / "source-checkout"
+    source.mkdir()
+    inventories = []
+    for suffix in ("a" * 16, "b" * 16):
+        attempt_id = "f" * 12 + f"-{suffix}"
+        venv = _staged_venv_fixture(tmp_path, attempt_id, final_venv, source)
+        linux_release._normalize_staged_venv(venv, final_venv, source, attempt_id)
+        inventories.append(linux_release._inventory(venv)[1])
+        for name in (
+            "mcai",
+            "brain-linux-service",
+            "brain-linux-release",
+            "brain-linux-attachment",
+            "brain-linux-handoff",
+            "brain-linux-capabilities",
+        ):
+            assert (
+                (venv / "bin" / name)
+                .read_text(encoding="utf-8")
+                .startswith(f"#!{final_venv}/bin/python\n")
+            )
+        assert not list(venv.rglob("*.pyc"))
+        assert not any(venv.rglob("direct_url.json"))
+        for record in venv.glob("lib/python*/site-packages/*.dist-info/RECORD"):
+            with record.open(encoding="utf-8", newline="") as handle:
+                rows = list(csv.reader(handle))
+            for relative, digest, size in rows:
+                target = Path(os.path.normpath(str(record.parent.parent / relative)))
+                if target.parent == venv / "bin" and target.is_file():
+                    encoded = base64.urlsafe_b64encode(
+                        target.read_bytes() and hashlib.sha256(target.read_bytes()).digest()
+                    )
+                    assert digest == "sha256=" + encoded.rstrip(b"=").decode("ascii")
+                    assert size == str(target.stat().st_size)
+    assert inventories[0] == inventories[1]
+
+
+def test_staged_venv_normalization_rejects_unrecognized_path_residue(tmp_path):
+    attempt_id = "a" * 12 + f"-{'c' * 16}"
+    final_venv = Path("/opt/brain/releases") / ("d" * 64) / "venv"
+    source = tmp_path / "source-checkout"
+    source.mkdir()
+    venv = _staged_venv_fixture(tmp_path, attempt_id, final_venv, source)
+    (venv / "unexpected.pth").write_text(f"{venv}/hidden\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="release_venv_path_residue"):
+        linux_release._normalize_staged_venv(venv, final_venv, source, attempt_id)
+
+
+def test_staged_venv_normalization_rejects_symlink_parent_without_writing_outside(tmp_path):
+    attempt_id = "b" * 12 + f"-{'d' * 16}"
+    final_venv = Path("/opt/brain/releases") / ("c" * 64) / "venv"
+    source = tmp_path / "source-checkout"
+    source.mkdir()
+    venv = _staged_venv_fixture(tmp_path, attempt_id, final_venv, source)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    sentinel = outside / "sentinel"
+    sentinel.write_text("unchanged", encoding="utf-8")
+    (venv / "lib").rename(venv / "lib-original")
+    (venv / "lib").symlink_to(outside, target_is_directory=True)
+    with pytest.raises(RuntimeError):
+        linux_release._normalize_staged_venv(venv, final_venv, source, attempt_id)
+    assert sentinel.read_text(encoding="utf-8") == "unchanged"
+
+
+def test_staged_venv_normalization_allows_only_pinned_python_and_lib64_links(tmp_path):
+    attempt_id = "c" * 12 + f"-{'e' * 16}"
+    final_venv = Path("/opt/brain/releases") / ("b" * 64) / "venv"
+    source = tmp_path / "source-checkout"
+    source.mkdir()
+    venv = _staged_venv_fixture(tmp_path, attempt_id, final_venv, source)
+    (venv / "bin/python").symlink_to("python3")
+    (venv / "bin/python3").symlink_to("/usr/bin/python3.12")
+    (venv / "lib64").symlink_to("lib")
+    linux_release._normalize_staged_venv(
+        venv, final_venv, source, attempt_id, Path("/usr/bin/python3.12")
+    )
+
+    bad_attempt = "d" * 12 + f"-{'f' * 16}"
+    bad_venv = _staged_venv_fixture(tmp_path, bad_attempt, final_venv, source)
+    (bad_venv / "bin/python").symlink_to("/tmp/untrusted-python")
+    with pytest.raises(RuntimeError, match="release_venv_normalization_layout_invalid"):
+        linux_release._normalize_staged_venv(
+            bad_venv, final_venv, source, bad_attempt, Path("/usr/bin/python3.12")
+        )
 
 
 def _stage_attempt_record():
