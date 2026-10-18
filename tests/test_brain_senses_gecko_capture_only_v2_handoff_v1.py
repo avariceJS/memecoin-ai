@@ -17,7 +17,7 @@ from memecoin_research_storage import StorageError  # noqa: E402
 from tools import brain_senses_gecko_capture_only_v2_handoff_v1 as handoff  # noqa: E402
 from tools import brain_senses_gecko_shared_usage_v1 as shared_usage  # noqa: E402
 from tools import brain_senses_gecko_usage_inventory_v2 as inventory_v2  # noqa: E402
-from tools import brain_senses_gecko_usage_inventory_v3 as inventory_v3  # noqa: E402
+from tools import brain_senses_gecko_usage_inventory_v4 as inventory_v4  # noqa: E402
 from tools.brain_senses_external_writer_v1 import DescriptorWriter  # noqa: E402
 
 NEW_ID = "a" * 32
@@ -388,7 +388,7 @@ def test_successor_root_shape_requires_exact_journal_and_safe_entries(
 ) -> None:
     genesis = _genesis_for_writer(writer)
     _seed_root(writer, genesis)
-    result = inventory_v3.verify_successor_root_shape(
+    result = inventory_v4.verify_successor_root_shape(
         writer,
         root=NEW_ROOT,
         expected_genesis=genesis,
@@ -400,8 +400,8 @@ def test_successor_root_shape_requires_exact_journal_and_safe_entries(
     assert result["status"] == "verified_handoff"
     wrong_mount = _storage(writer)
     wrong_mount["device"] += 1
-    with pytest.raises(inventory_v3.InventoryV3Error, match="successor_storage_context_mismatch"):
-        inventory_v3.verify_successor_root_shape(
+    with pytest.raises(inventory_v4.InventoryV4Error, match="successor_storage_context_mismatch"):
+        inventory_v4.verify_successor_root_shape(
             writer,
             root=NEW_ROOT,
             expected_genesis=genesis,
@@ -411,8 +411,8 @@ def test_successor_root_shape_requires_exact_journal_and_safe_entries(
             observed_now_ns=handoff.UNPLANNED_GAP_CLOSE_NS,
         )
     writer.create(f"{NEW_ROOT}/surprise.json", b"{}\n")
-    with pytest.raises(inventory_v3.InventoryV3Error, match="successor_v2_root_shape_incomplete"):
-        inventory_v3.verify_successor_root_shape(
+    with pytest.raises(inventory_v4.InventoryV4Error, match="successor_v2_root_shape_incomplete"):
+        inventory_v4.verify_successor_root_shape(
             writer,
             root=NEW_ROOT,
             expected_genesis=genesis,
@@ -431,7 +431,7 @@ def test_handoff_journal_must_be_owner_only_regular_file(
     journal_path = tmp_path / "data" / NEW_ROOT / handoff.JOURNAL_NAME
     os.chmod(journal_path, 0o644)
     with pytest.raises(StorageError, match="external_writer_unsafe_file"):
-        inventory_v3.verify_successor_root_shape(
+        inventory_v4.verify_successor_root_shape(
             writer,
             root=NEW_ROOT,
             expected_genesis=genesis,
@@ -442,7 +442,7 @@ def test_handoff_journal_must_be_owner_only_regular_file(
         )
 
 
-def test_inventory_v3_overlays_handoff_only_after_full_inventory_and_binds_census(
+def test_inventory_v4_overlays_handoff_only_after_full_inventory_and_binds_census(
     writer: DescriptorWriter, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     genesis = _genesis_for_writer(writer)
@@ -497,7 +497,7 @@ def test_inventory_v3_overlays_handoff_only_after_full_inventory_and_binds_censu
     for index, row in enumerate(context_attempts):
         row["response_sha256"] = predecessor_attempts[index]["response_sha256"]
         row["response_bytes"] = predecessor_attempts[index]["response_bytes"]
-    result = inventory_v3.build_usage_inventory(
+    result = inventory_v4.build_usage_inventory(
         writer,
         required_successor_root=NEW_ROOT,
         expected_handoffs={
@@ -510,7 +510,7 @@ def test_inventory_v3_overlays_handoff_only_after_full_inventory_and_binds_censu
         },
         observed_now_ns=handoff.UNPLANNED_GAP_CLOSE_NS,
     )
-    assert result["schema"] == inventory_v3.SCHEMA
+    assert result["schema"] == inventory_v4.SCHEMA
     assert result["provider_io"] is False
     assert result["dispatch_authorized"] is False
     assert result["handoffs"][NEW_ROOT]["handoff"]["attempt_count"] == 4

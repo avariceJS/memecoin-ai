@@ -15,13 +15,14 @@ sys.path.insert(0, str(REPO))
 
 import test_brain_senses_gecko_capture_only_v2_handoff_v1 as handoff_fixture  # noqa: E402
 
+from tools import brain_senses_capacity_coordinator_v2 as capacity  # noqa: E402
 from tools import brain_senses_gecko_capture_only_v2_handoff_v1 as handoff  # noqa: E402
 from tools import brain_senses_gecko_rotating_scout_v1 as scout  # noqa: E402
 from tools import brain_senses_gecko_scout_chain_v1 as chain_v1  # noqa: E402
 from tools import brain_senses_gecko_scout_chain_v2 as chain_v2  # noqa: E402
 from tools import brain_senses_gecko_shared_usage_v1 as shared_usage  # noqa: E402
 from tools import brain_senses_gecko_usage_inventory_v2 as inventory_v2  # noqa: E402
-from tools import brain_senses_gecko_usage_inventory_v3 as inventory_v3  # noqa: E402
+from tools import brain_senses_gecko_usage_inventory_v4 as inventory_v4  # noqa: E402
 from tools.brain_senses_external_writer_v1 import DescriptorWriter  # noqa: E402
 
 ROOT = handoff_fixture.NEW_ROOT
@@ -298,7 +299,7 @@ def test_descriptor_root_replacement_never_writes_to_mountpoint_underlay(
         writer.close()
 
 
-def test_inventory_v3_dispatches_exact_chain_v2_binding_without_v1_cursor_reset(
+def test_inventory_v4_dispatches_exact_chain_v2_binding_without_v1_cursor_reset(
     writer: DescriptorWriter, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     inputs = _certificate_inputs(writer)
@@ -345,16 +346,29 @@ def test_inventory_v3_dispatches_exact_chain_v2_binding_without_v1_cursor_reset(
         }
 
     monkeypatch.setattr(inventory_v2, "build_usage_inventory", base_build)
-    result = inventory_v3.build_usage_inventory(
+    coordinator_genesis = capacity._event(
+        seq=0, kind="genesis", at_ns=1, previous=None, fields={"policy_sha256": "a" * 64}
+    )
+    monkeypatch.setattr(
+        inventory_v4,
+        "_read_coordinator",
+        lambda *_args: (capacity.canonical(coordinator_genesis), [coordinator_genesis]),
+    )
+    result = inventory_v4.build_usage_inventory(
         writer,
         required_successor_root=ROOT,
         expected_handoffs={},
-        expected_v2_chains={ROOT: {"certificate_inputs": inputs}},
+        expected_v2_chains={
+            ROOT: {
+                "certificate_inputs": inputs,
+                "observed_now_ns": handoff.UNPLANNED_GAP_CLOSE_NS,
+            }
+        },
         observed_now_ns=handoff.UNPLANNED_GAP_CLOSE_NS,
     )
     assert result["root_inventory"] == full_manifest
     assert result["root_inventory_sha256"] == full_hash
-    assert result["handoffs"][ROOT]["chain_status"] == "verified_chain_v2"
+    assert result["handoffs"][ROOT]["status"] == "verified_prefix"
     assert result["handoffs"][ROOT]["cursor"] == 12
     assert result["snapshots"][-1]["root"] == ROOT
     assert result["snapshots"][-1]["attempts"] == []

@@ -363,7 +363,11 @@ def test_plist_is_inert_fixed_60_second_callback() -> None:
     for key in ("EnvironmentVariables", "WorkingDirectory", "ThrottleInterval"):
         assert key not in parsed
     checked_in = (host.REPO_ROOT / host.PLIST_PATH).read_bytes()
-    assert host.validate_plist(checked_in, repo_root=host.REPO_ROOT) == parsed
+    # The checked-in template deliberately pins the owner checkout, not this test checkout.
+    owner_root = Path("/Users/root1/Developer/memecoin-research")
+    assert host.validate_plist(checked_in, repo_root=owner_root) == plistlib.loads(
+        _plist(owner_root)
+    )
 
 
 def test_plist_drift_and_secret_arguments_rejected() -> None:
