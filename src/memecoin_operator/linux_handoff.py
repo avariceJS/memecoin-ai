@@ -161,20 +161,40 @@ def _source_boundary(
     result = linux_attachment._read_activation_record(manifest, pin, "activation-result")
     if result is None:
         raise StorageError("handoff_source_not_finalized")
-    verified = linux_attachment.verify_attached(
-        attachment_id,
-        str(manifest["release_id"]),
-        str(manifest["release_manifest_sha256"]),
-        str(manifest["restore_manifest_sha256"]),
-    )
-    if verified.get("state") != "activated_stopped_idle_verified":
+    intent = linux_attachment._read_activation_record(manifest, pin, "start-intent")
+    probe = linux_attachment._read_activation_record(manifest, pin, "idle-probe")
+    if (
+        intent is None
+        or probe is None
+        or result.get("intent_sha256") != _sha256(linux_attachment._json_bytes(intent))
+        or result.get("idle_probe_sha256") != _sha256(linux_attachment._json_bytes(probe))
+        or probe.get("intent_sha256") != _sha256(linux_attachment._json_bytes(intent))
+    ):
         raise StorageError("handoff_source_not_finalized")
-    payloads = linux_attachment._verify_local_payloads(
-        manifest, owner_uid=pwd.getpwnam("brain").pw_uid, operator_dir=operator_dir
+    if linux_service._unit_status(str(manifest["unit_name"])) != (
+        "loaded",
+        "inactive",
+        "disabled",
+        0,
+    ):
+        raise StorageError("handoff_source_not_stopped")
+    hashes, inventory = linux_attachment._verify_stopped_attachment_state(manifest, operator_dir)
+    if (
+        result.get("config_sha256") != hashes.get("config_sha256")
+        or result.get("operator_sqlite_sha256") != hashes.get("operator_sqlite_sha256")
+        or result.get("inventory") != inventory
+        or result.get("inventory_sha256") != _sha256(linux_attachment._json_bytes(inventory))
+    ):
+        raise StorageError("handoff_source_finalized_state_mismatch")
+    owner = pwd.getpwnam("brain")
+    config_bytes = linux_attachment._read_file(
+        operator_dir / "config.json",
+        maximum=linux_attachment.MAX_CONFIG_BYTES,
+        uid=owner.pw_uid,
+        mode=0o600,
     )
-    _hashes, _inventory = linux_attachment._verify_stopped_attachment_state(manifest, operator_dir)
     schema_sha, logical_sha = _logical_state(operator_dir / "operator.sqlite")
-    return manifest, pin, operator_dir, payloads["operator.sqlite"], schema_sha, logical_sha
+    return manifest, pin, operator_dir, config_bytes, schema_sha, logical_sha
 
 
 def _handoff_identity(installation_id: str, generation_id: str, release_id: str) -> str:
