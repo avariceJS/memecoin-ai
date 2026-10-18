@@ -236,10 +236,11 @@ externally acquired artifact before Git is installed, but the artifact must reta
 the exact clean source commit can be verified after package installation. Post-apply capability
 probe failures are recorded in a root-private apply receipt before the command reports failure;
 package installation may already have changed dpkg state at that point. Receipts are create-only
-and root-private. The utility does not
-create users, grant sudo, auto-run from setup or restore, or promise rollback after an interrupted
-dpkg transaction. This lab-only
-contract does not qualify ordinary host provisioning or package update policy.
+and root-private. `tools/build_distribution.py` also canonicalizes wheel ZIP permission metadata and
+validates `RECORD` before and after the metadata-only rewrite, so checkout umask does not change
+installed file modes or artifact bytes. The utility does not create users, grant sudo, auto-run from
+setup or restore, or promise rollback after an interrupted dpkg transaction. This lab-only contract
+does not qualify ordinary host provisioning or package update policy.
 
 The fixed inert-service package role has now passed plan/apply on a disposable Noble systemd-nspawn
 rootfs at snapshot `20261018T084900Z`. The exact transaction included the explicit `bsdutils`
