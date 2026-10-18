@@ -14,6 +14,7 @@ def test_roles_are_fixed_and_do_not_include_database_test_control():
     assert provisioner.ROLES["source-build"] == (
         "ca-certificates",
         "git",
+        "openssh-client",
         "make",
         "python3",
         "python3.12",
@@ -257,6 +258,18 @@ def test_source_checkout_may_be_pending_git_only_for_source_role_bootstrap():
     dirty = {"checks": {"source_checkout": {"status": "absent", "reason": "worktree_dirty"}}}
     with pytest.raises(provisioner.ProvisionError, match="brain_source_checkout_not_clean"):
         provisioner._validate_source_checkout(dirty, allow_git_missing=True)
+
+
+def test_post_apply_capability_failure_is_returned_for_durable_receipt(monkeypatch, tmp_path):
+    def fail_probe(_workspace, _source_commit, *, allow_git_missing=False):
+        raise provisioner.ProvisionError("brain_source_checkout_not_clean_at_requested_commit")
+
+    monkeypatch.setattr(provisioner, "_capability_report", fail_probe)
+    report, error = provisioner._post_apply_capability_report(tmp_path, "a" * 40)
+
+    assert report["schema"] == "brain-linux-capability-probe-failed-v1"
+    assert report["source_commit"] == "a" * 40
+    assert error == "brain_source_checkout_not_clean_at_requested_commit"
 
 
 def test_refresh_cli_has_no_source_workspace_dependency(monkeypatch, capsys):

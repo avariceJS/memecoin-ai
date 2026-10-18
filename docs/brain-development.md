@@ -230,9 +230,13 @@ unrelated package changes, or active Brain units, and blocks service starts duri
 The inert-service role explicitly includes `bsdutils` as an Ubuntu Essential transaction companion
 for the pinned util-linux/systemd package set; it is not a capability requirement. Any other solver
 change must be reviewed and added explicitly before it can pass the package transaction allowlist.
-The source-build role may start from a verified externally acquired source artifact when Git is not
-yet installed; it records that preflight gap and requires the exact clean source commit to become
-verifiable after installation. Receipts are create-only and root-private. The utility does not
+The source-build role includes Git and `openssh-client` so a clean Linux host can acquire the private
+source over the read-only repository deploy key without an interactive prompt. It may start from an
+externally acquired artifact before Git is installed, but the artifact must retain Git metadata so
+the exact clean source commit can be verified after package installation. Post-apply capability
+probe failures are recorded in a root-private apply receipt before the command reports failure;
+package installation may already have changed dpkg state at that point. Receipts are create-only
+and root-private. The utility does not
 create users, grant sudo, auto-run from setup or restore, or promise rollback after an interrupted
 dpkg transaction. This lab-only
 contract does not qualify ordinary host provisioning or package update policy.

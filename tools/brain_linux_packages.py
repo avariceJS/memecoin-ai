@@ -32,6 +32,7 @@ ROLES: dict[str, tuple[str, ...]] = {
     "source-build": (
         "ca-certificates",
         "git",
+        "openssh-client",
         "make",
         "python3",
         "python3.12",
@@ -512,6 +513,24 @@ def _capability_fingerprint(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _post_apply_capability_report(
+    workspace: Path, source_commit: str
+) -> tuple[dict[str, Any], str | None]:
+    try:
+        return _capability_report(workspace, source_commit), None
+    except ProvisionError as exc:
+        # A package transaction may already have changed dpkg state. Preserve a
+        # create-only receipt even when the strict post-apply source probe fails.
+        return (
+            {
+                "schema": "brain-linux-capability-probe-failed-v1",
+                "source_commit": source_commit,
+                "roles": {},
+            },
+            str(exc),
+        )
+
+
 def _plan_payload(role: str, snapshot: str, source_commit: str, workspace: Path) -> dict[str, Any]:
     _require_lab(mutating=False)
     if not COMMIT_RE.fullmatch(source_commit):
@@ -658,7 +677,11 @@ def apply_plan(plan_path: Path, plan_sha256: str) -> dict[str, Any]:
         ):
             POLICY_RC.unlink()
     units_after = _unit_state()
-    capability_after = _capability_report(workspace, plan["source_commit"])
+    capability_after, capability_after_error = _post_apply_capability_report(
+        workspace, plan["source_commit"]
+    )
+    if capability_after_error is not None:
+        apply_error = apply_error or ProvisionError("post_apply_capability_probe_failed")
     if (
         role == "source-build"
         and capability_after.get("roles", {}).get("source_build", {}).get("status") != "available"
@@ -687,6 +710,7 @@ def apply_plan(plan_path: Path, plan_sha256: str) -> dict[str, Any]:
         "capability_report_before": capability_before,
         "capability_report_after": capability_after,
         "capability_fingerprint_after": _capability_fingerprint(capability_after),
+        "capability_report_after_error": capability_after_error,
         "dpkg_status_before_sha256": plan["dpkg_status_sha256"],
         "dpkg_status_after_sha256": status,
         "installed_requested": {
