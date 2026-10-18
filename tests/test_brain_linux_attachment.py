@@ -3,22 +3,116 @@
 import json
 import os
 import sqlite3
+import subprocess
 import sys
 
 import pytest
 
-from memecoin_operator import control
+from memecoin_operator import control, linux_attachment
 from memecoin_operator.linux_attachment import (
     EXPECTED_CONFIG,
+    ROOT_ACTION_ERROR_SCHEMA,
     RUNTIME_DIRECTORIES,
     _prepare_runtime_directories,
     _publish_attachment_directory,
     _rename_noreplace,
+    _root_action_error_code,
+    _root_call,
     _runtime_inventory,
     _schema_fingerprint,
     _verify_idle_database,
 )
 from memecoin_research_storage import StorageError
+
+
+def _root_error(action, code):
+    return subprocess.CompletedProcess(
+        args=["python", "-m", "memecoin_operator.linux_attachment"],
+        returncode=2,
+        stdout=json.dumps(
+            {"schema": ROOT_ACTION_ERROR_SCHEMA, "action": action, "code": code},
+            sort_keys=True,
+        ),
+        stderr="private path and secret-like text must never be forwarded",
+    )
+
+
+def test_root_action_error_protocol_accepts_a_known_code_without_stderr():
+    result = _root_error("verify-root", "attachment_activation_incomplete")
+    assert _root_action_error_code(result, "verify-root") == "attachment_activation_incomplete"
+
+
+@pytest.mark.parametrize(
+    "result,action",
+    [
+        (
+            subprocess.CompletedProcess(
+                [], 2, "", "linux_attachment_error: attachment_unit_failed"
+            ),
+            "verify-root",
+        ),
+        (_root_error("finalize-root", "attachment_unit_failed"), "verify-root"),
+        (_root_error("verify-root", "arbitrary_path_or_secret"), "verify-root"),
+        (subprocess.CompletedProcess([], 1, "", "sudo: a password is required"), "verify-root"),
+        (subprocess.CompletedProcess([], 2, "not json", ""), "verify-root"),
+    ],
+)
+def test_root_action_error_protocol_rejects_untrusted_or_malformed_output(result, action):
+    assert _root_action_error_code(result, action) == "root_action_failed"
+
+
+def test_root_action_error_protocol_rejects_oversized_output():
+    result = subprocess.CompletedProcess([], 2, " " * 513, "")
+    assert _root_action_error_code(result, "verify-root") == "root_action_failed"
+
+
+def test_root_call_maps_only_the_allowlisted_failure(monkeypatch):
+    result = _root_error("verify-root", "attachment_activation_incomplete")
+    monkeypatch.setattr(subprocess, "run", lambda *_args, **_kwargs: result)
+    with pytest.raises(
+        StorageError,
+        match="attachment_root_action_failed:attachment_activation_incomplete",
+    ):
+        _root_call("a" * 64, ["verify-root"])
+
+
+def test_root_command_emits_only_the_static_error_envelope(monkeypatch, capsys):
+    monkeypatch.setattr(linux_attachment.os, "geteuid", lambda: 0)
+
+    def fail(*_args):
+        raise StorageError("attachment_unit_failed")
+
+    monkeypatch.setattr(linux_attachment, "verify_attached", fail)
+    result = linux_attachment.main(
+        [
+            "verify-root",
+            "--attachment-id",
+            "fixture",
+            "--release-id",
+            "a" * 64,
+            "--release-manifest-sha256",
+            "b" * 64,
+            "--restore-manifest-sha256",
+            "c" * 64,
+        ]
+    )
+    captured = capsys.readouterr()
+    assert result == 2
+    assert captured.err == ""
+    assert json.loads(captured.out) == {
+        "schema": ROOT_ACTION_ERROR_SCHEMA,
+        "action": "verify-root",
+        "code": "attachment_unit_failed",
+    }
+
+
+def test_root_call_rejects_invalid_release_id_before_dispatch(monkeypatch):
+    def unexpected_run(*_args, **_kwargs):
+        raise AssertionError("invalid release id reached subprocess dispatch")
+
+    monkeypatch.setattr(subprocess, "run", unexpected_run)
+    with pytest.raises(StorageError, match="attachment_release_id_invalid"):
+        _root_call("../not-a-release", ["verify-root"])
 
 
 def _runtime_tree(root):

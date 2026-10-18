@@ -31,6 +31,23 @@ UNIT_BASE = Path("/etc/systemd/system")
 ATTACHMENT_SCHEMA = "brain-linux-synthetic-attachment-v1"
 RESTORE_SCHEMA = "brain-linux-synthetic-operator-restore-v1"
 ACTIVATION_SCHEMA = "brain-linux-synthetic-attachment-activation-v1"
+ROOT_ACTION_ERROR_SCHEMA = "brain-linux-root-action-error-v1"
+ROOT_ACTION_CODES_BY_ACTION = {
+    "stage-unit": set(),
+    "activate-root": {"attachment_activation_already_attempted", "attachment_unit_failed"},
+    "verify-root": {
+        "attachment_activation_incomplete",
+        "attachment_idle_probe_missing_or_unbound",
+        "attachment_unit_failed",
+    },
+    "finalize-root": {
+        "attachment_activation_already_attempted",
+        "attachment_idle_probe_missing_or_unbound",
+        "attachment_unit_failed",
+        "attachment_unit_not_stopped_disabled",
+    },
+}
+ROOT_ACTION_ERROR_MAX_BYTES = 512
 MAX_CONFIG_BYTES = 64 * 1024
 MAX_DATABASE_BYTES = 16 * 1024 * 1024
 MAX_MANIFEST_BYTES = 64 * 1024
@@ -323,6 +340,12 @@ def _verify_idle_database(
 def _validate_attachment_id(value: str) -> str:
     if not ATTACHMENT_ID_RE.fullmatch(value):
         raise StorageError("attachment_id_invalid")
+    return value
+
+
+def _validate_release_id(value: str) -> str:
+    if not re.fullmatch(r"[0-9a-f]{64}", value):
+        raise StorageError("attachment_release_id_invalid")
     return value
 
 
@@ -628,7 +651,9 @@ def prepare_attachment(
     attachment_dir_published = True
     attachment_dir = final_attachment_dir
     operator_dir = attachment_dir / "operator"
-    release_python = linux_release.RELEASE_BASE / release_id / "venv/bin/python"
+    release_python = (
+        linux_release.RELEASE_BASE / _validate_release_id(release_id) / "venv/bin/python"
+    )
     args = [
         "stage-unit",
         "--attachment-id",
@@ -641,25 +666,27 @@ def prepare_attachment(
         restore_manifest_sha256,
     ]
     try:
-        result = subprocess.run(
-            [
-                "sudo",
-                "-n",
-                str(release_python),
-                "-B",
-                "-I",
-                "-m",
-                "memecoin_operator.linux_attachment",
-                *args,
-            ],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
+        try:
+            result = subprocess.run(
+                [
+                    "sudo",
+                    "-n",
+                    str(release_python),
+                    "-B",
+                    "-I",
+                    "-m",
+                    "memecoin_operator.linux_attachment",
+                    *args,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise StorageError("attachment_unit_stage_failed:root_action_failed") from exc
         if result.returncode != 0:
-            match = re.search(r"linux_attachment_error: ([a-z0-9_:-]+)", result.stderr)
-            detail = match.group(1) if match else "unknown"
+            detail = _root_action_error_code(result, "stage-unit")
             raise StorageError(f"attachment_unit_stage_failed:{detail}")
     except BaseException:
         if attachment_dir_published:
@@ -1417,6 +1444,8 @@ def finalize_attached(
         raise StorageError("attachment_activation_result_already_exists")
     unit = str(manifest["unit_name"])
     state = linux_service._unit_status(unit)
+    if state[1] == "failed":
+        raise StorageError("attachment_unit_failed")
     if state != ("loaded", "inactive", "disabled", 0):
         raise StorageError("attachment_unit_not_stopped_disabled")
     hashes, inventory = _verify_stopped_attachment_state(manifest, operator_dir)
@@ -1456,6 +1485,8 @@ def verify_attached(
     idle_probe = _read_activation_record(manifest, pin, "idle-probe")
     result = _read_activation_record(manifest, pin, "activation-result")
     state = linux_service._unit_status(str(manifest["unit_name"]))
+    if state[1] == "failed":
+        raise StorageError("attachment_unit_failed")
     if intent is None:
         payloads = _verify_local_payloads(manifest, owner_uid=pwd.getpwnam("brain").pw_uid)
         if state != ("loaded", "inactive", "disabled", 0):
@@ -1518,24 +1549,34 @@ def verify_attached(
 
 
 def _root_call(release_id: str, args: list[str]) -> dict[str, Any]:
+    release_id = _validate_release_id(release_id)
+    action = args[0] if args else ""
+    if action not in ROOT_ACTION_CODES_BY_ACTION:
+        raise StorageError("attachment_root_action_invalid")
     python = linux_release.RELEASE_BASE / release_id / "venv/bin/python"
-    result = subprocess.run(
-        [
-            "sudo",
-            "-n",
-            str(python),
-            "-B",
-            "-I",
-            "-m",
-            "memecoin_operator.linux_attachment",
-            *args,
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
+    try:
+        result = subprocess.run(
+            [
+                "sudo",
+                "-n",
+                str(python),
+                "-B",
+                "-I",
+                "-m",
+                "memecoin_operator.linux_attachment",
+                *args,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise StorageError("attachment_root_action_failed") from exc
     if result.returncode != 0:
+        code = _root_action_error_code(result, action)
+        if code in ROOT_ACTION_CODES_BY_ACTION[action]:
+            raise StorageError(f"attachment_root_action_failed:{code}")
         raise StorageError("attachment_root_action_failed")
     try:
         data = json.loads(result.stdout)
@@ -1544,6 +1585,28 @@ def _root_call(release_id: str, args: list[str]) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise StorageError("attachment_root_result_malformed")
     return data
+
+
+def _root_action_error_code(result: subprocess.CompletedProcess[str], action: str) -> str:
+    """Read a bounded static error code; never surface helper stderr verbatim."""
+    try:
+        if len(result.stdout.encode("utf-8")) > ROOT_ACTION_ERROR_MAX_BYTES:
+            return "root_action_failed"
+        if result.returncode != 2:
+            return "root_action_failed"
+        payload = json.loads(result.stdout)
+    except (AttributeError, UnicodeEncodeError, json.JSONDecodeError):
+        return "root_action_failed"
+    if (
+        not isinstance(payload, dict)
+        or set(payload) != {"schema", "action", "code"}
+        or payload.get("schema") != ROOT_ACTION_ERROR_SCHEMA
+        or payload.get("action") != action
+        or not isinstance(payload.get("code"), str)
+        or payload["code"] not in ROOT_ACTION_CODES_BY_ACTION.get(action, set())
+    ):
+        return "root_action_failed"
+    return payload["code"]
 
 
 def _add_pins(parser: argparse.ArgumentParser) -> None:
@@ -1678,6 +1741,17 @@ def main(argv: list[str] | None = None) -> int:
         message = str(exc)
         if not re.fullmatch(r"[a-z0-9_:-]+", message):
             message = "attachment_operation_failed"
+        action = args.command
+        if os.geteuid() == 0 and action in ROOT_ACTION_CODES_BY_ACTION:
+            if message not in ROOT_ACTION_CODES_BY_ACTION[action]:
+                message = "root_action_failed"
+            print(
+                json.dumps(
+                    {"schema": ROOT_ACTION_ERROR_SCHEMA, "action": action, "code": message},
+                    sort_keys=True,
+                )
+            )
+            return 2
         print(f"linux_attachment_error: {message}", file=sys.stderr)
         return 2
 
