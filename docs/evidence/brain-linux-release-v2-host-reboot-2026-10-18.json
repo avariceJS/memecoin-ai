@@ -1,0 +1,46 @@
+{
+  "schema": "brain-linux-release-v2-host-reboot-v1",
+  "source_commit": "bc50bc3ac47c822070ab217ecd53bb8f4e104806",
+  "host": {
+    "os": "Ubuntu 24.04 LTS",
+    "architecture": "x86_64",
+    "filesystem": "ext4",
+    "systemd": true,
+    "ssh_recovery": "ssh.socket enabled and active after reboot"
+  },
+  "interrupted_attempt": {
+    "attempt_id": "41278cf1ff32-ed57a474e22c8535",
+    "release_id": "41278cf1ff32eebdca0e07d438d253fe17e8750b7eaff4fb7ccce44296205811",
+    "wheel_sha256": "c8a3eb06b820e6d665588463d3197d0e50b099f1e980ba18e70473a486559fb3",
+    "interruption_point": "SIGKILL immediately after durable immutable publish intent, before first publication rename",
+    "phase_before_reboot": "publishing",
+    "boot_id_before": "d19cdf7a-0da2-4de5-a464-42c464f74d99",
+    "boot_id_after": "9ff8dc57-40e0-4c5f-ba5d-17002460510e"
+  },
+  "recovery": {
+    "ssh_reconnected": true,
+    "boot_id_changed": true,
+    "recover_stage": "passed",
+    "same_source_wheel_stage_retry": "returned the same release",
+    "independent_verify": {
+      "source_commit": "bc50bc3ac47c822070ab217ecd53bb8f4e104806",
+      "wheel_sha256": "c8a3eb06b820e6d665588463d3197d0e50b099f1e980ba18e70473a486559fb3",
+      "manifest_sha256": "0f8e0ecdec6cd8ac9f152bbac1376e5241fa745652727b010c69ad0fe4bfab39",
+      "installed_inventory_sha256": "4e82641fdb34a59b4b496024be016ef56b9a6f97895749cdf0a16c47d031fa41",
+      "unit_state": ["loaded", "inactive", "disabled", 0]
+    },
+    "systemd_after_recovery": {
+      "load_state": "loaded",
+      "active_state": "inactive",
+      "unit_file_state": "disabled",
+      "main_pid": 0,
+      "restarts": 0
+    },
+    "attempt_record_mode": "0444 root:root"
+  },
+  "limitations": [
+    "This was a normal OS reboot, not abrupt power loss or storage-controller failure.",
+    "Only one Ubuntu 24.04 x86_64 host was exercised.",
+    "No protected data, provider credentials, or production runtime were used."
+  ]
+}

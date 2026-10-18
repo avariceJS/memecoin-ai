@@ -1,0 +1,44 @@
+{
+  "schema": "brain-linux-source-build-reproducibility-v1",
+  "source_commit": "bc50bc3ac47c822070ab217ecd53bb8f4e104806",
+  "repository": {
+    "owner": "avariceJS/memecoin-ai",
+    "acquisition": "two independent fresh clones on the Ubuntu VPS using the VPS read-only deploy key",
+    "origin_head_at_test": "770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+    "target_commit_fetch_and_detached_checkout": "passed",
+    "branch_or_ref_mutation": false
+  },
+  "host": {
+    "os": "Ubuntu 24.04 LTS",
+    "architecture": "x86_64",
+    "python": "3.12.3",
+    "filesystem": "ext4"
+  },
+  "build": {
+    "clones": ["/home/brain/lab/repro-a", "/home/brain/lab/repro-b"],
+    "clone_a_clean_source_checkout": true,
+    "clone_b_clean_source_checkout": true,
+    "make_setup": "passed in each clone using requirements-dev.lock",
+    "build_command": ".venv/bin/python tools/build_distribution.py --outdir dist-repro",
+    "source_date_epoch": 1792298988,
+    "isolated_setuptools": "84.0.0",
+    "artifacts": {
+      "memecoin_ai-0.1.0-py3-none-any.whl": "c8a3eb06b820e6d665588463d3197d0e50b099f1e980ba18e70473a486559fb3",
+      "memecoin_ai-0.1.0.tar.gz": "675441a88b92bcaf68a20658a15a47e4c4741d29015fba17b110ae6840a9b653"
+    },
+    "artifact_hashes_equal_across_clones": true,
+    "immutable_build_log_sha256": {
+      "clone_a": "f2268c7f2e4379fcd9556d95b43270d402bd7dcabd906406f8066894e20299de",
+      "clone_b": "b344f6bf625ad1f504102bc4480722266eb17ab8fb1ef2e2e9e71dd9de32104d"
+    },
+    "immutable_build_logs": [
+      "/root/brain-lab-receipts/source-repro-build-a.log",
+      "/root/brain-lab-receipts/source-repro-build-b.log"
+    ]
+  },
+  "limitations": [
+    "Both builds used one Ubuntu host, one Python patch version, one toolchain resolution, and one date.",
+    "This proves artifact byte equality across clean source paths, not bit-for-bit reproducibility across independent builders or operating systems.",
+    "The target was an isolated Linux portability branch; protected data and production runtime were not used."
+  ]
+}

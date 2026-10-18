@@ -19,8 +19,8 @@ incomplete and must not be restored. Failed ordinary partial `58e4596a3db5403a9b
 also remains incomplete. Do not delete partial candidates or activate Brain. The published Mac2
 operator package is awaiting final Sol review. No second-Mac restore has occurred.
 
-A separate Linux portability branch, `codex/linux-portability-20261018` at
-`4b8c9b379ff2a712478f146ad9a753f26adf3e12`, is isolated from that acceptance path. Fresh Ubuntu
+A separate Linux portability branch, `codex/linux-portability-20261018`, is isolated from that
+acceptance path. Fresh Ubuntu
 24.04 clones completed `make setup`; repeated builds across separate output directories and clean
 clones matched wheel and sdist hashes. The exact-head release restored a synthetic ext4 fixture
 inert, activated explicitly, stopped/finalized, then passed release and attachment verification
@@ -59,7 +59,14 @@ artifacts published. One exact-head release was explicitly activated, stopped, v
 reused safely; it ended inert. This is process-crash evidence, not power-loss or block-device
 failure qualification. See
 [`release publication v2`](../docs/evidence/brain-linux-release-publish-v2-2026-10-18.json).
-Next: host restart and clean rebuild under v2 semantics.
+At exact `bc50bc3ac47c822070ab217ecd53bb8f4e104806`, a durable v2 publish intent survived an Ubuntu
+reboot; SSH recovered via `ssh.socket`, `recover-stage`, same-source retry, and independent verify
+passed, with the service still disabled/inactive and PID-free. See
+[`v2 reboot receipt`](../docs/evidence/brain-linux-release-v2-host-reboot-2026-10-18.json). Next:
+two clean clones at the same exact commit produced byte-identical wheel/sdist hashes after
+independent `make setup`; see
+[`source build reproducibility receipt`](../docs/evidence/brain-linux-source-build-reproducibility-2026-10-18.json).
+This is one-host/one-toolchain evidence. Next: qualify a fresh disposable environment rebuild.
 
 `research/active` is at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`; `main` remains
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Future-v2 v3 drafts remain untracked and untouched.

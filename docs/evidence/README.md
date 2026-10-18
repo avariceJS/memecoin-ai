@@ -43,6 +43,12 @@ contain large exact payloads, so open only the named artifact needed for a speci
   systemd reload, with tamper/foreign-path/unit-state fail-closed cases and one explicit inert
   activation lifecycle. This is process-crash evidence on one Ubuntu/ext4 host, not power-loss
   qualification.
+- [Linux release v2 host reboot](brain-linux-release-v2-host-reboot-2026-10-18.json): a durable
+  pre-publication intent survived a real Ubuntu reboot; SSH recovered, stage recovery and retry
+  produced the exact verified release, which remained disabled and inactive.
+- [Linux source build reproducibility](brain-linux-source-build-reproducibility-2026-10-18.json):
+  two independent clean clones at the exact topic commit built byte-identical wheel and sdist files
+  on Ubuntu 24.04; this is one-host/one-toolchain evidence.
 
 - [Scheduled sensing neural engineering qualification](brain-scheduled-sensing-neural-qualification-2026-10-15.json):
   synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume

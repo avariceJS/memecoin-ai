@@ -436,11 +436,27 @@ idle SQLite state, then safely reused by same-identity stage retry; it ended dis
 PID 0 and zero restarts. See the immutable
 [`release publication v2 receipt`](evidence/brain-linux-release-publish-v2-2026-10-18.json).
 
-These are process-level tests on one Ubuntu/ext4/systemd host, not sudden power loss, filesystem or
-block-device failure, or a second clean VM reinstall. Legacy partial publications have no v2
-preparation intent and remain manual-review-only. Valid CUDA/NVIDIA execution, ARM64, Windows/WSL,
-arbitrary restored Brain state, and real research data remain unqualified. The next useful horizon is
-host-restart and clean-rebuild behavior for these v2 release semantics.
+At exact source `bc50bc3ac47c822070ab217ecd53bb8f4e104806`, a second real-host qualification left a
+durable `publishing` attempt immediately after its immutable intent was fsynced, then rebooted the
+Ubuntu VM. SSH returned through the enabled socket unit, boot ID changed, and `recover-stage`, a same
+source/wheel stage retry, and independent verification returned the exact release. The unit remained
+loaded/inactive/disabled with PID 0 and zero restarts. See the immutable
+[`v2 host reboot receipt`](evidence/brain-linux-release-v2-host-reboot-2026-10-18.json).
+
+This is a normal OS reboot, not sudden power loss, filesystem or block-device failure, or a second
+clean VM reinstall. Legacy partial publications have no v2 preparation intent and remain
+manual-review-only. Valid CUDA/NVIDIA execution, ARM64, Windows/WSL, arbitrary restored Brain state,
+and real research data remain unqualified.
+
+The next bounded build qualification used two independent private-repository clones on Ubuntu at
+the exact topic commit `bc50bc3ac47c822070ab217ecd53bb8f4e104806`. Both clean clones passed
+`make setup`; isolated source builds selected the same source epoch and produced byte-identical
+wheel and sdist hashes from different checkout paths. See the immutable
+[`source build reproducibility receipt`](evidence/brain-linux-source-build-reproducibility-2026-10-18.json).
+This uses one host and one resolved toolchain, so independent-builder and cross-platform
+reproducibility remain open. The next useful horizon is a fresh disposable environment rebuild
+from the published source and pinned artifacts, then failure behavior around dependency or disk
+constraints.
 
 ## Current readiness
 
