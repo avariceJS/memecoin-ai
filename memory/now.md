@@ -9,8 +9,17 @@ The separate Linux portability branch remains isolated from Migration v1. During
 host package refresh, syscall tracing proved APT changed `/dev/null` to mode `0644` because both
 package adapters configured its `pkgcache` and `srcpkgcache` as `/dev/null`. Both now use private
 regular-file caches and preserve the fail-closed device readiness gate. A traced live update with
-the dedicated paths left `/dev/null` at `0666` and produced no fchmod against it; the corrected
-snapshot refresh/apply and service-role transaction still need live qualification.
+the dedicated paths left `/dev/null` at `0666` and produced no fchmod against it. At source
+`05388406`, corrected refresh (54 signed indexes), exact four-package source-build apply, and empty
+replan passed on a fresh Ubuntu 24.04.5 QEMU guest with PackageKit runtime-masked. As `brain`, setup,
+build, synthetic smoke, and `pip check` passed. Sol accepted this bounded checkpoint. Bare-metal and
+unmasked provisioning, changing inert-service apply, exact-head release lifecycle, and no-transient-
+service proof remain open. See
+[`APT/null-cache receipt`](../docs/evidence/brain-linux-host-apt-null-cache-qualification-2026-10-18.json).
+After the transfer/factory reset, resume Linux portability from the pushed topic branch; first
+qualify unmasked clean-host provisioning and the inert-service role. Keep Linux release restore
+inert until explicit activation. No Linux production-state, CUDA/NVIDIA, Linux arm64, or WSL
+qualification exists.
 
 The full current pair is recorded in
 [`candidate-pair receipt`](../docs/evidence/portability-migration-v1-candidate-pair-2026-10-16T2217Z.json):

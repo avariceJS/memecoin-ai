@@ -1,0 +1,87 @@
+{
+  "schema": "brain-linux-host-apt-null-cache-qualification-v1",
+  "recorded_at_utc": "2026-10-18T13:02:00Z",
+  "source": {
+    "branch": "codex/linux-portability-20261018",
+    "commit": "05388406c6d15a10456c72d122d42655fead499d",
+    "private_git_access": "read-only deploy-key fetch on outer disposable VPS; bundle transferred to guest; no GitHub key copied into guest"
+  },
+  "host": {
+    "os": "Ubuntu 24.04.5 cloud image",
+    "architecture": "x86_64",
+    "virtualization": "QEMU TCG",
+    "identity_layout": "separate ubuntu administrator and locked nologin brain service account",
+    "packagekit": "runtime-masked for this qualification"
+  },
+  "finding": {
+    "before_fix": "strace bound apt-get update PID 3533 to pkgcache and srcpkgcache targets at /dev/null; the process called fchmod(0644) twice on the null character device.",
+    "after_fix": "both package adapters use root-private regular-file cache paths. A traced update with dedicated paths left /dev/null at mode 0666 and made zero fchmod calls against it.",
+    "trace_excerpt": [
+      "execve(\"/usr/bin/apt-get\", [\"/usr/bin/apt-get\", \"-o\", \"Dir::Cache::pkgcache=/dev/null\", \"-o\", \"Dir::Cache::srcpkgcache=/dev/null\", \"update\"], ...) = 0",
+      "fchmod(6</dev/null<char 1:3>>, 0644) = 0",
+      "fchmod(6</dev/null<char 1:3>>, 0644) = 0",
+      "corrected dedicated-cache update: matching fchmod call count = 0"
+    ],
+    "preflight_refusal": "An injected /dev/null mode 0644 was refused before dpkg status changed; an explicit udev event restored mode 0666 for subsequent checks."
+  },
+  "live_result": {
+    "source_commit_preflight": "ready",
+    "snapshot": "20261018T122900Z",
+    "signed_index_refresh": {
+      "status": "refreshed",
+      "index_count": 54,
+      "receipt_sha256": "9107e24ce1a0ee68d7468cff1acd4d63596b72387891bfbc42a5b296dc6c423e"
+    },
+    "source_build_plan_sha256": "14727efa8a6889fe377c39ef0427eed2f1946a42ccd382bcef702c3a8c779969",
+    "source_build_transaction": [
+      "make=4.3-4.1build2",
+      "python3-pip-whl=24.0+dfsg-1ubuntu1.3",
+      "python3-setuptools-whl=68.1.2-2ubuntu1.2",
+      "python3.12-venv=3.12.3-1ubuntu0.17"
+    ],
+    "apply_status": "applied",
+    "apply_receipt_sha256": "a11daa0c48415058448d3671c3be4836c68f3b0a7f75db83978fa50a2cbaabf4",
+    "post_apply_replan": {
+      "status": "planned",
+      "transaction": [],
+      "plan_sha256": "0e18c68208fc509079b88565211ca72f2adc3d8a644c060ebdb5fd2212e9bf4e"
+    },
+    "host_status": "ready",
+    "null_device_after": {
+      "type": "character",
+      "major": 1,
+      "minor": 3,
+      "uid": 0,
+      "gid": 0,
+      "mode_octal": "0666",
+      "service_write_open": true
+    },
+    "adapter_observation": "active-unit inventory unchanged and journal service-activity signal false; this bounded detector does not prove absence of every transient service start.",
+    "brain_build": {
+      "make_setup": "passed as brain",
+      "make_build": "passed as brain",
+      "make_smoke": "passed; synthetic engineering check only, no edge claim",
+      "pip_check": "No broken requirements found"
+    }
+  },
+  "vps_artifact_sha256": {
+    "apply_plan": "5f9ef64ef001dfecb67204becd06961adac8a5c8f4d944c9e8497eeaf3350f8b",
+    "empty_replan": "436a9dffb41cceb995c9d9f1c0ec5e7bfb9c1dcbc7ee09bf05a5ff91539933a5",
+    "pre_fix_exec_trace": "2c4792f71990e5d371ce60d2f2055c67fc4da0dbffce168eec26f90d9ec4e355",
+    "pre_fix_syscall_trace": "04161b554a197939aa9de3fbd4cbb886dad72dc29768260481f8e4abf53fe773",
+    "post_fix_safe_cache_trace": "af4b1d88d7655fdef297852e008df6671cd2ec5e7b77504ae8250f73cbf35d02"
+  },
+  "limits": [
+    "Qualification is limited to this fresh QEMU Ubuntu guest with PackageKit masked at runtime.",
+    "This is not bare-metal Aéza bootstrap or an unmasked default-host test.",
+    "No package-changing inert-service role apply, post-apply release lifecycle, or reboot was run at this exact source commit.",
+    "The smoke result is synthetic and does not qualify model quality, trading behavior, or production state.",
+    "Cache leaf files are protected by a root-private parent directory but are not separately type-checked; this remains a hardening opportunity."
+  ],
+  "sol_review": {
+    "result": "no blocker to safe checkpoint",
+    "reviewed_commit": "05388406c6d15a10456c72d122d42655fead499d",
+    "acceptance_scope": "the bounded corrected source-build apply on this masked fresh QEMU guest",
+    "unverified": "unmasked/default host behavior, bare-metal bootstrap, service-role package-changing apply, and release lifecycle at this commit"
+  }
+}

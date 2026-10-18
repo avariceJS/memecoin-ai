@@ -213,6 +213,17 @@ compute and host capabilities explicitly, while release identity, state formats,
 restore semantics remain platform-independent. Recovery evidence and exact limits are indexed in
 [`docs/evidence/README.md`](evidence/README.md).
 
+After the immediate Migration v1 transfer and Mac factory reset are complete, resume portability
+work from the pushed `codex/linux-portability-20261018` branch and its receipt. The next useful
+qualification is clean-host package provisioning without the PackageKit mask, followed by a
+package-changing inert-service role with explicit transient-service observation and an exact-head
+release stage/verify/activate/stop/reboot cycle. Keep user/account creation separate from package
+installation; keep restored Brain inert until explicit activation. The longer target is source plus
+explicitly authorized durable state deploying to an empty compatible host, with host capabilities
+and CPU/optional NVIDIA compute separated from platform-neutral state, manifests, model and
+database formats, and restore semantics. This work has not qualified production-state restore,
+arm64 Linux runtime, Windows/WSL, CUDA, or NVIDIA hardware.
+
 The opt-in `tools/brain_linux_packages.py` bootstrap utility is restricted to Ubuntu 24.04 x86_64
 inside systemd-nspawn and requires explicit `--lab-only` invocation. It uses a dedicated APT source,
 index, and archive area with the official Ubuntu signing key and a caller-pinned archive snapshot.
@@ -272,8 +283,15 @@ service-activity signal without retaining raw journal entries. Live tracing loca
 now use root-private regular-file cache paths and retain a fail-closed null-device readiness check
 before and after package actions. With the dedicated paths, a traced live `apt-get update` left the
 device at `0666` and made no mode-changing call against it. This closes the observed cause on this
-Ubuntu guest; repeat package apply and service-role isolation are still required before broadening
-the host qualification. Full evidence, including the PackageKit effect and its limits, is indexed in
+Ubuntu guest. At source `05388406c6d15a10456c72d122d42655fead499d`, a fresh Ubuntu 24.04.5 QEMU guest
+completed the corrected signed-index refresh (54 indexes), exact four-package source-build apply,
+and empty replan. Device readiness remained valid; active-unit inventory was unchanged and the
+adapter's journal service-activity signal was false. As the unprivileged service identity, clean
+setup, build, synthetic smoke, and `pip check` passed. PackageKit was runtime-masked, so this does
+not qualify unmasked/default-host provisioning, bare metal, a package-changing inert-service role,
+or release lifecycle at this source head. Cache leaf files are not separately type-checked inside
+their root-private directory. Full evidence, including the PackageKit effect and the limits of this
+corrected run, is indexed in
 [`docs/evidence/README.md`](evidence/README.md).
 
 At source commit `0b296131a957c5d9c3e3865bd6d94008dd27495b`, the canonical wheel and source archive
