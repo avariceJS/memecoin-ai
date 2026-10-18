@@ -85,8 +85,15 @@ audit and explicit exact-ID discard into retained quarantine. On the VPS, 3/37 j
 were eligible; one was qualified, two remain eligible, and 34 manual-review records remain
 untouched. SIGKILL after discard intent and each of four renames replayed safely; normal recovery
 refused throughout, and an active unit blocked discard. Quarantine retained 16.8 MB; no pruning
-policy exists. See the stage-discard qualification receipt. Next: stale prepared-state lifecycle
-and upgrade recovery.
+policy exists. The follow-on pre-intent recovery at `918611b3ae9d959a27e713ad376721e606e93008`
+records a sealed prepare plan before external temp creation, metadata-only audit, all-artifact
+preflight, and replayable retained quarantine. Three real SIGKILL windows (after state, pin, unit
+temp writes) recovered and replayed; a later same-release stage/replay passed independent verify
+with its unit disabled/inactive. See the
+[`stage-discard receipt`](../docs/evidence/brain-linux-stage-discard-qualification-2026-10-18.json)
+and [`pre-intent recovery receipt`](../docs/evidence/brain-linux-preintent-crash-qualification-2026-10-18.json).
+Power-loss/storage failure and physical quarantine pruning remain unqualified. Next: stale
+prepared-state lifecycle and upgrade recovery.
 
 `research/active` is at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`; `main` remains
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Future-v2 v3 drafts remain untracked and untouched.

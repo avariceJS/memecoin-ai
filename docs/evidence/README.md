@@ -66,6 +66,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
   rename, refusal by normal recovery, and refusal while the exact unit was active. Quarantine remains
   retained; no physical pruning or automatic cleanup is qualified. See its linked inventory and
   interruption/active-unit receipts for raw observations.
+- [Linux pre-intent crash recovery](brain-linux-preintent-crash-qualification-2026-10-18.json):
+  real SIGKILL after state, pin, and unit temp writes; exact retained quarantine recovery and replay,
+  followed by successful stage and same-release replay. The unit remained disabled and inactive;
+  power-loss, storage-failure, and quarantine-pruning behavior are unqualified.
 
 - [Scheduled sensing neural engineering qualification](brain-scheduled-sensing-neural-qualification-2026-10-15.json):
   synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume

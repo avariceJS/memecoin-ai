@@ -1,0 +1,70 @@
+{
+  "activation_performed": false,
+  "crash_recoveries": [
+    {
+      "attempt_id": "0b86f284035c-1f03df30f12c7675",
+      "child_returncode": -9,
+      "classification": "terminal-no-publish-intent",
+      "quarantine_artifacts": "1",
+      "recovery": {
+        "attempt_id": "0b86f284035c-1f03df30f12c7675",
+        "quarantined_preintent_artifacts": "1",
+        "recovered": "true"
+      },
+      "recovery_replay": {
+        "attempt_id": "0b86f284035c-1f03df30f12c7675",
+        "quarantined_preintent_artifacts": "1",
+        "recovered": "true"
+      },
+      "target": "state"
+    },
+    {
+      "attempt_id": "0b86f284035c-88a76e1a02b295c1",
+      "child_returncode": -9,
+      "classification": "terminal-no-publish-intent",
+      "quarantine_artifacts": "2",
+      "recovery": {
+        "attempt_id": "0b86f284035c-88a76e1a02b295c1",
+        "quarantined_preintent_artifacts": "2",
+        "recovered": "true"
+      },
+      "recovery_replay": {
+        "attempt_id": "0b86f284035c-88a76e1a02b295c1",
+        "quarantined_preintent_artifacts": "2",
+        "recovered": "true"
+      },
+      "target": "pin"
+    },
+    {
+      "attempt_id": "0b86f284035c-35bbd7193b4b5601",
+      "child_returncode": -9,
+      "classification": "terminal-no-publish-intent",
+      "quarantine_artifacts": "3",
+      "recovery": {
+        "attempt_id": "0b86f284035c-35bbd7193b4b5601",
+        "quarantined_preintent_artifacts": "3",
+        "recovered": "true"
+      },
+      "recovery_replay": {
+        "attempt_id": "0b86f284035c-35bbd7193b4b5601",
+        "quarantined_preintent_artifacts": "3",
+        "recovered": "true"
+      },
+      "target": "unit"
+    }
+  ],
+  "same_release_stage_replay": {
+    "release_id": "0b86f284035cd7f997a2494013863b95ab3cdb9b7ec10475a354c109e0a0d62a",
+    "release_path": "/opt/brain/releases/0b86f284035cd7f997a2494013863b95ab3cdb9b7ec10475a354c109e0a0d62a",
+    "unit": "memecoin-brain-0b86f284035cd7f997a2494013863b95ab3cdb9b7ec10475a354c109e0a0d62a.service"
+  },
+  "schema": "brain-linux-preintent-crash-qualification-v1",
+  "secrets_recorded": false,
+  "source_commit": "918611b3ae9d959a27e713ad376721e606e93008",
+  "subsequent_stage": {
+    "release_id": "0b86f284035cd7f997a2494013863b95ab3cdb9b7ec10475a354c109e0a0d62a",
+    "release_path": "/opt/brain/releases/0b86f284035cd7f997a2494013863b95ab3cdb9b7ec10475a354c109e0a0d62a",
+    "unit": "memecoin-brain-0b86f284035cd7f997a2494013863b95ab3cdb9b7ec10475a354c109e0a0d62a.service"
+  },
+  "wheel_sha256": "3773694ef321b1628d7d47a958830bee6973e63ced389579f4537166685eabe0"
+}

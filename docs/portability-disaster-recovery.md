@@ -403,6 +403,24 @@ the [pre-discard inventory](evidence/brain-linux-stage-discard-inventory-2026-10
 [interruption replay](evidence/brain-linux-stage-discard-interruption-2026-10-18.json), and
 [active-unit refusal](evidence/brain-linux-stage-discard-active-unit-refusal-2026-10-18.json).
 
+At exact source `918611b3ae9d959a27e713ad376721e606e93008`, staging writes a sealed prepare intent
+before creating external state, pin, or unit temps. Read-only audit reports metadata without
+recursively hashing foreign destinations. Recovery stops the attempt slice, checks the builder
+census and inert unit, rejects final-path conflicts and nested mounts, and preflights every temp
+identity before its first quarantine rename. A sealed progress journal makes each no-replace move
+replayable; exact temps remain retained in root-only same-filesystem quarantine with a completion
+receipt. Recovered attempts validate that receipt read-only even after a later attempt publishes the
+same release, including crashes before some or all temps existed.
+
+On Ubuntu 24.04/ext4, three real stage processes received SIGKILL after state, pin, and unit temp
+write boundaries. Recovery retained 1, 2, and 3 exact artifacts respectively; a second recovery
+returned the same result for every attempt. A later stage and same-release stage replay both passed,
+independent verification passed, and the service remained loaded/disabled/inactive with PID 0. The
+receipt binds the source commit and wheel hash. This qualifies process interruption and replay on
+one host, not sudden power loss, storage failure, quarantine pruning, or a second host/toolchain.
+See the immutable
+[`pre-intent crash qualification receipt`](evidence/brain-linux-preintent-crash-qualification-2026-10-18.json).
+
 At exact source `a24bfa848d1aa54935780b279fddbd49b696b01a`, a 6,000-file synthetic wheel was staged
 while a second same-release stage was refused. The active builder cgroup was frozen, the stage parent
 was killed with SIGKILL, and `recover-stage` removed the builder, verified and quarantined the exact
