@@ -2,7 +2,10 @@
 
 This document preserves hardened DR as a future capability. The active migration is the narrower,
 practical Migration v1 described in [`portability-disaster-recovery.md`](portability-disaster-recovery.md).
-V1 acceptance does not imply v2 qualification.
+The active v1 destination is the original Mac1 after reset; corporate Mac2 is temporary storage
+only. Its pre-reset custody checks and post-reset Mac1 functional checks are separate. V1 acceptance
+does not imply v2 qualification. The historical single-Kingston assumptions and independent Sol
+review below belong to deferred v2, not the current v1 erase gate.
 
 ## Objective and claim
 
@@ -17,7 +20,8 @@ a second SSD/NAS and enterprise secret custody are outside this scope.
 
 The scope-change baseline was `90b8faf0bfb8604a890d74a4573869ec6c81611d`. The integrated
 Migration v1 code/history now lives on `main`; `research/active` is frozen at
-`c157f79471c1cb330bdab01cc4b4cdd7b9a1a186` only for the unchanged Mac2 fetch instruction.
+`c157f79471c1cb330bdab01cc4b4cdd7b9a1a186` for the historical Mac2 package fetch instruction. That
+package is now retired from current operator use; keep the compatibility ref until replacement recovery execution is verified.
 The published experimental continuation is `codex/v3-scratch-20261017` at
 `4a84d5bd1496bbd6bb8832391edebd9bf51b845a`, which adds descriptor-bound scratch work but does
 not establish physical capture or owner-scale acceptance. Consult that branch's version of this

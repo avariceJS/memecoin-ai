@@ -62,9 +62,10 @@ health/PID/pin, and rollback checks. Do not infer deployment from a code commit.
 
 ## Operating mode and host boundaries
 
-Current policy is **single-host active development/research on Mac 1**. Mac 2 is a standby,
-inactive worker; two-host execution remains the supported future scale-out path. Migration
-completion and exact verified pins belong in `memory/now.md`, not assumptions about hostname.
+Current policy is **single-host development/research and owner runtime on Mac 1**. Mac 2 is
+corporate temporary backup storage only during the Mac 1 reset, subject to its data-custody policy.
+It is not a standby worker and receives no Brain environment, services or credentials. Recovery
+returns to Mac 1, initially inert. Completion and verified pins belong in `memory/now.md`.
 Host reset, portability, backup custody, and full recovery readiness are owned by
 [`portability-disaster-recovery.md`](portability-disaster-recovery.md); this operating-mode section
 does not make the owner Mac disposable.
@@ -79,8 +80,9 @@ does not make the owner Mac disposable.
 - Research has its own `.venv`, optional `work/ml-venv`, artifacts and generation ownership. Do not
   reuse a production virtualenv, change LaunchAgents, start another canonical source writer or
   relaunch an expired campaign while preparing the research host.
-- Mac 2 checkout `/Users/sl-aleksandr/Developer/memecoin-worker` retains its history and artifacts
-  as a standby copy. No autonomous research, dispatch or acquisition starts there while inactive.
+- The historical Mac 2 worker path was `/Users/sl-aleksandr/Developer/memecoin-worker`; its current
+  contents have not been inspected for this plan. It is not an active restore destination. Preserve
+  any existing unique work under the Git/custody policy; do not initialize or activate a worker there.
 - Transfer immutable captures, shards, datasets, or model bundles through a new incoming path;
   verify file inventories, manifest hashes and provenance before admission. Preserve failed runs,
   STOP/recovery histories and uncommitted user files. Do not delete the sending copy upon cutover.
@@ -94,14 +96,11 @@ does not make the owner Mac disposable.
 - Worker checkout intentionally has no owner `work/`, LaunchAgents, or credentials. Never restore
   live state from copied documents or secrets.
 
-Bootstrap entrypoint: `tools/bootstrap_worker.command`. The full workflow formerly at
-`two-mac-workflow.md` is retained as a short compatibility pointer; current boundaries are here.
-
-To reactivate Mac 2: explicitly assign a bounded worker task, inspect both hosts and worker dirty
-state, fast-forward an isolated worker branch to an agreed commit, rebuild/check local dependencies,
-and transfer only required pinned inputs through verified incoming storage. Allocate independent
-research ownership/output paths and non-overlapping acquisition reservations. Return sealed outputs
-for Mac 1 verification. Owner runtime and credentials stay on Mac 1; activation is not promotion.
+`tools/bootstrap_worker.command` and the compatibility pointer `two-mac-workflow.md` concern a
+future, separately authorized worker setup. Do not run worker bootstrap or reactivate Mac 2 for the
+current migration. Multi-worker transfer/quota constraints above remain architectural invariants;
+they do not assign a worker role to the corporate backup host. After the reset, development resumes
+on Mac 1 from GitHub `main`, while the restored owner runtime retains its separately recorded pin.
 
 ## Finite external Senses operation
 
@@ -159,12 +158,12 @@ only primary integration baseline. The consolidation advances the former `770699
 all 321 research commits ending at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`, followed by
 test-only contract alignment (`d8fdff7`) and consolidation documentation. This includes Senses/storage work, neural artifact/statistics integrity,
 DR tooling, and the practical Migration v1 implementation and operator package. It is code
-integration, not model promotion, runtime deployment, Mac2 acceptance, or permission to erase.
+integration, not model promotion, runtime deployment, backup/restore acceptance, or permission to erase.
 
 | GitHub branch | Purpose and exact checkpoint | Remaining gate |
 |---|---|---|
 | `main` | Current integration baseline; start here | Use task-specific checks before each integration |
-| `research/active` | Frozen compatibility ref at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186` | The unchanged Migration v1 package explicitly fetches this branch, then checks out `6ad944c`; retire after the package dependency is completed or replaced and verified |
+| `research/active` | Frozen compatibility ref at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186` | Historical Migration v1 package fetches this branch before `6ad944c`; that Mac2 package is now retired, but retain this ref until replacement recovery execution is verified |
 | `codex/linux-portability-20261018` | Linux development at `fb36e7e43857e082cbe1c5f1d0ef6eb8f8dd5fe8` | Unmasked clean-host provisioning, inert-service apply, exact-head lifecycle and absence of transient service starts remain unqualified; consult this branch's `memory/now.md` and Linux receipts |
 | `codex/v3-scratch-20261017` | Descriptor-bound DR scratch prototype at `4a84d5bd1496bbd6bb8832391edebd9bf51b845a` | Physical APFS/HFS and owner-scale qualification remain open; production capture remains fail-closed |
 | `control-center/observatory-handoff` | Recovered UI reconstruction at `ce8505a6da99c5d5e1f118d1e55346f95981c328` | CC02.8 final integrated visual acceptance remains unfinished; nine formerly local commits are published; no new runtime/control permission |

@@ -2,291 +2,287 @@
 
 ## Active scope: practical Migration v1
 
-The current user-approved objective is a conservative copy-and-restore migration to the second
-MacBook, not formal hardened DR qualification. Preserve reset-unique Brain-owned state on Kingston,
-verify the copy, restore and verify it on the second MacBook, and prove the restored Brain is inert.
-This remains **NO-GO for erasing the first Mac** until real second-MacBook acceptance passes. Do not
-require RecoveryOS qualification, formal `T/K`, or the v3 universal capture adapter for v1. The
-deferred hardened capability is owned by
-[`portability-disaster-recovery-v2-roadmap.md`](portability-disaster-recovery-v2-roadmap.md).
+**Decision, 2026-10-18:** Mac1 → Kingston → temporary backup custody on Mac2 → factory reset
+Mac1 → full, initially inert restoration on Mac1. Mac2 is a corporate storage host only. It is
+not a development, training, inference, collector, or permanent Brain host. No Brain deployment,
+Python environment, Git authentication, LaunchAgents, or application restore is required on Mac2.
+This document is the current practical plan; preparing it did not execute a backup or restore.
 
-Git is canonical code/history; Kingston `/Volumes/Kingston/BrainData` is the recovery data tier.
-Migration v1 copies, never moves or deletes source state. It must not overwrite existing BrainData
-or inspect/change PersonalBackup. The user authorizes a separate v1 copy while PersonalBackup remains
-on Kingston; its occupancy is already reflected in fresh free-space measurements, so do not reserve
-or estimate it separately. Exclude known secrets and session stores for reauthentication/reissue.
-Restore into quarantine, verify integrity and required state, bootstrap and smoke-check, and prove no
-service or Brain work auto-started. Restore and Start remain separate.
+The recovery objective is the same durable Brain state and capabilities at an explicit final
+cutoff, including unfinished research. It is not a new installation with empty databases. RAM,
+open connections, and in-flight computation cannot be promised as resumable state: preserve durable
+checkpoints and pending/ambiguous operations, and identify jobs that cannot resume exactly.
+No new development is part of this migration. Hardened RecoveryOS/T/K/v3 qualification remains
+[deferred](portability-disaster-recovery-v2-roadmap.md).
 
-The bounded implementation is [`tools/brain_migration_v1.py`](../tools/brain_migration_v1.py):
-create-only capture, externally pinned verification, and restore into a new inert home quarantine.
-It inventories seven roots: owner `work/` and `.git`, research `work/` and `.git`,
-`~/.config/brain-research`, the saved Recovery terminal transcript, and Brain LaunchAgents. It copies
-hardlink aliases as independently hashed files; topology and aliases outside the selected roots are
-unresolved. Private configuration remains quarantine/reissue-only because filename rules cannot
-prove it contains no unknown secrets. SQLite/WAL files are opaque bytes; application consistency is
-not claimed. Symlink targets and filesystem metadata restoration are not proved.
+GitHub is authoritative for code/history, **not a backup of all Brain state**. Kingston contains
+both `/Volumes/Kingston/BrainData` and separate `BrainMigrationV1` candidates. Do not alter, move,
+delete, rebind, repair, or overwrite BrainData or existing candidates. Read source data only for
+approved custody/verification; keep protected F01/D43/reserved material opaque. PersonalBackup is
+user-managed and outside this operation. Any supplementary backup uses a new, separately named
+location outside BrainData, with fresh capacity checks and no replacement of prior evidence.
 
-The initial ordinary candidate excludes `owner_work/calendar-execution-01` without descent and
-reports `protected_custody_complete=false`; it cannot be used alone for the second-Mac acceptance
-run. Sol accepted `tools/brain_migration_v1_d43.py` for one bounded real D43 opaque-custody capture
-attempt. The full v1 candidate is the separately pinned ordinary candidate plus
-the D43 overlay, with both manifest hashes and member counts in the operator handoff.
+### Existing evidence and unchanged pins
 
-The latest metadata-only seven-root census gave a conservative copy-budget basis of 30,810,427,392
-bytes (28.694 GiB), below the 35-GiB cap. On 2026-10-16, a fresh preflight measured 213,921,214,464
-free bytes on case-sensitive APFS UUID `8f8f1081-9be4-4914-9111-75f1b90255bf`; this included
-existing PersonalBackup occupancy. The writer retains a 50-GiB free floor and an 8-GiB operation
-reserve. It created and internally readback-verified candidate
-`21843d9664ea45438fd79c9745a30fee` with 28,820,413,514 payload bytes and 783,922 members; a
-separate read-only verifier matched every member and the externally pinned manifest SHA-256. Free
-space after verification was 182,458,507,264 bytes. That ordinary candidate is stale after the
-continuation code checkpoint and excludes D43; do not restore it. A D43 live capture on 2026-10-17
-was interrupted during copy after a per-member target identity guard proved prohibitively slow. It
-left source data untouched and produced incomplete candidate
-`5d4804faa1f14c47a0e3ed652e758bdd`, with durable pause records but no manifest or completion seal.
-The exact D43 label remains disabled; no automatic resume occurred. A new Sol-reviewed bounded
-continuation path revalidates old pause-record hashes, fresh source stability and target identity,
-and never opens the old partial payload. The new D43 overlay and a fresh seven-root ordinary
-candidate now form a separately pinned pair; neither has been restored on Mac2. See the earlier
-[ordinary capture receipt](evidence/portability-migration-v1-capture-2026-10-16T2030Z.json) for the
-stale excluded-D43 candidate and the new [candidate-pair receipt](evidence/portability-migration-v1-candidate-pair-2026-10-16T2217Z.json) for current pins.
+The immutable [candidate-pair receipt](evidence/portability-migration-v1-candidate-pair-2026-10-16T2217Z.json)
+records the following **2026-10-16 capture**, not a fresh final cutoff:
 
-### Migration v1 protected custody and database consistency
+| Component | Candidate ID | Manifest SHA-256 |
+|---|---|---|
+| Ordinary | `d2fb11d73cd84c14a24ba3ed870b2ccb` | `0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865` |
+| Opaque D43 overlay | `58ec529e5a134817bf179b06922ddcf7` | `ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6` |
 
-The D43 component's claim is limited to byte custody, symlink text, source identity/lineage, and an
-inert restore. It records and readback-verifies a durable pause intent before disabling exactly
-`ai.memecoin.d43.calendar01`; it does not kill or unload the job and never automatically resumes it.
-It requires the job PID-free, writer-free, and source metadata stable for the configured interval,
-rejects nested filesystems, pins the exact service plist, checks Kingston identity/free-space while
-copying, and seals only after readback verification. After any failure, retain the incomplete
-candidate and pause records, inspect the exact label, and make no automatic service change. After a
-successful capture, run a fresh verify with the externally recorded manifest SHA and confirm the
-same label is still disabled and PID-free. This does not inspect D43 semantics, validate protected
-SQLite databases, restore macOS metadata, activate the service, establish global migration
-completeness, or authorize erasure.
+Pinned tool commit: `6ad944c40938e1e25d2bddb3ea61234c69e9149d`. Kingston UUID:
+`8f8f1081-9be4-4914-9111-75f1b90255bf`, case-sensitive APFS. Ordinary: 784,023 manifest
+members / 28,821,482,721 payload bytes; D43: 1,567 / 13,227,642. Counts include directory records.
+Both passed capture readback and independent verification. The ordinary candidate passed 93 SQLite
+family integrity checks, preserving hashes, with 14 WAL and 14 SHM members. This is byte/structural
+evidence, not proof of full application recovery or the latest logical transaction frontier.
+The recorded free space, 138,415,222,784 bytes, is historical and must not be used for a new copy.
 
-If a D43 capture is interrupted or fails after the disable, retain that incomplete candidate and
-leave the exact label disabled. Do not re-enable it to retry. The explicit
-`capture --paused-candidate-id <ID>` continuation accepts only the exact incomplete marker set with
-durable pause records and no manifest or completion seal; it never enters the prior partial payload.
-It rechecks the original pause-record digests, target/plist/source identities, disabled PID-free
-state, writer absence, and a fresh stable metadata interval before creating a new candidate. The
-new manifest and `PAUSE_CONTINUATION.json` bind the old candidate ID and all three pause-record
-digests. Both the old partial and new candidate remain on Kingston; only the new externally pinned
-candidate may qualify for restore.
+The seven ordinary roots are owner `work/` and `.git`, research `work/` and `.git`,
+`~/.config/brain-research`, the saved Recovery terminal transcript, and Brain LaunchAgents.
+**This pair does not include the whole BrainData corpus or establish exhaustive host-state coverage.**
+There are 23 ordinary exclusions to reconcile. Ordinary custody includes 12,498
+`protected_path_name_candidate_opaque` records; its name does not mean public or employer-approved.
+Private config may contain unknown secrets despite filename exclusions. Hardlink topology, external
+aliases, symlink target closure, ACL/xattr recovery, and all required filesystem metadata are unproved.
 
-For ordinary SQLite state, stop Brain-owned writers before capture and preserve each database and
-existing `-wal`, `-shm`, and `-journal` companion as opaque bytes. Do not checkpoint or otherwise
-mutate a source database during capture. On the restored copy, run
-[`brain_migration_v1_verify_sqlite.py`](../tools/brain_migration_v1_verify_sqlite.py): it hashes
-each ordinary database family against the manifest, opens each database read-only with SQLite's
-immutable URI mode for `PRAGMA integrity_check`, and requires all family hashes to remain unchanged.
-This is a practical structural check after restore, not a substitute for a stopped-writer capture
-boundary. Protected database semantics remain unchecked. The earlier 93-database pass on
-`21843d9664ea45438fd79c9745a30fee` was stale and is not relied upon; the fresh ordinary candidate
-`d2fb11d73cd84c14a24ba3ed870b2ccb` now passes the same 93-database read-only check. Repeat that
-check on the restored copy on the second MacBook.
+D43 was disabled and PID-free at capture; no automatic resume was authorized. Re-read operational
+status before any future action. Incomplete D43 `5d4804faa1f14c47a0e3ed652e758bdd`, failed ordinary
+`58e4596a3db5403a9b7901cfdb40566d`, and stale ordinary `21843d9664ea45438fd79c9745a30fee`
+are not restore targets. Keep them and their pause records intact.
 
-### Migration v1 second-Mac acceptance package
+The former Mac2 deployment/acceptance shell package is **retired from current operator use**.
+Its exact bytes remain in [the frozen pre-change document](https://github.com/avariceJS/memecoin-ai/blob/7f94806f6ab66922cca01f43b818da62f24c6fe5/docs/portability-disaster-recovery.md#migration-v1-second-mac-acceptance-package).
+This plan changes the destination and acceptance sequence, not the receipts, candidate bytes, hashes,
+or historical acceptance result. `research/active` remains frozen for historical package recovery;
+this documentation change does not qualify or execute its replacement or delete that ref.
 
-The full current Kingston pair is ready for one real Mac2 restore attempt from pinned code commit
-`6ad944c40938e1e25d2bddb3ea61234c69e9149d`. The ordinary candidate is
-`d2fb11d73cd84c14a24ba3ed870b2ccb`, manifest SHA-256
-`0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865`, 784,023 manifest members,
-and 28,821,482,721 payload bytes. The separate opaque D43 overlay is
-`58ec529e5a134817bf179b06922ddcf7`, manifest SHA-256
-`ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6`, 1,567 manifest members,
-and 13,227,642 payload bytes. Together they contain 785,590 manifest member records, with
-overlapping directory records included in that sum. Both passed capture readback and fresh
-externally pinned verify. The ordinary payload's 93 database families passed read-only SQLite
-integrity checks and retained their manifest hashes. The immutable
-[candidate-pair receipt](evidence/portability-migration-v1-candidate-pair-2026-10-16T2217Z.json)
-records the source inventory, D43 lineage, incomplete prior attempts, and exact results.
+### Phase 1 — final source inventory and recoverability, on Mac1
 
-Do the acceptance once, on the second MacBook. Prerequisites: compatible macOS, Python 3.11 or
-newer, non-interactive GitHub access for this repository, and network access for the locked package
-setup; do not type credentials into the captured terminal. Kingston must be mounted at
-`/Volumes/Kingston` with the exact UUID below and case-sensitive APFS, at least 58 GiB free on
-Kingston (50-GiB floor plus 8-GiB operation reserve), and at least 45 GiB free in the Mac2 home
-volume after checkout/setup. The D43 `protected-candidates` directory and pinned candidate directory
-must already be owned by Mac2's effective UID with mode `0700`; the preflight only reads these
-attributes and stops on mismatch. The restore commands only read Kingston and create new user-owned
-quarantine directories; they do not install or load LaunchAgents. Do not proceed if the preflight
-finds an active Brain process or loaded Brain launchd label.
+Before reset, produce one private recovery index with capture time, source/destination identities,
+exact code/tool pins, manifest hashes, exclusions, verification results, and restore order. Store
+verified copies with the backups and a nonsecret locator/pin record outside Mac1. Never publish
+private inventories, datasets, service environment values, or credentials to GitHub.
 
-Start a full private terminal transcript at
-`$HOME/BrainMigrationV1-acceptance-20261016/mac2-restore-transcript.txt` using macOS `script`.
-The unique directory creation intentionally fails if this path already exists, so the transcript
-cannot overwrite earlier evidence. Run the following inside that captured shell, and type `exit`
-when the package finishes:
+1. Re-read Git refs/worktrees, dirty/untracked/ignored state, exact owner deployment pointers,
+   runtime bundles and champion manifests. Compare with the [Git consolidation registry](operator-runtime.md#git-integration-and-recovery-registry).
+   Publish any new irreplaceable code/checkpoints; preserve private local state separately. Export
+   a current Git bundle/mirror with all published branches/tags as an additional recovery copy and
+   verify it; preserve the archived historical objects identified by that registry. Do not blindly
+   reinstall copied `.git/worktrees` paths. Reconstruct worktrees from the published refs instead.
+2. Close coverage for every required source, including paths outside the seven roots. Map each item
+   to a verified candidate/member, BrainData object, new supplementary capture, independently
+   recoverable secret, reproducible dependency, or explicitly disposable item. Resolve all 23
+   exclusions, outside-root symlinks/hardlinks and permission-denied/unscanned locations that could
+   hold Brain work. Unclassified or inaccessible unique state blocks reset; do not treat an ignore
+   rule or directory name as a disposal decision.
+3. Preserve the following together, without merging owner and research trees:
 
-```sh
-umask 077
-mkdir -m 700 "$HOME/BrainMigrationV1-acceptance-20261016"
-test ! -e "$HOME/BrainMigrationV1-acceptance-20261016/mac2-restore-transcript.txt"
-script -q "$HOME/BrainMigrationV1-acceptance-20261016/mac2-restore-transcript.txt"
-```
+   | State | Required recovery material |
+   |---|---|
+   | Databases | Every DB and existing WAL/SHM/journal companion from one stopped-writer boundary; ledgers, cursors, reservations, pending jobs, STOP/pause records and source gaps |
+   | Research and ML | Unique raw captures, dataset/shard manifests and members, splits/provenance, models/champion/candidate artifacts, training checkpoints and available optimizer/scheduler/RNG/sampler state |
+   | Runtime | Exact deployed bundle bytes and manifest hashes, deployment pointer, service-specific source pin, paper balances/positions, durable operator mode and request IDs |
+   | Configuration | Nonsecret configuration, storage bindings, root markers and path mappings, service definitions and launch state, required permissions/ACLs/xattrs/links |
+   | Development | Git archive/refs, unfinished topic checkpoints and required ignored/private artifacts, source-compatible dependency kits |
+   | Authentication | Account/MFA recovery and reissue instructions; separately approved custody for any irreplaceable key that cannot be reissued |
 
-```sh
-bash -s <<'BRAIN_MIGRATION_V1'
-set -euo pipefail
-ROOT="$HOME/BrainMigrationV1-acceptance-20261016"
-REPO="$ROOT/repo"
-HEAD="6ad944c40938e1e25d2bddb3ea61234c69e9149d"
-ORDINARY="d2fb11d73cd84c14a24ba3ed870b2ccb"
-ORDINARY_SHA="0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865"
-D43="58ec529e5a134817bf179b06922ddcf7"
-D43_SHA="ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6"
-KINGSTON="/Volumes/Kingston"
-Q="$ROOT/quarantine"
-export GIT_TERMINAL_PROMPT=0
+   Protected data receive only authorized opaque custody and lineage verification. No protected
+   SQL queries, evaluation, training, relabeling or inspection is allowed. Ordinary/private source
+   inventories stay private. Credentials are not pasted into transcripts or Git; excluded secrets
+   need a verified external recovery route before reset, not an assumption that login will work.
+4. Establish the final stopped-writer cutoff using the existing operational stop procedure in a
+   separately scheduled migration operation. This planning task does not stop or start services.
+   Record relevant labels/PIDs, disabled/loaded states, timers and file-writer absence, plus source
+   stability. Preserve D43's existing disabled state. Do not infer quiescence from Pause alone.
+   Reconcile changes since the pinned pair: unchanged members may reuse it; changed/new required
+   members need a new sealed capture and an explicit overlay order. Never rewrite the old pair.
+   Keep state frozen until reset; any later writes require a new delta and re-verification.
+5. Inventory BrainData read-only and bind every required object to a manifest/hash and source
+   frontier. It is already on Kingston but needs a separate physical copy for Kingston-loss
+   protection. Include recovery artifacts and dependencies as well as datasets/models. Do not use
+   a mutable live directory copy as a consistent backup or let a copy operation follow outside links
+   silently. Protected closure must include F01/reserved roots, not merely the known D43 overlay.
 
-expect_json() {
-  local expected="$1"
-  shift
-  local output
-  output="$("$@")"
-  printf '%s\n' "$output"
-  EXPECTED_JSON="$expected" ACTUAL_JSON="$output" python3 - <<'PY'
-import json, os
-expected = json.loads(os.environ['EXPECTED_JSON'])
-actual = json.loads(os.environ['ACTUAL_JSON'])
-if any(actual.get(key) != value for key, value in expected.items()):
-    raise SystemExit(f"unexpected_result_fields: expected={expected!r}, actual={actual!r}")
-print({'expected_fields_verified': sorted(expected)})
-PY
-}
+### Phase 2 — dependency and host-service recovery kit, on Mac1
 
-python3 -c 'import sys; print(sys.version); raise SystemExit(0 if sys.version_info >= (3, 11) else 2)'
-git clone --no-checkout https://github.com/avariceJS/memecoin-ai.git "$REPO"
-git -C "$REPO" fetch origin research/active
-git -C "$REPO" checkout --detach "$HEAD"
-test "$(git -C "$REPO" rev-parse HEAD)" = "$HEAD"
-test -z "$(git -C "$REPO" status --porcelain)"
-cd "$REPO"
-make setup
-make smoke
+Record macOS version/build, CPU architecture, user/UID and home paths, filesystem case sensitivity,
+Python versions/SQLite versions per environment, required native libraries/toolchain and external
+utilities. Preserve checked-in `requirements-dev.lock`, `requirements-ml.lock`, `pyproject.toml`,
+UI lockfile and corresponding source commits. Python 3.11+ is the ordinary code floor; the current
+ML lock targets CPython 3.13/macOS arm64. Deployed bundles may have different requirements: inventory
+and reproduce each environment, not just today's `main` virtualenv.
 
-diskutil info "$KINGSTON" | grep -E 'Device Identifier|Mount Point|File System Personality|Volume UUID|Volume Read-Only'
-diskutil info "$KINGSTON" | grep -q 'Case-sensitive APFS'
-python3 - <<'PY'
-import os, plistlib, shutil, stat, subprocess
-from pathlib import Path
-mount = Path('/Volumes/Kingston')
-info = plistlib.loads(subprocess.check_output(['/usr/sbin/diskutil', 'info', '-plist', str(mount)]))
-assert info.get('VolumeUUID', '').lower() == '8f8f1081-9be4-4914-9111-75f1b90255bf'
-assert info.get('MountPoint') == str(mount)
-assert 'apfs' in str(info.get('FilesystemType', info.get('FilesystemName', ''))).lower()
-free = shutil.disk_usage(mount).free
-print({'kingston_uuid': info['VolumeUUID'], 'filesystem': info.get('FilesystemType'), 'free_bytes': free})
-assert free >= 58 * 1024**3
-for path in (mount / 'BrainMigrationV1' / 'protected-candidates', mount / 'BrainMigrationV1' / 'protected-candidates' / '58ec529e5a134817bf179b06922ddcf7'):
-    metadata = path.stat(follow_symlinks=False)
-    print({'path': str(path), 'uid': metadata.st_uid, 'mode': oct(stat.S_IMODE(metadata.st_mode))})
-    assert stat.S_ISDIR(metadata.st_mode)
-    assert metadata.st_uid == os.geteuid() and stat.S_IMODE(metadata.st_mode) == 0o700
-home_free = shutil.disk_usage(Path.home()).free
-print({'mac2_home_free_bytes': home_free, 'required_bytes': 45 * 1024**3})
-assert home_free >= 45 * 1024**3
-PY
+Prepare a checksum-pinned installer/package kit for the actual Mac1 architecture and supported
+restore OS: interpreters, wheels including build dependencies, required native libraries, and UI
+Node/package-manager packages if used. Record exact installation commands, environment paths and
+package inventories in the private index. Verify availability, hashes, archive extraction and a
+fresh isolated install/import/synthetic smoke from those packages on the current Mac1 with Brain
+state and services unavailable. Use existing tools; no new DR framework is required. This bounded
+rehearsal is not a clean-OS restore test. Existing old virtualenvs and Homebrew symlinks alone are
+not a reproducible kit; the historical Recovery execution kits do not prove all Brain environments.
+If a required binary/package cannot be obtained or rebuilt, resolve it before reset. Do not silently
+upgrade dependencies, deploy `main` over the former runtime, or retrain missing models.
 
-brain_runtime_check() {
-  python3 - <<'PY'
-import json, os, re, subprocess
-raw = subprocess.check_output(['/bin/launchctl', 'list'], text=True)
-jobs = []
-for line in raw.splitlines():
-    fields = line.split()
-    if len(fields) == 3 and fields[2].startswith('ai.memecoin.'):
-        jobs.append({'label': fields[2], 'pid': fields[0]})
-comm_raw = subprocess.check_output(['/bin/ps', '-axo', 'pid=,comm='], text=True)
-args_raw = subprocess.check_output(['/bin/ps', '-axo', 'pid=,args='], text=True)
-def by_pid(raw):
-    result = {}
-    for line in raw.splitlines():
-        fields = line.strip().split(None, 1)
-        if len(fields) == 2:
-            result[fields[0]] = fields[1]
-    return result
-commands = by_pid(comm_raw)
-arguments = by_pid(args_raw)
-brain_candidates = []
-other_python_pids = []
-brain_executable_markers = ('brain', 'memecoin')
-brain_argument_markers = ('memecoin_ai', 'memecoin_brain', 'memecoin_collector', 'brain_migration_v1', 'calendar-execution-01')
-for pid, command in commands.items():
-    if pid == str(os.getpid()):
-        continue
-    executable = os.path.basename(command)
-    folded_executable = executable.casefold()
-    folded_args = arguments.get(pid, '').casefold()
-    if any(marker in folded_executable for marker in brain_executable_markers) or any(marker in folded_args for marker in brain_argument_markers):
-        brain_candidates.append({'pid': pid, 'executable': executable})
-    elif re.fullmatch(r'python(?:\d+(?:\.\d+)*)?', folded_executable):
-        other_python_pids.append(pid)
-print(json.dumps({'brain_launchd_jobs': jobs, 'brain_process_candidates': brain_candidates, 'other_python_pids': other_python_pids}, sort_keys=True))
-if jobs or brain_candidates or other_python_pids:
-    raise SystemExit(2)
-PY
-}
-brain_runtime_check
+For host services, record each Brain label's plist hash, executable/interpreter, arguments with
+secret values omitted, working directory, logs, permissions, schedule, RunAtLoad/KeepAlive behavior,
+loaded/enabled state and intended post-restore disposition. Preserve originals in quarantine. Include
+other Brain startup mechanisms if present (login items, cron or shell hooks). Never restore the
+whole `~/Library/LaunchAgents` directory or enable every historical plist. The pre-reset disabled
+and STOP states are recovery facts; a previously loaded label is not permission to restart it.
 
-expect_json '{"manifest_sha256":"0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865","member_count":784023,"payload_bytes":28821482721,"protected_custody_complete":false,"protected_custody_disposition":"protected_D43_source_present_uncaptured"}' python3 tools/brain_migration_v1.py verify --target-root "$KINGSTON" --candidate-id "$ORDINARY" --manifest-sha256 "$ORDINARY_SHA"
-expect_json '{"candidate_id":"58ec529e5a134817bf179b06922ddcf7","manifest_sha256":"ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6","member_count":1567,"payload_bytes":13227642,"state":"protected_opaque_candidate_verified","protected_semantics_used":false}' python3 tools/brain_migration_v1_d43.py verify --target-root "$KINGSTON" --candidate-id "$D43" --manifest-sha256 "$D43_SHA"
+### Phase 3 — verified temporary custody on Mac2
 
-mkdir -m 700 -p "$Q"
-test ! -e "$Q/ordinary"
-test ! -e "$Q/d43"
-expect_json '{"candidate_id":"d2fb11d73cd84c14a24ba3ed870b2ccb","manifest_sha256":"0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865","member_count":784023,"state":"inert_quarantine_verified","start_or_activation":false,"protected_custody_complete":false}' python3 tools/brain_migration_v1.py restore-inert --target-root "$KINGSTON" --candidate-id "$ORDINARY" --manifest-sha256 "$ORDINARY_SHA" --quarantine-root "$Q/ordinary"
-expect_json '{"candidate_id":"58ec529e5a134817bf179b06922ddcf7","manifest_sha256":"ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6","member_count":1567,"state":"protected_opaque_inert_quarantine_verified","protected_semantics_used":false,"start_or_activation":false}' python3 tools/brain_migration_v1_d43.py restore-inert --target-root "$KINGSTON" --candidate-id "$D43" --manifest-sha256 "$D43_SHA" --quarantine-root "$Q/d43"
-expect_json '{"candidate_id":"d2fb11d73cd84c14a24ba3ed870b2ccb","manifest_sha256":"0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865","ordinary_database_count":93,"protected_database_semantics_checked":false,"restore_payload_mutated":false,"sqlite_family_hashes_unchanged":true,"state":"ordinary_sqlite_integrity_verified"}' python3 tools/brain_migration_v1_verify_sqlite.py --payload-root "$Q/ordinary/payload" --manifest "$KINGSTON/BrainMigrationV1/candidates/$ORDINARY/MANIFEST.jsonl" --manifest-sha256 "$ORDINARY_SHA"
-brain_runtime_check
-git -C "$REPO" rev-parse HEAD
-git -C "$REPO" status --short
-test -z "$(git -C "$REPO" status --porcelain)"
-BRAIN_MIGRATION_V1
-```
+**Policy gate first:** establish that the employer permits the exact data classes, encrypted backup
+containers, removable-media use, destination, retention and deletion method. Encryption is not a
+policy exemption. Ordinary candidates, private configuration and BrainData may all be restricted.
+If permission is unknown or prohibited, do not place those bytes on Mac2. Use an approved independent
+personal disk/storage destination instead. A partial permitted Mac2 copy is not a full second backup;
+identify every single-copy object. Do not inherit the old single-Kingston risk acceptance for this
+new two-copy plan or label the requested full backup complete while protected content is omitted.
 
-Stop immediately on any failed assertion/command; UUID, APFS/case-sensitivity, capacity, commit,
-manifest digest/count/byte mismatch; nonzero runtime check; restore or SQLite error; or any output
-claiming activation. Keep Mac1 and all Kingston candidates intact. Do not inspect private
-configuration or protected payload semantics. `restore-inert` must report
-`inert_quarantine_verified` for ordinary and `protected_opaque_inert_quarantine_verified` for D43,
-with `start_or_activation: false`; SQLite must report 93 databases, unchanged hashes, and no
-restored-payload mutation. Both runtime checks must report empty `brain_launchd_jobs`,
-`brain_process_candidates`, and `other_python_pids`. Any Python process is a stop condition until
-it is identified and stopped or the handoff is reviewed again; the checker deliberately does not
-print process arguments, which may contain private values.
+On Mac1, package the complete approved recovery set into a new sealed transport archive/container
+that preserves case-sensitive paths, link text and required metadata. Keep a private member manifest
+and exact whole-container size/SHA-256; verify source-to-container membership and hashes, not just
+container-to-container equality. Measure space for the complete set, packaging scratch, extraction
+and reserves. The old 45-GiB Mac2 estimate covered a different scope and is not sufficient evidence.
+For supplementary writes on Kingston retain the existing 50-GiB floor plus 8-GiB operation reserve;
+never free space by deleting BrainData, candidates or PersonalBackup.
 
-This completes the Migration v1 real acceptance gate only after the entire transcript is reviewed
-by Sol against the two pins and the outputs above. It is not authorized by this capture receipt
-alone. Keep Brain inert and do not erase Mac1 until that final review explicitly returns GO. Once
-accepted, later activation on Mac2 remains a separate operator decision.
+Where permitted, use an encrypted container and an approved local destination excluded from cloud
+sync/indexing/backups as required by corporate policy. Keep its recovery key outside both the erased
+Mac1 and the container; verify unlocking on Mac1 without logging the key. Copy from Kingston to Mac2,
+close/flush the transfer, and independently read **all destination bytes** to recompute size/hash
+against the externally held pin. A file listing or successful copy dialog is insufficient. An opaque
+ciphertext hash can be checked on Mac2 without decrypting or installing Brain. Re-read the Mac2 copy
+from Mac1 when feasible and prove it unlocks/extracts to disposable private quarantine; do not extract
+restricted plaintext on Mac2. Record transfer/verification time, host/storage identity and hashes.
+A raw folder transfer needs full member/metadata verification rather than one archive hash.
 
-This document owns Brain host portability, recovery inventory, and erase readiness. The project
-checkout, owner runtime, large research-data root, and protected evaluations have separate authority
-and recovery boundaries. A clean code clone is not a recovery of Brain state.
+Keep Kingston and Mac2 copies independent and unchanged. Do not change Kingston ownership/modes to
+satisfy another host's UID. The existing v1 verifier/restore tools bind the original Kingston UUID
+and D43 ownership; they are **not** generic Mac2-container or replacement-disk verifiers. Do not spoof
+UUIDs, edit manifests, or bypass checks. Container integrity is a separate custody check. Recovery
+from loss of Kingston via Mac2 alone needs an explicit extraction/transport mapping; it has not been
+qualified by the original tools and is not claimed here.
+
+### Phase 4 — pre-reset acceptance
+
+All rows below need dated evidence in the recovery index. A failed or unknown required row means
+**NO-GO**. The current evidence column is the status of this planning change, not a fresh disk audit.
+
+| Gate | Required evidence before reset | Current evidence |
+|---|---|---|
+| Complete final cutoff | Source-to-backup coverage, exclusions resolved, post-capture changes captured, no subsequent writes | Open; pair predates Git consolidation and is not a final inventory |
+| Original backup integrity | Fresh full readback of selected candidates and required BrainData/supplements against external pins | Pair passed at capture; final complete-set check open |
+| Independent custody | Corporate permission or approved alternative; full destination readback, accessible decryption key, no required single-copy omissions | No Mac2 copy/verification recorded |
+| Recoverable ordinary DB state | Complete family hashes plus WAL-aware logical checks on disposable restored copies compared with the cutoff's ordinary ledger/cursor/frontier evidence | 93 structural checks passed; logical/frontier comparison open |
+| Recoverable environment | Compatible OS/architecture plan, pinned package kit and bounded extraction/install/import/smoke rehearsal | Code bootstrap evidence exists; full environment closure open |
+| Inert restore and access | Checked restore mapping/space/UID/path requirements, startup definitions quarantined, GitHub/account/key recovery independent of Mac1 | Full mapping/access closure open |
+
+For ordinary SQLite, first verify DB/WAL/SHM/journal bytes against the pinned family manifest. Work
+only on a **second disposable copy** for a normal SQLite recovery/open and logical comparison;
+keep the verified raw family intact. Do not checkpoint, repair, or open source/backup databases in
+writable mode. Compare available schema versions, counts, durable request/ledger IDs, cursors and
+last committed frontiers against the stopped source baseline. The existing
+`brain_migration_v1_verify_sqlite.py` uses `mode=ro&immutable=1` and checks family hashes before/after;
+its `integrity_check` result alone does not attest those application facts. SQLite documents that
+committed transactions may still reside in the [WAL](https://www.sqlite.org/wal.html#the_wal_file).
+Never discard a WAL because the main DB passes a structural check. Protected databases remain opaque.
+
+A full Brain deployment on Mac2 is not an acceptance gate. A bounded extraction/database/dependency
+rehearsal on current Mac1 is sufficient for this practical pre-reset plan **only after all rows pass
+and residual clean-host risks are explicitly accepted**. It does not prove full clean-host recovery.
+Record a new pre-reset verdict separately; do not change the existing receipt's
+`restore_completed=false`, `activation_started=false` or `erase_authorized=false` claims.
+Before the destructive reset, recheck the verdict/cutoff, then physically disconnect Kingston and
+other backup disks. Erase only Mac1's intended internal storage. Mac2 retains the verified copy.
+
+### Phase 5 — restore onto clean Mac1, without activation
+
+1. Install the compatible recorded OS/architecture and local account. Prefer the same short username
+   and UID where appropriate; otherwise record the mapping. Do not import startup items wholesale
+   with a system migration. Keep Brain network access/credentials unavailable during validation.
+   Establish ordinary GitHub authentication separately without recording secrets.
+2. Reconnect Kingston, read its UUID/filesystem/root identity and freshly verify the selected set.
+   Compare independently held pins. Stop on unexpected ownership or identity; do not chmod/chown
+   BrainData or candidate directories. Resolve host account mapping or use an approved copy to a
+   new quarantine. Never treat a verifier refusal as permission to bypass its guard.
+3. Clone GitHub `main` for development at `/Users/root1/Developer/memecoin-research`; fetch tags and
+   recover topic branches only when needed. Use a separate clean checkout detached at migration
+   tool commit `6ad944c40938e1e25d2bddb3ea61234c69e9149d` for the original pair. That commit remains
+   in `main` history; no current workflow needs to develop on `research/active`.
+4. Use the existing ordinary and D43 `verify` and `restore-inert` commands with the exact candidate
+   IDs/hashes above, original Kingston target and **new, separate quarantine directories**. Require
+   `inert_quarantine_verified` / `protected_opaque_inert_quarantine_verified` and
+   `start_or_activation: false`. Validate the original counts; apply only separately sealed,
+   explicitly ordered newer supplements afterward. Preserve D43 overlay lineage and pause records.
+   The old full Mac2 shell package is not the current runbook. Do not install its copied plists.
+5. Reconstruct owner code separately at the recorded owner source pin (consolidation observed
+   `a5944742b6b8ed0466c50bdeb72370ed3e3f2a31`; re-confirm at cutoff). Restore the exact deployed bundles
+   and pointer from backup, not a replacement compiled from `main`. Reassemble owner/research work,
+   private config and checkpoints from verified quarantine using the recovery index. Verify bytes
+   before any path rebinding. Keep immutable manifests/declarations unchanged and record new locator
+   mappings separately. Do not assume copying an old virtualenv restores its interpreter.
+6. Rebuild the recorded environments from the pinned kit. Check imports and dependency resolution,
+   then run existing synthetic smoke/focused checks in isolated working directories. Preserve known
+   baseline failures; compare new failures before accepting. Do not point test suites at real owner
+   work, private datasets or protected holdouts. Run ordinary DB logical checks on disposable copies,
+   then verify paper/operator state, dataset/model/checkpoint presence and artifact lineage against
+   the cutoff index. Where permitted, verify model loading/inference with a synthetic fixture only;
+   do not train, promote or evaluate protected data.
+7. Reconstruct private host bindings to the verified existing Kingston root through the documented
+   storage interface, changing only new Mac1 host config. Do not rewrite BrainData markers or claim
+   a legacy symlink is writer authorization. Resolve required permissions, case sensitivity, links
+   and native-library paths on restored copies. Keep credentials out of startup definitions and
+   reauthenticate/reissue only after recovery access is established.
+8. Review every service definition in quarantine, map executable/root paths, and retain disabled
+   dispositions. Do not `launchctl bootstrap`, load, enable or kickstart services during restore:
+   registration itself may trigger RunAtLoad or timers. Check there are no Brain jobs/processes,
+   automatic collectors, training, provider calls or paper/trading work. Record restore acceptance
+   with code/artifact pins, DB/frontier comparisons, dependency checks and inertness results.
+
+### Phase 6 — explicit return to the previous working mode
+
+Only after Mac1 restore acceptance, schedule a separate operator-authorized activation. Restore the
+recorded mode, deployment/champion pins, ledgers and STOPs; do not activate every historic service or
+resume AUTO/training by default. Verify single-writer/storage ownership, model/data compatibility,
+credentials/quota and pending/reserved request reconciliation before starting each approved role.
+Expired campaigns/leases require their existing authorization, not replay of old launch schedules.
+D43 stays disabled unless separately authorized. Ambiguous charged requests are not retried merely
+because the host was reset; gaps and interrupted jobs remain explicit.
+
+Start approved components in their actual dependency order, one at a time, checking PID, loaded code,
+health and durable state. No real-money transaction signing/submission is authorized. On a mismatch,
+stop the newly activated role, preserve logs/state and return to inert quarantine; do not overwrite
+new writes with the old backup or clear STOP/ledger records. Keep both backups until complete Mac1
+acceptance and an explicit retention decision. Any later Mac2 deletion follows corporate policy;
+this plan never authorizes deletion or modification of Kingston BrainData.
 
 ## Current readiness
 
-**NO-GO for erasing Mac1 as of 2026-10-17.** The full seven-root ordinary capture and
-opaque D43 overlay now exist as a separately pinned, independently verified Kingston pair, and all
-93 ordinary SQLite families pass read-only integrity checks. The next action is the single real
-Mac2 restore/package above, followed by Sol review of the full transcript. Until that succeeds,
-factory reset remains prohibited. The accepted recovery scope is loss or erasure of the owner Mac
-while Kingston remains healthy. The user explicitly accepts Kingston as
-the only reset-surviving physical copy and accepts unencrypted local custody for this iteration. Kingston
-failure, theft, or corruption remains an accepted uncovered risk, not a blocker for the Mac-loss
-claim. A future 1-TB+ SSD, NAS, or other independent destination must add a separately verified
-replica and a Kingston-loss rehearsal. The conditional Recovery/capture plan and nine-role policy
-remain a Sol-reviewed, non-executable design; they do not authorize a Recovery boot. The user has
-changed the PersonalBackup operating plan: it is temporary Kingston occupancy, later moved to a
-second MacBook, verified there, and deleted from Kingston separately by the user. Do not inspect,
-move, or delete PersonalBackup. The newly authorized Migration v1 candidate may be written while it
-remains there, provided fresh free space covers the measured candidate and policy reserves. This v1
-exception does not change the post-transition Kingston assumptions for the deferred hardened-v2
-worksheet.
+**NO-GO for factory reset as of 2026-10-18.** Existing verification proves the pinned pair's capture
+integrity and ordinary SQLite structure. It does not close the final source inventory/delta,
+BrainData second-copy coverage, corporate custody permission, Mac2 readback, recovery access,
+dependency/service closure or ordinary WAL/frontier comparison. No new backup, restore, Brain run,
+service change or Kingston write was performed to prepare this plan.
+
+Without a full pre-reset clean-host restore test, remaining risks include missed dependencies,
+unavailable native wheels/libraries, OS/UID/permission/keychain differences, incomplete alias/metadata
+recovery, WAL/application inconsistencies, incompatible model runtimes, and undocumented startup or
+path dependencies. Hash equality cannot detect an omitted source or prove usability. Bounded checks
+reduce these risks; they cannot eliminate them. Completing Phase 4 supports a documented practical
+reset decision with explicit residual risk, not a guarantee or hardened DR acceptance. Full restored
+functionality must still pass Phase 5 on Mac1 before any activation.
+
+## Historical qualification record — not the active migration runbook
+
+The material below preserves earlier dated evidence, implementation contracts and deferred hardened
+DR design. Its second-host activation, Recovery boot, single-Kingston acceptance and final-review
+instructions do not supersede the active six-phase plan above. Open a receipt only for a specific
+reproduction question; never execute a historical package merely because it appears below.
 
 On 2026-10-16, the read-only `HeldDataT` identity/locator library and operator CLI passed a real
 Darwin/APFS probe against a disposable read-only synthetic APFS image using the pinned Kingston

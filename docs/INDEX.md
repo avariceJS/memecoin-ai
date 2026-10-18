@@ -22,7 +22,7 @@ source for the task; do not scan `docs/` or `docs/evidence/` wholesale.
 | Solana/price sources, data funnel, admission, coverage and acquisition | [`brain-source-architecture.md`](brain-source-architecture.md) |
 | Models, training recipe, experiment conclusions and benchmark design | [`training-evaluation.md`](training-evaluation.md) |
 | Control Center, AUTO, virtual paper, Watch Market, two Macs, releases and Git recovery registry | [`operator-runtime.md`](operator-runtime.md) |
-| Host portability, backup inventory, restore and erase readiness | [`portability-disaster-recovery.md`](portability-disaster-recovery.md) |
+| Mac1 reset/restore, temporary Mac2 backup custody, inventory and erase readiness | [`portability-disaster-recovery.md`](portability-disaster-recovery.md) |
 | Deferred hardened portability / DR v2 handoff | [`portability-disaster-recovery-v2-roadmap.md`](portability-disaster-recovery-v2-roadmap.md) |
 | Cross-cutting engineering and research invariants | [`contracts.md`](contracts.md) |
 | Concise experiment timeline and key failures | [`research-history.md`](research-history.md) |

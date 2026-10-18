@@ -52,7 +52,8 @@ is available from historical Git commits.
 - Keep experimental branches only while needed, publish them on GitHub, and document their purpose,
   acceptance gaps, and resume point in `docs/operator-runtime.md`. Do not maintain another general
   development baseline. `research/active` is temporarily frozen solely for the pinned Migration v1
-  operator package; retire it only after that fetch dependency is safely removed or completed.
+  historical operator package (now retired from current use); retire the ref only after replacement
+  recovery execution is verified.
 - After integration, verify ancestry and remote custody before deleting obsolete branches/worktrees.
   Preserve unique uncommitted files, reflog/checkpoint objects, and private data before cleanup.
   Immutable archival tags can retain historical checkpoints without creating active branches.

@@ -1,23 +1,25 @@
 # Current state
 
-As of 2026-10-18, active scope is **Practical Brain Migration v1**. Erasure remains
-**NO-GO** until the second MacBook restores the full Kingston pair and passes the handoff checks,
-then Sol independently reviews the transcript. Hardened DR is deferred to
-[`portability-disaster-recovery-v2-roadmap.md`](../docs/portability-disaster-recovery-v2-roadmap.md).
+As of 2026-10-18, active scope is **Practical Brain Migration v1**, documentation/planning only:
+**Mac1 → Kingston → temporary backup custody on corporate Mac2 → reset Mac1 → inert restore on Mac1
+→ separately authorized return to operation**. Mac2 is storage only; no Brain environment, services,
+training or development there. The [canonical six-phase plan](../docs/portability-disaster-recovery.md)
+replaces the former Mac2 deployment gate. Hardened DR remains deferred.
 
-The full current pair is recorded in
-[`candidate-pair receipt`](../docs/evidence/portability-migration-v1-candidate-pair-2026-10-16T2217Z.json):
-ordinary `d2fb11d73cd84c14a24ba3ed870b2ccb` (784,023 members, 28,821,482,721 bytes, manifest
-`0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865`) plus opaque D43
-`58ec529e5a134817bf179b06922ddcf7` (1,567 members, 13,227,642 bytes, manifest
-`ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6`). Both passed fresh external
-verification; 93 ordinary SQLite families passed integrity checks with unchanged family hashes.
-Kingston has 138,415,222,784 free bytes. `BrainData` and PersonalBackup remain untouched.
+**Factory reset: NO-GO.** The pinned pair passed full capture/readback verification and 93 ordinary
+SQLite structural checks, but the final source inventory/delta, exclusions, complete BrainData
+second-copy coverage, corporate policy, Mac2 destination readback, dependency/service recovery kit,
+external account/key access and ordinary WAL/frontier comparison remain open. No full restore has
+occurred. A storage-only Mac2 needs no application deployment; full functional acceptance belongs
+on restored Mac1. The plan distinguishes pre-reset custody acceptance from post-reset functionality.
 
-D43 stays disabled and PID-free; its old partial `5d4804faa1f14c47a0e3ed652e758bdd` remains
-incomplete and must not be restored. Failed ordinary partial `58e4596a3db5403a9b7901cfdb40566d`
-also remains incomplete. Do not delete partial candidates or activate Brain. The published Mac2
-operator package is awaiting final Sol review. No second-Mac restore has occurred.
+The unchanged [candidate-pair receipt](../docs/evidence/portability-migration-v1-candidate-pair-2026-10-16T2217Z.json)
+pins ordinary `d2fb11d73cd84c14a24ba3ed870b2ccb` and opaque D43
+`58ec529e5a134817bf179b06922ddcf7`; exact hashes, counts and historical free space are in the plan.
+The pair does not include the whole BrainData corpus. Even ordinary custody contains potentially
+protected material; employer permission is needed before any Mac2 transfer, including encrypted
+custody. If prohibited, use an approved independent destination. D43's last recorded state is disabled
+and PID-free; re-read before operations. Keep all existing candidates and BrainData unchanged.
 
 ## Git consolidation — 2026-10-18
 
@@ -26,15 +28,17 @@ operator package is awaiting final Sol review. No second-Mac restore has occurre
 clone on `main`; use separate published task branches/worktrees for parallel development.
 
 Retained topic heads: Linux `65846e8`, DR v3 scratch `6554a01`, and unfinished Control Center UI
-`de4b42d`. Their implementation checkpoints remain `fb36e7e`, `4a84d5b`, and `ce8505a`. `research/active` stays frozen at `c157f79` because the unchanged Migration v1 operator
-package fetches it before checking out pinned `6ad944c`. Historical local commits and checkpoint
-objects are preserved by GitHub tag `archive/pre-reset-20261018` (`b35f8d0`). See the
+`de4b42d`. Their implementation checkpoints remain `fb36e7e`, `4a84d5b`, and `ce8505a`.
+`research/active` stays frozen at `c157f79` for recovery of the historical Migration v1 operator
+package pinned at `6ad944c`; the new plan retires that package, but replacement execution is not yet
+qualified. Historical local commits and checkpoint objects are preserved by GitHub tag `archive/pre-reset-20261018` (`b35f8d0`). See the
 [branch/recovery registry](../docs/operator-runtime.md#git-integration-and-recovery-registry) for
 purpose, acceptance gaps, recovery commands and the complete inventory receipt.
 
-This changes code custody only. Migration v1 candidate IDs, manifests, operator package and acceptance
-status are unchanged. No Mac2 restore occurred; erase remains **NO-GO** pending that gate. No owner
-runtime, LaunchAgents, Kingston data, protected data or deployment was changed.
+Git consolidation changed code custody only and preserved the original Migration v1 pins and
+receipts. The subsequent migration-plan correction changes the destination/acceptance sequence;
+the original operator package remains in Git history. No owner runtime, LaunchAgents, Kingston data,
+protected data or deployment was changed.
 
 Migration/DR, experience, Observatory Python, synthetic smoke and final Gecko contract gates passed.
 Full-suite green is not claimed: 43 broad-run failures reproduce on old main and tree-wide Ruff
