@@ -26,7 +26,7 @@ def _verified_fixture(tmp_path, monkeypatch):
     (venv / "package.py").write_text("synthetic package", encoding="utf-8")
     inventory, inventory_sha = linux_release._inventory(venv)
     unit = (
-        f"ExecStart={root}/venv/bin/python -I -m memecoin_operator.runtime "
+        f"ExecStart={root}/venv/bin/python -B -I -m memecoin_operator.runtime "
         "--root /var/lib/brain-lab/releases/test/operator --port 18792\n"
     )
     (tmp_path / "systemd").mkdir()
@@ -79,7 +79,7 @@ def _verified_fixture(tmp_path, monkeypatch):
         "DropInPaths": "",
         "NeedDaemonReload": "no",
         "ExecStart": (
-            f"{{ path={root}/venv/bin/python ; argv[]={root}/venv/bin/python -I -m "
+            f"{{ path={root}/venv/bin/python ; argv[]={root}/venv/bin/python -B -I -m "
             "memecoin_operator.runtime --root "
             f"{state_root} --port 18792 ; ignore_errors=no ; start_time=[n/a] }}"
         ),
