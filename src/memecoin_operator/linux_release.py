@@ -938,10 +938,77 @@ def _discard_preflight(
     return record, intent, artifacts
 
 
+def _validate_discarded_attempt(
+    attempt_id: str,
+    record: dict[str, object],
+    publish_intent: dict[str, object] | None,
+    receipt: dict[str, object],
+) -> None:
+    if publish_intent is None:
+        raise RuntimeError("stage_discard_receipt_mismatch")
+    artifacts = _validate_publish_intent(attempt_id, publish_intent)
+    expected_intent = {
+        "schema": DISCARD_INTENT_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "artifacts": [
+            {
+                "name": item["name"],
+                "source_parent": item["source_parent"],
+                "source_name": item["source_name"],
+                "quarantine_name": _discard_quarantine_path(attempt_id, item).name,
+                "identity": item["identity"],
+            }
+            for item in artifacts
+        ],
+    }
+    if (
+        _read_sealed_stage_json(_discard_intent_path(attempt_id), schema=DISCARD_INTENT_SCHEMA)
+        != expected_intent
+    ):
+        raise RuntimeError("stage_discard_intent_invalid")
+    expected_receipt = {
+        "schema": DISCARD_RECEIPT_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "source_commit": record["source_commit"],
+        "quarantined": [
+            {
+                "name": item["name"],
+                "quarantine": str(_discard_quarantine_path(attempt_id, item)),
+                "identity": item["identity"],
+            }
+            for item in artifacts
+        ],
+        "status": "quarantined-retained",
+    }
+    if receipt != expected_receipt or any(
+        os.path.lexists(Path(str(item["source_parent"])) / str(item["source_name"]))
+        or os.path.lexists(Path(str(item["destination_parent"])) / str(item["destination_name"]))
+        or not _artifact_location(
+            _discard_quarantine_path(attempt_id, item),
+            item["identity"],
+            str(item["kind"]),
+        )
+        for item in artifacts
+    ):
+        raise RuntimeError("stage_discard_receipt_mismatch")
+
+
 def audit_stage(attempt_id: str | None = None) -> dict[str, object]:
     """Read-only inventory of interrupted publish attempts and discard eligibility."""
     if os.geteuid() != 0:
         raise PermissionError("stage_audit_requires_root")
+    try:
+        metadata = STAGE_ATTEMPT_BASE.lstat()
+    except FileNotFoundError:
+        return {"attempts": [], "count": 0, "read_only": True}
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != 0
+        or stat.S_IMODE(metadata.st_mode) != 0o700
+    ):
+        raise RuntimeError("stage_attempt_directory_unsafe")
     if attempt_id is None:
         ids = sorted(
             path.name[:-5]
@@ -958,6 +1025,8 @@ def audit_stage(attempt_id: str | None = None) -> dict[str, object]:
             receipt = _read_sealed_stage_json(
                 _discard_receipt_path(current_id), schema=DISCARD_RECEIPT_SCHEMA
             )
+            if receipt is not None:
+                _validate_discarded_attempt(current_id, record, intent, receipt)
             bytes_pinned = 0
             for item in artifacts:
                 location = Path(str(item["source_parent"])) / str(item["source_name"])
@@ -1634,6 +1703,7 @@ def stage(
             raise RuntimeError("stage_attempt_record_requires_manual_review") from exc
         if previous["release_id"] != release_id:
             continue
+        previous_intent = _read_publish_intent(candidate.stem)
         discarded = _read_sealed_stage_json(
             _discard_receipt_path(candidate.stem), schema=DISCARD_RECEIPT_SCHEMA
         )
@@ -1641,18 +1711,15 @@ def stage(
             _discard_intent_path(candidate.stem), schema=DISCARD_INTENT_SCHEMA
         )
         if discarded is not None:
-            if (
-                discarded.get("attempt_id") != candidate.stem
-                or discarded.get("release_id") != release_id
-                or discarded.get("source_commit") != source_commit
-            ):
+            try:
+                _validate_discarded_attempt(candidate.stem, previous, previous_intent, discarded)
+            except RuntimeError:
                 os.close(lock_fd)
-                raise RuntimeError("stage_discard_receipt_mismatch")
+                raise
             continue
         if discard_intent is not None:
             os.close(lock_fd)
             raise RuntimeError("stage_discard_recovery_required")
-        previous_intent = _read_publish_intent(candidate.stem)
         if previous_intent is not None:
             if previous["source_commit"] != source_commit:
                 os.close(lock_fd)

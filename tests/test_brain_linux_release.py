@@ -349,6 +349,15 @@ def test_discard_stage_replays_after_interrupted_quarantine_rename(tmp_path, mon
         )
 
 
+def test_audit_stage_does_not_create_attempt_store_on_clean_host(tmp_path, monkeypatch):
+    attempt_store = tmp_path / "missing" / "attempts"
+    monkeypatch.setattr(linux_release, "STAGE_ATTEMPT_BASE", attempt_store)
+    monkeypatch.setattr(linux_release.os, "geteuid", lambda: 0)
+    result = linux_release.audit_stage()
+    assert result == {"attempts": [], "count": 0, "read_only": True}
+    assert not attempt_store.exists()
+
+
 def test_process_census_fails_closed_on_permission_error(tmp_path, monkeypatch):
     status = tmp_path / "proc" / "123" / "status"
     status.parent.mkdir(parents=True)
