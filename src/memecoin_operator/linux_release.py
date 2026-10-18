@@ -213,6 +213,8 @@ def _verify_lab_state(root: Path, release_id: str) -> None:
         state_root.relative_to(STATE_BASE)
     except ValueError as exc:
         raise RuntimeError("release_state_root_mismatch") from exc
+    if not os.path.lexists(state_root):
+        return
     if state_root.is_symlink() or not state_root.is_dir():
         raise RuntimeError("release_lab_state_missing")
     try:
