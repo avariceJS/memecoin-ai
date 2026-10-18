@@ -113,7 +113,7 @@ def _read_receipt(path: Path, maximum: int = 1024 * 1024) -> tuple[dict[str, Any
 
 def _logical_state(database: Path) -> tuple[str, str]:
     """Hash canonical schema and rows; SQLite page-layout bytes are intentionally irrelevant."""
-    uri = f"file:{database}?mode=ro"
+    uri = f"{database.resolve().as_uri()}?mode=ro&immutable=1"
     try:
         db = sqlite3.connect(uri, uri=True, timeout=2)
         try:
