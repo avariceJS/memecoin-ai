@@ -161,6 +161,65 @@ def _logical_state(database: Path) -> tuple[str, str]:
     return _logical_state_payload(payload)
 
 
+def _prepared_inventory(operator: Path) -> list[dict[str, Any]]:
+    owner = pwd.getpwnam("brain")
+    metadata = operator.lstat()
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != owner.pw_uid
+        or metadata.st_gid != owner.pw_gid
+        or stat.S_IMODE(metadata.st_mode) != 0o700
+    ):
+        raise StorageError("handoff_operator_directory_unsafe")
+    inventory = linux_attachment._runtime_inventory(operator, owner.pw_uid, owner.pw_gid)
+    expected_paths = linux_attachment.RUNTIME_DIRECTORIES | linux_attachment.RUNTIME_FILES
+    if {entry["path"] for entry in inventory} != expected_paths:
+        raise StorageError("handoff_prepared_inventory_mismatch")
+    return inventory
+
+
+def _verify_effective_unit(
+    unit: str, unit_path: Path, release_id: str, operator: Path, binding_id: str
+) -> dict[str, str]:
+    effective = linux_attachment._effective_properties(unit)
+    expected = {
+        "FragmentPath": str(unit_path),
+        "DropInPaths": "",
+        "NeedDaemonReload": "no",
+        "User": "brain",
+        "Group": "brain",
+        "PrivateNetwork": "yes",
+        "WorkingDirectory": str(linux_release.RELEASE_BASE / release_id),
+        "ReadWritePaths": str(operator),
+        "StateDirectory": "",
+        "ProtectSystem": "strict",
+        "ProtectHome": "yes",
+        "Restart": "no",
+        "EnvironmentFiles": "",
+    }
+    if any(effective.get(key) != value for key, value in expected.items()):
+        raise StorageError("handoff_effective_unit_mismatch")
+    match = re.search(r"(?:^| )argv\[\]=(.*?) ; ignore_errors=", effective["ExecStart"])
+    try:
+        argv = shlex.split(match.group(1)) if match else []
+    except ValueError as exc:
+        raise StorageError("handoff_effective_execstart_malformed") from exc
+    expected_argv = [
+        str(linux_release.RELEASE_BASE / release_id / "venv/bin/python"),
+        "-B",
+        "-I",
+        "-m",
+        "memecoin_operator.runtime",
+        "--root",
+        str(operator),
+        "--port",
+        str(20000 + int(binding_id[:8], 16) % 40000),
+    ]
+    if argv != expected_argv:
+        raise StorageError("handoff_effective_execstart_mismatch")
+    return effective
+
+
 def _release_schema(release_id: str) -> str:
     python = linux_release.RELEASE_BASE / release_id / "venv/bin/python"
     code = (
@@ -421,6 +480,9 @@ def prepare(
         finally:
             os.close(generation_parent_fd)
         unit_name = f"memecoin-brain-{binding_id}.service"
+        unit_path = linux_service.UNIT_PATH.parent / unit_name
+        if os.path.lexists(unit_path):
+            raise StorageError("handoff_unit_collision")
         code_root = linux_release.RELEASE_BASE / target_release_id
         state_root = generation_root / "operator"
         port = 20000 + int(binding_id[:8], 16) % 40000
@@ -441,8 +503,9 @@ def prepare(
         )
         linux_service.install(
             unit_text,
-            unit_path=linux_service.UNIT_PATH.parent / unit_name,
+            unit_path=unit_path,
             unit=unit_name,
+            create_only=True,
         )
         target_after = linux_release.verify(target_release_id)
         if target_after.get("unit_state") != ("loaded", "inactive", "disabled", 0):
@@ -504,6 +567,8 @@ def verify(binding_id: str) -> dict[str, object]:
         raise StorageError("handoff_verify_requires_root")
     if not HASH_RE.fullmatch(binding_id):
         raise StorageError("handoff_binding_id_invalid")
+    if _read_lifecycle(binding_id, "FINAL") is not None:
+        return _verify_finalized(binding_id)
     receipt_root = HANDOFF_BASE / binding_id
     binding, binding_raw = _read_receipt(receipt_root / "BINDING.json")
     generation, generation_raw = _read_receipt(receipt_root / "GENERATION.json")
@@ -542,6 +607,7 @@ def verify(binding_id: str) -> dict[str, object]:
             raise StorageError("handoff_generation_directory_unsafe")
     operator = generation_root / "operator"
     brain = pwd.getpwnam("brain")
+    _prepared_inventory(operator)
     files: dict[str, bytes] = {}
     for name, maximum, key in (
         ("config.json", linux_attachment.MAX_CONFIG_BYTES, "config_sha256"),
@@ -564,6 +630,7 @@ def verify(binding_id: str) -> dict[str, object]:
         files["operator.sqlite"], str(generation["sqlite_schema_sha256"])
     )
     schema_sha, logical_sha = _logical_state(operator / "operator.sqlite")
+    _prepared_inventory(operator)
     target = linux_release.verify(release_id)
     unit_path = linux_service.UNIT_PATH.parent / str(binding["unit_name"])
     try:
@@ -577,45 +644,13 @@ def verify(binding_id: str) -> dict[str, object]:
         or _sha256(unit_bytes) != generation.get("unit_sha256")
     ):
         raise StorageError("handoff_unit_pin_mismatch")
-    effective = linux_attachment._effective_properties(str(binding["unit_name"]))
-    expected_effective = {
-        "FragmentPath": str(unit_path),
-        "DropInPaths": "",
-        "NeedDaemonReload": "no",
-        "User": "brain",
-        "Group": "brain",
-        "PrivateNetwork": "yes",
-        "WorkingDirectory": str(linux_release.RELEASE_BASE / release_id),
-        "ReadWritePaths": str(operator),
-        "StateDirectory": "",
-        "ProtectSystem": "strict",
-        "ProtectHome": "yes",
-        "Restart": "no",
-        "EnvironmentFiles": "",
-    }
-    if any(effective.get(key) != value for key, value in expected_effective.items()):
-        raise StorageError("handoff_effective_unit_mismatch")
-    match = re.search(r"(?:^| )argv\[\]=(.*?) ; ignore_errors=", effective["ExecStart"])
-    try:
-        argv = shlex.split(match.group(1)) if match else []
-    except ValueError as exc:
-        raise StorageError("handoff_effective_execstart_malformed") from exc
-    expected_argv = [
-        str(linux_release.RELEASE_BASE / release_id / "venv/bin/python"),
-        "-B",
-        "-I",
-        "-m",
-        "memecoin_operator.runtime",
-        "--root",
-        str(operator),
-        "--port",
-        str(20000 + int(binding_id[:8], 16) % 40000),
-    ]
+    effective = _verify_effective_unit(
+        str(binding["unit_name"]), unit_path, release_id, operator, binding_id
+    )
     if (
         schema_sha != generation.get("sqlite_schema_sha256")
         or logical_sha != generation.get("output_logical_state_sha256")
         or target.get("manifest_sha256") != generation.get("target_release_manifest_sha256")
-        or argv != expected_argv
         or linux_service._unit_status(str(binding["unit_name"]))
         != ("loaded", "inactive", "disabled", 0)
     ):
@@ -631,6 +666,7 @@ def verify(binding_id: str) -> dict[str, object]:
         "logical_state_sha256": logical_sha,
         "generation_receipt_sha256": _sha256(generation_raw),
         "binding_receipt_sha256": _sha256(binding_raw),
+        "effective_policy_sha256": _sha256(_json_bytes(effective)),
     }
 
 
@@ -656,6 +692,89 @@ def _read_lifecycle(binding_id: str, name: str) -> tuple[dict[str, Any], bytes] 
     ):
         raise StorageError("handoff_lifecycle_record_mismatch")
     return record, raw
+
+
+def _verify_finalized(binding_id: str) -> dict[str, object]:
+    binding, binding_raw = _read_receipt(HANDOFF_BASE / binding_id / "BINDING.json")
+    generation, generation_raw = _read_receipt(HANDOFF_BASE / binding_id / "GENERATION.json")
+    final_result = _read_lifecycle(binding_id, "FINAL")
+    start_result = _read_lifecycle(binding_id, "START")
+    probe_result = _read_lifecycle(binding_id, "PROBE")
+    if final_result is None or start_result is None or probe_result is None:
+        raise StorageError("handoff_final_receipt_missing")
+    final, final_raw = final_result
+    start, start_raw = start_result
+    probe, probe_raw = probe_result
+    if (
+        binding.get("generation_sha256") != _sha256(generation_raw)
+        or _handoff_identity(
+            str(binding.get("installation_id")),
+            str(binding.get("generation_id")),
+            str(binding.get("target_release_id")),
+        )
+        != binding_id
+        or final.get("start_sha256") != _sha256(start_raw)
+        or final.get("probe_sha256") != _sha256(probe_raw)
+        or probe.get("start_sha256") != _sha256(start_raw)
+    ):
+        raise StorageError("handoff_final_receipt_mismatch")
+    target = linux_release.verify(str(binding["target_release_id"]))
+    if target.get("manifest_sha256") != generation.get("target_release_manifest_sha256"):
+        raise StorageError("handoff_target_release_pin_mismatch")
+    if linux_service._unit_status(str(binding["unit_name"])) != (
+        "loaded",
+        "inactive",
+        "disabled",
+        0,
+    ):
+        raise StorageError("handoff_final_unit_not_inert")
+    unit_path = linux_service.UNIT_PATH.parent / str(binding["unit_name"])
+    try:
+        unit_bytes = unit_path.read_bytes()
+    except OSError as exc:
+        raise StorageError("handoff_unit_missing") from exc
+    if _sha256(unit_bytes) != generation.get("unit_sha256"):
+        raise StorageError("handoff_unit_pin_mismatch")
+    generation_root, _receipt_root = _paths(
+        str(binding["installation_id"]), str(binding["generation_id"]), binding_id
+    )
+    operator = generation_root / "operator"
+    effective = _verify_effective_unit(
+        str(binding["unit_name"]),
+        unit_path,
+        str(binding["target_release_id"]),
+        operator,
+        binding_id,
+    )
+    if _sha256(_json_bytes(effective)) != probe.get("effective_policy_sha256"):
+        raise StorageError("handoff_final_policy_mismatch")
+    manifest = {"files": {"config.json": {"sha256": generation["config_sha256"]}}}
+    _prepared_inventory(operator)
+    hashes, inventory = linux_attachment._verify_stopped_attachment_state(
+        manifest, generation_root / "operator"
+    )
+    schema_sha, logical_sha = _logical_state(generation_root / "operator/operator.sqlite")
+    if (
+        schema_sha != generation.get("sqlite_schema_sha256")
+        or logical_sha != final.get("logical_state_sha256")
+        or hashes.get("operator_sqlite_sha256") != final.get("operator_sqlite_sha256")
+        or inventory != final.get("inventory")
+        or _sha256(linux_attachment._json_bytes(inventory)) != final.get("inventory_sha256")
+    ):
+        raise StorageError("handoff_final_state_mismatch")
+    return {
+        "state": "finalized-inert",
+        "binding_id": binding_id,
+        "installation_id": binding["installation_id"],
+        "generation_id": binding["generation_id"],
+        "target_release_id": binding["target_release_id"],
+        "unit": binding["unit_name"],
+        "sqlite_schema_sha256": schema_sha,
+        "logical_state_sha256": logical_sha,
+        "generation_receipt_sha256": _sha256(generation_raw),
+        "binding_receipt_sha256": _sha256(binding_raw),
+        "final_receipt_sha256": _sha256(final_raw),
+    }
 
 
 def activate(binding_id: str) -> dict[str, object]:
@@ -696,6 +815,7 @@ def activate(binding_id: str) -> dict[str, object]:
             "mode": status["mode"],
             "phase": status["phase"],
             "jobs": status["jobs"],
+            "effective_policy_sha256": verified["effective_policy_sha256"],
             "probe_ns": time.time_ns(),
         }
         _write_receipt(_lifecycle_path(binding_id, "PROBE"), probe)
@@ -789,6 +909,15 @@ def finalize(binding_id: str) -> dict[str, object]:
         unit_bytes
     ) != generation.get("unit_sha256"):
         raise StorageError("handoff_unit_pin_mismatch")
+    effective = _verify_effective_unit(
+        str(binding["unit_name"]),
+        unit_path,
+        str(binding["target_release_id"]),
+        generation_root / "operator",
+        binding_id,
+    )
+    if _sha256(_json_bytes(effective)) != probe.get("effective_policy_sha256"):
+        raise StorageError("handoff_final_policy_mismatch")
     manifest = {
         "files": {"config.json": {"sha256": generation["config_sha256"]}},
     }

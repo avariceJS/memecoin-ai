@@ -359,3 +359,27 @@ def test_versioned_install_writes_only_its_own_unit(tmp_path, monkeypatch):
     linux_service.install("versioned unit\n", unit_path=target, unit=name)
     assert target.read_text(encoding="utf-8") == "versioned unit\n"
     assert base.read_text(encoding="utf-8") == "existing lab unit\n"
+
+
+def test_versioned_create_only_install_preserves_foreign_unit(tmp_path, monkeypatch):
+    base = tmp_path / linux_service.UNIT
+    monkeypatch.setattr(linux_service, "UNIT_PATH", base)
+    monkeypatch.setattr(linux_service.os, "geteuid", lambda: 0)
+    name = "memecoin-brain-" + "a" * 64 + ".service"
+    target = tmp_path / name
+    target.write_text("foreign unit\n", encoding="utf-8")
+    target.chmod(0o644)
+    monkeypatch.setattr(
+        linux_service,
+        "subprocess",
+        SimpleNamespace(
+            run=lambda *_a, **_k: SimpleNamespace(
+                returncode=0,
+                stdout="LoadState=not-found\nActiveState=inactive\nUnitFileState=\nMainPID=0\n",
+                stderr="",
+            )
+        ),
+    )
+    with pytest.raises(FileExistsError):
+        linux_service.install("replacement\n", unit_path=target, unit=name, create_only=True)
+    assert target.read_text(encoding="utf-8") == "foreign unit\n"

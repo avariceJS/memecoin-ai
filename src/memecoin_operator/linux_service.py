@@ -199,7 +199,13 @@ def _unit_status(unit: str = UNIT) -> tuple[str, str, str, int]:
     )
 
 
-def install(unit_text: str, unit_path: Path | None = None, unit: str = UNIT) -> None:
+def install(
+    unit_text: str,
+    unit_path: Path | None = None,
+    unit: str = UNIT,
+    *,
+    create_only: bool = False,
+) -> None:
     """Install the fixed lab unit without enabling or starting it."""
     if os.geteuid() != 0:
         raise PermissionError("install_requires_root")
@@ -230,7 +236,11 @@ def install(unit_text: str, unit_path: Path | None = None, unit: str = UNIT) -> 
             handle.flush()
             os.fsync(handle.fileno())
         os.chmod(temporary, 0o644)
-        os.replace(temporary, unit_path)
+        if create_only:
+            os.link(temporary, unit_path, follow_symlinks=False)
+            os.unlink(temporary)
+        else:
+            os.replace(temporary, unit_path)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
