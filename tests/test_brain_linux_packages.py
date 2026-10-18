@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+from types import SimpleNamespace
 
 import pytest
 
@@ -134,6 +135,22 @@ def test_private_directory_rejects_symlink(tmp_path):
     link.symlink_to(target, target_is_directory=True)
     with pytest.raises(provisioner.ProvisionError, match="unsafe_directory"):
         provisioner._ensure_private_dir(link)
+
+
+def test_index_inventory_tracks_auxiliary_files_and_ignores_partial(monkeypatch, tmp_path):
+    lists = tmp_path / "lists"
+    (lists / "auxfiles").mkdir(parents=True)
+    (lists / "partial").mkdir()
+    (lists / "noble_InRelease").write_bytes(b"signed metadata")
+    (lists / "auxfiles" / "hashes").write_bytes(b"auxiliary")
+    (lists / "partial" / "download").write_bytes(b"incomplete")
+    monkeypatch.setattr(provisioner, "LISTS", lists)
+    monkeypatch.setattr(provisioner.pwd, "getpwnam", lambda _name: SimpleNamespace(pw_uid=-1))
+    inventory = provisioner._index_inventory()
+    assert inventory == {
+        "auxfiles/hashes": provisioner._sha(b"auxiliary"),
+        "noble_InRelease": provisioner._sha(b"signed metadata"),
+    }
 
 
 def test_capability_fingerprint_ignores_only_observation_time_and_free_bytes():

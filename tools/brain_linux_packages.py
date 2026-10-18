@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import platform
+import pwd
 import re
 import shutil
 import stat
@@ -187,14 +188,19 @@ def _index_inventory() -> dict[str, str]:
     result: dict[str, str] = {}
     if not LISTS.is_dir():
         return result
-    for path in sorted(LISTS.iterdir()):
-        if path.name in {"lock", "partial"}:
+    allowed_owners = {LISTS.stat().st_uid, pwd.getpwnam("_apt").pw_uid}
+    for path in sorted(LISTS.rglob("*")):
+        relative = path.relative_to(LISTS)
+        if path.name == "lock" or "partial" in relative.parts:
             continue
         info = path.lstat()
-        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0:
+        if info.st_uid not in allowed_owners or info.st_mode & 0o022:
             raise ProvisionError(f"unsafe_index_file:{path.name}")
-        if stat.S_ISREG(info.st_mode):
-            result[path.name] = _file_sha(path)
+        if stat.S_ISDIR(info.st_mode):
+            continue
+        if not stat.S_ISREG(info.st_mode):
+            raise ProvisionError(f"unsafe_index_file:{path.name}")
+        result[str(relative)] = _file_sha(path)
     return result
 
 
