@@ -1,0 +1,40 @@
+{
+  "schema": "brain-linux-release-permission-drift-v1",
+  "verifier_source_commit": "9d25fe069cd13d91eaf51c298a0993cb31c9961b",
+  "release": {
+    "release_id": "41278cf1ff32eebdca0e07d438d253fe17e8750b7eaff4fb7ccce44296205811",
+    "source_commit": "bc50bc3ac47c822070ab217ecd53bb8f4e104806",
+    "initial_verify": "passed",
+    "unit_state_before_and_after": ["loaded", "inactive", "disabled", 0]
+  },
+  "drift_cases": [
+    {
+      "mutation": "release runtime.py mode changed to 0664 (group writable)",
+      "result": "release_writable_by_service_group",
+      "original_mode_restored": "0444"
+    },
+    {
+      "mutation": "operator state root mode changed from 0700 to 0770",
+      "result": "release_state_ownership_mismatch",
+      "original_mode_restored": "0700"
+    },
+    {
+      "mutation": "systemd unit mode changed from 0644 to 0664 (group writable)",
+      "result": "release_unit_permissions_mismatch",
+      "original_mode_restored": "0644"
+    }
+  ],
+  "final_verify": "passed after exact mode restoration",
+  "immutable_vps_evidence": {
+    "baseline_verify_sha256": "55b11dbec90b2d492905b9d39b893f8e8a8cf97b0ec5f30a11d8babcb9ff6d61",
+    "release_drift_log_sha256": "6844308354fef4ef9c941dac002a5b9627d0aef4e1376d8a72f418473c0cfc05",
+    "state_drift_log_sha256": "f8841104cd619f5b99fc6f827a95464348ee4861c6086f8e448bc25cb3332794",
+    "unit_drift_log_sha256": "f25dbb0f2d2af9b7ab0628d4e7fe18d6df192d18e77602e6a2ec47bac94a44cd",
+    "restored_verify_sha256": "55b11dbec90b2d492905b9d39b893f8e8a8cf97b0ec5f30a11d8babcb9ff6d61"
+  },
+  "limitations": [
+    "This checks three selected mode-drift cases on one Ubuntu/ext4 host.",
+    "Ownership drift, ACLs, SELinux/AppArmor policy, and other permission combinations were not exercised.",
+    "No protected data or production runtime was used."
+  ]
+}

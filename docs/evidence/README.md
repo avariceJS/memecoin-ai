@@ -52,6 +52,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - [Linux release-stage ENOSPC recovery](brain-linux-release-stage-enospc-recovery-2026-10-18.json):
   a real full ext4 loop filesystem caused staging failure, bounded no-space diagnosis, quarantine
   recovery, and same-source retry after freeing space; the temporary release and mount were removed.
+- [Linux release permission drift](brain-linux-release-permission-drift-2026-10-18.json):
+  verifier rejected writable release, state-root, and unit modes; exact mode restoration returned
+  the release to independently verified inert state.
 
 - [Scheduled sensing neural engineering qualification](brain-scheduled-sensing-neural-qualification-2026-10-15.json):
   synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume

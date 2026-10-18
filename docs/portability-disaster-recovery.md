@@ -467,8 +467,14 @@ inert/disabled/PID-0 release. The test image was unmounted and retained root-own
 the original release tree and SSH were reverified. See the immutable
 [`ENOSPC recovery receipt`](evidence/brain-linux-release-stage-enospc-recovery-2026-10-18.json).
 This covers venv creation pressure on a loop filesystem, not every write boundary or real root-disk
-exhaustion. The next useful horizon is a clean disposable reinstall and failure behavior around
-permissions and stale state.
+exhaustion. A separate filesystem review changed three permission modes on a previously inert
+release: group-writable package content, an overly permissive operator state root, and a
+group-writable unit. Each was rejected with its bounded verifier reason; restoring the exact modes
+returned independent verification to pass while the unit stayed disabled and inactive. See the
+immutable [`permission drift receipt`](evidence/brain-linux-release-permission-drift-2026-10-18.json).
+This does not cover ownership changes, ACLs, or mandatory access-control policy. The next useful
+horizon is a clean disposable reinstall from the published topic branch, then stale-state and
+upgrade recovery.
 
 ## Current readiness
 

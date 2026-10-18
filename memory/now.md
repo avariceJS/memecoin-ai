@@ -70,7 +70,10 @@ This is one-host/one-toolchain evidence. At `9d25fe069cd13d91eaf51c298a0993cb31c
 full-loop-filesystem stage failure returned `stage_builder_no_space`; recovery and same-source retry
 passed, and the original release tree was restored and reverified. See
 [`ENOSPC receipt`](../docs/evidence/brain-linux-release-stage-enospc-recovery-2026-10-18.json).
-Next: clean disposable reinstall and permissions/stale-state recovery.
+Permission drift across a release file, v2 state root, and unit failed closed; exact modes were
+restored and independent verify passed. See
+[`permission drift receipt`](../docs/evidence/brain-linux-release-permission-drift-2026-10-18.json).
+Next: clean disposable reinstall, then stale-state/upgrade recovery.
 
 `research/active` is at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`; `main` remains
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Future-v2 v3 drafts remain untracked and untouched.
