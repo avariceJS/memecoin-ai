@@ -102,7 +102,7 @@ def test_setup_interpreter_checks_make_default_without_writes(monkeypatch):
         "_command",
         lambda argv, **kwargs: (
             observed.update(argv=argv, kwargs=kwargs)
-            or ('{"version":[3,12,3],"venv":true,"ensurepip":true}', "ok")
+            or ('{"version":[3,12,3],"venv":true,"ensurepip_version":"24.0"}', "ok")
         ),
     )
     explicit = capabilities._setup_interpreter_check(sys.executable)
@@ -117,10 +117,16 @@ def test_setup_interpreter_checks_make_default_without_writes(monkeypatch):
 @pytest.mark.parametrize(
     ("payload", "reason"),
     [
-        ('{"version":[3,10,14],"venv":true,"ensurepip":true}', "make_setup_python_3_11_required"),
-        ('{"version":[3,12,3],"venv":false,"ensurepip":true}', "make_setup_python_venv_missing"),
         (
-            '{"version":[3,12,3],"venv":true,"ensurepip":false}',
+            '{"version":[3,10,14],"venv":true,"ensurepip_version":"24.0"}',
+            "make_setup_python_3_11_required",
+        ),
+        (
+            '{"version":[3,12,3],"venv":false,"ensurepip_version":"24.0"}',
+            "make_setup_python_venv_missing",
+        ),
+        (
+            '{"version":[3,12,3],"venv":true,"ensurepip_version":""}',
             "make_setup_python_ensurepip_missing",
         ),
     ],

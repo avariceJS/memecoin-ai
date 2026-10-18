@@ -245,10 +245,9 @@ def _setup_interpreter_check(command: str) -> dict[str, Any]:
     if executable is None or not Path(executable).is_file() or not os.access(executable, os.X_OK):
         return _check("absent", "make_setup_python_missing", command=command[:256])
     script = (
-        "import importlib.util,json,sys; "
+        "import ensurepip,json,sys,venv; "
         "print(json.dumps({'version':list(sys.version_info[:3]), "
-        "'venv':importlib.util.find_spec('venv') is not None, "
-        "'ensurepip':importlib.util.find_spec('ensurepip') is not None}))"
+        "'venv':True,'ensurepip_version':ensurepip.version()}))"
     )
     result = _command([executable, "-I", "-B", "-c", script], timeout=5.0)
     if result is None:
@@ -260,13 +259,13 @@ def _setup_interpreter_check(command: str) -> dict[str, Any]:
         payload = json.loads(output)
         version = payload["version"]
         venv_available = payload["venv"]
-        ensurepip_available = payload["ensurepip"]
+        ensurepip_version = payload["ensurepip_version"]
         if (
             not isinstance(version, list)
             or len(version) != 3
             or any(type(part) is not int for part in version)
             or type(venv_available) is not bool
-            or type(ensurepip_available) is not bool
+            or not isinstance(ensurepip_version, str)
         ):
             raise ValueError
     except (KeyError, TypeError, ValueError, json.JSONDecodeError):
@@ -276,13 +275,14 @@ def _setup_interpreter_check(command: str) -> dict[str, Any]:
         "executable": executable,
         "version": ".".join(str(part) for part in version),
         "venv": venv_available,
-        "ensurepip": ensurepip_available,
+        "ensurepip": bool(ensurepip_version),
+        "ensurepip_version": ensurepip_version[:64],
     }
     if tuple(version) < (3, 11):
         return _check("absent", "make_setup_python_3_11_required", **details)
     if not venv_available:
         return _check("absent", "make_setup_python_venv_missing", **details)
-    if not ensurepip_available:
+    if not ensurepip_version:
         return _check("absent", "make_setup_python_ensurepip_missing", **details)
     return _check("available", "make_setup_python_ready", **details)
 
