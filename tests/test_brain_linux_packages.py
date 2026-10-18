@@ -105,7 +105,12 @@ def test_simulation_records_only_new_dependency_closure(monkeypatch):
 
 
 def test_dependency_closure_includes_package_breaks_and_conflicts(monkeypatch):
-    output = "util-linux\n  Breaks: bsdutils (< 1:2.39)\n  Conflicts: old-tool\n"
+    output = (
+        "util-linux\n"
+        "  Pre-Depends: libblkid1 (>= 2.37)\n"
+        "  Breaks: bsdutils (< 1:2.39)\n"
+        "  Conflicts: old-tool\n"
+    )
     monkeypatch.setattr(
         provisioner,
         "_run",
@@ -113,6 +118,7 @@ def test_dependency_closure_includes_package_breaks_and_conflicts(monkeypatch):
     )
     assert provisioner._dependency_closure({"util-linux": "2.39"}) == {
         "util-linux",
+        "libblkid1",
         "bsdutils",
         "old-tool",
     }

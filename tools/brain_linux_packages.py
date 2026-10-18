@@ -362,7 +362,7 @@ def _dependency_closure(requested: dict[str, str]) -> set[str]:
     )
     closure = set(requested)
     for line in result.stdout.splitlines():
-        match = re.match(r"^\s+(?:(?:Pre)?Depends|Breaks|Conflicts):\s+(\S+)", line)
+        match = re.match(r"^\s+(?:Pre-?Depends|Depends|Breaks|Conflicts):\s+(\S+)", line)
         if match:
             package = match.group(1).strip("<>").split(":", 1)[0]
             if PACKAGE_RE.fullmatch(package):
