@@ -511,7 +511,7 @@ def prepare_attachment(
     finally:
         os.close(operator_fd)
         os.close(attachment_fd)
-    _verify_local_payloads(attachment_manifest, owner_uid=brain.pw_uid)
+    _verify_local_payloads(attachment_manifest, owner_uid=brain.pw_uid, operator_dir=operator_dir)
     after_copy, _release_again, _config_again = _read_source(
         release_id,
         release_manifest_sha256,
@@ -620,9 +620,12 @@ def _read_attachment_manifest(attachment_id: str) -> tuple[dict[str, Any], bytes
     return manifest, raw, directory, operator_dir
 
 
-def _verify_local_payloads(manifest: dict[str, Any], *, owner_uid: int) -> dict[str, bytes]:
-    attachment_id = str(manifest["attachment_id"])
-    _, operator_dir, _ = _attachment_paths(attachment_id)
+def _verify_local_payloads(
+    manifest: dict[str, Any], *, owner_uid: int, operator_dir: Path | None = None
+) -> dict[str, bytes]:
+    if operator_dir is None:
+        attachment_id = str(manifest["attachment_id"])
+        _, operator_dir, _ = _attachment_paths(attachment_id)
     if set(os.listdir(operator_dir)) != {"config.json", "operator.sqlite"}:
         raise StorageError("attachment_local_member_set_mismatch")
     payloads: dict[str, bytes] = {}
