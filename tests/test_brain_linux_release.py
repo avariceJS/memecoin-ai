@@ -525,6 +525,21 @@ def test_attempt_audit_observes_directory_metadata_without_tree_walk(tmp_path, m
     assert "tree_sha256" not in observation
 
 
+def test_prepared_state_rejects_mount_at_its_root(tmp_path, monkeypatch):
+    root = tmp_path / "prepared"
+    root.mkdir()
+    mountinfo = f"36 25 0:32 / {root} rw,relatime - ext4 /dev/loop0 rw\n"
+    original_read_text = Path.read_text
+
+    def read_text(path, *args, **kwargs):
+        if path == Path("/proc/self/mountinfo"):
+            return mountinfo
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", read_text)
+    assert linux_release._has_nested_mount(root)
+
+
 @pytest.mark.parametrize("present_count", [0, 1, 3])
 def test_recovered_preintent_receipt_remains_valid_after_later_publish(
     tmp_path, monkeypatch, present_count
