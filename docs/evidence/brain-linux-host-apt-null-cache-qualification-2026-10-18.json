@@ -1,6 +1,6 @@
 {
   "schema": "brain-linux-host-apt-null-cache-qualification-v1",
-  "recorded_at_utc": "2026-10-18T13:02:00Z",
+  "recorded_at_utc": "2026-10-18T13:01:05Z",
   "source": {
     "branch": "codex/linux-portability-20261018",
     "commit": "05388406c6d15a10456c72d122d42655fead499d",
