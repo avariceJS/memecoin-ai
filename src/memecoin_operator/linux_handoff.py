@@ -329,6 +329,23 @@ def _paths(installation_id: str, generation_id: str, binding_id: str) -> tuple[P
     return generation, receipt
 
 
+def _verify_recovery_generation_boundary(generation_root: Path) -> None:
+    try:
+        if {entry.name for entry in generation_root.iterdir()} != {"operator"}:
+            raise StorageError("handoff_recovery_generation_contents_unsafe")
+        mountinfo = Path("/proc/self/mountinfo").read_text(encoding="utf-8")
+    except OSError as exc:
+        raise StorageError("handoff_recovery_mount_state_unavailable") from exc
+    generation_prefix = str(generation_root) + "/"
+    for line in mountinfo.splitlines():
+        fields = line.split(" - ", 1)[0].split()
+        if len(fields) < 5:
+            raise StorageError("handoff_recovery_mount_state_invalid")
+        mountpoint = re.sub(r"\\([0-7]{3})", lambda match: chr(int(match.group(1), 8)), fields[4])
+        if mountpoint == str(generation_root) or mountpoint.startswith(generation_prefix):
+            raise StorageError("handoff_recovery_nested_mount_unsafe")
+
+
 def _prepare_runtime_directories(operator: Path, uid: int, gid: int) -> None:
     for relative in sorted(
         linux_attachment.RUNTIME_DIRECTORIES, key=lambda item: (item.count("/"), item)
@@ -477,6 +494,7 @@ def _recover_published_prepare(
         or os.path.ismount(generation_root)
     ):
         raise StorageError("handoff_recovery_generation_unsafe")
+    _verify_recovery_generation_boundary(generation_root)
     operator = generation_root / "operator"
     _prepared_inventory(operator)
     brain = pwd.getpwnam("brain")
@@ -537,14 +555,8 @@ def _recover_published_prepare(
     target_before = linux_release.verify(target_release_id)
     if target_before.get("manifest_sha256") != target.get("manifest_sha256"):
         raise StorageError("handoff_recovery_target_changed")
-    if stat.S_IMODE(generation_meta.st_mode) == 0o700:
-        os.chmod(generation_root, 0o711)
-        parent_fd = os.open(generation_root.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-        try:
-            os.fsync(parent_fd)
-        finally:
-            os.close(parent_fd)
-    if os.path.lexists(unit_path):
+    existing_unit = os.path.lexists(unit_path)
+    if existing_unit:
         try:
             unit_metadata = unit_path.lstat()
             observed_unit = linux_attachment._read_file(
@@ -563,6 +575,14 @@ def _recover_published_prepare(
             or state[3] != 0
         ):
             raise StorageError("handoff_recovery_unit_mismatch")
+    if stat.S_IMODE(generation_meta.st_mode) == 0o700:
+        os.chmod(generation_root, 0o711)
+        parent_fd = os.open(generation_root.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            os.fsync(parent_fd)
+        finally:
+            os.close(parent_fd)
+    if existing_unit:
         subprocess.run(["systemctl", "daemon-reload"], check=True, timeout=10)
         if linux_service._unit_status(unit_name) != ("loaded", "inactive", "disabled", 0):
             raise StorageError("handoff_recovery_unit_not_inert")
