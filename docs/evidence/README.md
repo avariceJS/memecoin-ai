@@ -6,6 +6,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- [Linux handoff recovery boundary](brain-linux-handoff-recovery-boundary-2026-10-18.json): exact
+  generation-root membership and mount-boundary checks, conflict-safe recovery before permission
+  normalization, Linux retry evidence, and an inert synthetic activation/finalization lifecycle.
 - [Linux portability qualification](brain-linux-portability-2026-10-18.json): clean Linux setup,
   byte-identical wheel/sdist builds, inert synthetic restore, explicit idle activation, stop and
   reboot verification on an isolated topic branch; production data, provider calls, CUDA, and other

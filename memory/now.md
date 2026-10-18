@@ -97,3 +97,13 @@ prepared-state lifecycle and upgrade recovery.
 
 `research/active` is at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`; `main` remains
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Future-v2 v3 drafts remain untracked and untouched.
+
+At topic commit `c3173a0cda76ae22e902ec211161deade9add480`, Linux handoff recovery now requires an
+exact generation-root member set, rejects nested mounts from live mountinfo, and preflights existing
+unit bytes/inert systemd state before permission normalization. Ubuntu SIGKILL injections for a
+foreign generation sibling and conflicting published unit were rejected while the generation stayed
+0700; clean retries verified. Synthetic activate/stop/finalize/verify ended disabled, inactive, and
+PID-free. Sol found no must-fix in the recovery boundary. Receipt:
+[`handoff recovery boundary`](../docs/evidence/brain-linux-handoff-recovery-boundary-2026-10-18.json).
+Next portability horizon: verify source/toolchain provisioning from a fresh minimal Ubuntu install,
+including explicit package closure and behavior when optional host capabilities are absent.

@@ -1,0 +1,62 @@
+{
+  "schema": "brain-linux-handoff-recovery-boundary-evidence-v1",
+  "date": "2026-10-18",
+  "source_commit": "c3173a0cda76ae22e902ec211161deade9add480",
+  "branch": "codex/linux-portability-20261018",
+  "host": {
+    "provider": "disposable Aéza VPS",
+    "os": "Ubuntu 24.04 LTS",
+    "kernel": "Linux 6.8.0-48-generic",
+    "architecture": "x86_64",
+    "cpu_count": 4,
+    "memory_total_gib": 7.8,
+    "memory_available_gib_after_checks": 7.3,
+    "root_filesystem": "ext4",
+    "root_disk_total_gib": 119,
+    "root_disk_available_gib_after_checks": 104
+  },
+  "target_release": {
+    "release_id": "98d9710fb119b81bd9d9aa6b5fc5dd8386ff97180c3100bc45c8ae160ebc2c99",
+    "source_commit": "f5108eebf44dbffdcdb0af7b6fb04500fbdf3ea7",
+    "wheel_sha256": "d29185929f8bb1c2c61983102b798dfad365357d8a204983152cfc22cec2a4c5"
+  },
+  "checks": {
+    "focused_tests_mac": "27 passed",
+    "focused_tests_ubuntu": "27 passed",
+    "changed_file_ruff": "passed on Mac and Ubuntu",
+    "injected_foreign_generation_sibling": {
+      "result": "rejected",
+      "error": "handoff_recovery_generation_contents_unsafe",
+      "generation_mode_after_rejection": "0700",
+      "clean_retry": "prepared-inert",
+      "verify": "prepared-inert",
+      "binding_id": "fe0e4b64209895a112f1da1a608380f4e345f640b581a7d737805337fa18b5f5"
+    },
+    "injected_conflicting_published_unit": {
+      "result": "rejected",
+      "error": "handoff_recovery_unit_mismatch",
+      "generation_mode_after_rejection": "0700",
+      "restored_unit_retry": "prepared-inert",
+      "verify": "prepared-inert",
+      "binding_id": "147f6a019dca474244dff6a41424672865625b4ac7b259a33c3ca5a698f3b3fe"
+    },
+    "lifecycle": {
+      "binding_id": "fe0e4b64209895a112f1da1a608380f4e345f640b581a7d737805337fa18b5f5",
+      "activation": "active-synthetic-idle; jobs=0; phase=idle",
+      "stop": "stopped-disabled",
+      "finalize": "activated-stopped-idle-finalized",
+      "verify": "finalized-inert",
+      "systemd_after_finalize": "disabled/inactive/PID 0",
+      "logical_state_sha256": "f6123900ef9ab41b0a28899f8fcdd44ce5f200794dfd9943021dfe555b05780f",
+      "inventory_sha256": "0961c80cfc2eb8c1446e873d10eff80a471e7ab545f99fcdb79205ef17900860"
+    }
+  },
+  "limits": [
+    "Synthetic idle state only; no protected or production data was used.",
+    "Nested mount rejection was covered by parser-level path fixtures and live /proc/self/mountinfo scanning; a real bind mount was not attempted.",
+    "Process SIGKILL recovery is not power-loss or block-device failure qualification.",
+    "The earlier empty pending directory remains retained as forensic evidence; this work did not prune it.",
+    "The target release predates this handoff recovery code; the release runtime itself was not rebuilt by this receipt."
+  ],
+  "secrets_or_protected_data_used": false
+}

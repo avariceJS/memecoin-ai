@@ -179,3 +179,23 @@ research and production checkouts, environments and state directories. Mac 2 is 
 worker; the two-host path remains available for explicit future scale-out. No shared mutable database
 or production credentials are transferred to the worker. Current paths and exact dated status are in
 [`operator-runtime.md`](operator-runtime.md) and [`memory/now.md`](../memory/now.md).
+
+## Portable deployment boundary
+
+Brain's Linux deployment path is a platform adapter over portable release artifacts and explicit
+state contracts. Linux host-specific responsibilities include ext4/device discovery, ownership and
+mode checks, systemd unit policy, and service activation. Handoff-v1 copies a verified idle SQLite
+state into a versioned generation, binds it to an exact release and effective service policy, then
+requires a separate explicit activation. Recovery adopts only an exact generation tree, checks for
+nested mounts and conflicting units before permission changes, and retains ambiguous artifacts for
+operator review. This is a synthetic idle-state path; it does not make Migration v1 interchangeable
+with Linux handoff or establish production Brain restore.
+
+On Ubuntu 24.04/x86_64, clean-clone setup, deterministic source builds, real ext4/systemd staging,
+process-crash recovery, inert activation/finalization, and host reboot checks have passed on the
+isolated Linux portability branch. The current proof covers one CPU-only x86_64 toolchain and one
+systemd host. ARM64, Windows/WSL, CUDA/NVIDIA, power-loss behavior, production datasets, and generic
+package-manager provisioning remain unqualified. Preserve the adapter boundary: discover optional
+compute and host capabilities explicitly, while release identity, state formats, manifests, and
+restore semantics remain platform-independent. Recovery evidence and exact limits are indexed in
+[`docs/evidence/README.md`](evidence/README.md).
