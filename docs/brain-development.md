@@ -220,6 +220,9 @@ Index refresh is a separate explicit operation; read-only planning binds fixed p
 dependency closure, versions, solver output, installed state, source hashes, and host capability
 report to a digest. Apply rechecks that digest and all observed inputs, refuses removals, downgrades,
 unrelated package changes, or active Brain units, and blocks service starts during package scripts.
-Receipts are create-only and root-private. The utility does not create users, grant sudo, auto-run
-from setup or restore, or promise rollback after an interrupted dpkg transaction. This lab-only
+The source-build role may start from a verified externally acquired source artifact when Git is not
+yet installed; it records that preflight gap and requires the exact clean source commit to become
+verifiable after installation. Receipts are create-only and root-private. The utility does not
+create users, grant sudo, auto-run from setup or restore, or promise rollback after an interrupted
+dpkg transaction. This lab-only
 contract does not qualify ordinary host provisioning or package update policy.

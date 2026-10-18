@@ -405,7 +405,22 @@ def _simulate(
     return transactions, result.stdout
 
 
-def _capability_report(workspace: Path, source_commit: str) -> dict[str, Any]:
+def _validate_source_checkout(report: dict[str, Any], *, allow_git_missing: bool) -> None:
+    check = report.get("checks", {}).get("source_checkout", {})
+    if check.get("status") == "available":
+        return
+    if (
+        allow_git_missing
+        and check.get("status") == "absent"
+        and check.get("reason") == "git_missing"
+    ):
+        return
+    raise ProvisionError("brain_source_checkout_not_clean_at_requested_commit")
+
+
+def _capability_report(
+    workspace: Path, source_commit: str, *, allow_git_missing: bool = False
+) -> dict[str, Any]:
     checkout = workspace.resolve()
     script = checkout / "src/memecoin_operator/linux_capabilities.py"
     if not checkout.is_dir() or not script.is_file():
@@ -429,8 +444,7 @@ def _capability_report(workspace: Path, source_commit: str) -> dict[str, Any]:
         raise ProvisionError("capability_report_invalid_json") from exc
     if report.get("source_commit") != source_commit:
         raise ProvisionError("capability_report_source_commit_mismatch")
-    if report.get("checks", {}).get("source_checkout", {}).get("status") != "available":
-        raise ProvisionError("brain_source_checkout_not_clean_at_requested_commit")
+    _validate_source_checkout(report, allow_git_missing=allow_git_missing)
     return report
 
 
@@ -456,7 +470,11 @@ def _plan_payload(role: str, snapshot: str, source_commit: str, workspace: Path)
         raise ProvisionError("invalid_source_commit")
     _validate_snapshot(snapshot)
     _require_indexes(snapshot)
-    capability_before = _capability_report(workspace, source_commit)
+    if role not in ROLES:
+        raise ProvisionError("role_not_approved")
+    capability_before = _capability_report(
+        workspace, source_commit, allow_git_missing=role == "source-build"
+    )
     units = _unit_state()
     installed = _installed_versions()
     requested = {name: _candidate(name) for name in ROLES[role]}
@@ -468,6 +486,9 @@ def _plan_payload(role: str, snapshot: str, source_commit: str, workspace: Path)
         "snapshot": snapshot,
         "source_commit": source_commit,
         "source_workspace": str(workspace.resolve()),
+        "source_capability_tool_sha256": _file_sha(
+            workspace.resolve() / "src/memecoin_operator/linux_capabilities.py"
+        ),
         "capability_report_before": capability_before,
         "capability_fingerprint_before": _capability_fingerprint(capability_before),
         "tool_sha256": _file_sha(Path(__file__).resolve()),
@@ -537,12 +558,19 @@ def apply_plan(plan_path: Path, plan_sha256: str) -> dict[str, Any]:
         raise ProvisionError("installed_package_state_drift")
     if plan.get("brain_units_before") != _unit_state():
         raise ProvisionError("brain_unit_state_drift")
-    capability_before = _capability_report(Path(plan["source_workspace"]), plan["source_commit"])
-    if _capability_fingerprint(capability_before) != plan.get("capability_fingerprint_before"):
-        raise ProvisionError("capability_state_drift")
     role = plan.get("role")
     if role not in ROLES or set(plan["requested"]) != set(ROLES[role]):
         raise ProvisionError("role_or_package_set_not_approved")
+    workspace = Path(plan["source_workspace"])
+    if _file_sha(workspace / "src/memecoin_operator/linux_capabilities.py") != plan.get(
+        "source_capability_tool_sha256"
+    ):
+        raise ProvisionError("capability_tool_drift")
+    capability_before = _capability_report(
+        workspace, plan["source_commit"], allow_git_missing=role == "source-build"
+    )
+    if _capability_fingerprint(capability_before) != plan.get("capability_fingerprint_before"):
+        raise ProvisionError("capability_state_drift")
     installed = _installed_versions()
     transactions, simulation = _simulate(plan["requested"], installed)
     if transactions != plan.get("transaction") or _sha(simulation.encode()) != plan.get(
@@ -582,7 +610,7 @@ def apply_plan(plan_path: Path, plan_sha256: str) -> dict[str, Any]:
         ):
             POLICY_RC.unlink()
     units_after = _unit_state()
-    capability_after = _capability_report(Path(plan["source_workspace"]), plan["source_commit"])
+    capability_after = _capability_report(workspace, plan["source_commit"])
     if (
         role == "source-build"
         and capability_after.get("roles", {}).get("source_build", {}).get("status") != "available"

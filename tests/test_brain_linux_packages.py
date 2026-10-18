@@ -150,3 +150,13 @@ def test_capability_fingerprint_ignores_only_observation_time_and_free_bytes():
         "checks": {"free_space": {"status": "available", "available_bytes": 999}},
     }
     assert provisioner._capability_fingerprint(first) == provisioner._capability_fingerprint(second)
+
+
+def test_source_checkout_may_be_pending_git_only_for_source_role_bootstrap():
+    pending = {"checks": {"source_checkout": {"status": "absent", "reason": "git_missing"}}}
+    provisioner._validate_source_checkout(pending, allow_git_missing=True)
+    with pytest.raises(provisioner.ProvisionError, match="brain_source_checkout_not_clean"):
+        provisioner._validate_source_checkout(pending, allow_git_missing=False)
+    dirty = {"checks": {"source_checkout": {"status": "absent", "reason": "worktree_dirty"}}}
+    with pytest.raises(provisioner.ProvisionError, match="brain_source_checkout_not_clean"):
+        provisioner._validate_source_checkout(dirty, allow_git_missing=True)

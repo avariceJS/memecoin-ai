@@ -144,7 +144,9 @@ indexes/cache, binds package candidates and solver closure to a digest, rejects 
 and records pre/post host capability reports in root-private receipts. Initial live source-build
 planning found and then safely allowed only a required `python3-minimal` dependency update; a bad
 plan digest and tampered snapshot index were both rejected before package mutation. Final clean
-source checkout and apply qualification remain pending.
+source checkout and apply qualification remain pending. A minimal rootfs can lack Git before the
+source-build role, so the externally verified source artifact is accepted only for that role and
+must become clean/exact-head verifiable immediately after package installation.
 
 At topic commit `51306aa3629ed11df5991a70caf399feefff025b`, schema-v3 Linux release staging passed on
 the VPS after fixing a builder wheelhouse permission defect. The installed venv entrypoints are
