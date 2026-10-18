@@ -26,7 +26,7 @@ from io import StringIO
 from pathlib import Path
 from zipfile import ZipFile
 
-from memecoin_operator import linux_service
+from memecoin_operator import linux_service, linux_service_identity
 
 RELEASE_BASE = Path("/opt/brain/releases")
 UNIT_BASE = Path("/etc/systemd/system")
@@ -58,6 +58,13 @@ def _sha256(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _service_identity_snapshot() -> dict[str, object]:
+    try:
+        return linux_service_identity.snapshot()
+    except linux_service_identity.IdentityError as exc:
+        raise RuntimeError(f"release_service_identity_refused:{exc}") from exc
 
 
 def _run(argv: list[str], *, capture: bool = True) -> subprocess.CompletedProcess:
@@ -2651,6 +2658,7 @@ def stage(
     """Build a root-owned, service-read-only venv and unique static unit."""
     if os.geteuid() != 0:
         raise PermissionError("stage_requires_root")
+    service_identity = _service_identity_snapshot()
     if not re.fullmatch(r"[0-9a-f]{40,64}", source_commit):
         raise ValueError("invalid_source_commit")
     if not re.fullmatch(r"[0-9a-f]{64}", expected_wheel_sha256):
@@ -2963,7 +2971,11 @@ def stage(
             "state_layout": "release-v2",
             "state_root": str(state_root),
             "install_policy": "create-only-static-no-activation-v3-relocatable-venv",
+            "service_identity": service_identity,
+            "service_identity_sha256": service_identity["sha256"],
         }
+        if _service_identity_snapshot() != service_identity:
+            raise RuntimeError("release_service_identity_changed_during_stage")
         manifest_path = staging / "release-manifest.json"
         with manifest_path.open("x", encoding="utf-8") as handle:
             handle.write(json.dumps(manifest, sort_keys=True, indent=2) + "\n")
@@ -3012,6 +3024,8 @@ def stage(
                 {**spec, "identity": _artifact_identity(path, kind=spec["kind"])}
             )
         _validate_publish_intent(attempt_id, intent)
+        if _service_identity_snapshot() != service_identity:
+            raise RuntimeError("release_service_identity_changed_during_stage")
         _write_publish_intent(attempt_id, intent)
         persisted_intent = _read_publish_intent(attempt_id)
         if persisted_intent is None:
@@ -3043,6 +3057,17 @@ def verify(release_id: str) -> dict[str, object]:
         or manifest.get("release_id") != release_id
     ):
         raise RuntimeError("release_manifest_mismatch")
+    if manifest_schema == SCHEMA_V3:
+        try:
+            current_service_identity = linux_service_identity.verify_bound(
+                manifest.get("service_identity")
+            )
+        except linux_service_identity.IdentityError as exc:
+            raise RuntimeError(f"release_service_identity_mismatch:{exc}") from exc
+        if manifest.get("service_identity_sha256") != current_service_identity["sha256"]:
+            raise RuntimeError("release_service_identity_mismatch:digest")
+    else:
+        _service_identity_snapshot()
     wheel_sha = manifest.get("wheel_sha256")
     interpreter = manifest.get("interpreter")
     if (

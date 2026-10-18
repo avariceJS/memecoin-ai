@@ -26,6 +26,11 @@ try:
 except ModuleNotFoundError:  # Direct ``python tools/...`` execution puts tools/ on sys.path.
     import brain_linux_packages as shared
 
+SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src"
+if str(SOURCE_ROOT) not in sys.path:
+    sys.path.insert(0, str(SOURCE_ROOT))
+from memecoin_operator import linux_service_identity  # noqa: E402
+
 ROOT = Path("/var/lib/brain-host-provision")
 SOURCE = ROOT / "ubuntu.sources"
 LISTS = ROOT / "lists"
@@ -207,7 +212,7 @@ def _systemd_container() -> str | None:
     return None
 
 
-def _host_identity() -> dict[str, str]:
+def _host_identity() -> dict[str, Any]:
     release = shared._os_release()
     if release.get("ID") != "ubuntu" or release.get("VERSION_ID") != "24.04":
         raise HostProvisionError("ubuntu_24_04_required")
@@ -220,12 +225,6 @@ def _host_identity() -> dict[str, str]:
         )
     if container:
         raise HostProvisionError(f"container_host_refused:{container}")
-    try:
-        brain = pwd.getpwnam("brain")
-    except KeyError as exc:
-        raise HostProvisionError("existing_brain_identity_required") from exc
-    if brain.pw_uid == 0:
-        raise HostProvisionError("brain_identity_must_be_nonroot")
     for exe, label in (
         ("/usr/bin/apt-get", "apt_get"),
         ("/usr/bin/dpkg", "dpkg"),
@@ -251,12 +250,18 @@ def _host_identity() -> dict[str, str]:
     machine_id = MACHINE_ID.read_text(encoding="ascii").strip()
     if not re.fullmatch(r"[0-9a-f]{32}", machine_id):
         raise HostProvisionError("host_machine_id_unavailable")
+    try:
+        service_identity = linux_service_identity.snapshot()
+    except linux_service_identity.IdentityError as exc:
+        raise HostProvisionError(f"service_identity_refused:{exc}") from exc
     return {
         "os_release_sha256": _file_sha(Path("/etc/os-release")),
         "architecture": platform.machine(),
         "machine_id_sha256": _sha(machine_id.encode()),
-        "brain_uid": str(brain.pw_uid),
-        "brain_gid": str(brain.pw_gid),
+        "service_identity": service_identity,
+        "service_identity_tool_sha256": _file_sha(
+            SOURCE_ROOT / "memecoin_operator/linux_service_identity.py"
+        ),
         "keyring_sha256": _file_sha(KEYRING),
     }
 

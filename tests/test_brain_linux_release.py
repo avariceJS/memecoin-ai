@@ -15,14 +15,34 @@ import pytest
 from memecoin_operator import linux_release
 
 
-def _verified_fixture(tmp_path, monkeypatch):
+def _verified_fixture(tmp_path, monkeypatch, schema=None):
+    schema = schema or linux_release.SCHEMA
+    identity_payload = {
+        "schema": linux_release.linux_service_identity.SCHEMA,
+        "username": "brain",
+        "uid": 1000,
+        "gid": 1000,
+        "groups": [{"gid": 1000, "name": "brain"}],
+        "home": "/home/brain",
+        "shell": "/usr/sbin/nologin",
+        "password_locked": True,
+        "ssh_authorized_keys": [],
+        "sudo_denied": True,
+        "operator_uid_distinct": True,
+        "checked_ssh_authorized_key_paths": ["/home/brain/.ssh/authorized_keys"],
+    }
+    identity_sha = hashlib.sha256(
+        linux_release.linux_service_identity._canonical(identity_payload)
+    ).hexdigest()
+    identity_record = {**identity_payload, "sha256": identity_sha}
+    monkeypatch.setattr(linux_release.linux_service_identity, "snapshot", lambda: identity_record)
     wheel_sha = "b" * 64
     interpreter = {
         "path": "/usr/bin/python3.12",
         "version": "3.12.3",
         "soabi": "cpython-312-x86_64-linux-gnu",
     }
-    release_id = linux_release._identity(wheel_sha, interpreter)
+    release_id = linux_release._identity(wheel_sha, interpreter, schema)
     unit_name = f"memecoin-brain-{release_id}.service"
     root = tmp_path / "releases" / release_id
     venv = root / "venv"
@@ -51,7 +71,7 @@ def _verified_fixture(tmp_path, monkeypatch):
     with sqlite3.connect(state_root / "operator.sqlite") as db:
         db.execute("CREATE TABLE jobs (job_id TEXT PRIMARY KEY)")
     manifest = {
-        "schema": linux_release.SCHEMA,
+        "schema": schema,
         "release_id": release_id,
         "wheel_sha256": wheel_sha,
         "interpreter": interpreter,
@@ -61,6 +81,8 @@ def _verified_fixture(tmp_path, monkeypatch):
         "installed_inventory_sha256": inventory_sha,
         "unit_name": unit_name,
         "unit_sha256": hashlib.sha256(unit.encode()).hexdigest(),
+        "service_identity": identity_record,
+        "service_identity_sha256": identity_sha,
     }
     (root / "release-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
     pin_dir = tmp_path / "releases" / ".pins"
@@ -816,6 +838,19 @@ def test_verify_binds_installed_tree_and_versioned_unit(tmp_path, monkeypatch):
     assert result["release_id"] == release_id
     assert result["unit"] == f"memecoin-brain-{release_id}.service"
     assert result["unit_state"] == ("loaded", "inactive", "static", 0)
+
+
+def test_v3_verify_requires_matching_service_identity_binding(tmp_path, monkeypatch):
+    release_id, _root = _verified_fixture(tmp_path, monkeypatch, linux_release.SCHEMA_V3)
+
+    def drift(_expected):
+        raise linux_release.linux_service_identity.IdentityError("service_identity_drift")
+
+    monkeypatch.setattr(linux_release.linux_service_identity, "verify_bound", drift)
+    with pytest.raises(
+        RuntimeError, match="release_service_identity_mismatch:service_identity_drift"
+    ):
+        linux_release.verify(release_id)
 
 
 def test_verify_rejects_installed_file_drift(tmp_path, monkeypatch):
