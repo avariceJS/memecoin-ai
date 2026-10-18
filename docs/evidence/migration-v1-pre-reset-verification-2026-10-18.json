@@ -1,0 +1,139 @@
+{
+  "schema": "brain-practical-migration-v1-pre-reset-verification",
+  "observed_at_utc": "2026-10-18T14:58:56.885807+00:00",
+  "qualification_scope": "Existing candidate readback, ordinary source/SQLite verification and local recovery-kit preparation only. No independent full data copy, clean-host restore or erase authority.",
+  "source_commit": "d4938cc98e9161ed139b76462845afa92716fdcd",
+  "owner_source_commit": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+  "migration_tool_commit": "6ad944c40938e1e25d2bddb3ea61234c69e9149d",
+  "ordinary_candidate_verification": {
+    "manifest_sha256": "0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865",
+    "member_count": 784023,
+    "payload_bytes": 28821482721,
+    "protected_custody_complete": false,
+    "protected_custody_disposition": "protected_D43_source_present_uncaptured"
+  },
+  "d43_candidate_verification": {
+    "candidate_id": "58ec529e5a134817bf179b06922ddcf7",
+    "manifest_sha256": "ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6",
+    "member_count": 1567,
+    "payload_bytes": 13227642,
+    "protected_semantics_used": false,
+    "state": "protected_opaque_candidate_verified",
+    "target_volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf"
+  },
+  "ordinary_sqlite": {
+    "databases": 93,
+    "passed": 93,
+    "failed": 0,
+    "family_member_bytes": 6191734784,
+    "normal_sqlite_open_on_disposable_copies": true,
+    "source_and_backup_family_hashes_equal": true,
+    "original_family_hashes_unchanged": true,
+    "schema_and_table_counts_recorded_privately": true,
+    "protected_databases_queried": false
+  },
+  "source_freshness": {
+    "research_work_config_transcript_metadata_match_capture": true,
+    "owner_ordinary_files_compared": 281456,
+    "owner_ordinary_bytes_compared": 10920849011,
+    "owner_differences": {
+      "finder_metadata_files": 3,
+      "other_ordinary_payload_files": 0
+    },
+    "ordinary_plists_byte_identical": 55,
+    "d43_metadata_difference": "one empty .lock file ctime; no other member metadata or membership changes",
+    "d43_fresh_source_payload_hashes_checked": false,
+    "five_nongit_roots_stable_during_operation": true,
+    "final_cutoff_sealed": false
+  },
+  "coverage": {
+    "ordinary_exclusions_classified": 23,
+    "supplement_files": 6,
+    "supplement_bytes": 533287,
+    "supplement_scope": "research session declaration, two public vendored token registries, three Finder metadata deltas",
+    "updated_private_codex_config_not_yet_copied": true,
+    "auth_sessions_and_env_credentials": "excluded; independent recovery/reissue still needs confirmation",
+    "source_regular_modes_compared": 645053,
+    "source_regular_mode_differences": 0,
+    "source_executable_files_indexed": 2375,
+    "historical_absent_pytest_links": 59,
+    "vendored_absent_readme_links": 3
+  },
+  "braindata": {
+    "metadata_census": {
+      "directory": 60854,
+      "file": 212474,
+      "logical_bytes": 23692267515,
+      "allocated_bytes": 24298270720,
+      "symlink": 32
+    },
+    "census_errors": 0,
+    "symlinks_outside_braindata": 0,
+    "fresh_full_content_digest_or_independent_copy_complete": false,
+    "source_modified": false
+  },
+  "git": {
+    "fresh_github_mirror_fsck_passed": true,
+    "bundle_verify_and_clone_passed": true,
+    "bundle_refs_at_commit": "d4938cc98e9161ed139b76462845afa92716fdcd",
+    "owner_objects_recoverable": 12077,
+    "research_objects_recoverable": 12078,
+    "raw_negative_tag_recovered_from_published_archive": true,
+    "ui_local_artifacts_identical_to_published_blobs": 32,
+    "untracked_recovery_transcript_identical_to_main": true,
+    "unpublished_project_code_found": false
+  },
+  "dependency_rehearsal": {
+    "package_index_disabled_during_installs": true,
+    "research_python_ml_install_pip_check_smoke": "passed",
+    "owner_ml_install_pip_check_smoke": "passed",
+    "owner_dev_install_pip_check_smoke": "passed",
+    "torch_cpu_import_tensor_check": "passed; no training",
+    "ui_offline_install_typescript": "passed",
+    "ui_tests_passed": 44,
+    "ui_build": "passed with existing PostCSS/chunk-size warnings",
+    "native_prefix_archive_regular_members_verified": 6074,
+    "native_prefix_archive_symlinks_verified": 5721,
+    "native_macho_unresolved_dependencies": 0,
+    "python_installer_signature_and_notarization": "verified, not installed",
+    "node_download_hash_and_extracted_versions": "verified 24.5.0 / npm 11.5.1",
+    "clean_host_native_execution_tested": false,
+    "apple_command_line_tools_bundled": false
+  },
+  "local_recovery_kit": {
+    "archive": "brain-recovery-kit-20261018.tar.gz",
+    "bytes": 516279439,
+    "sha256": "39555a88ee40ad58b4fc67644881c964b59603f745a555ff4055cf07d9e21ec2",
+    "verified_members": 421,
+    "metadata_companions": 853,
+    "unmatched_required_members": 0,
+    "checksums_sha256": "35acbedb11e54eb59fa700d7254a6c10a03a3dfb828aa9676dd88a8f96fc0a2c",
+    "complete_brain_backup": false,
+    "independent_copy_verified": false,
+    "location": "Mac1 only",
+    "plaintext_private_kit_do_not_transfer_without_policy_clearance": true
+  },
+  "quiescence": {
+    "brain_jobs_with_pid": 0,
+    "brain_loaded_labels": 1,
+    "d43_disabled": true,
+    "brain_root_write_descriptors": 0,
+    "services_stopped_or_started_by_this_operation": false
+  },
+  "storage": {
+    "kingston_free_bytes_at_start": 21924790272,
+    "mac1_free_bytes_at_start": 13285666816,
+    "new_kingston_writes": false,
+    "source_or_existing_backup_deletions": false,
+    "mac2_transfer_performed": false
+  },
+  "pending": {
+    "protected_copy_consent_received": false,
+    "corporate_mac2_policy_confirmed": false,
+    "complete_portable_data_backup_verified": false,
+    "full_mac1_restore_complete": false,
+    "factory_reset_go": false,
+    "approved_independent_destination_ready": false
+  },
+  "next_operation": "Obtain the already requested consent/policy/destination response; copy the complete permitted data set and local kit to approved independent storage, verify all destination bytes and final source stability. Do not erase or activate Brain."
+}
