@@ -759,6 +759,7 @@ def _finish_publish_locked(
         raise RuntimeError("release_publish_attempt_mismatch")
     release_id = str(intent["release_id"])
     if record.get("phase") == "complete":
+        _record_stage_phase(_stage_attempt_path(attempt_id), record, "complete", seal=True)
         verification = verify(release_id)
         if (
             verification["source_commit"] != intent["source_commit"]

@@ -255,6 +255,12 @@ def test_completed_publish_rechecks_release_without_pinning_mutable_runtime_stat
         "interpreter": interpreter,
     }
     monkeypatch.setattr(linux_release, "_validate_publish_intent", lambda _id, _record: [])
+    sealed = []
+    monkeypatch.setattr(
+        linux_release,
+        "_record_stage_phase",
+        lambda path, _record, phase, *, seal=False: sealed.append((path, phase, seal)),
+    )
     monkeypatch.setattr(
         linux_release,
         "verify",
@@ -266,6 +272,7 @@ def test_completed_publish_rechecks_release_without_pinning_mutable_runtime_stat
     result = linux_release._finish_publish_locked(attempt_id, record, intent)
     assert result["release_id"] == release_id
     assert result["release_path"] == str(linux_release.RELEASE_BASE / release_id)
+    assert sealed == [(linux_release._stage_attempt_path(attempt_id), "complete", True)]
 
 
 def test_process_census_fails_closed_on_permission_error(tmp_path, monkeypatch):
