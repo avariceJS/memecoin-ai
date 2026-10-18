@@ -1,0 +1,62 @@
+{
+  "schema": "brain-linux-attachment-sigkill-recovery-v1",
+  "date": "2026-10-18",
+  "scope": "post-activation SIGKILL and manual idle-state recovery on synthetic disposable Ubuntu host",
+  "source": {
+    "repository": "avariceJS/memecoin-ai",
+    "branch": "codex/linux-portability-20261018",
+    "commit": "df0a1a88140048d56752af70da236a1dbd070159"
+  },
+  "host": {
+    "os": "Ubuntu 24.04 LTS",
+    "architecture": "x86_64",
+    "service_manager": "systemd",
+    "provider_data_or_protected_data_used": false
+  },
+  "fixture": {
+    "kind": "empty synthetic operator SQLite/config restore on disposable ext4 image",
+    "attachment_id": "att-df0a1a8",
+    "unit": "memecoin-brain-b5ae7cf0c03d1d157b7ad6c0e700770a9a288b954123238a587315a14ea70abd.service",
+    "pre_kill_activation": "active_synthetic_idle; mode=idle; phase=idle; jobs=0"
+  },
+  "failure_injection": {
+    "action": "systemctl kill --kill-who=main --signal=KILL",
+    "pre_reset_observation": {
+      "Restart": "no",
+      "MainPID": 0,
+      "Result": "signal",
+      "NRestarts": 0,
+      "ExecMainCode": 2,
+      "ExecMainStatus": 9,
+      "ActiveState": "failed",
+      "SubState": "failed",
+      "UnitFileState": "disabled"
+    },
+    "observation_capture": "captured in a brain-owned lab text file before reset-failed; copied into root-owned evidence storage after recovery, so root-owned sealing did not precede the recovery action",
+    "automatic_restart_observed": false
+  },
+  "recovery": {
+    "verify_while_failed": "rejected with attachment_root_action_failed; fail-closed but operator diagnostic is generic",
+    "operator_action": "systemctl reset-failed on the exact disabled synthetic unit",
+    "finalize": "passed only after systemd reported loaded, inactive, disabled, MainPID=0 and the idle database/inventory verified",
+    "final_inventory_sha256": "c4477cace8e4c69fe560ae143b6883beaa00d93f7d86c539f98ab986cc15a1e7",
+    "final_operator_sqlite_sha256": "843aa2defe48006e1d779bbe63e0af21f0868d0e8d42f8dc2b5dcc197507bc4b",
+    "verify_after_finalize": "passed as activated_stopped_idle_verified",
+    "sqlite_integrity_check": "ok",
+    "jobs_commands_publications": 0,
+    "events": 1,
+    "automatic_restart_count": 0
+  },
+  "interpretation": [
+    "A post-activation SIGKILL did not trigger a systemd restart; attachment verification rejected the failed unit until an explicit reset-failed action.",
+    "After the unit became inactive and disabled, finalization verified and sealed the synthetic idle database and file inventory.",
+    "activated_stopped_idle_verified does not distinguish a clean stop from an abnormal process exit; this result proves post-exit idle state and inventory only.",
+    "This test began after activate had written both start-intent and the bound idle-probe receipt. A crash before idle-probe creation is a separate, unqualified failure window; create-only start intent prevents simply retrying that attachment."
+  ],
+  "limitations": [
+    "The pre-reset systemd output was captured before reset but only sealed into root-owned storage afterward.",
+    "Only synthetic empty idle state was used; no production state or arbitrary restored database was tested.",
+    "No crash-consistency or durability claim is made for non-idle mutations, external side effects, or abrupt host power loss.",
+    "The generic attachment_root_action_failed diagnostic is safe but does not expose the underlying failed-unit state to the operator."
+  ]
+}

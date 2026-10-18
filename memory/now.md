@@ -20,7 +20,7 @@ also remains incomplete. Do not delete partial candidates or activate Brain. The
 operator package is awaiting final Sol review. No second-Mac restore has occurred.
 
 A separate Linux portability branch, `codex/linux-portability-20261018` at
-`df0a1a88140048d56752af70da236a1dbd070159`, is isolated from that acceptance path. Fresh Ubuntu
+`1349548596b2a5dda20203951f39ce7b499b2efd`, is isolated from that acceptance path. Fresh Ubuntu
 24.04 clones completed `make setup`; repeated builds across separate output directories and clean
 clones matched wheel and sdist hashes. The exact-head release restored a synthetic ext4 fixture
 inert, activated explicitly, stopped/finalized, then passed release and attachment verification
@@ -37,6 +37,12 @@ mounted and inert for follow-up lifecycle experiments. No provider credentials o
 were used. Exact evidence and limits are in
 [`Linux portability receipt`](../docs/evidence/brain-linux-portability-2026-10-18.json). This is not
 Migration v1 acceptance or qualification of production state, CUDA, ARM64, or Windows/WSL.
+
+At exact source `df0a1a8`, a post-activation synthetic service SIGKILL left its disabled systemd
+unit failed without restart. Verification failed closed until explicit `reset-failed`; finalization
+then verified idle SQLite and inventory. This does not distinguish crash from clean stop or test a
+crash before the idle-probe receipt. The diagnostic remains generic (`attachment_root_action_failed`).
+See [`SIGKILL recovery receipt`](../docs/evidence/brain-linux-attachment-sigkill-recovery-2026-10-18.json).
 
 `research/active` is at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`; `main` remains
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Future-v2 v3 drafts remain untracked and untouched.

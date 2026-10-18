@@ -334,6 +334,18 @@ At that same exact commit, a new read-only Git clone passed `make setup`; 78 sto
 writer tests passed, and changed-file Ruff/format checks passed. Two independent clean source clones
 produced identical wheel and sdist hashes under `SOURCE_DATE_EPOCH=1792296133`.
 
+At the exact `df0a1a88140048d56752af70da236a1dbd070159` source, a second synthetic attachment was
+explicitly activated in idle mode and its systemd main process was killed with SIGKILL. The disabled
+unit remained failed with `Restart=no`, `NRestarts=0`, and `ExecMainStatus=9`; verification rejected
+it until an explicit `reset-failed`. Finalization then passed only after the unit was inactive and
+the synthetic idle database and inventory verified. This proves manual post-exit idle-state
+verification, not graceful shutdown or crash durability. The `activated_stopped_idle_verified`
+result does not preserve whether the process stopped normally or abnormally. The captured pre-reset
+systemd observation was sealed in root-owned receipt storage after recovery, not before it. The
+experiment started after both the start-intent and bound idle-probe receipts existed; a crash before
+idle-probe creation is a separate unqualified failure window. See the
+[`Linux attachment SIGKILL recovery receipt`](evidence/brain-linux-attachment-sigkill-recovery-2026-10-18.json).
+
 This proves clean Linux setup, repeated package-build identity, inert staging, synthetic idle restore
 and explicit activation, bounded maintenance, stop/finalize, and verifier recovery after reboot. It
 does not qualify production or arbitrary restored-state modes, source authenticity beyond the
@@ -341,8 +353,9 @@ trusted Git checkout and builder, Linux research-data writer semantics, boot-tim
 ARM64, Windows/WSL, macOS-to-Linux payload portability, CUDA, or NVIDIA. The immutable
 [`Linux portability receipt`](evidence/brain-linux-portability-2026-10-18.json) records exact
 artifacts, lifecycle hashes, host facts, failures, and limitations. The next architecture horizon is
-failure/restart and recovery semantics for Linux attachment and service state, followed by remaining
-storage-writer boundaries; crash consistency and real research-data use remain unqualified.
+operator diagnostics and recovery semantics for systemd failure, then interruption safety during
+release/attachment publication. The crash-before-idle-probe path, crash consistency, and real
+research-data use remain unqualified.
 
 ## Current readiness
 
