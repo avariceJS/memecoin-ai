@@ -10,6 +10,22 @@ import pytest
 from tools import brain_linux_host_packages as host
 
 
+def test_apt_cache_files_are_isolated_from_null_device():
+    args = host._apt_base()
+    cache_targets = [
+        args[index + 1].split("=", 1)[1]
+        for index, item in enumerate(args[:-1])
+        if item == "-o"
+        and args[index + 1].startswith(("Dir::Cache::pkgcache=", "Dir::Cache::srcpkgcache="))
+    ]
+    assert cache_targets == [
+        str(host.APT_CACHE / "pkgcache.bin"),
+        str(host.APT_CACHE / "srcpkgcache.bin"),
+    ]
+    assert all(target.startswith(f"{host.APT_CACHE}/") for target in cache_targets)
+    assert "/dev/null" not in cache_targets
+
+
 def test_nspawn_host_error_is_precise_and_reuses_lab_adapter(monkeypatch):
     monkeypatch.setattr(host.shared, "_os_release", lambda: {"ID": "ubuntu", "VERSION_ID": "24.04"})
     monkeypatch.setattr(host.platform, "machine", lambda: "x86_64")

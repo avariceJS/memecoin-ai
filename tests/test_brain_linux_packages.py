@@ -10,6 +10,22 @@ import pytest
 from tools import brain_linux_packages as provisioner
 
 
+def test_apt_cache_files_are_isolated_from_null_device():
+    args = provisioner._apt_base()
+    cache_targets = [
+        args[index + 1].split("=", 1)[1]
+        for index, item in enumerate(args[:-1])
+        if item == "-o"
+        and args[index + 1].startswith(("Dir::Cache::pkgcache=", "Dir::Cache::srcpkgcache="))
+    ]
+    assert cache_targets == [
+        str(provisioner.APT_CACHE / "pkgcache.bin"),
+        str(provisioner.APT_CACHE / "srcpkgcache.bin"),
+    ]
+    assert all(target.startswith(f"{provisioner.APT_CACHE}/") for target in cache_targets)
+    assert "/dev/null" not in cache_targets
+
+
 def test_roles_are_fixed_and_do_not_include_database_test_control():
     assert provisioner.ROLES["source-build"] == (
         "ca-certificates",

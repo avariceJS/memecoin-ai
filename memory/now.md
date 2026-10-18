@@ -5,6 +5,13 @@ As of 2026-10-18, active scope remains **Practical Brain Migration v1**. Erasure
 then Sol independently reviews the transcript. Hardened DR is deferred to
 [`portability-disaster-recovery-v2-roadmap.md`](../docs/portability-disaster-recovery-v2-roadmap.md).
 
+The separate Linux portability branch remains isolated from Migration v1. During a fresh Ubuntu
+host package refresh, syscall tracing proved APT changed `/dev/null` to mode `0644` because both
+package adapters configured its `pkgcache` and `srcpkgcache` as `/dev/null`. Both now use private
+regular-file caches and preserve the fail-closed device readiness gate. A traced live update with
+the dedicated paths left `/dev/null` at `0666` and produced no fchmod against it; the corrected
+snapshot refresh/apply and service-role transaction still need live qualification.
+
 The full current pair is recorded in
 [`candidate-pair receipt`](../docs/evidence/portability-migration-v1-candidate-pair-2026-10-16T2217Z.json):
 ordinary `d2fb11d73cd84c14a24ba3ed870b2ccb` (784,023 members, 28,821,482,721 bytes, manifest

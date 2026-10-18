@@ -266,10 +266,14 @@ unexpected activation remain unqualified.
 
 The `policy-rc.d` guard is only a mitigation, since package maintainer scripts and D-Bus activation
 can still start services. Receipts check unit state and store journal hashes plus a bounded
-service-activity signal without retaining raw journal entries. The initial guest also briefly
-reported `/dev/null` as mode `0644`; a targeted udev event restored `0666`, which remained correct
-after reboot. Preserve this as an image/boot observation, not a product guarantee. Full evidence,
-including the PackageKit effect and its limits, is indexed in
+service-activity signal without retaining raw journal entries. Live tracing localized an observed
+`/dev/null` mode change from `0666` to `0644` to APT itself: both adapters directed `pkgcache` and
+`srcpkgcache` at the null device, and `apt-get update` called `fchmod(0644)` on it. Both adapters
+now use root-private regular-file cache paths and retain a fail-closed null-device readiness check
+before and after package actions. With the dedicated paths, a traced live `apt-get update` left the
+device at `0666` and made no mode-changing call against it. This closes the observed cause on this
+Ubuntu guest; repeat package apply and service-role isolation are still required before broadening
+the host qualification. Full evidence, including the PackageKit effect and its limits, is indexed in
 [`docs/evidence/README.md`](evidence/README.md).
 
 At source commit `0b296131a957c5d9c3e3865bd6d94008dd27495b`, the canonical wheel and source archive

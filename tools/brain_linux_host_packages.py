@@ -35,6 +35,7 @@ ROOT = Path("/var/lib/brain-host-provision")
 SOURCE = ROOT / "ubuntu.sources"
 LISTS = ROOT / "lists"
 ARCHIVES = ROOT / "archives"
+APT_CACHE = ROOT / "cache"
 RECEIPTS = ROOT / "receipts"
 LOCK = ROOT / "adapter.lock"
 POLICY_RC = Path("/usr/sbin/policy-rc.d")
@@ -104,9 +105,9 @@ def _apt_base() -> list[str]:
         "-o",
         f"Dir::Cache::archives={ARCHIVES}",
         "-o",
-        "Dir::Cache::pkgcache=/dev/null",
+        f"Dir::Cache::pkgcache={APT_CACHE / 'pkgcache.bin'}",
         "-o",
-        "Dir::Cache::srcpkgcache=/dev/null",
+        f"Dir::Cache::srcpkgcache={APT_CACHE / 'srcpkgcache.bin'}",
         "-o",
         "Dpkg::Use-Pty=0",
         "-o",
@@ -163,7 +164,7 @@ def _ensure_dir(path: Path) -> None:
 
 def _ensure_paths() -> None:
     _ensure_dir(ROOT)
-    for path in (LISTS, ARCHIVES, RECEIPTS):
+    for path in (LISTS, ARCHIVES, APT_CACHE, RECEIPTS):
         _ensure_dir(path)
 
 

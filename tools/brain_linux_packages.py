@@ -23,6 +23,7 @@ ROOT = Path("/var/lib/brain-lab-provision")
 SOURCE_FILE = ROOT / "ubuntu.sources"
 LISTS = ROOT / "lists"
 ARCHIVES = ROOT / "archives"
+APT_CACHE = ROOT / "cache"
 RECEIPTS = ROOT / "receipts"
 POLICY_RC = Path("/usr/sbin/policy-rc.d")
 SNAPSHOT_RE = re.compile(r"^20\d{6}T\d{6}Z$")
@@ -180,7 +181,7 @@ def _ensure_paths() -> None:
     _ensure_private_dir(ROOT) if ROOT.exists() or ROOT.is_symlink() else None
     if not ROOT.exists() and not ROOT.is_symlink():
         ROOT.mkdir(mode=0o700)
-    for path in (LISTS, ARCHIVES, RECEIPTS):
+    for path in (LISTS, ARCHIVES, APT_CACHE, RECEIPTS):
         _ensure_private_dir(path) if path.exists() or path.is_symlink() else path.mkdir(mode=0o700)
 
 
@@ -200,9 +201,9 @@ def _apt_base() -> list[str]:
         "-o",
         f"Dir::Cache::archives={ARCHIVES}",
         "-o",
-        "Dir::Cache::pkgcache=/dev/null",
+        f"Dir::Cache::pkgcache={APT_CACHE / 'pkgcache.bin'}",
         "-o",
-        "Dir::Cache::srcpkgcache=/dev/null",
+        f"Dir::Cache::srcpkgcache={APT_CACHE / 'srcpkgcache.bin'}",
         "-o",
         "Dpkg::Use-Pty=0",
         "-o",
