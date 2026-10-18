@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import sqlite3
 
 import pytest
 
@@ -29,6 +30,20 @@ def _verified_fixture(tmp_path, monkeypatch):
     )
     (tmp_path / "systemd").mkdir()
     (tmp_path / "systemd" / unit_name).write_text(unit, encoding="utf-8")
+    state_root = tmp_path / "state" / release_id / "operator"
+    state_root.mkdir(parents=True)
+    (state_root / "config.json").write_text(
+        json.dumps(
+            {
+                "mode": "operator",
+                "real_execution_enabled": False,
+                "paid_budget_usd": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    with sqlite3.connect(state_root / "operator.sqlite") as db:
+        db.execute("CREATE TABLE jobs (job_id TEXT PRIMARY KEY)")
     manifest = {
         "schema": linux_release.SCHEMA,
         "release_id": release_id,
@@ -42,8 +57,15 @@ def _verified_fixture(tmp_path, monkeypatch):
         "unit_sha256": hashlib.sha256(unit.encode()).hexdigest(),
     }
     (root / "release-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    pin_dir = tmp_path / "releases" / ".pins"
+    pin_dir.mkdir()
+    manifest_sha = hashlib.sha256((root / "release-manifest.json").read_bytes()).hexdigest()
+    (pin_dir / f"{release_id}.sha256").write_text(
+        f"{manifest_sha}  release-manifest.json\n", encoding="ascii"
+    )
     monkeypatch.setattr(linux_release, "RELEASE_BASE", tmp_path / "releases")
     monkeypatch.setattr(linux_release, "UNIT_BASE", tmp_path / "systemd")
+    monkeypatch.setattr(linux_release, "STATE_BASE", tmp_path / "state")
     monkeypatch.setattr(linux_release, "_verify_permissions", lambda _root, _unit: None)
     monkeypatch.setattr(linux_release, "_interpreter", lambda _python: interpreter)
     monkeypatch.setattr(
@@ -51,6 +73,25 @@ def _verified_fixture(tmp_path, monkeypatch):
         "_unit_status",
         lambda _unit: ("loaded", "inactive", "disabled", 0),
     )
+    properties = {
+        "FragmentPath": str(tmp_path / "systemd" / unit_name),
+        "DropInPaths": "",
+        "NeedDaemonReload": "no",
+        "ExecStart": (
+            f"{{ path={root}/venv/bin/python ; argv[]={root}/venv/bin/python -I -m "
+            "memecoin_operator.runtime --root "
+            f"{state_root} --port 18792 ; ignore_errors=no ; start_time=[n/a] }}"
+        ),
+        "User": "brain",
+        "Group": "brain",
+        "PrivateNetwork": "yes",
+        "WorkingDirectory": str(root),
+        "ReadWritePaths": str(tmp_path / "state"),
+        "StateDirectory": "brain-lab",
+        "ProtectSystem": "strict",
+        "Restart": "no",
+    }
+    monkeypatch.setattr(linux_release, "_unit_properties", lambda _unit: properties)
     return release_id, root
 
 
@@ -101,4 +142,50 @@ def test_verify_rejects_non_inert_unit(tmp_path, monkeypatch):
         lambda _unit: ("loaded", "active", "disabled", 42),
     )
     with pytest.raises(RuntimeError, match="release_unit_not_inert"):
+        linux_release.verify(release_id)
+
+
+def test_verify_rejects_effective_systemd_dropin(tmp_path, monkeypatch):
+    release_id, _root = _verified_fixture(tmp_path, monkeypatch)
+    properties = linux_release._unit_properties(release_id)
+    monkeypatch.setattr(
+        linux_release,
+        "_unit_properties",
+        lambda _unit: {**properties, "DropInPaths": "/etc/systemd/system/override.conf"},
+    )
+    with pytest.raises(RuntimeError, match="release_effective_unit_mismatch"):
+        linux_release.verify(release_id)
+
+
+def test_verify_rejects_effective_execstart_redirect(tmp_path, monkeypatch):
+    release_id, _root = _verified_fixture(tmp_path, monkeypatch)
+    properties = linux_release._unit_properties(release_id)
+    monkeypatch.setattr(
+        linux_release,
+        "_unit_properties",
+        lambda _unit: {
+            **properties,
+            "ExecStart": properties["ExecStart"].replace("--port 18792", "--port 9000"),
+        },
+    )
+    with pytest.raises(RuntimeError, match="release_effective_execstart_mismatch"):
+        linux_release.verify(release_id)
+
+
+def test_verify_rejects_manifest_and_pin_drift(tmp_path, monkeypatch):
+    release_id, root = _verified_fixture(tmp_path, monkeypatch)
+    manifest = json.loads((root / "release-manifest.json").read_text())
+    manifest["source_commit"] = "d" * 40
+    (root / "release-manifest.json").write_text(json.dumps(manifest))
+    with pytest.raises(RuntimeError, match="release_manifest_pin_mismatch"):
+        linux_release.verify(release_id)
+
+
+def test_verify_rejects_unsafe_lab_config(tmp_path, monkeypatch):
+    release_id, _root = _verified_fixture(tmp_path, monkeypatch)
+    config_path = tmp_path / "state" / release_id / "operator" / "config.json"
+    config = json.loads(config_path.read_text())
+    config["real_execution_enabled"] = True
+    config_path.write_text(json.dumps(config))
+    with pytest.raises(RuntimeError, match="release_lab_config_unsafe"):
         linux_release.verify(release_id)

@@ -8,7 +8,9 @@ import json
 import os
 import pwd
 import re
+import shlex
 import shutil
+import sqlite3
 import stat
 import subprocess
 import sys
@@ -138,6 +140,111 @@ def _verify_permissions(root: Path, unit_path: Path) -> None:
         raise RuntimeError("release_unit_permissions_mismatch")
 
 
+def _unit_properties(unit: str) -> dict[str, str]:
+    names = (
+        "FragmentPath",
+        "DropInPaths",
+        "NeedDaemonReload",
+        "ExecStart",
+        "User",
+        "Group",
+        "PrivateNetwork",
+        "WorkingDirectory",
+        "ReadWritePaths",
+        "StateDirectory",
+        "ProtectSystem",
+        "Restart",
+    )
+    result = _run(
+        ["systemctl", "show", "--no-pager", *[f"--property={name}" for name in names], unit]
+    )
+    fields: dict[str, str] = {}
+    for line in result.stdout.splitlines():
+        key, separator, value = line.partition("=")
+        if not separator or key not in names or key in fields:
+            raise RuntimeError("release_effective_unit_malformed")
+        fields[key] = value
+    if set(fields) != set(names):
+        raise RuntimeError("release_effective_unit_malformed")
+    return fields
+
+
+def _verify_effective_unit(unit: str, root: Path, state_root: Path) -> None:
+    fields = _unit_properties(unit)
+    expected = {
+        "FragmentPath": str(UNIT_BASE / unit),
+        "DropInPaths": "",
+        "NeedDaemonReload": "no",
+        "User": "brain",
+        "Group": "brain",
+        "PrivateNetwork": "yes",
+        "WorkingDirectory": str(root),
+        "ReadWritePaths": str(STATE_BASE),
+        "StateDirectory": "brain-lab",
+        "ProtectSystem": "strict",
+        "Restart": "no",
+    }
+    if any(fields[key] != value for key, value in expected.items()):
+        raise RuntimeError("release_effective_unit_mismatch")
+    match = re.search(r"(?:^| )argv\[\]=(.*?) ; ignore_errors=", fields["ExecStart"])
+    if match is None:
+        raise RuntimeError("release_effective_execstart_malformed")
+    try:
+        argv = shlex.split(match.group(1))
+    except ValueError as exc:
+        raise RuntimeError("release_effective_execstart_malformed") from exc
+    expected_argv = [
+        str(root / "venv/bin/python"),
+        "-I",
+        "-m",
+        "memecoin_operator.runtime",
+        "--root",
+        str(state_root),
+        "--port",
+        "18792",
+    ]
+    if argv != expected_argv:
+        raise RuntimeError("release_effective_execstart_mismatch")
+
+
+def _verify_lab_state(root: Path, release_id: str) -> None:
+    state_root = STATE_BASE / release_id / "operator"
+    try:
+        state_root.relative_to(STATE_BASE)
+    except ValueError as exc:
+        raise RuntimeError("release_state_root_mismatch") from exc
+    if state_root.is_symlink() or not state_root.is_dir():
+        raise RuntimeError("release_lab_state_missing")
+    try:
+        config = json.loads((state_root / "config.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError("release_lab_config_invalid") from exc
+    if (
+        not isinstance(config, dict)
+        or config.get("mode") != "operator"
+        or config.get("real_execution_enabled") is not False
+        or config.get("paid_budget_usd") != 0
+    ):
+        raise RuntimeError("release_lab_config_unsafe")
+    database = state_root / "operator.sqlite"
+    if database.is_symlink() or not database.is_file():
+        raise RuntimeError("release_lab_database_missing")
+    try:
+        db = sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True, timeout=2)
+        try:
+            tables = {
+                row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            }
+            if "jobs" not in tables or db.execute("SELECT count(*) FROM jobs").fetchone()[0] != 0:
+                raise RuntimeError("release_lab_state_not_idle")
+            if db.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                raise RuntimeError("release_lab_database_invalid")
+        finally:
+            db.close()
+    except sqlite3.Error as exc:
+        raise RuntimeError("release_lab_database_invalid") from exc
+
+
 def _commit_and_clean(source: Path, expected: str) -> None:
     brain_uid = pwd.getpwnam("brain").pw_uid
     if source.stat().st_uid != brain_uid:
@@ -184,23 +291,42 @@ def stage(
     if RELEASE_BASE.is_symlink() or (RELEASE_BASE.exists() and not RELEASE_BASE.is_dir()):
         raise RuntimeError("release_root_unsafe")
     RELEASE_BASE.mkdir(parents=True, exist_ok=True)
-    if release_root.exists() or unit_path.exists():
+    if os.path.lexists(release_root) or os.path.lexists(unit_path):
         raise RuntimeError("release_already_exists")
     user = pwd.getpwnam("brain")
-    builder = pwd.getpwnam("nobody")
+    builder_name = f"brain-stage-{release_id[:12]}"
     staging = Path(tempfile.mkdtemp(prefix=f".stage-{release_id[:12]}-", dir=RELEASE_BASE))
-    os.chown(staging, builder.pw_uid, builder.pw_gid)
-    venv = staging / "venv"
-    staged_wheel = staging / wheel.name
+    builder_root = staging / "build"
+    builder_root.mkdir(mode=0o700)
+    wheel_input = staging / wheel.name
+    venv = builder_root / "venv"
+    builder_created = False
     try:
-        shutil.copyfile(wheel, staged_wheel)
-        staged_wheel.chmod(0o444)
-        os.chown(staged_wheel, builder.pw_uid, builder.pw_gid)
+        _run(
+            [
+                "useradd",
+                "--system",
+                "--no-create-home",
+                "--home-dir",
+                "/nonexistent",
+                "--shell",
+                "/usr/sbin/nologin",
+                builder_name,
+            ]
+        )
+        builder_created = True
+        builder = pwd.getpwnam(builder_name)
+        os.chown(builder_root, builder.pw_uid, builder.pw_gid)
+        shutil.copyfile(wheel, wheel_input)
+        wheel_input.chmod(0o444)
+        os.chown(wheel_input, 0, 0)
+        if _sha256(wheel_input) != expected_wheel_sha256:
+            raise RuntimeError("staged_wheel_sha256_mismatch")
         _run(
             [
                 "/usr/sbin/runuser",
                 "-u",
-                "nobody",
+                builder_name,
                 "--",
                 interpreter["path"],
                 "-m",
@@ -212,7 +338,7 @@ def stage(
             [
                 "/usr/sbin/runuser",
                 "-u",
-                "nobody",
+                builder_name,
                 "--",
                 str(venv / "bin/python"),
                 "-m",
@@ -222,14 +348,16 @@ def stage(
                 "--no-deps",
                 "--no-compile",
                 "--no-cache-dir",
-                str(staged_wheel),
+                str(wheel_input),
             ]
         )
+        if _sha256(wheel_input) != expected_wheel_sha256:
+            raise RuntimeError("staged_wheel_changed_during_install")
         probe = _run(
             [
                 "/usr/sbin/runuser",
                 "-u",
-                "nobody",
+                builder_name,
                 "--",
                 str(venv / "bin/python"),
                 "-I",
@@ -241,10 +369,11 @@ def stage(
         version = probe.stdout.strip()
         if not version:
             raise RuntimeError("release_import_probe_failed")
-        staged_wheel.unlink()
+        wheel_input.unlink()
         inventory, inventory_sha = _inventory(venv)
         release_root.mkdir(mode=0o755)
         os.replace(venv, release_root / "venv")
+        builder_root.rmdir()
         staging.rmdir()
         unit_text = linux_service.render_unit(
             release_root / "venv/bin/python",
@@ -275,8 +404,20 @@ def stage(
         os.chown(release_root / "release-manifest.json", 0, user.pw_gid)
         (release_root / "release-manifest.json").chmod(0o444)
         _seal(release_root, user.pw_gid)
+        pin_dir = RELEASE_BASE / ".pins"
+        pin_dir.mkdir(mode=0o755, exist_ok=True)
+        if os.path.lexists(pin_dir / f"{release_id}.sha256"):
+            raise RuntimeError("release_pin_already_exists")
+        manifest_sha = _sha256(release_root / "release-manifest.json")
+        pin_path = pin_dir / f"{release_id}.sha256"
+        with pin_path.open("x", encoding="ascii") as handle:
+            handle.write(f"{manifest_sha}  release-manifest.json\n")
+        pin_path.chmod(0o444)
+        os.chown(pin_path, 0, 0)
         linux_service.install(unit_text, unit_path=unit_path, unit=unit_name)
     except BaseException:
+        pin_path = RELEASE_BASE / ".pins" / f"{release_id}.sha256"
+        pin_path.unlink(missing_ok=True)
         if release_root.exists() and (release_root / "venv").exists():
             candidate = release_root
             if staging.exists():
@@ -297,6 +438,15 @@ def stage(
             )
             _seal(incomplete, user.pw_gid)
         raise
+    finally:
+        if builder_created:
+            subprocess.run(
+                ["userdel", builder_name],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
     return {"release_id": release_id, "unit": unit_name, "release_path": str(release_root)}
 
 
@@ -321,6 +471,12 @@ def verify(release_id: str) -> dict[str, object]:
         or manifest.get("unit_name") != unit_name
     ):
         raise RuntimeError("release_manifest_mismatch")
+    pin_path = RELEASE_BASE / ".pins" / f"{release_id}.sha256"
+    if pin_path.is_symlink() or not pin_path.is_file():
+        raise RuntimeError("release_manifest_pin_missing")
+    expected_pin = f"{_sha256(root / 'release-manifest.json')}  release-manifest.json\n"
+    if pin_path.read_text(encoding="ascii") != expected_pin:
+        raise RuntimeError("release_manifest_pin_mismatch")
     inventory, inventory_sha = _inventory(root / "venv")
     if inventory != manifest.get("installed_inventory") or inventory_sha != manifest.get(
         "installed_inventory_sha256"
@@ -338,6 +494,9 @@ def verify(release_id: str) -> dict[str, object]:
     state = linux_service._unit_status(unit_name)
     if state != ("loaded", "inactive", "disabled", 0):
         raise RuntimeError("release_unit_not_inert")
+    state_root = STATE_BASE / release_id / "operator"
+    _verify_effective_unit(unit_name, root, state_root)
+    _verify_lab_state(root, release_id)
     return {
         "release_id": release_id,
         "unit": unit_name,
@@ -346,6 +505,7 @@ def verify(release_id: str) -> dict[str, object]:
         "package_version": manifest.get("package_version"),
         "installed_inventory_sha256": inventory_sha,
         "unit_sha256": manifest.get("unit_sha256"),
+        "manifest_sha256": _sha256(root / "release-manifest.json"),
         "unit_state": state,
     }
 
