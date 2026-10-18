@@ -136,10 +136,14 @@ def _verify_permissions(root: Path, unit_path: Path) -> None:
 
 
 def _commit_and_clean(source: Path, expected: str) -> None:
-    result = _run(["git", "-C", str(source), "rev-parse", "HEAD"])
+    brain_uid = pwd.getpwnam("brain").pw_uid
+    if source.stat().st_uid != brain_uid:
+        raise RuntimeError("source_owner_mismatch")
+    git_prefix = ["/usr/sbin/runuser", "-u", "brain", "--", "git", "-C", str(source)]
+    result = _run([*git_prefix, "rev-parse", "HEAD"])
     if result.stdout.strip() != expected:
         raise RuntimeError("source_commit_mismatch")
-    dirty = _run(["git", "-C", str(source), "status", "--porcelain", "--untracked-files=all"])
+    dirty = _run([*git_prefix, "status", "--porcelain", "--untracked-files=all"])
     if dirty.stdout:
         raise RuntimeError("source_checkout_dirty")
 
