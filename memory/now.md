@@ -38,6 +38,15 @@ were used. Exact evidence and limits are in
 [`Linux portability receipt`](../docs/evidence/brain-linux-portability-2026-10-18.json). This is not
 Migration v1 acceptance or qualification of production state, CUDA, ARM64, or Windows/WSL.
 
+At `0b296131a957c5d9c3e3865bd6d94008dd27495b`, the wheel ZIP mode mismatch across umasks was fixed
+and qualified: macOS arm64 plus Ubuntu bare-host and three nspawn contexts produced identical wheel
+and sdist hashes. An empty-HOME private clone completed setup/build/synthetic smoke; offline wheel
+install, RECORD, five CLI entrypoints, 58 focused tests, and changed-file lint/format passed. A
+content-addressed release staged/verified on bare Ubuntu and nspawn; the nspawn unit completed two
+isolated-network activation/stop cycles and ended inert. See
+[`cross-umask release receipt`](../docs/evidence/brain-linux-cross-umask-release-qualification-2026-10-18.json).
+Next deployment gap: a reviewed ordinary-host bootstrap/package-provisioning contract.
+
 At exact source `df0a1a8`, a post-activation synthetic service SIGKILL left its disabled systemd
 unit failed without restart. Verification failed closed until explicit `reset-failed`; finalization
 then verified idle SQLite and inventory. This does not distinguish crash from clean stop or test a

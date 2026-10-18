@@ -1,0 +1,104 @@
+{
+  "schema": "brain-linux-cross-umask-release-qualification-v1",
+  "source_commit": "0b296131a957c5d9c3e3865bd6d94008dd27495b",
+  "branch": "codex/linux-portability-20261018",
+  "repository": {
+    "owner": "avariceJS/memecoin-ai",
+    "private_git_clone_without_prompt": true,
+    "vps_deploy_key_scope": "read-only",
+    "branch_or_ref_mutation": false,
+    "clean_fresh_clone": true
+  },
+  "host": {
+    "os": "Ubuntu 24.04 LTS",
+    "architecture": "x86_64",
+    "python": "3.12.3",
+    "filesystem": "ext4",
+    "root_disk_total_bytes_approx": 127775989760,
+    "root_disk_free_bytes_approx": 93458427904,
+    "memory_total_bytes_approx": 8375189504,
+    "memory_available_bytes_approx": 7301444403
+  },
+  "artifacts": {
+    "source_date_epoch": 1792316405,
+    "wheel": {
+      "filename": "memecoin_ai-0.1.0-py3-none-any.whl",
+      "sha256": "1dd6efb8bce0e95bf5f5e6297c2a5b111853ab13d8b7e590bf303c019f7ff191",
+      "zip_entries": 234,
+      "record_rows_verified": 233,
+      "mode_policy": "regular files 0644; directories 0755; no other entry modes",
+      "install": "passed offline without dependencies",
+      "pip_check": "passed",
+      "console_entrypoints_help": {
+        "brain-linux-service": "passed",
+        "brain-linux-release": "passed",
+        "brain-linux-attachment": "passed",
+        "brain-linux-handoff": "passed",
+        "brain-linux-capabilities": "passed"
+      }
+    },
+    "sdist": {
+      "filename": "memecoin_ai-0.1.0.tar.gz",
+      "sha256": "406c20ff29abe20fc5b155fc284e4191cfb77f8d11ff9ffec3a8f1825248ee9b"
+    },
+    "byte_identical_across": [
+      "macOS arm64, Python 3.13.6",
+      "Ubuntu bare host, umask 0002",
+      "Ubuntu systemd-nspawn source checkout, umask 0022",
+      "Ubuntu systemd-nspawn fresh clone, umask 0027",
+      "Ubuntu systemd-nspawn fresh clone with empty HOME, umask 0027"
+    ]
+  },
+  "deployment": {
+    "fresh_empty_home_clone_setup_build_smoke": "passed",
+    "fresh_clone_make_smoke": "passed; synthetic engineering check only",
+    "focused_tests": "58 passed",
+    "changed_file_ruff": "passed",
+    "changed_file_format": "passed",
+    "release_id": "54aad427162e00bc5f5b7ab106a2a5826ed276317c9bd3093a401c382fc48ce8",
+    "bare_host_stage_and_verify": "passed",
+    "bare_host_unit_after_verify": ["loaded", "inactive", "dead", "static", 0],
+    "nspawn_stage_and_verify": "passed",
+    "nspawn_unit_policy": {
+      "user": "brain",
+      "private_network": true,
+      "restart": "no",
+      "install_state": "static"
+    },
+    "nspawn_activation_cycles": 2,
+    "nspawn_post_stop_verify": "passed; loaded/inactive/dead/static/PID 0"
+  },
+  "logs": {
+    "host_build": {
+      "path": "/home/brain/lab/host-qualification-20261018/host-build-0b29613.log",
+      "sha256": "a6c2a3774bd3b521224d4b1238759f38e894f31b7faaba4e67a18d3fd275de77"
+    },
+    "nspawn_build": {
+      "path": "/home/brain/lab/host-qualification-20261018/nspawn-build-0b29613.log",
+      "sha256": "81dd56dc164225dd5b3ba084b770ae3111c9e9f299e206b9b6b0957b3c00a7bb"
+    },
+    "empty_home_clone_setup_build_smoke": {
+      "path": "/home/brain/lab/host-qualification-20261018/empty-home-0b29613.log",
+      "sha256": "9b1c4768a77278286f9ba6b5ab2ca4ec4fdb492ed1ca3c092cd155798d426931"
+    },
+    "focused_validation": {
+      "path": "/home/brain/lab/host-qualification-20261018/focused-validation-clean-0b29613.log",
+      "sha256": "dc7275dc9413b3a52cafd7d26cf382279e42b035fe83fc74d1efa0e2c6c71e20"
+    },
+    "nspawn_activation": {
+      "path": "/home/brain/lab/host-qualification-20261018/nspawn-activation-0b29613.log",
+      "sha256": "759a452641d9fd3e6a95c6becd64f8644d68ad429e549d77dcebd0b0b9fff05f"
+    },
+    "nspawn_reactivation": {
+      "path": "/home/brain/lab/host-qualification-20261018/nspawn-reactivation-0b29613.log",
+      "sha256": "95142c73df967a1c116a86fd65d534ce1d2e31060b739791828fec2d182b9f06"
+    },
+    "permissions": "0600, owner-readable on VPS (brain or root); no credentials in logs"
+  },
+  "limitations": [
+    "Build equality is qualified on one Ubuntu 24.04 VPS with one Python 3.12 patch version and one pinned source epoch; it is not independent-builder reproducibility.",
+    "The fresh substrate was a systemd-nspawn rootfs on the VPS; ordinary bare-metal OS bootstrap and package provisioning remain separate and are not qualified by this receipt.",
+    "Activation used only a synthetic empty operator state in a systemd unit with PrivateNetwork=yes; it is not production restore or trading qualification.",
+    "CUDA/NVIDIA, ARM64 runtime, Windows/WSL, power-loss behavior, and protected datasets were not tested."
+  ]
+}

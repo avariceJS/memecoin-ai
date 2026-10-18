@@ -242,6 +242,16 @@ installed file modes or artifact bytes. The utility does not create users, grant
 setup or restore, or promise rollback after an interrupted dpkg transaction. This lab-only contract
 does not qualify ordinary host provisioning or package update policy.
 
+At source commit `0b296131a957c5d9c3e3865bd6d94008dd27495b`, the canonical wheel and source archive
+matched byte-for-byte across macOS arm64 and Ubuntu bare-host/nspawn builds under four umask/HOME
+contexts. A private fresh clone in an empty HOME completed setup, build, and synthetic smoke without
+interactive authentication. Wheel RECORD hashes, offline install, dependency check, and all five
+Linux console entrypoints passed. The exact release staged and verified on the bare VPS and nspawn;
+the nspawn unit ran twice with `PrivateNetwork=yes`, `Restart=no`, then returned to
+static/inactive/PID-0 and passed readback. This does not qualify independent builders, bare-metal
+package provisioning, production restore, or GPU. See the
+[cross-umask release receipt](evidence/brain-linux-cross-umask-release-qualification-2026-10-18.json).
+
 The fixed inert-service package role has now passed plan/apply on a disposable Noble systemd-nspawn
 rootfs at snapshot `20261018T084900Z`. The exact transaction included the explicit `bsdutils`
 companion and its solver closure, with no removals; a second plan and apply produced an empty

@@ -64,6 +64,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - [Linux source build reproducibility](brain-linux-source-build-reproducibility-2026-10-18.json):
   two independent clean clones at the exact topic commit built byte-identical wheel and sdist files
   on Ubuntu 24.04; this is one-host/one-toolchain evidence.
+- [Linux cross-umask release qualification](brain-linux-cross-umask-release-qualification-2026-10-18.json):
+  the canonicalized wheel and sdist matched across macOS arm64 and four Ubuntu build contexts,
+  including a fresh clone with an empty HOME; offline install, RECORD, entrypoints, bare-host stage,
+  and two isolated-network activation/stop cycles passed. Bare-metal package provisioning and
+  production restore remain unqualified.
 - [Linux release-stage ENOSPC recovery](brain-linux-release-stage-enospc-recovery-2026-10-18.json):
   a real full ext4 loop filesystem caused staging failure, bounded no-space diagnosis, quarantine
   recovery, and same-source retry after freeing space; the temporary release and mount were removed.
