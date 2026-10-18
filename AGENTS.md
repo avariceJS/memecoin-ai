@@ -40,17 +40,26 @@ is available from historical Git commits.
 
 ## Git branch and push policy
 
-- Keep `main` as the canonical verified baseline and `research/active` as the only long-lived
-  development branch. Start new research work from `main` after the preceding verified milestone
-  has been fast-forwarded there.
-- Push logically complete work to `origin/research/active` regularly; batch related atomic commits
-  when useful. Before handoff, every completed scope must be committed and pushed. Do not create a
-  commit solely to publish dirty or incomplete work.
-- After a verified capability milestone, fast-forward `main` to the accepted `research/active`
-  commit, push both branches, then continue on `research/active`. Preserve published history; do
-  not force-push `main` or rewrite shared commits.
-- Retire temporary and superseded branches after checking ancestry and unique commits. Keep no
-  additional long-lived branch unless a concrete architecture need requires it.
+- GitHub `avariceJS/memecoin-ai` is the source of truth for code and development history.
+  `main` is the sole primary integration baseline. Start new tasks from freshly fetched `main`.
+- Each active task or parallel agent may use its own short-lived branch and isolated worktree.
+  Give each branch a bounded purpose and a clear owner; avoid overlapping writes.
+- Commit and push meaningful progress regularly. Before handoff or host loss/reset, publish every
+  irreplaceable code change. Incomplete work may be committed as an explicitly labeled checkpoint
+  on its topic branch; a checkpoint is not acceptance and must not be promoted merely for custody.
+- Integrate finished, compatible, checked work into `main`. Preserve published history; use merges
+  or fast-forwards and never force-push `main` or rewrite shared commits.
+- Keep experimental branches only while needed, publish them on GitHub, and document their purpose,
+  acceptance gaps, and resume point in `docs/operator-runtime.md`. Do not maintain another general
+  development baseline. `research/active` is temporarily frozen solely for the pinned Migration v1
+  operator package; retire it only after that fetch dependency is safely removed or completed.
+- After integration, verify ancestry and remote custody before deleting obsolete branches/worktrees.
+  Preserve unique uncommitted files, reflog/checkpoint objects, and private data before cleanup.
+  Immutable archival tags can retain historical checkpoints without creating active branches.
+- Code must be recoverable after total Mac loss from GitHub. Runtime state, datasets, model artifacts,
+  protected data and credentials remain outside Git and follow their separate custody/reissue rules.
+- Updating `main` does not deploy or authorize activation. Keep owner runtime checkouts pinned and
+  separate; never tie a branch push or development checkout update to collectors, trading or services.
 
 ## Model routing and planning
 

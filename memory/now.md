@@ -1,3 +1,13 @@
+# Git recovery entry — 2026-10-18
+
+This published topic is retained for unfinished work: Linux portability; unmasked clean-host provisioning and inert-service qualification remain open.
+Its pre-consolidation code checkpoint is `fb36e7e43857e082cbe1c5f1d0ef6eb8f8dd5fe8`; this follow-up changes documentation only.
+Start general development from GitHub `main`. The current branch registry and recovery archive are
+[on main](https://github.com/avariceJS/memecoin-ai/blob/main/docs/operator-runtime.md#git-integration-and-recovery-registry).
+`research/active` is frozen only for the unchanged Migration v1 operator package. Do not develop there.
+The dated evidence below retains its original commit scope; advancing this documentation does not
+requalify a Linux release, DR capture, Migration v1 acceptance or owner runtime.
+
 # Current state
 
 As of 2026-10-18, active scope remains **Practical Brain Migration v1**. Erasure remains
