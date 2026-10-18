@@ -719,29 +719,28 @@ def _verify_local_payloads(
     if operator_dir is None:
         attachment_id = str(manifest["attachment_id"])
         _, operator_dir, _ = _attachment_paths(attachment_id)
-    if set(os.listdir(operator_dir)) != {
-        "background",
-        "config.json",
-        "operator",
-        "operator.sqlite",
-    }:
+    members = set(os.listdir(operator_dir))
+    payload_members = {"config.json", "operator.sqlite"}
+    prepared_members = {"background", "config.json", "operator", "operator.sqlite"}
+    if members not in (payload_members, prepared_members):
         raise StorageError("attachment_local_member_set_mismatch")
     observed_directories: set[str] = set()
-    try:
-        for parent, directories, files in os.walk(operator_dir, followlinks=False):
-            parent_path = Path(parent)
-            relative_parent = parent_path.relative_to(operator_dir).as_posix()
-            for name in directories:
-                path = parent_path / name
-                relative = f"{relative_parent}/{name}" if relative_parent != "." else name
-                _check_private_directory(path, owner_uid, pwd.getpwuid(owner_uid).pw_gid)
-                observed_directories.add(relative)
-            if relative_parent != "." and files:
-                raise StorageError("attachment_local_runtime_directory_not_empty")
-    except OSError as exc:
-        raise StorageError("attachment_local_runtime_directories_unavailable") from exc
-    if observed_directories != RUNTIME_DIRECTORIES:
-        raise StorageError("attachment_local_runtime_directory_mismatch")
+    if members == prepared_members:
+        try:
+            for parent, directories, files in os.walk(operator_dir, followlinks=False):
+                parent_path = Path(parent)
+                relative_parent = parent_path.relative_to(operator_dir).as_posix()
+                for name in directories:
+                    path = parent_path / name
+                    relative = f"{relative_parent}/{name}" if relative_parent != "." else name
+                    _check_private_directory(path, owner_uid, pwd.getpwuid(owner_uid).pw_gid)
+                    observed_directories.add(relative)
+                if relative_parent != "." and files:
+                    raise StorageError("attachment_local_runtime_directory_not_empty")
+        except OSError as exc:
+            raise StorageError("attachment_local_runtime_directories_unavailable") from exc
+        if observed_directories != RUNTIME_DIRECTORIES:
+            raise StorageError("attachment_local_runtime_directory_mismatch")
     payloads: dict[str, bytes] = {}
     for name, maximum in (
         ("config.json", MAX_CONFIG_BYTES),
