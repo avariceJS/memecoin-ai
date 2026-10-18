@@ -2182,6 +2182,8 @@ def _normalize_staged_venv(
     """Normalize only known venv-generated absolute paths before sealing its inventory."""
     if not venv.is_absolute() or not final_venv.is_absolute():
         raise RuntimeError("release_venv_normalization_path_invalid")
+    if sys.platform.startswith("linux") and _has_nested_mount(venv):
+        raise RuntimeError("release_venv_normalization_nested_mount")
     root_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     if hasattr(os, "O_CLOEXEC"):
         root_flags |= os.O_CLOEXEC
@@ -2408,6 +2410,10 @@ def _normalize_staged_venv_at_fd(
         str(source).encode(),
         attempt_id.encode(),
     ]
+    versioned_link = f"bin/python{lib_names[0][6:]}"
+    python_links = {"bin/python", "bin/python3", versioned_link}
+    python_link_names = {os.fsencode(name.removeprefix("bin/")) for name in python_links}
+    python_link_targets: dict[str, bytes] = {}
     for relative in files:
         item = metadata(relative)
         if stat.S_ISLNK(item.st_mode):
@@ -2416,26 +2422,17 @@ def _normalize_staged_venv_at_fd(
                 target = os.readlink(name, dir_fd=parent_fd).encode()
             finally:
                 os.close(parent_fd)
-            versioned_link = f"bin/python{lib_names[0][6:]}"
             expected_target = (
                 os.fsencode(str(expected_interpreter)) if expected_interpreter is not None else None
             )
-            allowed_link = (
-                (relative == "lib64" and target == b"lib")
-                or (relative == "bin/python" and target == b"python3")
-                or (
-                    relative == "bin/python3"
-                    and target in {expected_target, versioned_link.encode()}
-                    and expected_target is not None
-                    and (target == expected_target or versioned_link in files)
-                )
-                or (
-                    relative == versioned_link
-                    and target == expected_target
-                    and expected_target is not None
-                )
-            )
-            if not allowed_link:
+            if relative == "lib64":
+                if target != b"lib":
+                    raise RuntimeError("release_venv_normalization_layout_invalid")
+            elif relative in python_links and expected_target is not None:
+                if target != expected_target and target not in python_link_names:
+                    raise RuntimeError("release_venv_normalization_layout_invalid")
+                python_link_targets[relative] = target
+            else:
                 raise RuntimeError("release_venv_normalization_layout_invalid")
             if any(token and token in target for token in forbidden):
                 raise RuntimeError("release_venv_path_residue")
@@ -2447,6 +2444,19 @@ def _normalize_staged_venv_at_fd(
                 raise RuntimeError("release_venv_path_residue")
         else:
             raise RuntimeError("release_venv_normalization_layout_invalid")
+    for link in python_link_targets:
+        current = link
+        visited: set[str] = set()
+        while current in python_link_targets:
+            if current in visited:
+                raise RuntimeError("release_venv_normalization_layout_invalid")
+            visited.add(current)
+            target = python_link_targets[current]
+            if target == os.fsencode(str(expected_interpreter)):
+                break
+            current = f"bin/{os.fsdecode(target)}"
+            if current not in python_link_targets:
+                raise RuntimeError("release_venv_normalization_layout_invalid")
 
 
 def _seal(root: Path, group_id: int) -> None:

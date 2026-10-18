@@ -245,8 +245,9 @@ def test_staged_venv_normalization_allows_only_pinned_python_and_lib64_links(tmp
     source = tmp_path / "source-checkout"
     source.mkdir()
     venv = _staged_venv_fixture(tmp_path, attempt_id, final_venv, source)
-    (venv / "bin/python").symlink_to("python3")
-    (venv / "bin/python3").symlink_to("/usr/bin/python3.12")
+    (venv / "bin/python").symlink_to("python3.12")
+    (venv / "bin/python3").symlink_to("python3.12")
+    (venv / "bin/python3.12").symlink_to("/usr/bin/python3.12")
     (venv / "lib64").symlink_to("lib")
     linux_release._normalize_staged_venv(
         venv, final_venv, source, attempt_id, Path("/usr/bin/python3.12")
@@ -259,6 +260,18 @@ def test_staged_venv_normalization_allows_only_pinned_python_and_lib64_links(tmp
         linux_release._normalize_staged_venv(
             bad_venv, final_venv, source, bad_attempt, Path("/usr/bin/python3.12")
         )
+
+
+def test_staged_venv_normalization_rejects_nested_mount_before_writing(tmp_path, monkeypatch):
+    attempt_id = "e" * 12 + f"-{'a' * 16}"
+    final_venv = Path("/opt/brain/releases") / ("a" * 64) / "venv"
+    source = tmp_path / "source-checkout"
+    source.mkdir()
+    venv = _staged_venv_fixture(tmp_path, attempt_id, final_venv, source)
+    monkeypatch.setattr(linux_release.sys, "platform", "linux")
+    monkeypatch.setattr(linux_release, "_has_nested_mount", lambda _path: True)
+    with pytest.raises(RuntimeError, match="release_venv_normalization_nested_mount"):
+        linux_release._normalize_staged_venv(venv, final_venv, source, attempt_id)
 
 
 def _stage_attempt_record():
