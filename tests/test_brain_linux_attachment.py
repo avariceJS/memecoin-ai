@@ -3,12 +3,16 @@
 import json
 import os
 import sqlite3
+import sys
 
 import pytest
 
 from memecoin_operator import control
 from memecoin_operator.linux_attachment import (
     EXPECTED_CONFIG,
+    RUNTIME_DIRECTORIES,
+    _prepare_runtime_directories,
+    _rename_noreplace,
     _runtime_inventory,
     _schema_fingerprint,
     _verify_idle_database,
@@ -43,6 +47,38 @@ def test_runtime_inventory_rejects_sqlite_sidecars(tmp_path):
     (tmp_path / "operator.sqlite-wal").chmod(0o600)
     with pytest.raises(StorageError, match="attachment_runtime_root_members_mismatch"):
         _runtime_inventory(tmp_path, os.getuid(), os.getgid())
+
+
+def test_initial_runtime_directory_layout_is_complete_and_private(tmp_path):
+    root = tmp_path / "operator"
+    root.mkdir(mode=0o700)
+    _prepare_runtime_directories(root, os.getuid(), os.getgid())
+    for relative in (
+        "config.json",
+        "operator.sqlite",
+        "operator/owner.lock",
+        "operator/logs/operator.log",
+    ):
+        path = root / relative
+        path.write_bytes(b"synthetic")
+        path.chmod(0o600)
+    inventory = _runtime_inventory(root, os.getuid(), os.getgid())
+    assert {item["path"] for item in inventory if item["kind"] == "directory"} == (
+        RUNTIME_DIRECTORIES
+    )
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="renameat2 is Linux-specific")
+def test_attachment_publication_never_replaces_existing_directory(tmp_path):
+    source = tmp_path / ".pending"
+    destination = tmp_path / "attachment"
+    source.mkdir()
+    destination.mkdir()
+    (destination / "preserve").write_text("existing")
+    with pytest.raises(StorageError, match="attachment_id_already_exists"):
+        _rename_noreplace(tmp_path, source.name, destination.name)
+    assert source.is_dir()
+    assert (destination / "preserve").read_text() == "existing"
 
 
 def test_post_start_verifier_accepts_only_the_expected_idle_maintenance_event(tmp_path):

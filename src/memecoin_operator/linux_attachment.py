@@ -346,6 +346,18 @@ def _check_private_directory(path: Path, uid: int, gid: int) -> None:
         raise StorageError("attachment_directory_unsafe")
 
 
+def _prepare_runtime_directories(operator_dir: Path, uid: int, gid: int) -> None:
+    for relative in sorted(RUNTIME_DIRECTORIES, key=lambda item: (item.count("/"), item)):
+        current = operator_dir
+        for part in relative.split("/"):
+            current = current / part
+            try:
+                current.mkdir(mode=0o700)
+            except FileExistsError:
+                pass
+            _check_private_directory(current, uid, gid)
+
+
 def _create_file(dir_fd: int, name: str, payload: bytes) -> None:
     fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=dir_fd)
     try:
@@ -549,6 +561,7 @@ def prepare_attachment(
     operator_dir.mkdir(mode=0o700)
     _check_private_directory(attachment_dir, brain.pw_uid, brain.pw_gid)
     _check_private_directory(operator_dir, brain.pw_uid, brain.pw_gid)
+    _prepare_runtime_directories(operator_dir, brain.pw_uid, brain.pw_gid)
     attachment_manifest = {
         "schema": ATTACHMENT_SCHEMA,
         "attachment_id": attachment_id,
