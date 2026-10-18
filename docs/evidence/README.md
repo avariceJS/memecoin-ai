@@ -1343,3 +1343,10 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   signed plan-specific Helius charge units, historical-only claim checks and owner-local
   predecessor claim uniqueness. Fake cryptographic fixtures only; no real trust root, provider
   request, scheduler or live activation.
+
+## Git consolidation custody
+
+- `git-consolidation-2026-10-18.json`: audited refs, checkout dispositions, GitHub recovery verification,
+  retained topic purposes, unchanged Migration v1 pins, checks and explicit scan/test limitations.
+  Historical source objects live under immutable GitHub tags `archive/pre-reset-20261018` and
+  `archive/bootstrap-fixtures-20261018`; UI local review artifacts live on its retained topic branch.

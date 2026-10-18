@@ -4,6 +4,24 @@ An auditable Solana market-data, forecasting, and virtual-paper research system.
 target is a scalable Brain; the current deployment is an exploratory, non-execution system.
 See [`docs/INDEX.md`](docs/INDEX.md) for the agent entrypoint and canonical knowledge map.
 
+## Recover code and resume development
+
+Start from GitHub `main`, then read `memory/now.md`, `AGENTS.md`, and `docs/INDEX.md`:
+
+```sh
+git clone https://github.com/avariceJS/memecoin-ai.git
+cd memecoin-ai
+git switch main
+git fetch origin --prune --tags
+```
+
+The [branch and recovery registry](docs/operator-runtime.md#git-integration-and-recovery-registry)
+identifies every retained experimental branch and the immutable pre-reset history archive.
+Use a separate topic branch/worktree for each task and push meaningful checkpoints regularly.
+A clone restores code/history; required Brain state comes from the separately pinned Migration v1
+package and Kingston. Cloning or updating `main` must not start Brain. Migration v1's actual Mac2
+acceptance remains a separate gate in [the migration guide](docs/portability-disaster-recovery.md).
+
 ## Development
 
 Active development/research runs on Mac 1 in a checkout separate from owner production state.

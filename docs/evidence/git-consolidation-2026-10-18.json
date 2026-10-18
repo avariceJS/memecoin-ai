@@ -1,0 +1,1214 @@
+{
+  "schema": "brain-git-consolidation-v1",
+  "recorded_utc": "2026-10-18T13:56:57.545474+00:00",
+  "repository": "avariceJS/memecoin-ai",
+  "integration": {
+    "previous_main": "770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+    "research_checkpoint": "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186",
+    "research_commits": 321,
+    "test_alignment_commit": "d8fdff727b6ec5a4dead265ab67669b4c9cda261",
+    "publication_target": "main at the commit containing this receipt",
+    "strategy": "fast-forward without rewritten published history",
+    "implementation_change_relative_to_research_checkpoint": false,
+    "test_changes": "Three stale test files target current inventory v4, its explicit observation/coordinator context, and the fixed owner plist root. Runtime source and templates unchanged."
+  },
+  "retained_branches": [
+    {
+      "branch": "main",
+      "purpose": "sole primary integration baseline"
+    },
+    {
+      "branch": "research/active",
+      "head": "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186",
+      "purpose": "frozen compatibility fetch ref for unchanged Migration v1 operator package"
+    },
+    {
+      "branch": "codex/linux-portability-20261018",
+      "code_checkpoint": "fb36e7e43857e082cbe1c5f1d0ef6eb8f8dd5fe8",
+      "head": "65846e8ed472b1f61af6afdeb77499c94f068313"
+    },
+    {
+      "branch": "codex/v3-scratch-20261017",
+      "code_checkpoint": "4a84d5bd1496bbd6bb8832391edebd9bf51b845a",
+      "head": "6554a0180cb887fb20fd2cca3eb097f38b28489f"
+    },
+    {
+      "branch": "control-center/observatory-handoff",
+      "code_checkpoint": "ce8505a6da99c5d5e1f118d1e55346f95981c328",
+      "head": "de4b42d1600e085cbd128476bb9044db92c3cef5"
+    }
+  ],
+  "archives": [
+    {
+      "tag": "archive/pre-reset-20261018",
+      "commit": "b35f8d089b603b3e33c54acbe0db38e7fa1b1178",
+      "tree": "323b0467a514925403a946ccab376da949ac00ea",
+      "parents": [
+        "a1823f49ce11a44e555dbeb1b39dfd5077d03e67",
+        "c56c3fc172b117662ce63ebedd00b02965e2d3bf",
+        "d3fdd7a1dca7084c94a90c926c4d8084d0c81d9a",
+        "e8f738a9e8be156727598f551ee371d02bdd5662",
+        "317c2f1c1559f555e492b1033f1237f47be714ce",
+        "3674d4a797cbdaafe0a689432873663baf32427d",
+        "3a43cbf0d41338171b2b4ce015bc86f0c4541e41",
+        "a1251b6f692c049849d868d3609fe6e0ae37beea",
+        "b7c6614ed7db26edfd0c4b46215b597c5dfaadaf",
+        "c4a28edf90d1dabc510f83ac561a60e93f738281",
+        "ce8505a6da99c5d5e1f118d1e55346f95981c328",
+        "f4d9366cc17a4be86c3bb685311f913dc274b605",
+        "f846c0e6ff1c60429af32f25438fcdede0f58551",
+        "f90e8ec28c5af7e55755935c34dcffd00b9fb124"
+      ],
+      "objects": 549,
+      "helpers": [
+        "accept.py",
+        "owner_fence.py",
+        "pack.py",
+        "research_acceptance.py"
+      ],
+      "extra_files": [
+        {
+          "source": "/Users/root1/brain-handoff-v2.ncVkuY/handoff.json",
+          "object": "085530257caaedb1f181730cfd3ef9c1ce34171f",
+          "bytes": 1497,
+          "sha256": "9641b31e5552f1c7f86038756928086e59b7cb915a8fb96e6be8716d5d5bcd08"
+        },
+        {
+          "source": "/Users/root1/brain-handoff-v3.dr42XQ/handoff.json",
+          "object": "61b97454a4b3874239fe54e389b02e9f97b66065",
+          "bytes": 1764,
+          "sha256": "f373bff90ac73f4759a83837bfb4124a7f673512a6f851b0158687f1189b08c3"
+        },
+        {
+          "source": "/private/tmp/brain-handoff-v4.F6Gkqy/handoff.json",
+          "object": "0c127e2d03ca1685464c5844a016782c28cd34c2",
+          "bytes": 1979,
+          "sha256": "d0b0f77d1baa92ec1442a945a764961dac8c495016052bc17cb29b6586f4cd0b"
+        },
+        {
+          "source": "/private/tmp/brain-handoff-v4-origin.QfcTxA/handoff.json",
+          "object": "0c127e2d03ca1685464c5844a016782c28cd34c2",
+          "bytes": 1979,
+          "sha256": "d0b0f77d1baa92ec1442a945a764961dac8c495016052bc17cb29b6586f4cd0b"
+        },
+        {
+          "source": "/private/tmp/brain-handoff-v5-origin.cHrpDt/handoff.json",
+          "object": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "source": "/private/tmp/brain-handoff-v5-origin.9EHZ6i/handoff.json",
+          "object": "5b5a3c830a7c1f5613b7c4c30c396ab165297646",
+          "bytes": 2221,
+          "sha256": "2cb400b2e3e13d7dac91b3d1da3eceb301945316cd8329313b9acd7a2db37597"
+        },
+        {
+          "source": "/private/tmp/brain-dr-v5-published-e5455d7-shallow/main-ruff-baseline.txt",
+          "object": "234acdcbe9a34ab9733d87f8ea37817884359f3b",
+          "bytes": 76354,
+          "sha256": "9c5c40f49b99a8e1c95b50b9b2a51b1f232155ac41e583fdf1f5fd692bec991b"
+        }
+      ]
+    },
+    {
+      "tag": "archive/bootstrap-fixtures-20261018",
+      "commit": "2f28fcc4b37bf8d54fb5a0fef9d2b7b8c3240293",
+      "raw_tag_objects": [
+        {
+          "object": "2e7463c0f5e41d9194b104bdae00084d0aadfcea",
+          "repository": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v2-fixture-r2lqr1z3/home/brain-handoff-v2.j7BOOo",
+          "stored_as": "2e7463c0f5e41d9194b104bdae00084d0aadfcea.tag"
+        },
+        {
+          "object": "77927b626c9d196cfd2d1b005e5460fc008abbcf",
+          "repository": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v3-fixtures-0u5s7kqx/annotated-commit-home/brain-handoff-v3.dIgD5S",
+          "stored_as": "77927b626c9d196cfd2d1b005e5460fc008abbcf.tag"
+        },
+        {
+          "object": "7489996a37c79c41ea257cca7fe8905b78af903b",
+          "repository": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v3-fixtures-0u5s7kqx/annotated-tree-home/brain-handoff-v3.kT6A3i",
+          "stored_as": "7489996a37c79c41ea257cca7fe8905b78af903b.tag"
+        },
+        {
+          "object": "ccfff946d7d3de626cb5b2b43159a3b2f2a618b4",
+          "repository": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v2-fixture-8gbc59xe/home/brain-handoff-v2.mFv9rq",
+          "stored_as": "ccfff946d7d3de626cb5b2b43159a3b2f2a618b4.tag"
+        },
+        {
+          "object": "814d2005759952f71baeee709663bf34afe09c5f",
+          "repository": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v2-fixture-ernv0h2i/home/brain-handoff-v2.5NNGYj",
+          "stored_as": "814d2005759952f71baeee709663bf34afe09c5f.tag"
+        },
+        {
+          "object": "b86622397bd65180976314c9a47d6763bef74b08",
+          "repository": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v3-prepub-90unsx61/annotated-commit-home/brain-handoff-v3.4djDai",
+          "stored_as": "b86622397bd65180976314c9a47d6763bef74b08.tag"
+        },
+        {
+          "object": "0bbb84361017e2cd5790541c037120a266435d67",
+          "repository": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v3-prepub-90unsx61/annotated-tree-home/brain-handoff-v3.Rb7q1L",
+          "stored_as": "0bbb84361017e2cd5790541c037120a266435d67.tag"
+        }
+      ]
+    }
+  ],
+  "github_recovery": {
+    "fresh_github_clone": true,
+    "verified_original_objects": {
+      "blob": 368,
+      "tree": 166,
+      "tag": 1,
+      "commit": 14
+    },
+    "missing": [],
+    "negative_tag_reconstructed_from_exact_archived_bytes": true
+  },
+  "ui_local_custody": {
+    "head": "de4b42d1600e085cbd128476bb9044db92c3cef5",
+    "total_files": 32,
+    "newly_preserved_files": 27,
+    "previously_published_files": 5
+  },
+  "checkout_inventory": {
+    "discovered_count": 58,
+    "checkouts": [
+      {
+        "path": "/Users/root1/Developer/memecoin-linux-portability-20261018",
+        "original_head": "fb36e7e43857e082cbe1c5f1d0ef6eb8f8dd5fe8",
+        "original_refs": [
+          "refs/heads/codex/linux-portability-20261018 fb36e7e43857e082cbe1c5f1d0ef6eb8f8dd5fe8",
+          "refs/heads/codex/v3-scratch-20261017 4a84d5bd1496bbd6bb8832391edebd9bf51b845a",
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/heads/research/active c157f79471c1cb330bdab01cc4b4cdd7b9a1a186",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/codex/linux-portability-20261018 fb36e7e43857e082cbe1c5f1d0ef6eb8f8dd5fe8",
+          "refs/remotes/origin/codex/v3-scratch-20261017 4a84d5bd1496bbd6bb8832391edebd9bf51b845a",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active c157f79471c1cb330bdab01cc4b4cdd7b9a1a186",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb",
+          "refs/tags/brain-dr-handoff-v4-tree-negative 61b8b3c6224b9f1b3e0b304a8ff0adfff825214e",
+          "refs/tags/brain-dr-handoff-v5 0f90e09307075364d50b6fd68a7f139faa13ff3f"
+        ],
+        "initial_status_counts": {},
+        "disposition": "retained_active_linux_topic"
+      },
+      {
+        "path": "/Users/root1/Developer/memecoin-research",
+        "original_head": "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186",
+        "original_refs": [
+          "refs/heads/codex/linux-portability-20261018 fb36e7e43857e082cbe1c5f1d0ef6eb8f8dd5fe8",
+          "refs/heads/codex/v3-scratch-20261017 4a84d5bd1496bbd6bb8832391edebd9bf51b845a",
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/heads/research/active c157f79471c1cb330bdab01cc4b4cdd7b9a1a186",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/codex/linux-portability-20261018 fb36e7e43857e082cbe1c5f1d0ef6eb8f8dd5fe8",
+          "refs/remotes/origin/codex/v3-scratch-20261017 4a84d5bd1496bbd6bb8832391edebd9bf51b845a",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active c157f79471c1cb330bdab01cc4b4cdd7b9a1a186",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb",
+          "refs/tags/brain-dr-handoff-v4-tree-negative 61b8b3c6224b9f1b3e0b304a8ff0adfff825214e",
+          "refs/tags/brain-dr-handoff-v5 0f90e09307075364d50b6fd68a7f139faa13ff3f"
+        ],
+        "initial_status_counts": {
+          "??": 3
+        },
+        "disposition": "canonical_checkout_switch_to_published_main_after_commit"
+      },
+      {
+        "path": "/Users/root1/brain-handoff-v2.ncVkuY",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938"
+        ],
+        "initial_status_counts": {
+          "??": 1
+        },
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/Users/root1/brain-handoff-v3.dr42XQ",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0"
+        ],
+        "initial_status_counts": {
+          "??": 1
+        },
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/Users/root1/Desktop/memecoin-ai",
+        "original_head": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+        "original_refs": [
+          "refs/codex/turn-diffs/checkpoints/3162d405d8577329e54fce7f9777984f/76af8bf34138334a4452b1febda469c0/1791317844520/04c311a2-e562-4884-a47e-84a3a2cd1b90 1f9325d5495a0d2055231d3294b343af5714a993",
+          "refs/codex/turn-diffs/checkpoints/60586216ee1ccbb61aeeabac5e7ede33a7662188f950a4956130229de6f0fc1b/24305608b4a6d306d297a95f63bfb101be233d8568a234a81b2931dfb72ff9d1/1790937231064/0a9c9bb7-457a-4cd2-83ee-5651d29608b1 1a2c75d21af72175fd8869136f0912e67b574dc6",
+          "refs/heads/control-center/observatory-handoff ce8505a6da99c5d5e1f118d1e55346f95981c328",
+          "refs/heads/main a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+          "refs/heads/research/active 60f421251b4a3f8627f392ce60d6a3d164bbc24b",
+          "refs/remotes/origin/codex/linux-portability-20261018 fb36e7e43857e082cbe1c5f1d0ef6eb8f8dd5fe8",
+          "refs/remotes/origin/codex/v3-scratch-20261017 4a84d5bd1496bbd6bb8832391edebd9bf51b845a",
+          "refs/remotes/origin/control-center/observatory-handoff 53ef5a33100b94de88bff4f8c0dabbba3e73bda7",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active c157f79471c1cb330bdab01cc4b4cdd7b9a1a186",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb",
+          "refs/tags/brain-dr-handoff-v5 0f90e09307075364d50b6fd68a7f139faa13ff3f"
+        ],
+        "initial_status_counts": {},
+        "disposition": "retained_detached_at_identical_source_commit"
+      },
+      {
+        "path": "/Users/root1/.codex/worktrees/ec89/memecoin-ai",
+        "original_head": "60f421251b4a3f8627f392ce60d6a3d164bbc24b",
+        "original_refs": [
+          "refs/codex/turn-diffs/checkpoints/3162d405d8577329e54fce7f9777984f/76af8bf34138334a4452b1febda469c0/1791317844520/04c311a2-e562-4884-a47e-84a3a2cd1b90 1f9325d5495a0d2055231d3294b343af5714a993",
+          "refs/codex/turn-diffs/checkpoints/60586216ee1ccbb61aeeabac5e7ede33a7662188f950a4956130229de6f0fc1b/24305608b4a6d306d297a95f63bfb101be233d8568a234a81b2931dfb72ff9d1/1790937231064/0a9c9bb7-457a-4cd2-83ee-5651d29608b1 1a2c75d21af72175fd8869136f0912e67b574dc6",
+          "refs/heads/control-center/observatory-handoff ce8505a6da99c5d5e1f118d1e55346f95981c328",
+          "refs/heads/main a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+          "refs/heads/research/active 60f421251b4a3f8627f392ce60d6a3d164bbc24b",
+          "refs/remotes/origin/codex/linux-portability-20261018 fb36e7e43857e082cbe1c5f1d0ef6eb8f8dd5fe8",
+          "refs/remotes/origin/codex/v3-scratch-20261017 4a84d5bd1496bbd6bb8832391edebd9bf51b845a",
+          "refs/remotes/origin/control-center/observatory-handoff 53ef5a33100b94de88bff4f8c0dabbba3e73bda7",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active c157f79471c1cb330bdab01cc4b4cdd7b9a1a186",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb",
+          "refs/tags/brain-dr-handoff-v5 0f90e09307075364d50b6fd68a7f139faa13ff3f"
+        ],
+        "initial_status_counts": {
+          "??": 1
+        },
+        "disposition": "retained_detached_at_identical_source_commit"
+      },
+      {
+        "path": "/private/tmp/brain-handoff-v4.F6Gkqy",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb"
+        ],
+        "initial_status_counts": {
+          "??": 1
+        },
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-published-6db6a5ad8957c6e932ccacfa2e3f2404a7005d63",
+        "original_head": "6db6a5ad8957c6e932ccacfa2e3f2404a7005d63",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active 6db6a5ad8957c6e932ccacfa2e3f2404a7005d63",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-handoff-v4-origin.QfcTxA",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb"
+        ],
+        "initial_status_counts": {
+          "??": 1
+        },
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-handoff-v4-negative2-y27ysu5v/tree-client",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v4 61b8b3c6224b9f1b3e0b304a8ff0adfff825214e"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-handoff-v4-negative2-y27ysu5v/missing-client",
+        "original_head": "HEAD",
+        "original_refs": [],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-handoff-v4-negative2-y27ysu5v/light-client",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v4 baf2e25a91c9984418ef41858279658a09d0913b"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-clean-clone-128a251",
+        "original_head": "128a25143770ec6e53f2aa7ce4c7f17e1f9ae0b7",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active 128a25143770ec6e53f2aa7ce4c7f17e1f9ae0b7",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-clean-clone-326949c",
+        "original_head": "326949cfea307611eaae9053a26e41fcbdb1c5d4",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active 326949cfea307611eaae9053a26e41fcbdb1c5d4",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-v2-cli-ECPWuQ",
+        "original_head": "52882d5eb34ede00f17b81e33e45036d8a4b56d9",
+        "original_refs": [
+          "refs/heads/research/active 52882d5eb34ede00f17b81e33e45036d8a4b56d9",
+          "refs/remotes/origin/research/active 52882d5eb34ede00f17b81e33e45036d8a4b56d9",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-clean-e607165/checkout",
+        "original_head": "e607165b452d3ed932cf653d1fbe3700d07ce954",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active e607165b452d3ed932cf653d1fbe3700d07ce954"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-latest-clone-http11-20261016T0107Z/research",
+        "original_head": "6b234796dba22afaf6829562bdd2376e51801a5a",
+        "original_refs": [
+          "refs/heads/research/active 6b234796dba22afaf6829562bdd2376e51801a5a",
+          "refs/remotes/origin/research/active 6b234796dba22afaf6829562bdd2376e51801a5a"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-bootstrap-helper-20261016T0115Z/research",
+        "original_head": "8d6dd13bc0c8f0f94610c9dd65ebd4b1dd06c26d",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active 8d6dd13bc0c8f0f94610c9dd65ebd4b1dd06c26d"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-recovery-clean-clone-20261016T0052Z/research",
+        "original_head": "75f580b2741ed34dff47c7ec567a53388979c503",
+        "original_refs": [
+          "refs/heads/research/active 75f580b2741ed34dff47c7ec567a53388979c503",
+          "refs/remotes/origin/research/active 75f580b2741ed34dff47c7ec567a53388979c503"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-v4-code-bootstrap.22tEpC/entry",
+        "original_head": "bb411e841db9587ecaf0403b4d01698a5221aa98",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active 2f18f6d7268972cb8165cfc719b3fd4fb2cf407e",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-v4-code-bootstrap.22tEpC/final",
+        "original_head": "bb411e841db9587ecaf0403b4d01698a5221aa98",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active 2f18f6d7268972cb8165cfc719b3fd4fb2cf407e",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-v2-final-zYZ4AQ",
+        "original_head": "ec145607af6218b4b9b37c3f126086173c260a89",
+        "original_refs": [
+          "refs/heads/research/active ec145607af6218b4b9b37c3f126086173c260a89",
+          "refs/remotes/origin/research/active ec145607af6218b4b9b37c3f126086173c260a89",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-handoff-v4-negative-fgjz4ywx/missing-fetch",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-host-held-data-t-cli-clean-f079e0c7",
+        "original_head": "f079e0c7aa5111a6bb0c68ec6eda3c3fc37dd3a7",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active f079e0c7aa5111a6bb0c68ec6eda3c3fc37dd3a7"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-clean-clone-20261016T0205Z",
+        "original_head": "ce2109102b3ca6a0ea122d8045f081b81a12e60f",
+        "original_refs": [
+          "refs/heads/research/active ce2109102b3ca6a0ea122d8045f081b81a12e60f",
+          "refs/remotes/origin/research/active ce2109102b3ca6a0ea122d8045f081b81a12e60f",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-cleanclone-c2b42cc",
+        "original_head": "c2b42cc51be1ff4306140ede5e3b512d370dca04",
+        "original_refs": [
+          "refs/heads/research/active c2b42cc51be1ff4306140ede5e3b512d370dca04",
+          "refs/remotes/origin/research/active c2b42cc51be1ff4306140ede5e3b512d370dca04"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-v5-exact-c-20261016T101021Z",
+        "original_head": "0e7076d08cbf75fe157083a2e3c96f927d7b6034",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active 0e7076d08cbf75fe157083a2e3c96f927d7b6034",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-handoff-v5-origin.cHrpDt",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v5 0f90e09307075364d50b6fd68a7f139faa13ff3f"
+        ],
+        "initial_status_counts": {
+          "??": 1
+        },
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-main-baseline-770699d",
+        "original_head": "770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone_after_failure_comparison"
+      },
+      {
+        "path": "/private/tmp/brain-handoff-v5-origin.9EHZ6i",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v5 0f90e09307075364d50b6fd68a7f139faa13ff3f"
+        ],
+        "initial_status_counts": {
+          "??": 1
+        },
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-v5-final-bb411e8",
+        "original_head": "bb411e841db9587ecaf0403b4d01698a5221aa98",
+        "original_refs": [
+          "refs/heads/research/active bb411e841db9587ecaf0403b4d01698a5221aa98",
+          "refs/remotes/origin/research/active bb411e841db9587ecaf0403b4d01698a5221aa98"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-v5-published-e5455d7-shallow",
+        "original_head": "e5455d7ceb7e4340854b6d5447987f56a71886b4",
+        "original_refs": [
+          "refs/heads/research/active e5455d7ceb7e4340854b6d5447987f56a71886b4",
+          "refs/remotes/origin/research/active e5455d7ceb7e4340854b6d5447987f56a71886b4"
+        ],
+        "initial_status_counts": {
+          "??": 1
+        },
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-clean-clone-33ce484",
+        "original_head": "33ce4841c3530793c5093fc7fe6427a999eb4d8f",
+        "original_refs": [
+          "refs/heads/research/active 33ce4841c3530793c5093fc7fe6427a999eb4d8f",
+          "refs/remotes/origin/research/active 33ce4841c3530793c5093fc7fe6427a999eb4d8f"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-v2-wdTLT5",
+        "original_head": "2b82cf28a6dbcfc2a8e7a4433ed2e30f41d1f921",
+        "original_refs": [
+          "refs/heads/research/active 2b82cf28a6dbcfc2a8e7a4433ed2e30f41d1f921",
+          "refs/remotes/origin/research/active 2b82cf28a6dbcfc2a8e7a4433ed2e30f41d1f921",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-final-entry-1d7edb9",
+        "original_head": "770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active 1d7edb9dffe6bc304e55fcd05e012bd21de13836"
+        ],
+        "initial_status_counts": {
+          "D ": 1615
+        },
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-handoff-tag-rehearsal-20261016T0122Z/worktree",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/memecoin-research-v3-scratch-20261017",
+        "original_head": "4a84d5bd1496bbd6bb8832391edebd9bf51b845a",
+        "original_refs": [
+          "refs/heads/codex/linux-portability-20261018 fb36e7e43857e082cbe1c5f1d0ef6eb8f8dd5fe8",
+          "refs/heads/codex/v3-scratch-20261017 4a84d5bd1496bbd6bb8832391edebd9bf51b845a",
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/heads/research/active c157f79471c1cb330bdab01cc4b4cdd7b9a1a186",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/codex/linux-portability-20261018 fb36e7e43857e082cbe1c5f1d0ef6eb8f8dd5fe8",
+          "refs/remotes/origin/codex/v3-scratch-20261017 4a84d5bd1496bbd6bb8832391edebd9bf51b845a",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active c157f79471c1cb330bdab01cc4b4cdd7b9a1a186",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb",
+          "refs/tags/brain-dr-handoff-v4-tree-negative 61b8b3c6224b9f1b3e0b304a8ff0adfff825214e",
+          "refs/tags/brain-dr-handoff-v5 0f90e09307075364d50b6fd68a7f139faa13ff3f"
+        ],
+        "initial_status_counts": {},
+        "disposition": "moved_to_/Users/root1/Developer/memecoin-v3-scratch-20261017"
+      },
+      {
+        "path": "/private/tmp/brain-dr-bootstrap-c2b42cc",
+        "original_head": "c2b42cc51be1ff4306140ede5e3b512d370dca04",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active c2b42cc51be1ff4306140ede5e3b512d370dca04",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-host-held-data-t-f079e0c",
+        "original_head": "770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active f079e0c7aa5111a6bb0c68ec6eda3c3fc37dd3a7"
+        ],
+        "initial_status_counts": {
+          "D ": 1615
+        },
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-final-entry-1d7edb9d",
+        "original_head": "1d7edb9dffe6bc304e55fcd05e012bd21de13836",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active 1d7edb9dffe6bc304e55fcd05e012bd21de13836"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-v5-candidate-eh7Pyb",
+        "original_head": "0e7076d08cbf75fe157083a2e3c96f927d7b6034",
+        "original_refs": [
+          "refs/heads/research/active 0e7076d08cbf75fe157083a2e3c96f927d7b6034",
+          "refs/remotes/origin/research/active 0e7076d08cbf75fe157083a2e3c96f927d7b6034",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-entry-v2-20261016T0117Z/entry",
+        "original_head": "75f3e0405c1fca473eb95fae81fc21c20e289651",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active 75f3e0405c1fca473eb95fae81fc21c20e289651"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-entry-v2-20261016T0117Z/final",
+        "original_head": "75f3e0405c1fca473eb95fae81fc21c20e289651",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active 75f3e0405c1fca473eb95fae81fc21c20e289651"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-exact-68253b8",
+        "original_head": "68253b84c5aefd8676b85b9415d2d242ada58d73",
+        "original_refs": [
+          "refs/heads/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/HEAD 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/main 770699d3ef8558518ae750b6d5d6cab41c2e82c8",
+          "refs/remotes/origin/research/active 68253b84c5aefd8676b85b9415d2d242ada58d73"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-v7-published.ViwJJP/clone-a",
+        "original_head": "83074d1a1abfe3e575cbdf9272df767b16c1e1c0",
+        "original_refs": [
+          "refs/heads/research/active 83074d1a1abfe3e575cbdf9272df767b16c1e1c0",
+          "refs/remotes/origin/research/active 83074d1a1abfe3e575cbdf9272df767b16c1e1c0",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb",
+          "refs/tags/brain-dr-handoff-v5 0f90e09307075364d50b6fd68a7f139faa13ff3f"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/tmp/brain-dr-v7-published.ViwJJP/clone-b",
+        "original_head": "83074d1a1abfe3e575cbdf9272df767b16c1e1c0",
+        "original_refs": [
+          "refs/heads/research/active 83074d1a1abfe3e575cbdf9272df767b16c1e1c0",
+          "refs/remotes/origin/research/active 83074d1a1abfe3e575cbdf9272df767b16c1e1c0",
+          "refs/tags/brain-dr-handoff-v1 1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+          "refs/tags/brain-dr-handoff-v2 6e83941ea3d3d7e8fe37483872cb52b3507ff938",
+          "refs/tags/brain-dr-handoff-v3 aaafd81a4c396cec9d5ffdb50066911cf84e35e0",
+          "refs/tags/brain-dr-handoff-v4 3af219193f45e03dc0fa6e336df5b329a86c4cfb",
+          "refs/tags/brain-dr-handoff-v5 0f90e09307075364d50b6fd68a7f139faa13ff3f"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v2-fixture-3ab5du0e/home/brain-handoff-v2.dCmasy",
+        "original_head": "HEAD",
+        "original_refs": [],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v2-fixture-r2lqr1z3/home/brain-handoff-v2.j7BOOo",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v2 2e7463c0f5e41d9194b104bdae00084d0aadfcea"
+        ],
+        "initial_status_counts": {
+          "??": 1
+        },
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v3-fixtures-0u5s7kqx/lightweight-commit-home/brain-handoff-v3.gTSOsZ",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v3 a8a4881923074aab89ad091509517ff6644efb30"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v3-fixtures-0u5s7kqx/annotated-commit-home/brain-handoff-v3.dIgD5S",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v3 77927b626c9d196cfd2d1b005e5460fc008abbcf"
+        ],
+        "initial_status_counts": {
+          "??": 1
+        },
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v3-fixtures-0u5s7kqx/annotated-tree-home/brain-handoff-v3.kT6A3i",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v3 7489996a37c79c41ea257cca7fe8905b78af903b"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v2-github-home-it32o5tr/brain-handoff-v2.ec6Qvh",
+        "original_head": "HEAD",
+        "original_refs": [],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v2-fixture-hadr10ne/home/brain-handoff-v2.WyQJR3",
+        "original_head": "HEAD",
+        "original_refs": [],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v2-fixture-8gbc59xe/home/brain-handoff-v2.mFv9rq",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v2 ccfff946d7d3de626cb5b2b43159a3b2f2a618b4"
+        ],
+        "initial_status_counts": {
+          "??": 1
+        },
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v2-fixture-ernv0h2i/home/brain-handoff-v2.5NNGYj",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v2 814d2005759952f71baeee709663bf34afe09c5f"
+        ],
+        "initial_status_counts": {
+          "??": 1
+        },
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v3-prepub-90unsx61/lightweight-commit-home/brain-handoff-v3.0FneiZ",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v3 27bca2509af2f5eb3756c99803e7c12acfd713c6"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v3-prepub-90unsx61/annotated-commit-home/brain-handoff-v3.4djDai",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v3 b86622397bd65180976314c9a47d6763bef74b08"
+        ],
+        "initial_status_counts": {
+          "??": 1
+        },
+        "disposition": "removed_obsolete_fixture_clone"
+      },
+      {
+        "path": "/private/var/folders/2t/xh8p5sfj4xb6wt63c5jlvvvr0000gn/T/brain-dr-handoff-v3-prepub-90unsx61/annotated-tree-home/brain-handoff-v3.Rb7q1L",
+        "original_head": "HEAD",
+        "original_refs": [
+          "refs/tags/brain-dr-handoff-v3 0bbb84361017e2cd5790541c037120a266435d67"
+        ],
+        "initial_status_counts": {},
+        "disposition": "removed_obsolete_fixture_clone"
+      }
+    ],
+    "removed_historical_fixture_clones": 53,
+    "owner_git_cleanup": {
+      "detached_worktrees": [
+        {
+          "path": "/Users/root1/Desktop/memecoin-ai",
+          "head": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+          "action": "retained_detached_same_files",
+          "reason": "Owner runtime checkout or active session workspace; source/runtime not updated"
+        },
+        {
+          "path": "/Users/root1/.codex/worktrees/ec89/memecoin-ai",
+          "head": "60f421251b4a3f8627f392ce60d6a3d164bbc24b",
+          "action": "retained_detached_same_files",
+          "reason": "Owner runtime checkout or active session workspace; source/runtime not updated"
+        }
+      ],
+      "removed_local_refs": [
+        {
+          "repository": "/Users/root1/Desktop/memecoin-ai",
+          "ref": "refs/codex/turn-diffs/checkpoints/3162d405d8577329e54fce7f9777984f/76af8bf34138334a4452b1febda469c0/1791317844520/04c311a2-e562-4884-a47e-84a3a2cd1b90",
+          "object": "1f9325d5495a0d2055231d3294b343af5714a993",
+          "custody": "GitHub histories and archive/pre-reset-20261018 original-ref manifest"
+        },
+        {
+          "repository": "/Users/root1/Desktop/memecoin-ai",
+          "ref": "refs/codex/turn-diffs/checkpoints/60586216ee1ccbb61aeeabac5e7ede33a7662188f950a4956130229de6f0fc1b/24305608b4a6d306d297a95f63bfb101be233d8568a234a81b2931dfb72ff9d1/1790937231064/0a9c9bb7-457a-4cd2-83ee-5651d29608b1",
+          "object": "1a2c75d21af72175fd8869136f0912e67b574dc6",
+          "custody": "GitHub histories and archive/pre-reset-20261018 original-ref manifest"
+        },
+        {
+          "repository": "/Users/root1/Desktop/memecoin-ai",
+          "ref": "refs/heads/control-center/observatory-handoff",
+          "object": "ce8505a6da99c5d5e1f118d1e55346f95981c328",
+          "custody": "GitHub histories and archive/pre-reset-20261018 original-ref manifest"
+        },
+        {
+          "repository": "/Users/root1/Desktop/memecoin-ai",
+          "ref": "refs/heads/main",
+          "object": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+          "custody": "GitHub histories and archive/pre-reset-20261018 original-ref manifest"
+        },
+        {
+          "repository": "/Users/root1/Desktop/memecoin-ai",
+          "ref": "refs/heads/research/active",
+          "object": "60f421251b4a3f8627f392ce60d6a3d164bbc24b",
+          "custody": "GitHub histories and archive/pre-reset-20261018 original-ref manifest"
+        }
+      ],
+      "untracked_transcript": "retained byte-identical duplicate of published research transcript"
+    },
+    "research_cleanup": {
+      "removed_duplicate_untracked_drafts": [
+        {
+          "path": "/Users/root1/Developer/memecoin-research/tools/brain_host_absence_gap_chain_v3.py",
+          "sha256": "d600b957dbd0252f4187914254329bf8cf7d86ac62e89ebfa1d97c8ee70d9ec1",
+          "recovery": "research/active:docs/archives/portability-disaster-recovery-v2/v3-capture-adapter-draft-2026-10-16.tar.gz"
+        },
+        {
+          "path": "/Users/root1/Developer/memecoin-research/tools/brain_host_capture_absence_gap_v3.py",
+          "sha256": "e11cfe02eb5976f35e433f414baa6cb3d7670895a5caf611374ddd9b078468d5",
+          "recovery": "research/active:docs/archives/portability-disaster-recovery-v2/v3-capture-adapter-draft-2026-10-16.tar.gz"
+        },
+        {
+          "path": "/Users/root1/Developer/memecoin-research/tests/test_brain_host_capture_absence_gap_v3.py",
+          "sha256": "caa0e91fbf495d87876369adf582e746c0ff8471b1af33091949493db221cfe5",
+          "recovery": "research/active:docs/archives/portability-disaster-recovery-v2/v3-capture-adapter-draft-2026-10-16.tar.gz"
+        }
+      ],
+      "v3_worktree_moved_to": "/Users/root1/Developer/memecoin-v3-scratch-20261017",
+      "pruned_missing_worktree": "/private/tmp/brain-senses-v3-verifier"
+    },
+    "integration_worktree": "/Users/root1/Developer/memecoin-consolidation-20261018 is disposable and removed after publication and canonical checkout switch"
+  },
+  "branch_cleanup": {
+    "deleted_remote_branches": [],
+    "reason_remote_topics_retained": "Three unfinished topics require separate qualification; research/active is a literal dependency of the unchanged operator package. No obsolete remote branches remained at initial ls-remote.",
+    "deleted_owner_local_branches": [
+      "main",
+      "research/active",
+      "control-center/observatory-handoff"
+    ],
+    "owner_files_unchanged": true,
+    "research_local_compatibility_branch": "remove after canonical checkout switches to main; remote compatibility branch retained"
+  },
+  "git_bundles": {
+    "directory": "/Users/root1/Developer/.memecoin-migration-20261008",
+    "bundle_heads_already_ancestors_of_research": [
+      "eee7ce1a473e97b67047c487ea66dbd631d01c36",
+      "99980a2988c610f932e0fc666a595410e9b0a997",
+      "f91ced8da24f96bece327e92a1da07c30df11620"
+    ],
+    "four_helper_scripts": "archived under archive/pre-reset-20261018:historical-migration-helpers",
+    "payload_archive_and_private_state": "not opened, uploaded, or deleted"
+  },
+  "migration_v1": {
+    "pinned_restore_commit": "6ad944c40938e1e25d2bddb3ea61234c69e9149d",
+    "ordinary_candidate": "d2fb11d73cd84c14a24ba3ed870b2ccb",
+    "ordinary_manifest_sha256": "0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865",
+    "d43_candidate": "58ec529e5a134817bf179b06922ddcf7",
+    "d43_manifest_sha256": "ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6",
+    "file_identity_checks": [
+      {
+        "path": "docs/portability-disaster-recovery.md",
+        "bytes": 217457,
+        "sha256": "cd0b640eee6e0aec7bbf863ce13a48595b43c1a026f6d4f243b68c123db37332",
+        "unchanged_from": "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186"
+      },
+      {
+        "path": "tools/brain_migration_v1.py",
+        "bytes": 82877,
+        "sha256": "8cac9032837db2c0a809581da1be7a725f453ff8eefb464285ea822aa6cdabbe",
+        "unchanged_from": "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186"
+      },
+      {
+        "path": "tools/brain_migration_v1_d43.py",
+        "bytes": 81736,
+        "sha256": "7f803779ced81e135e1f2b9fd7403eceadd5d1c410a5428672f7b3ca80eecbe1",
+        "unchanged_from": "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186"
+      },
+      {
+        "path": "tools/brain_migration_v1_verify_sqlite.py",
+        "bytes": 8470,
+        "sha256": "2d66dc45d87d0898740eb3a62c5cfbbd4bc4566db67e7e42b1a333abd80a20a3",
+        "unchanged_from": "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186"
+      },
+      {
+        "path": "docs/evidence/portability-migration-v1-candidate-pair-2026-10-16T2217Z.json",
+        "bytes": 6179,
+        "sha256": "02e7d0d784a9b21b4699b36ac7b116d99e2126943ff0e387be019423573bf65f",
+        "unchanged_from": "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186"
+      },
+      {
+        "path": "docs/evidence/portability-migration-v1-capture-2026-10-16T2030Z.json",
+        "bytes": 2006,
+        "sha256": "ffa62709d7e6e7dfcd4d7182d71802eee1cf3f4eae19b7dff1eadf855937cf4c",
+        "unchanged_from": "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186"
+      }
+    ],
+    "kingston_reads_or_writes": false,
+    "mac2_restore_performed": false,
+    "acceptance_status": "unchanged; real Mac2 restore and transcript review still pending; NO-GO for erase"
+  },
+  "validation": {
+    "migration_v1": "62 passed",
+    "host_dr": "591 passed, 2 explicit Kingston opt-in skips",
+    "experience": "418 passed, 1 CUDA skip",
+    "observatory_python": "39 passed; exact pinned projection reproduction",
+    "synthetic_smoke": "passed, reproducible",
+    "gecko_contracts_final": "80 passed",
+    "full_initial": "4878 passed, 56 failed, 6 skipped, 13 warnings; 451.51 seconds",
+    "full_command": "BRAIN_DR_KINGSTON_REHEARSAL=0 PYTHONPATH=src:<existing research ML site-packages> <existing research dev python> -m pytest -q --ignore=tests/brain/test_senses_pumpswap_c4_event_layout_feasibility_v1.py",
+    "excluded_module": "requires absent legacy work/ capture at import; private payload was not restored to satisfy a test",
+    "full_failure_disposition": {
+      "43_reproduced_on_old_main": [
+        "tests/brain/test_senses_activation_preflight_v1.py::test_initial_entry_candidate_is_verified_as_distinct_predecessor",
+        "tests/brain/test_senses_activation_preflight_v1.py::test_initial_entry_candidate_rebinding_fails_closed[certificate_hash-initial_entry_certificate_file_hash_mismatch]",
+        "tests/brain/test_senses_activation_preflight_v1.py::test_initial_entry_candidate_rebinding_fails_closed[predecessor_digest-initial_entry_predecessor_digest_mismatch]",
+        "tests/brain/test_senses_activation_preflight_v1.py::test_initial_entry_candidate_rebinding_fails_closed[candidate_hash-initial_entry_candidate_file_hash_mismatch]",
+        "tests/brain/test_senses_activation_preflight_v1.py::test_initial_entry_candidate_rebinding_fails_closed[candidate_input_lease-initial_entry_candidate_invalid:candidate_plan_or_pins_mismatch]",
+        "tests/brain/test_senses_activation_preflight_v1.py::test_initial_entry_claim_is_domain_separated_and_one_use",
+        "tests/brain/test_senses_activation_preflight_v1.py::test_initial_entry_candidate_cannot_escape_packet_root",
+        "tests/brain/test_senses_activation_preflight_v1.py::test_initial_entry_artifact_inode_change_between_checks_fails",
+        "tests/brain/test_senses_initial_entry_calendar_compiler_v1.py::test_candidate_file_compiler_and_independent_file_verifier",
+        "tests/brain/test_senses_initial_entry_discontinuity_v1.py::test_actual_receipt_and_metadata_qualifier_are_replayed_without_body_reads",
+        "tests/brain/test_senses_pumpswap_idl_history_qualification_v1.py::test_historical_idl_capture_manifest_reconciles_all_source_snapshots",
+        "tests/test_brain_senses_block_epoch_schedule.py::test_independent_verification_campaign_binds_512_helius_and_32_alchemy_pairs",
+        "tests/test_brain_senses_campaign4_recovery.py::test_prepare_records_only_a_fresh_future_bucket_and_c3_terminal_lineage",
+        "tests/test_brain_senses_campaign4_recovery.py::test_bootstrap_is_one_anchor_only_and_seals_the_uncovered_interval",
+        "tests/test_brain_senses_campaign4_recovery.py::test_bootstrap_reservation_ambiguity_stops_without_replay",
+        "tests/test_brain_senses_campaign4_recovery.py::test_failed_bootstrap_is_terminal_and_request_identity_is_not_reissued",
+        "tests/test_brain_senses_campaign4_recovery.py::test_missed_frame_bucket_stops_without_anchor_or_backfill",
+        "tests/test_brain_senses_external_launch_v3_rehearsal.py::test_untrusted_envelope_and_out_of_window_have_no_dispatch_or_receipt",
+        "tests/test_brain_senses_external_rolling_v5r2.py::test_old_coordinator_defaults_and_r2_plist_binding_are_preserved",
+        "tests/test_brain_senses_external_timing_rehearsal_v1.py::test_script_path_bootstrap_imports_repo_tools_in_isolated_process",
+        "tests/test_brain_senses_gecko_lane_live_sources_v2.py::test_import_is_create_only_and_readback_is_descriptor_bound",
+        "tests/test_brain_senses_gecko_lane_live_sources_v2.py::test_missing_or_changed_imported_file_fails_closed",
+        "tests/test_brain_senses_gecko_lane_live_sources_v2.py::test_manifest_identity_and_hash_are_rechecked",
+        "tests/test_brain_senses_gecko_lane_live_sources_v2.py::test_missing_imported_source_fails_closed",
+        "tests/test_brain_senses_gecko_lane_live_sources_v2.py::test_local_source_mutation_prevents_any_import",
+        "tests/test_brain_senses_gecko_lane_live_sources_v2.py::test_detached_descriptor_import_does_not_write_mountpoint_underlay",
+        "tests/test_brain_senses_gecko_lane_live_sources_v2.py::test_prewrite_detach_failure_leaves_underlay_empty",
+        "tests/test_brain_senses_gecko_lane_runtime_v3.py::test_live_policy_inputs_are_read_through_descriptor_root",
+        "tests/test_brain_senses_gecko_lane_runtime_v3.py::test_runtime_source_map_rechecks_manifest_and_imported_files",
+        "tests/test_brain_senses_gecko_lane_runtime_v3.py::test_release_preflight_requires_installed_plist_to_match_pinned_template",
+        "tests/test_brain_senses_gecko_lane_runtime_v4.py::test_live_policy_inputs_are_read_through_descriptor_root",
+        "tests/test_brain_senses_gecko_lane_runtime_v4.py::test_runtime_source_map_rechecks_manifest_and_imported_files",
+        "tests/test_brain_senses_gecko_lane_runtime_v4.py::test_release_preflight_requires_installed_plist_to_match_pinned_template",
+        "tests/test_brain_senses_sell23_process_qualification_v1.py::test_source_manifest_is_c3_only_and_reconciles_all_pinned_hashes",
+        "tests/test_brain_senses_sell23_process_qualification_v1.py::test_verifier_rejects_a_hash_valid_manifest_with_an_extra_source_root",
+        "tests/test_brain_senses_sell23_process_qualification_v1.py::test_full_c3_replay_reconciles_censored_rows_and_unknown_fields",
+        "tests/test_brain_senses_service_v1.py::test_full_utc_day_campaign_can_handoff_without_extra_anchor",
+        "tests/test_brain_senses_service_v1.py::test_recovery_generation_rolls_over_without_a_second_anchor_request",
+        "tests/test_brain_senses_service_v1.py::test_status_preserves_separate_event_receipt_availability_and_decision_times",
+        "tests/test_brain_senses_service_v1.py::test_status_keeps_ambiguous_request_start_and_unknown_receipt_times",
+        "tests/test_brain_senses_service_v1.py::test_ambiguous_frame_recovers_in_new_generation_then_frames_next_hour",
+        "tests/test_program_exposure_projection.py::test_independent_receipt_and_policy_mutations_fail_closed",
+        "tests/test_program_exposure_projection.py::test_source_binding_requires_exact_ordered_manifest_and_ledger_pins"
+      ],
+      "8_passed_on_isolated_rerun": [
+        "tests/brain/test_data_source.py::test_provider_cooldown_and_scope_before_network",
+        "tests/brain/test_data_source.py::test_request_charged_before_failure_and_payload_not_logged",
+        "tests/brain/test_runtime.py::test_one_cycle_no_repeat_and_no_catchup",
+        "tests/brain/test_runtime.py::test_failure_budget_includes_historical_acquisition",
+        "tests/brain/test_runtime.py::test_crash_does_not_resume_request_or_train",
+        "tests/brain/test_runtime.py::test_cooldown_does_not_reserve_cycle",
+        "tests/brain/test_runtime.py::test_concurrent_controller_rejected",
+        "tests/test_research_storage_migration.py::test_snapshot_uses_bounded_descriptors_for_many_sibling_directories"
+      ],
+      "5_corrected_stale_tests": [
+        "tests/test_brain_senses_gecko_capture_only_v2_handoff_v1.py::test_successor_root_shape_requires_exact_journal_and_safe_entries",
+        "tests/test_brain_senses_gecko_capture_only_v2_handoff_v1.py::test_handoff_journal_must_be_owner_only_regular_file",
+        "tests/test_brain_senses_gecko_capture_only_v2_handoff_v1.py::test_inventory_v3_overlays_handoff_only_after_full_inventory_and_binds_census",
+        "tests/test_brain_senses_gecko_capture_only_v6_host.py::test_plist_is_inert_fixed_60_second_callback",
+        "tests/test_brain_senses_gecko_scout_chain_v2.py::test_inventory_v3_dispatches_exact_chain_v2_binding_without_v1_cursor_reset"
+      ]
+    },
+    "make_check": "stops at 107 preexisting Ruff findings; old main 110; no new diagnostics",
+    "targeted_ruff_format_diff": "pass",
+    "full_suite_green_claimed": false,
+    "historical_diff_check_findings": {
+      "receipt_blank_line": 1,
+      "transcript_trailing_whitespace": 1,
+      "plain_text_heading_underlines_misidentified_as_conflict_markers": 3,
+      "immutable_bytes_modified": false
+    },
+    "local_log_digests": {
+      "make-check.log": {
+        "bytes": 67082,
+        "sha256": "acc28f4ca65da9aa347f80f5081e792cc4b47a138e27bbd2da9b286198031974"
+      },
+      "smoke.log": {
+        "bytes": 617,
+        "sha256": "ed175f452f0a84c7eeca069f4d1ba1cd7658145b6f9a337fdfe2cec523b534ca"
+      },
+      "migration-tests.log": {
+        "bytes": 100,
+        "sha256": "1a49ec3b3a27a5047a6dc4e5f8e9177d69fc5ff0329c21ed517fa93c7ebf064d"
+      },
+      "host-tests.log": {
+        "bytes": 1068,
+        "sha256": "1c5d8d2c22e1c6481371ff0cdb3c7a0a395207a05422126b95418d2a67f45def"
+      },
+      "experience-tests.log": {
+        "bytes": 684,
+        "sha256": "c8b3e37e4a790bfe12b7cdac8a04151cd5e51b44f59eac5c18f60738903b4f9d"
+      },
+      "cc-python.log": {
+        "bytes": 1033,
+        "sha256": "28e63524cbf138d252a26575c64f2ed7c348ffc113c0689864542ab459a7316b"
+      },
+      "full-tests.log": {
+        "bytes": 256244,
+        "sha256": "dc7afb60920ba6017e1d0f00c87576dfbc2140e04a40d0c391c3287bf01d1957"
+      },
+      "baseline-failed-tests.log": {
+        "bytes": 53188,
+        "sha256": "28659ee4b72098cb16ab275ed0e97a7d360de9821b3b2985f3eea40ea4089081"
+      },
+      "current-differential-tests.log": {
+        "bytes": 98,
+        "sha256": "0bfed50310cfd4f81dfb54b50869a91fe6478d56668bb68a85fcc8e80a0979d9"
+      },
+      "corrected-contract-tests.log": {
+        "bytes": 179,
+        "sha256": "fc1fac90ba227a7907d79f5b4b04e891ef70c6e1f30df13ceb8d9bb4d3e5679e"
+      }
+    }
+  },
+  "safety": {
+    "github_default_branch": "main",
+    "github_webhooks": [],
+    "workflow": "checks.yml contains checks only; no deploy job",
+    "branch_protection_read": "HTTP 403; no settings changed",
+    "runtime_launchd_snapshot": {
+      "labels": [
+        [
+          "-",
+          "0",
+          "ai.memecoin.d43.calendar01"
+        ]
+      ]
+    },
+    "runtime_mutations": false,
+    "protected_payload_access": false,
+    "new_secrets_datasets_or_databases_uploaded": false,
+    "published_history_rewritten": false,
+    "github_deployments": [],
+    "github_environments": [],
+    "topic_ci": "Existing checks workflow runs on retained topics completed with failure; no green-CI claim. Local focused gates and baseline comparison are recorded separately."
+  },
+  "scan_limits": {
+    "roots": [
+      "/Users/root1",
+      "/private/tmp",
+      "/private/var/tmp",
+      "/private/var/folders"
+    ],
+    "excluded_content": "Known runtime/data/private directories, system/browser/application state, dependencies and caches were not payload-audited; ignored UI review artifacts were separately classified and preserved.",
+    "permission_denials": [
+      "[Errno 1] Operation not permitted: '/Users/root1/Documents'"
+    ],
+    "macos_temporary_system_directories_denied": 106,
+    "other_hosts_or_unmounted_volumes_audited": false,
+    "claim": "No unique unpublished project code/commit remains in the audited repositories after publication. This is not a claim that every file on the Mac is in GitHub; private runtime/data custody and Mac2 acceptance are separate."
+  }
+}

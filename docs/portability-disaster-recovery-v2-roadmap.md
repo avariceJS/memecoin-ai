@@ -15,11 +15,15 @@ a second SSD/NAS and enterprise secret custody are outside this scope.
 
 ## State at the v1 scope change
 
-The scope-change baseline was `90b8faf0bfb8604a890d74a4573869ec6c81611d`. The current published
-`research/active` continuation point after the practical Migration v1 implementation and Kingston
-capture is `6658654b294565975a5c632e8374139a457c0e73`, also at `origin/research/active`. Resume v2
-from the current branch after the second-Mac Migration v1 gate; do not move `main` automatically.
-The exact uncommitted v3 prototype is
+The scope-change baseline was `90b8faf0bfb8604a890d74a4573869ec6c81611d`. The integrated
+Migration v1 code/history now lives on `main`; `research/active` is frozen at
+`c157f79471c1cb330bdab01cc4b4cdd7b9a1a186` only for the unchanged Mac2 fetch instruction.
+The published experimental continuation is `codex/v3-scratch-20261017` at
+`4a84d5bd1496bbd6bb8832391edebd9bf51b845a`, which adds descriptor-bound scratch work but does
+not establish physical capture or owner-scale acceptance. Consult that branch's version of this
+roadmap before resuming after Migration v1 acceptance. The
+[Git registry](operator-runtime.md#git-integration-and-recovery-registry) owns branch custody.
+The exact earlier v3 prototype is
 archived as
 [`v3-capture-adapter-draft-2026-10-16.tar.gz`](archives/portability-disaster-recovery-v2/v3-capture-adapter-draft-2026-10-16.tar.gz),
 SHA-256 `d4118bf333ded8c7633e22aca3bc103182577c6d8506050244548c1ce0126190`. The archive contains
@@ -29,7 +33,8 @@ the v3 policy chain, capture adapter, and focused tests. Their extracted SHA-256
 - `brain_host_capture_absence_gap_v3.py`: `e11cfe02eb5976f35e433f414baa6cb3d7670895a5caf611374ddd9b078468d5`
 - `test_brain_host_capture_absence_gap_v3.py`: `caa0e91fbf495d87876369adf582e746c0ff8471b1af33091949493db221cfe5`
 
-The three original files remain in the worktree too; do not delete them while v1 is in progress.
+The three former untracked worktree files matched the archive byte-for-byte during consolidation.
+Their exact earlier versions remain recoverable from GitHub independently of the newer topic branch.
 
 Implemented evidence with deliberately narrow scope:
 
