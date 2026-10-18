@@ -473,7 +473,7 @@ def _recover_published_prepare(
     if (
         not stat.S_ISDIR(generation_meta.st_mode)
         or generation_meta.st_uid != 0
-        or stat.S_IMODE(generation_meta.st_mode) != 0o711
+        or stat.S_IMODE(generation_meta.st_mode) not in {0o700, 0o711}
         or os.path.ismount(generation_root)
     ):
         raise StorageError("handoff_recovery_generation_unsafe")
@@ -499,37 +499,6 @@ def _recover_published_prepare(
     if output_schema != target_schema or output_logical != source_logical:
         raise StorageError("handoff_recovery_state_mismatch")
     output_database_sha256 = _sha256(observed_database)
-    if os.path.lexists(unit_path):
-        try:
-            unit_metadata = unit_path.lstat()
-            observed_unit = linux_attachment._read_file(
-                unit_path, maximum=64 * 1024, uid=0, mode=0o644
-            )
-        except OSError as exc:
-            raise StorageError("handoff_recovery_unit_unavailable") from exc
-        state = linux_service._unit_status(unit_name)
-        if (
-            not stat.S_ISREG(unit_metadata.st_mode)
-            or unit_metadata.st_nlink != 1
-            or observed_unit != unit_text.encode()
-            or state != ("loaded", "inactive", "disabled", 0)
-        ):
-            raise StorageError("handoff_recovery_unit_mismatch")
-    else:
-        linux_service.install(unit_text, unit_path=unit_path, unit=unit_name, create_only=True)
-    _verify_effective_unit(unit_name, unit_path, target_release_id, operator, binding_id)
-    target_after = linux_release.verify(target_release_id)
-    if target_after.get("manifest_sha256") != target.get("manifest_sha256"):
-        raise StorageError("handoff_recovery_target_changed")
-    current_source = _source_boundary(source_attachment_id)
-    if (
-        current_source[0] != source
-        or current_source[1] != source_pin
-        or current_source[2] != source_root
-        or current_source[3] != config_bytes
-        or current_source[6] != source_logical
-    ):
-        raise StorageError("handoff_source_changed_during_recovery")
     generation_record = {
         "schema": SCHEMA,
         "installation_id": installation_id,
@@ -556,7 +525,63 @@ def _recover_published_prepare(
         expected["created_ns"] = recorded.get("created_ns")
         if recorded != expected:
             raise StorageError("handoff_recovery_generation_receipt_mismatch")
+    current_source = _source_boundary(source_attachment_id)
+    if (
+        current_source[0] != source
+        or current_source[1] != source_pin
+        or current_source[2] != source_root
+        or current_source[3] != config_bytes
+        or current_source[6] != source_logical
+    ):
+        raise StorageError("handoff_source_changed_during_recovery")
+    target_before = linux_release.verify(target_release_id)
+    if target_before.get("manifest_sha256") != target.get("manifest_sha256"):
+        raise StorageError("handoff_recovery_target_changed")
+    if stat.S_IMODE(generation_meta.st_mode) == 0o700:
+        os.chmod(generation_root, 0o711)
+        parent_fd = os.open(generation_root.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            os.fsync(parent_fd)
+        finally:
+            os.close(parent_fd)
+    if os.path.lexists(unit_path):
+        try:
+            unit_metadata = unit_path.lstat()
+            observed_unit = linux_attachment._read_file(
+                unit_path, maximum=64 * 1024, uid=0, mode=0o644
+            )
+        except OSError as exc:
+            raise StorageError("handoff_recovery_unit_unavailable") from exc
+        state = linux_service._unit_status(unit_name)
+        if (
+            not stat.S_ISREG(unit_metadata.st_mode)
+            or unit_metadata.st_nlink != 1
+            or observed_unit != unit_text.encode()
+            or state[0] not in {"not-found", "loaded"}
+            or state[1] != "inactive"
+            or state[2] not in {"", "disabled", "static"}
+            or state[3] != 0
+        ):
+            raise StorageError("handoff_recovery_unit_mismatch")
+        subprocess.run(["systemctl", "daemon-reload"], check=True, timeout=10)
+        if linux_service._unit_status(unit_name) != ("loaded", "inactive", "disabled", 0):
+            raise StorageError("handoff_recovery_unit_not_inert")
     else:
+        linux_service.install(unit_text, unit_path=unit_path, unit=unit_name, create_only=True)
+    _verify_effective_unit(unit_name, unit_path, target_release_id, operator, binding_id)
+    target_after = linux_release.verify(target_release_id)
+    if target_after.get("manifest_sha256") != target.get("manifest_sha256"):
+        raise StorageError("handoff_recovery_target_changed")
+    current_source = _source_boundary(source_attachment_id)
+    if (
+        current_source[0] != source
+        or current_source[1] != source_pin
+        or current_source[2] != source_root
+        or current_source[3] != config_bytes
+        or current_source[6] != source_logical
+    ):
+        raise StorageError("handoff_source_changed_during_recovery")
+    if not os.path.lexists(generation_path):
         _write_receipt(generation_path, generation_record)
     recorded_generation, recorded_raw = _read_receipt(generation_path)
     binding_path = receipt_root / "BINDING.json"
