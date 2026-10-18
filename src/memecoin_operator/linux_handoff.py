@@ -12,6 +12,7 @@ import re
 import shlex
 import sqlite3
 import stat
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -143,6 +144,30 @@ def _logical_state(database: Path) -> tuple[str, str]:
         raise StorageError("handoff_sqlite_read_failed") from exc
 
 
+def _release_schema(release_id: str) -> str:
+    python = linux_release.RELEASE_BASE / release_id / "venv/bin/python"
+    code = (
+        "import hashlib,json,sqlite3; from memecoin_operator import control; "
+        "db=sqlite3.connect(':memory:'); control._schema(db); "
+        'rows=db.execute("SELECT type,name,tbl_name,sql FROM sqlite_master '
+        "WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name\").fetchall(); "
+        "raw=(json.dumps([list(r) for r in rows],sort_keys=True,separators=(',', ':'),"
+        "allow_nan=False)+'\\n').encode(); print(hashlib.sha256(raw).hexdigest())"
+    )
+    result = subprocess.run(
+        [str(python), "-B", "-I", "-c", code],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "HOME": "/root"},
+    )
+    value = result.stdout.strip()
+    if result.returncode != 0 or not HASH_RE.fullmatch(value):
+        raise StorageError("handoff_target_schema_unavailable")
+    return value
+
+
 def _source_boundary(
     attachment_id: str,
 ) -> tuple[dict[str, Any], dict[str, Any], Path, bytes, str, str]:
@@ -233,9 +258,7 @@ def prepare(
     target = linux_release.verify(target_release_id)
     if target.get("unit_state") != ("loaded", "inactive", "disabled", 0):
         raise StorageError("handoff_target_not_inert")
-    target_schema, _target_logical = _logical_state(
-        linux_release.STATE_BASE_V2 / target_release_id / "operator/operator.sqlite"
-    )
+    target_schema = _release_schema(target_release_id)
     if target_schema != source_schema:
         raise StorageError("handoff_target_schema_mismatch")
     generation_id = _sha256(
