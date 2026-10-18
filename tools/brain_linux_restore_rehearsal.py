@@ -37,6 +37,7 @@ RUN_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 EXPECTED_CONFIG = {
     "mode": "operator",
+    "maintenance_policy": "linux-synthetic-idle",
     "real_execution_enabled": False,
     "paid_budget_usd": 0,
     "expires_ns": 0,
