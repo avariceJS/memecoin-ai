@@ -1,0 +1,65 @@
+{
+  "schema": "brain-linux-inert-service-package-qualification-v1",
+  "source_commit": "9aea70635ff52893bf023383f10fcb373d6cb86f",
+  "branch": "codex/linux-portability-20261018",
+  "host": {
+    "os": "Ubuntu 24.04",
+    "architecture": "x86_64",
+    "isolation": "systemd-nspawn disposable rootfs",
+    "rootfs": "/var/tmp/brain-service-package-20261018"
+  },
+  "package_provisioning": {
+    "role": "inert-service-host",
+    "snapshot": "20261018T084900Z",
+    "fixed_solver_companion": "bsdutils",
+    "transaction": [
+      "bsdutils",
+      "util-linux",
+      "mount",
+      "systemd-sysv",
+      "systemd-dev",
+      "libblkid1",
+      "libuuid1",
+      "libfdisk1",
+      "libmount1",
+      "systemd",
+      "libsystemd-shared",
+      "libsystemd0",
+      "libsmartcols1",
+      "libudev1",
+      "iproute2",
+      "sudo",
+      "udev"
+    ],
+    "removals": 0,
+    "result": "applied",
+    "replan_after_apply_transaction_empty": true,
+    "empty_plan_apply_result": "applied"
+  },
+  "post_apply_capabilities": {
+    "source_build": "available",
+    "source_checkout": "clean_exact_commit",
+    "service_systemd_pid1": "available",
+    "udevadm": "available",
+    "unit_inert": "indeterminate_no_unit_supplied",
+    "ext4_state_path": "indeterminate_no_state_path_supplied",
+    "gpu": "not_present_and_not_qualified"
+  },
+  "evidence_storage": {
+    "raw_receipts_directory": "/home/brain/lab/host-qualification-20261018/inert-service-package-receipts",
+    "raw_receipts_mode": "0700 directory, 0600 files, root-owned",
+    "sha256": {
+      "indexes-20261018T084900Z.json": "b0ff5f0b9dadba87d148cfa8e253404a5d43347428073843615dde2d1e82c9ff",
+      "plan-ddcf0bb505ac1062dda752b2e954b4132cad0376163c171a84591c65c75c4348.json": "be5f1820774fc39503505ec007cb9ed129848f4fdaddd18040e64278c9cccc2a",
+      "applied-ddcf0bb505ac1062dda752b2e954b4132cad0376163c171a84591c65c75c4348.json": "66e8012fe768832b04b34f49ddaee741ea598f506691b980abb932ef251be314",
+      "plan-886c948edec27154f4b7303a076f0ce1a4485e2db94b3663f968d42af25dbf7e.json": "98a01424e55a2802e13fdaa61652a1e6d60292f5024c6152fd5a2bca76942855",
+      "applied-886c948edec27154f4b7303a076f0ce1a4485e2db94b3663f968d42af25dbf7e.json": "4949e0407c63ddd14521c549bf40e2d1980cf8047c85daa13a50169c2537d5aa"
+    }
+  },
+  "limits": [
+    "This qualifies package planning and application only inside a disposable systemd-nspawn rootfs, not bare-metal host provisioning.",
+    "The package role did not create the brain user or grant sudo.",
+    "No service activation or restore was performed in this package-role rootfs.",
+    "APT transaction success does not establish rollback after interruption or power loss."
+  ]
+}

@@ -229,3 +229,10 @@ verifiable after installation. Receipts are create-only and root-private. The ut
 create users, grant sudo, auto-run from setup or restore, or promise rollback after an interrupted
 dpkg transaction. This lab-only
 contract does not qualify ordinary host provisioning or package update policy.
+
+The fixed inert-service package role has now passed plan/apply on a disposable Noble systemd-nspawn
+rootfs at snapshot `20261018T084900Z`. The exact transaction included the explicit `bsdutils`
+companion and its solver closure, with no removals; a second plan and apply produced an empty
+transaction. This demonstrates the package role in a containerized rootfs only. It does not qualify
+bare-metal package provisioning, activation, rollback after interrupted dpkg, or power-loss recovery.
+See the [package-role receipt](evidence/brain-linux-inert-service-package-qualification-2026-10-18.json).

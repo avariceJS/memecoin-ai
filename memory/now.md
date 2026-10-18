@@ -139,14 +139,16 @@ the disposable rootfs account is present. Package provisioning remains explicit 
 accounts or grant sudo. Ubuntu's official snapshot service supports Noble; a separate explicit
 index refresh is required before any plan/apply workflow can bind to immutable signed indexes.
 
-An opt-in lab provisioner is under qualification. It pins Ubuntu archive timestamps, isolates apt
-indexes/cache, binds package candidates and solver closure to a digest, rejects changes and removals,
-and records pre/post host capability reports in root-private receipts. Initial live source-build
-planning found and then safely allowed only a required `python3-minimal` dependency update; a bad
-plan digest and tampered snapshot index were both rejected before package mutation. Final clean
-source checkout and apply qualification remain pending. A minimal rootfs can lack Git before the
-source-build role, so the externally verified source artifact is accepted only for that role and
-must become clean/exact-head verifiable immediately after package installation.
+The opt-in lab provisioner now passes snapshot-bound `source-build` and `inert-service-host` package
+roles in disposable Ubuntu systemd-nspawn rootfs environments. The service transaction explicitly
+allows `bsdutils` as an Ubuntu Essential solver companion, refuses other unrelated changes, and
+replans to an empty transaction after application. Root-private receipts are sealed on the VPS;
+the summary receipt and limitations are indexed in `docs/evidence/README.md`. Full `make test` also
+exposed a Python path collision (`tests/tools` shadowed the repository package); adding the project
+root to pytest's configured path fixes that collection issue. The remaining full-suite collection
+limits are an absent optional NumPy dependency and an absent legacy work artifact, so the suite is
+not claimed green. Next: combine the pinned package roles with a fresh-minbase setup/build/stage
+rehearsal and keep restore inert.
 
 At topic commit `51306aa3629ed11df5991a70caf399feefff025b`, schema-v3 Linux release staging passed on
 the VPS after fixing a builder wheelhouse permission defect. The installed venv entrypoints are
