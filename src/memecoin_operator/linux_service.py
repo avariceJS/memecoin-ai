@@ -32,10 +32,11 @@ def _absolute_safe(value: str, label: str) -> Path:
     return path
 
 
-def render_unit(python: Path, state_root: Path, port: int) -> str:
+def render_unit(python: Path, state_root: Path, port: int, code_root: Path = CODE_ROOT) -> str:
     """Return a fixed-policy unit with only validated path and port substitutions."""
     python = _absolute_safe(str(python), "python_path")
     state_root = _absolute_safe(str(state_root), "state_root")
+    code_root = _absolute_safe(str(code_root), "code_root")
     if not python.is_file() or not os.access(python, os.X_OK):
         raise ValueError("python_not_executable")
     try:
@@ -52,7 +53,7 @@ After=local-fs.target
 Type=simple
 User=brain
 Group=brain
-WorkingDirectory={CODE_ROOT}
+WorkingDirectory={code_root}
 Environment=HOME=/var/lib/brain-lab
 Environment=PYTHONNOUSERSITE=1
 UMask=0077
@@ -80,14 +81,14 @@ WantedBy=multi-user.target
 """
 
 
-def _unit_status() -> tuple[str, str, str, int]:
+def _unit_status(unit: str = UNIT) -> tuple[str, str, str, int]:
     result = subprocess.run(
         [
             "systemctl",
             "show",
             "--no-pager",
             "--property=LoadState,ActiveState,UnitFileState,MainPID",
-            UNIT,
+            unit,
         ],
         check=False,
         capture_output=True,
@@ -132,13 +133,21 @@ def _unit_status() -> tuple[str, str, str, int]:
     )
 
 
-def install(unit_text: str, unit_path: Path = UNIT_PATH) -> None:
+def install(unit_text: str, unit_path: Path | None = None, unit: str = UNIT) -> None:
     """Install the fixed lab unit without enabling or starting it."""
     if os.geteuid() != 0:
         raise PermissionError("install_requires_root")
-    if unit_path != UNIT_PATH:
+    if unit_path is None:
+        unit_path = UNIT_PATH
+    if unit == UNIT:
+        expected_path = UNIT_PATH
+    elif re.fullmatch(r"memecoin-brain-[0-9a-f]{64}\.service", unit):
+        expected_path = UNIT_PATH.parent / unit
+    else:
+        raise ValueError("unexpected_unit_name")
+    if unit_path != expected_path:
         raise ValueError("unexpected_unit_path")
-    load, active, file_state, pid = _unit_status()
+    load, active, file_state, pid = _unit_status(unit)
     if active != "inactive" or pid != 0:
         raise RuntimeError("refusing_to_replace_active_unit")
     if load == "loaded" and file_state not in {"disabled", "static"}:
@@ -161,7 +170,7 @@ def install(unit_text: str, unit_path: Path = UNIT_PATH) -> None:
             os.unlink(temporary)
     try:
         subprocess.run(["systemctl", "daemon-reload"], check=True, timeout=10)
-        load, active, file_state, pid = _unit_status()
+        load, active, file_state, pid = _unit_status(unit)
         if (load, active, file_state, pid) != ("loaded", "inactive", "disabled", 0):
             raise RuntimeError("unit_not_inert_after_install")
     except (OSError, subprocess.SubprocessError, RuntimeError):
