@@ -517,10 +517,11 @@ def verify(binding_id: str) -> dict[str, object]:
             metadata = directory.lstat()
         except OSError as exc:
             raise StorageError("handoff_generation_directory_missing") from exc
+        expected_mode = 0o700 if directory == generation_root else 0o755
         if (
             not stat.S_ISDIR(metadata.st_mode)
             or metadata.st_uid != 0
-            or stat.S_IMODE(metadata.st_mode) != 0o755
+            or stat.S_IMODE(metadata.st_mode) != expected_mode
         ):
             raise StorageError("handoff_generation_directory_unsafe")
     operator = generation_root / "operator"
