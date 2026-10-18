@@ -139,6 +139,13 @@ the disposable rootfs account is present. Package provisioning remains explicit 
 accounts or grant sudo. Ubuntu's official snapshot service supports Noble; a separate explicit
 index refresh is required before any plan/apply workflow can bind to immutable signed indexes.
 
+An opt-in lab provisioner is under qualification. It pins Ubuntu archive timestamps, isolates apt
+indexes/cache, binds package candidates and solver closure to a digest, rejects changes and removals,
+and records pre/post host capability reports in root-private receipts. Initial live source-build
+planning found and then safely allowed only a required `python3-minimal` dependency update; a bad
+plan digest and tampered snapshot index were both rejected before package mutation. Final clean
+source checkout and apply qualification remain pending.
+
 At topic commit `51306aa3629ed11df5991a70caf399feefff025b`, schema-v3 Linux release staging passed on
 the VPS after fixing a builder wheelhouse permission defect. The installed venv entrypoints are
 relocatable; two fresh pip installs normalized to the same inventory hash, and a same-filesystem

@@ -212,3 +212,14 @@ grant sudo. Preserve the adapter boundary: discover optional
 compute and host capabilities explicitly, while release identity, state formats, manifests, and
 restore semantics remain platform-independent. Recovery evidence and exact limits are indexed in
 [`docs/evidence/README.md`](evidence/README.md).
+
+The opt-in `tools/brain_linux_packages.py` bootstrap utility is restricted to Ubuntu 24.04 x86_64
+inside systemd-nspawn and requires explicit `--lab-only` invocation. It uses a dedicated APT source,
+index, and archive area with the official Ubuntu signing key and a caller-pinned archive snapshot.
+Index refresh is a separate explicit operation; read-only planning binds fixed package roles,
+dependency closure, versions, solver output, installed state, source hashes, and host capability
+report to a digest. Apply rechecks that digest and all observed inputs, refuses removals, downgrades,
+unrelated package changes, or active Brain units, and blocks service starts during package scripts.
+Receipts are create-only and root-private. The utility does not create users, grant sudo, auto-run
+from setup or restore, or promise rollback after an interrupted dpkg transaction. This lab-only
+contract does not qualify ordinary host provisioning or package update policy.
