@@ -24,7 +24,7 @@ RELEASE_BASE = Path("/opt/brain/releases")
 UNIT_BASE = Path("/etc/systemd/system")
 STATE_BASE = Path("/var/lib/brain-lab/releases")
 STAGE_ATTEMPT_BASE = Path("/var/lib/brain-release-stage-attempts")
-STAGE_LOCK_BASE = Path("/run/lock")
+STAGE_LOCK_BASE = Path("/run/brain-release-stage-locks")
 SCHEMA = "brain-linux-release-v1"
 STAGE_ATTEMPT_SCHEMA = "brain-linux-release-stage-attempt-v1"
 STAGE_ATTEMPT_ID_RE = re.compile(r"^[0-9a-f]{12}-[0-9a-f]{16}$")
@@ -284,9 +284,45 @@ def _validate_stage_attempt_record(attempt_id: str, value: object) -> dict[str, 
 
 
 def _acquire_stage_lock(release_id: str) -> int:
-    path = STAGE_LOCK_BASE / f"brain-release-stage-{release_id}.lock"
-    flags = os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW
-    fd = os.open(path, flags, 0o600)
+    if not re.fullmatch(r"[0-9a-f]{64}", release_id):
+        raise ValueError("invalid_release_id")
+    run_fd = os.open("/run", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        run_metadata = os.fstat(run_fd)
+        if (
+            not stat.S_ISDIR(run_metadata.st_mode)
+            or run_metadata.st_uid != 0
+            or stat.S_IMODE(run_metadata.st_mode) & 0o022
+        ):
+            raise RuntimeError("stage_lock_parent_unsafe")
+        try:
+            os.mkdir(STAGE_LOCK_BASE.name, mode=0o700, dir_fd=run_fd)
+            os.fsync(run_fd)
+        except FileExistsError:
+            pass
+        lock_dir_fd = os.open(
+            STAGE_LOCK_BASE.name,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+            dir_fd=run_fd,
+        )
+    finally:
+        os.close(run_fd)
+    try:
+        lock_metadata = os.fstat(lock_dir_fd)
+        if (
+            not stat.S_ISDIR(lock_metadata.st_mode)
+            or lock_metadata.st_uid != 0
+            or stat.S_IMODE(lock_metadata.st_mode) != 0o700
+        ):
+            raise RuntimeError("stage_lock_directory_unsafe")
+        fd = os.open(
+            f"brain-release-stage-{release_id}.lock",
+            os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=lock_dir_fd,
+        )
+    finally:
+        os.close(lock_dir_fd)
     metadata = os.fstat(fd)
     if (
         not stat.S_ISREG(metadata.st_mode)
