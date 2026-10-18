@@ -14,6 +14,7 @@ import sqlite3
 import stat
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -113,35 +114,46 @@ def _read_receipt(path: Path, maximum: int = 1024 * 1024) -> tuple[dict[str, Any
 
 def _logical_state(database: Path) -> tuple[str, str]:
     """Hash canonical schema and rows; SQLite page-layout bytes are intentionally irrelevant."""
-    uri = f"{database.resolve().as_uri()}?mode=ro&immutable=1"
-    try:
-        db = sqlite3.connect(uri, uri=True, timeout=2)
+    owner = pwd.getpwnam("brain")
+    payload = linux_attachment._read_file(
+        database,
+        maximum=linux_attachment.MAX_DATABASE_BYTES,
+        uid=owner.pw_uid,
+        mode=0o600,
+    )
+    with tempfile.TemporaryDirectory(prefix="brain-linux-handoff-logical-") as temp:
+        snapshot = Path(temp) / "operator.sqlite"
+        snapshot.write_bytes(payload)
+        snapshot.chmod(0o600)
+        uri = f"{snapshot.as_uri()}?mode=ro&immutable=1"
         try:
-            if db.execute("PRAGMA integrity_check").fetchone() != ("ok",):
-                raise StorageError("handoff_sqlite_integrity_failed")
-            schema_rows = db.execute(
-                "SELECT type,name,tbl_name,sql FROM sqlite_master "
-                "WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name"
-            ).fetchall()
-            schema_sha = _sha256(_json_bytes([list(row) for row in schema_rows]))
-            tables = [
-                str(row[0])
-                for row in db.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' "
-                    "AND name NOT LIKE 'sqlite_%' ORDER BY name"
-                )
-            ]
-            rows: dict[str, list[list[Any]]] = {}
-            for table in tables:
-                quoted = '"' + table.replace('"', '""') + '"'
-                rows[table] = [
-                    list(row) for row in db.execute(f"SELECT * FROM {quoted} ORDER BY rowid")
+            db = sqlite3.connect(uri, uri=True, timeout=2)
+            try:
+                if db.execute("PRAGMA integrity_check").fetchone() != ("ok",):
+                    raise StorageError("handoff_sqlite_integrity_failed")
+                schema_rows = db.execute(
+                    "SELECT type,name,tbl_name,sql FROM sqlite_master "
+                    "WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name"
+                ).fetchall()
+                schema_sha = _sha256(_json_bytes([list(row) for row in schema_rows]))
+                tables = [
+                    str(row[0])
+                    for row in db.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table' "
+                        "AND name NOT LIKE 'sqlite_%' ORDER BY name"
+                    )
                 ]
-            return schema_sha, _sha256(_json_bytes(rows))
-        finally:
-            db.close()
-    except sqlite3.Error as exc:
-        raise StorageError("handoff_sqlite_read_failed") from exc
+                rows: dict[str, list[list[Any]]] = {}
+                for table in tables:
+                    quoted = '"' + table.replace('"', '""') + '"'
+                    rows[table] = [
+                        list(row) for row in db.execute(f"SELECT * FROM {quoted} ORDER BY rowid")
+                    ]
+                return schema_sha, _sha256(_json_bytes(rows))
+            finally:
+                db.close()
+        except sqlite3.Error as exc:
+            raise StorageError("handoff_sqlite_read_failed") from exc
 
 
 def _release_schema(release_id: str) -> str:
@@ -170,7 +182,7 @@ def _release_schema(release_id: str) -> str:
 
 def _source_boundary(
     attachment_id: str,
-) -> tuple[dict[str, Any], dict[str, Any], Path, bytes, str, str]:
+) -> tuple[dict[str, Any], dict[str, Any], Path, bytes, bytes, str, str]:
     manifest, raw_manifest, directory, operator_dir = linux_attachment._read_attachment_manifest(
         attachment_id
     )
@@ -218,8 +230,14 @@ def _source_boundary(
         uid=owner.pw_uid,
         mode=0o600,
     )
+    database_bytes = linux_attachment._read_file(
+        operator_dir / "operator.sqlite",
+        maximum=linux_attachment.MAX_DATABASE_BYTES,
+        uid=owner.pw_uid,
+        mode=0o600,
+    )
     schema_sha, logical_sha = _logical_state(operator_dir / "operator.sqlite")
-    return manifest, pin, operator_dir, config_bytes, schema_sha, logical_sha
+    return manifest, pin, operator_dir, config_bytes, database_bytes, schema_sha, logical_sha
 
 
 def _handoff_identity(installation_id: str, generation_id: str, release_id: str) -> str:
@@ -250,9 +268,15 @@ def prepare(
     installation_id = _validate_id(installation_id, "installation_id")
     if not HASH_RE.fullmatch(target_release_id):
         raise StorageError("handoff_target_release_id_invalid")
-    source, source_pin, source_root, _source_bytes, source_schema, source_logical = (
-        _source_boundary(source_attachment_id)
-    )
+    (
+        source,
+        source_pin,
+        source_root,
+        config_bytes,
+        source_database_bytes,
+        source_schema,
+        source_logical,
+    ) = _source_boundary(source_attachment_id)
     if source_schema != linux_attachment._schema_fingerprint():
         raise StorageError("handoff_schema_mismatch")
     target = linux_release.verify(target_release_id)
@@ -294,12 +318,6 @@ def prepare(
         operator = pending / "operator"
         operator.mkdir(mode=0o700)
         os.chown(operator, brain.pw_uid, brain.pw_gid)
-        config_bytes = linux_attachment._read_file(
-            source_root / "config.json",
-            maximum=linux_attachment.MAX_CONFIG_BYTES,
-            uid=brain.pw_uid,
-            mode=0o600,
-        )
         config_fd = os.open(
             operator / "config.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600
         )
@@ -309,31 +327,43 @@ def prepare(
         finally:
             os.close(config_fd)
         db_path = operator / "operator.sqlite"
-        source_uri = f"file:{source_root / 'operator.sqlite'}?mode=ro"
-        try:
-            source_db = sqlite3.connect(source_uri, uri=True, timeout=2)
-            dest_db = sqlite3.connect(db_path)
+        with tempfile.TemporaryDirectory(prefix="brain-linux-handoff-source-") as temp:
+            source_copy = Path(temp) / "source.sqlite"
+            source_copy.write_bytes(source_database_bytes)
+            source_copy.chmod(0o600)
+            source_uri = f"{source_copy.as_uri()}?mode=ro&immutable=1"
             try:
-                source_db.backup(dest_db, pages=256, sleep=0.01)
-                dest_db.execute("PRAGMA journal_mode=DELETE")
-                dest_db.commit()
-                if dest_db.execute("PRAGMA integrity_check").fetchone() != ("ok",):
-                    raise StorageError("handoff_snapshot_integrity_failed")
-            finally:
-                dest_db.close()
-                source_db.close()
-        except sqlite3.Error as exc:
-            raise StorageError("handoff_snapshot_failed") from exc
+                source_db = sqlite3.connect(source_uri, uri=True, timeout=2)
+                dest_db = sqlite3.connect(db_path)
+                try:
+                    source_db.backup(dest_db, pages=256, sleep=0.01)
+                    dest_db.execute("PRAGMA journal_mode=DELETE")
+                    dest_db.commit()
+                    if dest_db.execute("PRAGMA integrity_check").fetchone() != ("ok",):
+                        raise StorageError("handoff_snapshot_integrity_failed")
+                finally:
+                    dest_db.close()
+                    source_db.close()
+            except sqlite3.Error as exc:
+                raise StorageError("handoff_snapshot_failed") from exc
         os.chown(db_path, brain.pw_uid, brain.pw_gid)
         os.chmod(db_path, 0o600)
         linux_attachment._prepare_runtime_directories(operator, brain.pw_uid, brain.pw_gid)
-        after_source, after_pin, after_root, _source_bytes, after_schema, after_logical = (
-            _source_boundary(source_attachment_id)
-        )
+        (
+            after_source,
+            after_pin,
+            after_root,
+            after_config_bytes,
+            after_database_bytes,
+            after_schema,
+            after_logical,
+        ) = _source_boundary(source_attachment_id)
         if (
             after_source != source
             or after_pin != source_pin
             or after_root != source_root
+            or after_config_bytes != config_bytes
+            or after_database_bytes != source_database_bytes
             or after_schema != source_schema
             or after_logical != source_logical
         ):
