@@ -172,7 +172,9 @@ def install(unit_text: str, unit_path: Path | None = None, unit: str = UNIT) -> 
         subprocess.run(["systemctl", "daemon-reload"], check=True, timeout=10)
         load, active, file_state, pid = _unit_status(unit)
         if (load, active, file_state, pid) != ("loaded", "inactive", "disabled", 0):
-            raise RuntimeError("unit_not_inert_after_install")
+            raise RuntimeError(
+                f"unit_not_inert_after_install:{load}:{active}:{file_state or 'empty'}:{pid}"
+            )
     except (OSError, subprocess.SubprocessError, RuntimeError):
         if old_bytes is None:
             UNIT_PATH.unlink(missing_ok=True)
