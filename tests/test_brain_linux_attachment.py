@@ -1,5 +1,6 @@
 """Synthetic attachment runtime receipts accept only pinned safe local state."""
 
+import json
 import os
 import sqlite3
 
@@ -7,6 +8,7 @@ import pytest
 
 from memecoin_operator import control
 from memecoin_operator.linux_attachment import (
+    EXPECTED_CONFIG,
     _runtime_inventory,
     _schema_fingerprint,
     _verify_idle_database,
@@ -72,3 +74,32 @@ def test_post_start_verifier_accepts_only_the_expected_idle_maintenance_event(tm
     with pytest.raises(StorageError, match="attachment_state_has_pending_metadata"):
         _verify_idle_database(payload, expected_schema)
     _verify_idle_database(payload, expected_schema, allow_startup_maintenance=True)
+
+
+def test_linux_synthetic_idle_maintenance_is_a_bounded_noop(tmp_path, monkeypatch):
+    root = tmp_path / "state"
+    root.mkdir()
+    (root / "config.json").write_text(json.dumps(EXPECTED_CONFIG))
+
+    def unexpected_adapter():
+        raise AssertionError("Linux synthetic idle must not load the Mac-oriented adapter")
+
+    monkeypatch.setattr(control, "load_adapter", unexpected_adapter)
+    assert control._maintain(root, {"mode": "idle", "phase": "idle"}) == {
+        "ok": True,
+        "reason": "synthetic_idle_noop",
+    }
+    assert control._maintain(root, {"mode": "collect", "phase": "collect"}) == {
+        "ok": False,
+        "reason": "linux_synthetic_idle_only",
+    }
+
+
+def test_linux_synthetic_idle_rejects_mutating_commands(tmp_path):
+    root = tmp_path / "state"
+    root.mkdir()
+    (root / "config.json").write_text(json.dumps(EXPECTED_CONFIG))
+    control.initialize(root)
+    result = control.command(root, "synthetic-collect", "collect", {"profile": "balanced"})
+    assert result["ok"] is False
+    assert result["reason"] == "linux_synthetic_idle_only"

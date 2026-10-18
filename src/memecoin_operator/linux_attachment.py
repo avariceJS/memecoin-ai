@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import hashlib
 import json
 import os
@@ -54,6 +55,7 @@ RUNTIME_FILES = {
 ATTACHMENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
 EXPECTED_CONFIG = {
     "mode": "operator",
+    "maintenance_policy": "linux-synthetic-idle",
     "real_execution_enabled": False,
     "paid_budget_usd": 0,
     "expires_ns": 0,
@@ -171,6 +173,42 @@ def _strict_json(payload: bytes, maximum: int, label: str) -> Any:
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _rename_noreplace(parent: Path, source_name: str, destination_name: str) -> None:
+    """Publish two direct children without replacing a concurrently created name."""
+    if any(
+        name in {"", ".", ".."} or "/" in name or "\\" in name
+        for name in (source_name, destination_name)
+    ):
+        raise StorageError("attachment_publish_name_invalid")
+    parent_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        libc = ctypes.CDLL(None, use_errno=True)
+        renameat2 = getattr(libc, "renameat2", None)
+        if renameat2 is None:
+            raise StorageError("attachment_noreplace_unsupported")
+        renameat2.argtypes = [
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        ]
+        renameat2.restype = ctypes.c_int
+        if (
+            renameat2(
+                parent_fd, os.fsencode(source_name), parent_fd, os.fsencode(destination_name), 1
+            )
+            != 0
+        ):
+            error = ctypes.get_errno()
+            if error in {17, 18}:
+                raise StorageError("attachment_id_already_exists")
+            raise StorageError("attachment_publish_failed") from OSError(error, os.strerror(error))
+        os.fsync(parent_fd)
+    finally:
+        os.close(parent_fd)
 
 
 def _schema_fingerprint() -> str:
@@ -563,7 +601,11 @@ def prepare_attachment(
         raise StorageError("attachment_source_changed_after_copy")
     final_attachment_dir = ATTACHMENT_BASE / attachment_id
     try:
-        os.rename(staging_dir, final_attachment_dir)
+        _rename_noreplace(
+            ATTACHMENT_BASE,
+            staging_dir.name,
+            final_attachment_dir.name,
+        )
         attachment_dir_published = True
     except OSError as exc:
         shutil.rmtree(staging_dir, ignore_errors=True)
@@ -733,7 +775,7 @@ def _read_root_pin(path: Path) -> dict[str, Any]:
 
 
 def _activation_path(attachment_id: str, name: str) -> Path:
-    if name not in {"start-intent", "activation-result"}:
+    if name not in {"start-intent", "idle-probe", "activation-result"}:
         raise StorageError("attachment_activation_record_name_invalid")
     return ACTIVATION_BASE / f"{_validate_attachment_id(attachment_id)}.{name}.json"
 
@@ -805,9 +847,33 @@ def _read_activation_record(
             or record["intent_ns"] <= 0
         ):
             raise StorageError("attachment_start_intent_mismatch")
+    elif name == "idle-probe":
+        expected = set(common) | {
+            "intent_sha256",
+            "pid",
+            "status_schema",
+            "mode",
+            "phase",
+            "jobs",
+            "probe_ns",
+        }
+        if (
+            set(record) != expected
+            or not re.fullmatch(r"[0-9a-f]{64}", str(record.get("intent_sha256", "")))
+            or type(record.get("pid")) is not int
+            or record["pid"] <= 0
+            or record.get("status_schema") != "operator-status-v1"
+            or record.get("mode") != "idle"
+            or record.get("phase") != "idle"
+            or record.get("jobs") != []
+            or type(record.get("probe_ns")) is not int
+            or record["probe_ns"] <= 0
+        ):
+            raise StorageError("attachment_idle_probe_record_mismatch")
     else:
         expected = set(common) | {
             "intent_sha256",
+            "idle_probe_sha256",
             "config_sha256",
             "operator_sqlite_sha256",
             "inventory",
@@ -817,6 +883,7 @@ def _read_activation_record(
         if (
             set(record) != expected
             or not re.fullmatch(r"[0-9a-f]{64}", str(record.get("intent_sha256", "")))
+            or not re.fullmatch(r"[0-9a-f]{64}", str(record.get("idle_probe_sha256", "")))
             or not re.fullmatch(r"[0-9a-f]{64}", str(record.get("config_sha256", "")))
             or not re.fullmatch(r"[0-9a-f]{64}", str(record.get("operator_sqlite_sha256", "")))
             or not isinstance(record.get("inventory"), list)
@@ -1260,6 +1327,24 @@ def activate_attached(
     try:
         subprocess.run(["systemctl", "start", unit], check=True, timeout=30)
         status = _probe_status(unit, manifest)
+        active_state = linux_service._unit_status(unit)
+        if active_state[0] != "loaded" or active_state[1] != "active" or active_state[3] <= 0:
+            raise StorageError("attachment_service_not_active_after_probe")
+        probe = {
+            "schema": ACTIVATION_SCHEMA,
+            "attachment_id": attachment_id,
+            "unit_name": unit,
+            "manifest_sha256": pin["manifest_sha256"],
+            "pin_sha256": _sha256(_json_bytes(pin)),
+            "intent_sha256": _sha256(_json_bytes(intent)),
+            "pid": active_state[3],
+            "status_schema": status["schema"],
+            "mode": status["mode"],
+            "phase": status["phase"],
+            "jobs": status["jobs"],
+            "probe_ns": time.time_ns(),
+        }
+        _write_activation_record(attachment_id, "idle-probe", probe)
     except BaseException:
         subprocess.run(["systemctl", "stop", unit], check=False, timeout=15)
         raise
@@ -1289,6 +1374,9 @@ def finalize_attached(
     intent = _read_activation_record(manifest, pin, "start-intent")
     if intent is None:
         raise StorageError("attachment_start_intent_missing")
+    idle_probe = _read_activation_record(manifest, pin, "idle-probe")
+    if idle_probe is None or idle_probe["intent_sha256"] != _sha256(_json_bytes(intent)):
+        raise StorageError("attachment_idle_probe_missing_or_unbound")
     if _read_activation_record(manifest, pin, "activation-result") is not None:
         raise StorageError("attachment_activation_result_already_exists")
     unit = str(manifest["unit_name"])
@@ -1303,6 +1391,7 @@ def finalize_attached(
         "manifest_sha256": pin["manifest_sha256"],
         "pin_sha256": _sha256(_json_bytes(pin)),
         "intent_sha256": _sha256(_json_bytes(intent)),
+        "idle_probe_sha256": _sha256(_json_bytes(idle_probe)),
         **hashes,
         "inventory": inventory,
         "inventory_sha256": _sha256(_json_bytes(inventory)),
@@ -1328,6 +1417,7 @@ def verify_attached(
         attachment_id, release_id, release_manifest_sha256, restore_manifest_sha256
     )
     intent = _read_activation_record(manifest, pin, "start-intent")
+    idle_probe = _read_activation_record(manifest, pin, "idle-probe")
     result = _read_activation_record(manifest, pin, "activation-result")
     state = linux_service._unit_status(str(manifest["unit_name"]))
     if intent is None:
@@ -1343,7 +1433,15 @@ def verify_attached(
             "operator_sqlite_sha256": _sha256(payloads["operator.sqlite"]),
         }
     if result is None:
+        if (
+            idle_probe is None
+            or intent is None
+            or idle_probe["intent_sha256"] != _sha256(_json_bytes(intent))
+        ):
+            raise StorageError("attachment_idle_probe_missing_or_unbound")
         if state[0] == "loaded" and state[1] == "active" and state[3] > 0:
+            if state[3] != idle_probe["pid"]:
+                raise StorageError("attachment_idle_probe_pid_mismatch")
             status = _probe_status(str(manifest["unit_name"]), manifest)
             return {
                 "state": "activation_started_needs_finalize",
@@ -1358,6 +1456,12 @@ def verify_attached(
         raise StorageError("attachment_unit_not_stopped_disabled")
     if _sha256(_json_bytes(intent)) != result["intent_sha256"]:
         raise StorageError("attachment_activation_intent_result_mismatch")
+    if (
+        idle_probe is None
+        or idle_probe["intent_sha256"] != _sha256(_json_bytes(intent))
+        or _sha256(_json_bytes(idle_probe)) != result["idle_probe_sha256"]
+    ):
+        raise StorageError("attachment_activation_probe_result_mismatch")
     hashes, inventory = _verify_stopped_attachment_state(manifest, operator_dir)
     inventory_sha = _sha256(_json_bytes(inventory))
     if (

@@ -1413,6 +1413,12 @@ def _command_tx(
         stored["duplicate"] = True
         stored["http_status"] = int(existing["http_status"])
         return stored
+    config, _config_error = _read_config(root)
+    if config.get("maintenance_policy") == "linux-synthetic-idle" and action not in {
+        "stop",
+        "stop_all",
+    }:
+        raise Rejected("unsupported", "linux_synthetic_idle_only", 409)
     state = _state(db)
     bounds, _err = _bounds(root)
     if view is None:
@@ -2048,6 +2054,11 @@ def tick(root: Path) -> dict[str, Any]:
 
 
 def _maintain(root: Path, state: dict[str, Any]) -> dict[str, Any] | None:
+    config, config_error = _read_config(root)
+    if config_error is None and config.get("maintenance_policy") == "linux-synthetic-idle":
+        if state.get("mode") == "idle" and state.get("phase") == "idle":
+            return {"ok": True, "reason": "synthetic_idle_noop"}
+        return {"ok": False, "reason": "linux_synthetic_idle_only"}
     payload = {
         "mode": state["mode"],
         "phase": state["phase"],
