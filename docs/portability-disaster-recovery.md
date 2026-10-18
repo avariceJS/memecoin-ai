@@ -2173,10 +2173,22 @@ filesystem metadata are macOS-bound. A clean Mac can rebuild the research develo
 quickly, but owner runtime recovery, private secrets, services, protected custody, and full corpus
 replay are not yet rehearsed.
 
-Linux/server recovery requires a separately qualified volume-identity and descriptor-bound writer
-backend, a service-manager adapter, private secret delivery, and storage semantics for object-store
-or multi-worker paths. Shared mutable SQLite remains single-writer. No cluster, object-store,
-replication, or Kingston-loss capability is implied by this work.
+An independent disposable-host workstream has now qualified a Linux release-v3 path on Ubuntu
+24.04.1 x86_64 with Python 3.12.3. It builds from a clean private Git clone and wheel, stages a
+relocatable venv, verifies the manifest and installed inventory, leaves a static systemd unit
+inactive until explicit activation, and returns it to inactive on stop. Two pip installs from
+different temporary paths normalized to the same inventory on this host; an injected same-filesystem
+bind mount was rejected. The immutable scope and hashes are in the
+[`Linux release-v3 receipt`](evidence/brain-linux-release-v3-host-qualification-2026-10-18.json).
+This is separate from Migration v1 and changes none of its candidates or acceptance status.
+
+The Linux result is not yet a clean whole-host rebuild: the VPS has older unrelated Brain lab units,
+so first-boot behavior on a host with no legacy units remains open. Cross-host build identity,
+interrupted v3 publication recovery, GPU qualification, and durable-state restore are also open.
+Broader server recovery still needs a qualified volume-identity and descriptor-bound writer backend,
+private secret delivery, and storage semantics for object-store or multi-worker paths. Shared mutable
+SQLite remains single-writer. No cluster, object-store, replication, or Kingston-loss capability is
+implied by this work.
 
 Kingston is presently the only reset-surviving physical copy of `BrainData` and any future owner
 recovery artifacts. Its failure destroys the only declared restore source. This single-copy risk is

@@ -6,6 +6,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- [Linux release-v3 host qualification](brain-linux-release-v3-host-qualification-2026-10-18.json):
+  real Ubuntu 24.04.1 staging and verification, path-independent venv inventory across two
+  installations, nine runnable entry points, same-filesystem bind-mount rejection, private fresh
+  clone, and explicit inert-to-active-to-inert service lifecycle. Clean-host bootstrap, cross-host
+  build identity, publish-crash recovery, and GPU remain unqualified.
 - [Linux handoff recovery boundary](brain-linux-handoff-recovery-boundary-2026-10-18.json): exact
   generation-root membership and mount-boundary checks, conflict-safe recovery before permission
   normalization, Linux retry evidence, and an inert synthetic activation/finalization lifecycle.

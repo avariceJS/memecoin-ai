@@ -1,0 +1,103 @@
+{
+  "schema": "brain-linux-release-v3-host-qualification-v1",
+  "recorded_at_utc": "2026-10-18T08:02:19Z",
+  "scope": "Disposable-host release staging, relocation normalization, explicit activation, and recovery evidence. This does not qualify Migration v1 or claim cross-host reproducibility.",
+  "source": {
+    "repository": "avariceJS/memecoin-ai",
+    "branch": "codex/linux-portability-20261018",
+    "commit": "51306aa3629ed11df5991a70caf399feefff025b",
+    "wheel": "memecoin_ai-0.1.0-py3-none-any.whl",
+    "wheel_sha256": "d8cdcbefef5979f9106ff2230103ab753ed94edb6f7bd15068bdc2c063ae3091"
+  },
+  "host": {
+    "provider": "Aéza disposable VPS",
+    "os": "Ubuntu 24.04.1 LTS",
+    "architecture": "x86_64",
+    "cpu_count": 4,
+    "ram": "8 GB (7.8 GiB reported)",
+    "root_filesystem": "ext4",
+    "root_disk_size_bytes": 126719279104,
+    "root_disk_available_bytes_at_record": 105288560640,
+    "python": "3.12.3",
+    "runtime_dependencies": "Python standard library; no GPU qualification"
+  },
+  "private_source_acquisition": {
+    "method": "fresh single-branch clone over the VPS read-only GitHub deploy-key alias",
+    "interactive_prompts_disabled": true,
+    "branch": "codex/linux-portability-20261018",
+    "commit": "51306aa3629ed11df5991a70caf399feefff025b",
+    "checkout_was_clean": true,
+    "test_clone_removed": true
+  },
+  "release": {
+    "schema": "brain-linux-release-v3",
+    "release_id": "3b56b6b32121d923a908806a547a63347ae5e902bfbda7cb7e89f36665023a46",
+    "source_commit": "51306aa3629ed11df5991a70caf399feefff025b",
+    "wheel_sha256": "d8cdcbefef5979f9106ff2230103ab753ed94edb6f7bd15068bdc2c063ae3091",
+    "manifest_sha256": "99301a7a19a1d1eda543eddd230600467eea007f1bc54091f85654f8cccd0404",
+    "installed_inventory_sha256": "448c8db6300cae526af51799072d65fe41a2f411ac85d6a4d3bd9507543980c5",
+    "unit": "memecoin-brain-3b56b6b32121d923a908806a547a63347ae5e902bfbda7cb7e89f36665023a46.service",
+    "unit_state_after_stop": ["loaded", "inactive", "static", 0],
+    "private_network": true
+  },
+  "checks": {
+    "stage_completed": true,
+    "verify_completed": true,
+    "console_entrypoints_help": [
+      "mcai",
+      "brain-linux-service",
+      "brain-linux-release",
+      "brain-linux-attachment",
+      "brain-linux-handoff",
+      "brain-linux-capabilities",
+      "pip",
+      "pip3",
+      "pip3.12"
+    ],
+    "pip_version": "24.0",
+    "package_import_and_version": "0.1.0",
+    "two_independent_pip_find_links_builds_normalized_to_same_inventory": true,
+    "repeat_inventory_sha256": "448c8db6300cae526af51799072d65fe41a2f411ac85d6a4d3bd9507543980c5",
+    "same_filesystem_bind_mount_rejected": true,
+    "path_residue_scan": {
+      "regular_files": 757,
+      "symlinks": 4,
+      "bytes": 9808266,
+      "pyc_files": 0,
+      "direct_url_json_files": 0,
+      "staging_source_or_attempt_residue": 0
+    },
+    "explicit_activation_started_service": true,
+    "service_network_namespace_was_private": true,
+    "manual_stop_returned_unit_to_static_inactive": true,
+    "focused_linux_tests": {
+      "passed": 105,
+      "skipped_linux_specific_on_macos": 4,
+      "ruff": "passed",
+      "format": "passed",
+      "git_diff_check": "passed"
+    }
+  },
+  "failure_recovery": {
+    "attempt_id": "5b9aa774a048-37963cd40dbc45db",
+    "failure": "Pip could not enumerate a wheel stored directly in the root-only 0711 staging directory.",
+    "published_release_or_unit": false,
+    "recovery": "The recorded attempt was recovered through recover-stage and retained as .incomplete-5b9aa774a048-37963cd40dbc45db with a sealed receipt. The builder wheelhouse was moved into the isolated builder tree, and a new stage completed.",
+    "fix_commit": "51306aa3629ed11df5991a70caf399feefff025b"
+  },
+  "limits": [
+    "This proves the tested Ubuntu 24.04.1 x86_64 and Python 3.12.3 path; it does not prove inventory equality across different hosts or toolchain builds.",
+    "A whole-host clean-room rebuild and first-boot test on a host with no legacy Brain units remain open.",
+    "Publish-crash recovery was not failure-injected for this v3 release.",
+    "No NVIDIA/CUDA behavior was tested.",
+    "The host has older unrelated lab units and artifacts; they were preserved and are outside this release's first-boot claim."
+  ],
+  "protected_scope": {
+    "migration_v1_candidate_or_handoff_changed": false,
+    "main_or_research_active_changed": false,
+    "mac_brain_runtime_or_kingston_touched": false,
+    "protected_datasets_or_real_provider_credentials_transferred": false,
+    "real_money_or_trading_activity": false
+  },
+  "next_horizon": "Qualify clean Linux bootstrap and first boot in an isolated root filesystem, then exercise interrupted publish recovery for schema v3."
+}

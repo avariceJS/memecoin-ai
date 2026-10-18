@@ -107,3 +107,12 @@ PID-free. Sol found no must-fix in the recovery boundary. Receipt:
 [`handoff recovery boundary`](../docs/evidence/brain-linux-handoff-recovery-boundary-2026-10-18.json).
 Next portability horizon: verify source/toolchain provisioning from a fresh minimal Ubuntu install,
 including explicit package closure and behavior when optional host capabilities are absent.
+
+At topic commit `51306aa3629ed11df5991a70caf399feefff025b`, schema-v3 Linux release staging passed on
+the VPS after fixing a builder wheelhouse permission defect. The installed venv entrypoints are
+relocatable; two fresh pip installs normalized to the same inventory hash, and a same-filesystem
+bind mount was rejected. All nine entry points ran, explicit activation and stop returned the static
+unit to inert state, and a read-only deploy-key fresh clone reached this branch head. The failed
+first attempt is retained in sealed quarantine. This is one Ubuntu/Python toolchain result; clean
+host first boot, publish-crash recovery, cross-host build identity, and GPU remain unqualified. See
+[`Linux release-v3 receipt`](../docs/evidence/brain-linux-release-v3-host-qualification-2026-10-18.json).
