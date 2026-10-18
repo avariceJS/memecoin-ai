@@ -252,6 +252,67 @@ def test_config_owner_mode_and_relative_path_validation(tmp_path: Path) -> None:
             resolve(config_path, probe=FakeProbe(mount))
 
 
+def test_tagged_linux_config_v2_round_trips_without_changing_macos_v1(tmp_path: Path) -> None:
+    config_path, mount, _ = make_binding(tmp_path)
+    payload = {
+        "version": 2,
+        "platform": "linux",
+        "filesystem": "ext4",
+        "root_id": ROOT_ID,
+        "volume_uuid": UUID,
+        "mount_path": str(mount),
+        "data_root": "research/root",
+        "min_free_bytes": 100,
+    }
+    config_path.write_text(json.dumps(payload))
+    config_path.chmod(0o600)
+    config = StorageConfig.load(config_path)
+    assert config.platform == "linux"
+    assert config.filesystem == "ext4"
+    assert config.version == 2
+    assert config.to_json() == payload
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("platform", "darwin"), ("filesystem", "xfs")],
+)
+def test_tagged_linux_config_rejects_unsupported_adapter(field, value, tmp_path: Path) -> None:
+    config_path, mount, _ = make_binding(tmp_path)
+    payload = {
+        "version": 2,
+        "platform": "linux",
+        "filesystem": "ext4",
+        "root_id": ROOT_ID,
+        "volume_uuid": UUID,
+        "mount_path": str(mount),
+        "data_root": "research/root",
+        "min_free_bytes": 100,
+    }
+    payload[field] = value
+    config_path.write_text(json.dumps(payload))
+    config_path.chmod(0o600)
+    with pytest.raises(StorageError, match="unsupported_storage_platform_or_filesystem"):
+        StorageConfig.load(config_path)
+
+
+def test_linux_mountinfo_parser_decodes_mountpoint_and_keeps_identity_fields() -> None:
+    records = research_storage._parse_linux_mountinfo(
+        "42 1 7:3 / /mnt/research\\040data rw,nosuid shared:2 - ext4 /dev/loop3 rw\n"
+    )
+    assert records == [
+        {
+            "mount_id": "42",
+            "major_minor": "7:3",
+            "mount_root": "/",
+            "mount_path": "/mnt/research data",
+            "mount_options": ("rw", "nosuid"),
+            "filesystem": "ext4",
+            "source": "/dev/loop3",
+        }
+    ]
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
