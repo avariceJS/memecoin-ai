@@ -211,6 +211,17 @@ def _rename_noreplace(parent: Path, source_name: str, destination_name: str) -> 
         os.close(parent_fd)
 
 
+def _publish_attachment_directory(staging_dir: Path, final_dir: Path) -> None:
+    try:
+        _rename_noreplace(final_dir.parent, staging_dir.name, final_dir.name)
+    except StorageError:
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        raise
+    except OSError as exc:
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        raise StorageError("attachment_publish_failed") from exc
+
+
 def _schema_fingerprint() -> str:
     db = sqlite3.connect(":memory:")
     try:
@@ -613,16 +624,8 @@ def prepare_attachment(
         raise StorageError("attachment_source_changed_after_copy")
     _prepare_runtime_directories(operator_dir, brain.pw_uid, brain.pw_gid)
     final_attachment_dir = ATTACHMENT_BASE / attachment_id
-    try:
-        _rename_noreplace(
-            ATTACHMENT_BASE,
-            staging_dir.name,
-            final_attachment_dir.name,
-        )
-        attachment_dir_published = True
-    except OSError as exc:
-        shutil.rmtree(staging_dir, ignore_errors=True)
-        raise StorageError("attachment_publish_failed") from exc
+    _publish_attachment_directory(staging_dir, final_attachment_dir)
+    attachment_dir_published = True
     attachment_dir = final_attachment_dir
     operator_dir = attachment_dir / "operator"
     release_python = linux_release.RELEASE_BASE / release_id / "venv/bin/python"
