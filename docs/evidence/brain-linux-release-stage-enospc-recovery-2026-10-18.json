@@ -1,0 +1,56 @@
+{
+  "schema": "brain-linux-release-stage-enospc-recovery-v1",
+  "source_commit": "9d25fe069cd13d91eaf51c298a0993cb31c9961b",
+  "host": {
+    "os": "Ubuntu 24.04 LTS",
+    "architecture": "x86_64",
+    "host_filesystem": "ext4",
+    "pressure_filesystem": "56 MiB disposable ext4 loop image mounted over the release directory",
+    "ssh": "remained available; mount was removed and original release tree was reverified"
+  },
+  "source_and_build": {
+    "clean_source_commit": "9d25fe069cd13d91eaf51c298a0993cb31c9961b",
+    "wheel_sha256": "00c10ff64fab746090d42b18b39ee472931e241812bed71d442126eb5f60ed9a",
+    "sdist_sha256": "249100df3de21e380b4cccc777d95d190387ed459f73fe644a99ca4f16702ebb",
+    "focused_release_and_service_tests": "39 passed",
+    "changed_file_lint_and_format": "passed"
+  },
+  "failure_and_recovery": {
+    "attempt_id": "12cf8ea4bce4-be650ae05bc11ab6",
+    "release_id": "12cf8ea4bce472bdc3620382ee38ad8fadbdc6e3a49e65d0de991d5b57caa924",
+    "pre_failure_available_bytes": 2097152,
+    "filesystem_after_builder_failure_available_bytes": 0,
+    "available_inodes_after_builder_failure": 14470,
+    "stage_result": "stage_builder_no_space",
+    "recovery_after_freeing_test_reserve": "passed; attempt sealed recovered; temporary builder account removed; incomplete tree quarantined",
+    "same_source_wheel_stage_retry": "passed after space restoration",
+    "independent_verify": {
+      "source_commit": "9d25fe069cd13d91eaf51c298a0993cb31c9961b",
+      "wheel_sha256": "00c10ff64fab746090d42b18b39ee472931e241812bed71d442126eb5f60ed9a",
+      "manifest_sha256": "66c17de66d6df5c9c80031c96fb439270a12e7aac50b781c0222b764415fa9a7",
+      "installed_inventory_sha256": "48be68873ecdd70a1c9820eda5a35285c8e0fd10daf258826b6f758847f3b5a3",
+      "unit_state": ["loaded", "inactive", "disabled", 0]
+    },
+    "systemd": {
+      "main_pid": 0,
+      "restarts": 0
+    },
+    "temporary_test_release_removed": true,
+    "original_release_reverified_after_unmount": "41278cf1ff32eebdca0e07d438d253fe17e8750b7eaff4fb7ccce44296205811"
+  },
+  "implementation": {
+    "diagnostic": "fixed code stage_builder_no_space using bounded ENOSPC markers or read-only statvfs availability; subprocess output is never surfaced",
+    "earlier_behavior": "the first full-filesystem rehearsal surfaced only stage_builder_command_failed; the second also showed systemd-run returned no ENOSPC text while statvfs reported zero available blocks",
+    "loop_image_sha256": "6afc65b83e609ceb7b91d8f64ec65c7a1564d0016d0adb6fa2970536428fd98a",
+    "immutable_vps_evidence": {
+      "fixed_stage_log_sha256": "d74e6129aca9650c0285fdf1f0f5413cc799a0d8ed644318eb987fa8aeef2a4c",
+      "observation_json_sha256": "c0c53264efd82129b587f275d14a54fb56d0bb11fb1522ca004ae2865226b0e0",
+      "loop_image_path": "/root/brain-lab-receipts/enospc-loop-fs.ext4"
+    }
+  },
+  "limitations": [
+    "Disk pressure was isolated to a disposable loop filesystem, not the VPS root filesystem.",
+    "This covers staging failure during builder venv creation, not ENOSPC at every file write or on other filesystems.",
+    "No protected data, provider credentials, or production runtime were used."
+  ]
+}

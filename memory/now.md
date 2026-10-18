@@ -66,7 +66,11 @@ passed, with the service still disabled/inactive and PID-free. See
 two clean clones at the same exact commit produced byte-identical wheel/sdist hashes after
 independent `make setup`; see
 [`source build reproducibility receipt`](../docs/evidence/brain-linux-source-build-reproducibility-2026-10-18.json).
-This is one-host/one-toolchain evidence. Next: qualify a fresh disposable environment rebuild.
+This is one-host/one-toolchain evidence. At `9d25fe069cd13d91eaf51c298a0993cb31c9961b`, a real
+full-loop-filesystem stage failure returned `stage_builder_no_space`; recovery and same-source retry
+passed, and the original release tree was restored and reverified. See
+[`ENOSPC receipt`](../docs/evidence/brain-linux-release-stage-enospc-recovery-2026-10-18.json).
+Next: clean disposable reinstall and permissions/stale-state recovery.
 
 `research/active` is at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`; `main` remains
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Future-v2 v3 drafts remain untracked and untouched.

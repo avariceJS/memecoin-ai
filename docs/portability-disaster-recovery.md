@@ -454,9 +454,21 @@ the exact topic commit `bc50bc3ac47c822070ab217ecd53bb8f4e104806`. Both clean cl
 wheel and sdist hashes from different checkout paths. See the immutable
 [`source build reproducibility receipt`](evidence/brain-linux-source-build-reproducibility-2026-10-18.json).
 This uses one host and one resolved toolchain, so independent-builder and cross-platform
-reproducibility remain open. The next useful horizon is a fresh disposable environment rebuild
-from the published source and pinned artifacts, then failure behavior around dependency or disk
-constraints.
+reproducibility remain open.
+
+Release staging was then exercised against a 56 MiB disposable ext4 loop filesystem filled during
+builder venv creation. An initial attempt exposed a generic builder error; `systemd-run` suppressed
+the underlying ENOSPC text while the mounted filesystem reported zero available blocks. The bounded
+diagnostic now returns `stage_builder_no_space` from either recognized error text or read-only
+filesystem availability. At exact source `9d25fe069cd13d91eaf51c298a0993cb31c9961b`, the real
+failure returned that code, recovery quarantined the incomplete tree and removed the temporary
+builder account after space was freed, then same-source/wheel retry staged and verified an
+inert/disabled/PID-0 release. The test image was unmounted and retained root-owned with its receipt;
+the original release tree and SSH were reverified. See the immutable
+[`ENOSPC recovery receipt`](evidence/brain-linux-release-stage-enospc-recovery-2026-10-18.json).
+This covers venv creation pressure on a loop filesystem, not every write boundary or real root-disk
+exhaustion. The next useful horizon is a clean disposable reinstall and failure behavior around
+permissions and stale state.
 
 ## Current readiness
 

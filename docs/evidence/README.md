@@ -49,6 +49,9 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - [Linux source build reproducibility](brain-linux-source-build-reproducibility-2026-10-18.json):
   two independent clean clones at the exact topic commit built byte-identical wheel and sdist files
   on Ubuntu 24.04; this is one-host/one-toolchain evidence.
+- [Linux release-stage ENOSPC recovery](brain-linux-release-stage-enospc-recovery-2026-10-18.json):
+  a real full ext4 loop filesystem caused staging failure, bounded no-space diagnosis, quarantine
+  recovery, and same-source retry after freeing space; the temporary release and mount were removed.
 
 - [Scheduled sensing neural engineering qualification](brain-scheduled-sensing-neural-qualification-2026-10-15.json):
   synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume
