@@ -225,7 +225,7 @@ def test_linux_systemd_reports_disabled_and_inactive_without_launchd(tmp_path, m
         {
             "systemctl": _done(
                 0,
-                "LoadState=loaded\nUnitFileState=disabled\nActiveState=inactive\nMainPID=0\n",
+                "LoadState=loaded\nUnitFileState=disabled\nActiveState=inactive\nMainPID=4242\n",
             )
         },
         platform="linux",

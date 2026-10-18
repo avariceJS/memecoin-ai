@@ -217,7 +217,9 @@ def _linux_operator(deadline: float) -> dict:
         loaded=loaded,
         disposition="systemd" if loaded else "not_installed",
         state=active_state,
-        pid=int(pid_text) if int(pid_text) > 0 else None,
+        pid=int(pid_text)
+        if active_state in {"active", "activating"} and int(pid_text) > 0
+        else None,
         reason=None,
         unit_file_state=file_state or None,
     )

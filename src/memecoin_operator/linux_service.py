@@ -80,17 +80,73 @@ WantedBy=multi-user.target
 """
 
 
+def _unit_status() -> tuple[str, str, str, int]:
+    result = subprocess.run(
+        [
+            "systemctl",
+            "show",
+            "--no-pager",
+            "--property=LoadState,ActiveState,UnitFileState,MainPID",
+            UNIT,
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if result.returncode != 0:
+        raise RuntimeError("systemctl_status_failed")
+    fields: dict[str, str] = {}
+    for line in result.stdout.splitlines():
+        key, separator, value = line.partition("=")
+        if (
+            not separator
+            or key not in {"LoadState", "ActiveState", "UnitFileState", "MainPID"}
+            or key in fields
+        ):
+            raise RuntimeError("systemctl_status_malformed")
+        fields[key] = value
+    if set(fields) != {"LoadState", "ActiveState", "UnitFileState", "MainPID"}:
+        raise RuntimeError("systemctl_status_malformed")
+    if fields["LoadState"] not in {"not-found", "loaded"}:
+        raise RuntimeError("systemctl_status_unrecognized")
+    if fields["ActiveState"] not in {"inactive", "active", "activating", "deactivating", "failed"}:
+        raise RuntimeError("systemctl_status_unrecognized")
+    if fields["UnitFileState"] not in {
+        "",
+        "disabled",
+        "static",
+        "enabled",
+        "enabled-runtime",
+        "masked",
+        "masked-runtime",
+    }:
+        raise RuntimeError("systemctl_status_unrecognized")
+    if not fields["MainPID"].isdecimal():
+        raise RuntimeError("systemctl_status_malformed")
+    return (
+        fields["LoadState"],
+        fields["ActiveState"],
+        fields["UnitFileState"],
+        int(fields["MainPID"]),
+    )
+
+
 def install(unit_text: str, unit_path: Path = UNIT_PATH) -> None:
     """Install the fixed lab unit without enabling or starting it."""
     if os.geteuid() != 0:
         raise PermissionError("install_requires_root")
     if unit_path != UNIT_PATH:
         raise ValueError("unexpected_unit_path")
-    check = subprocess.run(
-        ["systemctl", "is-active", "--quiet", UNIT], check=False, capture_output=True
-    )
-    if check.returncode == 0:
+    load, active, file_state, pid = _unit_status()
+    if active != "inactive" or pid != 0:
         raise RuntimeError("refusing_to_replace_active_unit")
+    if load == "loaded" and file_state not in {"disabled", "static"}:
+        raise RuntimeError("refusing_to_replace_enabled_unit")
+    if load == "not-found" and (file_state or active != "inactive"):
+        raise RuntimeError("refusing_to_replace_unknown_unit")
+    old_bytes = UNIT_PATH.read_bytes() if UNIT_PATH.exists() else None
+    old_mode = UNIT_PATH.stat().st_mode & 0o777 if UNIT_PATH.exists() else None
     UNIT_PATH.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=f".{UNIT}.", dir=UNIT_PATH.parent)
     try:
@@ -103,12 +159,22 @@ def install(unit_text: str, unit_path: Path = UNIT_PATH) -> None:
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
-    subprocess.run(["systemctl", "daemon-reload"], check=True)
-    enabled = subprocess.run(
-        ["systemctl", "is-enabled", UNIT], check=False, capture_output=True, text=True
-    )
-    if enabled.stdout.strip() not in {"disabled", "static"}:
-        raise RuntimeError("unit_not_inert_after_install")
+    try:
+        subprocess.run(["systemctl", "daemon-reload"], check=True, timeout=10)
+        load, active, file_state, pid = _unit_status()
+        if (load, active, file_state, pid) != ("loaded", "inactive", "disabled", 0):
+            raise RuntimeError("unit_not_inert_after_install")
+    except (OSError, subprocess.SubprocessError, RuntimeError):
+        if old_bytes is None:
+            UNIT_PATH.unlink(missing_ok=True)
+        else:
+            UNIT_PATH.write_bytes(old_bytes)
+            UNIT_PATH.chmod(old_mode or 0o644)
+        try:
+            subprocess.run(["systemctl", "daemon-reload"], check=False, timeout=10)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        raise
 
 
 def main(argv: list[str] | None = None) -> int:
