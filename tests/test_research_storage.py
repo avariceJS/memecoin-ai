@@ -606,6 +606,45 @@ def test_linux_bind_existing_removes_its_config_if_final_verify_fails(
     assert not config_path.exists()
 
 
+def test_linux_bind_existing_removes_partial_config_after_write_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _ = _existing_root_fixture(tmp_path)
+    probe = FakeProbe(
+        mount,
+        filesystem="ext4",
+        filesystem_type="ext4",
+        mount_options=("rw",),
+        mount_id=77,
+        source="/dev/loop0",
+        mount_root="/",
+    )
+    monkeypatch.setattr(research_storage, "_ensure_config_parent_on_other_device", lambda *_: None)
+    monkeypatch.setattr(research_storage, "_fd_mount_id", lambda _fd: 77)
+    monkeypatch.setattr(research_storage.sys, "platform", "linux")
+    monkeypatch.setattr(
+        research_storage, "_verify_linux_case_sensitive_directory", lambda _fd: None
+    )
+
+    def partial_write_then_fail(fd: int, data: bytes) -> None:
+        os.write(fd, data[:8])
+        raise OSError("synthetic interrupted config write")
+
+    monkeypatch.setattr(research_storage, "_write_all", partial_write_then_fail)
+    with pytest.raises(StorageError, match="existing_root_binding_failed"):
+        bind_existing(
+            config_path,
+            mount,
+            "research/root",
+            expected_volume_uuid=UUID,
+            expected_root_id=ROOT_ID,
+            min_free_bytes=100,
+            probe=probe,
+            platform="linux",
+        )
+    assert not config_path.exists()
+
+
 def test_bind_existing_rejects_absent_malformed_or_mismatched_marker(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

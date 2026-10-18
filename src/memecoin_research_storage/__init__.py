@@ -870,6 +870,36 @@ def _make_private_directory(path: Path) -> int:
         raise
 
 
+def _remove_published_config(
+    config_path: Path,
+    file_identity: tuple[int, int] | None,
+    parent_identity: tuple[int, int] | None,
+) -> None:
+    """Remove only the exact create-only config inode published by this call."""
+    if file_identity is None or parent_identity is None:
+        return
+    try:
+        parent_fd = _open_absolute_directory(config_path.parent)
+    except OSError as exc:
+        raise StorageError("bind_config_cleanup_failed") from exc
+    try:
+        parent_stat = os.fstat(parent_fd)
+        if (parent_stat.st_dev, parent_stat.st_ino) != parent_identity:
+            raise StorageError("bind_config_parent_replaced_during_cleanup")
+        try:
+            current = os.stat(config_path.name, dir_fd=parent_fd, follow_symlinks=False)
+        except FileNotFoundError:
+            return
+        if (current.st_dev, current.st_ino) != file_identity:
+            raise StorageError("bind_config_replaced_during_cleanup")
+        os.unlink(config_path.name, dir_fd=parent_fd)
+        os.fsync(parent_fd)
+    except OSError as exc:
+        raise StorageError("bind_config_cleanup_failed") from exc
+    finally:
+        os.close(parent_fd)
+
+
 def _ensure_config_parent_on_other_device(path: Path, mount_device: int) -> None:
     """Find an existing host-side ancestor without creating anything."""
     candidate = path
@@ -1730,6 +1760,9 @@ def bind_existing(
                 dir_fd=parent_fd,
             )
             try:
+                created = os.fstat(config_fd)
+                published_config_identity = (created.st_dev, created.st_ino)
+                published_parent_identity = (parent_stat.st_dev, parent_stat.st_ino)
                 os.fchmod(config_fd, 0o600)
                 payload = json.dumps(config.to_json(), sort_keys=True, separators=(",", ":"))
                 _write_all(config_fd, (payload + "\n").encode("utf-8"))
@@ -1741,8 +1774,6 @@ def bind_existing(
                     or written.st_nlink != 1
                 ):
                     raise StorageError("unsafe_config_permissions")
-                published_config_identity = (written.st_dev, written.st_ino)
-                published_parent_identity = (parent_stat.st_dev, parent_stat.st_ino)
             finally:
                 os.close(config_fd)
             os.fsync(parent_fd)
@@ -1757,8 +1788,16 @@ def bind_existing(
                 os.close(current_parent_fd)
         finally:
             os.close(parent_fd)
-    except OSError as exc:
-        raise StorageError(f"existing_root_binding_failed: {exc}") from exc
+    except BaseException as exc:
+        try:
+            _remove_published_config(
+                config_path, published_config_identity, published_parent_identity
+            )
+        except StorageError as cleanup_error:
+            raise cleanup_error from exc
+        if isinstance(exc, OSError):
+            raise StorageError(f"existing_root_binding_failed: {exc}") from exc
+        raise
     finally:
         if marker_fd >= 0:
             os.close(marker_fd)
@@ -1771,29 +1810,12 @@ def bind_existing(
             raise StorageError("config_binding_changed_after_write")
         verify_root(config_path, min_free_bytes=minimum, probe=probe)
     except BaseException as verification_error:
-        if published_config_identity is not None and published_parent_identity is not None:
-            cleanup_fd = _open_absolute_directory(config_path.parent)
-            try:
-                cleanup_parent_stat = os.fstat(cleanup_fd)
-                if (cleanup_parent_stat.st_dev, cleanup_parent_stat.st_ino) != (
-                    published_parent_identity
-                ):
-                    raise StorageError("bind_config_parent_replaced_during_cleanup")
-                try:
-                    current_config = os.stat(
-                        config_path.name, dir_fd=cleanup_fd, follow_symlinks=False
-                    )
-                except FileNotFoundError:
-                    current_config = None
-                if current_config is not None:
-                    if (current_config.st_dev, current_config.st_ino) != published_config_identity:
-                        raise StorageError("bind_config_replaced_during_cleanup")
-                    os.unlink(config_path.name, dir_fd=cleanup_fd)
-                    os.fsync(cleanup_fd)
-            except OSError as cleanup_error:
-                raise StorageError("bind_config_cleanup_failed") from cleanup_error
-            finally:
-                os.close(cleanup_fd)
+        try:
+            _remove_published_config(
+                config_path, published_config_identity, published_parent_identity
+            )
+        except StorageError as cleanup_error:
+            raise cleanup_error from verification_error
         raise verification_error
     return config
 
