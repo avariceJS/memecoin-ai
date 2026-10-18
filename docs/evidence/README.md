@@ -6,6 +6,8 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- [Linux clean-root cross-host qualification](brain-linux-cleanroot-crosshost-qualification-2026-10-18.json): byte-identical macOS ARM64 and Ubuntu x86_64 source distributions, fresh minimal Ubuntu venv setup, read-only fresh GitHub clone, first-boot release stage/verify, explicit isolated-network activation, idempotent staging, and inert container restart. Package closure is still manually assembled; this is a rootfs-on-VPS test, not a full bare-metal reinstall.
+
 - [Linux release-v3 host qualification](brain-linux-release-v3-host-qualification-2026-10-18.json):
   real Ubuntu 24.04.1 staging and verification, path-independent venv inventory across two
   installations, nine runnable entry points, same-filesystem bind-mount rejection, private fresh

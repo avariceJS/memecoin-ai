@@ -193,9 +193,13 @@ with Linux handoff or establish production Brain restore.
 
 On Ubuntu 24.04/x86_64, clean-clone setup, deterministic source builds, real ext4/systemd staging,
 process-crash recovery, inert activation/finalization, and host reboot checks have passed on the
-isolated Linux portability branch. The current proof covers one CPU-only x86_64 toolchain and one
-systemd host. ARM64, Windows/WSL, CUDA/NVIDIA, power-loss behavior, production datasets, and generic
-package-manager provisioning remain unqualified. Preserve the adapter boundary: discover optional
+isolated Linux portability branch. At the same source commit and build epoch, the wheel and source
+archive are byte-identical between macOS arm64 and Ubuntu x86_64; source archive modes are
+canonicalized to remove umask differences. A minimal Ubuntu rootfs also completed a clean venv setup,
+first-boot stage/verify, explicit activation in a private network namespace, inert restart, and
+idempotent restaging. The current proof covers one CPU-only x86_64 toolchain and one systemd host.
+ARM64 runtime, Windows/WSL, CUDA/NVIDIA, power-loss behavior, production datasets, and unattended
+host package provisioning remain unqualified. Preserve the adapter boundary: discover optional
 compute and host capabilities explicitly, while release identity, state formats, manifests, and
 restore semantics remain platform-independent. Recovery evidence and exact limits are indexed in
 [`docs/evidence/README.md`](evidence/README.md).

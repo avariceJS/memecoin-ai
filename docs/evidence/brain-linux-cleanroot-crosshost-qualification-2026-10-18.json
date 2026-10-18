@@ -1,0 +1,113 @@
+{
+  "schema": "brain-linux-cleanroot-crosshost-qualification-v1",
+  "recorded_at_utc": "2026-10-18T08:18:16Z",
+  "scope": "Clean minimal Ubuntu rootfs bootstrap, cross-host source archive reproducibility, first-boot release staging, explicit activation, stop, and container restart. This is not a full bare-metal VM reinstall or power-loss qualification.",
+  "source": {
+    "repository": "avariceJS/memecoin-ai",
+    "branch": "codex/linux-portability-20261018",
+    "commit": "fa5950ed7871c88051807bab1f3ece4bfd4a2a66",
+    "source_date_epoch": 1792310626
+  },
+  "source_acquisition": {
+    "method": "fresh single-branch clone through the VPS read-only GitHub deploy-key SSH alias",
+    "interactive_prompts_disabled": true,
+    "branch_commit_available": true,
+    "commit": "fa5950ed7871c88051807bab1f3ece4bfd4a2a66",
+    "checkout_clean": true,
+    "disposable_clone_removed": true
+  },
+  "build_reproducibility": {
+    "macos_architecture": "arm64",
+    "ubuntu_architecture": "x86_64",
+    "ubuntu": "24.04 LTS minimal debootstrap rootfs",
+    "python": "3.12.3",
+    "wheel": {
+      "filename": "memecoin_ai-0.1.0-py3-none-any.whl",
+      "sha256_macos": "b0b844f65b53df3c033fe7b98aa557782021104227b3ff650a4720a4e5e472a5",
+      "sha256_ubuntu": "b0b844f65b53df3c033fe7b98aa557782021104227b3ff650a4720a4e5e472a5",
+      "byte_identical": true
+    },
+    "sdist": {
+      "filename": "memecoin_ai-0.1.0.tar.gz",
+      "sha256_macos": "aa560a84bbf13c56070d36ab2cbe7b6938f236f188c2adbc9cbd1343150d587f",
+      "sha256_ubuntu": "aa560a84bbf13c56070d36ab2cbe7b6938f236f188c2adbc9cbd1343150d587f",
+      "byte_identical": true
+    },
+    "normalization": {
+      "regular_file_modes": "0644, or 0755 when any executable bit is present",
+      "directory_mode": "0755",
+      "symlink_mode": "0777",
+      "unsupported_tar_member_types_rejected": true,
+      "focused_tests_passed": 9,
+      "ruff": "passed"
+    }
+  },
+  "clean_rootfs": {
+    "creation": "debootstrap noble with main and universe components; no project state or credentials",
+    "os": "Ubuntu 24.04 LTS",
+    "architecture": "x86_64",
+    "python": "3.12.3",
+    "systemd": "255.4-1ubuntu8",
+    "initial_package_closure": [
+      "ca-certificates",
+      "git",
+      "make",
+      "python3",
+      "python3.12",
+      "python3.12-venv",
+      "systemd",
+      "systemd-sysv",
+      "sudo",
+      "util-linux",
+      "iproute2"
+    ],
+    "additional_test_control_package": "dbus (used for systemd-nspawn machine control)",
+    "setup": "Deleted the generated .venv in the isolated checkout, then make setup completed without user input using the checked-in development lock and editable project install.",
+    "fresh_venv_focused_tests": {
+      "test_build_distribution": "9 passed",
+      "ruff": "passed"
+    },
+    "first_setup_failure": "The initial minimal package set had python3.12 but lacked the unversioned python3 executable expected by Makefile setup; installing Ubuntu's python3 package closed the gap.",
+    "logs": [
+      "/home/brain/lab/host-qualification-20261018/cleanroot-make-setup.log",
+      "/home/brain/lab/host-qualification-20261018/fresh-setup-fa5950.log",
+      "/home/brain/lab/host-qualification-20261018/fresh-build-fa5950.log",
+      "/home/brain/lab/host-qualification-20261018/cleanroot-dbus-install.log"
+    ]
+  },
+  "deployment": {
+    "execution_environment": "systemd-nspawn booted minimal rootfs on the disposable Ubuntu VPS; nspawn was granted CAP_SYS_ADMIN and CAP_NET_ADMIN for the isolated service network-namespace check",
+    "release_id": "72d95e60c2835e57a9696b447af8b6a52c091035086c36b0171561925df0e58e",
+    "source_commit": "fa5950ed7871c88051807bab1f3ece4bfd4a2a66",
+    "wheel_sha256": "b0b844f65b53df3c033fe7b98aa557782021104227b3ff650a4720a4e5e472a5",
+    "manifest_sha256": "8a8d865eb34c8342256290e43d99206cefb18443b135eb656f3ce570ecf5d78b",
+    "installed_inventory_sha256": "46d7516c50abc81e052c8f0bbc880c7d2e01f89c0ff1bc1ed2257d2bb0e6ebee",
+    "unit_sha256": "25d54884e1b6c628aec533b66eb0668c79cb73078be7a650ae3162280f75697c",
+    "checks": {
+      "first_boot_brain_unit_absent": true,
+      "stage_completed": true,
+      "verify_completed": true,
+      "repeat_stage_returned_same_release_id": true,
+      "explicit_activation_started_service": true,
+      "private_network_namespace_distinct_from_container_init": true,
+      "manual_stop_returned_unit_to_inert": true,
+      "container_restart_did_not_auto_activate": true,
+      "post_restart_verify_passed": true,
+      "unit_state_after_restart": ["loaded", "inactive", "static", 0]
+    }
+  },
+  "limits": [
+    "The clean image was an isolated debootstrap rootfs using the VPS host kernel, not a separate bare-metal VM reinstall.",
+    "The initial nspawn capability set could not create the release unit's PrivateNetwork namespace; after granting only CAP_SYS_ADMIN and CAP_NET_ADMIN to the disposable nspawn container, activation used a distinct network namespace. The actual VPS release qualification independently observed a private namespace without nested-container restrictions.",
+    "Package installation is still a manually assembled package closure; an unattended supported-host provisioner and pinned repository snapshot are not implemented.",
+    "No ARM64, Windows/WSL, CUDA/NVIDIA, power-loss, production data, provider credentials, or Migration v1 behavior is qualified."
+  ],
+  "protected_scope": {
+    "migration_v1_candidate_or_handoff_changed": false,
+    "main_or_research_active_changed": false,
+    "mac_brain_runtime_or_kingston_touched": false,
+    "protected_datasets_or_real_provider_credentials_transferred": false,
+    "real_money_or_trading_activity": false
+  },
+  "next_horizon": "Design and qualify an unattended Ubuntu host capability/package preflight and provisioning contract, keeping apt package resolution separate from release identity and failing before mutation when host prerequisites are missing."
+}

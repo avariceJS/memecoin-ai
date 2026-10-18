@@ -108,6 +108,14 @@ PID-free. Sol found no must-fix in the recovery boundary. Receipt:
 Next portability horizon: verify source/toolchain provisioning from a fresh minimal Ubuntu install,
 including explicit package closure and behavior when optional host capabilities are absent.
 
+At topic commit `fa5950ed7871c88051807bab1f3ece4bfd4a2a66`, macOS arm64 and clean Ubuntu x86_64 builds
+produced byte-identical wheel and sdist artifacts after canonicalizing archive modes. A minimal
+Ubuntu rootfs completed clean venv setup, first-boot stage/verify, explicit activation with a distinct
+network namespace, stop, inert restart, and same-release restaging. The first package closure missed
+Ubuntu's unversioned `python3`; the corrected setup passed. Manual package provisioning remains the
+next meaningful gap. See
+[`Linux clean-root receipt`](../docs/evidence/brain-linux-cleanroot-crosshost-qualification-2026-10-18.json).
+
 At topic commit `51306aa3629ed11df5991a70caf399feefff025b`, schema-v3 Linux release staging passed on
 the VPS after fixing a builder wheelhouse permission defect. The installed venv entrypoints are
 relocatable; two fresh pip installs normalized to the same inventory hash, and a same-filesystem
