@@ -242,7 +242,7 @@ def stage(
         if not version:
             raise RuntimeError("release_import_probe_failed")
         staged_wheel.unlink()
-        inventory, inventory_sha = _inventory(staging)
+        inventory, inventory_sha = _inventory(venv)
         unit_text = linux_service.render_unit(
             venv / "bin/python",
             STATE_BASE / release_id / "operator",
