@@ -10,6 +10,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
   byte-identical wheel/sdist builds, inert synthetic restore, explicit idle activation, stop and
   reboot verification on an isolated topic branch; production data, provider calls, CUDA, and other
   architectures remain unqualified.
+- [Linux ext4 writer detach qualification](brain-linux-ext4-writer-detach-2026-10-18.json): exact
+  descriptor-writer operations across lazy detach on a disposable Ubuntu/ext4 loop image; synthetic
+  fixture only, with the underlay inventory verified unchanged. The receipt binds its
+  [VPS-specific rehearsal harness](brain-linux-ext4-writer-detach-harness-2026-10-18.py); do not run
+  it against any other storage.
 
 - [Scheduled sensing neural engineering qualification](brain-scheduled-sensing-neural-qualification-2026-10-15.json):
   synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume

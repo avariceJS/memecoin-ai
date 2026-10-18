@@ -1,0 +1,130 @@
+{
+  "schema": "brain-linux-ext4-writer-detach-qualification-v1",
+  "date": "2026-10-18",
+  "scope": "real Ubuntu/ext4 held-descriptor writes across lazy detach; synthetic disposable image only",
+  "source": {
+    "repository": "avariceJS/memecoin-ai",
+    "commit": "d12d8eb9d424e50f8b631627f9e2340ebfee5d31",
+    "writer": "tools/brain_senses_external_writer_v1.py::DescriptorWriter",
+    "storage_guard": "memecoin_research_storage at the source commit"
+  },
+  "harness": {
+    "file": "brain-linux-ext4-writer-detach-harness-2026-10-18.py",
+    "sha256": "8bb70bcf66e3f7c38299c5688fa1830bd7283d941b951f9f97ead4b815bdeb6a",
+    "warning": "Bound to the named disposable VPS image and mount path; do not run against other storage."
+  },
+  "host": {
+    "os": "Ubuntu 24.04 LTS",
+    "architecture": "x86_64",
+    "filesystem": "ext4",
+    "volume_uuid": "26bd09b0-18b0-43d6-b583-64a09c2e3c4a",
+    "loop_device": "/dev/loop1",
+    "loop_device_major_minor": "7:1",
+    "mount_path": "/mnt/brain-storage-detach-qual",
+    "storage_root_id": "685c6d5add4b943060ded8e1dcbfbd57",
+    "mount_id_before_precheck_detach": 62,
+    "mount_id_during_writer_cases": 47,
+    "root_descriptor_device": 1793,
+    "root_descriptor_inode": 14
+  },
+  "lab_setup": {
+    "uuid_probe": "A temporary read ACL for user brain was applied only to the exact disposable /dev/loop1 block node after root pinned major:minor and UUID; the existing unprivileged LinuxExt4VolumeProbe then returned the matching UUID.",
+    "acl_removed_after_test": true,
+    "uuid_symlink_removed_after_test": true,
+    "production_permission_solution": false,
+    "underlay_sentinel_sha256": "19179c5aeca0d03cfa0438a42456f08b8799b38100cc3cb2483e5e1d2c6c2006"
+  },
+  "post_test_probe": {
+    "procedure": "After removing the ACL and UUID link, invalidate the blkid cache, unmount and remount the same loop image, then wait for the normal udev settle event.",
+    "result": "The existing unprivileged LinuxExt4VolumeProbe returned the exact UUID with no ACL and brain was not a member of disk.",
+    "uuid_link": "udev recreated the UUID link targeting /dev/loop1"
+  },
+  "precheck_detach": {
+    "mount_id": 62,
+    "result": "mountpoint_directory_fallback",
+    "underlay_unchanged": true,
+    "write_attempted": false
+  },
+  "between_guard_and_syscall": [
+    {
+      "case": "mkdir",
+      "mount_id": 47,
+      "operation_result": "completed",
+      "remount_result": "directory",
+      "root_device": 1793,
+      "root_inode": 14
+    },
+    {
+      "case": "create",
+      "mount_id": 47,
+      "operation_result": "completed",
+      "remount_result": "b4241b4c443bc2c493eafa7070bfea62efc1bb28713b8bc4eeb641bead418087",
+      "root_device": 1793,
+      "root_inode": 14
+    },
+    {
+      "case": "append",
+      "mount_id": 47,
+      "operation_result": "rejected:StorageError:mountpoint_directory_fallback",
+      "remount_result": "3b9d75e1c0f7080a21134d4c5295cb868836f96a76fa7424a5579ada66449bf2",
+      "root_device": 1793,
+      "root_inode": 14
+    },
+    {
+      "case": "atomic_rename",
+      "mount_id": 47,
+      "operation_result": "completed",
+      "remount_result": "1d481f2f7f211f8e07775d3dd43f63837de4b8f939e8d861e324c8e6dff17924",
+      "root_device": 1793,
+      "root_inode": 14
+    }
+  ],
+  "underlay_inventory_equal_before_after": true,
+  "interpretation": {
+    "mkdir_create_and_atomic_rename": "completed using the held descriptor after lazy detach; each result was read back from the original ext4 image after remount",
+    "append_open": "rejected with mountpoint_directory_fallback; pre-existing file content matched after remount",
+    "precheck": "detaching before revalidation failed closed before the forbidden write",
+    "qualification_limit": "These exact DescriptorWriter operations on this Ubuntu/ext4 synthetic loop image only. This does not qualify arbitrary writers, real research data, provider dispatch, crash durability, or identity continuity across remounts."
+  },
+  "underlay_after": [
+    {
+      "gid": 1000,
+      "kind": "dir",
+      "mode": 448,
+      "path": ".",
+      "size": 4096,
+      "uid": 1000
+    },
+    {
+      "gid": 1000,
+      "kind": "file",
+      "mode": 384,
+      "path": "sentinel.txt",
+      "sha256": "19179c5aeca0d03cfa0438a42456f08b8799b38100cc3cb2483e5e1d2c6c2006",
+      "size": 21,
+      "uid": 1000
+    }
+  ],
+  "underlay_after_sha256": "79945fcd32d436dd82add7484f7fce12c65e80c5cef73e02df9084e935046012",
+  "underlay_before": [
+    {
+      "gid": 1000,
+      "kind": "dir",
+      "mode": 448,
+      "path": ".",
+      "size": 4096,
+      "uid": 1000
+    },
+    {
+      "gid": 1000,
+      "kind": "file",
+      "mode": 384,
+      "path": "sentinel.txt",
+      "sha256": "19179c5aeca0d03cfa0438a42456f08b8799b38100cc3cb2483e5e1d2c6c2006",
+      "size": 21,
+      "uid": 1000
+    }
+  ],
+  "underlay_before_sha256": "79945fcd32d436dd82add7484f7fce12c65e80c5cef73e02df9084e935046012",
+  "volume_uuid": "26bd09b0-18b0-43d6-b583-64a09c2e3c4a"
+}

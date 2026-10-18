@@ -275,6 +275,10 @@ operator-host support from `research/active` commit `c157f79471c1cb330bdab01cc4b
 It does not change the active Migration v1 candidate, its handoff, the owner Mac runtime, Kingston,
 `research/active`, or `main`. The branch pins source archive metadata to the source commit, provides
 a read-only Linux systemd host adapter, and stages content-addressed Linux release candidates.
+Linux ext4 identity binds mountinfo's source to the exact block major:minor, then reconciles a
+canonical UUID from `findmnt` with any root-owned `/dev/disk/by-uuid` link targeting that device.
+If `findmnt` has no UUID, one unique matching udev link may supply it; conflicts, malformed or
+ambiguous matching links, and unsafe directory ownership fail closed.
 Release identity binds the wheel SHA-256 to the resolved Python path, version, SOABI, and installer
 schema. Each candidate has its own version-specific disabled unit; staging never switches a pointer,
 starts, or enables it. Wheel installation and import probing run as `nobody`; promoted files are
@@ -311,6 +315,17 @@ tree-wide Ruff findings outside the changed Linux files, so typecheck and full p
 No provider traffic, credentials, protected data, restored Brain root, CUDA, or NVIDIA capability
 was used or qualified.
 
+The first real ext4 descriptor-writer detach rehearsal used a separate disposable loop image and a
+pre-recorded underlay sentinel. Detaching before writer revalidation failed closed before a write.
+After successful revalidation, `mkdir`, create, and atomic rename completed on the held ext4
+descriptor and were read back after remount; append-open rejected with
+`mountpoint_directory_fallback`, and its existing contents remained unchanged. The complete
+underlay inventory and sentinel hash matched before and after. A temporary read ACL on only the
+exact disposable loop device allowed the existing unprivileged UUID probe to observe its UUID;
+that ACL and a temporary UUID link were removed immediately afterward. This is a test setup detail,
+not a deployment permission model. See the immutable
+[`ext4 writer detach receipt`](evidence/brain-linux-ext4-writer-detach-2026-10-18.json).
+
 This proves clean Linux setup, repeated package-build identity, inert staging, synthetic idle restore
 and explicit activation, bounded maintenance, stop/finalize, and verifier recovery after reboot. It
 does not qualify production or arbitrary restored-state modes, source authenticity beyond the
@@ -318,8 +333,8 @@ trusted Git checkout and builder, Linux research-data writer semantics, boot-tim
 ARM64, Windows/WSL, macOS-to-Linux payload portability, CUDA, or NVIDIA. The immutable
 [`Linux portability receipt`](evidence/brain-linux-portability-2026-10-18.json) records exact
 artifacts, lifecycle hashes, host facts, failures, and limitations. The next architecture horizon is
-the Linux storage writer contract: mount identity, descriptor-bound writes, crash consistency, and
-recovery must be reviewed and qualified before Linux can host real research data.
+failure/restart and recovery semantics for Linux attachment and service state, followed by remaining
+storage-writer boundaries; crash consistency and real research-data use remain unqualified.
 
 ## Current readiness
 

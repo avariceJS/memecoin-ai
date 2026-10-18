@@ -5,6 +5,7 @@ import os
 import shutil
 import stat
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -311,6 +312,58 @@ def test_linux_mountinfo_parser_decodes_mountpoint_and_keeps_identity_fields() -
             "source": "/dev/loop3",
         }
     ]
+
+
+@pytest.mark.parametrize(
+    ("findmnt_uuid", "linked_uuids", "expected"),
+    [
+        (UUID, [UUID], UUID),
+        (UUID, [], UUID),
+        ("", [UUID], UUID),
+    ],
+)
+def test_linux_uuid_sources_accept_single_agreeing_identity(
+    findmnt_uuid: str, linked_uuids: list[str], expected: str
+) -> None:
+    assert research_storage._select_linux_volume_uuid(findmnt_uuid, linked_uuids) == expected
+
+
+def test_linux_uuid_sources_reject_conflicts_duplicates_and_absence() -> None:
+    with pytest.raises(StorageError, match="volume_uuid_source_conflict"):
+        research_storage._select_linux_volume_uuid(UUID, ["aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"])
+    with pytest.raises(StorageError, match="ambiguous_volume_uuid_link"):
+        research_storage._select_linux_volume_uuid(
+            "", [UUID, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"]
+        )
+    with pytest.raises(StorageError, match="volume_uuid_unavailable"):
+        research_storage._select_linux_volume_uuid("", [])
+
+
+def test_linux_uuid_sources_reject_malformed_findmnt_identity() -> None:
+    with pytest.raises(StorageError, match="invalid_volume_uuid"):
+        research_storage._canonical_linux_uuid("not-a-uuid")
+
+
+def test_linux_uuid_link_requires_canonical_name_and_matching_device() -> None:
+    assert research_storage._matching_linux_uuid_link(UUID, "7:3", "7:3") == UUID
+    assert research_storage._matching_linux_uuid_link(UUID, "7:4", "7:3") is None
+    with pytest.raises(StorageError, match="invalid_volume_uuid_link"):
+        research_storage._matching_linux_uuid_link("not-a-uuid", "7:3", "7:3")
+
+
+@pytest.mark.parametrize(
+    "directory_stat",
+    [
+        SimpleNamespace(st_mode=stat.S_IFDIR | 0o777, st_uid=0),
+        SimpleNamespace(st_mode=stat.S_IFDIR | 0o755, st_uid=501),
+        SimpleNamespace(st_mode=stat.S_IFREG | 0o755, st_uid=0),
+    ],
+)
+def test_linux_uuid_directory_must_be_root_owned_and_not_untrusted_writable(
+    directory_stat: SimpleNamespace,
+) -> None:
+    with pytest.raises(StorageError, match="unsafe_volume_uuid_directory"):
+        research_storage._validate_linux_uuid_directory(directory_stat)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(

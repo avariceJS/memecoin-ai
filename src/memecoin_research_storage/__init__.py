@@ -145,7 +145,9 @@ class LinuxExt4VolumeProbe:
                 text=True,
                 timeout=10,
             )
-            volume_uuid = uuid_result.stdout.strip()
+            findmnt_uuid = _canonical_linux_uuid(uuid_result.stdout.strip())
+            linked_uuids = _linux_uuid_links_for_device(record["major_minor"])
+            volume_uuid = _select_linux_volume_uuid(findmnt_uuid, linked_uuids)
             vfs = os.statvfs(mount_path)
             mount_stat = mount_path.stat()
             mount_dev = f"{os.major(mount_stat.st_dev)}:{os.minor(mount_stat.st_dev)}"
@@ -170,6 +172,121 @@ class LinuxExt4VolumeProbe:
             source=source,
             mount_root=str(record["mount_root"]),
         )
+
+
+def _canonical_linux_uuid(value: str) -> str:
+    if not value:
+        return ""
+    try:
+        return str(uuid.UUID(value))
+    except (ValueError, AttributeError) as exc:
+        raise StorageError("invalid_volume_uuid") from exc
+
+
+def _select_linux_volume_uuid(findmnt_uuid: str, linked_uuids: list[str] | None) -> str:
+    if linked_uuids is not None and len(linked_uuids) > 1:
+        raise StorageError("ambiguous_volume_uuid_link")
+    linked_uuid = linked_uuids[0] if linked_uuids else ""
+    if findmnt_uuid and linked_uuid and findmnt_uuid != linked_uuid:
+        raise StorageError("volume_uuid_source_conflict")
+    volume_uuid = findmnt_uuid or linked_uuid
+    if not volume_uuid:
+        raise StorageError("volume_uuid_unavailable")
+    return volume_uuid
+
+
+def _matching_linux_uuid_link(name: str, target_device: str, expected_device: str) -> str | None:
+    if target_device != expected_device:
+        return None
+    try:
+        canonical = _canonical_linux_uuid(name)
+    except StorageError as exc:
+        raise StorageError("invalid_volume_uuid_link") from exc
+    if canonical != name:
+        raise StorageError("invalid_volume_uuid_link")
+    return canonical
+
+
+def _validate_linux_uuid_directory(info: os.stat_result) -> None:
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022:
+        raise StorageError("unsafe_volume_uuid_directory")
+
+
+def _linux_uuid_links_for_device(major_minor: str) -> list[str] | None:
+    """Return UUID symlink names that point at the mounted block device.
+
+    `/dev/disk/by-uuid` is udev-owned identity metadata. Its target is only
+    accepted when it resolves to a direct block node beneath `/dev` with the
+    major:minor already established by mountinfo and the mount source.
+    """
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC | os.O_NOFOLLOW
+    opened: list[int] = []
+    try:
+        directory_fd = os.open("/dev", flags)
+        opened.append(directory_fd)
+        _validate_linux_uuid_directory(os.fstat(directory_fd))
+        for component in ("disk", "by-uuid"):
+            try:
+                directory_fd = os.open(component, flags, dir_fd=directory_fd)
+            except FileNotFoundError:
+                return None
+            opened.append(directory_fd)
+            _validate_linux_uuid_directory(os.fstat(directory_fd))
+        uuid_fd = opened[-1]
+        dev_fd = opened[0]
+        matches: list[str] = []
+        for name in os.listdir(uuid_fd):
+            try:
+                before = os.stat(name, dir_fd=uuid_fd, follow_symlinks=False)
+            except FileNotFoundError:
+                continue
+            if not stat.S_ISLNK(before.st_mode):
+                continue
+            if before.st_uid != 0:
+                raise StorageError("unsafe_volume_uuid_link")
+            target = os.readlink(name, dir_fd=uuid_fd)
+            if os.path.isabs(target):
+                normalized = os.path.normpath(target)
+            else:
+                normalized = os.path.normpath(os.path.join("/dev/disk/by-uuid", target))
+            if os.path.dirname(normalized) != "/dev":
+                try:
+                    resolved_stat = os.stat(name, dir_fd=uuid_fd, follow_symlinks=True)
+                except FileNotFoundError:
+                    continue
+                if stat.S_ISBLK(resolved_stat.st_mode):
+                    resolved_device = (
+                        f"{os.major(resolved_stat.st_rdev)}:{os.minor(resolved_stat.st_rdev)}"
+                    )
+                    if resolved_device == major_minor:
+                        raise StorageError("unsafe_volume_uuid_link")
+                continue
+            target_name = os.path.basename(normalized)
+            if target_name in ("", ".", ".."):
+                continue
+            try:
+                target_stat = os.stat(target_name, dir_fd=dev_fd, follow_symlinks=False)
+            except FileNotFoundError:
+                continue
+            after = os.stat(name, dir_fd=uuid_fd, follow_symlinks=False)
+            if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+                raise StorageError("volume_uuid_link_changed")
+            if not stat.S_ISBLK(target_stat.st_mode):
+                continue
+            target_device = f"{os.major(target_stat.st_rdev)}:{os.minor(target_stat.st_rdev)}"
+            if target_device != major_minor:
+                continue
+            canonical = _matching_linux_uuid_link(name, target_device, major_minor)
+            assert canonical is not None
+            matches.append(canonical)
+        return matches
+    except StorageError:
+        raise
+    except OSError as exc:
+        raise StorageError(f"linux_volume_uuid_links_failed: {exc}") from exc
+    finally:
+        for fd in reversed(opened):
+            os.close(fd)
 
 
 def _mountinfo_unescape(value: str) -> str:
