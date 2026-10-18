@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from memecoin_operator import linux_host_prerequisites
 from memecoin_operator import linux_service_identity as identity
 
 
@@ -48,6 +49,11 @@ def _configure(
         raise AssertionError(argv)
 
     monkeypatch.setattr(identity, "_run", run)
+    monkeypatch.setattr(
+        identity.linux_host_prerequisites,
+        "require_null_device",
+        lambda _username="brain": {"valid": True},
+    )
     return home, account
 
 
@@ -120,6 +126,21 @@ def test_identity_refuses_unlocked_password(monkeypatch, tmp_path):
         ),
     )
     with pytest.raises(identity.IdentityError, match="service_password_unlocked"):
+        identity.snapshot()
+
+
+def test_linux_identity_refuses_unusable_null_device(monkeypatch, tmp_path):
+    _configure(monkeypatch, tmp_path)
+    monkeypatch.setattr(identity.platform, "system", lambda: "Linux")
+
+    def refuse(_username="brain"):
+        raise linux_host_prerequisites.HostPrerequisiteError("null_device_owner_or_mode_mismatch")
+
+    monkeypatch.setattr(identity.linux_host_prerequisites, "require_null_device", refuse)
+    with pytest.raises(
+        identity.IdentityError,
+        match="host_prerequisite_refused:null_device_owner_or_mode_mismatch",
+    ):
         identity.snapshot()
 
 

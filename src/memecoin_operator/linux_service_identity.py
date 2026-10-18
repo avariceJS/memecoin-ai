@@ -6,6 +6,7 @@ import grp
 import hashlib
 import json
 import os
+import platform
 import pwd
 import re
 import shlex
@@ -13,6 +14,8 @@ import stat
 import subprocess
 from pathlib import Path
 from typing import Any
+
+from memecoin_operator import linux_host_prerequisites
 
 SCHEMA = "brain-linux-service-identity-v1"
 ADMIN_GROUPS = frozenset(
@@ -173,6 +176,11 @@ def snapshot() -> dict[str, Any]:
     groups = _group_inventory(account.pw_name, account.pw_gid)
     password_locked = _password_is_locked(account.pw_name)
     keys = _authorized_key_paths(account.pw_name, account.pw_uid, home)
+    if platform.system() == "Linux":
+        try:
+            linux_host_prerequisites.require_null_device(account.pw_name)
+        except linux_host_prerequisites.HostPrerequisiteError as exc:
+            raise IdentityError(f"host_prerequisite_refused:{exc}") from exc
     value = {
         "schema": SCHEMA,
         "username": account.pw_name,

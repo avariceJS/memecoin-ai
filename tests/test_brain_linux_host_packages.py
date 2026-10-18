@@ -287,7 +287,8 @@ def test_apply_rejects_bound_host_or_dpkg_drift(monkeypatch, tmp_path, drift, ex
     os.close(lock)
 
 
-def test_mocked_successful_apply_is_digest_bound_and_seals_receipt(monkeypatch, tmp_path):
+@pytest.mark.parametrize("post_mode", [0o666, 0o644])
+def test_mocked_apply_seals_exact_device_postcondition(monkeypatch, tmp_path, post_mode):
     monkeypatch.setattr(host.os, "geteuid", lambda: 0)
     receipts = tmp_path / "receipts"
     receipts.mkdir()
@@ -320,6 +321,31 @@ def test_mocked_successful_apply_is_digest_bound_and_seals_receipt(monkeypatch, 
     monkeypatch.setattr(host, "_require_snapshot", lambda _snap: {})
     monkeypatch.setattr(host, "_unit_inventory", lambda: {})
     monkeypatch.setattr(host, "_active_units", lambda: {})
+    null_device = {
+        "path": "/dev/null",
+        "file_type": "character",
+        "rdev_major": 1,
+        "rdev_minor": 3,
+        "uid": 0,
+        "gid": 0,
+        "mode": 0o666,
+        "inode": 1,
+        "st_dev_major": 0,
+        "st_dev_minor": 1,
+        "service_username": "brain",
+        "service_uid": 999,
+        "service_gid": 988,
+        "service_write_open": True,
+        "valid": True,
+        "errors": [],
+    }
+    device_after = {
+        **null_device,
+        "mode": post_mode,
+        "valid": post_mode == 0o666,
+        "errors": [] if post_mode == 0o666 else ["null_device_owner_or_mode_mismatch"],
+    }
+    monkeypatch.setattr(host.linux_host_prerequisites, "inspect_null_device", lambda: device_after)
     requested = {
         name: f"{index + 1}.0" for index, name in enumerate(host.shared.ROLES["inert-service-host"])
     }
@@ -348,6 +374,7 @@ def test_mocked_successful_apply_is_digest_bound_and_seals_receipt(monkeypatch, 
         "source_commit": "a" * 40,
         "workspace": str(workspace),
         "host": {"machine_id_sha256": "host", "keyring_sha256": host._sha(b"key")},
+        "null_device_before": null_device,
         "tool_sha256": host._file_sha(Path(host.__file__)),
         "shared_tool_sha256": host._file_sha(Path(host.shared.__file__)),
         "source_capability_tool_sha256": host._sha(b"tool"),
@@ -366,8 +393,24 @@ def test_mocked_successful_apply_is_digest_bound_and_seals_receipt(monkeypatch, 
     }
     digest = host._sha(host._canonical(plan))
     plan["plan_sha256"] = digest
-    result = host.apply_plan(receipts / f"plan-{digest}.json", digest)
+    if post_mode == 0o666:
+        result = host.apply_plan(receipts / f"plan-{digest}.json", digest)
+        expected_status = "applied"
+    else:
+        with pytest.raises(
+            host.HostProvisionError,
+            match="package_apply_recorded:host_device_postcondition_failed",
+        ):
+            host.apply_plan(receipts / f"plan-{digest}.json", digest)
+        result = {"receipt": str(receipts / f"applied-{digest}.json")}
+        expected_status = "host_device_postcondition_failed"
     os.close(lock)
-    assert result["status"] == "applied"
+    assert expected_status == (
+        "applied" if post_mode == 0o666 else "host_device_postcondition_failed"
+    )
     assert Path(result["receipt"]).is_file()
+    receipt = json.loads(Path(result["receipt"]).read_text(encoding="utf-8"))
+    assert receipt["status"] == expected_status
+    assert receipt["null_device_before"] == null_device
+    assert receipt["null_device_after"] == device_after
     assert not host.POLICY_RC.exists()

@@ -29,7 +29,7 @@ except ModuleNotFoundError:  # Direct ``python tools/...`` execution puts tools/
 SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src"
 if str(SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(SOURCE_ROOT))
-from memecoin_operator import linux_service_identity  # noqa: E402
+from memecoin_operator import linux_host_prerequisites, linux_service_identity  # noqa: E402
 
 ROOT = Path("/var/lib/brain-host-provision")
 SOURCE = ROOT / "ubuntu.sources"
@@ -254,13 +254,21 @@ def _host_identity() -> dict[str, Any]:
         service_identity = linux_service_identity.snapshot()
     except linux_service_identity.IdentityError as exc:
         raise HostProvisionError(f"service_identity_refused:{exc}") from exc
+    try:
+        null_device = linux_host_prerequisites.require_null_device()
+    except linux_host_prerequisites.HostPrerequisiteError as exc:
+        raise HostProvisionError(f"host_prerequisite_refused:{exc}") from exc
     return {
         "os_release_sha256": _file_sha(Path("/etc/os-release")),
         "architecture": platform.machine(),
         "machine_id_sha256": _sha(machine_id.encode()),
         "service_identity": service_identity,
+        "null_device": linux_host_prerequisites.null_device_contract(null_device),
         "service_identity_tool_sha256": _file_sha(
             SOURCE_ROOT / "memecoin_operator/linux_service_identity.py"
+        ),
+        "host_prerequisite_tool_sha256": _file_sha(
+            SOURCE_ROOT / "memecoin_operator/linux_host_prerequisites.py"
         ),
         "keyring_sha256": _file_sha(KEYRING),
     }
@@ -521,6 +529,7 @@ def _create_plan_unlocked(
         raise HostProvisionError("invalid_source_commit")
     shared._validate_snapshot(snapshot)
     host = _host_identity()
+    null_device_before = linux_host_prerequisites.require_null_device()
     _unit_inventory()
     _require_snapshot(snapshot)
     capability = _capability(workspace, source_commit, role)
@@ -534,6 +543,7 @@ def _create_plan_unlocked(
         "source_commit": source_commit,
         "workspace": str(workspace.resolve()),
         "host": host,
+        "null_device_before": null_device_before,
         "tool_sha256": _file_sha(Path(__file__).resolve()),
         "shared_tool_sha256": _file_sha(Path(shared.__file__).resolve()),
         "source_capability_tool_sha256": _file_sha(
@@ -731,6 +741,7 @@ def apply_plan(plan_path: Path, plan_sha256: str) -> dict[str, Any]:
         package_effect_error = installed_after != expected_after
         active_units_after = _active_units()
         unit_state_changed = active_units_after != plan["active_units"]
+        null_device_after = linux_host_prerequisites.inspect_null_device()
         outcome = (
             "apply_failed"
             if error
@@ -738,12 +749,16 @@ def apply_plan(plan_path: Path, plan_sha256: str) -> dict[str, Any]:
             if after_error or unit_state_changed or service_journal_effect or not policy_cleaned
             else "package_state_did_not_match_plan"
             if package_effect_error
+            else "host_device_postcondition_failed"
+            if not null_device_after["valid"]
             else "applied"
         )
         receipt = {
             "schema": "brain-linux-host-package-apply-v1",
             "plan_sha256": digest,
             "host": plan["host"],
+            "null_device_before": plan["null_device_before"],
+            "null_device_after": null_device_after,
             "source_commit": plan["source_commit"],
             "snapshot": plan["snapshot"],
             "source_sha256": plan["source_sha256"],
