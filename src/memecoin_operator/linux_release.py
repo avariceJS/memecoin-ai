@@ -946,6 +946,11 @@ def _validate_discarded_attempt(
 ) -> None:
     if publish_intent is None:
         raise RuntimeError("stage_discard_receipt_mismatch")
+    if any(
+        record.get(key) != publish_intent.get(key)
+        for key in ("release_id", "source_commit", "wheel_sha256", "interpreter")
+    ):
+        raise RuntimeError("release_publish_attempt_mismatch")
     artifacts = _validate_publish_intent(attempt_id, publish_intent)
     expected_intent = {
         "schema": DISCARD_INTENT_SCHEMA,
